@@ -17,7 +17,7 @@ PORT=5000
 
 # Database
 # We use PostgreSQL via Prisma
-DATABASE_URL="postgresql://ims_platform_user:Wn4UAsPITcWuhn0h5ZzzqcRpBKMEvoMN@dpg-d95i5dsvikkc73doi6j0-a/ims_platform"
+DATABASE_URL="postgresql://your_db_user:your_db_password@your_db_host:5432/your_db_name"
 
 # Authentication
 JWT_SECRET="your_super_secret_jwt_key_here"
@@ -73,7 +73,7 @@ The worker node uses the same configuration as the HTTP backend. In production e
 
 ```bash
 RUN_MODE=worker
-DATABASE_URL="postgresql://ims_platform_user:Wn4UAsPITcWuhn0h5ZzzqcRpBKMEvoMN@dpg-d95i5dsvikkc73doi6j0-a/ims_platform"
+DATABASE_URL="postgresql://your_db_user:your_db_password@your_db_host:5432/your_db_name"
 REDIS_URL="redis://localhost:6379"
 # ... copy other required backend keys here
 ```

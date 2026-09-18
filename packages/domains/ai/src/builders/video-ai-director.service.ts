@@ -16,6 +16,7 @@ import {
 } from "@workspace/video-contracts";
 import { ContextResolver } from "./context-resolver";
 import { CreativePlanner } from "./creative-planner";
+import { MediaAnalysisService } from "../media/media-analysis.service";
 import crypto from "crypto";
 
 export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
@@ -62,46 +63,80 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
     });
 
     // 2. Resolve or Build Media Intelligence Graph
-    const mediaGraph: MediaIntelligenceGraph =
-      params.meta?.mediaGraph ||
-      MediaGraphBuilder.build({
+    const technicalMetadata = {
+      durationSeconds: timelineContext.projectDurationSec,
+      width: baseIR.meta.resolution.width,
+      height: baseIR.meta.resolution.height,
+      fps: 30,
+      hasAudio: true,
+      fileSizeBytes: 1024 * 1024 * 20,
+      sha256Hash: "hash_placeholder",
+      isVariableFrameRate: false,
+    };
+    const telemetryTranscript = (params.meta?.telemetry?.transcript || []).map((t: any, idx: number) => ({
+      id: `w_${idx}`,
+      word: t.word,
+      startSeconds: t.startSeconds,
+      endSeconds: t.endSeconds,
+      confidence: t.confidence || 0.95,
+      isEmphasis: t.isEmphasis || false,
+      emphasisScore: t.isEmphasis ? 0.9 : 0.2,
+      energyScore: 0.5,
+    }));
+    const telemetrySilences = (params.meta?.telemetry?.silenceGaps || []).map((s: any, idx: number) => {
+      const start = RationalTimeMath.toSeconds(s.timeRange.start);
+      const dur = RationalTimeMath.toSeconds(s.timeRange.duration);
+      return {
+        id: `sil_${idx}`,
+        timeRange: s.timeRange,
+        startSeconds: start,
+        durationSeconds: dur,
+        averageDecibels: s.averageDecibels || -40,
+        classification: dur > 0.5 ? "DEAD_AIR" as const : "SHORT_NATURAL_PAUSE" as const,
+        recommendation: dur > 0.5 ? "REMOVE" as const : "KEEP" as const,
+        confidence: 0.95,
+        contextReason: "Pause detected via silencedetect",
+      };
+    });
+
+    // A real (non-placeholder) source path lets us run actual ffmpeg scene-cut/silence
+    // detection and transcription instead of falling back to MediaGraphBuilder's empty
+    // defaults for everything except whatever telemetry the caller happened to supply.
+    const primarySourcePath = baseIR.tracks.videoTracks[0]?.clips[0]?.sourcePath;
+    const hasRealSource = !!primarySourcePath && primarySourcePath !== "source.mp4";
+
+    let mediaGraph: MediaIntelligenceGraph;
+    if (params.meta?.mediaGraph) {
+      mediaGraph = params.meta.mediaGraph;
+    } else if (hasRealSource) {
+      try {
+        const analyzedGraph = await MediaAnalysisService.getOrBuildGraph({
+          assetId: timelineContext.assetIds[0] || "asset_01",
+          sourcePath: primarySourcePath!,
+          technicalMetadata,
+          // Don't pay for re-transcription if the caller already supplied a real transcript.
+          skipTranscription: telemetryTranscript.length > 0,
+        });
+        mediaGraph = telemetryTranscript.length > 0
+          ? { ...analyzedGraph, transcript: telemetryTranscript, words: telemetryTranscript }
+          : analyzedGraph;
+      } catch (err: any) {
+        console.warn("[VideoAIDirectorService] real media analysis failed, falling back to placeholder graph:", err?.message);
+        mediaGraph = MediaGraphBuilder.build({
+          assetId: timelineContext.assetIds[0] || "asset_01",
+          technicalMetadata,
+          transcript: telemetryTranscript,
+          silences: telemetrySilences,
+        });
+      }
+    } else {
+      mediaGraph = MediaGraphBuilder.build({
         assetId: timelineContext.assetIds[0] || "asset_01",
-        technicalMetadata: {
-          durationSeconds: timelineContext.projectDurationSec,
-          width: baseIR.meta.resolution.width,
-          height: baseIR.meta.resolution.height,
-          fps: 30,
-          hasAudio: true,
-          fileSizeBytes: 1024 * 1024 * 20,
-          sha256Hash: "hash_placeholder",
-          isVariableFrameRate: false,
-        },
-        transcript: (params.meta?.telemetry?.transcript || []).map((t: any, idx: number) => ({
-          id: `w_${idx}`,
-          word: t.word,
-          startSeconds: t.startSeconds,
-          endSeconds: t.endSeconds,
-          confidence: t.confidence || 0.95,
-          isEmphasis: t.isEmphasis || false,
-          emphasisScore: t.isEmphasis ? 0.9 : 0.2,
-          energyScore: 0.5,
-        })),
-        silences: (params.meta?.telemetry?.silenceGaps || []).map((s: any, idx: number) => {
-          const start = RationalTimeMath.toSeconds(s.timeRange.start);
-          const dur = RationalTimeMath.toSeconds(s.timeRange.duration);
-          return {
-            id: `sil_${idx}`,
-            timeRange: s.timeRange,
-            startSeconds: start,
-            durationSeconds: dur,
-            averageDecibels: s.averageDecibels || -40,
-            classification: dur > 0.5 ? "DEAD_AIR" as const : "SHORT_NATURAL_PAUSE" as const,
-            recommendation: dur > 0.5 ? "REMOVE" as const : "KEEP" as const,
-            confidence: 0.95,
-            contextReason: "Pause detected via silencedetect",
-          };
-        }),
+        technicalMetadata,
+        transcript: telemetryTranscript,
+        silences: telemetrySilences,
       });
+    }
 
     // 3. Formulate Creative Edit Plan
     const creativePlan = await CreativePlanner.plan({

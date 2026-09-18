@@ -84,7 +84,12 @@ export class MultiTakeTranscriber {
     words: TranscriptWord[];
     language: string;
   }> {
-    const apiKey = process.env.CARTESIA_API_KEY || "sk_car_dSSNJERwnECZHh4dspK6kg";
+    const apiKey = process.env.CARTESIA_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        "CARTESIA_API_KEY is not set. Configure it in the environment before calling MultiTakeTranscriber."
+      );
+    }
     const form = new FormData();
     form.append("file", fs.createReadStream(wavPath));
     form.append("model", "ink-whisper");

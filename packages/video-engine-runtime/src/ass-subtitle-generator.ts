@@ -33,13 +33,13 @@ export class AssSubtitleGenerator {
   ): string {
     const lines: string[] = [];
     const isVertical = resolution.height > resolution.width;
-    const marginV = isVertical ? Math.round(resolution.height * 0.22) : 70;
-    const fontSize = isVertical ? Math.max(38, Math.round(resolution.width * 0.058)) : 48;
-    const outlineSize = isVertical ? 4 : 3;
+    const marginV = isVertical ? Math.round(resolution.height * 0.235) : 70;
+    const fontSize = isVertical ? Math.max(42, Math.round(resolution.width * 0.062)) : 52;
+    const outlineSize = isVertical ? 5 : 4;
 
     // 1. Script Info Header
     lines.push("[Script Info]");
-    lines.push("Title: 180 Workspace Autonomous Subtitles");
+    lines.push("Title: 180 Workspace Autonomous Kinetic Subtitles");
     lines.push("ScriptType: v4.00+");
     lines.push("WrapStyle: 0");
     lines.push("ScaledBorderAndShadow: yes");
@@ -51,12 +51,12 @@ export class AssSubtitleGenerator {
     lines.push("[V4+ Styles]");
     lines.push("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding");
     
-    // Hormozi Style (Bold Yellow text, Pure Black outline & shadow, safe margin)
-    lines.push(`Style: HormoziBounce,Arial,${fontSize},&H0000FFFF,&H0000FFFF,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,${outlineSize},3,2,30,30,${marginV},1`);
-    // Ali Abdaal Clean (Elegant White with subtle drop shadow)
-    lines.push(`Style: AbdaalClean,Arial,${Math.round(fontSize * 0.85)},&H00FFFFFF,&H00FFFFFF,&H001A1A1A,&H60000000,0,0,0,0,100,100,0,0,1,2,2,2,30,30,${marginV},1`);
-    // Neon Punch (Vibrant Cyan/Green text)
-    lines.push(`Style: NeonPunch,Arial,${fontSize},&H00FFFF00,&H00FFFF00,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,${outlineSize},3,2,30,30,${marginV},1`);
+    // Hormozi Heavy (Crisp White text, Deep Black 5px outline & 4px shadow for maximum legibility on scrubs)
+    lines.push(`Style: HormoziBounce,Arial Black,${fontSize},&H00FFFFFF,&H0000FFFF,&H00000000,&HB0000000,-1,0,0,0,100,100,0,0,1,${outlineSize},4,2,30,30,${marginV},1`);
+    // Ali Abdaal Clean (Refined White with subtle 3px outline)
+    lines.push(`Style: AbdaalClean,Arial Black,${Math.round(fontSize * 0.88)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,3,2,30,30,${marginV},1`);
+    // Neon Punch (Vibrant Cyan text with pure black border)
+    lines.push(`Style: NeonPunch,Arial Black,${fontSize},&H00FFFF00,&H00FFFF00,&H00000000,&HB0000000,-1,0,0,0,100,100,0,0,1,${outlineSize},4,2,30,30,${marginV},1`);
     lines.push("");
 
     // 3. Dialogue Events
@@ -80,7 +80,7 @@ export class AssSubtitleGenerator {
       let dialogueText = "";
 
       if (cap.words && cap.words.length > 0) {
-        // Build Karaoke string with word timings & highlight effects
+        // Build Karaoke string with word timings & dynamic highlight scale
         dialogueText = cap.words
           .map((w) => {
             const wStart = RationalTimeMath.toSeconds(w.start);
@@ -90,7 +90,7 @@ export class AssSubtitleGenerator {
             const highlightColor = this.hexToAssBgr(w.color || cap.style?.highlightColor || "#FFE600");
             const normalColor = this.hexToAssBgr(cap.style?.textColor || "#FFFFFF", "&H00FFFFFF&");
             const highlightTag = w.highlight
-              ? `{\\c${highlightColor}\\fscx115\\fscy115}`
+              ? `{\\c${highlightColor}\\fscx124\\fscy124\\bord${outlineSize + 1}}`
               : `{\\c${normalColor}\\fscx100\\fscy100}`;
             return `{\\k${durationCs}}${highlightTag}${w.word}{\\r}`;
           })

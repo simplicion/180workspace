@@ -1,4 +1,5 @@
 import { AccessToken } from 'livekit-server-sdk';
+import { getLiveKitCredentials } from '../config/livekit-env';
 
 export interface LiveKitTokenOptions {
   roomName: string;
@@ -15,8 +16,9 @@ export class LiveKitTokenService {
   private livekitUrl: string;
 
   constructor() {
-    this.apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
-    this.apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
+    const { apiKey, apiSecret } = getLiveKitCredentials();
+    this.apiKey = apiKey;
+    this.apiSecret = apiSecret;
     this.livekitUrl = process.env.LIVEKIT_URL || 'ws://host.docker.internal:7880';
   }
 

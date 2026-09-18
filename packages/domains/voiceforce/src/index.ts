@@ -1,3 +1,4 @@
+export * from './config/livekit-env';
 export * from './types/voice.types';
 export * from './engines/base-voice.engine';
 export * from './engines/cascaded.engine';

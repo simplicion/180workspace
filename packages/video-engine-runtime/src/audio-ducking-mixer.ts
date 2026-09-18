@@ -111,13 +111,13 @@ export class AudioDuckingMixer {
       const ratio = Math.abs(config?.duckAmountDb ?? -18.0) / 4;
       filterComplex +=
         `[${bgmIdx}:a]aformat=channel_layouts=stereo:sample_rates=48000[bgm_fmt];` +
-        `[0:a]aformat=channel_layouts=stereo:sample_rates=48000,asplit=2[dia_sc][dia_mix];` +
+        `[0:a]aformat=channel_layouts=stereo:sample_rates=48000,highpass=f=75,equalizer=f=3200:width_type=o:w=1.2:g=2.0,asplit=2[dia_sc][dia_mix];` +
         `[bgm_fmt][dia_sc]sidechaincompress=threshold=${thresholdLin.toFixed(
           4
         )}:ratio=${ratio.toFixed(2)}:attack=${config?.attackMs ?? 120}:release=${config?.releaseMs ?? 350}[ducked_bgm];`;
       mixInputs.push("[dia_mix]", "[ducked_bgm]");
     } else {
-      filterComplex += `[0:a]aformat=channel_layouts=stereo:sample_rates=48000[dia_mix];`;
+      filterComplex += `[0:a]aformat=channel_layouts=stereo:sample_rates=48000,highpass=f=75,equalizer=f=3200:width_type=o:w=1.2:g=2.0[dia_mix];`;
       mixInputs.push("[dia_mix]");
     }
 

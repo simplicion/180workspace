@@ -8,8 +8,12 @@ const cookiePrefix = useSecureCookies ? "__Secure-" : ""
 const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN
 const cookieDomain = process.env.NODE_ENV === "production" && rootDomain ? `.${rootDomain}` : undefined
 
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error("NEXTAUTH_SECRET must be set in the environment — no hardcoded fallback is used.")
+}
+
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET || "5196aa96c36083e22fda242c96eb50b636d481f16da7117177ba037334341575",
+  secret: process.env.NEXTAUTH_SECRET,
   cookies: {
     sessionToken: {
       name: `${cookiePrefix}next-auth.session-token`,

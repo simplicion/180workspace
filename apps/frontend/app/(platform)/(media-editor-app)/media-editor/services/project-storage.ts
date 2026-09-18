@@ -218,7 +218,51 @@ export class ProjectStorageService {
 
     const projects = [newSummary, ...this.getProjects()];
     localStorage.setItem(STORAGE_PROJECTS_KEY, JSON.stringify(projects));
+
+    // Asynchronously sync with PostgreSQL backend DB
+    this.syncProjectToDatabase(newSummary.manifest).catch((err) => {
+      console.warn("[ProjectStorageService] Background DB sync:", err.message);
+    });
+
     return newSummary;
+  }
+
+  static async syncProjectToDatabase(manifest: ProjectPackageManifest): Promise<void> {
+    if (typeof window === "undefined") return;
+    try {
+      const companyId = localStorage.getItem("platform_company_id") || "default_company";
+      const token = localStorage.getItem("platform_auth_token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-company-id": companyId,
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      await fetch("/api/v1/media-editor/projects", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          id: manifest.project.id,
+          name: manifest.project.name,
+          templatePreset: manifest.editIR.directorStyle.preset || "CUSTOM",
+          editIR: manifest.editIR,
+        }),
+      }).catch(async () => {
+        // Fallback route
+        await fetch("/api/v1/workspace-tools/video-studio/projects", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            id: manifest.project.id,
+            name: manifest.project.name,
+            templatePreset: manifest.editIR.directorStyle.preset || "CUSTOM",
+            editIR: manifest.editIR,
+          }),
+        });
+      });
+    } catch (e: any) {
+      console.warn("[ProjectStorageService] Database sync error:", e.message);
+    }
   }
 
   static loadProjectManifest(id: string): ProjectPackageManifest | null {
@@ -262,6 +306,11 @@ export class ProjectStorageService {
     }
 
     localStorage.setItem(STORAGE_PROJECTS_KEY, JSON.stringify(projects));
+
+    // Asynchronously sync with PostgreSQL backend DB
+    this.syncProjectToDatabase(manifest).catch((err) => {
+      console.warn("[ProjectStorageService] Background DB sync:", err.message);
+    });
   }
 
   static duplicateProject(id: string): SavedProjectSummary | null {

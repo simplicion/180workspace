@@ -19,6 +19,7 @@ import { VoiceComplianceGuard } from '../compliance/voice-compliance.guard';
 import { HumanEscalationService } from '../telephony/human-escalation.service';
 import { VoiceBillingService } from '../billing/voice-billing.service';
 import { VoiceforcePromptService } from '../prompts/voiceforce-prompts';
+import { getLiveKitCredentials } from '../config/livekit-env';
 
 export interface LiveKitRoomWorkerOptions {
   callSessionId: string;
@@ -52,9 +53,7 @@ export class LiveKitRoomWorker {
 
   constructor(options: LiveKitRoomWorkerOptions) {
     this.options = options;
-    const apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
-    const apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
-    const livekitHost = process.env.LIVEKIT_URL || process.env.LIVEKIT_HOST || 'https://livekit.180workspace.com';
+    const { apiKey, apiSecret, url: livekitHost } = getLiveKitCredentials();
 
     this.roomService = new RoomServiceClient(livekitHost, apiKey, apiSecret);
     this.sipClient = new SipClient(livekitHost, apiKey, apiSecret);
@@ -136,9 +135,7 @@ export class LiveKitRoomWorker {
 
     // 2b. Connect WebRTC RTC Agent & Publish Audio Track to LiveKit Room
     try {
-      const apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
-      const apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
-      const livekitHost = process.env.LIVEKIT_URL || process.env.LIVEKIT_HOST || 'https://livekit.180workspace.com';
+      const { apiKey, apiSecret, url: livekitHost } = getLiveKitCredentials();
 
       const agentToken = new AccessToken(apiKey, apiSecret, {
         identity: `agent_${voiceAgentId.slice(0, 8)}_${Date.now()}`,

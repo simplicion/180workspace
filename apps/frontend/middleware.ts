@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || "5196aa96c36083e22fda242c96eb50b636d481f16da7117177ba037334341575";
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
+if (!NEXTAUTH_SECRET) {
+  throw new Error("NEXTAUTH_SECRET must be set in the environment — no hardcoded fallback is used.");
+}
 
 const domainRegistryCache = new Map<string, { type: string; slug?: string; expiresAt: number }>();
 

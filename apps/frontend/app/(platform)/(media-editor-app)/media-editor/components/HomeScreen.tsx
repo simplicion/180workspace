@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Folder,
   Plus,
@@ -48,6 +48,46 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setFolders(ProjectStorageService.getFolders());
     setProjects(ProjectStorageService.getProjects());
   };
+
+  useEffect(() => {
+    // Sync with database on mount
+    const fetchDbProjects = async () => {
+      try {
+        const companyId = localStorage.getItem("platform_company_id") || "default_company";
+        const token = localStorage.getItem("platform_auth_token");
+        const headers: Record<string, string> = { "x-company-id": companyId };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch("/api/v1/media-editor/projects", { headers }).catch(async () => {
+          return await fetch("/api/v1/workspace-tools/video-studio/projects", { headers });
+        });
+        const data = await res.json();
+        if (data?.success && Array.isArray(data.data)) {
+          for (const dbProj of data.data) {
+            if (dbProj.editIR) {
+              ProjectStorageService.saveProjectManifest({
+                schemaVersion: 1,
+                engineVersion: "0.1.0",
+                project: {
+                  id: dbProj.id,
+                  name: dbProj.name,
+                  createdAt: dbProj.createdAt || new Date().toISOString(),
+                  updatedAt: dbProj.updatedAt || new Date().toISOString(),
+                },
+                assets: [],
+                editIR: dbProj.editIR,
+                history: [],
+              });
+            }
+          }
+          refreshData();
+        }
+      } catch (err) {
+        console.warn("DB project sync on mount:", err);
+      }
+    };
+    fetchDbProjects();
+  }, []);
 
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault();

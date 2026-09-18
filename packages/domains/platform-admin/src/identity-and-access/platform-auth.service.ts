@@ -3,7 +3,10 @@ import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 
 const signToken = (admin: any) => {
-    const secret = process.env.SUPER_ADMIN_JWT_SECRET || '5fb4fef8182e2367cc0f2fb30acb89460f30e04d619dabc573e62d025ca2ff75';
+    const secret = process.env.SUPER_ADMIN_JWT_SECRET;
+    if (!secret) {
+        throw new Error('SUPER_ADMIN_JWT_SECRET must be set in the environment — no hardcoded fallback is used.');
+    }
     return jwt.sign(
         { id: admin.id, role: 'superadmin', email: admin.email },
         secret,
@@ -54,9 +57,12 @@ export class PlatformAuthService {
         
         let valid = await bcrypt.compare(password, admin.passwordHash);
         if (!valid) {
-            // Check against master admin credentials
-            const masterPw = process.env.ADMIN_PASSWORD || 'PrincePassword123!';
-            if (password === '36413333' || password === masterPw || password === 'PrincePassword123!') {
+            // Check against master admin recovery credentials — both must come from the
+            // environment with no hardcoded literal fallback; either one unset simply
+            // disables that recovery path instead of falling back to a baked-in secret.
+            const masterPw = process.env.ADMIN_PASSWORD;
+            const masterPin = process.env.ADMIN_MASTER_PIN;
+            if ((masterPw && password === masterPw) || (masterPin && password === masterPin)) {
                 valid = true;
                 // Automatically update password hash in DB for seamless future bcrypt comparisons
                 const updatedHash = await bcrypt.hash(password, 12);

@@ -47,7 +47,7 @@ export class MoodClassifierTool extends VideoDirectorTool<MoodClassifierInput, M
 
     // 1. Compile full text context from curated narrative
     const combinedTranscript = segmentsToScan
-      .map((s: any) => (s.text || s.transcript || (s.words ? s.words.map((w: any) => w.word).join(" ") : "")))
+      .map((s: any) => (s.transcriptText || s.text || s.transcript || (s.words ? s.words.map((w: any) => w.word).join(" ") : "")))
       .join(" ");
 
     // 2. Select Skill
@@ -76,7 +76,7 @@ export class MoodClassifierTool extends VideoDirectorTool<MoodClassifierInput, M
 
     for (let i = 0; i < segmentsToScan.length; i++) {
       const seg = segmentsToScan[i];
-      const text = (seg.text || (seg.words ? seg.words.map((w: any) => w.word).join(" ") : "")).toLowerCase();
+      const text = (seg.transcriptText || seg.text || seg.transcript || (seg.words ? seg.words.map((w: any) => w.word).join(" ") : "")).toLowerCase();
       const segDuration = seg.durationSec || seg.duration || 10.0;
       let matchedInSegment = false;
 

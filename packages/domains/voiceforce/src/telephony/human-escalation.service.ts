@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { prisma } from '@workspace/db';
 import { AccessToken } from 'livekit-server-sdk';
+import { getLiveKitCredentials } from '../config/livekit-env';
 
 export interface EscalationCheckResult {
   shouldEscalate: boolean;
@@ -107,8 +108,7 @@ export class HumanEscalationService {
     operatorUserId: string,
     operatorName: string
   ): Promise<string> {
-    const apiKey = process.env.LIVEKIT_API_KEY || 'API_KEY_180VOICEFORCE';
-    const apiSecret = process.env.LIVEKIT_API_SECRET || 'SECRET_KEY_180VOICEFORCE_ENTERPRISE_TOKEN';
+    const { apiKey, apiSecret } = getLiveKitCredentials();
 
     const at = new AccessToken(apiKey, apiSecret, {
       identity: `operator_${operatorUserId}`,
