@@ -41,6 +41,11 @@ router.post('/public/:token/approve-batch', async (req: Request, res: Response) 
         const { clientNotes } = req.body;
         const result = await ClientReviewService.batchApproveSession(req.params.token, clientNotes);
         res.json(result);
+    } catch (error: any) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
 export const publicReviewRouter = Router();
 
 // Public handlers supported at root of publicReviewRouter
