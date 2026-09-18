@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { 
   GitFork, ArrowLeft, Plus, Play, Layers, ShieldCheck, Shield,
   Trash2, ArrowUp, ArrowDown, ExternalLink, Power, Check, Copy, Globe, Smartphone, Bot, Clock, Code, Flame,
-  ArrowRightLeft, Eye
+  ArrowRightLeft, Eye, BarChart3, Activity
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -17,6 +17,7 @@ import CreateRuleModal from '../../../_components/CreateRuleModal';
 import EditRuleModal from '../../../_components/EditRuleModal';
 import EmbedTagModal from '../../../_components/EmbedTagModal';
 import EditLinkModal from '../../../_components/EditLinkModal';
+import LinkAnalyticsTab from './_components/LinkAnalyticsTab';
 
 export default function SmartLinkRuleCanvasPage() {
   const params = useParams();
@@ -24,6 +25,7 @@ export default function SmartLinkRuleCanvasPage() {
 
   const [linkData, setLinkData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'rules' | 'analytics'>('rules');
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
@@ -282,14 +284,55 @@ export default function SmartLinkRuleCanvasPage() {
         </div>
       </div>
 
-      {/* Deployment Strategy Switcher & Status Bar */}
-      <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/90 dark:border-gray-800 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-800">
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-                Deployment Architecture
-              </h3>
+      {/* Primary Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800 pb-2">
+        <button
+          onClick={() => setActiveTab('rules')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeTab === 'rules'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+              : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Routing Rules & Setup</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+            activeTab === 'rules' ? 'bg-indigo-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+          }`}>
+            {linkData.rules?.length || 0}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('analytics')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeTab === 'analytics'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+              : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Traffic Analytics & Cloaking Breakdown</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+            activeTab === 'analytics' ? 'bg-indigo-500 text-white' : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+          }`}>
+            {linkData.totalClicks || 0} views
+          </span>
+        </button>
+      </div>
+
+      {activeTab === 'analytics' ? (
+        <LinkAnalyticsTab linkId={linkId} linkData={linkData} />
+      ) : (
+        <div className="space-y-6">
+          {/* Deployment Strategy Switcher & Status Bar */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200/90 dark:border-gray-800 shadow-xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-800">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                    Deployment Architecture
+                  </h3>
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                 shieldMode === 'server' 
                   ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
@@ -750,5 +793,7 @@ export default function SmartLinkRuleCanvasPage() {
         )}
       </div>
     </div>
+  )}
+</div>
   );
 }

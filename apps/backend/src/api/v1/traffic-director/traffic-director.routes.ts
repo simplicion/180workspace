@@ -16,6 +16,7 @@ router.post('/links', TrafficDirectorController.createLink);
 router.post('/links/bulk-delete', TrafficDirectorController.bulkDeleteLinks);
 router.delete('/links/bulk', TrafficDirectorController.bulkDeleteLinks);
 router.get('/links/:linkId', TrafficDirectorController.getLinkById);
+router.get('/links/:linkId/analytics', TrafficDirectorController.getLinkAnalytics);
 router.put('/links/:linkId', TrafficDirectorController.updateLink);
 router.patch('/links/:linkId', TrafficDirectorController.updateLink);
 router.delete('/links/:linkId', TrafficDirectorController.deleteLink);

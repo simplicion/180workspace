@@ -34,7 +34,7 @@ const getBaseURL = () => {
 
 const api = axios.create({
     baseURL: getBaseURL(),
-    timeout: 15 * 1000,
+    timeout: 30 * 1000,
 });
 
 // Helper to get token from storage or cookies (subdomain sharing)

@@ -384,10 +384,42 @@ export class TrafficDirectorController {
   }
 
   // ─── Analytics & Simulator ─────────────────────────────────────────
+  static async getLinkAnalytics(req: Request, res: Response) {
+    try {
+      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const linkId = String(req.params.linkId);
+      const { timeRange, startDate, endDate, country, routingAction, isBot, deviceType } = req.query;
+
+      const result = await TrafficAnalyticsService.getLinkAnalytics(companyId, linkId, {
+        timeRange: (timeRange as any) || 'today',
+        startDate: startDate ? String(startDate) : undefined,
+        endDate: endDate ? String(endDate) : undefined,
+        country: country ? String(country) : undefined,
+        routingAction: (routingAction as any) || 'all',
+        isBot: isBot !== undefined ? isBot === 'true' : undefined,
+        deviceType: deviceType ? String(deviceType) : undefined
+      });
+
+      return res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.getLinkAnalytics]', error);
+      return res.status(error.message?.includes('not found') ? 404 : 500).json({ 
+        success: false, 
+        error: error.message || 'Failed to fetch link analytics' 
+      });
+    }
+  }
+
   static async getOverviewStats(req: Request, res: Response) {
     try {
       const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
-      const result = await TrafficAnalyticsService.getOverviewStats(companyId);
+      const { timeRange, startDate, endDate } = req.query;
+
+      const result = await TrafficAnalyticsService.getOverviewStats(companyId, {
+        timeRange: (timeRange as any) || 'today',
+        startDate: startDate ? String(startDate) : undefined,
+        endDate: endDate ? String(endDate) : undefined
+      });
       return res.json({ success: true, data: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.getOverviewStats]', error);
@@ -398,11 +430,18 @@ export class TrafficDirectorController {
   static async getLogs(req: Request, res: Response) {
     try {
       const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
-      const { linkId, isBot, page, limit } = req.query;
+      const { linkId, isBot, timeRange, startDate, endDate, action, country, deviceType, search, page, limit } = req.query;
 
       const result = await TrafficAnalyticsService.getLogs(companyId, {
         linkId: linkId ? String(linkId) : undefined,
         isBot: isBot !== undefined ? isBot === 'true' : undefined,
+        timeRange: (timeRange as any) || undefined,
+        startDate: startDate ? String(startDate) : undefined,
+        endDate: endDate ? String(endDate) : undefined,
+        action: (action as any) || undefined,
+        country: country ? String(country) : undefined,
+        deviceType: deviceType ? String(deviceType) : undefined,
+        search: search ? String(search) : undefined,
         page: page ? parseInt(page as string, 10) : 1,
         limit: limit ? parseInt(limit as string, 10) : 50
       });
