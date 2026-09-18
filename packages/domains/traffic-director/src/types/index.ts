@@ -142,3 +142,96 @@ export interface UpdateTrafficRuleDTO {
   isActive?: boolean;
 }
 
+// ─── Analytics & Telemetry Types ──────────────────────────────────────────────
+
+export type AnalyticsTimeRange = 'today' | 'yesterday' | '24h' | '7d' | '30d' | 'this_month' | 'all' | 'custom';
+
+export interface TrafficAnalyticsQueryOptions {
+  timeRange?: AnalyticsTimeRange;
+  startDate?: string | Date;
+  endDate?: string | Date;
+  country?: string;
+  routingAction?: 'all' | 'target_offer' | 'safe_page' | 'bot' | 'datacenter';
+  isBot?: boolean;
+  deviceType?: string;
+  limit?: number;
+  page?: number;
+}
+
+export interface TrafficAnalyticsKPIs {
+  totalViews: number;
+  targetViews: number;
+  safeViews: number;
+  targetRate: number; // percentage 0-100
+  botViews: number;
+  botRate: number; // percentage 0-100
+  datacenterViews: number;
+  datacenterRate: number; // percentage 0-100
+  avgLatencyMs: number;
+  // Period-over-period comparison deltas
+  viewsDeltaPct?: number | null;
+  targetViewsDeltaPct?: number | null;
+  safeViewsDeltaPct?: number | null;
+  targetRateDeltaPct?: number | null;
+  botRateDeltaPct?: number | null;
+}
+
+export interface TrafficTimeseriesPoint {
+  time: string;
+  timestamp: number;
+  label: string;
+  total: number;
+  target: number;
+  safe: number;
+  bot: number;
+  datacenter: number;
+}
+
+export interface TrafficCloakingReason {
+  reasonKey: string;
+  label: string;
+  description: string;
+  count: number;
+  percentage: number;
+  category: 'target' | 'safe' | 'blocked';
+  color: string;
+}
+
+export interface TrafficCountryStat {
+  code: string;
+  name: string;
+  flag: string;
+  total: number;
+  target: number;
+  safe: number;
+  targetRatePct: number;
+  percentage: number;
+}
+
+export interface TrafficBreakdownItem {
+  name: string;
+  count: number;
+  percentage: number;
+  iconName?: string;
+  color?: string;
+}
+
+export interface LinkAnalyticsResponse {
+  linkId?: string;
+  linkName?: string;
+  slug?: string;
+  fallbackUrl?: string;
+  timeRange: AnalyticsTimeRange;
+  startDate: string;
+  endDate: string;
+  kpis: TrafficAnalyticsKPIs;
+  timeseries: TrafficTimeseriesPoint[];
+  cloakingReasons: TrafficCloakingReason[];
+  countryDistribution: TrafficCountryStat[];
+  deviceBreakdown: TrafficBreakdownItem[];
+  osBreakdown: TrafficBreakdownItem[];
+  browserBreakdown: TrafficBreakdownItem[];
+  referrerBreakdown: TrafficBreakdownItem[];
+  asnBreakdown: TrafficBreakdownItem[];
+}
+
