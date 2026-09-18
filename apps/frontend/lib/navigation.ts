@@ -113,11 +113,11 @@ export const navigation = [
         group: 'Social Media',
         appId: 'social-media',
         icon: Share2,
-        roles: ['admin'],
+        roles: ['admin', 'employee'],
         items: [
-            { id: 'content-calendar', name: 'Content Calendar', href: '/content-calendar', icon: CalendarDays, roles: ['admin'] },
-            { id: 'social-media-assets', name: 'Social Media Assets', href: '/social-media-assets', icon: Bookmark, roles: ['admin'] },
-            { id: 'social-inbox', name: 'Unified Social Inbox', href: '/inbox', icon: MessageSquare, roles: ['admin'] },
+            { id: 'content-calendar', name: 'Content Calendar', href: '/content-calendar', icon: CalendarDays, roles: ['admin', 'employee'] },
+            { id: 'social-media-assets', name: 'Social Media Assets & Brand Voice', href: '/social-media-assets', icon: Bookmark, roles: ['admin', 'employee'] },
+            { id: 'social-inbox', name: 'Unified Social Inbox', href: '/inbox', icon: MessageSquare, roles: ['admin', 'employee'] },
         ]
     },
 
