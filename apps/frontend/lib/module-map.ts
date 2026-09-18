@@ -68,6 +68,7 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   // Social Media Management
   '/content-calendar': { appId: 'social-media', moduleId: 'content-calendar' },
   '/social-media-assets': { appId: 'social-media', moduleId: 'social-media-assets' },
+  '/inbox': { appId: 'social-media', moduleId: 'social-inbox' },
 
   // Traffic Director (Smart Routing & Conditional Delivery)
   '/traffic-director': { appId: 'traffic-director', moduleId: 'overview' },

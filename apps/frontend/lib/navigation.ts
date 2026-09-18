@@ -117,6 +117,7 @@ export const navigation = [
         items: [
             { id: 'content-calendar', name: 'Content Calendar', href: '/content-calendar', icon: CalendarDays, roles: ['admin'] },
             { id: 'social-media-assets', name: 'Social Media Assets', href: '/social-media-assets', icon: Bookmark, roles: ['admin'] },
+            { id: 'social-inbox', name: 'Unified Social Inbox', href: '/inbox', icon: MessageSquare, roles: ['admin'] },
         ]
     },
 
