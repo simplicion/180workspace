@@ -17,6 +17,17 @@ import { LogoLoader, UniversalDateTimePicker } from '@workspace/ui';
 import { Drawer } from '@/components/ui/Drawer';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 
+function getCountryFlag(code?: string | null): string {
+  if (!code || typeof code !== 'string' || code.length !== 2) return '🌐';
+  const upper = code.toUpperCase();
+  if (upper === 'XX' || upper === 'UN') return '🌐';
+  try {
+    return String.fromCodePoint(...[...upper].map(c => 127397 + c.charCodeAt(0)));
+  } catch {
+    return '🌐';
+  }
+}
+
 interface LinkAnalyticsTabProps {
   linkId: string;
   linkData: any;
