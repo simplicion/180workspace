@@ -16,8 +16,16 @@ export class SpeechTranscribeTool extends VideoDirectorTool<SpeechTranscribeInpu
   readonly inputSchema = SpeechTranscribeInputSchema;
 
   async execute(input: SpeechTranscribeInput, context: DirectorExecutionContext): Promise<ClipTranscriptionResult[]> {
-    context.log?.(`Transcribing speech across ${input.filePaths.length} media file(s)...`);
-    const results = await MultiTakeTranscriber.transcribeAllClips(input.filePaths, context.tempDir);
+    let files = input.filePaths || [];
+    if (files.length === 0) {
+      const voiceover: any = context.artifacts.get("synthesized_voiceover");
+      if (voiceover?.voiceoverPath) {
+        files = [voiceover.voiceoverPath];
+      }
+    }
+
+    context.log?.(`Transcribing speech across ${files.length} media file(s)...`);
+    const results = await MultiTakeTranscriber.transcribeAllClips(files, context.tempDir);
     context.artifacts.set("transcriptions", results);
     context.onProgress?.(100, `Transcribed ${results.length} clip(s)`);
     return results;

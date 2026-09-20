@@ -66,6 +66,7 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/settings/wallet': { appId: 'system', moduleId: 'wallet' },
   
   // Social Media Management
+  '/social-projects': { appId: 'social-media', moduleId: 'social-projects' },
   '/content-calendar': { appId: 'social-media', moduleId: 'content-calendar' },
   '/social-media-assets': { appId: 'social-media', moduleId: 'social-media-assets' },
   '/inbox': { appId: 'social-media', moduleId: 'social-inbox' },
@@ -245,6 +246,7 @@ export const APPS_CONFIG: AppConfig[] = [
         tag: 'Marketing',
         description: 'Content calendar, asset hub, unified inbox, AI brand voice, and social publishing suite',
         modules: [
+            { id: 'social-projects', name: 'Social Media Projects' },
             { id: 'content-calendar', name: 'Content Calendar' },
             { id: 'social-media-assets', name: 'Social Media Assets' },
             { id: 'social-inbox', name: 'Unified Social Inbox' }

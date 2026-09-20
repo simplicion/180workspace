@@ -15,7 +15,7 @@ import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useNativeEngine } from '@/lib/useNativeEngine';
 import { useSubscription } from '@/lib/useSubscription';
 import clsx from 'clsx';
-import { HelpIcon , LogoLoader } from "@workspace/ui";
+import { HelpIcon , LogoLoader, AICreditProgressWidget } from "@workspace/ui";
 import dynamic from 'next/dynamic';
 import { signOut } from 'next-auth/react';
 import { MeetingProvider, useMeeting } from '@/lib/meeting-context';
@@ -999,6 +999,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                         </div>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3">
+                        <AICreditProgressWidget variant="nav" />
                         <SyncStatusIndicator />
                         <SystemSetupStatus />
                         <ToolsDropdown />

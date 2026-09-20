@@ -17,6 +17,7 @@ export interface CreateSocialPostDTO {
     content: string;
     mediaUrls?: string[];
     rawMediaUrls?: string[];
+    externalStorageLinks?: Array<{ url: string; provider: string; label?: string }>;
     finalVideoUrl?: string;
     thumbnailUrl?: string;
     mediaType?: 'video' | 'image' | 'carousel' | 'document';
@@ -28,6 +29,7 @@ export interface CreateSocialPostDTO {
     socialAccountId?: string;
     variants?: PostVariantInput[];
     metadata?: Record<string, any>;
+    isEvergreen?: boolean;
 }
 
 export class SocialPostService {
@@ -48,12 +50,23 @@ export class SocialPostService {
                 content: data.content,
                 mediaUrls: data.mediaUrls || [],
                 rawMediaUrls: data.rawMediaUrls || [],
+                externalStorageLinks: data.externalStorageLinks || [],
                 finalVideoUrl: data.finalVideoUrl,
                 thumbnailUrl: data.thumbnailUrl,
                 mediaType: data.mediaType || 'video',
                 status: data.scheduledFor ? 'scheduled' : 'draft',
                 scheduledFor: data.scheduledFor ? new Date(data.scheduledFor) : null,
+                isEvergreen: data.isEvergreen || false,
+                versionNumber: 1,
                 metadata: data.metadata || {},
+                history: [
+                    {
+                        version: 1,
+                        action: 'created',
+                        userId,
+                        timestamp: new Date().toISOString()
+                    }
+                ],
                 variants: data.variants && data.variants.length > 0 ? {
                     create: data.variants.map(v => ({
                         platform: v.platform,
@@ -99,18 +112,20 @@ export class SocialPostService {
                 client: true,
                 socialAccount: true,
                 calendar: true,
-                calendarPiece: true
+                calendarPiece: true,
+                repurposedFrom: { select: { id: true, title: true, versionNumber: true } },
+                derivedPosts: { select: { id: true, title: true, status: true, scheduledFor: true } }
             }
         });
 
-        if (!post || post.companyId !== companyId) {
+        if (!post || (companyId && post.companyId !== companyId)) {
             throw new Error('Post not found');
         }
 
         return post;
     }
 
-    static async listPosts(filters?: { projectId?: string; clientId?: string; status?: string; calendarId?: string; limit?: number; offset?: number }) {
+    static async listPosts(filters?: { projectId?: string; clientId?: string; status?: string; calendarId?: string; isEvergreen?: boolean; limit?: number; offset?: number }) {
         const companyId = requestContext.getStore()?.companyId as string;
         if (!companyId) throw new Error('Company context required');
 
@@ -119,6 +134,7 @@ export class SocialPostService {
         if (filters?.clientId) whereClause.clientId = filters.clientId;
         if (filters?.status) whereClause.status = filters.status;
         if (filters?.calendarId) whereClause.calendarId = filters.calendarId;
+        if (filters?.isEvergreen !== undefined) whereClause.isEvergreen = filters.isEvergreen;
 
         const posts = await (prisma as any).socialPost.findMany({
             where: whereClause,
@@ -129,14 +145,15 @@ export class SocialPostService {
                 variants: true,
                 project: { select: { id: true, name: true } },
                 client: { select: { id: true, name: true } },
-                socialAccount: { select: { id: true, platform: true, accountName: true, username: true } }
+                socialAccount: { select: { id: true, platform: true, accountName: true, username: true } },
+                reviewComments: { select: { id: true, resolved: true, authorType: true } }
             }
         });
 
         return posts;
     }
 
-    static async updatePost(id: string, data: Partial<CreateSocialPostDTO> & { status?: string }) {
+    static async updatePost(id: string, data: Partial<CreateSocialPostDTO> & { status?: string }, userId?: string) {
         const companyId = requestContext.getStore()?.companyId as string;
         const existing = await (prisma as any).socialPost.findUnique({ where: { id } });
         if (!existing || existing.companyId !== companyId) throw new Error('Post not found');
@@ -149,6 +166,29 @@ export class SocialPostService {
             updatePayload.scheduledFor = new Date(data.scheduledFor);
         }
 
+        // Versioning check: if post was approved and substantive copy or video changed, bump version
+        let versionBumped = false;
+        let newVersion = existing.versionNumber || 1;
+        if (existing.status === 'approved' && (data.content !== undefined || data.finalVideoUrl !== undefined)) {
+            if ((data.content && data.content !== existing.content) || (data.finalVideoUrl && data.finalVideoUrl !== existing.finalVideoUrl)) {
+                newVersion += 1;
+                updatePayload.versionNumber = newVersion;
+                updatePayload.status = 'in_review'; // Reset status for re-review
+                versionBumped = true;
+            }
+        }
+
+        // Append to history
+        const currentHistory = Array.isArray(existing.history) ? existing.history : [];
+        const newHistoryEntry = {
+            version: newVersion,
+            action: versionBumped ? 'version_bumped' : 'updated',
+            userId,
+            status: updatePayload.status || existing.status,
+            timestamp: new Date().toISOString()
+        };
+        updatePayload.history = [...currentHistory, newHistoryEntry];
+
         const updated = await (prisma as any).socialPost.update({
             where: { id },
             data: updatePayload,
@@ -156,6 +196,71 @@ export class SocialPostService {
         });
 
         return updated;
+    }
+
+    /**
+     * Submit raw source footage or external storage links (e.g. Google Drive)
+     */
+    static async submitFootage(postId: string, footage: { rawMediaUrls?: string[]; externalStorageLinks?: Array<{ url: string; provider: string; label?: string }> }) {
+        const companyId = requestContext.getStore()?.companyId as string;
+        const existing = await (prisma as any).socialPost.findUnique({ where: { id: postId } });
+        if (!existing || existing.companyId !== companyId) throw new Error('Post not found');
+
+        const updated = await (prisma as any).socialPost.update({
+            where: { id: postId },
+            data: {
+                rawMediaUrls: footage.rawMediaUrls || existing.rawMediaUrls,
+                externalStorageLinks: footage.externalStorageLinks || existing.externalStorageLinks
+            }
+        });
+
+        return { success: true, post: updated, message: 'Footage submitted successfully' };
+    }
+
+    /**
+     * Validates if a post is completely ready for live or scheduled publishing
+     */
+    static async validatePublishingReadiness(postId: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
+        const post = await (prisma as any).socialPost.findUnique({
+            where: { id: postId },
+            include: { variants: true, socialAccount: true, project: true }
+        });
+
+        if (!post || (companyId && post.companyId !== companyId)) throw new Error('Post not found');
+
+        const issues: string[] = [];
+
+        // 1. Content validation
+        if (!post.content || post.content.trim() === '') {
+            issues.push('Primary content / caption cannot be empty.');
+        }
+
+        // 2. Media readiness
+        if (post.mediaType === 'video' && !post.finalVideoUrl && (!post.mediaUrls || post.mediaUrls.length === 0)) {
+            issues.push('Video posts require a rendered deliverable URL.');
+        }
+
+        // 3. Approval requirement check
+        const projectSettings = post.project?.socialSettings || {};
+        if (projectSettings.approvalRequired && post.status !== 'approved') {
+            issues.push('Project workflow requires client/editorial approval before publishing.');
+        }
+
+        // 4. Social account check
+        if (!post.socialAccountId && (!post.variants || post.variants.length === 0)) {
+            issues.push('No target social account or platform variant selected.');
+        }
+
+        if (post.socialAccount?.reauthRequired) {
+            issues.push(`Social account "${post.socialAccount.accountName}" requires reauthorization.`);
+        }
+
+        return {
+            isReady: issues.length === 0,
+            issues,
+            post
+        };
     }
 
     /**
@@ -200,7 +305,7 @@ export class SocialPostService {
         const companyId = requestContext.getStore()?.companyId as string;
         const post = await (prisma as any).socialPost.findUnique({
             where: { id: postId },
-            include: { variants: true, socialAccount: true }
+            include: { variants: true, socialAccount: true, project: true }
         });
 
         if (!post || (companyId && post.companyId !== companyId)) {
@@ -213,15 +318,20 @@ export class SocialPostService {
             data: { status: 'publishing' }
         });
 
-        const publishedLinks: Record<string, string> = {};
+        const publishedLinks: Record<string, string> = {
+            ...(typeof post.publishedLinks === 'object' && post.publishedLinks ? post.publishedLinks : {})
+        };
         const errors: Record<string, string> = {};
 
-        // Determine targets: either explicit variants or fallback to connected account platform
+        // Targets: either explicit variants or fallback
         const targets = post.variants && post.variants.length > 0
             ? post.variants.map((v: any) => v.platform)
-            : ['instagram', 'linkedin', 'tiktok', 'youtube'];
+            : [post.socialAccount?.platform || 'instagram'];
 
         for (const platform of targets) {
+            // If already published to this platform, skip to prevent duplicate post
+            if (publishedLinks[platform]) continue;
+
             const variant = post.variants?.find((v: any) => v.platform === platform);
             const content = variant?.customContent || post.content;
             const mediaUrl = post.finalVideoUrl || post.mediaUrls?.[0];
@@ -276,16 +386,20 @@ export class SocialPostService {
                 }
             } catch (err: any) {
                 console.error(`[Publish Error: ${platform}]`, err);
-                errors[platform] = err.message;
+                errors[platform] = err.message || 'Publishing adapter execution failed';
             }
         }
 
-        const isFullyPublished = Object.keys(publishedLinks).length > 0;
+        const isFullyPublished = Object.keys(errors).length === 0 && Object.keys(publishedLinks).length > 0;
+        const isPartiallyPublished = Object.keys(publishedLinks).length > 0 && Object.keys(errors).length > 0;
+
+        const newStatus = isFullyPublished ? 'published' : isPartiallyPublished ? 'partially_published' : 'failed';
+
         const completedPost = await (prisma as any).socialPost.update({
             where: { id: postId },
             data: {
-                status: isFullyPublished ? 'published' : 'failed',
-                publishedAt: isFullyPublished ? new Date() : null,
+                status: newStatus,
+                publishedAt: isFullyPublished || isPartiallyPublished ? new Date() : null,
                 publishedLinks: publishedLinks,
                 errorMessage: Object.keys(errors).length > 0 ? JSON.stringify(errors) : null
             },
@@ -293,11 +407,137 @@ export class SocialPostService {
         });
 
         return {
-            success: isFullyPublished,
-            message: isFullyPublished ? 'Post published successfully across platforms' : 'Publishing failed',
+            success: isFullyPublished || isPartiallyPublished,
+            status: newStatus,
+            message: isFullyPublished 
+                ? 'Post published successfully across all platforms' 
+                : isPartiallyPublished 
+                ? 'Post partially published; some platforms failed and can be retried' 
+                : 'Publishing failed on all platforms',
             publishedLinks,
             errors: Object.keys(errors).length > 0 ? errors : undefined,
             post: completedPost
         };
+    }
+
+    /**
+     * Retry publishing only the specified failed platform variant without duplicating successes
+     */
+    static async retryFailedVariant(postId: string, platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube') {
+        const companyId = requestContext.getStore()?.companyId as string;
+        const post = await (prisma as any).socialPost.findUnique({
+            where: { id: postId },
+            include: { variants: true, socialAccount: true }
+        });
+
+        if (!post || (companyId && post.companyId !== companyId)) throw new Error('Post not found');
+
+        const publishedLinks: Record<string, string> = {
+            ...(typeof post.publishedLinks === 'object' && post.publishedLinks ? post.publishedLinks : {})
+        };
+
+        const variant = post.variants?.find((v: any) => v.platform === platform);
+        const content = variant?.customContent || post.content;
+        const mediaUrl = post.finalVideoUrl || post.mediaUrls?.[0];
+
+        try {
+            if (platform === 'instagram') {
+                const result = await MetaAdapter.publishInstagramMedia({
+                    accessToken: post.socialAccount?.accessToken || 'mock_meta_token',
+                    igUserId: post.socialAccount?.platformAccountId || 'mock_ig_user',
+                    caption: content,
+                    videoUrl: mediaUrl,
+                    shareToFeed: true
+                });
+                publishedLinks.instagram = result.liveUrl;
+            } else if (platform === 'facebook') {
+                const result = await MetaAdapter.publishFacebookPost({
+                    accessToken: post.socialAccount?.accessToken || 'mock_meta_token',
+                    pageId: post.socialAccount?.platformAccountId || 'mock_fb_page',
+                    message: content,
+                    videoUrl: mediaUrl
+                });
+                publishedLinks.facebook = result.liveUrl;
+            } else if (platform === 'linkedin') {
+                const result = await LinkedInAdapter.publishPost({
+                    accessToken: post.socialAccount?.accessToken || 'mock_li_token',
+                    authorUrn: post.socialAccount?.platformAccountId || 'urn:li:organization:mock',
+                    commentary: content,
+                    videoUrl: mediaUrl,
+                    title: post.title
+                });
+                publishedLinks.linkedin = result.liveUrl;
+            } else if (platform === 'tiktok') {
+                const result = await TikTokAdapter.publishVideo({
+                    accessToken: post.socialAccount?.accessToken || 'mock_tt_token',
+                    videoUrl: mediaUrl || 'https://r2.180.app/sample.mp4',
+                    title: content
+                });
+                publishedLinks.tiktok = result.liveUrl;
+            } else if (platform === 'youtube') {
+                const result = await YouTubeAdapter.publishVideo({
+                    accessToken: post.socialAccount?.accessToken || 'mock_yt_token',
+                    videoUrl: mediaUrl,
+                    title: post.title || content.substring(0, 50),
+                    description: content,
+                    isShort: post.mediaType === 'video'
+                });
+                publishedLinks.youtube = result.liveUrl;
+            }
+
+            const updated = await (prisma as any).socialPost.update({
+                where: { id: postId },
+                data: {
+                    status: 'published',
+                    publishedLinks,
+                    errorMessage: null
+                },
+                include: { variants: true }
+            });
+
+            return { success: true, message: `Successfully published to ${platform}`, post: updated };
+        } catch (err: any) {
+            throw new Error(`Retry failed for ${platform}: ${err.message}`);
+        }
+    }
+
+    /**
+     * Repurpose an existing evergreen post into a new derivative post
+     */
+    static async repurposePost(postId: string, options?: { newScheduleDate?: Date | string; newProjectId?: string; newContent?: string }) {
+        const companyId = requestContext.getStore()?.companyId as string;
+        const original = await (prisma as any).socialPost.findUnique({ where: { id: postId }, include: { variants: true } });
+        if (!original || original.companyId !== companyId) throw new Error('Original post not found');
+
+        // Increment reuse count on original
+        await (prisma as any).socialPost.update({
+            where: { id: postId },
+            data: {
+                reuseCount: (original.reuseCount || 0) + 1,
+                lastReusedAt: new Date()
+            }
+        });
+
+        // Create derivative post
+        const derivative = await this.createPost({
+            title: `Repurposed: ${original.title || 'Post'}`,
+            content: options?.newContent || original.content,
+            mediaUrls: original.mediaUrls,
+            finalVideoUrl: original.finalVideoUrl,
+            thumbnailUrl: original.thumbnailUrl,
+            mediaType: original.mediaType,
+            projectId: options?.newProjectId || original.projectId,
+            clientId: original.clientId,
+            scheduledFor: options?.newScheduleDate ? new Date(options.newScheduleDate) : undefined,
+            isEvergreen: true
+        });
+
+        // Link parent relationship
+        await (prisma as any).socialPost.update({
+            where: { id: derivative.id },
+            data: { repurposedFromId: original.id }
+        });
+
+        return derivative;
     }
 }

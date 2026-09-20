@@ -4,6 +4,8 @@ import * as fs from "fs";
 import { VideoDirectorTool, DirectorExecutionContext } from "../base-tool";
 import { VisualCueTarget } from "../analysis/mood-classifier.tool";
 import { OpenWorldStockCrawler } from "./open-world-stock-crawler";
+import { PexelsClient } from "./pexels-client";
+import { PixabayClient } from "./pixabay-client";
 
 function escapeXml(text: string): string {
   return text
@@ -73,18 +75,110 @@ export class AssetSearchTool extends VideoDirectorTool<AssetSearchInput, AssetSe
 
       let resolved = false;
 
-      // Tier 1: Autonomous Open-World Stock & Web Media Crawler (Wikimedia Commons / Openverse / Web Stock)
-      try {
-        const candidate = await OpenWorldStockCrawler.searchAndRank(cue.assetQuery, cue.category, context.log);
-        if (candidate) {
-          const success = await OpenWorldStockCrawler.downloadAndFormatCard(candidate, pngPath);
-          if (success) {
-            resolved = true;
-            context.log?.(`[AssetSearchTool] Autonomously sourced and formatted open-world asset: "${candidate.title}" from ${candidate.source}`);
+      // Tier 0: Pixabay Vector Graphics & Diagram Search (Exclusive Vector/Illustration Catalog)
+      const isVectorIntent = cue.category === "ANATOMICAL_DIAGRAM" || cue.category === "ICON_VECTOR" || /vector|illustration|icon|diagram|graphic/i.test(cue.assetQuery);
+      if (isVectorIntent) {
+        try {
+          const cleanQuery = cue.assetQuery.replace(/[_-]+/g, " ");
+          const pixabayRes = await PixabayClient.searchImages({
+            query: cleanQuery,
+            imageType: "vector",
+            perPage: 3,
+            log: context.log,
+          });
+
+          if (pixabayRes.images.length > 0) {
+            const winner = pixabayRes.images[0];
+            const displayTag = cleanQuery.toUpperCase();
+            const formatted = await OpenWorldStockCrawler.downloadAndFormatCard(
+              {
+                title: winner.title,
+                url: winner.downloadUrl,
+                width: winner.width,
+                height: winner.height,
+                score: 99,
+                source: "Pixabay (Vector Commercial Royalty-Free)",
+                displayTag,
+              },
+              pngPath,
+              displayTag
+            );
+            if (formatted) {
+              resolved = true;
+              context.log?.(`[AssetSearchTool] Sourced and formatted Pixabay vector illustration: "${winner.title}" by ${winner.user}`);
+            }
           }
+        } catch (err: any) {
+          context.log?.(`[AssetSearchTool] Pixabay vector search notice: ${err?.message}`);
         }
-      } catch (err: any) {
-        context.log?.(`[AssetSearchTool] Open-world crawler notice: ${err?.message}`);
+      }
+
+      // Tier 0B: Autonomous Pexels / Pixabay High-Resolution Stock Photo Catalog
+      if (!resolved) {
+        try {
+          const cleanQuery = cue.assetQuery.replace(/[_-]+/g, " ");
+          const pexelsRes = await PexelsClient.searchPhotos({
+            query: cleanQuery,
+            perPage: 3,
+            log: context.log,
+          });
+
+          let winner: any = pexelsRes.photos.length > 0 ? pexelsRes.photos[0] : null;
+          let sourceName = "Pexels (Commercial Royalty-Free)";
+
+          // If Pexels has no hits, try Pixabay photos
+          if (!winner) {
+            const pixabayPhotos = await PixabayClient.searchImages({
+              query: cleanQuery,
+              imageType: "photo",
+              perPage: 3,
+              log: context.log,
+            });
+            if (pixabayPhotos.images.length > 0) {
+              winner = pixabayPhotos.images[0];
+              sourceName = "Pixabay (Commercial Royalty-Free)";
+            }
+          }
+
+          if (winner) {
+            const displayTag = cleanQuery.toUpperCase();
+            const formatted = await OpenWorldStockCrawler.downloadAndFormatCard(
+              {
+                title: winner.title,
+                url: winner.downloadUrl,
+                width: winner.width,
+                height: winner.height,
+                score: 98,
+                source: sourceName,
+                displayTag,
+              },
+              pngPath,
+              displayTag
+            );
+            if (formatted) {
+              resolved = true;
+              context.log?.(`[AssetSearchTool] Sourced and formatted stock photo: "${winner.title}" from ${sourceName}`);
+            }
+          }
+        } catch (err: any) {
+          context.log?.(`[AssetSearchTool] Stock photo search notice: ${err?.message}`);
+        }
+      }
+
+      // Tier 1: Autonomous Open-World Stock & Web Media Crawler (Wikimedia Commons / Openverse / Web Stock)
+      if (!resolved) {
+        try {
+          const candidate = await OpenWorldStockCrawler.searchAndRank(cue.assetQuery, cue.category, context.log);
+          if (candidate) {
+            const success = await OpenWorldStockCrawler.downloadAndFormatCard(candidate, pngPath);
+            if (success) {
+              resolved = true;
+              context.log?.(`[AssetSearchTool] Autonomously sourced and formatted open-world asset: "${candidate.title}" from ${candidate.source}`);
+            }
+          }
+        } catch (err: any) {
+          context.log?.(`[AssetSearchTool] Open-world crawler notice: ${err?.message}`);
+        }
       }
 
       // Tier 2: Dedicated Local High-Resolution Medical Asset Library (Offline / Fast Cache)

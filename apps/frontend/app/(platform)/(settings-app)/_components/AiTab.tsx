@@ -1,312 +1,402 @@
 'use client';
 
-import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Brain, Cpu, Zap, Info, Save, Activity, ShieldCheck, ShieldAlert, Eye, EyeOff } from 'lucide-react';
-import { useSettings } from '@/lib/settings-context';
+import { 
+    Brain, 
+    Zap, 
+    ShieldCheck, 
+    CreditCard, 
+    RefreshCw, 
+    Sparkles, 
+    Layers, 
+    FileText, 
+    Video, 
+    Globe, 
+    Mail, 
+    MessageSquare, 
+    CheckCircle2, 
+    AlertTriangle,
+    ArrowUpRight,
+    Coins
+} from 'lucide-react';
 import clsx from 'clsx';
+import { LogoLoader, AICreditProgressWidget } from '@workspace/ui';
 
-function InfoLink({ href, label }: { href: string; label: string }) {
-    return (
-        <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-700 font-medium ml-2 transition-colors cursor-pointer"
-        >
-            <Info className="w-3 h-3" />
-            <span>{label}</span>
-        </a>
-    );
+interface AICreditStatus {
+    companyId: string;
+    monthlyIncludedQuota: number;
+    monthlyCreditsUsed: number;
+    purchasedCredits: number;
+    reservedCredits: number;
+    availableCredits: number;
+    percentUsed: number;
+    isSoftLocked: boolean;
+    currency: string;
+    usdEquivalentRate: number;
+    recentLedger: Array<{
+        id: string;
+        timestamp: string;
+        appId: string;
+        featureKey: string;
+        operationType: 'DEBIT' | 'RECHARGE' | 'GRANT' | 'REFUND';
+        creditsAmount: number;
+        balanceAfter: number;
+        metadata?: any;
+    }>;
 }
 
-export default function AiTab() {
-    const { settings: globalSettings, refreshSettings: refreshGlobalSettings } = useSettings();
-    const [saving, setSaving] = useState(false);
-    const [testingAi, setTestingAi] = useState(false);
-    const [showPw, setShowPw] = useState(false);
+const TOPUP_PACKAGES = [
+    {
+        id: 'pkg_5',
+        amountUsd: 5,
+        baseCredits: 5000,
+        bonusCredits: 0,
+        totalCredits: 5000,
+        popular: false,
+        tag: 'Starter Top-Up',
+        description: 'Ideal for ~500 document generations or 5,000 iterative revisions',
+    },
+    {
+        id: 'pkg_10',
+        amountUsd: 10,
+        baseCredits: 10000,
+        bonusCredits: 0,
+        totalCredits: 10000,
+        popular: true,
+        tag: 'Most Popular',
+        description: 'Best for growing business teams and active daily editing',
+    },
+    {
+        id: 'pkg_25',
+        amountUsd: 25,
+        baseCredits: 25000,
+        bonusCredits: 2500,
+        totalCredits: 27500,
+        popular: false,
+        tag: '+10% Bonus Credits',
+        description: 'High-frequency teams with video director and heavy document workloads',
+    },
+    {
+        id: 'pkg_50',
+        amountUsd: 50,
+        baseCredits: 50000,
+        bonusCredits: 10000,
+        totalCredits: 60000,
+        popular: false,
+        tag: '+20% Bonus Credits',
+        description: 'Agency volume with full autonomous video & website generation',
+    },
+];
 
-    // AI Settings State
-    const [aiProvider, setAiProvider] = useState<'none' | 'openai' | 'claude' | 'gemini' | 'custom'>(globalSettings?.aiProvider || 'none');
-    const [openaiKey, setOpenaiKey] = useState(globalSettings?.openaiKey || '');
-    const [claudeKey, setClaudeKey] = useState(globalSettings?.claudeKey || '');
-    const [geminiKey, setGeminiKey] = useState(globalSettings?.geminiKey || '');
-    const [customAiUrl, setCustomAiUrl] = useState(globalSettings?.customAiUrl || '');
-    const [customAiKey, setCustomAiKey] = useState(globalSettings?.customAiKey || '');
-    const [customAiModel, setCustomAiModel] = useState(globalSettings?.customAiModel || '');
-    const [aiTestStatus, setAiTestStatus] = useState<'success' | 'failure' | 'none'>(globalSettings?.lastAiTestStatus || 'none');
+const COST_BREAKDOWN = [
+    { feature: 'Document Full Architecture', cost: '10 Credits', icon: FileText, note: 'Initial 8-12 AST block draft' },
+    { feature: 'Document Revision / Patch', cost: '1 Credit', icon: FileText, note: '10 revisions = 10 credits total' },
+    { feature: 'Autonomous Video Director', cost: '25 Credits', icon: Video, note: 'Complete zero-footage edit with B-roll & voice' },
+    { feature: 'Website Synthesis', cost: '20 Credits', icon: Globe, note: 'Multi-section responsive site with tailwind styling' },
+    { feature: 'AI Copilot Chat & Memory', cost: '1 Credit', icon: MessageSquare, note: 'Real-time assistant inquiry' },
+    { feature: 'Smart CRM Email Draft', cost: '2 Credits', icon: Mail, note: 'Contextual lead follow-up generation' },
+];
+
+export default function AiTab() {
+    const [loading, setLoading] = useState(true);
+    const [rechargingId, setRechargingId] = useState<string | null>(null);
+    const [creditStatus, setCreditStatus] = useState<AICreditStatus | null>(null);
+
+    const fetchCreditStatus = async () => {
+        try {
+            const { data } = await api.get('/api/v1/ai/credits/status');
+            if (data && data.success) {
+                setCreditStatus(data);
+            }
+        } catch (err: any) {
+            console.warn('[AiTab] Failed to fetch credit status:', err?.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        if (globalSettings) {
-            setAiProvider(globalSettings.aiProvider || 'none');
-            setOpenaiKey(globalSettings.openaiKey || '');
-            setClaudeKey(globalSettings.claudeKey || '');
-            setGeminiKey(globalSettings.geminiKey || '');
-            setCustomAiUrl(globalSettings.customAiUrl || '');
-            setCustomAiKey(globalSettings.customAiKey || '');
-            setCustomAiModel(globalSettings.customAiModel || '');
-            setAiTestStatus(globalSettings.lastAiTestStatus || 'none');
-        }
-    }, [globalSettings]);
+        fetchCreditStatus();
+    }, []);
 
-    const saveAiSettings = async () => {
-        setSaving(true);
+    const handleRecharge = async (pkg: typeof TOPUP_PACKAGES[0]) => {
+        setRechargingId(pkg.id);
         try {
-            const payload: any = { 
-                aiProvider,
-                openaiKey,
-                claudeKey,
-                geminiKey,
-                customAiUrl,
-                customAiKey,
-                customAiModel
-            };
-
-            await api.put('/api/settings', payload);
-            toast.success('AI configuration saved successfully');
-            await refreshGlobalSettings(true);
-        } catch (e: any) {
-            toast.error(e?.response?.data?.error || 'Failed to update AI settings');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const testAiConnection = async () => {
-        setTestingAi(true);
-        try {
-            const keyToTest = aiProvider === 'openai' ? openaiKey :
-                              aiProvider === 'gemini' ? geminiKey :
-                              aiProvider === 'claude' ? claudeKey :
-                              customAiKey;
-
-            const payload: any = { 
-                aiProvider,
-                provider: aiProvider,
-                apiKey: keyToTest,
-                openaiKey,
-                claudeKey,
-                geminiKey,
-                customAiUrl,
-                customAiKey,
-                customAiModel
-            };
-
-            // First save settings
-            await api.put('/api/settings', payload);
-
-            // Test live connection directly against centralized endpoint
-            const { data } = await api.post('/api/v1/ai/test-connection', {
-                provider: aiProvider,
-                apiKey: keyToTest,
-                customUrl: customAiUrl,
-                customModel: customAiModel
+            const { data } = await api.post('/api/v1/ai/credits/recharge', {
+                amountUsd: pkg.amountUsd,
+                paymentMethod: 'PLATFORM_WALLET',
             });
 
-            setAiTestStatus('success');
-            toast.success(data.message || 'AI Connection verified successfully!');
-            await refreshGlobalSettings(true);
-        } catch (e: any) {
-            setAiTestStatus('failure');
-            const errorMsg = e?.response?.data?.details || e?.response?.data?.error || e?.response?.data?.message || 'AI Connection test failed';
-            toast.error(errorMsg);
+            if (data?.success) {
+                toast.success(`Successfully recharged $${pkg.amountUsd}! +${pkg.totalCredits.toLocaleString()} AI Credits added.`);
+                await fetchCreditStatus();
+            } else {
+                toast.error(data?.message || 'Recharge failed. Please try again.');
+            }
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || err?.message || 'Recharge transaction failed');
         } finally {
-            setTestingAi(false);
+            setRechargingId(null);
         }
     };
 
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-16 space-y-3">
+                <LogoLoader className="w-8 h-8 animate-spin text-purple-600" />
+                <p className="text-xs text-slate-500 font-medium">Loading AI Credit Ledger & Engine Status...</p>
+            </div>
+        );
+    }
+
+    const monthlyQuota = creditStatus?.monthlyIncludedQuota || 5000;
+    const monthlyUsed = creditStatus?.monthlyCreditsUsed || 0;
+    const purchased = creditStatus?.purchasedCredits || 0;
+
     return (
-        <div className="max-w-xl space-y-6">
-            <div className="card">
-                <div className="card-header flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Brain className="w-5 h-5 text-purple-600" />
-                        <h2 className="font-semibold text-gray-900">AI Logic Configuration</h2>
+        <div className="max-w-4xl space-y-8">
+            {/* Header: Platform Managed AI Engine */}
+            <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-950 text-white rounded-2xl p-6 border border-purple-800/40 shadow-xl relative overflow-hidden">
+                <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                <ShieldCheck className="w-3.5 h-3.5" /> Platform Managed AI Active
+                            </span>
+                            <span className="text-[11px] text-purple-300/80">Enterprise Zero-BYOC</span>
+                        </div>
+                        <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <Brain className="w-5 h-5 text-purple-400" />
+                            AI Platform Credits & Usage Hub
+                        </h2>
+                        <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                            Your workspace is powered out-of-the-box by high-performance models (GPT-4o &amp; Claude 3.5 Sonnet) with no external API keys or configurations needed. All platform AI tools share your tenant credit wallet.
+                        </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {aiTestStatus === 'success' && (
-                            <span className="badge badge-green flex items-center gap-1">
-                                <ShieldCheck className="w-3 h-3" /> Connected
-                            </span>
-                        )}
-                        {aiTestStatus === 'failure' && (
-                            <span className="badge badge-red flex items-center gap-1 text-[10px]">
-                                <ShieldAlert className="w-3 h-3" /> Connection Failed
-                            </span>
-                        )}
+
+                    <button
+                        onClick={fetchCreditStatus}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs text-white transition border border-white/10 w-fit shrink-0 cursor-pointer"
+                    >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Refresh Ledger
+                    </button>
+                </div>
+            </div>
+
+            {/* Universal Centralized AI Credit Progress Bar & Wallet Widget */}
+            <div className="space-y-4">
+                <AICreditProgressWidget
+                    variant="card"
+                    status={creditStatus as any}
+                    onRecharged={() => fetchCreditStatus()}
+                />
+
+                {/* 4 Multi-Pool Stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                    <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                        <span className="text-[11px] text-slate-500 font-medium block">Monthly Base Quota</span>
+                        <span className="text-sm font-bold text-slate-800">{monthlyQuota.toLocaleString()} Credits</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">Resets every billing cycle</span>
+                    </div>
+                    <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                        <span className="text-[11px] text-slate-500 font-medium block">Credits Consumed</span>
+                        <span className="text-sm font-bold text-slate-800">{monthlyUsed.toLocaleString()} Credits</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">This cycle</span>
+                    </div>
+                    <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                        <span className="text-[11px] text-slate-500 font-medium block">Purchased Top-Ups</span>
+                        <span className="text-sm font-bold text-purple-700">{purchased.toLocaleString()} Credits</span>
+                        <span className="text-[10px] text-purple-600/80 block mt-0.5">Never expire • Rollover</span>
+                    </div>
+                    <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                        <span className="text-[11px] text-slate-500 font-medium block">Total Effective Limit</span>
+                        <span className="text-sm font-bold text-slate-800">{(monthlyQuota + purchased).toLocaleString()} Credits</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">Base + Top-Up Pool</span>
                     </div>
                 </div>
-                <div className="card-body space-y-4">
-                    <p className="text-xs text-gray-500 mb-4">
-                        Select your preferred AI model to power dashboard insights, project risk analysis, and automated reporting.
-                    </p>
+            </div>
 
+            {/* Instant Wallet Top-Up Packages */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
                     <div>
-                        <label className="label">Active AI Provider</label>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {[
-                                { id: 'none', label: 'Disabled', icon: Cpu },
-                                { id: 'gemini', label: 'Google Gemini', icon: Zap },
-                                { id: 'openai', label: 'OpenAI (GPT)', icon: Brain },
-                                { id: 'claude', label: 'Claude', icon: Cpu },
-                                { id: 'custom', label: 'Custom (Unified)', icon: Activity },
-                            ].map((p) => (
+                        <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <Coins className="w-5 h-5 text-amber-500" />
+                            Instant Wallet Top-Up Packages
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                            Recharge credits on-demand. Top-up credits never expire and roll over month-to-month.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {TOPUP_PACKAGES.map((pkg) => {
+                        const isRecharging = rechargingId === pkg.id;
+                        return (
+                            <div
+                                key={pkg.id}
+                                className={clsx(
+                                    "rounded-2xl p-5 border flex flex-col justify-between transition-all relative overflow-hidden bg-white shadow-sm hover:shadow-md",
+                                    pkg.popular
+                                        ? "border-purple-500 ring-2 ring-purple-100"
+                                        : "border-slate-200"
+                                )}
+                            >
+                                {pkg.popular && (
+                                    <div className="absolute top-0 right-0 bg-purple-600 text-white text-[9px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+                                        Popular
+                                    </div>
+                                )}
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-2xl font-black text-slate-900">${pkg.amountUsd}</span>
+                                        <span className="text-xs text-slate-400 font-medium">USD</span>
+                                    </div>
+
+                                    <div className="space-y-0.5">
+                                        <div className="text-sm font-bold text-purple-700">
+                                            +{pkg.totalCredits.toLocaleString()} Credits
+                                        </div>
+                                        {pkg.bonusCredits > 0 && (
+                                            <span className="inline-block text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                                +{pkg.bonusCredits.toLocaleString()} Bonus Included!
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <p className="text-[11px] text-slate-500 leading-normal pt-1">
+                                        {pkg.description}
+                                    </p>
+                                </div>
+
                                 <button
-                                    key={p.id}
-                                    onClick={() => setAiProvider(p.id as any)}
+                                    onClick={() => handleRecharge(pkg)}
+                                    disabled={rechargingId !== null}
                                     className={clsx(
-                                        "flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-medium transition-all gap-2",
-                                        aiProvider === p.id
-                                            ? "border-purple-600 bg-purple-50 text-purple-600 ring-2 ring-purple-100"
-                                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                                        "w-full mt-5 py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm",
+                                        pkg.popular
+                                            ? "bg-purple-600 hover:bg-purple-700 text-white"
+                                            : "bg-slate-900 hover:bg-slate-800 text-white",
+                                        rechargingId !== null && "opacity-60 cursor-not-allowed"
                                     )}
                                 >
-                                    <p.icon className="w-4 h-4" />
-                                    {p.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {aiProvider === 'gemini' && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                            <label className="label">
-                                Google Gemini API Key
-                                <InfoLink href="https://aistudio.google.com/app/apikey" label="Get Gemini Key" />
-                            </label>
-                            <div className="relative">
-                                <input
-                                    type={showPw ? 'text' : 'password'}
-                                    value={geminiKey}
-                                    onChange={e => setGeminiKey(e.target.value)}
-                                    placeholder="Enter your Gemini API Key..."
-                                    className="input bg-white pr-10"
-                                />
-                                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 cursor-pointer">
-                                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    {isRecharging ? (
+                                        <>
+                                            <LogoLoader className="w-3.5 h-3.5 animate-spin" />
+                                            <span>Processing...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CreditCard className="w-3.5 h-3.5" />
+                                            <span>Recharge ${pkg.amountUsd}</span>
+                                        </>
+                                    )}
                                 </button>
                             </div>
-                            <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                                <Zap className="w-3 h-3" /> Recommend using <b>gemini-1.5-flash</b> for cost and speed. Create a project in AI Studio to get started.
-                            </p>
-                        </div>
-                    )}
-
-                    {aiProvider === 'openai' && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                            <label className="label">
-                                OpenAI API Key
-                                <InfoLink href="https://platform.openai.com/api-keys" label="Get OpenAI Key" />
-                            </label>
-                            <div className="relative">
-                                <input
-                                    type={showPw ? 'text' : 'password'}
-                                    value={openaiKey}
-                                    onChange={e => setOpenaiKey(e.target.value)}
-                                    placeholder="sk-..."
-                                    className="input bg-white pr-10"
-                                />
-                                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 cursor-pointer">
-                                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-gray-400 mt-1">
-                                Ensure your OpenAI account has credits available ($5 minimum recommended) to avoid 429 quota errors.
-                            </p>
-                        </div>
-                    )}
-
-                    {aiProvider === 'claude' && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                            <label className="label">
-                                Claude API Key
-                                <InfoLink href="https://console.anthropic.com/settings/keys" label="Get Claude Key" />
-                            </label>
-                            <div className="relative">
-                                <input
-                                    type={showPw ? 'text' : 'password'}
-                                    value={claudeKey}
-                                    onChange={e => setClaudeKey(e.target.value)}
-                                    placeholder="sk-ant-..."
-                                    className="input bg-white pr-10"
-                                />
-                                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 cursor-pointer">
-                                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                                <Cpu className="w-3 h-3" /> Using <b>claude-3-5-sonnet</b> for intelligent, nuanced generation. Ensure credits are available.
-                            </p>
-                        </div>
-                    )}
-
-                    {aiProvider === 'custom' && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
-                            <div>
-                                <label className="label">Base URL</label>
-                                <input
-                                    value={customAiUrl}
-                                    onChange={e => setCustomAiUrl(e.target.value)}
-                                    placeholder="e.g. https://openrouter.ai/api/v1"
-                                    className="input bg-white"
-                                />
-                            </div>
-                            <div>
-                                <label className="label">API Key</label>
-                                <div className="relative">
-                                    <input
-                                        type={showPw ? 'text' : 'password'}
-                                        value={customAiKey}
-                                        onChange={e => setCustomAiKey(e.target.value)}
-                                        placeholder="Enter your custom API key..."
-                                        className="input bg-white pr-10"
-                                    />
-                                    <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 cursor-pointer">
-                                        {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="label">Model Name</label>
-                                <input
-                                    value={customAiModel}
-                                    onChange={e => setCustomAiModel(e.target.value)}
-                                    placeholder="e.g. meta-llama/llama-3.1-8b-instruct"
-                                    className="input bg-white"
-                                />
-                            </div>
-                            <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                                <Activity className="w-3 h-3" /> Connect to any OpenAI-compatible endpoint like OpenRouter, Groq, TogetherAI, or Ollama.
-                            </p>
-                        </div>
-                    )}
-
-                    <div className="pt-4 flex gap-3">
-                        <button onClick={saveAiSettings} disabled={saving} className="btn-primary flex-1">
-                            {saving ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                            {saving ? 'Saving...' : 'Save Settings'}
-                        </button>
-                        <button
-                            onClick={testAiConnection}
-                            disabled={testingAi || aiProvider === 'none'}
-                            className={clsx(
-                                "flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl border text-sm font-medium transition-all",
-                                aiTestStatus === 'success' ? "border-green-200 bg-green-50 text-green-700 font-bold" : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
-                            )}
-                        >
-                            {testingAi ? <LogoLoader className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                            {testingAi ? 'Validating...' : 'Connect & Test'}
-                        </button>
-                    </div>
-
-                    {globalSettings?.lastAiTestDate && (
-                        <p className="text-[10px] text-gray-400 text-center">
-                            Last tested: {new Date(globalSettings.lastAiTestDate).toLocaleString()}
-                        </p>
-                    )}
+                        );
+                    })}
                 </div>
+            </div>
+
+            {/* Credit Cost Reference Guide */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-purple-600" />
+                            Platform AI Consumption Rates
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                            Predictable, transparent credit pricing across all 180 Workspace applications
+                        </p>
+                    </div>
+                    <span className="text-[11px] font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg">
+                        1 Credit = $0.001 USD (0.1¢)
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {COST_BREAKDOWN.map((item, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/70 border border-slate-100">
+                            <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-purple-600 shrink-0 shadow-2xs">
+                                <item.icon className="w-4 h-4" />
+                            </div>
+                            <div className="space-y-0.5 min-w-0">
+                                <div className="text-xs font-semibold text-slate-800 truncate">{item.feature}</div>
+                                <div className="text-xs font-extrabold text-purple-700">{item.cost}</div>
+                                <div className="text-[10px] text-slate-400 leading-tight">{item.note}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Real-time Ledger & Transaction History */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-900">Recent AI Operations Ledger</h3>
+                        <p className="text-xs text-slate-500">Real-time audit log of debits, revisions, and wallet recharges</p>
+                    </div>
+                </div>
+
+                {creditStatus?.recentLedger && creditStatus.recentLedger.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                            <thead>
+                                <tr className="border-b border-slate-100 text-slate-400 font-semibold">
+                                    <th className="py-2.5 px-3">Date &amp; Time</th>
+                                    <th className="py-2.5 px-3">Feature</th>
+                                    <th className="py-2.5 px-3">App</th>
+                                    <th className="py-2.5 px-3 text-right">Credits</th>
+                                    <th className="py-2.5 px-3 text-right">Balance After</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {creditStatus.recentLedger.map((item) => (
+                                    <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                                        <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">
+                                            {new Date(item.timestamp).toLocaleString(undefined, { 
+                                                month: 'short', 
+                                                day: 'numeric', 
+                                                hour: '2-digit', 
+                                                minute: '2-digit' 
+                                            })}
+                                        </td>
+                                        <td className="py-2 px-3 font-medium text-slate-800">
+                                            {item.featureKey?.replace(/_/g, ' ') || 'AI Action'}
+                                        </td>
+                                        <td className="py-2 px-3 text-slate-500">
+                                            <span className="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-medium text-slate-600">
+                                                {item.appId}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 px-3 text-right font-bold">
+                                            {item.operationType === 'RECHARGE' ? (
+                                                <span className="text-emerald-600">+{item.creditsAmount.toLocaleString()}</span>
+                                            ) : (
+                                                <span className="text-red-500">{item.creditsAmount}</span>
+                                            )}
+                                        </td>
+                                        <td className="py-2 px-3 text-right font-semibold text-slate-700">
+                                            {item.balanceAfter?.toLocaleString() ?? '-'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="py-8 text-center text-xs text-slate-400">
+                        No AI operations logged yet this cycle. Once you generate documents, media, or chat with AI, debits will appear here in real time.
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -76,33 +76,66 @@ export class ProductionPlanner {
 
     const sourceFiles = options.inputFiles.filter((f) => !isExportOrTestFile(f));
     const effectiveFiles = sourceFiles.length > 0 ? sourceFiles : options.inputFiles;
+    const isZeroFootage = effectiveFiles.length === 0;
 
     const tasks: ProductionTask[] = [];
 
-    // Stage 1: Ingestion & Telemetry
-    tasks.push({
-      id: "task_01_probe",
-      title: "Inspect Media Streams & Dimensions",
-      description: "Analyze raw video and audio stream codecs, resolutions, and durations",
-      stage: "INGESTION_AND_TELEMETRY",
-      toolName: "probe_media",
-      toolInput: { filePaths: effectiveFiles },
-      dependencies: [],
-      status: "PENDING",
-      progressPercent: 0,
-    });
+    if (isZeroFootage) {
+      // Stage 1: Zero-Footage Autonomous Voiceover Synthesis & STT
+      tasks.push({
+        id: "task_00b_voice_synthesize",
+        title: "Synthesize Studio Voiceover (Cartesia Sonic-3.6)",
+        description: "Generate script and synthesize 44.1kHz neural narration matching creative prompt",
+        stage: "TIMELINE_COMPOSITION",
+        toolName: "voice_synthesize",
+        toolInput: {
+          transcript: options.userPrompt,
+          persona: (userProfile.audioPreference as any)?.voicePersona || "COMMERCIAL_CONFIDENT",
+          speed: 1.0,
+          sampleRate: 44100,
+        },
+        dependencies: [],
+        status: "PENDING",
+        progressPercent: 0,
+      });
 
-    tasks.push({
-      id: "task_02_transcribe",
-      title: "Extract Speech Cadence & STT",
-      description: "Extract 16kHz audio and generate word-level timestamps using Whisper STT",
-      stage: "INGESTION_AND_TELEMETRY",
-      toolName: "speech_transcribe",
-      toolInput: { filePaths: effectiveFiles, language: "hi" },
-      dependencies: ["task_01_probe"],
-      status: "PENDING",
-      progressPercent: 0,
-    });
+      tasks.push({
+        id: "task_02_transcribe",
+        title: "Extract Speech Cadence & STT",
+        description: "Extract 16kHz audio and generate word-level timestamps using Whisper STT",
+        stage: "INGESTION_AND_TELEMETRY",
+        toolName: "speech_transcribe",
+        toolInput: { filePaths: [], language: "en" },
+        dependencies: ["task_00b_voice_synthesize"],
+        status: "PENDING",
+        progressPercent: 0,
+      });
+    } else {
+      // Stage 1: Ingestion & Telemetry for Raw Footage
+      tasks.push({
+        id: "task_01_probe",
+        title: "Inspect Media Streams & Dimensions",
+        description: "Analyze raw video and audio stream codecs, resolutions, and durations",
+        stage: "INGESTION_AND_TELEMETRY",
+        toolName: "probe_media",
+        toolInput: { filePaths: effectiveFiles },
+        dependencies: [],
+        status: "PENDING",
+        progressPercent: 0,
+      });
+
+      tasks.push({
+        id: "task_02_transcribe",
+        title: "Extract Speech Cadence & STT",
+        description: "Extract 16kHz audio and generate word-level timestamps using Whisper STT",
+        stage: "INGESTION_AND_TELEMETRY",
+        toolName: "speech_transcribe",
+        toolInput: { filePaths: effectiveFiles, language: "hi" },
+        dependencies: ["task_01_probe"],
+        status: "PENDING",
+        progressPercent: 0,
+      });
+    }
 
     // Stage 2: Narrative Curation & Blooper Pruning
     tasks.push({
@@ -170,6 +203,31 @@ export class ProductionPlanner {
       progressPercent: 0,
     });
 
+    // Stock B-Roll Cutaways (Pexels / Pixabay Sourcing)
+    const wantsStockBroll =
+      isZeroFootage ||
+      /b-?roll|stock|footage|cutaway|video clip|pixel|pexel|pixabay/i.test(options.userPrompt || "") ||
+      activeSkill.id === "documentary_explainer" ||
+      activeSkill.genre === "DOCUMENTARY_EXPLAINER" ||
+      (resolvedStyle.brollFrequencySeconds !== undefined && resolvedStyle.brollFrequencySeconds <= 15.0);
+
+    if (wantsStockBroll) {
+      tasks.push({
+        id: "task_05c_broll_search",
+        title: "Source Pexels HD B-Roll Cutaways",
+        description: `Retrieve context-matched HD stock footage (${targetAspect}) from Pexels API catalog`,
+        stage: "TIMELINE_COMPOSITION",
+        toolName: "broll_search",
+        toolInput: {
+          targetAspect,
+          maxClips: isZeroFootage ? 6 : 3,
+        },
+        dependencies: ["task_04_mood_classifier"],
+        status: "PENDING",
+        progressPercent: 0,
+      });
+    }
+
     tasks.push({
       id: "task_07_assemble_timeline",
       title: "Compile Multi-Track EditIR AST",
@@ -181,7 +239,9 @@ export class ProductionPlanner {
         directorPreset: resolvedStyle.presetKey,
         pacingMultiplier: resolvedStyle.pacingMultiplier,
       },
-      dependencies: ["task_03_curate_takes"],
+      dependencies: wantsStockBroll
+        ? ["task_03_curate_takes", "task_05c_broll_search"]
+        : ["task_03_curate_takes"],
       status: "PENDING",
       progressPercent: 0,
     });

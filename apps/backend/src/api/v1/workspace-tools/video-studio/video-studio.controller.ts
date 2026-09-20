@@ -92,4 +92,30 @@ export class VideoStudioController {
       return res.status(500).json({ success: false, error: err.message });
     }
   }
+
+  static async generateFromPrompt(req: any, res: Response) {
+    try {
+      const companyId = req.user?.companyId || req.headers["x-company-id"] || req.body?.companyId || "default_company";
+      const userId = req.user?.id;
+      const { prompt, targetAspect, customStyleKey, skillId } = req.body;
+
+      if (!prompt || typeof prompt !== "string") {
+        return res.status(400).json({ success: false, error: "Prompt parameter is required" });
+      }
+
+      const result = await VideoStudioService.generateFromPrompt({
+        prompt,
+        companyId,
+        userId,
+        targetAspect,
+        customStyleKey,
+        skillId,
+      });
+
+      return res.status(200).json({ success: true, data: result });
+    } catch (err: any) {
+      const status = err.message?.includes("INSUFFICIENT_AI_CREDITS") ? 402 : 500;
+      return res.status(status).json({ success: false, error: err.message });
+    }
+  }
 }

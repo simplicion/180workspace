@@ -7,6 +7,7 @@ export * from './providers';
 // Kernel & Multi-Provider Engine
 export * from './kernel/ai-provider.service';
 export * from './kernel/ai-company-config.service';
+export * from './kernel/ai-credit-meter.service';
 
 // Real (ffmpeg/STT-backed) Media Analysis for the Video AI Director
 export * from './media/media-analysis.service';

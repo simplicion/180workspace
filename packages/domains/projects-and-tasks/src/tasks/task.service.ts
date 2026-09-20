@@ -21,7 +21,12 @@ export class TaskService {
         } = filters;
 
         const query: any = { deletedAt: null };
-        if (projectId) query.projectId = projectId;
+        if (projectId) {
+            query.projectId = projectId;
+        } else {
+            // General task board isolates normal tasks from social media content tasks
+            query.NOT = { project: { projectType: 'social_media' } };
+        }
         if (assigneeId) query.assigneeId = assigneeId;
         if (moduleId) query.moduleId = moduleId;
         if (status) query.status = status;

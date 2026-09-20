@@ -7,7 +7,16 @@ export * from "./analysis/speech-transcribe.tool";
 export * from "./analysis/silence-detector.tool";
 export * from "./analysis/mood-classifier.tool";
 
+// Audio & Speech Tools
+export * from "./audio/cartesia-voice.tool";
+
 // Sourcing Tools
+export * from "./sourcing/pexels-client";
+export * from "./sourcing/pixabay-client";
+export * from "./sourcing/stock-decision-broker";
+export * from "./sourcing/broll-search.tool";
+export * from "./sourcing/pixabay-media.tool";
+export * from "./sourcing/freesound-sfx.tool";
 export * from "./sourcing/asset-search.tool";
 export * from "./sourcing/sfx-search.tool";
 export * from "./sourcing/bgm-search.tool";
@@ -28,11 +37,15 @@ export * from "./quality/critic-audit.tool";
 export * from "./render/lossless-render.tool";
 
 import { DirectorToolRegistry } from "./registry";
+import { CartesiaVoiceTool } from "./audio/cartesia-voice.tool";
 import { ProbeMediaTool } from "./analysis/probe-media.tool";
 import { SpeechTranscribeTool } from "./analysis/speech-transcribe.tool";
 import { SilenceDetectorTool } from "./analysis/silence-detector.tool";
 import { MoodClassifierTool } from "./analysis/mood-classifier.tool";
 import { AssetSearchTool } from "./sourcing/asset-search.tool";
+import { BrollSearchTool } from "./sourcing/broll-search.tool";
+import { PixabayMediaTool } from "./sourcing/pixabay-media.tool";
+import { FreesoundSfxTool } from "./sourcing/freesound-sfx.tool";
 import { SfxSearchTool } from "./sourcing/sfx-search.tool";
 import { BgmSearchTool } from "./sourcing/bgm-search.tool";
 import { TakeCurationTool } from "./composition/take-curation.tool";
@@ -50,11 +63,15 @@ import { LosslessRenderTool } from "./render/lossless-render.tool";
  */
 export function initializeDefaultDirectorTools(): DirectorToolRegistry {
   const registry = DirectorToolRegistry.getInstance();
+  registry.register(new CartesiaVoiceTool());
   registry.register(new ProbeMediaTool());
   registry.register(new SpeechTranscribeTool());
   registry.register(new SilenceDetectorTool());
   registry.register(new MoodClassifierTool());
   registry.register(new AssetSearchTool());
+  registry.register(new BrollSearchTool());
+  registry.register(new PixabayMediaTool());
+  registry.register(new FreesoundSfxTool());
   registry.register(new SfxSearchTool());
   registry.register(new BgmSearchTool());
   registry.register(new TakeCurationTool());

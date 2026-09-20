@@ -1,6 +1,6 @@
 'use client';
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, AICreditProgressWidget } from "@workspace/ui";
 import { useState, useEffect, useRef } from 'react';
 import { X, Send, Bot, User, Sparkles, MessageSquare, ClipboardList, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
@@ -80,12 +80,15 @@ export default function DocumentAIChatModal({ document: doc, onClose }: Document
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="w-9 h-9 rounded-full hover:bg-white hover:shadow-md flex items-center justify-center transition-all group"
-                    >
-                        <X className="w-5 h-5 text-gray-400 group-hover:text-gray-900" />
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <AICreditProgressWidget variant="nav" />
+                        <button
+                            onClick={onClose}
+                            className="w-9 h-9 rounded-full hover:bg-white hover:shadow-md flex items-center justify-center transition-all group"
+                        >
+                            <X className="w-5 h-5 text-gray-400 group-hover:text-gray-900" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Chat Area */}

@@ -8,9 +8,11 @@ import clientReviewRoutes from './reviews/client-review.routes';
 import socialInboxRoutes from './inbox/social-inbox.routes';
 import evergreenQueueRoutes from './evergreen/evergreen-queue.routes';
 import socialAssetsRoutes from './assets/social-assets.routes';
+import socialProjectRoutes from './projects/social-project.routes';
 
 const router = Router();
 
+router.use('/projects', socialProjectRoutes);
 router.use('/saved-banks', savedBanksRoutes);
 router.use('/assets', socialAssetsRoutes);
 router.use('/content-calendar', contentCalendarRoutes);

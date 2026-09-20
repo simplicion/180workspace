@@ -36,7 +36,7 @@ export class ModuleService {
 
     static async createModule(data: any, user: UserContext) {
         const project = await prisma.project.findUnique({ where: { id: data.projectId } });
-        if (!project) throw new Error('Project not found');
+        if (!project || project.projectType === 'social_media') throw new Error('Project not found');
 
         const userRoles = user.roles || [user.role || 'employee'];
         const isAdminOrManager = userRoles.includes('admin') || (data.permissions && data.permissions.includes('can_manage_team'));
@@ -94,6 +94,7 @@ export class ModuleService {
         if (!mod) throw new Error('Module not found');
 
         const project = await prisma.project.findUnique({ where: { id: mod.projectId } });
+        if (!project || project.projectType === 'social_media') throw new Error('Project not found');
         
         const isOwner = mod.ownerId?.toString() === user.id.toString();
         const isProjectOwner = project?.ownerId?.toString() === user.id.toString();

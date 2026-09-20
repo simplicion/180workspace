@@ -1,7 +1,7 @@
 'use client';
 import { Drawer } from "@/components/ui/Drawer";
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, AICreditProgressWidget } from "@workspace/ui";
 import { useState, useEffect, useRef } from 'react';
 import { X, Send, Bot, User, Sparkles, MessageSquare, ClipboardList, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
@@ -66,12 +66,13 @@ export default function DocumentAIChatDrawer({ document: doc, onClose }: Documen
         <Drawer open={true} onClose={onClose} title="Orbit Copilot" position="right">
             <div className="flex bg-white rounded-3xl w-full h-[90vh] overflow-hidden shadow-2xl flex-col">
                 
-                {/* Header Subtitle */}
-                <div className="px-6 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-shrink-0">
-                    <div className="flex items-center gap-2 max-w-[80%]">
+                {/* Header Subtitle & Real-time AI Credit Balance */}
+                <div className="px-6 py-2.5 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-shrink-0">
+                    <div className="flex items-center gap-2 max-w-[60%]">
                         <ClipboardList className="w-4 h-4 text-gray-400" />
                         <span className="text-xs font-medium text-gray-600 truncate">{doc.title}</span>
                     </div>
+                    <AICreditProgressWidget variant="nav" />
                 </div>
 
                 {/* Chat Area */}

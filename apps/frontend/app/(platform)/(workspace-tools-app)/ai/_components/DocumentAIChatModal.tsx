@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Sparkles, Send, X, FileText, Bot, User } from 'lucide-react';
 import clsx from 'clsx';
 import api from '@/lib/api';
+import { AICreditProgressWidget } from '@workspace/ui';
 
 interface DocumentAIChatModalProps {
     isOpen: boolean;
@@ -66,9 +67,12 @@ export function DocumentAIChatModal({ isOpen, onClose, documentTitle, documentCo
                             <p className="text-xs text-slate-500">Document Intelligence & Clause Analyzer</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60">
-                        <X className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <AICreditProgressWidget variant="nav" />
+                        <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60">
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Messages Body */}
