@@ -358,7 +358,7 @@ export class WorkLogService {
             .sort((a, b) => a.date.localeCompare(b.date));
 
         const projects = await prisma.project.findMany({
-            where: { companyId },
+            where: { companyId, projectType: { not: 'social_media' } },
             select: { id: true, name: true }
         });
 

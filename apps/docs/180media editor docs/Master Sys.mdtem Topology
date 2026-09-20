@@ -1,0 +1,66 @@
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                             180WORKSPACE CLOUD CONTROL PLANE                                │
+│                                                                                             │
+│  ┌───────────────────────┐   ┌───────────────────────────┐   ┌───────────────────────────┐  │
+│  │   apps/frontend       │   │       apps/backend        │   │    packages/domains/ai    │  │
+│  │  • Video Project Hub  │   │  • User/License Gate      │   │  • Director Agent Kernel  │  │
+│  │  • App Deep-Linker    │   │  • Asset Search Gateway   │   │  • Telemetry Prompting    │  │
+│  │  • Subscription Check │   │  • Cloud Sync & Metadata  │   │  • Micro-Token DSL Gen    │  │
+│  └───────────┬───────────┘   └─────────────┬─────────────┘   └─────────────┬─────────────┘  │
+└──────────────┼─────────────────────────────┼───────────────────────────────┼────────────────┘
+               │ Handshake Token             │ Asset Metadata / Queries      │ Edit IR JSON
+               │ `workspace180://`           │                               │
+═══════════════╪═════════════════════════════╪═══════════════════════════════╪═════════════════
+               │                             │                               │
+┌──────────────▼─────────────────────────────▼───────────────────────────────▼────────────────┐
+│                             DEDICATED DESKTOP APPLICATION                                   │
+│                            (Tauri v2 + Rust Core Engine)                                    │
+│                                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ FRONTEND PRESENTATION SHELL (React 19 + TypeScript + Vite + Tailwind CSS)            │  │
+│  │  • Virtualized Multi-Track Timeline (Adapted from OpenCut UX primitives)              │  │
+│  │  • Real-Time 60fps WebGPU / Canvas Preview Viewport                                   │  │
+│  │  • Conversational AI Creative Director Chat Drawer (`UniversalAIDrawer` pattern)      │  │
+│  │  • Style Presets & Aspect Ratio Switcher (16:9, 9:16 Vertical, 1:1 Square)           │  │
+│  └───────────────────────────────────────────┬───────────────────────────────────────────┘  │
+│                                              │ Typed IPC (Commands / Events / Metadata)     │
+│  ┌───────────────────────────────────────────▼───────────────────────────────────────────┐  │
+│  │ RUST NATIVE CORE ENGINE (`native/video-engine-core`)                                  │  │
+│  │                                                                                       │  │
+│  │  ┌───────────────────────┐ ┌──────────────────────────┐ ┌──────────────────────────┐  │  │
+│  │  │   Project Engine      │ │     Timeline Engine      │ │      Command Engine      │  │  │
+│  │  │  • Versioned VPROJ    │ │  • Rational Timebase     │ │  • Transactional Undo    │  │  │
+│  │  │  • OTIO Adapter       │ │  • Multi-Track State     │ │  • Command Validator     │  │  │
+│  │  └───────────┬───────────┘ └────────────┬─────────────┘ └────────────┬─────────────┘  │  │
+│  │              │                          │                            │                │  │
+│  │              └──────────────────────────┼────────────────────────────┘                │  │
+│  │                                         ▼                                             │  │
+│  │                            ┌──────────────────────────┐                               │  │
+│  │                            │       Render Graph       │                               │  │
+│  │                            │  • Node Dependency DAG   │                               │  │
+│  │                            │  • Dirty Region Tracker  │                               │  │
+│  │                            └────────────┬─────────────┘                               │  │
+│  │                                         │                                             │  │
+│  │       ┌─────────────────────────────────┼─────────────────────────────────┐           │  │
+│  │       ▼                                 ▼                                 ▼           │  │
+│  │ ┌───────────┐                     ┌───────────┐                     ┌───────────┐     │  │
+│  │ │   MEDIA   │                     │    GPU    │                     │    AI     │     │  │
+│  │ │  ENGINE   │                     │ ENGINE    │                     │  ENGINE   │     │  │
+│  │ ├───────────┤                     ├───────────┤                     ├───────────┤     │  │
+│  │ │ • LibAV   │                     │ • wgpu    │                     │ • Whisper │     │  │
+│  │ │ • Demuxer │                     │ • Shaders │                     │ • OpenCV  │     │  │
+│  │ │ • Lossless│                     │ • Spring  │                     │ • Media   │     │  │
+│  │ │   Splicer │                     │   Camera  │                     │   Pipe    │     │  │
+│  │ └─────┬─────┘                     └─────┬─────┘                     └─────┬─────┘     │  │
+│  │       │                                 │                                 │           │  │
+│  │       └─────────────────────────────────┼─────────────────────────────────┘           │  │
+│  │                                         ▼                                             │  │
+│  │                        ┌──────────────────────────────────┐                           │  │
+│  │                        │     Hardware Encoder Pipeline    │                           │  │
+│  │                        │   (NVENC / VideoToolbox / QSV)   │                           │  │
+│  │                        └────────────────┬─────────────────┘                           │  │
+│  │                                         │                                             │  │
+│  │                                         ▼                                             │  │
+│  │                                 Final Export MP4                                      │  │
+│  └───────────────────────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘

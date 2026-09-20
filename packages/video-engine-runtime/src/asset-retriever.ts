@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
+import { PexelsClient } from "./tools/sourcing/pexels-client";
 
 export interface StockAssetQuery {
   query: string;
@@ -156,46 +157,91 @@ export class AssetRetriever {
 
     const assetId = crypto.randomUUID();
     const sanitizedQuery = query.query.toLowerCase().replace(/[^a-z0-9]/g, "_");
-    const localCachedPath = path.join(cacheDir, `broll_${sanitizedQuery}_${assetId.slice(0, 8)}.mp4`);
 
-    const pexelsApiKey = process.env.PEXELS_API_KEY;
-
-    if (pexelsApiKey && query.type === "video") {
+    // Stock Video Retrieval (B-Roll)
+    if (query.type === "video") {
+      const localCachedPath = path.join(cacheDir, `broll_${sanitizedQuery}_${assetId.slice(0, 8)}.mp4`);
       try {
-        const response = await fetch(
-          `https://api.pexels.com/videos/search?query=${encodeURIComponent(query.query)}&per_page=1&orientation=${query.orientation || "landscape"}`,
-          { headers: { Authorization: pexelsApiKey } }
-        );
-        const data: any = await response.json();
-        if (data.videos && data.videos.length > 0) {
-          const videoFile = data.videos[0].video_files.find((f: any) => f.quality === "hd") || data.videos[0].video_files[0];
-          const downloadUrl = videoFile.link;
+        const pexelsRes = await PexelsClient.searchVideos({
+          query: query.query,
+          orientation: query.orientation || "landscape",
+          perPage: 3,
+        });
 
-          const videoRes = await fetch(downloadUrl);
-          const arrayBuffer = await videoRes.arrayBuffer();
-          fs.writeFileSync(localCachedPath, Buffer.from(arrayBuffer));
-
-          return {
-            assetId,
-            sourceUrl: downloadUrl,
-            localCachedPath,
-            license: "Pexels Free Commercial License",
-            author: data.videos[0].user.name || "Pexels Creator",
-            relevanceScore: 0.94,
-          };
+        if (pexelsRes.videos.length > 0) {
+          const winner = pexelsRes.videos[0];
+          const downloaded = await PexelsClient.downloadAsset(winner.downloadUrl, localCachedPath);
+          if (downloaded) {
+            return {
+              assetId,
+              sourceUrl: winner.downloadUrl,
+              localCachedPath,
+              license: winner.license,
+              author: winner.photographer,
+              relevanceScore: 0.96,
+            };
+          }
         }
-      } catch (err) {
-        console.warn(`Pexels API fetch failed, falling back to local procedural asset:`, err);
+      } catch (err: any) {
+        console.warn(`[AssetRetriever] Pexels video search notice: ${err?.message}`);
       }
+
+      return {
+        assetId,
+        sourceUrl: "local://procedural/broll",
+        localCachedPath,
+        license: "Creative Commons 0",
+        author: "180 Workspace Procedural Engine",
+        relevanceScore: 0.88,
+      };
     }
 
+    // Stock Photo Retrieval
+    if (query.type === "image") {
+      const localCachedPath = path.join(cacheDir, `stock_${sanitizedQuery}_${assetId.slice(0, 8)}.jpg`);
+      try {
+        const pexelsRes = await PexelsClient.searchPhotos({
+          query: query.query,
+          orientation: query.orientation || "landscape",
+          perPage: 3,
+        });
+
+        if (pexelsRes.photos.length > 0) {
+          const winner = pexelsRes.photos[0];
+          const downloaded = await PexelsClient.downloadAsset(winner.downloadUrl, localCachedPath);
+          if (downloaded) {
+            return {
+              assetId,
+              sourceUrl: winner.downloadUrl,
+              localCachedPath,
+              license: winner.license,
+              author: winner.photographer,
+              relevanceScore: 0.96,
+            };
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[AssetRetriever] Pexels photo search notice: ${err?.message}`);
+      }
+
+      return {
+        assetId,
+        sourceUrl: "local://procedural/photo",
+        localCachedPath,
+        license: "Creative Commons 0",
+        author: "180 Workspace Procedural Engine",
+        relevanceScore: 0.88,
+      };
+    }
+
+    const defaultPath = path.join(cacheDir, `asset_${sanitizedQuery}_${assetId.slice(0, 8)}.bin`);
     return {
       assetId,
-      sourceUrl: "local://procedural/broll",
-      localCachedPath,
+      sourceUrl: "local://procedural/asset",
+      localCachedPath: defaultPath,
       license: "Creative Commons 0",
       author: "180 Workspace Procedural Engine",
-      relevanceScore: 0.88,
+      relevanceScore: 0.85,
     };
   }
 }

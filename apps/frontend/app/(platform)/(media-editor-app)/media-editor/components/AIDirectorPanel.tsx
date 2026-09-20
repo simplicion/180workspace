@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { DirectorStylePreset, EditIR } from "@workspace/video-contracts";
 import { CompanyAIStatus, AIDirectorProgressEvent } from "../services/tauri-bridge";
+import { AICreditProgressWidget } from "@workspace/ui";
 
 export interface DirectorChatMessage {
   id: string;
@@ -82,6 +83,11 @@ const INSPIRATION_SUGGESTIONS = [
     label: "📊 Motion Graphic Cards",
     prompt: "Add visuals and animated explanation cards according to what I'm explaining.",
     icon: BarChart3,
+  },
+  {
+    label: "🎥 Pexels HD B-Roll Cutaways",
+    prompt: "Source context-matched HD B-roll footage and cutaways from Pexels stock video library to overlay during key explanations.",
+    icon: Film,
   },
   {
     label: "🎙️ Multi-Cam Podcast",
@@ -207,49 +213,112 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
         </div>
       </div>
 
+      {/* Real-Time AI Credit Usage & Recharge Widget */}
+      <div className="px-3 pt-2.5 pb-1 bg-[#090A0E] shrink-0">
+        <AICreditProgressWidget />
+      </div>
+
       {/* Message Thread */}
       <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5 scrollbar-thin scrollbar-thumb-[#1F222E] scrollbar-track-transparent">
         {/* Welcome State when no messages */}
         {messages.length === 0 && (
           <div className="p-4 rounded-2xl bg-gradient-to-b from-[#121522] to-[#0D0F17] border border-indigo-500/20 shadow-sm space-y-3">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-7 h-7 rounded-xl bg-indigo-600/25 border border-indigo-500/35 flex items-center justify-center text-indigo-300">
-                <img
-                  src="/white-icon.svg"
-                  onError={(e) => {
-                    e.currentTarget.src = "/white icon.svg";
-                  }}
-                  alt="180 AI"
-                  className="w-4 h-4 object-contain"
-                />
-              </div>
-              <div>
-                <span className="text-xs font-semibold text-white">Creative Director Ready</span>
-                <span className="text-[10px] text-gray-400 block">Collaborative video editing</span>
-              </div>
-            </div>
+            {clipsCount === 0 ? (
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      Prompt-to-Video Engine
+                      <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 font-mono">
+                        0 FOOTAGE NEEDED
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-gray-400 block">
+                      Autonomous Cartesia Narration + Pixabay & Pexels Stock
+                    </span>
+                  </div>
+                </div>
 
-            <p className="text-xs text-gray-300 leading-relaxed">
-              I&apos;m your creative partner. Talk to me naturally about your video vision, ask for ideas on hooks and pacing, or tell me how you want your clips cut.
-            </p>
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  No video files in your project? Just type what you want to create! The AI Director writes the script, narrates with <strong>Cartesia Sonic-3.6</strong> studio neural voice, sources <strong>Pexels 4K video</strong> &amp; <strong>Pixabay vector illustrations</strong>, aligns <strong>Whisper captions</strong>, ducks background music, and builds your multi-track timeline automatically.
+                </p>
 
-            <div className="pt-2 border-t border-white/5">
-              <span className="text-[10px] uppercase font-semibold tracking-wider text-gray-400 block mb-1.5">
-                Try asking:
-              </span>
-              <div className="grid grid-cols-1 gap-1.5">
-                {INSPIRATION_SUGGESTIONS.map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSuggestionClick(item.prompt)}
-                    className="text-left px-2.5 py-1.5 rounded-xl bg-[#141825] hover:bg-indigo-950/40 hover:border-indigo-500/40 border border-white/5 text-[11px] text-gray-300 hover:text-white transition flex items-center justify-between group"
-                  >
-                    <span>{item.prompt}</span>
-                    <item.icon className="w-3 h-3 text-indigo-400 opacity-60 group-hover:opacity-100 shrink-0 ml-1.5" />
-                  </button>
-                ))}
+                <div className="pt-2 border-t border-white/5 space-y-1.5">
+                  <span className="text-[10px] uppercase font-semibold tracking-wider text-indigo-400 block">
+                    ⚡ Instant Generation Templates:
+                  </span>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {[
+                      {
+                        label: "📱 30s Viral SaaS Product Launch Ad (9:16)",
+                        prompt: "Create a fast-paced 30-second vertical TikTok ad for our AI software platform. Hook the viewer immediately, use energetic confident narration, dynamic tech B-roll from Pexels, bold kinetic captions, and upbeat electronic music.",
+                      },
+                      {
+                        label: "🌟 Explainer Video with Pixabay Vector Illustrations",
+                        prompt: "Create an engaging corporate explainer video highlighting workplace AI automation. Include authoritative narration, Pixabay transparent vector diagrams, professional office B-roll cutaways, and ambient background music.",
+                      },
+                      {
+                        label: "🚀 High-Converting Startup Feature Reel",
+                        prompt: "Generate a high-converting startup teaser video showcasing revolutionary workflow speed. Confident founder voice, rapid cuts, and bouncing yellow kinetic subtitles in safe zone.",
+                      },
+                    ].map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSuggestionClick(item.prompt)}
+                        className="text-left px-2.5 py-2 rounded-xl bg-[#141825] hover:bg-indigo-950/40 hover:border-indigo-500/40 border border-white/5 text-[11px] text-gray-200 hover:text-white transition flex items-center justify-between group"
+                      >
+                        <span className="font-medium">{item.label}</span>
+                        <ChevronLeft className="w-3.5 h-3.5 text-indigo-400 rotate-180 opacity-60 group-hover:opacity-100 shrink-0 ml-1.5" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-7 h-7 rounded-xl bg-indigo-600/25 border border-indigo-500/35 flex items-center justify-center text-indigo-300">
+                    <img
+                      src="/white-icon.svg"
+                      onError={(e) => {
+                        e.currentTarget.src = "/white icon.svg";
+                      }}
+                      alt="180 AI"
+                      className="w-4 h-4 object-contain"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-white">Creative Director Ready</span>
+                    <span className="text-[10px] text-gray-400 block">Collaborative video editing</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  I&apos;m your creative partner. Talk to me naturally about your video vision, ask for ideas on hooks and pacing, or tell me how you want your clips cut.
+                </p>
+
+                <div className="pt-2 border-t border-white/5">
+                  <span className="text-[10px] uppercase font-semibold tracking-wider text-gray-400 block mb-1.5">
+                    Try asking:
+                  </span>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {INSPIRATION_SUGGESTIONS.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSuggestionClick(item.prompt)}
+                        className="text-left px-2.5 py-1.5 rounded-xl bg-[#141825] hover:bg-indigo-950/40 hover:border-indigo-500/40 border border-white/5 text-[11px] text-gray-300 hover:text-white transition flex items-center justify-between group"
+                      >
+                        <span>{item.prompt}</span>
+                        <item.icon className="w-3 h-3 text-indigo-400 opacity-60 group-hover:opacity-100 shrink-0 ml-1.5" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

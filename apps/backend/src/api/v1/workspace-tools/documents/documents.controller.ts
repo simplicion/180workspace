@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { DocumentService, DocumentApprovalService, AIDocumentService } from '@workspace/workspace-tools';
+import { AICreditMeterService } from '@workspace/ai';
 
 export const getAllDocuments = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -283,6 +284,41 @@ export const generateDocumentAI = async (req: Request, res: Response, next: Next
         const companyId = (req as any).user?.companyId;
         const { prompt, documentType, clientId, employeeId, existingBlocks, mode } = req.body;
 
+        const textPrompt = (prompt || '').trim().toLowerCase();
+        const hasExisting = Array.isArray(existingBlocks) && existingBlocks.length > 0;
+
+        // Tier 0: Chitchat, greetings, rollbacks & undo are FREE (0 credits)
+        const isDeleteOrCancel = (
+            textPrompt.includes('no delete') ||
+            textPrompt.includes('delete that') ||
+            textPrompt.includes('undo that') ||
+            textPrompt.includes('cancel that') ||
+            textPrompt.includes('clear canvas')
+        );
+        const isPureGreeting = /^(hi|hello|hey|greetings|good\s+(morning|afternoon|evening)|sup)\b/i.test(textPrompt) && textPrompt.split(' ').length <= 3;
+
+        let creditCost = 10;
+        let operationKey = 'DOCUMENT_FULL';
+
+        if (isDeleteOrCancel || isPureGreeting) {
+            creditCost = 0;
+            operationKey = 'DOCUMENT_CONVERSATIONAL';
+        } else if (hasExisting) {
+            creditCost = 1; // 1 credit per revision turn
+            operationKey = 'DOCUMENT_REVISION';
+        }
+
+        if (creditCost > 0 && companyId) {
+            const balanceCheck = await AICreditMeterService.checkBalance(companyId, creditCost);
+            if (!balanceCheck.sufficient) {
+                return res.status(402).json({
+                    success: false,
+                    error: 'INSUFFICIENT_AI_CREDITS',
+                    message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance to proceed.',
+                });
+            }
+        }
+
         const result = await AIDocumentService.generateFromPrompt({
             prompt,
             documentType,
@@ -293,6 +329,16 @@ export const generateDocumentAI = async (req: Request, res: Response, next: Next
             existingBlocks,
             mode
         });
+
+        if (creditCost > 0 && companyId) {
+            await AICreditMeterService.settleCredits({
+                companyId,
+                actualCredits: creditCost,
+                appId: 'documents',
+                featureKey: operationKey,
+                metadata: { prompt, documentType }
+            });
+        }
 
         res.json(result);
     } catch (error) {

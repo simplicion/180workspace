@@ -107,7 +107,7 @@ export default function AppConfigPage() {
         }
     };
 
-    const hasGlobalAI = !!(settings?.aiProvider || (settings as any)?.openaiKey);
+    const hasGlobalAI = true; // Platform-managed AI active across all modules
     const hasGlobalFinance = !!((settings as any)?.bankName || (settings as any)?.payoutAccount);
     const enabledCount = app.modules.filter(m => enabledModules.includes(m.id)).length;
 

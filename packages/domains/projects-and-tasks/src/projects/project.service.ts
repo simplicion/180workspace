@@ -12,6 +12,9 @@ export class ProjectService {
         const isAdmin = ['admin', 'manager', 'BMSP_SUPER_ADMIN'].includes(user.role || '');
         
         const filter: any = {};
+        if (user.companyId) {
+            filter.companyId = user.companyId;
+        }
         if (!isAdmin) {
             filter.OR = [
                 { ownerId: user.id },
@@ -21,6 +24,13 @@ export class ProjectService {
         }
 
         if (query?.status) filter.status = query.status;
+
+        // Strict isolation: Projects & Tasks app only lists normal/general projects, never social media projects
+        if (query?.projectType) {
+            filter.projectType = query.projectType;
+        } else {
+            filter.projectType = { not: 'social_media' };
+        }
 
         const paginationParams = extractPaginationParams(query || {});
         const paginatedResult = await paginateWithCursor(prisma.project, {
@@ -110,7 +120,7 @@ export class ProjectService {
             where: { id: projectId }
         });
         
-        if (!project) throw new Error('Project not found');
+        if (!project || project.projectType === 'social_media') throw new Error('Project not found');
 
         const allMemberIds = Array.from(new Set(project.memberIds || []));
         const allOwnerIds = project.ownerId ? [project.ownerId] : [];
@@ -164,7 +174,7 @@ export class ProjectService {
 
     static async updateProject(projectId: string, data: any, { user }: { user: UserContext }) {
         const oldProject = await prisma.project.findUnique({ where: { id: projectId } });
-        if (!oldProject) throw new Error('Project not found');
+        if (!oldProject || oldProject.projectType === 'social_media') throw new Error('Project not found');
 
         const isAdmin = ['admin', 'manager', 'BMSP_SUPER_ADMIN'].includes(user.role || '');
         const isOwner = oldProject.ownerId === user.id;
@@ -202,7 +212,7 @@ export class ProjectService {
 
     static async deleteProject(projectId: string, { user }: { user: UserContext }) {
         const project = await prisma.project.findUnique({ where: { id: projectId } });
-        if (!project) throw new Error('Project not found');
+        if (!project || project.projectType === 'social_media') throw new Error('Project not found');
 
         if (!['admin', 'manager', 'BMSP_SUPER_ADMIN'].includes(user.role || '') && project.ownerId !== user.id) {
             throw new Error('Access denied.');

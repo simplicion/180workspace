@@ -5,7 +5,7 @@ import { prisma } from '@workspace/db';
 export class MilestoneService {
     static async getMilestones(projectId: string, user: UserContext) {
         const p = await prisma.project.findUnique({ where: { id: projectId } });
-        if (!p) throw new Error('Project not found');
+        if (!p || p.projectType === 'social_media') throw new Error('Project not found');
 
         const isMember = p.memberIds?.some((m: any) => m.toString() === user.id?.toString());
         const isClient = p.clientIds?.some((m: any) => m.toString() === user.id?.toString());
@@ -25,7 +25,7 @@ export class MilestoneService {
 
     static async createMilestone(projectId: string, data: any, user: UserContext) {
         const p = await prisma.project.findUnique({ where: { id: projectId } });
-        if (!p) throw new Error('Project not found');
+        if (!p || p.projectType === 'social_media') throw new Error('Project not found');
 
         if (!['admin', 'manager'].includes(user.role || '')) {
             throw new Error('Not authorized');

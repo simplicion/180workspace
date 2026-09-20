@@ -65,7 +65,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const [activeView, setActiveView] = useState<"home" | "editor">(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("project")) return "editor";
+      if (params.get("project") || params.get("projectId") || params.get("postId") || params.get("taskId")) return "editor";
     }
     return initialProjectId ? "editor" : "home";
   });
@@ -280,54 +280,91 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     };
     setAiMessages((prev) => [...prev, userMsg]);
 
-    try {
-      const result = await engineBridge.executeAutonomousPipeline(
-        project.assets[0]?.filePath || "input.mp4",
-        project.editIR.directorStyle.preset,
-        prompt,
-        authSession.companyId,
-        project.editIR,
-        {
-          availableAssets: project.assets,
-          selectedClipId,
-          playheadSec: currentTimeSeconds,
-          onProgress: (event: any) => setAiProgress(event),
-        }
-      );
+    const mainTrack = project.editIR.tracks.videoTracks[0];
+    const clips = mainTrack?.clips || [];
+    const isZeroFootage = clips.length === 0 && (!project.assets || project.assets.length === 0);
 
-      if (result.requiresConfirmation && result.confirmationDetails) {
-        const confirmMsg: DirectorChatMessage = {
-          id: safeUUID(),
-          sender: "director",
-          text: result.reply || "I have prepared the autonomous edit based on your request. Please review the planned changes below:",
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          actions: result.actions,
-          pendingConfirmation: {
-            whatFound: result.confirmationDetails.whatFound,
-            whatWillChange: result.confirmationDetails.whatWillChange,
-            assumptions: result.confirmationDetails.assumptions,
-            targetEditIR: result.editIR,
-          },
-        };
-        setAiMessages((prev) => [...prev, confirmMsg]);
+    try {
+      if (isZeroFootage) {
+        // Zero-Footage Autonomous Creative Ad / Video Pipeline
+        const result = await engineBridge.generateFromPrompt({
+          prompt,
+          companyId: authSession.companyId,
+          targetAspect: aspectRatio,
+          customStyleKey: project.editIR.directorStyle.preset,
+          onProgress: (event: any) => setAiProgress(event),
+        });
+
+        if (result && result.editIR) {
+          pushHistory(result.editIR);
+          const replyMsg: DirectorChatMessage = {
+            id: safeUUID(),
+            sender: "director",
+            text: `🎬 Autonomous Video Created Successfully!\n\n• Studio Narration: Cartesia Sonic-3.6 Neural Voiceover\n• Visual Track: Context-matched HD B-Roll cutaways (Pexels / Pixabay)\n• Audio Mix: Ducked background music & tactile SFX\n• Kinetic Subtitles: 3-word safe-zone captions with dynamic highlights`,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            actions: [
+              "Synthesize Cartesia Voiceover",
+              "Extract Whisper Timestamps",
+              "Source HD B-Roll Cutaways",
+              "Sidechain Duck BGM Track",
+              "Burn Kinetic Subtitles",
+            ],
+            snapshotEditIR: result.editIR,
+          };
+          setAiMessages((prev) => [...prev, replyMsg]);
+        }
       } else {
-        pushHistory(result.editIR);
-        const replyMsg: DirectorChatMessage = {
-          id: safeUUID(),
-          sender: "director",
-          text: result.reply || "I reviewed your project and updated the edit to match your direction.",
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          actions: result.actions,
-          snapshotEditIR: result.editIR,
-        };
-        setAiMessages((prev) => [...prev, replyMsg]);
+        const result = await engineBridge.executeAutonomousPipeline(
+          project.assets[0]?.filePath || "input.mp4",
+          project.editIR.directorStyle.preset,
+          prompt,
+          authSession.companyId,
+          project.editIR,
+          {
+            availableAssets: project.assets,
+            selectedClipId,
+            playheadSec: currentTimeSeconds,
+            onProgress: (event: any) => setAiProgress(event),
+          }
+        );
+
+        if (result.requiresConfirmation && result.confirmationDetails) {
+          const confirmMsg: DirectorChatMessage = {
+            id: safeUUID(),
+            sender: "director",
+            text: result.reply || "I have prepared the autonomous edit based on your request. Please review the planned changes below:",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            actions: result.actions,
+            pendingConfirmation: {
+              whatFound: result.confirmationDetails.whatFound,
+              whatWillChange: result.confirmationDetails.whatWillChange,
+              assumptions: result.confirmationDetails.assumptions,
+              targetEditIR: result.editIR,
+            },
+          };
+          setAiMessages((prev) => [...prev, confirmMsg]);
+        } else {
+          pushHistory(result.editIR);
+          const replyMsg: DirectorChatMessage = {
+            id: safeUUID(),
+            sender: "director",
+            text: result.reply || "I reviewed your project and updated the edit to match your direction.",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            actions: result.actions,
+            snapshotEditIR: result.editIR,
+          };
+          setAiMessages((prev) => [...prev, replyMsg]);
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("AI Director pipeline failed:", err);
+      const isCreditErr = err?.message?.includes("INSUFFICIENT_AI_CREDITS") || err?.message?.includes("Credit balance is too low");
       const errMsg: DirectorChatMessage = {
         id: safeUUID(),
         sender: "director",
-        text: "I encountered an issue executing that command. Let me know if you want to retry with a specific instruction.",
+        text: isCreditErr
+          ? "⚠️ Insufficient AI Credits to generate this video. Please click 'Top Up' in the AI Credits widget above to recharge your balance."
+          : `I encountered an issue executing that command: ${err?.message || "Internal error"}. Let me know if you want to retry with a specific instruction.`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setAiMessages((prev) => [...prev, errMsg]);

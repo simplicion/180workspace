@@ -177,4 +177,108 @@ export class VideoStudioService {
       },
     });
   }
+
+  /**
+   * Autonomous Zero-Footage Video Creation:
+   * Generates a complete broadcast video project directly from a creative text prompt.
+   * Leverages Cartesia Sonic-3.6 for neural voiceover, Pexels/Pixabay for HD B-roll,
+   * Whisper STT for cadence timestamps, and multi-track EditIR assembly.
+   */
+  static async generateFromPrompt(params: {
+    prompt: string;
+    companyId: string;
+    userId?: string;
+    targetAspect?: "16:9" | "9:16" | "1:1";
+    customStyleKey?: string;
+    skillId?: string;
+  }) {
+    const { ProductionPlanner, PlanExecutor } = require("@workspace/video-engine-runtime");
+    const { AICreditMeterService } = require("@workspace/ai");
+    const os = require("os");
+    const path = require("path");
+
+    // 1. Verify and reserve AI credits (50 credits = $0.05 for autonomous pipeline)
+    const creditCost = 50;
+    const hasSufficient = await AICreditMeterService.checkBalance(params.companyId, creditCost);
+    if (!hasSufficient || !hasSufficient.sufficient) {
+      throw new Error("INSUFFICIENT_AI_CREDITS: Your AI credit balance is too low for autonomous video generation. Please recharge.");
+    }
+
+    const reservation = await AICreditMeterService.reserveCredits({
+      companyId: params.companyId,
+      estimatedCreditCost: creditCost,
+      operation: "AUTONOMOUS_PROMPT_TO_VIDEO",
+    });
+
+    try {
+      const tempDir = path.join(os.tmpdir(), `director_zero_${Date.now()}`);
+      const outputPath = path.join(tempDir, `master_${Date.now()}.mp4`);
+
+      // 2. Formulate zero-footage DAG production plan
+      const plan = ProductionPlanner.createPlan({
+        userPrompt: params.prompt,
+        inputFiles: [], // Zero footage triggers autonomous speech synthesis & B-roll sourcing
+        outputPath,
+        targetAspect: params.targetAspect || "9:16",
+        customStyleKey: params.customStyleKey,
+        skillId: params.skillId,
+        companyId: params.companyId,
+        userId: params.userId,
+      });
+
+      // 3. Execute the DAG
+      const completedPlan = await PlanExecutor.executePlan(plan, {
+        tempDir,
+        log: (msg: string) => console.log(`[ZeroFootageDirector] ${msg}`),
+      });
+
+      // 4. Extract compiled EditIR from assembler task or context
+      const assembleTask = completedPlan.tasks.find((t: any) => t.toolName === "timeline_assembler");
+      const editIR = assembleTask?.resultArtifact;
+
+      if (!editIR) {
+        throw new Error("Production pipeline completed but failed to generate a valid EditIR timeline.");
+      }
+
+      // 5. Persist the generated project
+      const projectName = `AI Directed: ${params.prompt.slice(0, 35)}...`;
+      const project = await this.saveProject(params.companyId, {
+        name: projectName,
+        editIR,
+        templatePreset: params.customStyleKey || "HORMOZI_VIRAL",
+        metadata: {
+          generationPrompt: params.prompt,
+          generatedBy: "AUTONOMOUS_DIRECTOR",
+          planId: completedPlan.id,
+        },
+      });
+
+      // 6. Settle credit deduction
+      await AICreditMeterService.settleCredits({
+        companyId: params.companyId,
+        reservationId: reservation.reservationId,
+        finalCreditCost: creditCost,
+        operation: "AUTONOMOUS_PROMPT_TO_VIDEO",
+        metadata: {
+          projectId: project.id,
+          planId: completedPlan.id,
+          prompt: params.prompt,
+        },
+      });
+
+      return {
+        project,
+        plan: completedPlan,
+        editIR,
+      };
+    } catch (err: any) {
+      if (reservation?.reservationId) {
+        try {
+          AICreditMeterService.releaseReservation(reservation.reservationId);
+        } catch {}
+      }
+      console.error("[VideoStudioService.generateFromPrompt] Pipeline error:", err);
+      throw err;
+    }
+  }
 }

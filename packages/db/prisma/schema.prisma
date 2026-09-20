@@ -152,8 +152,65 @@ model Company {
   clientReviewSessions_CompanyClientReviewSessions ClientReviewSession[] @relation("CompanyClientReviewSessions")
   socialConversations_CompanySocialConversations SocialConversation[] @relation("CompanySocialConversations")
   evergreenQueueSlots_CompanyEvergreenQueueSlots EvergreenQueueSlot[] @relation("CompanyEvergreenQueueSlots")
+  aiCreditAccount                          CompanyAICreditAccount?
 
 }
+
+model CompanyAICreditAccount {
+  id                    String   @id @default(uuid())
+  companyId             String   @unique
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // Credit Balances
+  monthlyIncludedQuota  Int      @default(2000)
+  monthlyCreditsUsed    Int      @default(0)
+  purchasedCredits      Int      @default(0)
+  reservedCredits       Int      @default(0)
+  
+  // Ledger Lifecycle
+  billingCycleStart     DateTime @default(now())
+  billingCycleEnd       DateTime @default(now())
+  autoRechargeEnabled   Boolean  @default(false)
+  autoRechargeThreshold Int      @default(500)
+  autoRechargeAmountUsd Decimal  @default(5.00) @db.Decimal(10, 2)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  ledgerEntries         AICreditLedgerEntry[]
+
+  @@index([companyId])
+}
+
+model AICreditLedgerEntry {
+  id                String   @id @default(uuid())
+  accountId         String
+  account           CompanyAICreditAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  companyId         String
+  
+  // Operation Metadata
+  appId             String
+  featureKey        String
+  operationType     String
+  
+  // Quantities & Accounting
+  creditsAmount     Int
+  balanceAfter      Int
+  rawUnitsCount     Int?
+  unitType          String?
+  costUsdEquivalent Decimal? @db.Decimal(10, 5)
+  
+  // Context & Correlation
+  referenceId       String?
+  userId            String?
+  metadata          Json?    @default("{}")
+  
+  createdAt         DateTime @default(now())
+
+  @@index([companyId, appId])
+  @@index([createdAt])
+}
+
 
 model SavedBank {
   id        String   @id @default(uuid())
@@ -489,6 +546,8 @@ model Project {
   updatedAt                                DateTime             @updatedAt
   deletedAt                                DateTime?
   customTaskStatusName                     String?              @default("Custom")
+  socialServices                           String[]             @default(["content_calendar", "publishing", "analytics"])
+  socialSettings                           Json?                @default("{\"defaultTimezone\":\"UTC\",\"approvalRequired\":true,\"storageRetentionDays\":30}")
   contentCalendars_ProjectContentCalendars ContentCalendar[]    @relation("ProjectContentCalendars")
   expenseTransactions                      ExpenseTransaction[]
   goals                                    Goal[]               @relation("GoalProject")
@@ -534,6 +593,11 @@ model Task {
   voiceMessageUrl       String?
   moduleId              String?
   clientId              String?
+  contentPieceId        String?
+  socialPostId          String?
+  deliverableUrl        String?
+  editingInstructions   String?   @db.Text
+  sourceMediaUrls       String[]  @default([])
   assignee              User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
   company               Company?  @relation(fields: [companyId], references: [id])
   creator               User?     @relation("TaskCreator", fields: [creatorId], references: [id])
@@ -549,6 +613,8 @@ model Task {
   @@index([companyId, createdAt])
   @@index([companyId])
   @@index([companyId, id])
+  @@index([contentPieceId])
+  @@index([socialPostId])
 }
 
 model Invoice {
@@ -3527,6 +3593,9 @@ model SocialAccount {
   tokenExpiresAt      DateTime?
   scopes              String[]             @default([])
   metadata            Json?                @default("{}")
+  capabilities        Json?                @default("{\"canPublishReels\":true,\"canPublishPosts\":true,\"canPublishStories\":false,\"canReadInbox\":true,\"canComment\":true}")
+  reauthRequired      Boolean              @default(false)
+  lastHealthCheckAt   DateTime?
   isActive            Boolean              @default(true)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -3584,6 +3653,15 @@ model SocialPost {
   errorMessage        String?
   publishedLinks      Json?                 @default("{}")
   metadata            Json?                 @default("{}")
+  versionNumber       Int                   @default(1)
+  approvedVersion     Int?
+  revisionNotes       String?               @db.Text
+  externalStorageLinks Json?                @default("[]")
+  history             Json?                 @default("[]")
+  repurposedFromId    String?
+  isEvergreen         Boolean               @default(false)
+  lastReusedAt        DateTime?
+  reuseCount          Int                   @default(0)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
@@ -3593,6 +3671,8 @@ model SocialPost {
   calendar            ContentCalendar?      @relation("CalendarSocialPosts", fields: [calendarId], references: [id], onDelete: SetNull)
   calendarPiece       CalendarContentPiece? @relation("PieceSocialPost", fields: [calendarPieceId], references: [id], onDelete: SetNull)
   socialAccount       SocialAccount?        @relation("AccountSocialPosts", fields: [socialAccountId], references: [id], onDelete: SetNull)
+  repurposedFrom      SocialPost?           @relation("RepurposedPosts", fields: [repurposedFromId], references: [id], onDelete: SetNull)
+  derivedPosts        SocialPost[]          @relation("RepurposedPosts")
   variants            SocialPostVariant[]
   reviewComments      PostReviewComment[]
 

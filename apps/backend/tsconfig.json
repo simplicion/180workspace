@@ -15,8 +15,8 @@
     "declarationMap": false,
     "paths": {
       "@workspace/ai": ["../../packages/domains/ai/dist"],
-      "@workspace/video-contracts": ["../../packages/video-contracts/src/index.ts"],
-      "@workspace/video-contracts/*": ["../../packages/video-contracts/src/*"]
+      "@workspace/video-contracts": ["../../packages/video-contracts/dist/index.d.ts"],
+      "@workspace/video-contracts/*": ["../../packages/video-contracts/dist/*"]
     }
   },
   "include": ["src/**/*", "server.js"],

@@ -9,6 +9,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 // Voiceforce Cascaded Engine & Eager Barge-in loaded - 2026-09-07
 // Task creation & universal Prisma relation normalizer loaded - 2026-09-12
 // Traffic Director high-performance analytics & telemetry suite loaded - 2026-09-18 v6 (Final Ultra-Fast Engine)
+// Social Media Management Project Services loaded - 2026-09-19 v2.2 (Complete Full-Domain Isolation)
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);

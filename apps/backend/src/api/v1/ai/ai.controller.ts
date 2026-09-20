@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import {
     aiProviderService,
     AICompanyConfigService,
+    AICreditMeterService,
     AIChatService,
     AIEntitySearchService,
     AIDocumentArchitectService,
@@ -31,6 +32,74 @@ export class AIController {
             console.error('[AIController.getStatus] Error:', error);
             return res.status(500).json({ success: false, message: error.message });
         }
+    }
+
+    /**
+     * GET /api/v1/ai/credits/status
+     * Returns company AI credit balance, tier allowance, usage progress, and transaction history
+     */
+    static async getCreditStatus(req: Request, res: Response) {
+        try {
+            const companyId = req.user?.companyId || (req.query.companyId as string) || (req.headers['x-company-id'] as string);
+            if (!companyId) {
+                return res.status(400).json({ success: false, message: 'Missing companyId' });
+            }
+            const status = await AICreditMeterService.getAccountStatus(companyId);
+            return res.json({ success: true, ...status });
+        } catch (error: any) {
+            console.error('[AIController.getCreditStatus] Error:', error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
+     * POST /api/v1/ai/credits/recharge
+     * Recharges AI credits (e.g. $5 -> 5,000 credits, $10 -> 10,000 credits, $25 -> 25,000 credits)
+     */
+    static async rechargeCredits(req: Request, res: Response) {
+        try {
+            const companyId = req.user?.companyId || (req.body.companyId as string) || (req.headers['x-company-id'] as string);
+            const amountUsd = Number(req.body.amountUsd);
+            const paymentMethod = req.body.paymentMethod || 'PLATFORM_WALLET';
+            if (!companyId || !amountUsd || amountUsd <= 0) {
+                return res.status(400).json({ success: false, message: 'Invalid companyId or amountUsd' });
+            }
+            const result = await AICreditMeterService.rechargeCredits({
+                companyId,
+                amountUsd,
+                paymentMethod,
+            });
+            return res.json({ success: true, ...result });
+        } catch (error: any) {
+            console.error('[AIController.rechargeCredits] Error:', error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    /**
+     * Internal Guard: Checks company AI credit balance and debits on success
+     */
+    public static async checkAndDeductCredits(
+        companyId: string | undefined,
+        cost: number,
+        operation: string,
+        metadata?: any
+    ): Promise<boolean> {
+        if (!companyId) return true;
+        const balanceCheck = await AICreditMeterService.checkBalance(companyId, cost);
+        if (!balanceCheck || !balanceCheck.sufficient) {
+            return false;
+        }
+        await AICreditMeterService.settleCredits({
+            companyId,
+            actualCredits: cost,
+            finalCreditCost: cost,
+            appId: 'ai',
+            featureKey: operation,
+            operation,
+            metadata,
+        });
+        return true;
     }
 
     /**
@@ -177,6 +246,17 @@ export class AIController {
                 return res.status(400).json({ success: false, message: 'Message or prompt is required.' });
             }
 
+            // Anti-Exploitation Credit Guard
+            const companyId = req.user?.companyId;
+            const allowed = await AIController.checkAndDeductCredits(companyId, 1, 'AI_CHAT', { prompt: activePrompt.slice(0, 50) });
+            if (!allowed) {
+                return res.status(402).json({
+                    success: false,
+                    error: 'INSUFFICIENT_AI_CREDITS',
+                    message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance.',
+                });
+            }
+
             // Agent Mode: Deterministic LangChain Tool Calling & Algorithm First execution
             if (mode === 'agent') {
                 const agentResult = await AIAgentExecutor.execute({
@@ -315,6 +395,44 @@ export class AIController {
             const { prompt, documentType, clientId, employeeId, existingBlocks, sessionId } = req.body;
             const companyId = req.user?.companyId;
 
+            const textPrompt = (prompt || '').trim().toLowerCase();
+            const hasExisting = Array.isArray(existingBlocks) && existingBlocks.length > 0;
+
+            // Tier 0: Chitchat, greetings, rollbacks & undo are FREE (0 credits)
+            const isDeleteOrCancel = (
+                textPrompt.includes('no delete') ||
+                textPrompt.includes('delete that') ||
+                textPrompt.includes('undo that') ||
+                textPrompt.includes('cancel that') ||
+                textPrompt.includes('clear canvas')
+            );
+            const isPureGreeting = /^(hi|hello|hey|greetings|good\s+(morning|afternoon|evening)|sup)\b/i.test(textPrompt) && textPrompt.split(' ').length <= 3;
+
+            // Tier 1 vs Tier 2:
+            // - If user has existing canvas blocks and is editing/revising/appending -> 1 Credit
+            // - If starting a fresh full document synthesis -> 10 Credits
+            let creditCost = 10;
+            let operationKey = 'DOCUMENT_FULL';
+
+            if (isDeleteOrCancel || isPureGreeting) {
+                creditCost = 0;
+                operationKey = 'DOCUMENT_CONVERSATIONAL';
+            } else if (hasExisting) {
+                creditCost = 1; // 1 credit per revision turn
+                operationKey = 'DOCUMENT_REVISION';
+            }
+
+            if (creditCost > 0) {
+                const allowed = await AIController.checkAndDeductCredits(companyId, creditCost, operationKey, { prompt, documentType });
+                if (!allowed) {
+                    return res.status(402).json({
+                        success: false,
+                        error: 'INSUFFICIENT_AI_CREDITS',
+                        message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance to proceed.',
+                    });
+                }
+            }
+
             const result = await AIDocumentArchitectService.generate({
                 prompt,
                 documentType,
@@ -342,6 +460,16 @@ export class AIController {
             const { prompt, theme } = req.body;
             const companyId = req.user?.companyId;
             const userId = req.user?.id;
+
+            // Anti-Exploitation Credit Guard (20 Credits for Website Synthesis)
+            const allowed = await AIController.checkAndDeductCredits(companyId, 20, 'WEBSITE_BUILDER', { prompt, theme });
+            if (!allowed) {
+                return res.status(402).json({
+                    success: false,
+                    error: 'INSUFFICIENT_AI_CREDITS',
+                    message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance to generate websites.',
+                });
+            }
 
             const result = await UniversalBuilderRegistry.compile('website', {
                 prompt: prompt || 'Modern marketing landing page',
@@ -371,6 +499,16 @@ export class AIController {
                 return res.status(400).json({ success: false, message: 'Website ID is required for patching.' });
             }
 
+            // Anti-Exploitation Credit Guard (2 Credits for Iterative Website Patch)
+            const allowed = await AIController.checkAndDeductCredits(companyId, 2, 'WEBSITE_PATCH', { websiteId, instruction: instruction || prompt });
+            if (!allowed) {
+                return res.status(402).json({
+                    success: false,
+                    error: 'INSUFFICIENT_AI_CREDITS',
+                    message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance to edit websites.',
+                });
+            }
+
             const result = await UniversalBuilderRegistry.patch('website', websiteId, instruction || prompt || '', {
                 companyId,
                 userId,
@@ -394,6 +532,16 @@ export class AIController {
             const { prompt, theme } = req.body;
             const companyId = req.user?.companyId;
             const userId = req.user?.id;
+
+            // Anti-Exploitation Credit Guard (10 Credits for Form Synthesis)
+            const allowed = await AIController.checkAndDeductCredits(companyId, 10, 'FORM_BUILDER', { prompt, theme });
+            if (!allowed) {
+                return res.status(402).json({
+                    success: false,
+                    error: 'INSUFFICIENT_AI_CREDITS',
+                    message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance to generate forms.',
+                });
+            }
 
             const result = await UniversalBuilderRegistry.compile('form', {
                 prompt: prompt || 'Lead Intake & Inquiry Form',
@@ -421,6 +569,16 @@ export class AIController {
 
             if (!formId) {
                 return res.status(400).json({ success: false, message: 'Form ID is required for patching.' });
+            }
+
+            // Anti-Exploitation Credit Guard (1 Credit for Iterative Form Patch)
+            const allowed = await AIController.checkAndDeductCredits(companyId, 1, 'FORM_PATCH', { formId, instruction: instruction || prompt });
+            if (!allowed) {
+                return res.status(402).json({
+                    success: false,
+                    error: 'INSUFFICIENT_AI_CREDITS',
+                    message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance to edit forms.',
+                });
             }
 
             const result = await UniversalBuilderRegistry.patch('form', formId, instruction || prompt || '', {
@@ -451,6 +609,16 @@ export class AIController {
             const targetId = documentId || stateContext?.id;
             if (!targetId && !stateContext) {
                 return res.status(400).json({ success: false, message: 'Document ID or stateContext is required for patching.' });
+            }
+
+            // Anti-Exploitation Credit Guard (1 Credit for Iterative Document Revision / Patch)
+            const allowed = await AIController.checkAndDeductCredits(companyId, 1, 'DOCUMENT_REVISION', { targetId, instruction: instruction || prompt });
+            if (!allowed) {
+                return res.status(402).json({
+                    success: false,
+                    error: 'INSUFFICIENT_AI_CREDITS',
+                    message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance to revise documents.',
+                });
             }
 
             const result = await UniversalBuilderRegistry.patch('document', targetId || 'doc_active', instruction || prompt || '', {
@@ -557,6 +725,16 @@ export class AIController {
         try {
             const userId = req.user?.id;
             const companyId = req.user?.companyId;
+
+            // Anti-Exploitation Credit Guard (10 Credits for Calendar Generation)
+            const allowed = await AIController.checkAndDeductCredits(companyId, 10, 'CONTENT_CALENDAR');
+            if (!allowed) {
+                return res.status(402).json({
+                    success: false,
+                    error: 'INSUFFICIENT_AI_CREDITS',
+                    message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance.',
+                });
+            }
             const result = await AIContentCalendarService.generateContentCalendar(req.body, userId, companyId);
             return res.json(result);
         } catch (error: any) {
@@ -573,6 +751,16 @@ export class AIController {
         try {
             const { recipientName, recipientEmail, purpose, dealValue, idea, tone, context } = req.body;
             const companyId = req.user?.companyId;
+
+            // Anti-Exploitation Credit Guard (2 Credits for CRM Sales Email Draft)
+            const allowed = await AIController.checkAndDeductCredits(companyId, 2, 'CRM_EMAIL_DRAFT');
+            if (!allowed) {
+                return res.status(402).json({
+                    success: false,
+                    error: 'INSUFFICIENT_AI_CREDITS',
+                    message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance.',
+                });
+            }
 
             if (purpose || recipientEmail) {
                 const result = await AICRMCopilotService.generateEmailDraft({

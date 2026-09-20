@@ -115,6 +115,7 @@ export const navigation = [
         icon: Share2,
         roles: ['admin', 'employee'],
         items: [
+            { id: 'social-projects', name: 'Social Media Projects', href: '/social-projects', icon: FolderKanban, roles: ['admin', 'employee'] },
             { id: 'content-calendar', name: 'Content Calendar', href: '/content-calendar', icon: CalendarDays, roles: ['admin', 'employee'] },
             { id: 'social-media-assets', name: 'Social Media Assets & Brand Voice', href: '/social-media-assets', icon: Bookmark, roles: ['admin', 'employee'] },
             { id: 'social-inbox', name: 'Unified Social Inbox', href: '/inbox', icon: MessageSquare, roles: ['admin', 'employee'] },

@@ -23,10 +23,13 @@ import { runTest as test22 } from "./22-multicam-podcast-direction.test";
 import { runTest as test23 } from "./23-psychoacoustic-4layer-sound.test";
 import { runTest as test24 } from "./24-eye-trace-and-narrative-arc.test";
 import { runTest as test25 } from "./25-director-intent-scoping.test";
+import { runTest as test26 } from "./26-pexels-broll-director-sourcing.test";
+import { runTest as test27 } from "./27-zero-footage-autonomous-director.test";
+import { runTest as test28 } from "./28-pixabay-multi-stock-decision-engine.test";
 
 async function main() {
   console.log("=================================================================");
-  console.log("  180 AUTONOMOUS VIDEO ENGINE - 25 PRODUCTION VERIFICATION TESTS  ");
+  console.log("  180 AUTONOMOUS VIDEO ENGINE - 28 PRODUCTION VERIFICATION TESTS  ");
   console.log("=================================================================");
 
   const tests = [
@@ -55,6 +58,9 @@ async function main() {
     { id: 23, name: "4-Layer Psychoacoustic Sound Stage & Look Pipeline", fn: test23 },
     { id: 24, name: "Saccadic Eye-Trace Solver & 5-Phase Narrative Arc", fn: test24 },
     { id: 25, name: "Surgical Intent Scoping, Track Locks & Motion Graphic Generation", fn: test25 },
+    { id: 26, name: "Autonomous Pexels HD B-Roll & Stock Photo Sourcing", fn: test26 },
+    { id: 27, name: "Zero-Footage Autonomous Video Creation & Cartesia Speech Engine", fn: test27 },
+    { id: 28, name: "Pixabay Multi-Resource Sourcing, Anti-Hotlinking & Decision Broker", fn: test28 },
   ];
 
   let passed = 0;
@@ -73,7 +79,7 @@ async function main() {
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
   console.log("\n=================================================================");
-  console.log(`🎉 ALL 25 CRITICAL SYSTEM TESTS PASSED! (${passed}/25 in ${elapsed}s)`);
+  console.log(`🎉 ALL 28 CRITICAL SYSTEM TESTS PASSED! (${passed}/28 in ${elapsed}s)`);
   console.log("=================================================================\n");
 }
 

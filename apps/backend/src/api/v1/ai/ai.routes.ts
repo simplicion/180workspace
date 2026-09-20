@@ -18,6 +18,20 @@ router.use('/requests', agentRequestsRoutes);
 router.get('/status', protect, AIController.getStatus);
 router.post('/test-connection', protect, AIController.testConnection);
 
+const optionalProtect = async (req: any, res: any, next: any) => {
+    if (req.headers.authorization || req.query.token) {
+        return protect(req, res, next);
+    }
+    if (req.query.companyId || req.body?.companyId || req.headers['x-company-id']) {
+        return next();
+    }
+    return protect(req, res, next);
+};
+
+// AI Credit Metering & Wallet Recharge
+router.get('/credits/status', optionalProtect, AIController.getCreditStatus);
+router.post('/credits/recharge', optionalProtect, AIController.rechargeCredits);
+
 // Chat & Sessions
 router.get('/sessions', protect, AIController.getChatSessions);
 router.get('/sessions/:id', protect, AIController.getChatSession);

@@ -82,3 +82,5 @@ scratch/
 .vproj_cache/
 temp_brand_test_*/
 .director_memory/
+temp_zero_footage_test_*/
+ssm_out.json

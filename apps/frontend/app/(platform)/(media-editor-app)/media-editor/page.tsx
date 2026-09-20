@@ -97,10 +97,12 @@ export default function MediaEditorDashboardPage() {
       else setDetectedOS("windows");
 
       const params = new URLSearchParams(window.location.search);
-      const proj = params.get("project");
+      const proj = params.get("project") || params.get("projectId");
       const mode = params.get("mode");
       const template = params.get("template");
-      if (proj || mode === "studio" || isNativeDesktop) {
+      const postId = params.get("postId");
+      const taskId = params.get("taskId");
+      if (proj || mode === "studio" || isNativeDesktop || postId || taskId) {
         if (proj) setActiveStudioProject(proj);
         if (template) setActiveStudioTemplate(template);
         setIsEmbeddedStudioOpen(true);
