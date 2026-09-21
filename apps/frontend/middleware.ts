@@ -1,7 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || "build-time-secret-placeholder-min-32-chars";
+// Read at request time (not module load) and never fall back to a literal: a known default
+// secret would let anyone forge a valid NextAuth session token.
+function getNextAuthSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error("NEXTAUTH_SECRET is not set; refusing to verify session tokens without it.");
+  }
+  return secret;
+}
+
+let lastSecretErrorLog = 0;
+function logMissingSecretOnce(err: unknown) {
+  const now = Date.now();
+  if (now - lastSecretErrorLog > 60_000) {
+    lastSecretErrorLog = now;
+    console.error("[auth] CONFIGURATION ERROR:", (err as Error)?.message || err);
+  }
+}
 
 const domainRegistryCache = new Map<string, { type: string; slug?: string; expiresAt: number }>();
 
@@ -70,6 +87,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/.well-known') ||
     pathname.startsWith('/icons/') ||
     pathname.startsWith('/downloads/') ||
+    pathname === '/offline.html' || // service-worker offline fallback must be fetchable while signed out
     isStaticFile
   ) {
     return NextResponse.next();
@@ -151,9 +169,18 @@ export async function middleware(req: NextRequest) {
   }
 
   // 4. Extract Token - Try multiple extraction strategies to avoid proxy/cookie prefix pitfalls
-  let token = await getToken({ req, secret: NEXTAUTH_SECRET, secureCookie: true });
-  if (!token) {
-    token = await getToken({ req, secret: NEXTAUTH_SECRET, secureCookie: false });
+  // A missing NEXTAUTH_SECRET is a deployment error and is reported loudly, but it must not take every page down:
+  // with no secret there is simply no verifiable NextAuth session (never a guessable default), and the platform-token
+  // path below keeps working.
+  let token: Awaited<ReturnType<typeof getToken>> = null;
+  try {
+    const nextAuthSecret = getNextAuthSecret();
+    token = await getToken({ req, secret: nextAuthSecret, secureCookie: true });
+    if (!token) {
+      token = await getToken({ req, secret: nextAuthSecret, secureCookie: false });
+    }
+  } catch (err) {
+    logMissingSecretOnce(err);
   }
 
   const platformCookie = req.cookies.get('platform_auth_token')?.value;

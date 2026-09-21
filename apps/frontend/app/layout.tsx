@@ -44,7 +44,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     const { getServerSession } = await import('next-auth');
     const { authOptions } = await import('@/lib/authOptions');
     const { headers } = await import('next/headers');
-    const session = await getServerSession(authOptions);
+    // If NEXTAUTH_SECRET is not configured, authOptions throws (by design: no baked-in default secret). Report it
+    // loudly but keep the rest of the site up; only NextAuth-based (Google) sign-in is unavailable until it is set.
+    let session = null;
+    try {
+        session = await getServerSession(authOptions);
+    } catch (err) {
+        console.error('[auth] CONFIGURATION ERROR, NextAuth session unavailable:', (err as Error)?.message || err);
+    }
 
     const headersList = await headers();
     const host = (headersList.get('host') || '').toLowerCase();
