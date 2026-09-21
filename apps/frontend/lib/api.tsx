@@ -2,6 +2,14 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { updateSocketAuth } from './socket';
 import { singleFlightRefresh, clearAllAuthTokens } from './auth-refresh';
+import { classifyForQueue, isCacheableGet } from './offline/queue-policy';
+import { cacheGet, cachePut } from './offline/http-cache';
+import { queryTasksLocally } from './offline/local-queries';
+import { queueOfflineWrite } from './offline/offline-write';
+import { lookupRealIdSync } from './offline/outbox';
+import { ingestGetResponse } from './offline/ingest';
+import { reportReachable } from './offline/reachability';
+import { isTempId } from './offline/sync-logic';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -50,18 +58,63 @@ const getAuthToken = () => {
     return matches ? matches[2] : null;
 };
 
-// Request interceptor: attach latest token
+// ─── Offline helpers ─────────────────────────────────────────────────────────
+
+const TEMP_ID_IN_PATH = /\/((?:temp|tmp|offline|local)[_-][A-Za-z0-9-]+)(?=\/|$|\?)/i;
+
+/** Only a failed connection is "offline". Timeouts are ambiguous (the server may have applied the write). */
+const isConnectionFailure = (error: any) =>
+    !error?.response && (error?.code === 'ERR_NETWORK' || String(error?.message || '').includes('Network Error'));
+
+const isUnauthenticatedEndpoint = (url?: string) =>
+    !!url && (url.includes('/api/auth/login') || url.includes('/api/auth/refresh') || url.includes('/api/auth/register'));
+
+function syntheticResponse(config: any, data: any, headers: Record<string, string>) {
+    return { data, status: 200, statusText: 'OK (offline)', headers, config, request: {} };
+}
+
+function notifyServedOffline(url: string, storedAt?: number) {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('offline_data_served', { detail: { url, storedAt } }));
+}
+
+// Request interceptor: attach latest token; resolve temp ids that have since been synced
 api.interceptors.request.use((config) => {
     const token = getAuthToken();
     if (token) config.headers.Authorization = `Bearer ${token}`;
+
+    const url = config.url || '';
+    const tempMatch = url.match(TEMP_ID_IN_PATH);
+    if (tempMatch && isTempId(tempMatch[1])) {
+        const real = lookupRealIdSync(tempMatch[1]);
+        if (real) {
+            config.url = url.replace(tempMatch[1], real);
+        } else if (classifyForQueue(config.method, url)) {
+            // The entity was created offline and its CREATE has not been pushed yet: this edit/delete can only be
+            // queued (and merged into the pending create). Never send a temp id to the server.
+            config.adapter = () => Promise.reject(new axios.AxiosError('Network Error', 'ERR_NETWORK', config));
+        }
+    }
     return config;
 });
 
-// Response interceptor: auto-refresh on 401
+// Response interceptor: reachability + read cache on success; refresh / offline handling on failure
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        reportReachable(true);
+        const cfg: any = response.config;
+        if (typeof window !== 'undefined' && (cfg?.method || 'get').toLowerCase() === 'get' && isCacheableGet(cfg?.url)) {
+            cachePut(cfg.url, cfg.params, response.data).catch(() => {});
+            ingestGetResponse(cfg.url, response.data).catch(() => {});
+        }
+        return response;
+    },
     async (error) => {
         const original = error.config;
+        if (!original) return Promise.reject(error);
+        if (error.response) reportReachable(true);
+        else if (isConnectionFailure(error)) reportReachable(false);
+
         if (
             error.response?.status === 401 &&
             !original._retry &&
@@ -74,7 +127,14 @@ api.interceptors.response.use(
                 updateSocketAuth(newToken);
                 original.headers.Authorization = `Bearer ${newToken}`;
                 return api(original);
-            } catch {
+            } catch (refreshError: any) {
+                // Only a DEFINITIVE rejection of the refresh token ends the session. If the refresh could not be
+                // attempted (offline / server error) the user stays signed in with everything intact and the original
+                // 401 is simply rejected. Wiping tokens here used to log people out whenever the refresh call failed
+                // for network or server reasons.
+                if (!refreshError?.isAuthRejection) {
+                    return Promise.reject(error);
+                }
                 clearAllAuthTokens();
 
                 if (window.location.pathname !== '/login' &&
@@ -108,81 +168,56 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        // ─── Global Offline-First Write Interceptor ──────────────────────────────
-        // If a network connection drop occurs during a write mutation (POST, PUT, PATCH, DELETE),
-        // automatically persist the mutation to the Transactional Outbox and save optimistically.
-        const method = (original?.method || '').toUpperCase();
-        const isWriteMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
-        const isOfflineError = !error.response || error.code === 'ERR_NETWORK' || error.message?.includes('Network Error');
-        const isAuthEndpoint = original?.url?.includes('/api/auth/login') || original?.url?.includes('/api/auth/refresh');
+        // ─── Offline handling ────────────────────────────────────────────────────
+        // Only when the API is genuinely unreachable (connection failure), never for timeouts or HTTP errors.
+        if (typeof window !== 'undefined' && isConnectionFailure(error) && !original.__skipOffline && !isUnauthenticatedEndpoint(original.url)) {
+            const method = String(original.method || 'get').toLowerCase();
 
-        if (isOfflineError && isWriteMutation && !isAuthEndpoint && typeof window !== 'undefined') {
-            try {
-                const { enqueueMutation, saveLocalEntity } = await import('./offline/outbox');
-                const { syncEngine } = await import('./offline/sync-engine');
-
-                let parsedPayload = original.data;
-                if (typeof parsedPayload === 'string') {
-                    try {
-                        parsedPayload = JSON.parse(parsedPayload);
-                    } catch {}
+            // READS: serve what we have. Local task store first (includes offline edits), else the last cached response.
+            if (method === 'get' && isCacheableGet(original.url)) {
+                try {
+                    const path = String(original.url || '').split('?')[0].replace(/^https?:\/\/[^/]+/i, '').replace(/^\/api\/v1\//, '/api/');
+                    if (path === '/api/tasks') {
+                        const local = await queryTasksLocally(original.params);
+                        if (local) {
+                            notifyServedOffline(original.url);
+                            return syntheticResponse(original, local, { 'x-offline-cache': 'local' });
+                        }
+                    }
+                    const cached = await cacheGet(original.url, original.params);
+                    if (cached) {
+                        notifyServedOffline(original.url, cached.storedAt);
+                        return syntheticResponse(original, cached.data, { 'x-offline-cache': 'http', 'x-offline-cached-at': String(cached.storedAt) });
+                    }
+                } catch (cacheErr) {
+                    console.warn('[API Offline] Read fallback failed:', cacheErr);
                 }
+                return Promise.reject(error);
+            }
 
-                const url = original.url || '';
-                let entityType: any = 'generic';
-                if (url.includes('/tasks')) entityType = 'task';
-                else if (url.includes('/users') || url.includes('/employees')) entityType = 'employee';
-                else if (url.includes('/projects')) entityType = 'project';
-                else if (url.includes('/clients')) entityType = 'client';
-                else if (url.includes('/deals')) entityType = 'deal';
-                else if (url.includes('/leads')) entityType = 'lead';
-                else if (url.includes('/invoices')) entityType = 'invoice';
-                else if (url.includes('/expenses') || url.includes('/bills')) entityType = 'expense';
-                else if (url.includes('/attendance')) entityType = 'attendance';
-                else if (url.includes('/tickets') || url.includes('/support')) entityType = 'ticket';
-                else if (url.includes('/posts') || url.includes('/content-calendar')) entityType = 'social_post';
-                else if (url.includes('/documents')) entityType = 'document';
-                else if (url.includes('/campaigns') || url.includes('/advertising')) entityType = 'campaign';
-                else if (url.includes('/links') || url.includes('/traffic-director')) entityType = 'link';
-
-                const entityId = parsedPayload?.id || url.split('/').pop() || `offline_${Date.now()}`;
-                const optimisticData = {
-                    ...(typeof parsedPayload === 'object' ? parsedPayload : {}),
-                    id: entityId,
-                    syncStatus: 'pending_sync',
-                    localUpdatedAt: Date.now(),
-                };
-
-                // 1. Save locally to IndexedDB
-                await saveLocalEntity(entityType, entityId, optimisticData, 'pending_sync');
-
-                // 2. Queue mutation to Outbox
-                await enqueueMutation({
-                    entityType,
-                    entityId,
-                    action: method === 'POST' ? 'CREATE' : method === 'DELETE' ? 'DELETE' : 'UPDATE',
-                    endpoint: url,
-                    method: method as any,
-                    payload: parsedPayload,
-                });
-
-                syncEngine.refreshCount().catch(() => {});
-
-                toast('Saved offline. Will sync automatically when connection returns.', {
-                    icon: '💾',
-                    duration: 4000,
-                });
-
-                // 3. Resolve with optimistic response to prevent component crash
-                return Promise.resolve({
-                    data: optimisticData,
-                    status: 200,
-                    statusText: 'OK (Optimistic Offline)',
-                    headers: {},
-                    config: original,
-                });
-            } catch (outboxErr) {
-                console.error('[API Offline Interceptor] Error queueing mutation:', outboxErr);
+            // WRITES: queue only what the sync policy allows; everything else fails honestly.
+            if (method === 'post' || method === 'put' || method === 'delete') {
+                if (!classifyForQueue(method, original.url)) {
+                    toast.error('You are offline. This action needs an internet connection.', { id: 'offline-action-blocked' });
+                    window.dispatchEvent(new CustomEvent('offline_action_blocked', { detail: { url: original.url } }));
+                    return Promise.reject(error);
+                }
+                try {
+                    const queued = await queueOfflineWrite(method, original.url, original.data, original.__optimistic);
+                    if (queued) {
+                        toast('Saved on this device. It will sync when you are back online.', { icon: '💾', duration: 4000, id: 'offline-saved' });
+                        return syntheticResponse(original, queued.data, { 'x-offline-queued': '1' });
+                    }
+                } catch (outboxErr: any) {
+                    console.error('[API Offline] Could not queue mutation:', outboxErr);
+                    const quota = outboxErr?.name === 'QuotaExceededError';
+                    toast.error(
+                        quota
+                            ? 'Not enough storage on this device to save your change offline. Free up space and try again.'
+                            : 'Could not save your change offline. It has NOT been saved.',
+                        { id: 'offline-save-failed', duration: 8000 }
+                    );
+                }
             }
         }
 

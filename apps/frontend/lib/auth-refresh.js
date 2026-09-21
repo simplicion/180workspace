@@ -7,7 +7,12 @@
  * Every interceptor calls `singleFlightRefresh()` instead of making its own
  * POST to /api/auth/refresh. The first caller creates the Promise; all
  * subsequent callers receive the same Promise until it settles.
+ *
+ * Errors thrown here carry `isAuthRejection: true` ONLY when the server definitively rejected the refresh token
+ * (or there is none). Callers must not end the session for any other failure (offline, 5xx, 429).
  */
+
+import { readScopeFromToken, readStoredToken } from "./offline/session";
 
 let inflightRefreshPromise = null;
 
@@ -43,7 +48,10 @@ async function _doRefresh() {
             : null;
 
     if (!refreshToken) {
-        throw new Error("No refresh token available");
+        // The server just told us (401) the access token is invalid and we hold nothing to renew it with.
+        const err = new Error("No refresh token available");
+        err.isAuthRejection = true;
+        throw err;
     }
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -55,7 +63,12 @@ async function _doRefresh() {
     });
 
     if (!response.ok) {
-        throw new Error(`Refresh failed with status ${response.status}`);
+        const err = new Error(`Refresh failed with status ${response.status}`);
+        err.status = response.status;
+        // Only a definitive "this refresh token is not valid" ends the session. 5xx / 429 / gateway errors are
+        // transient: the user must stay signed in (and keep their offline queue) while the server recovers.
+        err.isAuthRejection = response.status === 400 || response.status === 401 || response.status === 403;
+        throw err;
     }
 
     const data = await response.json();
@@ -86,6 +99,17 @@ async function _doRefresh() {
  */
 export function clearAllAuthTokens() {
     if (typeof window === "undefined") return;
+
+    // Work out whose cached data to drop BEFORE the token disappears. Cached server data is purged on sign-out so it
+    // is not left on disk for the next user of this machine; the user's unsynced outbox is kept (see offline/purge.ts).
+    try {
+        const scope = readScopeFromToken(readStoredToken());
+        if (scope) {
+            import("./offline/purge").then((m) => m.purgeSessionData(scope)).catch(() => {});
+        }
+    } catch {
+        /* never block sign-out on cache cleanup */
+    }
 
     localStorage.removeItem("platform_auth_token");
     localStorage.removeItem("platform_refresh_token");

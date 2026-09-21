@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>You're offline | 180 Workspace</title>
+  <style>
+    :root { --bg:#f8fafc; --card:#ffffff; --text:#0f172a; --muted:#475569; --border:#e2e8f0; --accent:#4f46e5; --accent-hover:#4338ca; --warn:#b45309; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#09090b; --card:#0f172a; --text:#f1f5f9; --muted:#94a3b8; --border:#1e293b; --accent:#6366f1; --accent-hover:#818cf8; --warn:#fbbf24; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { width:100%; max-width:520px; background:var(--card); border:1px solid var(--border); border-radius:20px; padding:32px; text-align:center; }
+    .icon { width:56px; height:56px; margin:0 auto 16px; border-radius:16px; background:rgba(245,158,11,.12); display:flex; align-items:center; justify-content:center; color:var(--warn); }
+    h1 { font-size:20px; margin:0 0 8px; }
+    p { margin:0 0 12px; font-size:14px; line-height:1.55; color:var(--muted); }
+    .actions { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
+    a.btn, button.btn { font:inherit; font-size:14px; font-weight:600; padding:10px 18px; border-radius:12px; cursor:pointer; text-decoration:none; }
+    a.primary { background:var(--accent); color:#fff; border:1px solid var(--accent); }
+    a.primary:hover { background:var(--accent-hover); }
+    button.secondary { background:transparent; color:var(--text); border:1px solid var(--border); }
+    .note { font-size:12px; margin-top:16px; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="icon" aria-hidden="true">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 5.2-2.7"/><path d="M19 12.9a10 10 0 0 0-2.3-1.7"/><path d="M2 8.8a15 15 0 0 1 4.2-2.8"/><path d="M22 8.8A15 15 0 0 0 12.6 4.1"/><path d="m2 2 20 20"/></svg>
+    </div>
+    <h1>You're offline</h1>
+    <p>180 Workspace can't reach the internet right now. We'll reload this page automatically as soon as you're back online.</p>
+    <p>Want to keep working without a connection? Install the <strong>180 Workspace desktop app</strong>: your tasks, projects and clients stay available offline, changes sync when you reconnect, and it's the only place video editing runs.</p>
+
+    <div class="actions">
+      <a id="download" class="btn primary" href="/api/download/windows">Download the desktop app</a>
+      <button class="btn secondary" type="button" onclick="location.reload()">Try again</button>
+    </div>
+    <p class="note">Downloading needs an internet connection. Already installed? <a href="workspace180://" style="color:var(--accent)">Open the desktop app</a>.</p>
+    <p id="mobile" class="note hidden">The desktop app is for Windows, macOS and Linux computers.</p>
+  </main>
+
+  <script>
+    (function () {
+      var ua = navigator.userAgent.toLowerCase();
+      var link = document.getElementById('download');
+      if (/android|iphone|ipad|ipod/.test(ua)) {
+        link.classList.add('hidden');
+        document.getElementById('mobile').classList.remove('hidden');
+      } else if (ua.indexOf('mac os') !== -1 || ua.indexOf('macintosh') !== -1) {
+        link.href = '/api/download/mac';
+        link.textContent = 'Download for macOS';
+      } else if (ua.indexOf('linux') !== -1 && ua.indexOf('windows') === -1) {
+        link.href = '/api/download/linux';
+        link.textContent = 'Download for Linux';
+      } else {
+        link.textContent = 'Download for Windows';
+      }
+      window.addEventListener('online', function () { location.reload(); });
+    })();
+  </script>
+</body>
+</html>

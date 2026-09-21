@@ -98,6 +98,15 @@ const nextConfig = {
     async headers() {
         return [
             {
+                // The service worker script and its offline page must never be served stale, or a broken worker
+                // could not be replaced.
+                source: '/(sw.js|offline.html)',
+                headers: [
+                    { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+                    { key: 'Service-Worker-Allowed', value: '/' },
+                ],
+            },
+            {
                 source: '/((?!r/|shield/|tag/|evaluate/|f/|sites/).*)',
                 headers: [
                     { key: 'X-Frame-Options', value: 'SAMEORIGIN' },

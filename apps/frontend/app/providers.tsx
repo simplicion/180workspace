@@ -7,6 +7,8 @@ import { SocketProvider } from '../context/SocketContext';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { SessionProvider } from 'next-auth/react';
 import { ReactNode } from 'react';
+import OfflineDownloadBanner from '@/components/shared/OfflineDownloadBanner';
+import ServiceWorkerRegister from '@/components/shared/ServiceWorkerRegister';
 
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
@@ -26,6 +28,8 @@ export function Providers({ children, session }: { children: ReactNode, session?
                                 <ModalProvider>
                                     <SocketProvider>
                                         {children}
+                                        <OfflineDownloadBanner />
+                                        <ServiceWorkerRegister />
                                     </SocketProvider>
                                 </ModalProvider>
                             </SettingsProvider>

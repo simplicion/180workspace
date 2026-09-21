@@ -3,7 +3,6 @@
 import { LogoLoader } from "@workspace/ui";
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { offlineApi } from '@/lib/offline/offline-api';
 import { User, Mail, Lock, Briefcase, Building2, DollarSign, Calendar, Shield, ChevronDown, ChevronUp, Eye, EyeOff, Camera, UploadCloud } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
@@ -190,32 +189,17 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, 
             const payload: any = { ...form, photo: uploadedPhotoUrl };
             if (isEdit) {
                 if (!payload.password) delete payload.password;
-                const { data, isOptimisticOffline } = await offlineApi.put(`/api/users/${editUser.id || editUser.id}`, payload, {
-                    entityType: 'employee',
-                    entityId: editUser.id,
-                    optimisticData: { ...editUser, ...payload },
-                });
+                // Deliberately NOT offline-queueable: the payload can carry credentials and creating/editing an account has
+                // side effects (invites, seats, permissions) that must be confirmed by the server. Offline this fails
+                // with a clear message instead of storing a password on disk.
+                const { data } = await api.put(`/api/users/${editUser.id}`, payload);
                 const userObj = data.user || data;
-                toast.success(isOptimisticOffline ? 'Employee updated locally! Will sync when online.' : 'Employee updated!');
+                toast.success('Employee updated!');
                 onSuccess(userObj);
             } else {
-                const deterministicEmpId = form.employeeId || nextId || `EMP-${Date.now().toString().slice(-4)}`;
-                const tempUserId = `emp_${Date.now()}`;
-                const optimisticEmployee = {
-                    id: tempUserId,
-                    employeeId: deterministicEmpId,
-                    ...payload,
-                    createdAt: new Date().toISOString(),
-                    syncStatus: 'pending_sync',
-                };
-
-                const { data, isOptimisticOffline } = await offlineApi.post('/api/auth/register-user', payload, {
-                    entityType: 'employee',
-                    entityId: tempUserId,
-                    optimisticData: { user: optimisticEmployee },
-                });
-                const userObj = data.user || data || optimisticEmployee;
-                toast.success(isOptimisticOffline ? `Employee saved offline with ID: ${deterministicEmpId}! Will sync when online.` : `Employee added with ID: ${userObj.employeeId}`);
+                const { data } = await api.post('/api/auth/register-user', payload);
+                const userObj = data.user || data;
+                toast.success(`Employee added with ID: ${userObj.employeeId}`);
                 onSuccess(userObj);
             }
             onClose();
