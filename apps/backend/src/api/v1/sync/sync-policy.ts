@@ -18,11 +18,13 @@ export type MutationMethod = 'POST' | 'PUT' | 'DELETE';
 export type MutationAction = 'CREATE' | 'UPDATE' | 'DELETE';
 
 export interface SyncEntityRule {
-  entityType: 'task' | 'project' | 'client';
+  entityType: 'task' | 'project' | 'client' | 'lead' | 'leave';
   /** Collection path, without trailing slash. */
   collection: string;
   /** Prisma accessor on the tenant-scoped client. */
-  prismaModel: 'task' | 'project' | 'client';
+  prismaModel: 'task' | 'project' | 'client' | 'lead' | 'leave';
+  /** Actions that may be replayed for this entity (e.g. a leave request can be applied for / cancelled, never edited or approved offline). */
+  allow: readonly MutationAction[];
   /** Whether rows of this model are soft deleted (deletedAt). */
   softDelete: boolean;
   /** Whether the model has updatedAt (needed for the stale-write guard). */
@@ -30,9 +32,13 @@ export interface SyncEntityRule {
 }
 
 export const SYNC_ENTITY_RULES: readonly SyncEntityRule[] = [
-  { entityType: 'task', collection: '/api/tasks', prismaModel: 'task', softDelete: true, hasUpdatedAt: true },
-  { entityType: 'project', collection: '/api/projects', prismaModel: 'project', softDelete: true, hasUpdatedAt: true },
-  { entityType: 'client', collection: '/api/clients', prismaModel: 'client', softDelete: false, hasUpdatedAt: false },
+  { entityType: 'task', collection: '/api/tasks', prismaModel: 'task', allow: ['CREATE', 'UPDATE', 'DELETE'], softDelete: true, hasUpdatedAt: true },
+  { entityType: 'project', collection: '/api/projects', prismaModel: 'project', allow: ['CREATE', 'UPDATE', 'DELETE'], softDelete: true, hasUpdatedAt: true },
+  { entityType: 'client', collection: '/api/clients', prismaModel: 'client', allow: ['CREATE', 'UPDATE', 'DELETE'], softDelete: false, hasUpdatedAt: false },
+  { entityType: 'lead', collection: '/api/sales/leads', prismaModel: 'lead', allow: ['CREATE', 'UPDATE', 'DELETE'], softDelete: true, hasUpdatedAt: true },
+  // Applying for leave and cancelling a pending request are the employee's actions. Approval (`/:id/review`) is a
+  // manager action that needs the server's authority and stays online.
+  { entityType: 'leave', collection: '/api/leaves', prismaModel: 'leave', allow: ['CREATE', 'DELETE'], softDelete: false, hasUpdatedAt: true },
 ];
 
 // UUID / cuid / nanoid-ish. Deliberately excludes '/', '.', '%', whitespace.
@@ -79,6 +85,9 @@ export function classifyMutation(methodRaw: unknown, pathRaw: unknown): PolicyRe
       if (method !== 'POST') {
         return { ok: false, code: 'bad_method', message: `${method} is not valid on ${rule.collection}` };
       }
+      if (!rule.allow.includes('CREATE')) {
+        return { ok: false, code: 'bad_method', message: `${rule.entityType} cannot be created offline` };
+      }
       return { ok: true, rule, action: 'CREATE', path: pathRaw, method };
     }
     if (pathRaw.startsWith(rule.collection + '/')) {
@@ -93,14 +102,11 @@ export function classifyMutation(methodRaw: unknown, pathRaw: unknown): PolicyRe
       if (method === 'POST') {
         return { ok: false, code: 'bad_method', message: `POST is not valid on ${rule.collection}/:id` };
       }
-      return {
-        ok: true,
-        rule,
-        action: method === 'PUT' ? 'UPDATE' : 'DELETE',
-        entityId: id,
-        path: pathRaw,
-        method,
-      };
+      const action: MutationAction = method === 'PUT' ? 'UPDATE' : 'DELETE';
+      if (!rule.allow.includes(action)) {
+        return { ok: false, code: 'bad_method', message: `${rule.entityType} cannot be ${action === 'UPDATE' ? 'edited' : 'deleted'} offline` };
+      }
+      return { ok: true, rule, action, entityId: id, path: pathRaw, method };
     }
   }
 

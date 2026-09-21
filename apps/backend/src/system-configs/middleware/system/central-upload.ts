@@ -17,6 +17,17 @@ const ffprobePath = require('@ffprobe-installer/ffprobe').path;
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
 
+/**
+ * Video processing belongs in the desktop app (product decision), not on the API server: transcoding inside the upload
+ * request starves the API of CPU/memory and blocks the request until FFmpeg finishes.
+ *   SERVER_VIDEO_PROCESSING=on  (default) keep today's behaviour: 360p MP4 / HLS produced here.
+ *   SERVER_VIDEO_PROCESSING=off store videos exactly as uploaded; no ffprobe/ffmpeg runs on this server.
+ * The default is `on` so deploying this changes nothing by itself; flip it once the desktop app produces the final file.
+ */
+export function serverVideoProcessingEnabled(): boolean {
+    return (process.env.SERVER_VIDEO_PROCESSING || 'on').toLowerCase() !== 'off';
+}
+
 // In-memory storage - 50MB max to accommodate videos
 const storage = multer.memoryStorage();
 
@@ -68,6 +79,19 @@ function handleUpload(folder: string = 'general', options: any = {}) {
                 }
             }
 
+            // With server video processing off, an HLS (streaming) upload cannot be produced here. Say so explicitly rather
+            // than storing an MP4 and returning it where the caller expects a playlist.
+            if (
+                req.file.mimetype.startsWith('video/') &&
+                !serverVideoProcessingEnabled() &&
+                (req.query.streaming === 'true' || req.body?.streaming === 'true' || options.streaming === true)
+            ) {
+                return res.status(422).json({
+                    error: 'STREAMING_PREPARATION_MOVED',
+                    message: 'Streaming video is prepared in the 180 Workspace desktop app. Upload the finished file from the app.',
+                });
+            }
+
             // Force R2 for centralized pipeline
             let result = null;
 
@@ -80,7 +104,7 @@ function handleUpload(folder: string = 'general', options: any = {}) {
                         .toBuffer();
                     req.file.mimetype = 'image/webp';
                     req.file.originalname = req.file.originalname.replace(/\.[^/.]+$/, "") + ".webp";
-                } else if (req.file.mimetype.startsWith('video/')) {
+                } else if (req.file.mimetype.startsWith('video/') && serverVideoProcessingEnabled()) {
                     const isStreaming = req.query.streaming === 'true' || req.body.streaming === 'true' || options.streaming === true;
                     
                     const tmpDir = path.join(__dirname, '../../../../../../uploads/temp/video-process');

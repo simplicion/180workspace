@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { SocialPostService, EditingTaskService } from '@workspace/social-media';
+import { requireDesktopDevice } from '../../desktop/desktop-device';
 
 const router = Router();
 
@@ -118,7 +119,7 @@ router.get('/:id/validate-publish', async (req: Request, res: Response) => {
 });
 
 // Sync video rendered from 180 Media Studio
-router.post('/sync-studio-render', async (req: Request, res: Response) => {
+router.post('/sync-studio-render', requireDesktopDevice, async (req: Request, res: Response) => {
     try {
         const { calendarPieceId, finalVideoUrl, thumbnailUrl } = req.body;
         if (!calendarPieceId || !finalVideoUrl) {

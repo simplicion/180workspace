@@ -433,6 +433,11 @@ const syncRoutes = require('../api/v1/sync/sync.routes').default || require('../
 router.use('/sync', protect, syncRoutes);
 router.use('/v1/sync', protect, syncRoutes);
 
+// Desktop device registration / revocation (see api/v1/desktop/desktop-device.ts)
+const desktopRoutes = require('../api/v1/desktop/desktop.routes').default || require('../api/v1/desktop/desktop.routes');
+router.use('/desktop', protect, desktopRoutes);
+router.use('/v1/desktop', protect, desktopRoutes);
+
 router.use('/media-editor', protect, moduleGuard('media-editor'), mediaEditorRoutes);
 router.use('/v1/media-editor', protect, moduleGuard('media-editor'), mediaEditorRoutes);
 
