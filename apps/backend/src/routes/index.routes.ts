@@ -359,70 +359,68 @@ router.get([
   '/media-editor/download/:platform',
   '/v1/media-editor/download/:platform',
 ], (req: any, res: any) => {
-  const { platform } = req.params;
-  const fileNameMap: Record<string, string> = {
-    windows: "180Workspace-Setup-x64.exe",
-    win: "180Workspace-Setup-x64.exe",
-    msi: "180Workspace-Setup-x64.exe",
-    mac: "180Workspace-Universal.dmg",
-    mac_intel: "180Workspace-x64.dmg",
-    linux: "180Workspace-x86_64.AppImage",
-    linux_deb: "180Workspace-amd64.deb",
-    android: "180Workspace-v1.0.apk",
-    apk: "180Workspace-v1.0.apk",
+  const platform = String(req.params.platform || "").toLowerCase();
+  // platform -> [download file name, env var holding the published release URL]
+  const artifacts: Record<string, [string, string]> = {
+    windows: ["180Workspace-Setup-x64.exe", "DESKTOP_DOWNLOAD_URL_WINDOWS"],
+    win: ["180Workspace-Setup-x64.exe", "DESKTOP_DOWNLOAD_URL_WINDOWS"],
+    msi: ["180Workspace-Setup-x64.exe", "DESKTOP_DOWNLOAD_URL_WINDOWS"],
+    mac: ["180Workspace-Universal.dmg", "DESKTOP_DOWNLOAD_URL_MAC"],
+    mac_intel: ["180Workspace-x64.dmg", "DESKTOP_DOWNLOAD_URL_MAC_INTEL"],
+    linux: ["180Workspace-x86_64.AppImage", "DESKTOP_DOWNLOAD_URL_LINUX"],
+    linux_deb: ["180Workspace-amd64.deb", "DESKTOP_DOWNLOAD_URL_LINUX_DEB"],
+    android: ["180Workspace-v1.0.apk", "DESKTOP_DOWNLOAD_URL_ANDROID"],
+    apk: ["180Workspace-v1.0.apk", "DESKTOP_DOWNLOAD_URL_ANDROID"],
   };
-  const fileName = fileNameMap[platform] || "180Workspace-Setup-x64.exe";
+  const artifact = artifacts[platform];
+  if (!artifact) {
+    return res.status(400).json({ success: false, error: "UNKNOWN_PLATFORM", message: "Unknown platform" });
+  }
+  const [fileName, urlEnv] = artifact;
 
-  if (platform === "windows" || platform === "win" || platform === "msi") {
-    const fs = require("fs");
-    const path = require("path");
-    const candidatePaths = [
-      path.resolve(__dirname, "../../../desktop-app/windows/180Workspace-Setup-x64.exe"),
-      path.resolve(__dirname, "../../../desktop-app/windows/180Workspace.exe"),
-      path.resolve(__dirname, "../../../frontend/public/downloads/180Workspace-Setup-x64.exe"),
-      path.resolve(__dirname, "../../../marketing-web/public/downloads/180Workspace-Setup-x64.exe"),
-      path.resolve(__dirname, "../../downloads/180Workspace-Setup-x64.exe"),
-    ];
-
-    for (const p of candidatePaths) {
-      if (fs.existsSync(p)) {
-        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-        res.setHeader("Content-Type", "application/vnd.microsoft.portable-executable");
-        return res.sendFile(p);
-      }
-    }
-  } else if (platform === "android" || platform === "apk") {
-    const fs = require("fs");
-    const path = require("path");
-    const candidatePaths = [
-      path.resolve(__dirname, "../../../frontend/android/app/build/outputs/apk/release/app-release.apk"),
-      path.resolve(__dirname, "../../../frontend/android/app/build/outputs/apk/debug/app-debug.apk"),
-      path.resolve(__dirname, "../../downloads/180Workspace-v1.0.apk"),
-    ];
-
-    for (const p of candidatePaths) {
-      if (fs.existsSync(p)) {
-        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-        res.setHeader("Content-Type", "application/vnd.android.package-archive");
-        return res.sendFile(p);
-      }
-    }
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-    res.setHeader("Content-Type", "application/vnd.android.package-archive");
-    return res.send(
-      Buffer.from(
-        `180 Workspace Android Capacitor Package: ${fileName}\nArchitecture: ARM64-v8a / x86_64\nHardware Engine: MediaCodec + WebGL2 / WebGPU Hardware Compositor\n`
-      )
-    );
+  // 1. Preferred: the signed release published by CI (GitHub Releases / R2 / CDN), configured per platform.
+  const releaseUrl = process.env[urlEnv];
+  if (releaseUrl && /^https:\/\//i.test(releaseUrl)) {
+    return res.redirect(302, releaseUrl);
   }
 
-  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-  res.setHeader("Content-Type", "application/octet-stream");
-  return res.send(
-    Buffer.from(
-      `180 Workspace Native Desktop Installer Package: ${fileName}\nArchitecture: x86_64 / ARM64\nEngine: WebView2 / Tauri v2 Native Container\nProtocol: workspace180://\n`
-    )
-  );
+  // 2. Legacy: an installer file shipped next to the backend (kept until the Tauri release pipeline is live).
+  const fs = require("fs");
+  const path = require("path");
+  const isAndroid = platform === "android" || platform === "apk";
+  const isWindows = platform === "windows" || platform === "win" || platform === "msi";
+  const candidatePaths: string[] = isWindows
+    ? [
+        path.resolve(__dirname, "../../../desktop-app/windows/180Workspace-Setup-x64.exe"),
+        path.resolve(__dirname, "../../../frontend/public/downloads/180Workspace-Setup-x64.exe"),
+        path.resolve(__dirname, "../../downloads/180Workspace-Setup-x64.exe"),
+      ]
+    : isAndroid
+    ? [
+        path.resolve(__dirname, "../../../frontend/android/app/build/outputs/apk/release/app-release.apk"),
+        path.resolve(__dirname, "../../downloads/180Workspace-v1.0.apk"),
+      ]
+    : [path.resolve(__dirname, "../../downloads", fileName)];
+
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      res.setHeader(
+        "Content-Type",
+        isWindows ? "application/vnd.microsoft.portable-executable" : isAndroid ? "application/vnd.android.package-archive" : "application/octet-stream"
+      );
+      return res.sendFile(p);
+    }
+  }
+
+  // 3. Never fabricate an installer: a placeholder file named ".exe/.dmg" that is really text looks like a
+  //    corrupted download to the user. Say plainly that it is not published yet.
+  return res.status(404).json({
+    success: false,
+    error: "INSTALLER_NOT_AVAILABLE",
+    message: "The desktop installer for this platform has not been published yet.",
+    platform,
+  });
 });
 
 // NOTE: '/media-editor/ai-status' and '/media-editor/ai-direct' were previously also registered here,
