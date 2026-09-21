@@ -9,6 +9,9 @@ fn main() {
             "probe_media",
             "pick_export_path",
             "transcode_media",
+            "render_timeline",
+            "render_status",
+            "cancel_render",
         ])),
     )
     .expect("failed to run tauri-build");

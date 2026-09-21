@@ -26,7 +26,7 @@ export type OutboxStatus =
   | 'conflict' // server state changed / entity gone: user must choose
   | 'rejected'; // server will never accept it as written: user must edit or discard
 
-export type OutboxEntityType = 'task' | 'project' | 'client';
+export type OutboxEntityType = 'task' | 'project' | 'client' | 'lead' | 'leave';
 
 export interface OutboxMutation {
   id: string;

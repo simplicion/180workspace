@@ -20,25 +20,28 @@ Nothing in this document claims more than that. The first Rust compile, the firs
 
 | Area | State |
 |---|---|
-| Sync API `POST /sync/push`, `GET /sync/pull` | ✅ replaces the old `/sync/batch`, `/sync/delta` (which were unsafe, see §3) |
-| Client outbox, coalescing, temp-id remap, engine | ✅ |
-| Offline reads (HTTP cache + local task query) | ✅ tasks and app boot payload; ⬜ everything else |
-| Browser gate for video editing | ✅ code; 🟡 not seen rendered |
-| Offline banner + service worker + `offline.html` | 🟡 |
-| Tauri desktop shell (window, deep link, single instance, sidecars, secure media commands) | 🟡 **never compiled** |
+| Sync API `POST /sync/push`, `GET /sync/pull` (tasks, projects, clients, leads, leave requests) | ✅ |
+| Client outbox, coalescing, temp-id remap, engine, conflict UI | ✅ |
+| Offline reads: policy-driven HTTP cache across 8 modules, local task query, overlay of offline edits on cached lists | ✅ |
+| Offline availability table for every module (§10), sensitive data never cached | ✅ |
+| Browser gate for video editing, offline banner, `offline.html`, service worker, per-module offline screen | ✅ code; 🟡 not seen rendered |
+| **Native media pipeline**: timeline → FFmpeg plan, allowlist validator, ffprobe parser (§11) | ✅ tested against the real FFmpeg |
+| Editor uses it: native import, real probe, native export with progress/cancel, honest fallback | ✅ unit-tested with IPC mocked; 🟡 not run in the real desktop app |
+| Tauri desktop shell, secure native commands (pick, probe, transcode, render, cancel) | 🟡 **never compiled** |
+| Desktop device tokens (register, renew, revoke, device cap) | ✅ tested; enforcement is **off** until you turn it on |
+| `SERVER_VIDEO_PROCESSING` switch (store videos as uploaded, no FFmpeg on the API server) | ✅ tested; default **on** (no change until flipped) |
 | Release workflow | 🟡 never run |
-| Native FFmpeg wired into the editor | ⬜ Phase 4 |
 
 ### Tests that were run
 
 | Suite | Result | Command |
 |---|---|---|
-| Backend sync policy | 7/7 | `cd apps/backend && npx tsx --test src/api/v1/sync/sync-policy.test.ts` |
-| Backend `/sync/push` integration (real Express, real loopback replay) | 10/10 | `npx tsx --test --test-force-exit src/api/v1/sync/sync.routes.test.ts` |
-| Frontend unit (coalescing, remap, batching, backoff, policy, local query) | 31/31 | `cd apps/frontend && npx jest tests/unit/offline` |
-| Frontend integration (real outbox/engine/interceptors on in-memory IndexedDB, v1→v2 migration) | 21/21 | needs `fake-indexeddb`, see header of `tests/integration/offline-stack.integration.ts` |
+| Backend: sync policy, `/sync/push` (real Express + loopback), device tokens, upload middleware switch | 33/33 | `cd apps/backend && npx tsx --test --test-force-exit src/api/v1/sync/*.test.ts src/api/v1/desktop/*.test.ts src/system-configs/middleware/system/central-upload.test.ts` |
+| Frontend unit (sync logic, policies, module table, overlay, render plan + validator, ffprobe parser, desktop client, editor bridge, device token) | 135/135 | `cd apps/frontend && npx jest tests/unit` |
+| Frontend integration: real outbox/engine/interceptors on in-memory IndexedDB, v1→v2 migration | 21/21 | needs `fake-indexeddb`, see header of `tests/integration/offline-stack.integration.ts` |
+| Frontend integration: render plans run through the **real ffmpeg/ffprobe**, checked by pixel, audio level, size and duration | 9/9 | `cd apps/frontend && npx tsx tests/integration/native-render-plan.integration.ts` |
 | Frontend type-check | 0 errors | `npx tsc --noEmit -p tsconfig.json` |
-| Rust unit tests (deep-link parsing) | written, **not run** | `cargo test --lib` in `apps/desktop-app/src-tauri` |
+| Rust unit tests (deep links, filter-graph validator against a fixture built by the TypeScript builder, argument builder, progress parser) | written, **not run** | `cargo test --lib` in `apps/desktop-app/src-tauri` |
 
 ## 3. Defects found in the existing code, and what was done
 
@@ -133,10 +136,10 @@ then behave **exactly** as online, and sync can never do more than the API allow
 | Task reassigned away from the user | 24 h baseline pull prunes it | ✅ prune logic; 🟡 real server |
 | Pull cursor invalid / >200 pages | Reset / prune skipped when incomplete | ✅ code |
 | Client clock wrong | Only server timestamps are used for versioning | ✅ by design |
-| Attachments / voice notes created offline | Not supported; user is told | ✅ message; ⬜ Phase 1.5 durable upload queue |
+| Attachments / voice notes created offline | Not supported; user is told | ✅ message; ⬜ durable upload queue |
 | Bulk endpoints (bulk-delete, bulk-status) offline | Fail with message | ✅ |
-| Leads, deals, invoices, HR, documents, tickets offline writes | Fail honestly (not silently "saved") | ✅; ⬜ Phase 1 extends the registry entity by entity |
-| Reads for entities other than tasks | Only screens already visited (HTTP cache) | ✅; ⬜ Phase 1 local query per entity |
+| Deals, invoices, notes, attendance, documents, tickets offline writes | Fail honestly (not silently "saved"). Leads and leave requests are supported. | ✅; ⬜ extend the registry entity by entity |
+| Reads for entities other than tasks | Screens already visited (policy-driven HTTP cache) with offline edits overlaid | ✅; ⬜ full local query per entity (first-ever visit offline shows nothing) |
 | Hard-deleted rows (only 7 of 152 models have `deletedAt`) | Tombstones exist for tasks only | ⬜ Phase 1 |
 | Optimistic row shape differs from REST shape | Caller-supplied optimistic object; task defaults applied | ✅ tasks |
 
@@ -154,7 +157,7 @@ then behave **exactly** as online, and sync can never do more than the API allow
 | Compromised web origin calling native commands | Capabilities grant only 5 commands; paths only from native pickers; FFmpeg arguments fixed in Rust | 🟡 not compiled |
 | Malicious `workspace180://` link | Character allowlist, no `..`, length cap | 🟡 Rust tests written, not run |
 | Desktop gate bypassed by faking `window.__TAURI_INTERNALS__` | It is a product gate, not security | ⬜ enforce server-side if it matters commercially |
-| Backend media routes (server FFmpeg, `/render`) still callable from browsers | ⬜ decide: retire or keep as a cloud feature |
+| Backend media routes (`/render`, `/ai-direct`, `/generate-from-prompt`, `sync-studio-render`) callable from browsers | Require a desktop device token (registered by the desktop app, revocable, max 5 per user); rollout switch `DESKTOP_DEVICE_ENFORCEMENT` off → report → enforce | ✅ tests; enforcement **off** |
 | `NEXT_PUBLIC_PEXELS_API_KEY` / `NEXT_PUBLIC_PIXABAY_API_KEY` ship in the browser bundle | ⬜ proxy those calls through the backend |
 | FFmpeg is GPLv3 in the bundled Windows binary | ⬜ **legal review before release** |
 | Unsigned installers (SmartScreen / Gatekeeper warnings) | ⬜ certificates (§7) |
@@ -180,10 +183,12 @@ then behave **exactly** as online, and sync can never do more than the API allow
 |---|---|---|
 | Browser user opens the editor | Wall with download / open-app buttons | ✅ code; 🟡 not seen rendered |
 | Dev bypass flag reaches production | Documented; ⬜ CI guard that fails the build if set |
-| Editor export still uses browser canvas + `MediaRecorder` | Native commands and TS client exist (`lib/native/desktop-media.ts`) but the editor does not call them | ⬜ **Phase 4, the largest remaining item** |
-| Progress, cancel, disk-full, huge files for transcode | ⬜ Phase 4 (progress events, cancellation) |
-| Media relink after files move; `.vproj` offline persistence | ⬜ Phase 4 |
-| Hardware encoders (NVENC / VideoToolbox) | ⬜ Phase 4 |
+| Editor export | Native FFmpeg first (video **and audio**); the compatibility canvas renderer (video only) is used only for features the native path cannot render yet, and the user is told why | ✅ plan builder against real FFmpeg; 🟡 in the real app |
+| Progress, cancel | Polled progress; cancel stops FFmpeg and deletes the half-written file | ✅ client; 🟡 Rust |
+| Disk full / very large files during export | FFmpeg error text is shown; nothing is left behind | 🟡 not tested with a full disk |
+| Media survives an app restart | Picked files are remembered in the app data folder and re-allowed at startup (only files that still exist) | 🟡 Rust |
+| Media that was moved or deleted (relink UI); `.vproj` save/open through native dialogs | ⬜ |
+| Hardware encoders (NVENC / VideoToolbox) | ⬜ (software x264 only; 3 quality presets) |
 | Offline AI | Deterministic director is pure TypeScript and can run offline; LLM and Cartesia STT need internet | ⬜ Phase 4 |
 
 ### G. Product, UX and operations
@@ -321,6 +326,8 @@ Categories: **A** editing / transcoding / analysis of user media (must be deskto
 
 ### 9.4 Remediation plan (in order)
 
+> **Progress since this audit:** step 4 has its switch (`SERVER_VIDEO_PROCESSING`, default on); step 5 is built for supported timelines (§11); step 6 is built as device tokens (enforcement off). Steps 1, 2, 3 and 7-9 are open.
+
 | Step | Work | Done when |
 |---|---|---|
 | **1. Ship safely** | Push to a **branch and open a PR** (a push to `main` auto-deploys to production). CI runs `pnpm --filter frontend build`, backend + frontend tests. Merge; deploy backend, then frontend | `curl` shows `/offline.html` 200, `/sw.js` 200, `/api/download/mac` = 404 JSON (not a text file) |
@@ -355,3 +362,76 @@ curl -s  https://api.180workspace.com/api/health                      # expect H
 node scripts/probe-forged-session.js https://app.180workspace.com
 # authenticated (use a test account): POST /api/v1/sync/push with an empty mutations array -> 400; GET /api/v1/sync/pull -> 200
 ```
+
+## 10. Offline availability by module
+
+Generated from `apps/frontend/lib/offline/module-policy.ts` (the single table that drives caching, the offline screen and this
+document). **Works offline** = open saved data and make changes that sync later. **View offline** = open what was saved on
+this device. **Needs internet** = an explanation is shown instead of a broken screen. **Desktop app** = runs only in the app.
+
+| Module | Screens | Offline | Changes you can make offline | Notes |
+|---|---|---|---|---|
+| Dashboard | /dashboard | **View offline** | - | Shows what was saved the last time you were online. |
+| Projects & Tasks | /projects, /tasks, /activity, /work-logs | **Works offline** | task (create/update/delete); project (create/update/delete) | Create, edit and delete tasks and projects offline; they sync when you reconnect. |
+| CRM & Sales | /clients, /sales | **Works offline** | client (create/update/delete); lead (create/update/delete) | Browse clients and leads; add and edit clients and leads offline. |
+| HR | /employees, /hr, /attendance | **View offline** | leave (create/delete) | Browse the team directory and leave records; apply for or cancel leave offline. Payroll stays online. |
+| Finance | /finance, /invoices, /bills-and-expenses, /vendors, /wallet | **Needs internet** | n/a | Financial data is not stored on this device until encryption at rest is available. |
+| Insights & Reports | /analytics, /reports | **Needs internet** | n/a | Reports are computed live from your data and can include financial figures. |
+| Company Hub | /company | **View offline** | - | Shows what was saved the last time you were online. |
+| Help & Support | /help-support | **Needs internet** | n/a | Support chat is live and needs a connection. |
+| Settings & Profile | /settings, /profile | **Needs internet** | n/a | Settings include billing, integrations and security, so they need a connection. |
+| Social Media | /content-calendar, /social-projects, /social-media-assets | **View offline** | - | Browse projects and the content calendar; publishing needs a connection. |
+| Social Inbox | /inbox | **Needs internet** | n/a | Messages are live conversations and are not stored on this device. |
+| Advertising & Forms | /advertising, /forms | **View offline** | - | Browse your sites and forms; publishing needs a connection. |
+| Traffic Director | /traffic-director | **View offline** | - | Browse links; analytics and redirects are served live. |
+| Chat, Email & Meetings | /chat, /emails, /meeting | **Needs internet** | n/a | Real-time communication needs a live connection. |
+| Voiceforce | /voiceforce | **Needs internet** | n/a | Calling needs a live connection. |
+| AI Assistant | /ai | **Needs internet** | n/a | The AI assistant runs in the cloud. |
+| Documents & Files | /documents, /document-editor, /document-viewer, /assets, /calendar | **View offline** | - | Open documents and files you have viewed before; editing needs a connection. |
+| Video Editing | /media-editor, /video-studio | **Desktop app** | n/a | Video editing runs in the desktop app, including with no internet connection. |
+
+What "offline" means in practice:
+- You can open a screen offline **only if you opened it while online before** (there is no first-visit offline yet, except tasks, which are pre-synced).
+- Payroll, wallet, invoices, expenses, vaults, integrations, tokens and message inboxes are **never** written to the device. The local database is not encrypted at rest yet; those modules stay online-only until it is.
+- Individual employee records (which can carry pay and bank details) are not cached; only the directory list is.
+- Attachments, voice notes and file uploads cannot be queued offline; the user is told at the moment they try.
+
+## 11. Native media pipeline (desktop app)
+
+```
+Import   native file dialog → real ffprobe metadata (rotation, VFR, audio channels) → asset URL for playback
+Export   EditIR → buildNativeRenderPlan → validateRenderSpec → (Rust) validate_spec → ffmpeg sidecar
+         progress polled from -progress pipe:1; cancel kills ffmpeg and deletes the partial file
+```
+
+**Rendered natively (verified against real FFmpeg 4.1 by pixel, audio level, size and duration):** clip trim; speed 0.25x–4x;
+volume; opacity; static scale and position; several overlapping tracks in z-order (main track fitted to canvas width, overlays at
+40%); image clips; gaps (black/silent); audio of main-track clips plus every audio track with fade in/out; 16:9, 9:16, 1:1, 4:5;
+720p/1080p/4K; any fps 1–120; three quality presets (draft/balanced/high, x264 + AAC).
+
+**Not rendered natively yet.** The plan reports why, and the editor shows the reason and falls back to the compatibility canvas
+renderer, which produces **video only (no audio)**: captions, camera zoom events, rotation, crop, animated scale/keyframes, transitions other than cut, clip effects.
+Audio ducking is not applied (tracks play at their set volume; the user is told).
+
+**Security model.** Web content can only submit a filter graph, a size/fps and a quality preset. The native side: allowlists filters
+(no `movie`, `subtitles`, `drawtext` file options…), checks every input against files picked in the native dialog, checks the
+output against the save dialog, builds the command line itself, and grants the web content only 8 IPC commands.
+
+**Things this taught us (now covered by tests):** the previous canvas export produced **silent video**; the previous `probeMedia`
+returned the same fabricated metadata for every file; on failure the old exporter produced a text file named like a video; FFmpeg
+4.1 aborts on `apad`+`adelay`+`-t`+AAC (worked around with a silent bed mixed into the audio).
+
+**Known limits.** No hardware encoding; moved/deleted media has no relink UI; Intel Macs need their own FFmpeg sidecar; the bundled FFmpeg is GPL.
+
+## 12. Configuration switches added
+
+| Variable | Where | Default | Effect |
+|---|---|---|---|
+| `DESKTOP_DEVICE_JWT_SECRET` | backend | none (**registration returns 503 until set**, no fallback) | Signs desktop device tokens; at least 32 random characters |
+| `DESKTOP_DEVICE_ENFORCEMENT` | backend | `off` | `report` logs what would be rejected; `enforce` rejects media routes without a valid device token |
+| `SERVER_VIDEO_PROCESSING` | backend | `on` | `off` stores videos as uploaded (no FFmpeg on the API server); streaming/HLS uploads then answer 422 |
+| `DESKTOP_DOWNLOAD_URL_WINDOWS/MAC/LINUX` | backend + frontend | unset (404) | Where the installers are published |
+| `NEXT_PUBLIC_ALLOW_BROWSER_MEDIA_EDITOR` | frontend | unset | Development only: lets the editor open in a browser |
+
+Recommended order: set `DESKTOP_DEVICE_JWT_SECRET` → ship the desktop app → `DESKTOP_DEVICE_ENFORCEMENT=report` for a week → `enforce`
+→ `SERVER_VIDEO_PROCESSING=off`.

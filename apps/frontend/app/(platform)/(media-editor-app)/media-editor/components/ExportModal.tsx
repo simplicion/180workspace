@@ -30,6 +30,7 @@ interface ExportModalProps {
   isExporting: boolean;
   exportedResult?: ExportResult | null;
   exportedPath?: string | null;
+  onCancelExport?: () => void;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -41,6 +42,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   isExporting,
   exportedResult,
   exportedPath,
+  onCancelExport,
 }) => {
   const [activeTab, setActiveTab] = useState<"video" | "nle" | "bundle" | "subtitles">("video");
   const [resolution, setResolution] = useState("1080p");
@@ -450,7 +452,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               )}
 
               {/* Primary Download Button */}
-              {exportedResult ? (
+              {exportedResult && !exportedResult.savedPath ? (
                 <button
                   onClick={handleDownloadFile}
                   className="w-full py-3 px-4 rounded-xl bg-white hover:bg-zinc-200 active:scale-98 text-black text-xs font-semibold shadow-lg flex items-center justify-center space-x-2 transition"
@@ -460,7 +462,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 </button>
               ) : (
                 <div className="text-xs text-zinc-400 font-mono break-all bg-[#111114] p-2.5 rounded-xl border border-[#1C1C22]">
-                  {exportedPath}
+                  {exportedResult?.savedPath ? `Saved to ${exportedResult.savedPath}` : exportedPath}
                 </div>
               )}
             </div>
@@ -469,6 +471,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
         {/* Footer */}
         <div className="p-4 border-t border-[#1C1C22] bg-[#08080A] flex items-center justify-end space-x-2.5">
+          {isExporting && onCancelExport && (
+            <button
+              onClick={onCancelExport}
+              className="px-4 py-2 rounded-xl border border-[#2A2A32] text-xs font-semibold text-zinc-300 hover:bg-[#16161C] transition"
+            >
+              Cancel export
+            </button>
+          )}
           {!isExporting && !exportedResult && !exportedPath && activeTab === "video" && (
             <>
               <button

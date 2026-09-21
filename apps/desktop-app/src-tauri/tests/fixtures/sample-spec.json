@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "inputs": [
+    "/media/a.mp4",
+    "/media/b.mp4",
+    "/media/logo.png",
+    "/media/bgm.wav"
+  ],
+  "filterComplex": "color=c=black:s=1920x1080:r=30:d=8[base0];[0:v]trim=start=0:duration=4,setpts=(PTS-STARTPTS)/1+0/TB,scale=w=1920:h=-2,setsar=1,format=yuva420p[v0];[base0][v0]overlay=x='(main_w-overlay_w)/2+0':y='(main_h-overlay_h)/2+0':enable='between(t,0,4)':eof_action=pass[base1];[1:v]trim=start=0:duration=4,setpts=(PTS-STARTPTS)/2+4/TB,scale=w=1920:h=-2,setsar=1,format=yuva420p[v1];[base1][v1]overlay=x='(main_w-overlay_w)/2+0':y='(main_h-overlay_h)/2+0':enable='between(t,4,6)':eof_action=pass[base2];[2:v]loop=loop=-1:size=1:start=0,trim=start=0:duration=3,setpts=(PTS-STARTPTS)/1+1/TB,scale=w=384:h=-2,setsar=1,format=yuva420p,colorchannelmixer=aa=0.5[v2];[base2][v2]overlay=x='(main_w-overlay_w)/2+400':y='(main_h-overlay_h)/2+-200':enable='between(t,1,4)':eof_action=pass[base3];[base3]format=yuv420p,fps=30[vout];[0:a]atrim=start=0:duration=4,asetpts=PTS-STARTPTS,aformat=sample_rates=48000:channel_layouts=stereo[a0];[1:a]atrim=start=0:duration=4,asetpts=PTS-STARTPTS,aformat=sample_rates=48000:channel_layouts=stereo,atempo=2,adelay=4000|4000[a1];[3:a]atrim=start=0:duration=8,asetpts=PTS-STARTPTS,aformat=sample_rates=48000:channel_layouts=stereo,volume=-6dB,afade=t=in:st=0:d=1,afade=t=out:st=6:d=2[a2];anullsrc=r=48000:cl=stereo,atrim=duration=8,asetpts=PTS-STARTPTS[sil];[a0][a1][a2][sil]amix=inputs=4:duration=longest:dropout_transition=0,volume=4[aout]",
+  "maps": [
+    "[vout]",
+    "[aout]"
+  ],
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "durationSec": 8,
+  "quality": "balanced",
+  "hasAudio": true
+}

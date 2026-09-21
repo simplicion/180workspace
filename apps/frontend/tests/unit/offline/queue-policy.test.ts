@@ -46,6 +46,20 @@ describe('classifyForQueue (what may be queued while offline)', () => {
     }
   });
 
+  it('supports leads and leave requests, but only the actions a user may perform offline', () => {
+    expect(classifyForQueue('POST', '/api/sales/leads')).toMatchObject({ entityType: 'lead', action: 'CREATE' });
+    expect(classifyForQueue('PUT', `/api/sales/leads/${ID}`)).toMatchObject({ entityType: 'lead', action: 'UPDATE' });
+    expect(classifyForQueue('DELETE', `/api/sales/leads/${ID}`)).toMatchObject({ entityType: 'lead', action: 'DELETE' });
+    // bulk and conversion endpoints stay online
+    expect(classifyForQueue('POST', '/api/sales/leads/bulk-delete')).toBeNull();
+    expect(classifyForQueue('POST', `/api/sales/leads/${ID}/convert`)).toBeNull();
+    // employees apply for and cancel leave offline; approval is a manager action and editing is not offered
+    expect(classifyForQueue('POST', '/api/leaves')).toMatchObject({ entityType: 'leave', action: 'CREATE' });
+    expect(classifyForQueue('DELETE', `/api/leaves/${ID}`)).toMatchObject({ entityType: 'leave', action: 'DELETE' });
+    expect(classifyForQueue('PUT', `/api/leaves/${ID}`)).toBeNull();
+    expect(classifyForQueue('PUT', `/api/leaves/${ID}/review`)).toBeNull();
+  });
+
   it('refuses malformed ids', () => {
     expect(classifyForQueue('PUT', '/api/tasks/x')).toBeNull();
     expect(classifyForQueue('PUT', '/api/tasks/a b c d e f g h')).toBeNull();
@@ -59,7 +73,17 @@ describe('read cache allowlist', () => {
     expect(isCacheableGet(`/api/projects/${ID}`)).toBe(true);
     expect(isCacheableGet('/api/wallet/balance')).toBe(false);
     expect(isCacheableGet('/api/auth/me')).toBe(false);
-    expect(isCacheableGet(`/api/tasks/${ID}/comments`)).toBe(false);
+    // sub-resources of a cacheable module are cacheable too
+    expect(isCacheableGet(`/api/tasks/${ID}/comments`)).toBe(true);
+    expect(isCacheableGet('/api/sales/leads')).toBe(true);
+    expect(isCacheableGet('/api/v1/crm-and-sales/sales/leads')).toBe(true);
+    // the team directory list, but never an individual employee record
+    expect(isCacheableGet('/api/users')).toBe(true);
+    expect(isCacheableGet(`/api/users/${ID}`)).toBe(false);
+    // sensitive areas are never written to the device, even under a cacheable prefix
+    for (const p of ['/api/salary', '/api/salary/preview', '/api/wallet/transactions', '/api/invoices', `/api/clients/${ID}/invoices`, '/api/workspace-tools/vaults', '/api/integrations/google', '/api/finance/dashboard-stats', '/api/analytics/financial', '/api/social-media/inbox', '/api/social-media/accounts', '/api/platform-billing/plans', '/api/chat', '/api/voiceforce/agents']) {
+      expect(isCacheableGet(p)).toBe(false);
+    }
   });
 
   it('builds order-independent cache keys and ignores empty params', () => {

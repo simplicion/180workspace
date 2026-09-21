@@ -12,7 +12,12 @@ import {
   EditIRCompiler,
 } from "@workspace/video-contracts";
 import { store } from "@redux/store";
+import { DEVICE_HEADER, currentDeviceToken } from "@/lib/native/device-token";
 import { MediaCacheService } from "./media-cache";
+import { desktopMedia, hasNativeMedia, fromAssetUrl, toAssetUrl, runNativeRender, RenderCancelledError } from "@/lib/native/desktop-media";
+import { buildNativeRenderPlan, describeUnsupported } from "./native-render-plan";
+import { validateRenderSpec } from "./native-render-validate";
+import { descriptorFromFfprobe, baseName } from "./native-probe";
 
 // The backend's `/media-editor/*` routes require a Bearer token (see apps/backend's
 // `protect` middleware) — unlike axiosInstance, these are raw `fetch()` calls, so the
@@ -24,9 +29,11 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
   if (!token && typeof window !== "undefined") {
     token = localStorage.getItem("platform_auth_token") || undefined;
   }
+  const deviceToken = currentDeviceToken();
   return {
     ...extra,
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(deviceToken ? { [DEVICE_HEADER]: deviceToken } : {}),
   };
 }
 
@@ -59,9 +66,23 @@ export interface AICreditAccountStatus {
 }
 
 export interface ExportResult {
+  /** Something a <video> can play: a blob: URL (compatibility renderer) or an asset URL (native export). */
   blobUrl: string;
   downloadName: string;
   sizeBytes: number;
+  /** Set when the desktop app already wrote the file where the user chose; there is nothing to download. */
+  savedPath?: string;
+}
+
+export interface ExportOptions {
+  signal?: AbortSignal;
+  /** Non-fatal information for the user (why a fallback renderer was used, features not applied, ...). */
+  onNotice?: (message: string) => void;
+}
+
+export interface NativeImportResult {
+  assets: MediaAssetDescriptor[];
+  failures: Array<{ name: string; error: string }>;
 }
 
 export interface AIDirectorProgressEvent {
@@ -85,6 +106,8 @@ export interface EngineBridge {
   openProject: (path?: string) => Promise<ProjectPackageManifest>;
   saveProject: (project: ProjectPackageManifest) => Promise<void>;
   probeMedia: (filePath: string) => Promise<MediaAssetDescriptor>;
+  /** Desktop app: native file dialog + real ffprobe metadata. Assets keep their real path, so FFmpeg can render them. */
+  importNativeAssets: () => Promise<NativeImportResult>;
   probeBrowserFile: (file: File) => Promise<MediaAssetDescriptor>;
   extractTelemetry: (filePath: string) => Promise<MediaTelemetryManifest>;
   getAIStatus: (companyId?: string) => Promise<CompanyAIStatus>;
@@ -123,13 +146,16 @@ export interface EngineBridge {
   renderExport: (
     editIR: EditIR,
     settings: { format: string; resolution: string; fps: number },
-    onProgress: (percent: number) => void
+    onProgress: (percent: number) => void,
+    options?: ExportOptions
   ) => Promise<ExportResult>;
 }
 
 
 class DesktopEngineBridge implements EngineBridge {
   isTauri: boolean = false;
+  /** playback URL -> whether the source has an audio stream (from real ffprobe results). */
+  private nativeHasAudio = new Map<string, boolean>();
 
   constructor() {
     this.isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -197,23 +223,31 @@ class DesktopEngineBridge implements EngineBridge {
     console.log(`[EngineBridge] Saved project: ${project.project.name}`);
   }
 
+  /**
+   * Real metadata from the bundled ffprobe. `filePath` must be a path returned by the native file picker.
+   * (This used to return the same fabricated values, 12 s / 1920x1080 / 30 fps, for every file.)
+   */
   async probeMedia(filePath: string): Promise<MediaAssetDescriptor> {
-    const fileName = filePath.split(/[\/\\]/).pop() || "media.mp4";
-    return {
-      id: `asset_${Date.now()}`,
-      name: fileName,
-      filePath,
-      fileSizeBytes: 1024 * 1024 * 15,
-      mimeType: "video/mp4",
-      durationSeconds: 12.0,
-      width: 1920,
-      height: 1080,
-      fps: 30,
-      hasAudio: true,
-      codecVideo: "h264",
-      codecAudio: "aac",
-      sha256Hash: `hash_${Date.now()}`,
-    };
+    const report = await desktopMedia.probeMedia(filePath);
+    const assetId = `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const url = toAssetUrl(filePath);
+    const descriptor = descriptorFromFfprobe(report, filePath, url, assetId);
+    this.nativeHasAudio.set(url, descriptor.hasAudio);
+    return descriptor;
+  }
+
+  async importNativeAssets(): Promise<NativeImportResult> {
+    const paths = await desktopMedia.pickMediaFiles();
+    const assets: MediaAssetDescriptor[] = [];
+    const failures: NativeImportResult["failures"] = [];
+    for (const path of paths) {
+      try {
+        assets.push(await this.probeMedia(path));
+      } catch (err: any) {
+        failures.push({ name: baseName(path), error: String(err?.message || err) });
+      }
+    }
+    return { assets, failures };
   }
 
   async probeBrowserFile(file: File): Promise<MediaAssetDescriptor> {
@@ -770,6 +804,72 @@ class DesktopEngineBridge implements EngineBridge {
   async renderExport(
     editIR: EditIR,
     settings: { format: string; resolution: string; fps: number },
+    onProgress: (percent: number) => void,
+    options: ExportOptions = {}
+  ): Promise<ExportResult> {
+    if (hasNativeMedia()) {
+      const native = await this.renderExportNative(editIR, settings, onProgress, options);
+      if (native) return native;
+    }
+    options.onNotice?.("Exported with the compatibility renderer: video only, no audio.");
+    return this.renderExportCanvas(editIR, settings, onProgress);
+  }
+
+  /**
+   * Renders with the bundled FFmpeg. Returns null when this timeline uses something the native exporter does not
+   * render yet (or its media is not a picked local file); the caller then uses the compatibility renderer. A native
+   * render that STARTS and fails is an error, not a silent downgrade.
+   */
+  private async renderExportNative(
+    editIR: EditIR,
+    settings: { format: string; resolution: string; fps: number },
+    onProgress: (percent: number) => void,
+    options: ExportOptions
+  ): Promise<ExportResult | null> {
+    // Which sources carry audio: referencing a missing audio stream would make FFmpeg fail.
+    const sources = new Set<string>();
+    for (const t of editIR.tracks.videoTracks) for (const c of t.clips) sources.add(c.sourcePath);
+    for (const t of editIR.tracks.audioTracks ?? []) for (const c of t.clips) sources.add(c.sourcePath);
+    for (const src of sources) {
+      const path = fromAssetUrl(src);
+      if (!path || this.nativeHasAudio.has(src)) continue;
+      try {
+        this.nativeHasAudio.set(src, descriptorFromFfprobe(await desktopMedia.probeMedia(path), path, src, "probe").hasAudio);
+      } catch {
+        options.onNotice?.(`${baseName(path)} is no longer available to the app. Re-import it to use the fast exporter.`);
+        return null;
+      }
+    }
+
+    const plan = buildNativeRenderPlan(editIR, {
+      resolveNativePath: (src) => fromAssetUrl(src),
+      sourceHasAudio: (src) => this.nativeHasAudio.get(src) ?? false,
+      settings: { resolution: settings.resolution, fps: settings.fps || 30, quality: "balanced" },
+    });
+    if (!plan.supported) {
+      options.onNotice?.(describeUnsupported(plan.reasons));
+      return null;
+    }
+    validateRenderSpec(plan.spec);
+    for (const w of plan.warnings) options.onNotice?.(w);
+
+    const title = (editIR.meta.title || "180_media_export").replace(/[^\w\-. ]+/g, "").trim().replace(/\s+/g, "_") || "180_media_export";
+    const outputPath = await desktopMedia.pickExportPath(`${title}.mp4`);
+    if (!outputPath) throw new RenderCancelledError();
+
+    const savedTo = await runNativeRender(plan.spec, outputPath, onProgress, options.signal);
+    let sizeBytes = 0;
+    try {
+      sizeBytes = Number((await desktopMedia.probeMedia(savedTo)).format?.size) || 0;
+    } catch {
+      /* size is informational */
+    }
+    return { blobUrl: toAssetUrl(savedTo), downloadName: baseName(savedTo), sizeBytes, savedPath: savedTo };
+  }
+
+  private async renderExportCanvas(
+    editIR: EditIR,
+    settings: { format: string; resolution: string; fps: number },
     onProgress: (percent: number) => void
   ): Promise<ExportResult> {
     const durationSec = Math.max(1, RationalTimeMath.toSeconds(editIR.meta.totalDuration));
@@ -996,7 +1096,12 @@ class DesktopEngineBridge implements EngineBridge {
 
     onProgress(100);
 
-    const finalBlob = new Blob(recordedChunks.length > 0 ? recordedChunks : ["180_EXPORT_FALLBACK"], {
+    // A recorder that captured nothing must be a visible failure. This used to fall back to a text blob named like a
+    // video, which "exported" a corrupt file without any error.
+    if (recordedChunks.length === 0) {
+      throw new Error("The compatibility renderer could not capture any video. Nothing was exported.");
+    }
+    const finalBlob = new Blob(recordedChunks, {
       type: mimeType,
     });
     const blobUrl = URL.createObjectURL(finalBlob);

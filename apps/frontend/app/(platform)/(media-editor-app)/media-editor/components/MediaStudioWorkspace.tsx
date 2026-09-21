@@ -35,6 +35,8 @@ import { MediaCacheService } from "../services/media-cache";
 import { Folder, Sparkles, ArrowLeft, Maximize2, Minimize2, ChevronsRight } from "lucide-react";
 import { OtioService } from "../services/otio-service";
 import { engineBridge, CompanyAIStatus, ExportResult } from "../services/tauri-bridge";
+import toast from "react-hot-toast";
+import { hasNativeMedia } from "@/lib/native/desktop-media";
 
 function safeUUID(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -98,6 +100,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const [isDuckingEnabled, setIsDuckingEnabled] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const exportAbortRef = useRef<AbortController | null>(null);
 
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -425,6 +428,27 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       newAssets.push(descriptor);
     }
 
+    addAssetsToProject(newAssets);
+  };
+
+  /** Desktop app: native file dialog, real paths and real ffprobe metadata, so the timeline can be rendered by FFmpeg. */
+  const handleImportNative = async () => {
+    try {
+      const { assets, failures } = await engineBridge.importNativeAssets();
+      if (assets.length > 0) addAssetsToProject(assets);
+      for (const f of failures) toast.error(`Could not import ${f.name}: ${f.error}`);
+    } catch (err: any) {
+      toast.error(err?.message || "Could not open the file picker.");
+    }
+  };
+
+  const openImportDialog = () => {
+    if (hasNativeMedia()) void handleImportNative();
+    else fileInputRef.current?.click();
+  };
+
+  const addAssetsToProject = (newAssets: MediaAssetDescriptor[]) => {
+    if (!project) return;
     const updatedAssets = [...project.assets, ...newAssets];
     let updatedEditIR = { ...project.editIR };
 
@@ -698,7 +722,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   };
 
   const handleAddMusicTrack = () => {
-    fileInputRef.current?.click();
+    openImportDialog();
   };
 
   // Real-time Playback Loop
@@ -811,19 +835,34 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     if (!project) return;
     setIsExporting(true);
     setExportProgress(0);
+    const controller = new AbortController();
+    exportAbortRef.current = controller;
 
     try {
-      const result = await engineBridge.renderExport(project.editIR, settings, (pct) => {
-        setExportProgress(pct);
-      });
+      const result = await engineBridge.renderExport(
+        project.editIR,
+        settings,
+        (pct) => {
+          setExportProgress(pct);
+        },
+        { signal: controller.signal, onNotice: (message) => toast(message, { icon: "ℹ️", duration: 9000 }) }
+      );
       setExportedResult(result);
-      setExportedPath(result.downloadName);
-    } catch (err) {
-      console.error("Export failed:", err);
+      setExportedPath(result.savedPath || result.downloadName);
+    } catch (err: any) {
+      if (err?.name === "RenderCancelledError") {
+        toast("Export cancelled.");
+      } else {
+        console.error("Export failed:", err);
+        toast.error(err?.message || "The export failed.", { duration: 9000 });
+      }
     } finally {
+      exportAbortRef.current = null;
       setIsExporting(false);
     }
   };
+
+  const handleCancelExport = () => exportAbortRef.current?.abort();
 
   const handleNavigateHome = () => {
     if (onExit) {
@@ -1054,7 +1093,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
               onSeek={setCurrentTimeSeconds}
               onStepFrame={(dir) => setCurrentTimeSeconds((t) => Math.max(0, t + dir * (1 / 30)))}
               onAspectRatioChange={setAspectRatio}
-              onOpenImport={() => fileInputRef.current?.click()}
+              onOpenImport={openImportDialog}
             />
           </div>
 
@@ -1156,6 +1195,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         exportProgress={exportProgress}
         exportedPath={exportedPath}
         exportedResult={exportedResult}
+        onCancelExport={handleCancelExport}
       />
 
       <CaptionStudioModal

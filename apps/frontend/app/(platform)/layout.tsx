@@ -50,6 +50,7 @@ import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import UploadQueueManager from '@/components/shared/UploadQueueManager';
 import SyncStatusIndicator from '@/components/shared/SyncStatusIndicator';
+import OfflineModuleGate from '@/components/shared/OfflineModuleGate';
 
 
 // navigation moved to ../../lib/navigation.ts
@@ -1117,7 +1118,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                     <SubscriptionExpiredWall />
                 ) : (
                     <div className={clsx("flex-1 overflow-x-hidden", isMeetingFullscreen ? "p-0" : "py-4 lg:p-6")}>
-                        {children}
+                        <OfflineModuleGate>{children}</OfflineModuleGate>
                     </div>
                 )}
             </main>

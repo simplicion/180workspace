@@ -5,6 +5,7 @@
 //! capabilities the browser cannot: local file access and bundled FFmpeg for all media processing.
 
 mod media;
+mod render;
 
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_deep_link::DeepLinkExt;
@@ -95,6 +96,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_deep_link::init())
         .manage(media::AllowedPaths::default())
+        .manage(render::RenderJobs::default())
         .setup(|app| {
             let origin = app_origin();
             let initial_route = std::env::args()
@@ -109,6 +111,9 @@ pub fn run() {
                 .min_inner_size(1024.0, 700.0)
                 .initialization_script(&init_script(&origin, &initial_route))
                 .build()?;
+
+            // Media picked in earlier sessions stays usable, so reopened projects keep working.
+            media::load_remembered(app.handle(), &app.state::<media::AllowedPaths>());
 
             // Installed builds register the scheme via the installer; while developing there is no installer.
             #[cfg(all(debug_assertions, any(windows, target_os = "linux")))]
@@ -131,6 +136,9 @@ pub fn run() {
             media::probe_media,
             media::pick_export_path,
             media::transcode_media,
+            render::render_timeline,
+            render::render_status,
+            render::cancel_render,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the 180 Workspace desktop app");
