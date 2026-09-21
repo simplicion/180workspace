@@ -13,7 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-shell = "2"        # runs the bundled ffmpeg / ffprobe sidecars (from Rust only, see capabilities/main.json)
 tauri-plugin-dialog = "2"       # native file pickers; picked paths are the ONLY paths the media commands will touch
 tauri-plugin-deep-link = "2"    # workspace180:// links

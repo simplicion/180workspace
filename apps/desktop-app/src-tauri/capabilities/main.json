@@ -11,6 +11,9 @@
     "allow-pick-media-files",
     "allow-probe-media",
     "allow-pick-export-path",
-    "allow-transcode-media"
+    "allow-transcode-media",
+    "allow-render-timeline",
+    "allow-render-status",
+    "allow-cancel-render"
   ]
 }

@@ -61,6 +61,57 @@ export function filterAndSortTasks(tasks: any[], params: Record<string, any> = {
   return { tasks: filtered.slice((page - 1) * limit, page * limit), total: filtered.length };
 }
 
+// ── overlay of pending changes onto a cached list ───────────────────────────────────────────────────────────
+
+export interface OverlayOps {
+  /** Optimistic rows for entities created offline (shown first, like a freshly created item). */
+  creates: any[];
+  /** id -> fields changed offline. */
+  updates: Record<string, any>;
+  /** ids deleted offline. */
+  deletes: Set<string>;
+}
+
+/** Finds the array that holds the rows: the root array, or the first array-of-objects property of a response object. */
+function findListHolder(data: any): { root: true } | { key: string } | null {
+  if (Array.isArray(data)) return { root: true };
+  if (data && typeof data === 'object') {
+    for (const key of ['tasks', 'projects', 'clients', 'leads', 'leaves', 'items', 'data', 'results', 'rows']) {
+      if (Array.isArray(data[key])) return { key };
+    }
+    const key = Object.keys(data).find((k) => Array.isArray(data[k]) && (data[k].length === 0 || typeof data[k][0] === 'object'));
+    if (key) return { key };
+  }
+  return null;
+}
+
+/**
+ * Applies offline creates / edits / deletes to a list response so a cached list never "loses" something the user just
+ * did. Unknown response shapes are returned untouched (never guess). `total` is kept consistent when it is present.
+ */
+export function applyOverlay(data: any, ops: OverlayOps): any {
+  const holder = findListHolder(data);
+  if (!holder) return data;
+  const rows: any[] = 'root' in holder ? data : data[holder.key];
+
+  const existingIds = new Set(rows.map((r) => r?.id).filter(Boolean));
+  let removed = 0;
+  const merged = rows
+    .filter((r) => {
+      const gone = r?.id && ops.deletes.has(r.id);
+      if (gone) removed++;
+      return !gone;
+    })
+    .map((r) => (r?.id && ops.updates[r.id] ? { ...r, ...ops.updates[r.id] } : r));
+  const created = ops.creates.filter((c) => c?.id && !existingIds.has(c.id) && !ops.deletes.has(c.id));
+  const next = [...created, ...merged];
+
+  if ('root' in holder) return next;
+  const out = { ...data, [holder.key]: next };
+  if (typeof data.total === 'number') out.total = Math.max(0, data.total + created.length - removed);
+  return out;
+}
+
 /** Returns null when nothing has been synced locally yet, so the caller can fall back to the HTTP cache. */
 export async function queryTasksLocally(params: Record<string, any> | null | undefined): Promise<{ tasks: any[]; total: number } | null> {
   if (!canQueryTasksLocally(params)) return null;

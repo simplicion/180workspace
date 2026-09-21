@@ -16,13 +16,18 @@ use std::{
 };
 
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::ShellExt;
 
-/// Paths the user selected through a native dialog during this session (canonicalised).
+/// Paths the user selected through a native dialog (canonicalised). Field 0 is everything allowed in this session;
+/// field 1 is the subset of INPUT files that is remembered across restarts (see `load_remembered`), so a project that
+/// is reopened later can still read its media. Output paths are never remembered.
 #[derive(Default)]
-pub struct AllowedPaths(Mutex<HashSet<PathBuf>>);
+pub struct AllowedPaths(Mutex<HashSet<PathBuf>>, Mutex<Vec<PathBuf>>);
+
+const REMEMBER_FILE: &str = "allowed-media.json";
+const REMEMBER_MAX: usize = 5000;
 
 /// Windows canonicalisation yields `\\?\C:\...`; FFmpeg and the UI both prefer the plain form.
 fn simplify(path: PathBuf) -> PathBuf {
@@ -44,6 +49,16 @@ impl AllowedPaths {
             .lock()
             .map_err(|_| "internal state error".to_string())?
             .insert(canon.clone());
+        {
+            let mut remembered = self.1.lock().map_err(|_| "internal state error".to_string())?;
+            if !remembered.contains(&canon) {
+                remembered.push(canon.clone());
+                if remembered.len() > REMEMBER_MAX {
+                    let excess = remembered.len() - REMEMBER_MAX;
+                    remembered.drain(..excess); // forget the oldest
+                }
+            }
+        }
         Ok(canon.to_string_lossy().into_owned())
     }
 
@@ -65,7 +80,7 @@ impl AllowedPaths {
     }
 
     /// Accepts `requested` only if it is exactly a path previously handed out by a picker.
-    fn check_existing(&self, requested: &str) -> Result<PathBuf, String> {
+    pub(crate) fn check_existing(&self, requested: &str) -> Result<PathBuf, String> {
         let canon = simplify(
             Path::new(requested)
                 .canonicalize()
@@ -79,7 +94,7 @@ impl AllowedPaths {
         }
     }
 
-    fn check_output(&self, requested: &str) -> Result<PathBuf, String> {
+    pub(crate) fn check_output(&self, requested: &str) -> Result<PathBuf, String> {
         let path = PathBuf::from(requested);
         let file_name = path.file_name().ok_or("Invalid output path")?;
         let parent = path.parent().ok_or("Invalid output path")?;
@@ -90,6 +105,49 @@ impl AllowedPaths {
             Ok(full)
         } else {
             Err("That output location was not chosen through the save dialog.".to_string())
+        }
+    }
+}
+
+/// Writes the remembered input list to the app data folder. Best effort: a failure only means the files have to be
+/// re-picked after the next restart.
+fn save_remembered(app: &AppHandle, allowed: &AllowedPaths) {
+    let Ok(dir) = app.path().app_data_dir() else { return };
+    let list: Vec<String> = match allowed.1.lock() {
+        Ok(r) => r.iter().map(|p| p.to_string_lossy().into_owned()).collect(),
+        Err(_) => return,
+    };
+    if std::fs::create_dir_all(&dir).is_err() {
+        return;
+    }
+    if let Ok(json) = serde_json::to_string(&list) {
+        let _ = std::fs::write(dir.join(REMEMBER_FILE), json);
+    }
+}
+
+/// Called once at startup: re-allows (for probing/rendering AND for playback through the asset protocol) the media the
+/// user picked in earlier sessions, but only files that still exist. The list lives in the app's private data folder and
+/// only ever gains entries through the native file picker.
+pub fn load_remembered(app: &AppHandle, allowed: &AllowedPaths) {
+    let Ok(dir) = app.path().app_data_dir() else { return };
+    let Ok(text) = std::fs::read_to_string(dir.join(REMEMBER_FILE)) else { return };
+    let Ok(list) = serde_json::from_str::<Vec<String>>(&text) else { return };
+    for entry in list.into_iter().take(REMEMBER_MAX) {
+        let path = PathBuf::from(&entry);
+        if !path.is_file() {
+            continue;
+        }
+        if let Ok(canon) = path.canonicalize() {
+            let canon = simplify(canon);
+            if let Ok(mut set) = allowed.0.lock() {
+                set.insert(canon.clone());
+            }
+            if let Ok(mut remembered) = allowed.1.lock() {
+                if !remembered.contains(&canon) {
+                    remembered.push(canon.clone());
+                }
+            }
+            let _ = app.asset_protocol_scope().allow_file(&canon);
         }
     }
 }
@@ -137,8 +195,13 @@ pub async fn pick_media_files(app: AppHandle, allowed: State<'_, AllowedPaths>) 
     let mut out = Vec::new();
     for file in picked.unwrap_or_default() {
         let path = file.into_path().map_err(|e| e.to_string())?;
-        out.push(allowed.allow_existing(&path)?);
+        let canonical = allowed.allow_existing(&path)?;
+        // Playback/preview in the editor goes through the asset protocol, scoped at runtime to exactly the files the
+        // user picked (tauri.conf.json starts with an empty scope).
+        let _ = app.asset_protocol_scope().allow_file(&canonical);
+        out.push(canonical);
     }
+    save_remembered(&app, &allowed);
     Ok(out)
 }
 

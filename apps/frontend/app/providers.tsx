@@ -9,6 +9,7 @@ import { SessionProvider } from 'next-auth/react';
 import { ReactNode } from 'react';
 import OfflineDownloadBanner from '@/components/shared/OfflineDownloadBanner';
 import ServiceWorkerRegister from '@/components/shared/ServiceWorkerRegister';
+import DesktopBootstrap from '@/components/shared/DesktopBootstrap';
 
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
@@ -30,6 +31,7 @@ export function Providers({ children, session }: { children: ReactNode, session?
                                         {children}
                                         <OfflineDownloadBanner />
                                         <ServiceWorkerRegister />
+                                        <DesktopBootstrap />
                                     </SocketProvider>
                                 </ModalProvider>
                             </SettingsProvider>

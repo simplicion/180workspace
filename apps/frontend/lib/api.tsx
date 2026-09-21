@@ -6,10 +6,12 @@ import { classifyForQueue, isCacheableGet } from './offline/queue-policy';
 import { cacheGet, cachePut } from './offline/http-cache';
 import { queryTasksLocally } from './offline/local-queries';
 import { queueOfflineWrite } from './offline/offline-write';
+import { overlayPendingOnCachedList } from './offline/overlay';
 import { lookupRealIdSync } from './offline/outbox';
 import { ingestGetResponse } from './offline/ingest';
 import { reportReachable } from './offline/reachability';
 import { isTempId } from './offline/sync-logic';
+import { DEVICE_HEADER, currentDeviceToken, isMediaApiUrl } from './native/device-token';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -84,6 +86,10 @@ api.interceptors.request.use((config) => {
     if (token) config.headers.Authorization = `Bearer ${token}`;
 
     const url = config.url || '';
+    if (isMediaApiUrl(url)) {
+        const deviceToken = currentDeviceToken();
+        if (deviceToken) config.headers[DEVICE_HEADER] = deviceToken;
+    }
     const tempMatch = url.match(TEMP_ID_IN_PATH);
     if (tempMatch && isTempId(tempMatch[1])) {
         const real = lookupRealIdSync(tempMatch[1]);
@@ -187,7 +193,9 @@ api.interceptors.response.use(
                     const cached = await cacheGet(original.url, original.params);
                     if (cached) {
                         notifyServedOffline(original.url, cached.storedAt);
-                        return syntheticResponse(original, cached.data, { 'x-offline-cache': 'http', 'x-offline-cached-at': String(cached.storedAt) });
+                        // Show what the user changed while offline on top of the saved list (creates, edits, deletes).
+                        const withPending = await overlayPendingOnCachedList(original.url, cached.data).catch(() => cached.data);
+                        return syntheticResponse(original, withPending, { 'x-offline-cache': 'http', 'x-offline-cached-at': String(cached.storedAt) });
                     }
                 } catch (cacheErr) {
                     console.warn('[API Offline] Read fallback failed:', cacheErr);

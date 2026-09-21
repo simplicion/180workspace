@@ -7,16 +7,22 @@
  */
 
 import type { OutboxEntityType } from './db';
+import { isReadCacheablePath } from './module-policy';
 
 interface Collection {
   entityType: OutboxEntityType;
   path: string;
+  /** Actions that may be queued offline. Mirrors `allow` in apps/backend/src/api/v1/sync/sync-policy.ts. */
+  allow: ReadonlyArray<'CREATE' | 'UPDATE' | 'DELETE'>;
 }
 
-const COLLECTIONS: Collection[] = [
-  { entityType: 'task', path: '/api/tasks' },
-  { entityType: 'project', path: '/api/projects' },
-  { entityType: 'client', path: '/api/clients' },
+export const COLLECTIONS: Collection[] = [
+  { entityType: 'task', path: '/api/tasks', allow: ['CREATE', 'UPDATE', 'DELETE'] },
+  { entityType: 'project', path: '/api/projects', allow: ['CREATE', 'UPDATE', 'DELETE'] },
+  { entityType: 'client', path: '/api/clients', allow: ['CREATE', 'UPDATE', 'DELETE'] },
+  { entityType: 'lead', path: '/api/sales/leads', allow: ['CREATE', 'UPDATE', 'DELETE'] },
+  // Employees can apply for and cancel leave offline; approval (`/:id/review`) is a manager action and stays online.
+  { entityType: 'leave', path: '/api/leaves', allow: ['CREATE', 'DELETE'] },
 ];
 
 export interface QueueClassification {
@@ -49,13 +55,15 @@ export function classifyForQueue(methodRaw: string | undefined, url: string | un
 
   for (const c of COLLECTIONS) {
     if (path === c.path) {
-      return method === 'POST' ? { entityType: c.entityType, action: 'CREATE', method, path } : null;
+      return method === 'POST' && c.allow.includes('CREATE') ? { entityType: c.entityType, action: 'CREATE', method, path } : null;
     }
     if (path.startsWith(c.path + '/')) {
       const id = path.slice(c.path.length + 1);
       if (id.includes('/') || method === 'POST') return null; // nested resources / bulk-* are not replayable
       if (!/^[A-Za-z0-9_-]{8,64}$/.test(id)) return null;
-      return { entityType: c.entityType, action: method === 'PUT' ? 'UPDATE' : 'DELETE', method, path, entityId: id };
+      const action = method === 'PUT' ? 'UPDATE' : 'DELETE';
+      if (!c.allow.includes(action)) return null;
+      return { entityType: c.entityType, action, method, path, entityId: id };
     }
   }
   return null;
@@ -63,21 +71,12 @@ export function classifyForQueue(methodRaw: string | undefined, url: string | un
 
 // ── read cache ──────────────────────────────────────────────────────────────
 
-// Endpoints whose GET responses are stored so the app can be opened and browsed offline. Deliberately small:
-// each entry is business data written to disk.
-const CACHEABLE_GET: RegExp[] = [
-  /^\/api\/init$/, // boot payload: user + company (offline app start depends on this)
-  /^\/api\/tasks$/,
-  /^\/api\/tasks\/[A-Za-z0-9_-]{8,64}$/,
-  /^\/api\/projects$/,
-  /^\/api\/projects\/[A-Za-z0-9_-]{8,64}$/,
-  /^\/api\/clients$/,
-  /^\/api\/clients\/[A-Za-z0-9_-]{8,64}$/,
-];
-
+// Which GET responses are stored on the device is decided by the module policy table (module-policy.ts): only modules
+// that are usable offline contribute paths, and sensitive areas (payroll, wallet, finance, vaults, tokens...) are
+// excluded there. Each cached response is business data written to disk.
 export function isCacheableGet(url: string | undefined | null): boolean {
   const path = normalizeApiPath(url);
-  return !!path && CACHEABLE_GET.some((re) => re.test(path));
+  return !!path && isReadCacheablePath(path);
 }
 
 /** Stable cache key: path + sorted query params, so `?a=1&b=2` and `?b=2&a=1` share an entry. */
