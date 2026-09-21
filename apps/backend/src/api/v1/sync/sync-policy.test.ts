@@ -20,6 +20,22 @@ test('classifies create / update / delete on supported collections', () => {
   assert.ok(del.ok && del.action === 'DELETE' && del.rule.entityType === 'client');
 });
 
+test('leads: full CRUD; leave requests: apply and cancel only (approval and editing stay online)', () => {
+  assert.ok(classifyMutation('POST', '/api/sales/leads').ok);
+  const upd = classifyMutation('PUT', `/api/sales/leads/${UUID}`);
+  assert.ok(upd.ok && upd.rule.entityType === 'lead' && upd.action === 'UPDATE');
+  assert.ok(classifyMutation('DELETE', `/api/sales/leads/${UUID}`).ok);
+  assert.equal(classifyMutation('POST', '/api/sales/leads/bulk-delete').ok, false);
+  assert.equal(classifyMutation('POST', `/api/sales/leads/${UUID}/convert`).ok, false);
+
+  const apply = classifyMutation('POST', '/api/leaves');
+  assert.ok(apply.ok && apply.rule.entityType === 'leave' && apply.action === 'CREATE');
+  assert.ok(classifyMutation('DELETE', `/api/leaves/${UUID}`).ok);
+  const edit = classifyMutation('PUT', `/api/leaves/${UUID}`);
+  assert.ok(!edit.ok && edit.code === 'bad_method', 'leave requests cannot be edited offline');
+  assert.equal(classifyMutation('PUT', `/api/leaves/${UUID}/review`).ok, false, 'approval is online-only');
+});
+
 test('rejects unsupported entities, nested resources and bulk endpoints', () => {
   for (const p of ['/api/users', '/api/tasks/bulk-delete', `/api/tasks/${UUID}/attachments`, '/api/auth/login', '/api/billing/pay']) {
     const r = classifyMutation('POST', p);

@@ -1,0 +1,188 @@
+/**
+ * Run: npx tsx --test --test-force-exit apps/backend/src/api/v1/desktop/desktop-device.test.ts
+ * (Redis is not needed: outside production the device registry falls back to process memory.)
+ */
+process.env.NODE_ENV = 'test';
+process.env.DESKTOP_DEVICE_JWT_SECRET = 'unit-test-secret-unit-test-secret-1234';
+
+import test, { after, before, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import http from 'http';
+import type { AddressInfo } from 'net';
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import desktopRoutes from './desktop.routes';
+import { DEVICE_HEADER, MAX_DEVICES_PER_USER, requireDesktopDevice, verifyDeviceToken } from './desktop-device';
+
+let server: http.Server;
+let base = '';
+
+before(async () => {
+  const app = express();
+  app.use(express.json());
+  // stand-in for `protect`: identity comes from a test header
+  app.use((req: any, res, next) => {
+    const id = req.headers['x-test-user'];
+    if (!id) return res.status(401).json({ error: 'no' });
+    req.user = { id: String(id), companyId: String(req.headers['x-test-company'] || 'co-1') };
+    next();
+  });
+  app.use('/api/desktop', desktopRoutes);
+  app.post('/api/media/render', requireDesktopDevice, (req: any, res) => res.json({ ok: true, deviceId: req.desktopDeviceId ?? null }));
+
+  server = http.createServer(app);
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+});
+after(() => server.close());
+
+const call = (method: string, path: string, opts: { user?: string; company?: string; token?: string; body?: any } = {}) =>
+  fetch(base + path, {
+    method,
+    headers: {
+      'content-type': 'application/json',
+      ...(opts.user ? { 'x-test-user': opts.user } : {}),
+      ...(opts.company ? { 'x-test-company': opts.company } : {}),
+      ...(opts.token ? { [DEVICE_HEADER]: opts.token } : {}),
+    },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  }).then(async (r) => ({ status: r.status, json: (await r.json()) as any }));
+
+const register = (user: string, label = 'Laptop') => call('POST', '/api/desktop/devices/register', { user, body: { label, platform: 'windows' } });
+const render = (user: string, token?: string) => call('POST', '/api/media/render', { user, token });
+
+let userSeq = 0;
+const freshUser = () => `user-${Date.now()}-${userSeq++}`;
+
+beforeEach(() => {
+  process.env.DESKTOP_DEVICE_ENFORCEMENT = 'enforce';
+  process.env.DESKTOP_DEVICE_JWT_SECRET = 'unit-test-secret-unit-test-secret-1234';
+});
+
+test('requires a signed-in user', async () => {
+  assert.equal((await call('POST', '/api/desktop/devices/register')).status, 401);
+});
+
+test('there is no default secret: without DESKTOP_DEVICE_JWT_SECRET registration fails loudly (503), nothing is issued', async () => {
+  delete process.env.DESKTOP_DEVICE_JWT_SECRET;
+  const r = await register(freshUser());
+  assert.equal(r.status, 503);
+  assert.equal(r.json.error, 'DESKTOP_DEVICE_UNAVAILABLE');
+  assert.equal(r.json.token, undefined);
+  process.env.DESKTOP_DEVICE_JWT_SECRET = 'short';
+  assert.equal((await register(freshUser())).status, 503, 'a short secret is refused too');
+});
+
+test('registration returns a per-device token that verifies and is listed for its owner only', async () => {
+  const u = freshUser();
+  const r = await register(u, 'My <script>Laptop</script>');
+  assert.equal(r.status, 201);
+  assert.match(r.json.token, /^eyJ/);
+  assert.equal(r.json.label, 'My scriptLaptopscript', 'label is sanitised');
+  const claims = verifyDeviceToken(r.json.token);
+  assert.equal(claims.userId, u);
+  assert.equal(claims.deviceId, r.json.deviceId);
+
+  const mine = await call('GET', '/api/desktop/devices', { user: u });
+  assert.equal(mine.json.devices.length, 1);
+  const other = await call('GET', '/api/desktop/devices', { user: freshUser() });
+  assert.equal(other.json.devices.length, 0, 'devices are per user');
+});
+
+test('a user can register at most MAX_DEVICES_PER_USER devices', async () => {
+  const u = freshUser();
+  for (let i = 0; i < MAX_DEVICES_PER_USER; i++) assert.equal((await register(u, `d${i}`)).status, 201);
+  const over = await register(u);
+  assert.equal(over.status, 409);
+  assert.equal(over.json.error, 'DEVICE_LIMIT');
+});
+
+test('renewal re-issues a token for the SAME device without using another slot; a revoked device cannot be renewed', async () => {
+  const u = freshUser();
+  const first = (await register(u)).json;
+  for (let i = 0; i < 3; i++) {
+    const renewed = await call('POST', '/api/desktop/devices/register', { user: u, body: { deviceId: first.deviceId } });
+    assert.equal(renewed.status, 201);
+    assert.equal(renewed.json.deviceId, first.deviceId);
+    assert.equal(renewed.json.renewed, true);
+    assert.equal((await render(u, renewed.json.token)).status, 200);
+  }
+  assert.equal((await call('GET', '/api/desktop/devices', { user: u })).json.devices.length, 1, 'renewals do not add devices');
+
+  await call('DELETE', `/api/desktop/devices/${first.deviceId}`, { user: u });
+  const afterRevoke = await call('POST', '/api/desktop/devices/register', { user: u, body: { deviceId: first.deviceId } });
+  assert.equal(afterRevoke.status, 201);
+  assert.notEqual(afterRevoke.json.deviceId, first.deviceId, 'a revoked device id is never resurrected');
+  assert.equal(afterRevoke.json.renewed, false);
+
+  // someone else's device id cannot be renewed by another user
+  const stranger = freshUser();
+  const theirs = await call('POST', '/api/desktop/devices/register', { user: stranger, body: { deviceId: afterRevoke.json.deviceId } });
+  assert.notEqual(theirs.json.deviceId, afterRevoke.json.deviceId);
+});
+
+test('enforce: no token, garbage, another user\'s token, a forged/expired/wrong-type token are all rejected', async () => {
+  const u = freshUser();
+  const good = (await register(u)).json.token;
+
+  assert.equal((await render(u)).status, 403);
+  assert.equal((await render(u)).json.error, 'DESKTOP_APP_REQUIRED');
+  assert.equal((await render(u, 'not-a-token')).json.reason, 'invalid_token');
+
+  const someoneElse = freshUser();
+  assert.equal((await render(someoneElse, good)).json.reason, 'wrong_user', 'a token is bound to its user');
+  const otherCompany = await call('POST', '/api/media/render', { user: u, company: 'co-2', token: good });
+  assert.equal(otherCompany.json.reason, 'wrong_user', 'and to its company');
+
+  const secret = process.env.DESKTOP_DEVICE_JWT_SECRET!;
+  const claims = verifyDeviceToken(good);
+  const forged = jwt.sign({ typ: 'desktop-device', cid: 'co-1', did: claims.deviceId }, 'attacker-secret-attacker-secret-123456', { subject: u, expiresIn: 60 });
+  assert.equal((await render(u, forged)).json.reason, 'invalid_token');
+  const expired = jwt.sign({ typ: 'desktop-device', cid: 'co-1', did: claims.deviceId }, secret, { subject: u, expiresIn: -10 });
+  assert.equal((await render(u, expired)).json.reason, 'invalid_token');
+  const wrongType = jwt.sign({ typ: 'access', cid: 'co-1', did: claims.deviceId }, secret, { subject: u, expiresIn: 60 });
+  assert.equal((await render(u, wrongType)).json.reason, 'invalid_token', 'a normal user JWT signed with the same secret must not work');
+  const unsigned = `${Buffer.from('{"alg":"none","typ":"JWT"}').toString('base64url')}.${Buffer.from(JSON.stringify({ typ: 'desktop-device', sub: u, cid: 'co-1', did: claims.deviceId })).toString('base64url')}.`;
+  assert.equal((await render(u, unsigned)).json.reason, 'invalid_token', 'alg=none is refused');
+});
+
+test('enforce: a valid token passes and identifies the device; revoking it stops it immediately', async () => {
+  const u = freshUser();
+  const reg = await register(u);
+  const ok = await render(u, reg.json.token);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.json.deviceId, reg.json.deviceId);
+
+  assert.equal((await call('DELETE', `/api/desktop/devices/${reg.json.deviceId}`, { user: u })).status, 200);
+  const after = await render(u, reg.json.token);
+  assert.equal(after.status, 403);
+  assert.equal(after.json.reason, 'revoked');
+});
+
+test('a user cannot revoke another user\'s device', async () => {
+  const owner = freshUser();
+  const reg = await register(owner);
+  const attacker = await call('DELETE', `/api/desktop/devices/${reg.json.deviceId}`, { user: freshUser() });
+  assert.equal(attacker.status, 404);
+  assert.equal((await render(owner, reg.json.token)).status, 200, 'still valid');
+});
+
+test('report mode never blocks (it only logs); off mode is inert', async () => {
+  const u = freshUser();
+  process.env.DESKTOP_DEVICE_ENFORCEMENT = 'report';
+  assert.equal((await render(u)).status, 200);
+  process.env.DESKTOP_DEVICE_ENFORCEMENT = 'off';
+  assert.equal((await render(u)).status, 200);
+  delete process.env.DESKTOP_DEVICE_ENFORCEMENT;
+  assert.equal((await render(u)).status, 200, 'unset defaults to off, so deploying this changes nothing by itself');
+  process.env.DESKTOP_DEVICE_ENFORCEMENT = 'garbage';
+  assert.equal((await render(u)).status, 200, 'an unknown value is treated as off, never as enforce');
+});
+
+test('enforce without a server secret answers 503 (misconfiguration), not a misleading 403', async () => {
+  const u = freshUser();
+  const token = (await register(u)).json.token;
+  delete process.env.DESKTOP_DEVICE_JWT_SECRET;
+  const r = await render(u, token);
+  assert.equal(r.status, 503);
+});
