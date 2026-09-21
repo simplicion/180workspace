@@ -7,10 +7,17 @@ const useSecureCookies = process.env.NODE_ENV === "production"
 const cookiePrefix = useSecureCookies ? "__Secure-" : ""
 const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN
 const cookieDomain = process.env.NODE_ENV === "production" && rootDomain ? `.${rootDomain}` : undefined
-const nextAuthSecret = process.env.NEXTAUTH_SECRET || "build-time-secret-placeholder-min-32-chars";
 
 export const authOptions: NextAuthOptions = {
-  secret: nextAuthSecret,
+  // Resolved lazily (per request) so `next build` without runtime env still works, but a missing
+  // secret at runtime throws instead of silently signing sessions with a publicly known default.
+  get secret() {
+    const secret = process.env.NEXTAUTH_SECRET;
+    if (!secret && process.env.NEXT_PHASE !== "phase-production-build") {
+      throw new Error("NEXTAUTH_SECRET is not set; refusing to sign NextAuth sessions without it.");
+    }
+    return secret;
+  },
   cookies: {
     sessionToken: {
       name: `${cookiePrefix}next-auth.session-token`,

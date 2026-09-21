@@ -114,11 +114,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_LOWER: ${{ steps.repo-name.outputs.REPO_LOWER }}
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE
+          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,NEXTAUTH_SECRET
           command_timeout: 30m
           script: |
             set -e
@@ -155,6 +156,18 @@ jobs:
 
             # 4. Inject production environment variables
             echo "$PRODUCTION_ENV_FILE" > .env
+
+            # 4b. NEXTAUTH_SECRET must be defined at runtime. The application no longer contains a fallback default
+            #     (a publicly known default let anyone forge a session). If the env blob does not define it, take it
+            #     from the dedicated repository secret; the last definition in .env wins.
+            if ! grep -q '^NEXTAUTH_SECRET=.\+' .env; then
+              if [ -n "$NEXTAUTH_SECRET" ]; then
+                printf '\nNEXTAUTH_SECRET=%s\n' "$NEXTAUTH_SECRET" >> .env
+                echo "==> NEXTAUTH_SECRET injected from repository secret."
+              else
+                echo "!! WARNING: NEXTAUTH_SECRET is not defined in PRODUCTION_ENV_FILE or repository secrets. NextAuth (Google) sign-in will be unavailable."
+              fi
+            fi
 
             # 5. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
             sudo chown -R $(whoami):$(whoami) /home/ubuntu/app
