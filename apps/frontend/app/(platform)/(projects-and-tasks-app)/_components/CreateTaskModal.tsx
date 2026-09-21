@@ -182,8 +182,12 @@ export default function CreateTaskModal({ onClose, onSuccess, projectId, initial
             
             const task = (data && (data.task || data.id)) ? (data.task || data) : optimisticTask;
             
-            // 2. Dispatch background upload job if files are selected
-            if (selectedFiles.length > 0 || voiceBlobs.length > 0) {
+            // 2. Dispatch background upload job if files are selected.
+            // Offline, the task only has a temporary local id, so uploads cannot be attached to it yet: say so
+            // instead of queueing an upload that would fail against an id the server has never heard of.
+            if ((selectedFiles.length > 0 || voiceBlobs.length > 0) && isOptimisticOffline) {
+                toast('Task saved offline. Attachments and voice notes can\'t be uploaded offline; add them once it has synced.', { icon: '📎', duration: 7000 });
+            } else if (selectedFiles.length > 0 || voiceBlobs.length > 0) {
                 dispatch(addUploadJob({
                     id: uuidv4(),
                     entityId: task.id,

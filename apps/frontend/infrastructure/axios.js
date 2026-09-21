@@ -48,7 +48,9 @@ axiosInstance.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-        store.dispatch(logout());
+        // Sign out only if the server definitively rejected the refresh token; a network/5xx failure must not end
+        // the session (see lib/auth-refresh.js).
+        if (refreshError?.isAuthRejection) store.dispatch(logout());
         return Promise.reject(refreshError);
       }
     } else if (

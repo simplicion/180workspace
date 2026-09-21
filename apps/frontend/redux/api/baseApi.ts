@@ -57,8 +57,9 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 
       // Retry the original query with the new token
       result = await baseQuery(args, api, extraOptions);
-    } catch {
-      api.dispatch(logout());
+    } catch (refreshError: any) {
+      // Only a definitive rejection ends the session; offline / 5xx must not (see lib/auth-refresh.js).
+      if (refreshError?.isAuthRejection) api.dispatch(logout());
     }
   }
   return result;
