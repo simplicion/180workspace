@@ -1,29 +1,28 @@
 [package]
 name = "desktop-editor"
 version = "1.0.0"
-description = "180 Workspace Autonomous Desktop Video Editor Native Host"
+description = "180 Workspace desktop app: native shell for the whole platform, offline support and local media processing"
 edition = "2021"
+rust-version = "1.77"
 
 [lib]
 name = "desktop_editor_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.0.0", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0", features = [] }
-tauri-plugin-shell = "2.0.0"
-tauri-plugin-fs = "2.0.0"
-tauri-plugin-dialog = "2.0.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1.0", features = ["full"] }
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"        # runs the bundled ffmpeg / ffprobe sidecars (from Rust only, see capabilities/main.json)
+tauri-plugin-dialog = "2"       # native file pickers; picked paths are the ONLY paths the media commands will touch
+tauri-plugin-deep-link = "2"    # workspace180:// links
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
-engine-core = { path = "../../../native/video-engine-core/crates/engine-core" }
-engine-timeline = { path = "../../../native/video-engine-core/crates/engine-timeline" }
-engine-media = { path = "../../../native/video-engine-core/crates/engine-media" }
-engine-render = { path = "../../../native/video-engine-core/crates/engine-render" }
-engine-gpu = { path = "../../../native/video-engine-core/crates/engine-gpu" }
-engine-tracking = { path = "../../../native/video-engine-core/crates/engine-tracking" }
-engine-telemetry = { path = "../../../native/video-engine-core/crates/engine-telemetry" }
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2"   # second launch (e.g. clicking a workspace180:// link) focuses the running window
+
+# NOTE: the path dependencies on native/video-engine-core/* that used to be listed here were removed. Nothing in this
+# crate called them (every command was a stub), and they made this app's build depend on a separate, unverified Cargo
+# workspace. Re-add them when the timeline renderer is wired in (see docs/offline-desktop/PRODUCTION_PLAN.md, Phase 4).

@@ -1,85 +1,165 @@
-use serde::{Deserialize, Serialize};
-use tauri::Manager;
+//! 180 Workspace desktop shell.
+//!
+//! One app for the whole platform (not just the video editor): a native window that loads the 180 Workspace web app,
+//! adds offline support on top of it (the web app's local database + service worker), and provides the native
+//! capabilities the browser cannot: local file access and bundled FFmpeg for all media processing.
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SystemSpecs {
-    pub engine_version: String,
-    pub gpu_adapter: String,
-    pub hardware_accelerated: bool,
-    pub platform: String,
-    pub stream_copy_enabled: bool,
+mod media;
+
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_deep_link::DeepLinkExt;
+
+const DEFAULT_APP_ORIGIN: &str = "https://app.180workspace.com";
+const DEEP_LINK_SCHEME: &str = "workspace180://";
+
+/// The web app this shell loads. Release builds use the origin compiled in (or the default); only debug builds may be
+/// pointed elsewhere (e.g. http://localhost:3002) through WORKSPACE180_APP_ORIGIN, so a user-set environment variable
+/// can never redirect a shipped app to a different site.
+fn app_origin() -> String {
+    if cfg!(debug_assertions) {
+        if let Ok(origin) = std::env::var("WORKSPACE180_APP_ORIGIN") {
+            if origin.starts_with("https://") || origin.starts_with("http://localhost") || origin.starts_with("http://127.0.0.1") {
+                return origin.trim_end_matches('/').to_string();
+            }
+        }
+    }
+    option_env!("WORKSPACE180_APP_ORIGIN")
+        .unwrap_or(DEFAULT_APP_ORIGIN)
+        .trim_end_matches('/')
+        .to_string()
 }
 
-#[tauri::command]
-fn get_engine_status() -> String {
-    "180 Native Video Engine v1.0.0 (wgpu + FFmpeg StreamCopy Active)".to_string()
+/// `workspace180://media-editor?project=abc` -> `/media-editor?project=abc`. Anything outside a conservative
+/// character set is rejected so a crafted link can never smuggle script or another origin into the navigation.
+fn route_from_deep_link(raw: &str) -> Option<String> {
+    let rest = raw.strip_prefix(DEEP_LINK_SCHEME)?.trim_start_matches('/');
+    if rest.len() > 512 || rest.contains("..") {
+        return None;
+    }
+    if !rest.chars().all(|c| c.is_ascii_alphanumeric() || "/-_.~?=&%".contains(c)) {
+        return None;
+    }
+    Some(format!("/{rest}"))
 }
 
-#[tauri::command]
-fn cmd_get_system_specs() -> SystemSpecs {
-    SystemSpecs {
-        engine_version: "1.0.0".to_string(),
-        gpu_adapter: "wgpu Universal Native Pipeline (Vulkan / Metal / DX12)".to_string(),
-        hardware_accelerated: true,
-        platform: std::env::consts::OS.to_string(),
-        stream_copy_enabled: true,
+fn focus_main(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
     }
 }
 
-#[tauri::command]
-fn cmd_probe_media(file_path: String) -> Result<String, String> {
-    if !std::path::Path::new(&file_path).exists() {
-        return Err(format!("File does not exist: {}", file_path));
+fn open_route(app: &tauri::AppHandle, route: &str) {
+    if let Some(window) = app.get_webview_window("main") {
+        let target = format!("{}{}", app_origin(), route);
+        if let Ok(js_string) = serde_json::to_string(&target) {
+            let _ = window.eval(&format!("window.location.assign({js_string})"));
+        }
     }
-    // Probe media container metadata
-    Ok(format!(
-        "{{\"filePath\":\"{}\",\"durationSeconds\":120.0,\"width\":1920,\"height\":1080,\"fps\":30,\"codecVideo\":\"h264\",\"codecAudio\":\"aac\"}}",
-        file_path.replace('\\', "/")
-    ))
+    focus_main(app);
 }
 
-#[tauri::command]
-fn cmd_extract_telemetry(file_path: String) -> Result<String, String> {
-    if !std::path::Path::new(&file_path).exists() {
-        return Err(format!("File does not exist: {}", file_path));
-    }
-    Ok(format!(
-        "{{\"mediaPath\":\"{}\",\"silenceGaps\":[],\"speechPeaks\":[]}}",
-        file_path.replace('\\', "/")
-    ))
-}
-
-#[tauri::command]
-fn cmd_save_project(project_path: String, manifest_json: String) -> Result<bool, String> {
-    std::fs::write(&project_path, manifest_json).map_err(|e| e.to_string())?;
-    Ok(true)
-}
-
-#[tauri::command]
-fn cmd_open_project(project_path: String) -> Result<String, String> {
-    std::fs::read_to_string(&project_path).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn cmd_export_video(edit_ir_json: String, output_path: String) -> Result<String, String> {
-    println!("[NativeEngine] Exporting EditIR to output: {}", output_path);
-    Ok(output_path)
+/// Runs before any page script (both the local bootstrap page and the web app), so the web app can reliably detect
+/// that it is running inside the desktop app. Deliberately reports only facts, no capability claims.
+fn init_script(origin: &str, route: &str) -> String {
+    let json = |s: &str| serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
+    format!(
+        "(function(){{ if (window.__180_NATIVE__) return; \
+           window.__180_APP_ORIGIN__ = {origin}; \
+           window.__180_INITIAL_ROUTE__ = {route}; \
+           window.__180_NATIVE__ = Object.freeze({{ isNative: true, shell: 'tauri', platform: {os}, version: {version} }}); \
+         }})();",
+        origin = json(origin),
+        route = json(route),
+        os = json(std::env::consts::OS),
+        version = json(env!("CARGO_PKG_VERSION")),
+    )
 }
 
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // Must be registered first. A second launch (for example clicking a workspace180:// link while the app is
+    // running) hands its arguments to the running instance instead of opening another window.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+        match argv.iter().find_map(|a| route_from_deep_link(a)) {
+            Some(route) => open_route(app, &route),
+            None => focus_main(app),
+        }
+    }));
+
+    builder
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_deep_link::init())
+        .manage(media::AllowedPaths::default())
+        .setup(|app| {
+            let origin = app_origin();
+            let initial_route = std::env::args()
+                .find_map(|a| route_from_deep_link(&a))
+                .unwrap_or_else(|| "/".to_string());
+
+            // The window is created here (not in tauri.conf.json) so the initialization script is attached before the
+            // first page loads. It starts on the bundled shell page, which decides how to reach the web app.
+            WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+                .title("180 Workspace")
+                .inner_size(1440.0, 900.0)
+                .min_inner_size(1024.0, 700.0)
+                .initialization_script(&init_script(&origin, &initial_route))
+                .build()?;
+
+            // Installed builds register the scheme via the installer; while developing there is no installer.
+            #[cfg(all(debug_assertions, any(windows, target_os = "linux")))]
+            app.deep_link().register_all()?;
+
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    if let Some(route) = route_from_deep_link(url.as_str()) {
+                        open_route(&handle, &route);
+                    }
+                }
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
-            get_engine_status,
-            cmd_get_system_specs,
-            cmd_probe_media,
-            cmd_extract_telemetry,
-            cmd_save_project,
-            cmd_open_project,
-            cmd_export_video
+            media::engine_info,
+            media::pick_media_files,
+            media::probe_media,
+            media::pick_export_path,
+            media::transcode_media,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running 180 media studio desktop editor");
+        .expect("error while running the 180 Workspace desktop app");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::route_from_deep_link;
+
+    #[test]
+    fn accepts_plain_routes() {
+        assert_eq!(route_from_deep_link("workspace180://media-editor?project=abc").as_deref(), Some("/media-editor?project=abc"));
+        assert_eq!(route_from_deep_link("workspace180:///crm/deals").as_deref(), Some("/crm/deals"));
+        assert_eq!(route_from_deep_link("workspace180://").as_deref(), Some("/"));
+    }
+
+    #[test]
+    fn rejects_traversal_scripts_and_foreign_schemes() {
+        for bad in [
+            "workspace180://../etc/passwd",
+            "workspace180://a/../b",
+            "workspace180://x;alert(1)",
+            "workspace180://x\"y",
+            "workspace180://javascript:alert(1)",
+            "https://evil.example/",
+            "workspace180://a b",
+        ] {
+            assert!(route_from_deep_link(bad).is_none(), "{bad}");
+        }
+        assert!(route_from_deep_link(&format!("workspace180://{}", "a".repeat(600))).is_none());
+    }
 }

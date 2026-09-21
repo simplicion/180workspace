@@ -2,12 +2,13 @@
   "name": "@workspace/desktop-app",
   "version": "1.0.0",
   "private": true,
-  "description": "180 Workspace - Universal Enterprise Desktop Application (Windows, macOS, Linux)",
+  "description": "180 Workspace - desktop app for the whole platform (Windows, macOS, Linux): offline support and local media processing",
   "scripts": {
-    "build:windows": "powershell -ExecutionPolicy Bypass -File ./windows/build-windows.ps1",
-    "build:tauri": "tauri build",
-    "dev:tauri": "tauri dev",
-    "dev": "pnpm build:windows"
+    "icons": "tauri icon ../frontend/public/icons/icon-512x512.png",
+    "prepare:sidecars": "node scripts/prepare-sidecars.mjs",
+    "dev:tauri": "node scripts/prepare-sidecars.mjs && tauri dev",
+    "build:tauri": "node scripts/prepare-sidecars.mjs && tauri build",
+    "build:windows": "powershell -ExecutionPolicy Bypass -File ./windows/build-windows.ps1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"
