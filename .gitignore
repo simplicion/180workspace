@@ -84,3 +84,9 @@ temp_brand_test_*/
 .director_memory/
 temp_zero_footage_test_*/
 ssm_out.json
+
+# Desktop app build outputs
+apps/desktop-app/src-tauri/target/
+apps/desktop-app/src-tauri/gen/
+apps/desktop-app/src-tauri/binaries/
+apps/desktop-app/dist/

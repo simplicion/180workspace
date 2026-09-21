@@ -1,0 +1,95 @@
+name: Desktop App Release
+
+# Builds the 180 Workspace desktop app (Tauri) for Windows, macOS and Linux and attaches the installers to a draft
+# GitHub Release. Point the DESKTOP_DOWNLOAD_URL_* variables (backend + frontend) at the published assets.
+#
+# Required repository secrets (see docs/offline-desktop/PRODUCTION_PLAN.md, "Release prerequisites"):
+#   TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD   updater signing key (`pnpm tauri signer generate`)
+# Optional, needed for a trusted install experience (without them users get OS security warnings):
+#   WINDOWS_CERTIFICATE, WINDOWS_CERTIFICATE_PASSWORD               Authenticode certificate (base64 .pfx)
+#   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ''
+          # Native architecture only (Apple Silicon). Intel Macs would need x86_64 FFmpeg sidecars, which the
+          # @ffmpeg-installer packages only provide when installed ON an Intel host.
+          - platform: macos-latest
+            args: ''
+          - platform: ubuntu-22.04
+            args: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop-app/src-tauri
+
+      - name: Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare FFmpeg sidecars
+        # Copies the runner's own FFmpeg/FFprobe into src-tauri/binaries (see the licensing note in the script header).
+        run: pnpm --filter @workspace/desktop-app run prepare:sidecars
+
+      - name: Run Rust unit tests
+        working-directory: apps/desktop-app/src-tauri
+        run: cargo test --lib
+
+      - name: Build and publish installers
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: apps/desktop-app
+          tagName: desktop-v__VERSION__
+          releaseName: '180 Workspace Desktop v__VERSION__'
+          releaseBody: 'Installers for Windows, macOS and Linux. See the assets below.'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

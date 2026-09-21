@@ -1,0 +1,16 @@
+{
+  "identifier": "main",
+  "description": "Permissions for the main window: the bundled local shell page and the 180 Workspace web app it loads.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["https://app.180workspace.com/*", "https://180workspace.com/*"]
+  },
+  "permissions": [
+    "core:default",
+    "allow-engine-info",
+    "allow-pick-media-files",
+    "allow-probe-media",
+    "allow-pick-export-path",
+    "allow-transcode-media"
+  ]
+}

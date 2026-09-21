@@ -1,68 +1,66 @@
-# 180 Workspace Desktop Application
+# 180 Workspace Desktop App
 
-The native desktop host for the entire **180 Workspace** platform (Windows, macOS, Linux).
+One desktop app for the **whole** 180 Workspace platform (Windows, macOS, Linux), built with Tauri v2. It gives users:
 
----
+- the full workspace in a native window, with **offline support** (the web app's local database and sync engine, plus a service worker);
+- **all media processing**: video editing and everything that needs FFmpeg runs only here, never in the browser (browsers show a "download the app" screen);
+- native file pickers, `workspace180://` deep links, single-instance behaviour.
 
-## ??? Architecture Overview
+Design, edge-case matrix and roadmap: [`docs/offline-desktop/PRODUCTION_PLAN.md`](../../docs/offline-desktop/PRODUCTION_PLAN.md).
 
-The 180 Workspace desktop client provides a zero-latency, hardware-accelerated desktop wrapper around the unified workspace web platform:
+## Layout
 
-`
+```
 apps/desktop-app/
-+-- package.json               # @workspace/desktop-app workspace package
-+-- README.md                  # Developer & architecture documentation
-+-- windows/                   # Lightweight native Windows C# / WebView2 Host
-�   +-- Launcher.cs            # Host runtime with workspace180:// deep link & hardware injection
-�   +-- Installer.cs           # Self-extracting setup installer with registry protocol registration
-�   +-- build-windows.ps1      # Automated compilation script (uses csc.exe)
-�   +-- app.ico                # 180 Workspace application icon
-�   +-- 180Workspace.exe       # Compiled native executable
-�   +-- 180Workspace-Setup-x64.exe # Compiled installer executable
-+-- src-tauri/                 # Cross-platform Tauri v2 Rust container (macOS/Linux/Windows)
-    +-- tauri.conf.json        # Tauri configuration (deep links, window bounds)
-    +-- Cargo.toml             # Rust dependencies (connects to native/video-engine-core)
-    +-- src/                   # Native IPC commands and telemetry hooks
-`
+├─ shell/index.html          local bootstrap page (works offline): checks the app origin, then navigates to it
+├─ scripts/prepare-sidecars.mjs   copies FFmpeg/FFprobe into src-tauri/binaries (per target triple)
+├─ src-tauri/
+│  ├─ tauri.conf.json        bundle, CSP, deep-link scheme, sidecars
+│  ├─ capabilities/main.json which IPC commands the web content may call (least privilege)
+│  ├─ build.rs               declares the app commands that capabilities can grant
+│  ├─ src/lib.rs             window creation, deep links, single instance, native detection script
+│  └─ src/media.rs           probe / transcode commands (path allowlist, fixed FFmpeg arguments)
+└─ windows/                  LEGACY C# + WebView2 launcher (see below)
+```
 
----
+## Develop
 
-## ? Key Capabilities
+Prerequisites: Rust (stable), the platform's WebView (WebView2 on Windows, WebKitGTK on Linux), Node 24, pnpm 9.
 
-1. **Hardware Acceleration Bridge (window.__180_NATIVE__):**
-   - Automatically injected into all page loads before execution.
-   - Provides direct access to GPU shaders (Direct3D 12, Vulkan, Metal), local file system paths, and NVENC/AMF video stream copying.
+```bash
+pnpm install
+pnpm --filter frontend dev                       # web app on http://localhost:3002
+# in another terminal, with the dev origin:
+WORKSPACE180_APP_ORIGIN=http://localhost:3002 pnpm --filter @workspace/desktop-app run dev:tauri
+```
 
-2. **Deep Link Protocol (workspace180://):**
-   - Direct routing to any workspace module or project:
-     - workspace180://media-editor?project=abc
-     - workspace180://crm/deals
-     - workspace180://advertising
-   - Automatically registered in the OS on installation and startup.
+`WORKSPACE180_APP_ORIGIN` is honoured **only in debug builds**. Release builds use the compiled-in origin
+(`https://app.180workspace.com`, or the value of `WORKSPACE180_APP_ORIGIN` at *compile* time for a staging build), so a
+user-set environment variable can never redirect a shipped app to another site.
 
-3. **Development Auto-Discovery:**
-   - Auto-detects running Next.js development server at http://localhost:3002, http://localhost:3000, or fallback ports.
+To use the video editor in a plain browser while developing the web app, set `NEXT_PUBLIC_ALLOW_BROWSER_MEDIA_EDITOR=true` in
+`apps/frontend/.env.local`. Never set it in production.
 
----
+## Build a release locally
 
-## ?? Building & Running
+```bash
+pnpm --filter @workspace/desktop-app run build:tauri     # prepares sidecars, then `tauri build`
+```
 
-### Windows Native Host:
-`ash
-# From workspace root
-pnpm --filter @workspace/desktop-app run build:windows
+Installers appear in `src-tauri/target/release/bundle/`. Official releases are built by
+`.github/workflows/desktop-release.yml` on a `desktop-v*` tag.
 
-# Or directly in powershell
-cd apps/desktop-app/windows
-powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
-`
+## Before the first public release
 
-### Cross-Platform Tauri (macOS, Linux, Windows):
-`ash
-# Development mode
-pnpm --filter @workspace/desktop-app run dev:tauri
+Not optional; see "Release prerequisites" in the production plan:
 
-# Production bundle
-pnpm --filter @workspace/desktop-app run build:tauri
-`
+1. **FFmpeg licence.** The bundled Windows `ffmpeg.exe` is GPLv3. Redistribution requires GPL compliance (licence text + source offer) or an LGPL-only build. Get this reviewed.
+2. **Code signing.** Windows Authenticode certificate and Apple Developer ID + notarization, otherwise users get OS security warnings.
+3. **Updater.** Generate a signing key (`pnpm tauri signer generate`), add the `tauri-plugin-updater`, and publish an update manifest. Not wired yet.
+4. **First compile.** The Rust in `src-tauri/` was written without a Rust toolchain available and has never been compiled. Expect to fix small API mismatches on the first `cargo build`.
 
+## Legacy launcher (`windows/`)
+
+The C# WebView2 launcher and its `.exe` files predate the Tauri app. They defaulted to a local dev server, contain hard-coded
+developer paths, and serve a stale Vite bundle as their "offline" fallback. Do not ship them. Delete `windows/` and the
+`build:windows` script once the Tauri build has been verified on a clean Windows machine.
