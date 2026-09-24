@@ -13,7 +13,6 @@ router.get('/', ConfigsController.getSettings);
 router.put('/', protect, validateRequest(ConfigsValidation.updateSettings), ConfigsController.updateSettings); 
 router.post('/test-email', protect, featureFlagGuard('hasEmailServices'), ConfigsController.testEmailConnection); 
 router.post('/test-ai', protect, featureFlagGuard('hasAIAssistant'), ConfigsController.testAiConnection); 
-router.post('/test-storage', protect, ConfigsController.testStorageConnection); 
 router.post('/test-db', protect, ConfigsController.testDatabaseConnection); 
 router.post('/clear-data', protect, ConfigsController.clearDatabase); 
 

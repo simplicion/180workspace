@@ -73,20 +73,13 @@ export default function FileUploadModal({ relatedId, relatedModel, onClose, onSu
         setLoadingUsers(true);
         Promise.all([
             api.get('/api/users?limit=200').catch(() => ({ data: { users: [] } })),
-            api.get('/api/settings').catch(() => ({ data: null })),
-            api.get('/api/integrations/google/folders').catch(() => ({ data: { folders: [] } }))
-        ]).then(([usersRes, settingsRes, driveRes]) => {
+            api.get('/api/settings').catch(() => ({ data: null }))
+        ]).then(([usersRes]) => {
             setAllUsers(usersRes.data.users || usersRes.data || []);
-            setGoogleDriveFolders(driveRes.data.folders || []);
-            
-            const settings = settingsRes.data?.settings;
-            if (settings) {
-                const isDriveConf = !!(settings.googleDriveServiceAccount || settings.googleDriveTokens);
-                const isCloudinaryConf = !!(settings.cloudinaryCloudName && settings.cloudinaryApiKey && settings.cloudinaryApiSecret);
-                
-                setDriveConfigured(isDriveConf);
-                setCloudinaryConfigured(isCloudinaryConf);
-            }
+            setGoogleDriveFolders([]);
+            setDriveConfigured(false);
+            setCloudinaryConfigured(false);
+            setStorageProvider('r2');
         }).catch(() => { }).finally(() => {
             setSettingsLoading(false);
             setLoadingUsers(false);

@@ -204,35 +204,6 @@ export class ConfigsController {
         }
     }
 
-    static async testStorageConnection(req: Request, res: Response, next: NextFunction) {
-        const dependencies = {
-            clearCompanyCache: async (companyId: string) => {
-                // Removed legacy clearCompanyCache
-            },
-            testGoogleDrive: async (settings: any) => {
-                const { GoogleDriveService } = require('@workspace/integrations');
-                await GoogleDriveService.testConnection(settings);
-            },
-
-        };
-
-        try {
-            const result = await SettingsService.testStorageConnection((req as any).user, dependencies);
-            res.json(result);
-        } catch (error: any) {
-            if (error.message === 'Forbidden') {
-                return res.status(403).json({ error: 'Only admins/managers can test storage connection' });
-            }
-            if (error.message === 'Storage mode is set to local or not configured' || error.message === 'Unsupported storage mode for testing') {
-                return res.status(400).json({ error: error.message });
-            }
-
-            console.error('Storage connection test failed:', error);
-            const settings = await SettingsService.logStorageTestFailure((req as any).user, error.message, dependencies);
-            res.status(500).json({ error: 'Storage connection test failed', details: error.message, settings });
-        }
-    }
-
     static async testDatabaseConnection(req: Request, res: Response, next: NextFunction) {
         const dependencies = {
             clearCompanyCache: async (companyId: string) => {

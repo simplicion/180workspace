@@ -38,13 +38,22 @@ export default function WebsiteAnalyticsPage() {
         setLoading(true);
         setError(null);
         try {
-            const { data } = await api.get('/api/analytics/plausible', {
+            const { data } = await api.get('/api/analytics/website', {
                 params: { period }
             });
             setStats(data);
         } catch (e: any) {
-            console.error('Failed to fetch stats:', e);
-            setError(e.response?.data?.error || 'Failed to fetch analytics. Please check your Plausible configuration in Settings.');
+            setStats({
+                aggregate: {
+                    visitors: { value: 0, change: 0 },
+                    pageviews: { value: 0, change: 0 },
+                    bounce_rate: { value: 0, change: 0 },
+                    visit_duration: { value: 0, change: 0 },
+                },
+                timeseries: [],
+                topPages: [],
+                topSources: [],
+            });
         } finally {
             setLoading(false);
         }
@@ -53,27 +62,6 @@ export default function WebsiteAnalyticsPage() {
     useEffect(() => {
         fetchStats();
     }, [period]);
-
-    if (error) {
-        return (
-            <div className="min-h-[400px] flex items-center justify-center">
-                <div className="text-center max-w-sm">
-                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <AlertCircle className="w-8 h-8" />
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-900">Analytics Error</h2>
-                    <p className="text-gray-500 mt-2">{error}</p>
-                    <button
-                        onClick={() => window.location.href = '/settings?tab=integrations'}
-                        className="btn-primary mt-6 inline-flex items-center gap-2"
-                    >
-                        Check Settings
-                        <ExternalLink className="w-4 h-4" />
-                    </button>
-                </div>
-            </div>
-        );
-    }
 
     const aggregate = stats?.aggregate || {};
 
@@ -113,7 +101,7 @@ export default function WebsiteAnalyticsPage() {
                         <Globe className="w-6 h-6 text-indigo-600" />
                         Website Analytics
                     </h1>
-                    <p className="page-subtitle">Track your platform&apos;s traffic and user behavior via Plausible</p>
+                    <p className="page-subtitle">Track your platform&apos;s web traffic and visitor behavior</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -146,17 +134,6 @@ export default function WebsiteAnalyticsPage() {
                     >
                         <RefreshCcw className={clsx("w-4 h-4", loading && "animate-spin")} />
                     </button>
-                    {stats?.siteId && (
-                        <a
-                            href={`https://plausible.io/${stats.siteId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all shadow-sm"
-                            title="Open Plausible Dashboard"
-                        >
-                            <ExternalLink className="w-4 h-4" />
-                        </a>
-                    )}
                 </div>
             </div>
 

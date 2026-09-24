@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { redis } from '../../../../system-configs/config/redis';
 import { FinanceOverviewService } from '@workspace/finance';
-import { PlausibleService } from '@workspace/insights';
 import { prisma } from '@workspace/db';
 
 export const getFinancialStats = async (req: Request, res: Response, next: NextFunction) => {
@@ -70,26 +69,6 @@ export const getAllProjectsProfitability = async (req: Request, res: Response, n
     } catch (err) { next(err); }
 };
 
-export const getPlausibleStats = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const { period, metrics, date } = req.query;
-        const stats = await PlausibleService.getStats(period as string, metrics as string, date as string);
-        res.json(stats);
-    } catch (error: any) {
-  const detailedError = error.response?.data?.error || error.message;
-  next(error);
-}
-};
-
-export const testPlausibleConnection = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        let { plausibleApiKey, plausibleSiteId } = req.body;
-        await PlausibleService.testConnection(plausibleApiKey, plausibleSiteId);
-        res.json({ message: 'Plausible connection verified successfully!' });
-    } catch (error: any) {
-  next(error);
-}
-};
 
 export const getTeamActivity = async (req: Request, res: Response, next: NextFunction) => {
     try {

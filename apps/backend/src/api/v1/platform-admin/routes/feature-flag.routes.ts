@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { list, create, toggle, remove } from '../controllers/feature-flag.controller';
+import { list, create, toggle, remove, sync } from '../controllers/feature-flag.controller';
 import { validateRequest } from '../../../../system-configs/middleware/system/validateRequest';
 import { createFeatureFlagSchema } from '../validation/feature-flag.validation';
 
 const router = Router();
 
 router.get('/', list);
+router.post('/sync', sync);
 router.post('/', validateRequest(createFeatureFlagSchema), create);
 router.put('/:id/toggle', toggle);
 router.delete('/:id', remove);
