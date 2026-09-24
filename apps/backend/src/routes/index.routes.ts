@@ -51,7 +51,7 @@ const walletRoutes = require('../api/v1/wallet/index').default;
 // Maps old frontend API calls (e.g. /api/dashboard) to the new v1 structure
 router.use((req: any, res: any, next: any) => {
     // Only intercept requests missing /v1/, /auth, /setup, /public, /company-profile
-    if (req.url.startsWith('/v1/') || req.url.startsWith('/wallet') || req.url.startsWith('/auth') || req.url.startsWith('/setup') || req.url.startsWith('/public') || req.url.startsWith('/company-profile') || req.url.startsWith('/system') || req.url.startsWith('/integrations') || req.url.startsWith('/init') || req.url.startsWith('/health') || req.url.startsWith('/bootstrap') || req.url.startsWith('/superadmin')) {
+    if (req.url.startsWith('/v1/') || req.url.startsWith('/wallet') || req.url.startsWith('/auth') || req.url.startsWith('/setup') || req.url.startsWith('/public') || req.url.startsWith('/company-profile') || req.url.startsWith('/system') || req.url.startsWith('/integrations') || req.url.startsWith('/init') || req.url.startsWith('/health') || req.url.startsWith('/bootstrap') || req.url.startsWith('/superadmin') || req.url.startsWith('/feature-flags')) {
         return next();
     }
 
@@ -323,6 +323,15 @@ const { getInit } = require('../api/v1/system/init/init.controller');
 router.get('/init', protect, getInit);
 router.get('/health', require('../api/v1/system/health/health.controller').getHealth);
 router.get('/bootstrap', protect, require('../api/v1/system/init/init.controller').getBootstrap);
+router.get('/feature-flags', async (req: any, res: any, next: any) => {
+    try {
+        const { FeatureFlagService } = require('@workspace/platform-admin');
+        const data = await FeatureFlagService.getAppFlags();
+        res.json(data);
+    } catch (err) {
+        next(err);
+    }
+});
 
 router.use(subscriptionGuard);
 

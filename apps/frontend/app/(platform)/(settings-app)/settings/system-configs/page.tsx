@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-    Building2, Database, CreditCard, Globe, ChevronRight, Users, Shield,
-    Sparkles, Mail, Activity, Cloud, Settings2, ShieldCheck, Zap, Clock,
+    Building2, Database, CreditCard, ChevronRight, Users, Shield,
+    Sparkles, Mail, Settings2, ShieldCheck, Zap, Clock,
     Headphones, Plus, HeartPulse
 } from 'lucide-react';
 import { useSettings } from '@/lib/settings-context';
@@ -45,18 +45,6 @@ const GLOBAL_TILES = [
         status: () => 'success',
     },
     {
-        id: 'storage',
-        name: 'Cloudinary Storage',
-        icon: Cloud,
-        desc: 'Store and manage files, media and backups securely.',
-        href: '/settings/storage',
-        iconBg: 'bg-sky-50',
-        iconColor: 'text-sky-600',
-        check: (s: any) => s?.lastStorageTestStatus === 'success' && !!(s?.cloudinaryCloudName && s?.cloudinaryApiKey && s?.cloudinaryApiSecret),
-        rawCheck: (s: any) => !!(s?.cloudinaryCloudName || s?.cloudinaryApiKey || s?.cloudinaryApiSecret),
-        status: (s: any) => (s?.lastStorageTestStatus === 'success' && s?.cloudinaryCloudName && s?.cloudinaryApiKey && s?.cloudinaryApiSecret) ? 'success' : 'none',
-    },
-    {
         id: 'email',
         name: 'Email System',
         icon: Mail,
@@ -67,30 +55,6 @@ const GLOBAL_TILES = [
         check: (s: any) => s?.lastEmailTestStatus === 'success',
         rawCheck: (s: any) => !!(s?.smtpHost && s?.emailFrom),
         status: (s: any) => s?.lastEmailTestStatus,
-    },
-    {
-        id: 'analytics',
-        name: 'Plausible Analytics',
-        icon: Activity,
-        desc: 'Lightweight, privacy-focused analytics.',
-        href: '/settings/plausible-analytics',
-        iconBg: 'bg-orange-50',
-        iconColor: 'text-orange-600',
-        check: (s: any) => !!(s?.plausibleApiKey && s?.plausibleSiteId),
-        rawCheck: (s: any) => !!(s?.plausibleApiKey && s?.plausibleSiteId),
-        status: (s: any) => (s?.plausibleApiKey && s?.plausibleSiteId) ? 'success' : 'none',
-    },
-    {
-        id: 'google-integrations',
-        name: 'Google Integrations',
-        icon: Globe,
-        desc: 'Connect external services like Google Drive, Docs, and Sheets.',
-        href: '/settings/google-integrations',
-        iconBg: 'bg-indigo-50',
-        iconColor: 'text-indigo-600',
-        check: (s: any) => !!s?.metadata?.googleDriveTokens,
-        rawCheck: (s: any) => !!s?.metadata?.googleDriveTokens,
-        status: (s: any) => s?.metadata?.googleDriveTokens ? 'success' : 'none',
     },
 ];
 

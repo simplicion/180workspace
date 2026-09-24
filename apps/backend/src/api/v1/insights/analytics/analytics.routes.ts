@@ -7,9 +7,6 @@ const router = Router();
 // All analytics routes are restricted to admin/manager roles
 router.use(authorize('admin', 'manager'));
 
-router.get('/plausible', analyticsController.getPlausibleStats);
-router.post('/plausible/test', analyticsController.testPlausibleConnection);
-
 // Team Activity
 router.get('/team-activity', analyticsController.getTeamActivity);
 

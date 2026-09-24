@@ -45,12 +45,14 @@ import SystemSetupStatus from '@/app/(platform)/(dashboard)/_components/SystemSe
 import NotificationsPanel from '@/components/shared/NotificationsPanel';
 import TrialBanner from '@/components/shared/TrialBanner';
 import SubscriptionExpiredWall from '@/components/shared/SubscriptionExpiredWall';
+import UpcomingFeatureWall from '@/components/shared/UpcomingFeatureWall';
 import CompanySuspendedWall from '@/components/shared/CompanySuspendedWall';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import UploadQueueManager from '@/components/shared/UploadQueueManager';
 import SyncStatusIndicator from '@/components/shared/SyncStatusIndicator';
 import OfflineModuleGate from '@/components/shared/OfflineModuleGate';
+import { MODULE_MAP } from '@/lib/module-map';
 
 
 // navigation moved to ../../lib/navigation.ts
@@ -346,7 +348,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
         return pathname === href || !!pathname?.startsWith(href + '/');
     }
     const { user, logout } = useAuth();
-    const { company, settings, platform, refreshSettings } = useSettings();
+    const { company, settings, platform, refreshSettings, isAppDisabledByAdmin } = useSettings();
     const { isExpired, isTrialing, daysLeft, plan, status } = useSubscription();
 
     const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
@@ -434,7 +436,10 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
     const filteredNav = useMemo(() => {
         return navigation.map(item => {
             if ('group' in item) {
-                // 1. App Level Toggling with Subscription Limits
+                // 1. App Level Toggling with Subscription Limits & Admin Killswitch
+                if (item.appId && isAppDisabledByAdmin(item.appId)) {
+                    return null;
+                }
                 const defaultApps = ['projects', 'communications', 'workspace-tools', 'ai'];
                 const isDefaultApp = item.appId ? defaultApps.includes(item.appId) : false;
                 const hasActivePlan = !isExpired && status !== 'expired' && status !== 'cancelled' && status !== 'No Active Plan';
@@ -496,6 +501,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 return { ...item, items: filteredItems };
             } else {
                 // Handle single items (Dashboard, CEO Insights, 180 Media Studio)
+                if (item.appId && isAppDisabledByAdmin(item.appId)) return null;
                 if (userRoles.some(r => item.roles?.includes(r as string))) {
                     if (item.appId && company?.enabledApps && Array.isArray(company.enabledApps) && company.enabledApps.length > 0) {
                         const isAppEnabled =
@@ -509,7 +515,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 return null;
             }
         }).filter(Boolean) as any[];
-    }, [userRoles, company?.enabledApps, company?.enabledModules, isExpired, status, plan]);
+    }, [userRoles, company?.enabledApps, company?.enabledModules, isExpired, status, plan, isAppDisabledByAdmin]);
 
     useEffect(() => {
         const activeGroup = filteredNav.find(n =>
@@ -721,7 +727,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     const { user, company, isLoading: authLoading } = useAuth();
     const pwa = usePWAInstall();
     const { isNativeDesktop } = useNativeEngine();
-    const { isLoading: settingsLoading } = useSettings();
+    const { isLoading: settingsLoading, isAppDisabledByAdmin } = useSettings();
     const { isExpired, status, mandateStatus, paymentsEnabled, loading: subLoading } = useSubscription();
     const router = useRouter();
     const pathname = usePathname();
@@ -852,6 +858,26 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         // But for strictness, we'd need to map paths to appIds.
         return true;
     };
+
+    const currentAppId = useMemo(() => {
+        if (!pathname) return null;
+        if (pathname === '/' || pathname.startsWith('/settings') || pathname.startsWith('/profile') || pathname.startsWith('/help-support') || pathname.startsWith('/activity')) {
+            return null;
+        }
+        for (const [route, info] of Object.entries(MODULE_MAP)) {
+            if (pathname === route || pathname.startsWith(route + '/')) {
+                return info.appId;
+            }
+        }
+        if (pathname.startsWith('/traffic-director')) return 'traffic-director';
+        if (pathname.startsWith('/voiceforce')) return 'voiceforce';
+        if (pathname.startsWith('/media-editor') || pathname.startsWith('/video-studio')) return 'media-editor';
+        if (pathname.startsWith('/advertising')) return 'advertising';
+        if (pathname.startsWith('/social-projects') || pathname.startsWith('/content-calendar') || pathname.startsWith('/social-media-assets') || pathname.startsWith('/inbox')) return 'social-media';
+        return null;
+    }, [pathname]);
+
+    const isCurrentAppDisabled = Boolean(currentAppId && isAppDisabledByAdmin(currentAppId));
 
     const showWall = !isPathAllowed() && !(isAdmin && isBillingPath);
 
@@ -1116,6 +1142,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                 {!isMeetingFullscreen && <TrialBanner />}
                 {!isMeetingFullscreen && showWall ? (
                     <SubscriptionExpiredWall />
+                ) : isCurrentAppDisabled ? (
+                    <div className={clsx("flex-1 overflow-x-hidden", isMeetingFullscreen ? "p-0" : "py-4 lg:p-6")}>
+                        <UpcomingFeatureWall appId={currentAppId} />
+                    </div>
                 ) : (
                     <div className={clsx("flex-1 overflow-x-hidden", isMeetingFullscreen ? "p-0" : "py-4 lg:p-6")}>
                         <OfflineModuleGate>{children}</OfflineModuleGate>

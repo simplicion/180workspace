@@ -124,6 +124,9 @@ interface SettingsContextType {
     settings: Settings;
     company: CompanyConfig | null;
     platform: PlatformBranding | null;
+    featureFlags: Record<string, boolean>;
+    disabledApps: string[];
+    isAppDisabledByAdmin: (appId: string) => boolean;
     refreshSettings: (forceFetch?: boolean) => Promise<void>;
     isLoading: boolean;
 }
@@ -138,6 +141,9 @@ const SettingsContext = createContext<SettingsContextType>({
     settings: defaultSettings,
     company: null,
     platform: null,
+    featureFlags: {},
+    disabledApps: [],
+    isAppDisabledByAdmin: () => false,
     refreshSettings: async () => { },
     isLoading: true,
 });
@@ -146,7 +152,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const [settings, setSettings] = useState<Settings>(defaultSettings);
     const [company, setCompany] = useState<CompanyConfig | null>(null);
     const [platform, setPlatform] = useState<PlatformBranding | null>(null);
+    const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({});
+    const [disabledApps, setDisabledApps] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    const isAppDisabledByAdmin = useCallback((appId: string): boolean => {
+        if (!appId) return false;
+        const cleanId = appId.toLowerCase().trim();
+        if (disabledApps.includes(cleanId)) return true;
+        const snakeId = cleanId.replace(/-/g, '_');
+        if (disabledApps.includes(snakeId)) return true;
+        if (featureFlags[`app_${snakeId}`] === false) return true;
+        if (featureFlags[cleanId] === false) return true;
+        return false;
+    }, [disabledApps, featureFlags]);
 
     // ── Theme Color Helpers ─────────────────────────────────────────────────────
     function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -199,24 +218,26 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            const applyData = (newSettings: any, newCompany: any, platformBranding: any) => {
+            const applyData = (newSettings: any, newCompany: any, platformBranding: any, flags?: any, disabled?: string[]) => {
                 setSettings(newSettings || defaultSettings);
                 setCompany(newCompany || null);
                 setPlatform(platformBranding || null);
+                if (flags) setFeatureFlags(flags);
+                if (disabled) setDisabledApps(disabled);
 
                 if (typeof window !== 'undefined') {
                     // Update session storage so the cache stays fresh
-                    sessionStorage.setItem('platform_init_data', JSON.stringify({
-                        settings: newSettings,
-                        companyConfig: newCompany,
-                        platform: platformBranding
-                    }));
+                    const stored = sessionStorage.getItem('platform_init_data');
+                    const parsed = stored ? JSON.parse(stored) : {};
+                    parsed.settings = newSettings;
+                    parsed.companyConfig = newCompany;
+                    parsed.platform = platformBranding;
+                    if (flags) parsed.featureFlags = flags;
+                    if (disabled) parsed.disabledApps = disabled;
+                    sessionStorage.setItem('platform_init_data', JSON.stringify(parsed));
 
                     const themeColor = newCompany?.brandColor || platformBranding?.themeColor || newSettings?.themeColor;
                     if (themeColor) applyThemeColor(themeColor);
-
-                    // Note: document.title and favicon are now hardcoded via Next.js Metadata in layout.tsx 
-                    // to ensure platform branding (180workspace) is always displayed instead of company branding.
                 }
                 setIsLoading(false);
             };
@@ -227,8 +248,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     const stored = sessionStorage.getItem('platform_init_data');
                     if (stored) {
                         const parsed = JSON.parse(stored);
-                        if (parsed.settings || parsed.companyConfig || parsed.platform) {
-                            applyData(parsed.settings, parsed.companyConfig, parsed.platform);
+                        if (parsed.settings || parsed.companyConfig || parsed.platform || parsed.featureFlags) {
+                            applyData(
+                                parsed.settings, 
+                                parsed.companyConfig, 
+                                parsed.platform, 
+                                parsed.featureFlags || {}, 
+                                parsed.disabledApps || []
+                            );
                             return; // Skip API calls!
                         }
                     }
@@ -256,11 +283,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 }
             }
 
-            const [settingsRes, companyRes, platformRes] = await Promise.all([
+            const [settingsRes, companyRes, platformRes, flagsRes] = await Promise.all([
                 (activeToken) ? api.get('/api/settings').catch(() => ({ data: { settings: null } })) : Promise.resolve({ data: { settings: null } }),
                 (activeToken) ? api.get('/api/company-config').catch(() => ({ data: { config: null } })) : Promise.resolve({ data: { config: null } }),
-                api.get(`/api/public/branding${workspace ? `?workspace=${workspace}` : ''}`).catch(() => ({ data: null }))
+                api.get(`/api/public/branding${workspace ? `?workspace=${workspace}` : ''}`).catch(() => ({ data: null })),
+                api.get('/api/feature-flags').catch(() => ({ data: { flags: {}, disabledApps: [] } }))
             ]);
+
+            const flagsData = flagsRes?.data || {};
 
             if (activeToken && typeof window !== 'undefined') {
                 try {
@@ -269,11 +299,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     parsed.settings = settingsRes.data.settings;
                     parsed.companyConfig = companyRes.data.config;
                     if (platformRes.data) parsed.platform = platformRes.data;
+                    parsed.featureFlags = flagsData.flags || {};
+                    parsed.disabledApps = flagsData.disabledApps || [];
                     sessionStorage.setItem('platform_init_data', JSON.stringify(parsed));
                 } catch(e) {}
             }
 
-            applyData(settingsRes.data.settings, companyRes.data.config, platformRes.data);
+            applyData(
+                settingsRes.data.settings, 
+                companyRes.data.config, 
+                platformRes.data,
+                flagsData.flags || {},
+                flagsData.disabledApps || []
+            );
             
         } catch (error) {
             console.error('Failed to fetch settings/company-config:', error);
@@ -288,19 +326,35 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         refreshSettings();
         
         // Listen for AuthContext broadcasting fresh data
-        const handleInit = () => refreshSettings();
+        const handleInit = (e: any) => {
+            const detail = e?.detail;
+            if (detail?.featureFlags || detail?.disabledApps) {
+                if (detail.featureFlags) setFeatureFlags(detail.featureFlags);
+                if (detail.disabledApps) setDisabledApps(detail.disabledApps);
+            }
+            refreshSettings();
+        };
         if (typeof window !== 'undefined') {
             window.addEventListener('platform_init_ready', handleInit);
             return () => window.removeEventListener('platform_init_ready', handleInit);
         }
     }, [token, refreshSettings]);
 
-
     return (
-        <SettingsContext.Provider value={{ settings, company, platform, refreshSettings, isLoading }}>
+        <SettingsContext.Provider value={{ 
+            settings, 
+            company, 
+            platform, 
+            featureFlags,
+            disabledApps,
+            isAppDisabledByAdmin,
+            refreshSettings, 
+            isLoading 
+        }}>
             {children}
         </SettingsContext.Provider>
     );
 }
 
 export const useSettings = () => useContext(SettingsContext);
+

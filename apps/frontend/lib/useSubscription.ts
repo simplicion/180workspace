@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import api from './api';
+import { useSettings } from './settings-context';
 
 export interface SubscriptionStatus {
     subscription: any | null;
@@ -132,12 +133,16 @@ export function useSubscription(): SubscriptionStatus {
         enabledApps: effectiveEnabledApps
     };
 
+    const { isAppDisabledByAdmin } = useSettings();
+
     const hasApp = useCallback((appId: string) => {
         if (!appId) return true;
+        // Superadmin feature flag killswitch overrides everything
+        if (isAppDisabledByAdmin && isAppDisabledByAdmin(appId)) return false;
         if (isPaidPlan) return true;
         const normalized = appId.toLowerCase().trim();
         return effectiveEnabledApps.some((a: string) => a.toLowerCase().trim() === normalized);
-    }, [isPaidPlan, effectiveEnabledApps]);
+    }, [isPaidPlan, effectiveEnabledApps, isAppDisabledByAdmin]);
 
     return {
         ...data,

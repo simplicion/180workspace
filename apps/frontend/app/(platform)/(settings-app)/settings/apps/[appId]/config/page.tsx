@@ -14,6 +14,7 @@ import { APPS_CONFIG } from '@/lib/module-map';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import clsx from 'clsx';
+import UpcomingFeatureWall from '@/components/shared/UpcomingFeatureWall';
 
 // App-specific details (what it does, use cases)
 const APP_DETAILS: Record<string, { overview: string; useCases: string[] }> = {
@@ -63,7 +64,7 @@ export default function AppConfigPage() {
     const params = useParams();
     const appId = params?.appId;
     const router = useRouter();
-    const { company, settings, refreshSettings } = useSettings();
+    const { company, settings, refreshSettings, isAppDisabledByAdmin } = useSettings();
     
     const [activeTab, setActiveTab] = useState<'modules' | 'configs' | 'details'>('modules');
     
@@ -90,6 +91,10 @@ export default function AppConfigPage() {
                 <button onClick={() => router.back()} className="mt-4 text-indigo-600 font-bold">Go Back</button>
             </div>
         );
+    }
+
+    if (isAppDisabledByAdmin(appId as string)) {
+        return <UpcomingFeatureWall appId={appId as string} isConfigView={true} />;
     }
 
     const handleToggleModule = async (moduleId: string) => {

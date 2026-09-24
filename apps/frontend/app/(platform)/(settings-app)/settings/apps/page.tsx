@@ -60,7 +60,7 @@ const cardVariants = {
 
 export default function AppsManagementPage() {
     const router = useRouter();
-    const { company, refreshSettings } = useSettings();
+    const { company, refreshSettings, isAppDisabledByAdmin } = useSettings();
     const [search, setSearch] = useState('');
     const [enabledApps, setEnabledApps] = useState<string[]>([]);
     const [enabledModules, setEnabledModules] = useState<string[]>([]);
@@ -70,6 +70,10 @@ export default function AppsManagementPage() {
     const handleToggleApp = async (e: React.MouseEvent, appId: string, isEnabled: boolean) => {
         e.preventDefault();
         e.stopPropagation();
+        if (isAppDisabledByAdmin(appId)) {
+            toast.error('This app is in development and cannot be enabled.');
+            return;
+        }
         try {
             setInstallingAppId(appId);
             const moduleIds = APPS_CONFIG.find(a => a.id === appId)?.modules.map(m => m.id) || [];
@@ -114,7 +118,9 @@ export default function AppsManagementPage() {
 
     // ─── Derived Stats ───
     const totalApps = APPS_CONFIG.length;
-    const activeApps = enabledApps.filter(appId => APPS_CONFIG.some(config => config.id === appId)).length;
+    const activeApps = enabledApps.filter(appId => 
+        APPS_CONFIG.some(config => config.id === appId) && !isAppDisabledByAdmin(appId)
+    ).length;
     const customIntegrations = enabledApps.includes('integrations') ? 1 : 0;
 
     // ─── Filtered Apps ───
@@ -259,7 +265,8 @@ export default function AppsManagementPage() {
                     >
                         <AnimatePresence mode="popLayout">
                             {filteredApps.map((app) => {
-                                const isEnabled = enabledApps.includes(app.id);
+                                const isBlocked = isAppDisabledByAdmin(app.id);
+                                const isEnabled = !isBlocked && enabledApps.includes(app.id);
                                 const activeModuleCount = app.modules.filter(m => enabledModules.includes(m.id)).length;
                                 const colors = APP_COLORS[app.id] || { bg: 'bg-gray-600', text: 'text-gray-600', light: 'bg-gray-50', tagBg: 'bg-gray-100', tagText: 'text-gray-700' };
                                 
@@ -268,46 +275,73 @@ export default function AppsManagementPage() {
                                         key={app.id}
                                         variants={cardVariants}
                                         layout
-                                        onClick={() => router.push(`/settings/apps/${app.id}/config`)}
+                                        onClick={() => {
+                                            if (isBlocked) {
+                                                toast(`🚧 ${app.name} is currently in development and not yet available.`, {
+                                                    id: `blocked-${app.id}`,
+                                                    icon: '🛠️'
+                                                });
+                                                return;
+                                            }
+                                            router.push(`/settings/apps/${app.id}/config`);
+                                        }}
                                         className={clsx(
-                                            "group relative flex flex-col p-2.5 rounded-2xl border transition-all duration-300 cursor-pointer",
-                                            isEnabled 
-                                                ? "bg-white border-gray-100 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-0.5 hover:border-blue-100" 
-                                                : "bg-white/80 border-gray-200 hover:border-gray-300 shadow-sm"
+                                            "group relative flex flex-col p-2.5 rounded-2xl border transition-all duration-300",
+                                            isBlocked
+                                                ? "bg-slate-100/90 border-slate-300/80 shadow-none cursor-not-allowed grayscale select-none"
+                                                : isEnabled 
+                                                    ? "bg-white border-gray-100 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-0.5 hover:border-blue-100 cursor-pointer" 
+                                                    : "bg-white/80 border-gray-200 hover:border-gray-300 shadow-sm cursor-pointer"
                                         )}
                                     >
                                         {/* Top: Icon + Action */}
                                         <div className="flex items-start justify-between mb-1.5">
                                             <div className={clsx(
                                                 "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
-                                                isEnabled 
-                                                    ? [colors.bg, "shadow-md"] 
-                                                    : "bg-gray-100 border border-gray-200"
+                                                isBlocked
+                                                    ? "bg-slate-200 border border-slate-300"
+                                                    : isEnabled 
+                                                        ? [colors.bg, "shadow-md"] 
+                                                        : "bg-gray-100 border border-gray-200"
                                             )}>
                                                 <app.icon className={clsx(
                                                     "w-4 h-4",
-                                                    isEnabled ? "text-white" : "text-gray-500"
+                                                    isBlocked ? "text-slate-400" : isEnabled ? "text-white" : "text-gray-500"
                                                 )} />
                                             </div>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <p className="text-[9px] text-gray-400 font-bold">
+                                                <p className={clsx(
+                                                    "text-[9px] font-bold",
+                                                    isBlocked ? "text-slate-400" : "text-gray-400"
+                                                )}>
                                                     {app.modules.length} {app.modules.length === 1 ? 'Feature' : 'Features'}
                                                 </p>
                                                 <button
                                                     type="button"
-                                                    onClick={(e) => handleToggleApp(e, app.id, isEnabled)}
-                                                    disabled={installingAppId === app.id}
+                                                    onClick={(e) => {
+                                                        if (isBlocked) {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            toast.error(`${app.name} is in development and cannot be toggled.`);
+                                                            return;
+                                                        }
+                                                        handleToggleApp(e, app.id, isEnabled);
+                                                    }}
+                                                    disabled={isBlocked || installingAppId === app.id}
                                                     className={clsx(
-                                                        "relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                                                        isEnabled ? colors.bg : "bg-gray-200",
-                                                        installingAppId === app.id ? "opacity-50 cursor-not-allowed" : "opacity-100"
+                                                        "relative inline-flex h-4 w-7 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                                                        isBlocked
+                                                            ? "bg-slate-300 cursor-not-allowed opacity-60"
+                                                            : isEnabled ? colors.bg : "bg-gray-200",
+                                                        !isBlocked && "cursor-pointer",
+                                                        installingAppId === app.id ? "opacity-50 cursor-not-allowed" : ""
                                                     )}
                                                 >
                                                     <span
                                                         aria-hidden="true"
                                                         className={clsx(
                                                             "pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                                                            isEnabled ? "translate-x-3" : "translate-x-0"
+                                                            isEnabled && !isBlocked ? "translate-x-3" : "translate-x-0"
                                                         )}
                                                     />
                                                 </button>
@@ -317,21 +351,39 @@ export default function AppsManagementPage() {
                                         {/* Title + Description */}
                                         <h3 className={clsx(
                                             "text-[13px] font-bold tracking-tight mb-0.5",
-                                            isEnabled ? "text-gray-900" : "text-gray-700"
+                                            isBlocked ? "text-slate-600" : isEnabled ? "text-gray-900" : "text-gray-700"
                                         )}>
                                             {app.name}
                                         </h3>
                                         <p className={clsx(
                                             "text-[10px] leading-relaxed line-clamp-2",
-                                            isEnabled ? "text-gray-400" : "text-gray-500"
+                                            isBlocked ? "text-slate-400" : isEnabled ? "text-gray-400" : "text-gray-500"
                                         )}>
                                             {app.description}
                                         </p>
 
+                                        {/* Watermark overlay when blocked */}
+                                        {isBlocked && (
+                                            <>
+                                                <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl flex items-center justify-center z-10 select-none">
+                                                    <span className="rotate-[-18deg] text-[10px] font-black uppercase tracking-wider text-slate-500/40 bg-white/70 px-2 py-0.5 rounded border border-slate-300/60 shadow-xs">
+                                                        Upcoming Feature
+                                                    </span>
+                                                </div>
+                                                <div className="mt-2 pt-1 border-t border-slate-200/70 flex items-center justify-between">
+                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200/80 text-amber-700 text-[8px] font-black uppercase tracking-wide">
+                                                        <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
+                                                        In Development
+                                                    </span>
+                                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                                                        Locked by Admin
+                                                    </span>
+                                                </div>
+                                            </>
+                                        )}
 
-
-                                        {/* Subtle dot pattern overlay for inactive */}
-                                        {!isEnabled && (
+                                        {/* Subtle dot pattern overlay for inactive non-blocked */}
+                                        {!isEnabled && !isBlocked && (
                                             <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:12px_12px] rounded-2xl" />
                                         )}
                                     </motion.div>

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '@workspace/db';
 import { sanitizeUser } from '../../../../system-configs/utils/sanitize-user';
 import { getCache, setCache } from '../../../../system-configs/utils/redis';
+import { FeatureFlagService } from '@workspace/platform-admin';
 
 function getCurrencySymbol(currencyCode: string): string {
     try {
@@ -42,7 +43,8 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
             billing,
             preferences,
             isModuleLead,
-            notifications
+            notifications,
+            appFlagsData
         ] = await Promise.all([
             // 1. Company data
             prisma.company.findUnique({
@@ -263,6 +265,9 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                     return { unreadCount: 0 };
                 }
             })(),
+
+            // 9. Feature Flags & App Status
+            FeatureFlagService.getAppFlags().catch(() => ({ flags: {}, disabledApps: [] })),
         ]);
 
         const sanitizedUser = sanitizeUser(req.user) as any;
@@ -290,6 +295,8 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
             billing,
             preferences,
             notifications,
+            featureFlags: (appFlagsData as any)?.flags || {},
+            disabledApps: (appFlagsData as any)?.disabledApps || [],
         };
         
         await setCache(cacheKey, responseData, 300);

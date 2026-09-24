@@ -1,7 +1,6 @@
 import express from 'express';
 import { protect } from '../../../system-configs/middleware/auth/auth';
 import * as apikeyController from './apikey.controller';
-import * as googleOauthController from './google-oauth.controller';
 import * as offeringsController from './offerings.controller';
 import webhookRoutes from './webhooks/webhook.routes';
 
@@ -16,17 +15,6 @@ apikeyRouter.delete('/revoke', protect, apikeyController.revokeApiKey);
 apikeyRouter.get('/public/profile', apikeyController.publicProfile);
 
 router.use('/apikey', apikeyRouter);
-
-// ─── GOOGLE OAUTH ROUTES ──────────────────────────────────────────────────────
-const googleRouter = express.Router();
-googleRouter.get('/auth', protect, googleOauthController.getAuthUrl);
-googleRouter.post('/callback', protect, googleOauthController.handleCallback);
-googleRouter.get('/folders', protect, googleOauthController.getFolders);
-googleRouter.get('/files', protect, googleOauthController.getFiles);
-googleRouter.post('/folders', protect, googleOauthController.createFolder);
-googleRouter.post('/disconnect', protect, googleOauthController.disconnect);
-
-router.use('/google', googleRouter);
 
 // ─── OFFERINGS ROUTES ─────────────────────────────────────────────────────────
 const offeringsRouter = express.Router();
