@@ -39,7 +39,7 @@ Each 180workspace application is assigned a distinctive, harmonious accent color
 
 - **Card Container:**
   ```css
-  @apply rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-xl shadow-slate-900/5 transition-all duration-300 hover:shadow-2xl hover:border-slate-300;
+  @apply rounded-3xl border border-slate-200/80 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/80 backdrop-blur-xl shadow-xl shadow-black/20 transition-all duration-300 hover:shadow-2xl hover:border-slate-300 dark:hover:border-zinc-700;
   ```
 - **Pill Badges:**
   ```css
@@ -51,7 +51,7 @@ Each 180workspace application is assigned a distinctive, harmonious accent color
   ```
 - **Secondary Action Button:**
   ```css
-  @apply inline-flex h-12 md:h-14 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold text-base px-8 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all;
+  @apply inline-flex h-12 md:h-14 items-center justify-center rounded-full border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 font-bold text-base px-8 shadow-sm hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all;
   ```
 
 ---

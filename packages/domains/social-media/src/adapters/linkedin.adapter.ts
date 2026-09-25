@@ -1,11 +1,184 @@
 /**
- * LinkedIn Adapter (LinkedIn Community Management REST API)
- * Zero-Cost Direct Publishing Engine for Profiles and Company Pages
+ * LinkedIn publisher (versioned REST Posts API). Author = the account's URN: `urn:li:person:{id}` (member,
+ * scope w_member_social) or `urn:li:organization:{id}` (company page, scope w_organization_social).
+ * Images: /rest/images?action=initializeUpload → PUT bytes → post content.media / content.multiImage
+ * Documents (PDF carousel): /rest/documents?action=initializeUpload → PUT → content.media
+ * Video: /rest/videos?action=initializeUpload → PUT each part (collect ETags) → finalizeUpload → wait AVAILABLE → post
+ * Docs: learn.microsoft.com/linkedin/marketing/community-management/shares/posts-api
  */
+import { LINKEDIN_API_VERSION, intEnv } from '../publishing/config';
+import { PublishError } from '../publishing/errors';
+import { asBody, downloadMedia, expectOk, pollUntil, providerFailure, providerFetch, readBody } from '../publishing/http';
+import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkUrls, checkVideo } from './types';
+
+const REST = 'https://api.linkedin.com/rest';
+
+const headers = (token: string, json = true) => ({
+    Authorization: `Bearer ${token}`,
+    'LinkedIn-Version': LINKEDIN_API_VERSION(),
+    'X-Restli-Protocol-Version': '2.0.0',
+    ...(json ? { 'Content-Type': 'application/json' } : {}),
+});
+
+/** LinkedIn "little text" format reserves these characters; escape them so captions post verbatim. */
+export const escapeLinkedInCommentary = (s: string) => s.replace(/[\\|{}@\[\]()<>#*_~]/g, (c) => `\\${c}`);
+
+export class LinkedInPublisher implements PlatformPublisher {
+    readonly platform = 'linkedin' as const;
+
+    validate(input: PublishInput): string[] {
+        const issues: string[] = [];
+        if (charLength(input.caption) > 3000) issues.push('LinkedIn posts are limited to 3,000 characters.');
+        if (!/^urn:li:(person|organization):/.test(input.account.platformAccountId)) issues.push('LinkedIn account has no valid author URN; reconnect it.');
+        checkUrls(input, issues);
+        switch (input.format) {
+            case 'text':
+                if (!input.caption.trim()) issues.push('LinkedIn text posts need commentary.');
+                break;
+            case 'video': {
+                const v = input.media.find((m) => m.kind === 'video');
+                if (!v) issues.push('LinkedIn video posts need a video.');
+                checkVideo(v, { minSec: 3, maxSec: 30 * 60, maxBytes: 5 * 1024 * 1024 * 1024 }, 'LinkedIn video', issues);
+                break;
+            }
+            case 'image':
+                if (!input.media.some((m) => m.kind === 'image')) issues.push('LinkedIn image posts need an image.');
+                break;
+            case 'carousel': {
+                const imgs = input.media.filter((m) => m.kind === 'image');
+                const doc = input.media.find((m) => m.kind === 'document');
+                if (!doc && (imgs.length < 2 || imgs.length > 20)) issues.push('LinkedIn multi-image posts need 2 to 20 images (or attach a PDF for a document carousel).');
+                if (input.media.some((m) => m.kind === 'video')) issues.push('LinkedIn carousels cannot contain video.');
+                break;
+            }
+            case 'document': {
+                const doc = input.media.find((m) => m.kind === 'document');
+                if (!doc) issues.push('LinkedIn document posts need a PDF.');
+                if (doc?.sizeBytes && doc.sizeBytes > 100 * 1024 * 1024) issues.push('LinkedIn documents must be at most 100 MB.');
+                break;
+            }
+        }
+        return issues;
+    }
+
+    private async uploadSimple(kind: 'images' | 'documents', owner: string, url: string, token: string): Promise<string> {
+        const init = await providerFetch('linkedin', `${REST}/${kind}?action=initializeUpload`, {
+            method: 'POST',
+            headers: headers(token),
+            body: JSON.stringify({ initializeUploadRequest: { owner } }),
+        });
+        const data = await expectOk('linkedin', init, `LinkedIn ${kind} init`);
+        const uploadUrl = data.value?.uploadUrl;
+        const urn = data.value?.image || data.value?.document;
+        if (!uploadUrl || !urn) throw new PublishError('PROVIDER_ERROR', `LinkedIn ${kind} init returned no upload URL.`, { platform: 'linkedin', retryable: true });
+        const media = await downloadMedia('linkedin', url);
+        const put = await providerFetch('linkedin', uploadUrl, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': media.contentType }, body: asBody(media.bytes) });
+        if (!put.ok) throw providerFailure('linkedin', put, await readBody(put), `LinkedIn ${kind} upload`);
+        return urn;
+    }
+
+    private async uploadVideo(owner: string, url: string, token: string): Promise<string> {
+        const media = await downloadMedia('linkedin', url);
+        const init = await providerFetch('linkedin', `${REST}/videos?action=initializeUpload`, {
+            method: 'POST',
+            headers: headers(token),
+            body: JSON.stringify({ initializeUploadRequest: { owner, fileSizeBytes: media.size, uploadCaptions: false, uploadThumbnail: false } }),
+        });
+        const data = await expectOk('linkedin', init, 'LinkedIn video init');
+        const videoUrn: string = data.value?.video;
+        const instructions: Array<{ uploadUrl: string; firstByte: number; lastByte: number }> = data.value?.uploadInstructions || [];
+        if (!videoUrn || !instructions.length) throw new PublishError('PROVIDER_ERROR', 'LinkedIn video init returned no upload instructions.', { platform: 'linkedin', retryable: true });
+
+        const etags: string[] = [];
+        for (const part of instructions) {
+            const put = await providerFetch('linkedin', part.uploadUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/octet-stream' },
+                body: asBody(media.bytes.subarray(part.firstByte, part.lastByte + 1)),
+            });
+            if (!put.ok) throw providerFailure('linkedin', put, await readBody(put), 'LinkedIn video part upload');
+            const etag = put.headers.get('etag');
+            if (!etag) throw new PublishError('PROVIDER_ERROR', 'LinkedIn video part upload returned no ETag.', { platform: 'linkedin', retryable: true });
+            etags.push(etag);
+        }
+
+        const fin = await providerFetch('linkedin', `${REST}/videos?action=finalizeUpload`, {
+            method: 'POST',
+            headers: headers(token),
+            body: JSON.stringify({ finalizeUploadRequest: { video: videoUrn, uploadToken: data.value?.uploadToken || '', uploadedPartIds: etags } }),
+        });
+        await expectOk('linkedin', fin, 'LinkedIn video finalize');
+
+        await pollUntil(
+            async () => {
+                const r = await providerFetch('linkedin', `${REST}/videos/${encodeURIComponent(videoUrn)}`, { method: 'GET', headers: headers(token, false) });
+                const s = await expectOk('linkedin', r, 'LinkedIn video status');
+                if (s.status === 'AVAILABLE') return true;
+                if (s.status === 'PROCESSING_FAILED') throw new PublishError('PROVIDER_ERROR', `LinkedIn could not process the video (${s.processingFailureReason || 'unknown reason'}).`, { platform: 'linkedin' });
+                return undefined;
+            },
+            {
+                attempts: intEnv('LINKEDIN_VIDEO_POLL_ATTEMPTS', 60),
+                intervalMs: intEnv('LINKEDIN_VIDEO_POLL_MS', 5000),
+                onTimeout: () => new PublishError('PROVIDER_TIMEOUT', 'LinkedIn is still processing the video; try again shortly.', { retryable: true, platform: 'linkedin' }),
+            },
+        );
+        return videoUrn;
+    }
+
+    async publish(input: PublishInput, token: string): Promise<PublishOutcome> {
+        const author = input.account.platformAccountId;
+        const post: Record<string, any> = {
+            author,
+            commentary: escapeLinkedInCommentary(input.caption),
+            visibility: input.platformMeta.visibility || 'PUBLIC',
+            distribution: { feedDistribution: 'MAIN_FEED', targetEntities: [], thirdPartyDistributionChannels: [] },
+            lifecycleState: 'PUBLISHED',
+            isReshareDisabledByAuthor: false,
+        };
+
+        if (input.format === 'video') {
+            const v = input.media.find((m) => m.kind === 'video')!;
+            post.content = { media: { id: await this.uploadVideo(author, v.url, token), title: (input.title || '').slice(0, 200) || undefined } };
+        } else if (input.format === 'image') {
+            const img = input.media.find((m) => m.kind === 'image')!;
+            post.content = { media: { id: await this.uploadSimple('images', author, img.url, token), altText: img.altText } };
+        } else if (input.format === 'document' || (input.format === 'carousel' && input.media.some((m) => m.kind === 'document'))) {
+            const doc = input.media.find((m) => m.kind === 'document')!;
+            post.content = { media: { id: await this.uploadSimple('documents', author, doc.url, token), title: (input.title || input.platformMeta.documentTitle || 'Document').slice(0, 200) } };
+        } else if (input.format === 'carousel') {
+            const images = [];
+            for (const m of input.media.filter((x) => x.kind === 'image')) {
+                images.push({ id: await this.uploadSimple('images', author, m.url, token), ...(m.altText ? { altText: m.altText } : {}) });
+            }
+            post.content = { multiImage: { images } };
+        }
+
+        const res = await providerFetch('linkedin', `${REST}/posts`, { method: 'POST', headers: headers(token), body: JSON.stringify(post) });
+        if (!res.ok) throw providerFailure('linkedin', res, await readBody(res), 'LinkedIn post');
+        const urn = res.headers.get('x-restli-id') || res.headers.get('x-linkedin-id');
+        if (!urn) throw new PublishError('PROVIDER_ERROR', 'LinkedIn accepted the post but returned no id.', { platform: 'linkedin' });
+
+        let warning: string | undefined;
+        if (input.firstComment?.trim()) {
+            try {
+                const c = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(urn)}/comments`, {
+                    method: 'POST',
+                    headers: headers(token),
+                    body: JSON.stringify({ actor: author, object: urn, message: { text: input.firstComment } }),
+                });
+                await expectOk('linkedin', c, 'LinkedIn first comment');
+            } catch (e: any) {
+                warning = `Posted, but the first comment failed: ${e.message}`;
+            }
+        }
+        return { externalId: urn, url: `https://www.linkedin.com/feed/update/${urn}`, state: 'published', warning };
+    }
+}
 
 export interface LinkedInPublishParams {
     accessToken: string;
-    authorUrn: string; // e.g. "urn:li:person:12345" or "urn:li:organization:67890"
+    authorUrn: string;
     commentary: string;
     videoUrl?: string;
     imageUrl?: string;
@@ -13,110 +186,62 @@ export interface LinkedInPublishParams {
 }
 
 export class LinkedInAdapter {
-    private static readonly REST_API_BASE = 'https://api.linkedin.com/rest';
-
-    /**
-     * Publish LinkedIn Post (Text, Video, or Image)
-     */
     static async publishPost(params: LinkedInPublishParams): Promise<{ activityUrn: string; liveUrl: string }> {
         const { accessToken, authorUrn, commentary, videoUrl, imageUrl, title } = params;
-
         if (!accessToken || accessToken.startsWith('mock_') || !authorUrn) {
             const mockId = Math.floor(Math.random() * 10000000000);
             return {
                 activityUrn: `urn:li:activity:${mockId}`,
-                liveUrl: `https://www.linkedin.com/feed/update/urn:li:activity:${mockId}`
+                liveUrl: `https://www.linkedin.com/feed/update/urn:li:activity:${mockId}`,
             };
         }
+        const pub = new LinkedInPublisher();
+        const outcome = await pub.publish({
+            platform: 'linkedin',
+            postId: 'legacy',
+            variantId: 'legacy',
+            account: { id: 'legacy', platformAccountId: authorUrn, accountName: 'Legacy', metadata: {} },
+            format: videoUrl ? 'video' : imageUrl ? 'image' : 'text',
+            caption: commentary,
+            title,
+            media: videoUrl ? [{ kind: 'video', url: videoUrl }] : imageUrl ? [{ kind: 'image', url: imageUrl }] : [],
+            platformMeta: {},
+        }, accessToken);
+        return { activityUrn: outcome.externalId, liveUrl: outcome.url };
+    }
 
-        try {
-            const headers = {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-                'LinkedIn-Version': '202401',
-                'X-Restli-Protocol-Version': '2.0.0'
-            };
-
-            const postPayload: Record<string, any> = {
-                author: authorUrn,
-                commentary,
-                visibility: 'PUBLIC',
-                distribution: {
-                    feedDistribution: 'MAIN_FEED',
-                    targetEntities: [],
-                    thirdPartyDistributionChannels: []
-                },
-                lifecycleState: 'PUBLISHED',
-                isReshareDisabledByAuthor: false
-            };
-
-            // If video or image URL is attached
-            if (videoUrl) {
-                // Initialize Video Upload Request
-                const initRes = await fetch(`${this.REST_API_BASE}/videos?action=initializeUpload`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        initializeUploadRequest: {
-                            owner: authorUrn
-                        }
-                    })
-                });
-
-                const initData = await initRes.json();
-                if (initRes.ok && initData.value?.video) {
-                    const videoUrn = initData.value.video;
-                    postPayload.content = {
-                        media: {
-                            id: videoUrn,
-                            title: title || 'Video'
-                        }
-                    };
-                }
-            } else if (imageUrl) {
-                // Initialize Image Upload Request
-                const initRes = await fetch(`${this.REST_API_BASE}/images?action=initializeUpload`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        initializeUploadRequest: {
-                            owner: authorUrn
-                        }
-                    })
-                });
-
-                const initData = await initRes.json();
-                if (initRes.ok && initData.value?.image) {
-                    const imageUrn = initData.value.image;
-                    postPayload.content = {
-                        media: {
-                            id: imageUrn,
-                            title: title || 'Image'
-                        }
-                    };
-                }
-            }
-
-            const res = await fetch(`${this.REST_API_BASE}/posts`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(postPayload)
-            });
-
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || `LinkedIn API error: ${res.statusText}`);
-            }
-
-            const activityUrn = res.headers.get('x-restli-id') || `urn:li:activity:${Date.now()}`;
-
-            return {
-                activityUrn,
-                liveUrl: `https://www.linkedin.com/feed/update/${activityUrn}`
-            };
-        } catch (error: any) {
-            console.error('[LinkedInAdapter.publishPost Error]', error);
-            throw error;
+    static async replyToComment(targetUrn: string, actorUrn: string, text: string, accessToken: string): Promise<{ commentUrn: string }> {
+        if (!accessToken || accessToken.startsWith('mock_')) {
+            return { commentUrn: `urn:li:comment:${Math.random().toString(36).substring(2, 10)}` };
         }
+        const res = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(targetUrn)}/comments`, {
+            method: 'POST',
+            headers: headers(accessToken),
+            body: JSON.stringify({
+                actor: actorUrn,
+                object: targetUrn,
+                message: { text },
+            }),
+        });
+        const data = await expectOk('linkedin', res, 'LinkedIn comment reply');
+        const urn = res.headers.get('x-restli-id') || data?.id || targetUrn;
+        return { commentUrn: urn };
+    }
+
+    static async likeComment(targetUrn: string, actorUrn: string, accessToken: string): Promise<boolean> {
+        if (!accessToken || accessToken.startsWith('mock_')) {
+            return true;
+        }
+        const res = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(targetUrn)}/reactions`, {
+            method: 'POST',
+            headers: headers(accessToken),
+            body: JSON.stringify({
+                actor: actorUrn,
+                root: targetUrn,
+                reactionType: 'LIKE',
+            }),
+        });
+        return res.ok;
     }
 }
+

@@ -16,7 +16,7 @@ router.post('/sessions', async (req: Request, res: Response) => {
 // Public: View review session & posts by token (NO AUTH REQUIRED)
 router.get('/public/:token', async (req: Request, res: Response) => {
     try {
-        const result = await ClientReviewService.getReviewSessionByToken(req.params.token);
+        const result = await ClientReviewService.getReviewSessionByToken(String(req.params.token));
         res.json({ success: true, ...result });
     } catch (error: any) {
         res.status(404).json({ success: false, error: error.message });
@@ -27,7 +27,7 @@ router.get('/public/:token', async (req: Request, res: Response) => {
 router.post('/public/:token/comments', async (req: Request, res: Response) => {
     try {
         const { postId, commentText, authorName, authorType } = req.body;
-        const { session } = await ClientReviewService.getReviewSessionByToken(req.params.token);
+        const { session } = await ClientReviewService.getReviewSessionByToken(String(req.params.token));
         const comment = await ClientReviewService.addPostComment(session.id, postId, commentText, authorName, authorType);
         res.status(201).json({ success: true, comment });
     } catch (error: any) {
@@ -39,7 +39,7 @@ router.post('/public/:token/comments', async (req: Request, res: Response) => {
 router.post('/public/:token/approve-batch', async (req: Request, res: Response) => {
     try {
         const { clientNotes } = req.body;
-        const result = await ClientReviewService.batchApproveSession(req.params.token, clientNotes);
+        const result = await ClientReviewService.batchApproveSession(String(req.params.token), clientNotes);
         res.json(result);
     } catch (error: any) {
         res.status(400).json({ success: false, error: error.message });
@@ -51,7 +51,7 @@ export const publicReviewRouter = Router();
 // Public handlers supported at root of publicReviewRouter
 publicReviewRouter.get('/:token', async (req: Request, res: Response) => {
     try {
-        const result = await ClientReviewService.getReviewSessionByToken(req.params.token);
+        const result = await ClientReviewService.getReviewSessionByToken(String(req.params.token));
         res.json({ success: true, ...result });
     } catch (error: any) {
         res.status(404).json({ success: false, error: error.message });
@@ -61,7 +61,7 @@ publicReviewRouter.get('/:token', async (req: Request, res: Response) => {
 publicReviewRouter.post('/:token/comments', async (req: Request, res: Response) => {
     try {
         const { postId, commentText, authorName, authorType } = req.body;
-        const { session } = await ClientReviewService.getReviewSessionByToken(req.params.token);
+        const { session } = await ClientReviewService.getReviewSessionByToken(String(req.params.token));
         const comment = await ClientReviewService.addPostComment(session.id, postId, commentText, authorName, authorType);
         res.status(201).json({ success: true, comment });
     } catch (error: any) {
@@ -72,7 +72,7 @@ publicReviewRouter.post('/:token/comments', async (req: Request, res: Response) 
 publicReviewRouter.post('/:token/approve-batch', async (req: Request, res: Response) => {
     try {
         const { clientNotes } = req.body;
-        const result = await ClientReviewService.batchApproveSession(req.params.token, clientNotes);
+        const result = await ClientReviewService.batchApproveSession(String(req.params.token), clientNotes);
         res.json(result);
     } catch (error: any) {
         res.status(400).json({ success: false, error: error.message });

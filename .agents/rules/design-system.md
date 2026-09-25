@@ -3,9 +3,10 @@
 **Status:** Enforced
 **Applies to:** All frontend applications (`apps/*`).
 
-## 1. Aesthetic Identity (SaaS Pro Max)
-- **Glassmorphism:** We heavily utilize frosted glass effects. The standard class for a glass panel is `backdrop-blur-md bg-white/60 dark:bg-black/60 border border-white/20 dark:border-white/10`.
-- **Dark Mode:** We use standard Tailwind `.dark` classes for dark mode support. Every hardcoded color MUST have a dark mode equivalent (e.g., `text-gray-900 dark:text-gray-100`).
+## 1. Aesthetic Identity (SaaS Pro Max & Obsidian Dark Mode)
+- **True Black & Grey Mix Dark Mode:** In dark mode, all applications MUST use a pure black base (`bg-black` / `#000000` / `zinc-950`) combined with elevated blackish-grey surfaces (`bg-zinc-900`, `#101012`, `#161619`) and subtle neutral dark grey borders (`border-zinc-800`, `border-white/10`). Avoid blue/navy-tinted dark backgrounds (`slate-900`, `#0f172a`).
+- **Glassmorphism:** We heavily utilize frosted glass effects. The standard class for a glass panel is `backdrop-blur-md bg-white/60 dark:bg-black/70 border border-white/20 dark:border-white/10`.
+- **Dark Mode Equivalents:** Every hardcoded color MUST have a dark mode equivalent (e.g., `text-gray-900 dark:text-zinc-100`, `bg-white dark:bg-zinc-900`).
 
 ## 2. Typography
 - **Headings:** Always use tracking-tight and font-bold for primary headings (e.g., `text-4xl md:text-6xl font-bold tracking-tight`).

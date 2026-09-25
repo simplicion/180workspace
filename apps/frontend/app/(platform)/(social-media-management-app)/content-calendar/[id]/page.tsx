@@ -333,6 +333,45 @@ export default function CalendarDetailView() {
                                                     <ImageIcon className="w-4 h-4 mt-0.5 text-blue-500" />
                                                     <p className="text-xs text-blue-800 line-clamp-2 italic">{piece.visualAssetsBrief || 'No visual notes'}</p>
                                                 </div>
+
+                                                {(piece.contentType?.toLowerCase().includes('video') || piece.contentType?.toLowerCase().includes('reel') || piece.contentType?.toLowerCase().includes('short') || piece.contentType?.toLowerCase().includes('tiktok')) && (
+                                                    <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const projId = (calendar as any)?.projectId || calendar?.metadata?.projectId || '';
+                                                                const rawUrl = encodeURIComponent((piece as any)?.rawFootageUrl || (piece as any)?.metadata?.rawFootageUrl || '');
+                                                                window.location.href = `/media-editor?mode=studio&project=${projId}&calendarPieceId=${piece.id || piece._id || ''}&rawVideoUrl=${rawUrl}`;
+                                                            }}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg text-xs font-bold shadow-sm shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                                        >
+                                                            <Video className="w-3.5 h-3.5" />
+                                                            <span>🎬 Edit in Media Studio</span>
+                                                        </button>
+                                                        {(piece as any).finalVideoUrl && (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Rendered
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {piece.contentType?.toLowerCase().includes('carousel') && (
+                                                    <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between">
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200">
+                                                            📊 Carousel Deck Ready
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedPiece(piece);
+                                                            }}
+                                                            className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
+                                                        >
+                                                            View Slides →
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             <div className="w-full flex justify-between items-center mt-auto pb-1">

@@ -6,7 +6,7 @@ import {
     FolderKanban, Share2, Plus, Users, Film, CheckCircle2, 
     Send, Settings, Sparkles, ChevronRight, Instagram, Linkedin, 
     Youtube, Calendar, MessageSquare, BarChart3, Image as ImageIcon,
-    Sliders, CheckSquare, Layers, Lock
+    Sliders, CheckSquare, Layers, Lock, Zap
 } from 'lucide-react';
 import { SocialProject } from '@/lib/services/social-project.service';
 
@@ -27,6 +27,7 @@ export const PROJECT_TABS = [
     { id: 'approvals', name: 'Approvals', icon: CheckCircle2 },
     { id: 'publishing', name: 'Publishing', icon: Send },
     { id: 'inbox', name: 'Social Inbox', icon: MessageSquare },
+    { id: 'engagement', name: '180 Engagement', icon: Zap },
     { id: 'analytics', name: 'Analytics', icon: BarChart3 },
     { id: 'brand', name: 'Brand & AI', icon: Sparkles },
     { id: 'settings', name: 'Settings', icon: Sliders }

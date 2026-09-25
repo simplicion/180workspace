@@ -55,7 +55,7 @@ export class RepetitionAnalyzer {
   private static tokenize(text: string): Set<string> {
     const words = text
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/[^\p{L}\p{M}\p{N}\s]/gu, "")
       .split(/\s+/)
       .filter((w) => w.length > 2);
     return new Set(words);

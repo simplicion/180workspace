@@ -24,6 +24,9 @@ out/
 .env
 .env.*
 !.env.example
+*service-account*.json
+google-services.json
+*test-key*.json
 
 # logs and debug
 *.log
@@ -90,3 +93,8 @@ apps/desktop-app/src-tauri/target/
 apps/desktop-app/src-tauri/gen/
 apps/desktop-app/src-tauri/binaries/
 apps/desktop-app/dist/
+
+# Android releases
+*.apk
+*.aab
+

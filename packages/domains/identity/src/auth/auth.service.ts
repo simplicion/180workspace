@@ -23,7 +23,8 @@ function signAccessToken(userId: string, companyId: string): string {
 function signRefreshToken(userId: string, companyId: string): string {
     const secret = process.env.JWT_REFRESH_SECRET;
     if (!secret) throw new Error('Server configuration error: missing JWT refresh secret');
-    return jwt.sign({ id: userId, companyId }, secret, {
+    // `sid` starts a new session family (rotation + reuse detection, see the backend's refresh-revocation.ts).
+    return jwt.sign({ id: userId, companyId, sid: crypto.randomUUID(), jti: crypto.randomUUID() }, secret, {
         expiresIn: `${process.env.REFRESH_TOKEN_EXPIRE_DAYS || 7}d`,
     } as jwt.SignOptions);
 }
@@ -503,9 +504,12 @@ export class AuthService {
             throw AppError.badRequest('Refresh token required');
         }
 
+        const secret = process.env.JWT_REFRESH_SECRET;
+        // A missing secret is a deployment error: fail loudly instead of reporting every token as invalid.
+        if (!secret) throw new Error('Server configuration error: missing JWT refresh secret');
         let decoded: JwtPayload;
         try {
-            decoded = jwt.verify(refreshTokenStr, process.env.JWT_REFRESH_SECRET!) as JwtPayload;
+            decoded = jwt.verify(refreshTokenStr, secret) as JwtPayload;
         } catch {
             throw AppError.unauthorized('Invalid or expired refresh token');
         }
@@ -834,14 +838,27 @@ export class AuthService {
             throw AppError.badRequest('Google tokenId is required');
         }
 
-        const clientId = (process.env.GOOGLE_CLIENT_ID || '').replace(/"/g, '').replace(/'/g, '').trim();
-        const client = new OAuth2Client(clientId);
+        // Web + native (iOS / Android) OAuth client IDs. An ID token from the native Google Sign-In SDK carries the
+        // client ID it was minted for as `aud`, so every client we ship must be an accepted audience.
+        const audiences = [
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_IOS_CLIENT_ID,
+            process.env.GOOGLE_ANDROID_CLIENT_ID,
+            ...(process.env.GOOGLE_EXTRA_CLIENT_IDS || '').split(','),
+        ]
+            .map((v) => (v || '').replace(/"/g, '').replace(/'/g, '').trim())
+            .filter(Boolean);
+        if (audiences.length === 0) {
+            throw new Error('Server configuration error: GOOGLE_CLIENT_ID (and/or GOOGLE_IOS_CLIENT_ID / GOOGLE_ANDROID_CLIENT_ID) must be set for Google sign-in');
+        }
+        const clientId = audiences.join(',');
+        const client = new OAuth2Client(audiences[0]);
 
         let ticket;
         try {
             ticket = await client.verifyIdToken({
                 idToken: tokenId,
-                audience: clientId,
+                audience: audiences,
             });
         } catch (error: any) {
             const decoded = jwt.decode(tokenId) as JwtPayload | null;
@@ -853,7 +870,11 @@ export class AuthService {
         }
 
         const payload = ticket.getPayload() as TokenPayload;
-        const email = payload.email!.toLowerCase();
+        // Accounts are matched by email, so an unverified Google email must never be able to claim a workspace user.
+        if (!payload?.email || payload.email_verified !== true) {
+            throw AppError.unauthorized('Your Google account email is not verified.');
+        }
+        const email = payload.email.toLowerCase();
 
         let user = await globalPrisma.user.findFirst({
             where: { email },

@@ -1,15 +1,17 @@
 import { prisma, requestContext } from '@workspace/db';
-import { MetaAdapter } from './adapters/meta.adapter';
-import { LinkedInAdapter } from './adapters/linkedin.adapter';
-import { TikTokAdapter } from './adapters/tiktok.adapter';
-import { YouTubeAdapter } from './adapters/youtube.adapter';
+import { PublishDispatcher, isPostApproved, projectRequiresApproval } from './publishing/publish-dispatcher';
+
+/** Account fields safe to embed in post responses (never tokens). */
+const SAFE_ACCOUNT_SELECT = { id: true, platform: true, accountName: true, username: true, profileImageUrl: true, reauthRequired: true, isActive: true };
 
 export interface PostVariantInput {
-    platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube';
+    platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube' | 'twitter' | 'x' | 'threads' | 'pinterest' | 'reddit' | string;
     customContent: string;
     customMediaUrls?: string[];
     firstComment?: string;
     platformMeta?: Record<string, any>;
+    /** Connected account to publish this variant with (defaults to the post's / project's account of this platform). */
+    socialAccountId?: string;
 }
 
 export interface CreateSocialPostDTO {
@@ -73,7 +75,8 @@ export class SocialPostService {
                         customContent: v.customContent || data.content,
                         customMediaUrls: v.customMediaUrls || data.mediaUrls || [],
                         firstComment: v.firstComment,
-                        platformMeta: v.platformMeta || {}
+                        platformMeta: v.platformMeta || {},
+                        socialAccountId: v.socialAccountId || undefined
                     }))
                 } : undefined
             },
@@ -110,7 +113,7 @@ export class SocialPostService {
                 reviewComments: { orderBy: { createdAt: 'asc' } },
                 project: true,
                 client: true,
-                socialAccount: true,
+                socialAccount: { select: SAFE_ACCOUNT_SELECT },
                 calendar: true,
                 calendarPiece: true,
                 repurposedFrom: { select: { id: true, title: true, versionNumber: true } },
@@ -224,12 +227,13 @@ export class SocialPostService {
         const companyId = requestContext.getStore()?.companyId as string;
         const post = await (prisma as any).socialPost.findUnique({
             where: { id: postId },
-            include: { variants: true, socialAccount: true, project: true }
+            include: { variants: true, socialAccount: { select: SAFE_ACCOUNT_SELECT }, project: true }
         });
 
         if (!post || (companyId && post.companyId !== companyId)) throw new Error('Post not found');
 
         const issues: string[] = [];
+        let platformChecks: Array<{ platform: string; publishStatus: string; issues: string[] }> = [];
 
         // 1. Content validation
         if (!post.content || post.content.trim() === '') {
@@ -242,8 +246,7 @@ export class SocialPostService {
         }
 
         // 3. Approval requirement check
-        const projectSettings = post.project?.socialSettings || {};
-        if (projectSettings.approvalRequired && post.status !== 'approved') {
+        if (projectRequiresApproval(post.project) && !isPostApproved(post)) {
             issues.push('Project workflow requires client/editorial approval before publishing.');
         }
 
@@ -256,9 +259,23 @@ export class SocialPostService {
             issues.push(`Social account "${post.socialAccount.accountName}" requires reauthorization.`);
         }
 
+        // 5. Per-platform checks: app configured, account connected, media/caption limits of each platform.
+        if (post.socialAccountId || (post.variants && post.variants.length > 0)) {
+            try {
+                platformChecks = await PublishDispatcher.preview(postId, post.companyId);
+                for (const c of platformChecks) {
+                    if (c.publishStatus === 'published' || c.publishStatus === 'processing') continue;
+                    for (const i of c.issues) issues.push(`${c.platform}: ${i}`);
+                }
+            } catch (e: any) {
+                issues.push(e.message);
+            }
+        }
+
         return {
             isReady: issues.length === 0,
             issues,
+            platformChecks,
             post
         };
     }
@@ -299,206 +316,40 @@ export class SocialPostService {
     }
 
     /**
-     * Execute direct publishing across selected platform variants using zero-cost API adapters
+     * Publish every unpublished platform variant now through the platform publishers (see publishing/publish-dispatcher.ts).
+     * Idempotent: variants already published are never sent again. Throws PublishError (typed code) for
+     * APPROVAL_REQUIRED, PUBLISH_IN_PROGRESS, PUBLISH_NOT_CONFIGURED (every target unconfigured) and NOT_FOUND.
      */
-    static async publishPostNow(postId: string) {
+    static async publishPostNow(postId: string, userId?: string) {
         const companyId = requestContext.getStore()?.companyId as string;
-        const post = await (prisma as any).socialPost.findUnique({
-            where: { id: postId },
-            include: { variants: true, socialAccount: true, project: true }
-        });
-
-        if (!post || (companyId && post.companyId !== companyId)) {
-            throw new Error('Post not found');
-        }
-
-        // Mark status as publishing
-        await (prisma as any).socialPost.update({
-            where: { id: postId },
-            data: { status: 'publishing' }
-        });
-
-        const publishedLinks: Record<string, string> = {
-            ...(typeof post.publishedLinks === 'object' && post.publishedLinks ? post.publishedLinks : {})
-        };
-        const errors: Record<string, string> = {};
-
-        // Targets: either explicit variants or fallback
-        const targets = post.variants && post.variants.length > 0
-            ? post.variants.map((v: any) => v.platform)
-            : [post.socialAccount?.platform || 'instagram'];
-
-        for (const platform of targets) {
-            // If already published to this platform, skip to prevent duplicate post
-            if (publishedLinks[platform]) continue;
-
-            const variant = post.variants?.find((v: any) => v.platform === platform);
-            const content = variant?.customContent || post.content;
-            const mediaUrl = post.finalVideoUrl || post.mediaUrls?.[0];
-
-            try {
-                if (platform === 'instagram' || platform === 'facebook') {
-                    if (platform === 'instagram') {
-                        const result = await MetaAdapter.publishInstagramMedia({
-                            accessToken: post.socialAccount?.accessToken || 'mock_meta_token',
-                            igUserId: post.socialAccount?.platformAccountId || 'mock_ig_user',
-                            caption: content,
-                            videoUrl: mediaUrl,
-                            imageUrl: !mediaUrl?.endsWith('.mp4') ? mediaUrl : undefined,
-                            mediaType: post.mediaType === 'video' ? 'REELS' : 'IMAGE',
-                            shareToFeed: true
-                        });
-                        publishedLinks.instagram = result.liveUrl;
-                    } else {
-                        const result = await MetaAdapter.publishFacebookPost({
-                            accessToken: post.socialAccount?.accessToken || 'mock_meta_token',
-                            pageId: post.socialAccount?.platformAccountId || 'mock_fb_page',
-                            message: content,
-                            videoUrl: mediaUrl
-                        });
-                        publishedLinks.facebook = result.liveUrl;
-                    }
-                } else if (platform === 'linkedin') {
-                    const result = await LinkedInAdapter.publishPost({
-                        accessToken: post.socialAccount?.accessToken || 'mock_li_token',
-                        authorUrn: post.socialAccount?.platformAccountId || 'urn:li:organization:mock',
-                        commentary: content,
-                        videoUrl: mediaUrl,
-                        title: post.title
-                    });
-                    publishedLinks.linkedin = result.liveUrl;
-                } else if (platform === 'tiktok') {
-                    const result = await TikTokAdapter.publishVideo({
-                        accessToken: post.socialAccount?.accessToken || 'mock_tt_token',
-                        videoUrl: mediaUrl || 'https://r2.180.app/sample.mp4',
-                        title: content
-                    });
-                    publishedLinks.tiktok = result.liveUrl;
-                } else if (platform === 'youtube') {
-                    const result = await YouTubeAdapter.publishVideo({
-                        accessToken: post.socialAccount?.accessToken || 'mock_yt_token',
-                        videoUrl: mediaUrl,
-                        title: post.title || content.substring(0, 50),
-                        description: content,
-                        isShort: post.mediaType === 'video'
-                    });
-                    publishedLinks.youtube = result.liveUrl;
-                }
-            } catch (err: any) {
-                console.error(`[Publish Error: ${platform}]`, err);
-                errors[platform] = err.message || 'Publishing adapter execution failed';
-            }
-        }
-
-        const isFullyPublished = Object.keys(errors).length === 0 && Object.keys(publishedLinks).length > 0;
-        const isPartiallyPublished = Object.keys(publishedLinks).length > 0 && Object.keys(errors).length > 0;
-
-        const newStatus = isFullyPublished ? 'published' : isPartiallyPublished ? 'partially_published' : 'failed';
-
-        const completedPost = await (prisma as any).socialPost.update({
-            where: { id: postId },
-            data: {
-                status: newStatus,
-                publishedAt: isFullyPublished || isPartiallyPublished ? new Date() : null,
-                publishedLinks: publishedLinks,
-                errorMessage: Object.keys(errors).length > 0 ? JSON.stringify(errors) : null
-            },
-            include: { variants: true, socialAccount: true }
-        });
-
-        return {
-            success: isFullyPublished || isPartiallyPublished,
-            status: newStatus,
-            message: isFullyPublished 
-                ? 'Post published successfully across all platforms' 
-                : isPartiallyPublished 
-                ? 'Post partially published; some platforms failed and can be retried' 
-                : 'Publishing failed on all platforms',
-            publishedLinks,
-            errors: Object.keys(errors).length > 0 ? errors : undefined,
-            post: completedPost
-        };
+        return PublishDispatcher.publishPost(postId, { companyId, trigger: 'manual', userId });
     }
 
     /**
-     * Retry publishing only the specified failed platform variant without duplicating successes
+     * Retry one platform. Only a failed / pending variant is re-sent; an already published one returns success
+     * without posting again.
      */
-    static async retryFailedVariant(postId: string, platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube') {
+    static async retryFailedVariant(postId: string, platform: string, userId?: string) {
         const companyId = requestContext.getStore()?.companyId as string;
-        const post = await (prisma as any).socialPost.findUnique({
-            where: { id: postId },
-            include: { variants: true, socialAccount: true }
-        });
-
-        if (!post || (companyId && post.companyId !== companyId)) throw new Error('Post not found');
-
-        const publishedLinks: Record<string, string> = {
-            ...(typeof post.publishedLinks === 'object' && post.publishedLinks ? post.publishedLinks : {})
+        const result = await PublishDispatcher.publishPost(postId, { companyId, trigger: 'retry', platform, userId });
+        const v = result.variants.find((x) => x.platform === platform) || result.variants.find((x) => x.publishStatus === 'failed');
+        const ok = Boolean(v && (v.publishStatus === 'published' || v.publishStatus === 'processing'));
+        return {
+            ...result,
+            success: ok,
+            message: ok ? `Published to ${platform}.` : `Retry failed for ${platform}: ${v?.error || 'unknown error'}`
         };
+    }
 
-        const variant = post.variants?.find((v: any) => v.platform === platform);
-        const content = variant?.customContent || post.content;
-        const mediaUrl = post.finalVideoUrl || post.mediaUrls?.[0];
-
-        try {
-            if (platform === 'instagram') {
-                const result = await MetaAdapter.publishInstagramMedia({
-                    accessToken: post.socialAccount?.accessToken || 'mock_meta_token',
-                    igUserId: post.socialAccount?.platformAccountId || 'mock_ig_user',
-                    caption: content,
-                    videoUrl: mediaUrl,
-                    shareToFeed: true
-                });
-                publishedLinks.instagram = result.liveUrl;
-            } else if (platform === 'facebook') {
-                const result = await MetaAdapter.publishFacebookPost({
-                    accessToken: post.socialAccount?.accessToken || 'mock_meta_token',
-                    pageId: post.socialAccount?.platformAccountId || 'mock_fb_page',
-                    message: content,
-                    videoUrl: mediaUrl
-                });
-                publishedLinks.facebook = result.liveUrl;
-            } else if (platform === 'linkedin') {
-                const result = await LinkedInAdapter.publishPost({
-                    accessToken: post.socialAccount?.accessToken || 'mock_li_token',
-                    authorUrn: post.socialAccount?.platformAccountId || 'urn:li:organization:mock',
-                    commentary: content,
-                    videoUrl: mediaUrl,
-                    title: post.title
-                });
-                publishedLinks.linkedin = result.liveUrl;
-            } else if (platform === 'tiktok') {
-                const result = await TikTokAdapter.publishVideo({
-                    accessToken: post.socialAccount?.accessToken || 'mock_tt_token',
-                    videoUrl: mediaUrl || 'https://r2.180.app/sample.mp4',
-                    title: content
-                });
-                publishedLinks.tiktok = result.liveUrl;
-            } else if (platform === 'youtube') {
-                const result = await YouTubeAdapter.publishVideo({
-                    accessToken: post.socialAccount?.accessToken || 'mock_yt_token',
-                    videoUrl: mediaUrl,
-                    title: post.title || content.substring(0, 50),
-                    description: content,
-                    isShort: post.mediaType === 'video'
-                });
-                publishedLinks.youtube = result.liveUrl;
-            }
-
-            const updated = await (prisma as any).socialPost.update({
-                where: { id: postId },
-                data: {
-                    status: 'published',
-                    publishedLinks,
-                    errorMessage: null
-                },
-                include: { variants: true }
-            });
-
-            return { success: true, message: `Successfully published to ${platform}`, post: updated };
-        } catch (err: any) {
-            throw new Error(`Retry failed for ${platform}: ${err.message}`);
-        }
+    /** Publish history (one row per platform attempt), newest first. */
+    static async listPublishAttempts(postId: string, limit = 50) {
+        const companyId = requestContext.getStore()?.companyId as string;
+        if (!companyId) throw new Error('Company context required');
+        return (prisma as any).socialPublishAttempt.findMany({
+            where: { postId, companyId },
+            orderBy: { startedAt: 'desc' },
+            take: Math.min(Math.max(limit, 1), 200)
+        });
     }
 
     /**

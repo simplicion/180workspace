@@ -214,7 +214,7 @@ export class MultiTakeTranscriber {
   }
 
   private static isMedicalEmphasisWord(word: string): boolean {
-    const clean = word.toLowerCase().replace(/[^a-z0-9\u0900-\u097F]/g, "");
+    const clean = word.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, "");
     const medicalKeywords = [
       "misconception",
       "circulation",

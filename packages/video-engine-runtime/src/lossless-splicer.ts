@@ -68,13 +68,15 @@ export class LosslessSplicer {
         hasToneAdjustments ||
         hasAudioAdjustments;
 
-      // Probe source to check if dimensions match target
-      const isResolutionIdentical = !isVerticalProject; // If project is vertical reel, source must be reframed
+      // Probe the source: stream-copy is only safe when it already matches the project
+      // canvas exactly and carries an audio stream (so every segment concatenates cleanly).
+      const source = await this.probeSource(clip.sourcePath);
+      const isResolutionIdentical = source.width === targetW && source.height === targetH;
 
       await new Promise<void>((resolve, reject) => {
         let command = ffmpeg(clip.sourcePath).setStartTime(startSec).setDuration(durationSec);
 
-        if (!hasSpatialTransform && isResolutionIdentical) {
+        if (!hasSpatialTransform && isResolutionIdentical && source.hasAudio) {
           // Smart Stream Copy: Instant copy without re-encoding
           command = command
             .outputOptions(["-c copy", "-avoid_negative_ts make_zero"])
@@ -82,7 +84,7 @@ export class LosslessSplicer {
         } else {
           // Hardware/Software Transcode with proper aspect framing and even macroblock dimensions
           let vFilters: string[] = [`scale=trunc(iw/2)*2:trunc(ih/2)*2`];
-          if (isVerticalProject) {
+          if (isVerticalProject || !isResolutionIdentical) {
             vFilters = [`scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH},setsar=1`];
           } else if (clip.transform.scale.start !== 1.0) {
             const scale = clip.transform.scale.start || 1.0;
@@ -121,8 +123,17 @@ export class LosslessSplicer {
           const fadeOutStart = Math.max(0.01, durSec - 0.05);
           const audioFadeFilter = `afade=t=in:st=0:d=0.05,afade=t=out:st=${fadeOutStart.toFixed(3)}:d=0.05`;
 
-          if (clip.volumeDb !== undefined && clip.volumeDb <= -40) {
-            command = command.noAudio();
+          if (!source.hasAudio) {
+            // Silent source (drone / screen capture): synthesize a silent stereo bed so the
+            // segment still has an audio stream for concat and the ducking mixer.
+            command = command
+              .input("anullsrc=channel_layout=stereo:sample_rate=48000")
+              .inputOptions(["-f lavfi"])
+              .outputOptions(["-map 0:v:0", "-map 1:a:0", "-shortest"])
+              .audioCodec("aac");
+          } else if (clip.volumeDb !== undefined && clip.volumeDb <= -40) {
+            // Muted clip: keep a silent audio stream instead of dropping it (see above).
+            command = command.audioCodec("aac").audioFilters("volume=0");
           } else if (clip.volumeDb !== undefined && clip.volumeDb !== 0.0) {
             command = command.audioCodec("aac").audioFilters(`volume=${clip.volumeDb.toFixed(1)}dB,${audioFadeFilter}`);
           } else {
@@ -372,6 +383,21 @@ export class LosslessSplicer {
     }
 
     return outputPath;
+  }
+
+  /**
+   * Reads a source's video dimensions and whether it carries an audio stream.
+   * An unreadable probe reports 0x0 so the caller falls back to a safe transcode.
+   */
+  private static probeSource(sourcePath: string): Promise<{ width: number; height: number; hasAudio: boolean }> {
+    return new Promise((resolve) => {
+      ffmpeg.ffprobe(sourcePath, (err: Error | null, metadata: any) => {
+        if (err || !metadata) return resolve({ width: 0, height: 0, hasAudio: true });
+        const video = metadata.streams?.find((s: any) => s.codec_type === "video");
+        const hasAudio = Boolean(metadata.streams?.some((s: any) => s.codec_type === "audio"));
+        resolve({ width: video?.width || 0, height: video?.height || 0, hasAudio });
+      });
+    });
   }
 
   /**

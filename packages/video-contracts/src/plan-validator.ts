@@ -51,7 +51,8 @@ export class CreativePlanValidator {
 
       // Check asset references for B-roll or replacement
       if (op.type === "insertBroll" || op.type === "addImage") {
-        if (knownAssetIds.size > 0 && !knownAssetIds.has(op.assetId)) {
+        const isStock = op.type === "insertBroll" && (!!op.stockQuery || !!op.sourceUrl || op.assetId === "stock");
+        if (!isStock && knownAssetIds.size > 0 && !knownAssetIds.has(op.assetId)) {
           errors.push(`Operation #${i} (${op.type}) references unknown assetId "${op.assetId}"`);
         }
       }

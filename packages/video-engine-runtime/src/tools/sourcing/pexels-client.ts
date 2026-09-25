@@ -52,15 +52,15 @@ export interface PexelsStockSearchResult {
 }
 
 export class PexelsClient {
-  private static readonly FALLBACK_KEY = "Z3poq5eTPm2e2VEwsH4bHkbValeQn5cw6PNoaVzZnIQVVDy9Qosi7rw9";
   private static readonly BASE_URL = "https://api.pexels.com";
 
+  /** Reads the key from the environment only. Throws when unset (never falls back to a literal). */
   static getApiKey(): string {
-    return (
-      process.env.PEXELS_API_KEY ||
-      process.env.NEXT_PUBLIC_PEXELS_API_KEY ||
-      this.FALLBACK_KEY
-    );
+    const key = process.env.PEXELS_API_KEY || process.env.NEXT_PUBLIC_PEXELS_API_KEY;
+    if (!key) {
+      throw new Error("PEXELS_API_KEY is not set.");
+    }
+    return key;
   }
 
   /**

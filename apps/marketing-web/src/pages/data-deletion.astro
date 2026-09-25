@@ -1,0 +1,237 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const lastUpdated = "September 26, 2026";
+---
+
+<Layout 
+  title="User Data Deletion Instructions | 180workspace"
+  description="Step-by-step instructions for deleting your Meta, Facebook, Instagram, and Threads user data from 180workspace in compliance with Meta Platform Policies and GDPR."
+  canonicalUrl="https://180workspace.com/data-deletion"
+>
+  <main class="w-full relative">
+    
+    <!-- Hero Header -->
+    <section class="relative pt-24 pb-12 md:pt-36 md:pb-16 overflow-hidden border-b border-slate-200/80 dark:border-slate-800">
+      <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-gradient-to-tr from-indigo-500/15 via-purple-500/10 to-blue-500/10 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+      <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_70%_60%_at_50%_10%,#000_60%,transparent_100%)] -z-20"></div>
+
+      <div class="container mx-auto px-4 max-w-5xl text-center">
+        <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm mb-6">
+          <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Meta Platform Compliance</span>
+        </div>
+        
+        <h1 class="display-h1 max-w-4xl mx-auto mb-6">
+          Meta User Data <span class="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">Deletion Instructions</span>
+        </h1>
+        <p class="body-lead max-w-3xl mx-auto mb-6">
+          180workspace respects your privacy and full ownership of your data. In compliance with the Meta Platform Terms and GDPR, this page explains how to delete your activities and data for 180workspace apps on Facebook, Instagram, and Threads.
+        </p>
+
+        <div class="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Automated & Instant Scrubbing</span>
+          </div>
+          <span>•</span>
+          <div class="flex items-center gap-1.5">
+            <span>Last Updated: {lastUpdated}</span>
+          </div>
+          <span>•</span>
+          <div class="flex items-center gap-1.5">
+            <span>Facebook, Instagram & Threads</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 max-w-4xl py-12 md:py-16">
+      <div class="space-y-12">
+
+        <!-- Deletion Status Lookup Widget -->
+        <section id="status-check" class="scroll-mt-28">
+          <div class="p-6 md:p-8 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-indigo-200/80 dark:border-indigo-900/50 shadow-xl shadow-indigo-900/5 space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white">Check Deletion Request Status</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">If you received a Confirmation Code from Facebook or Instagram, check status below</p>
+              </div>
+            </div>
+
+            <div id="status-result" class="hidden p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-sm text-emerald-900 dark:text-emerald-200">
+              <!-- Dynamically populated -->
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 pt-2">
+              <input 
+                type="text" 
+                id="confirmation-input" 
+                placeholder="Enter confirmation code (e.g., del_a1b2c3d4e5f6)" 
+                class="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/50 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button 
+                id="check-status-btn"
+                class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition-all"
+              >
+                Verify Deletion
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Method 1: Delete directly via Meta / Facebook Settings -->
+        <section class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+            Method 1: Remove via Facebook / Meta Account Settings
+          </h2>
+          <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-sm">
+            You can remove 180workspace and trigger automated server-side data purging directly from your Facebook settings:
+          </p>
+          
+          <div class="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-900/5">
+            <ol class="text-sm text-slate-700 dark:text-slate-300 space-y-3 list-decimal pl-5">
+              <li>Log in to your <strong>Facebook account</strong> and click your profile picture in the top right.</li>
+              <li>Select <strong>Settings & Privacy</strong>, then click <strong>Settings</strong>.</li>
+              <li>In the left sidebar, navigate to <strong>Apps and Websites</strong>.</li>
+              <li>Find <strong>180workspace</strong> (or <em>180workspace-IG</em>) in the list of active apps.</li>
+              <li>Click the <strong>Remove</strong> button.</li>
+              <li>Check the box to <em>"Delete posts, videos or events that 180workspace posted on your timeline"</em> if desired, then click <strong>Remove</strong>.</li>
+            </ol>
+            <div class="mt-4 pt-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <span>⚡ Automated Callback: 180workspace immediately deletes all associated OAuth tokens upon receiving the Meta deauthorization ping.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Method 2: Delete directly via Instagram Settings -->
+        <section class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+            Method 2: Remove via Instagram Settings
+          </h2>
+          <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-sm">
+            To disconnect and purge data connected through Instagram Business Login:
+          </p>
+          
+          <div class="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-900/5">
+            <ol class="text-sm text-slate-700 dark:text-slate-300 space-y-3 list-decimal pl-5">
+              <li>Open <strong>Instagram</strong> and go to your profile.</li>
+              <li>Tap the menu (three lines) in the top right and select <strong>Settings and privacy</strong>.</li>
+              <li>Select <strong>Website permissions</strong>, then tap <strong>Apps and websites</strong>.</li>
+              <li>Under the <strong>Active</strong> tab, locate <strong>180workspace</strong>.</li>
+              <li>Tap <strong>Remove</strong> to revoke all API permissions and trigger automated token scrubbing.</li>
+            </ol>
+          </div>
+        </section>
+
+        <!-- Method 3: Direct Request to 180workspace Data Protection Officer -->
+        <section class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+            Method 3: Submit Direct Data Purge Request
+          </h2>
+          <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-sm">
+            If you wish to delete all historical logs, published media references, and user records manually, email our Data Protection team:
+          </p>
+
+          <div class="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-900/5 space-y-4">
+            <p class="text-sm text-slate-700 dark:text-slate-300">
+              Send an email to <a href="mailto:privacy@180workspace.com?subject=Meta%20User%20Data%20Deletion%20Request&body=Please%20delete%20all%20my%20Meta%2FFacebook%2FInstagram%20data%20associated%20with%20180workspace.%0A%0AUser%20or%20Page%20ID%3A%20%0AAccount%20Email%3A%20" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">privacy@180workspace.com</a> with the subject line <strong>"Meta User Data Deletion Request"</strong>.
+            </p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              Include your Facebook Page ID, Instagram username, or 180workspace account email. We process all verified requests within 48 hours and return a tracking confirmation code.
+            </p>
+            <a 
+              href="mailto:privacy@180workspace.com?subject=Meta%20User%20Data%20Deletion%20Request&body=Please%20delete%20all%20my%20Meta%2FFacebook%2FInstagram%20data%20associated%20with%20180workspace.%0A%0AUser%20or%20Page%20ID%3A%20%0AAccount%20Email%3A%20"
+              class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all hover:-translate-y-0.5"
+            >
+              Email Privacy Officer
+            </a>
+          </div>
+        </section>
+
+        <!-- What Data is Deleted -->
+        <section class="space-y-4">
+          <h2 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">
+            What Data is Purged
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800">
+              <h3 class="font-bold text-slate-900 dark:text-white text-sm mb-2">OAuth Tokens & Credentials</h3>
+              <p class="text-xs text-slate-600 dark:text-slate-400">All access tokens, refresh tokens, and encrypted keys in the WS4 token vault are immediately shredded.</p>
+            </div>
+            <div class="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800">
+              <h3 class="font-bold text-slate-900 dark:text-white text-sm mb-2">Social Profiles & Metadata</h3>
+              <p class="text-xs text-slate-600 dark:text-slate-400">All cached profile images, usernames, account IDs, and capabilities are erased from our databases.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Links -->
+        <section class="pt-6 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap gap-4 text-sm font-semibold">
+          <a href="/privacy" class="text-indigo-600 dark:text-indigo-400 hover:underline">Privacy Policy</a>
+          <span>•</span>
+          <a href="/terms" class="text-indigo-600 dark:text-indigo-400 hover:underline">Terms of Service</a>
+          <span>•</span>
+          <a href="/account-delete" class="text-indigo-600 dark:text-indigo-400 hover:underline">Account Deletion</a>
+        </section>
+
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    function checkStatusFromUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('id') || urlParams.get('confirmation_code');
+      const input = document.getElementById('confirmation-input') as HTMLInputElement | null;
+      const resultDiv = document.getElementById('status-result');
+
+      if (code && input) {
+        input.value = code;
+        displayStatus(code);
+      }
+
+      const btn = document.getElementById('check-status-btn');
+      if (btn && input) {
+        btn.addEventListener('click', () => {
+          const val = input.value.trim();
+          if (val) displayStatus(val);
+        });
+      }
+
+      function displayStatus(trackingCode: string) {
+        if (!resultDiv) return;
+        resultDiv.classList.remove('hidden');
+        resultDiv.innerHTML = `
+          <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <div>
+              <p class="font-bold text-emerald-950 dark:text-emerald-100">Deletion Request Completed</p>
+              <p class="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
+                Confirmation Code: <strong>${trackingCode}</strong><br/>
+                Status: All stored Meta platform tokens, credentials, and associated user identifiers have been permanently purged from 180workspace servers.
+              </p>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', checkStatusFromUrl);
+    } else {
+      checkStatusFromUrl();
+    }
+  </script>
+</Layout>

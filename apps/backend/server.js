@@ -274,6 +274,18 @@ async function bootstrap() {
             AIJobsService.init(); // Proactive AI Alerts
             AICronService.initCronJobs(); // AI Background Processes
 
+            // Social publishing scheduler (DB-polling, safe on several instances). Disable with SOCIAL_SCHEDULER_ENABLED=false
+            // when running it as its own process (npm run social:scheduler).
+            if (process.env.SOCIAL_SCHEDULER_ENABLED !== 'false') {
+                try {
+                    const { SocialPublishScheduler, assertTokenVaultConfigured } = require('@workspace/social-media');
+                    try { assertTokenVaultConfigured(); } catch (keyErr) { console.error(`❌ [SocialPublishScheduler] ${keyErr.message} Scheduled posts will fail until it is set.`); }
+                    SocialPublishScheduler.start();
+                } catch (spErr) {
+                    console.warn('⚠️ [Bootstrap] Social publish scheduler failed to start:', spErr.message);
+                }
+            }
+
             // Initialize Voiceforce BullMQ Outbound & Post-Call Worker
             try {
                 const { setupVoiceforceWorker } = require('@workspace/voiceforce');

@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { VideoStudioService } from "./video-studio.service";
+import { MobileAIDirectRequestSchema, brandStyleDefaults, describeDirectorContext } from "@workspace/video-contracts";
+import { loadDirectorContext } from "../../media-editor/director-context";
 
 export class VideoStudioController {
   static async listProjects(req: any, res: Response) {
@@ -48,15 +50,25 @@ export class VideoStudioController {
   }
 
   static async executeAIDirector(req: any, res: Response) {
+    // Mobile form: the client supplies its own media analysis (media never leaves the device).
+    if (req.body && typeof req.body === "object" && req.body.media !== undefined) {
+      return VideoStudioController.executeMobileAIDirector(req, res);
+    }
     try {
       const companyId = req.user?.companyId || req.headers["x-company-id"] || req.body?.companyId || req.query?.companyId || "default_company";
-      const { prompt, stylePreset, telemetry, currentEditIR, availableAssets, selectedClipId, playheadSec } = req.body;
+      const { prompt, stylePreset, telemetry, currentEditIR, availableAssets, selectedClipId, playheadSec, projectId, calendarPieceId, postId } = req.body;
 
       if (!prompt) {
         return res.status(400).json({ success: false, error: "Missing prompt parameter" });
       }
 
+      // Brand + script context for the web Media Studio (only the verified company is trusted).
+      const str = (v: any) => (typeof v === "string" && v.length > 0 && v.length <= 128 ? v : undefined);
+      const ctx = await loadDirectorContext({ companyId: req.user?.companyId, projectId: str(projectId), calendarPieceId: str(calendarPieceId), postId: str(postId) }).catch(() => ({ warnings: [] as string[] }));
+      const contextSections = (ctx as any).brand || (ctx as any).piece ? describeDirectorContext(ctx as any, brandStyleDefaults((ctx as any).brand)) : undefined;
+
       const result = await VideoStudioService.executeAIDirector({
+        contextSections,
         prompt,
         companyId,
         stylePreset,
@@ -70,6 +82,29 @@ export class VideoStudioController {
       return res.status(200).json({ success: true, data: result });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  static async executeMobileAIDirector(req: any, res: Response) {
+    const parsed = MobileAIDirectRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: "INVALID_REQUEST",
+        issues: parsed.error.errors.map((e) => ({ path: e.path.join("."), message: e.message })),
+      });
+    }
+    // AI keys are per workspace: only trust the authenticated user's company, never a header/body value.
+    const companyId: string | undefined = req.user?.companyId;
+    try {
+      const { projectId, calendarPieceId, postId } = parsed.data;
+      const context = await loadDirectorContext({ companyId, projectId, calendarPieceId, postId });
+      const data = await VideoStudioService.executeMobileAIDirector(parsed.data, companyId, context);
+      return res.status(200).json({ success: true, data });
+    } catch (err: any) {
+      console.error("[AI Director][mobile]", err?.message || err);
+      if (err?.code === "COMPANY_NOT_FOUND") return res.status(404).json({ success: false, error: "COMPANY_NOT_FOUND" });
+      return res.status(500).json({ success: false, error: "AI_DIRECTOR_FAILED", message: "The AI Director could not process this request. Please try again." });
     }
   }
 

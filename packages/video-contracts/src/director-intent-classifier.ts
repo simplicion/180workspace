@@ -42,7 +42,7 @@ export class DirectorIntentClassifier {
     const isCaptionFocused = p.includes("caption") || p.includes("subtitle") || p.includes("subtitles");
     const isExclusiveSingleTask = p.includes("only") || p.includes("just") || p.includes("change the") || p.includes("set caption");
 
-    if (isCaptionFocused && (isExclusiveSingleTask || (!p.includes("cut") && !p.includes("reframe") && !p.includes("music") && !p.includes("direct") && !p.includes("podcast")))) {
+    if (isCaptionFocused && (isExclusiveSingleTask || (!p.includes("cut") && !p.includes("pause") && !p.includes("silence") && !p.includes("reframe") && !p.includes("music") && !p.includes("direct") && !p.includes("podcast")))) {
       return {
         intentScope: p.includes("color") || p.includes("style") ? "CHANGE_CAPTION_STYLE" : "ADD_CAPTIONS_ONLY",
         lockedTracks: ["MAIN_VIDEO", "B_ROLL", "CAMERA", "AUDIO_VOICE", "AUDIO_BGM"],

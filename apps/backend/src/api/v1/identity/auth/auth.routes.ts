@@ -18,7 +18,7 @@ router.post('/google', AuthController.googleLogin);
 router.post('/forgot-password', validateRequest(AuthValidation.forgotPassword), AuthController.forgotPassword);
 router.get('/check-forgot-eligibility', AuthController.checkForgotEligibility);
 router.get('/find-workspaces', AuthController.findWorkspaces);
-router.post('/logout', protect, AuthController.logout);
+router.post('/logout', AuthController.logout); // no protect: a native client must be able to revoke its refresh token after the access token expired
 router.post('/refresh', AuthController.refreshToken);
 router.get('/me', protect, AuthController.getMe);
 router.put('/change-password', protect, validateRequest(AuthValidation.changePassword), AuthController.changePassword);

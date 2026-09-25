@@ -73,7 +73,10 @@ export class DeterministicPlanner {
     const isSurgical = classifiedScope.isSurgicalPatch;
 
     // 1. Aspect Ratio & Re-framing Operation (Only if not surgical or specifically allowed)
-    if (!isSurgical && targetAspect !== context.currentAspect) {
+    // Only reframe when the creator actually mentions a format/platform — a plain "cut the first
+    // 3 seconds" must never silently turn a 16:9 video vertical.
+    const mentionsFormat = /\b(vertical|portrait|9:16|tiktok|reels?|shorts?|instagram|16:9|landscape|horizontal|widescreen|youtube)\b/.test(p);
+    if (!isSurgical && mentionsFormat && targetAspect !== context.currentAspect) {
       if (targetAspect === "9:16") {
         operations.push({
           type: "changeAspectRatio",
@@ -125,6 +128,61 @@ export class DeterministicPlanner {
           removedDurationAccumulator += sil.durationSeconds;
         }
       }
+    }
+
+    // 2b. Explicit head/tail cuts ("cut the first 3 seconds", "remove the last 2s")
+    const headMatch = p.match(/\b(?:cut|remove|trim|drop|delete)\s+(?:off\s+)?the\s+first\s+(\d+(?:\.\d+)?)\s*(?:seconds?|secs?|s)\b/);
+    if (headMatch) {
+      const d = Math.min(parseFloat(headMatch[1]), context.projectDurationSec - 0.5);
+      if (d > 0) operations.push({ type: "removeRange", startSec: 0, durationSec: d, ripple: true, reason: `user asked to cut the first ${headMatch[1]}s` });
+    }
+    const tailMatch = p.match(/\b(?:cut|remove|trim|drop|delete)\s+(?:off\s+)?the\s+last\s+(\d+(?:\.\d+)?)\s*(?:seconds?|secs?|s)\b/);
+    if (tailMatch) {
+      const d = Math.min(parseFloat(tailMatch[1]), context.projectDurationSec - 0.5);
+      if (d > 0) operations.push({ type: "removeRange", startSec: context.projectDurationSec - d, durationSec: d, ripple: true, reason: `user asked to cut the last ${tailMatch[1]}s` });
+    }
+
+    // 2c. Speed ("1.5x", "speed it up", "slow it down")
+    const speedMatch = p.match(/\b(\d(?:\.\d+)?)\s*x\s*(?:speed)?\b/);
+    if (speedMatch && /speed|faster|slower|x speed|play/.test(p)) {
+      const s = parseFloat(speedMatch[1]);
+      if (s >= 0.25 && s <= 4 && s !== 1) operations.push({ type: "changeSpeed", clipId: context.selectedClipId || "all", speedMultiplier: s });
+    } else if (/\bspeed (?:it )?up\b/.test(p)) {
+      operations.push({ type: "changeSpeed", clipId: context.selectedClipId || "all", speedMultiplier: 1.25 });
+    } else if (/\bslow (?:it )?down\b/.test(p)) {
+      operations.push({ type: "changeSpeed", clipId: context.selectedClipId || "all", speedMultiplier: 0.75 });
+    }
+
+    // 2d. Stock B-roll ("put b-roll of a gym at 5s")
+    const brollMatch = prompt.match(/b-?roll\s+(?:of|showing|with)\s+(?:an?\s+|the\s+|some\s+)?(.+?)(?:\s+(?:at|from|around)\s+(\d+(?:\.\d+)?)\s*(?:s|sec|secs|seconds)?\b.*)?$/i);
+    if (brollMatch) {
+      const at = brollMatch[2] ? parseFloat(brollMatch[2]) : Math.min(context.projectDurationSec * 0.3, 4);
+      operations.push({
+        type: "insertBroll",
+        assetId: "stock",
+        stockQuery: brollMatch[1].replace(/[.!?]+$/, "").trim().slice(0, 80),
+        timelineStartSec: Math.max(0, Math.min(at, Math.max(0, context.projectDurationSec - 1))),
+        durationSec: 3,
+        sourceStartSec: 0,
+        cropMode: "center",
+        reason: "user requested stock b-roll",
+      });
+    }
+
+    // 2e. Background music ("add upbeat music")
+    if (/\b(music|song|soundtrack|bgm|beat)\b/.test(p) && /\b(add|put|use|with|some)\b/.test(p) && !context.userConstraints.doNotAddMusic) {
+      const moods = ["upbeat", "energetic", "chill", "lofi", "lo-fi", "cinematic", "epic", "happy", "sad", "dramatic", "corporate", "hip hop", "hip-hop", "electronic", "acoustic", "motivational"];
+      const found = moods.filter((m) => p.includes(m));
+      operations.push({
+        type: "addBackgroundMusic",
+        query: found.length ? found.join(" ") : "upbeat background",
+        volumeDb: -16,
+        duckUnderSpeech: true,
+        duckDb: -12,
+        fadeInSec: 0.5,
+        fadeOutSec: 1.0,
+        reason: "user asked for background music",
+      });
     }
 
     // 3. Autonomous Shortening (e.g. "make it 30 seconds" or "turn into 30s")
@@ -373,7 +431,7 @@ export class DeterministicPlanner {
     if (wantsCleanFillers && graph.transcript.length > 0) {
       const fillerWords = new Set(["um", "uh", "er", "ah", "like", "basically", "actually", "literally"]);
       const detectedFillers = graph.transcript.filter((w) => {
-        const clean = w.word.toLowerCase().replace(/[^a-z]/g, "");
+        const clean = w.word.toLowerCase().replace(/[^\p{L}\p{M}]/gu, "");
         return fillerWords.has(clean) || (w.isEmphasis === false && w.emphasisScore < 0.15 && (w.endSeconds - w.startSeconds > 0.4));
       });
 

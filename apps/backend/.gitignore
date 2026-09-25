@@ -8,3 +8,6 @@ dist/
 .DS_Store
 auth_error.log
 seed-error.txt
+*service-account*.json
+*test-key*.json
+

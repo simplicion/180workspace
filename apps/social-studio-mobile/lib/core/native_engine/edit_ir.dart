@@ -1,0 +1,470 @@
+import 'media_engine_exception.dart';
+
+/// Dart model of the `mobile-editir/1` timeline returned by `POST /media-editor/ai-direct`
+/// (docs/social-studio-mobile/AI_DIRECTOR_CONTRACT.md §3). All times are integer milliseconds.
+///
+/// Only the fields the on-device renderer consumes are modelled. Parsing is strict: a missing
+/// required field throws [MediaEngineException] with code `INVALID_EDIT_IR`.
+class MobileEditIr {
+  const MobileEditIr({
+    required this.projectId,
+    required this.canvas,
+    required this.durationMs,
+    required this.clips,
+    this.sources = const [],
+    this.overlays = const [],
+    this.captions = const [],
+    this.zooms = const [],
+    this.audio = const EditIrAudio(),
+  });
+
+  static const schemaVersion = 'mobile-editir/1';
+
+  final String projectId;
+  final EditIrCanvas canvas;
+  final int durationMs;
+  final List<EditIrClip> clips;
+
+  /// Source media metadata. Required by the server when this timeline is sent back as
+  /// `currentEditIR`, so it must survive a parse → edit → serialize round trip.
+  final List<EditIrSource> sources;
+  final List<EditIrOverlay> overlays;
+  final List<EditIrCaption> captions;
+  final List<EditIrZoom> zooms;
+  final EditIrAudio audio;
+
+  factory MobileEditIr.fromJson(Map<String, dynamic> json) {
+    final version = json['schemaVersion'];
+    if (version != schemaVersion) {
+      throw MediaEngineException('UNSUPPORTED_SCHEMA', "schemaVersion '$version' is not supported (expected $schemaVersion)");
+    }
+    return MobileEditIr(
+      projectId: (json['projectId'] as String?) ?? '',
+      canvas: EditIrCanvas.fromJson(_obj(json, 'canvas')),
+      durationMs: _int(json, 'durationMs'),
+      clips: _list(json, 'clips', EditIrClip.fromJson, required: true),
+      sources: _list(json, 'sources', EditIrSource.fromJson),
+      overlays: _list(json, 'overlays', EditIrOverlay.fromJson),
+      captions: _list(json, 'captions', EditIrCaption.fromJson),
+      zooms: _list(json, 'zooms', EditIrZoom.fromJson),
+      audio: json['audio'] == null ? const EditIrAudio() : EditIrAudio.fromJson(_obj(json, 'audio')),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'schemaVersion': schemaVersion,
+        'projectId': projectId,
+        'canvas': canvas.toJson(),
+        'durationMs': durationMs,
+        'sources': sources.map((s) => s.toJson()).toList(),
+        'clips': clips.map((c) => c.toJson()).toList(),
+        'overlays': overlays.map((o) => o.toJson()).toList(),
+        'captions': captions.map((c) => c.toJson()).toList(),
+        'zooms': zooms.map((z) => z.toJson()).toList(),
+        'audio': audio.toJson(),
+      };
+
+  /// Checks the contract invariants the renderer relies on. Throws `INVALID_EDIT_IR`.
+  void validate() {
+    Never fail(String m) => throw MediaEngineException('INVALID_EDIT_IR', m);
+    if (clips.isEmpty) fail('clips[] is empty — nothing to render');
+    if (canvas.width.isOdd || canvas.height.isOdd) fail('canvas size must be even (H.264)');
+    if (clips.first.timelineStartMs != 0) fail('clips[0] must start at 0');
+    for (var i = 0; i < clips.length; i++) {
+      final c = clips[i];
+      if (!const {0, 90, 180, 270}.contains(c.rotationDeg)) fail('clip ${c.id}: rotationDeg must be 0, 90, 180 or 270');
+      if (c.speed < 0.25 || c.speed > 4) fail('clip ${c.id}: speed ${c.speed} outside (0.25..4]');
+      if (c.sourceEndMs <= c.sourceStartMs) fail('clip ${c.id}: empty source range');
+      final expected = ((c.sourceEndMs - c.sourceStartMs) / c.speed).round();
+      if ((expected - (c.timelineEndMs - c.timelineStartMs)).abs() > 1) {
+        fail('clip ${c.id}: timeline duration does not match source/speed');
+      }
+      if (i > 0 && c.timelineStartMs != clips[i - 1].timelineEndMs) fail('clip ${c.id}: clips are not contiguous');
+    }
+    if ((clips.last.timelineEndMs - durationMs).abs() > 1) fail('durationMs does not equal the last clip end');
+    if (audio.music.length > 1) fail('at most one music item is allowed');
+  }
+
+  /// Every local file id the renderer will ask for, so callers can resolve downloads first.
+  Set<String> get assetIds => clips.map((c) => c.assetId).toSet();
+}
+
+class EditIrSource {
+  const EditIrSource({this.assetId = 'primary', required this.durationMs, required this.width, required this.height});
+  final String assetId;
+  final int durationMs, width, height;
+
+  factory EditIrSource.fromJson(Map<String, dynamic> j) => EditIrSource(
+        assetId: j['assetId'] as String? ?? 'primary',
+        durationMs: _int(j, 'durationMs'),
+        width: _int(j, 'width'),
+        height: _int(j, 'height'),
+      );
+
+  Map<String, dynamic> toJson() => {'assetId': assetId, 'durationMs': durationMs, 'width': width, 'height': height};
+}
+
+class EditIrCanvas {
+  const EditIrCanvas({this.aspect = '9:16', this.width = 1080, this.height = 1920, this.fps = 30, this.background = '#000000'});
+  final String aspect;
+  final int width;
+  final int height;
+  final num fps;
+  final String background;
+
+  factory EditIrCanvas.fromJson(Map<String, dynamic> j) => EditIrCanvas(
+        aspect: j['aspect'] as String? ?? '9:16',
+        width: _int(j, 'width'),
+        height: _int(j, 'height'),
+        fps: (j['fps'] as num?) ?? 30,
+        background: j['background'] as String? ?? '#000000',
+      );
+
+  Map<String, dynamic> toJson() => {'aspect': aspect, 'width': width, 'height': height, 'fps': fps, 'background': background};
+}
+
+class EditIrCrop {
+  const EditIrCrop({required this.x, required this.y, required this.width, required this.height});
+  final double x, y, width, height;
+
+  factory EditIrCrop.fromJson(Map<String, dynamic> j) =>
+      EditIrCrop(x: _dbl(j, 'x'), y: _dbl(j, 'y'), width: _dbl(j, 'width'), height: _dbl(j, 'height'));
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'width': width, 'height': height};
+}
+
+class EditIrFilter {
+  const EditIrFilter({this.preset = 'NORMAL', this.brightness = 1, this.contrast = 1, this.saturation = 1});
+  final String preset;
+  final double brightness, contrast, saturation;
+
+  factory EditIrFilter.fromJson(Map<String, dynamic> j) => EditIrFilter(
+        preset: j['preset'] as String? ?? 'NORMAL',
+        brightness: (j['brightness'] as num?)?.toDouble() ?? 1,
+        contrast: (j['contrast'] as num?)?.toDouble() ?? 1,
+        saturation: (j['saturation'] as num?)?.toDouble() ?? 1,
+      );
+
+  Map<String, dynamic> toJson() => {'preset': preset, 'brightness': brightness, 'contrast': contrast, 'saturation': saturation};
+}
+
+class EditIrTransition {
+  const EditIrTransition({this.type = 'CROSSFADE', required this.durationMs});
+  final String type;
+  final int durationMs;
+
+  factory EditIrTransition.fromJson(Map<String, dynamic> j) =>
+      EditIrTransition(type: j['type'] as String? ?? 'CROSSFADE', durationMs: _int(j, 'durationMs'));
+
+  Map<String, dynamic> toJson() => {'type': type, 'durationMs': durationMs};
+}
+
+class EditIrClip {
+  const EditIrClip({
+    required this.id,
+    this.assetId = 'primary',
+    required this.sourceStartMs,
+    required this.sourceEndMs,
+    required this.timelineStartMs,
+    required this.timelineEndMs,
+    this.speed = 1,
+    this.volumeDb = 0,
+    this.crop,
+    this.filter,
+    this.transitionIn,
+    this.rotationDeg = 0,
+    this.flipH = false,
+  });
+
+  final String id;
+  final String assetId;
+
+  /// Clockwise rotation applied before crop: 0, 90, 180 or 270.
+  final int rotationDeg;
+  final bool flipH;
+  final int sourceStartMs, sourceEndMs, timelineStartMs, timelineEndMs;
+  final double speed;
+  final double volumeDb;
+  final EditIrCrop? crop;
+  final EditIrFilter? filter;
+  final EditIrTransition? transitionIn;
+
+  factory EditIrClip.fromJson(Map<String, dynamic> j) => EditIrClip(
+        id: _str(j, 'id'),
+        assetId: j['assetId'] as String? ?? 'primary',
+        sourceStartMs: _int(j, 'sourceStartMs'),
+        sourceEndMs: _int(j, 'sourceEndMs'),
+        timelineStartMs: _int(j, 'timelineStartMs'),
+        timelineEndMs: _int(j, 'timelineEndMs'),
+        speed: (j['speed'] as num?)?.toDouble() ?? 1,
+        volumeDb: (j['volumeDb'] as num?)?.toDouble() ?? 0,
+        crop: j['crop'] == null ? null : EditIrCrop.fromJson(_obj(j, 'crop')),
+        filter: j['filter'] == null ? null : EditIrFilter.fromJson(_obj(j, 'filter')),
+        transitionIn: j['transitionIn'] == null ? null : EditIrTransition.fromJson(_obj(j, 'transitionIn')),
+        rotationDeg: (j['rotationDeg'] as num?)?.toInt() ?? 0,
+        flipH: j['flipH'] as bool? ?? false,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'assetId': assetId,
+        'sourceStartMs': sourceStartMs,
+        'sourceEndMs': sourceEndMs,
+        'timelineStartMs': timelineStartMs,
+        'timelineEndMs': timelineEndMs,
+        'speed': speed,
+        'volumeDb': volumeDb,
+        'crop': crop?.toJson(),
+        'filter': filter?.toJson(),
+        'transitionIn': transitionIn?.toJson(),
+        // Optional fields: omitted at their defaults so older servers accept the timeline.
+        if (rotationDeg != 0) 'rotationDeg': rotationDeg,
+        if (flipH) 'flipH': true,
+      };
+}
+
+class EditIrOverlay {
+  const EditIrOverlay({
+    required this.id,
+    required this.timelineStartMs,
+    required this.timelineEndMs,
+    this.sourceStartMs = 0,
+    this.source = const {},
+    this.opacity = 1,
+    this.muted = true,
+  });
+
+  final String id;
+  final int timelineStartMs, timelineEndMs, sourceStartMs;
+
+  /// `{kind:"url"|"asset"|"stock_query", ...}` — resolve to a local file before rendering.
+  final Map<String, dynamic> source;
+  final double opacity;
+  final bool muted;
+
+  factory EditIrOverlay.fromJson(Map<String, dynamic> j) => EditIrOverlay(
+        id: _str(j, 'id'),
+        timelineStartMs: _int(j, 'timelineStartMs'),
+        timelineEndMs: _int(j, 'timelineEndMs'),
+        sourceStartMs: (j['sourceStartMs'] as num?)?.toInt() ?? 0,
+        source: (j['source'] as Map?)?.cast<String, dynamic>() ?? const {},
+        opacity: (j['opacity'] as num?)?.toDouble() ?? 1,
+        muted: j['muted'] as bool? ?? true,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'kind': 'broll',
+        'timelineStartMs': timelineStartMs,
+        'timelineEndMs': timelineEndMs,
+        'sourceStartMs': sourceStartMs,
+        'source': source,
+        'fit': 'cover',
+        'opacity': opacity,
+        'muted': muted,
+      };
+}
+
+class EditIrWord {
+  const EditIrWord({required this.text, required this.startMs, required this.endMs, this.highlight = false, this.color, this.scale = 1});
+  final String text;
+  final int startMs, endMs;
+  final bool highlight;
+  final String? color;
+  final double scale;
+
+  factory EditIrWord.fromJson(Map<String, dynamic> j) => EditIrWord(
+        text: _str(j, 'text'),
+        startMs: _int(j, 'startMs'),
+        endMs: _int(j, 'endMs'),
+        highlight: j['highlight'] as bool? ?? false,
+        color: j['color'] as String?,
+        scale: (j['scale'] as num?)?.toDouble() ?? 1,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'text': text, 'startMs': startMs, 'endMs': endMs, 'highlight': highlight, 'color': color, 'scale': scale};
+}
+
+class EditIrCaption {
+  const EditIrCaption({
+    required this.id,
+    this.kind = 'caption',
+    required this.startMs,
+    required this.endMs,
+    required this.text,
+    this.words = const [],
+    this.style = const {},
+  });
+
+  final String id;
+  final String kind;
+  final int startMs, endMs;
+  final String text;
+  final List<EditIrWord> words;
+
+  /// Style object exactly as defined in contract §3.4 (preset, animation, fontSizePx, colours, ...).
+  final Map<String, dynamic> style;
+
+  factory EditIrCaption.fromJson(Map<String, dynamic> j) => EditIrCaption(
+        id: _str(j, 'id'),
+        kind: j['kind'] as String? ?? 'caption',
+        startMs: _int(j, 'startMs'),
+        endMs: _int(j, 'endMs'),
+        text: j['text'] as String? ?? '',
+        words: _list(j, 'words', EditIrWord.fromJson),
+        style: (j['style'] as Map?)?.cast<String, dynamic>() ?? const {},
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'kind': kind,
+        'startMs': startMs,
+        'endMs': endMs,
+        'text': text,
+        'words': words.map((w) => w.toJson()).toList(),
+        'style': style,
+      };
+}
+
+class EditIrZoom {
+  const EditIrZoom({required this.id, required this.startMs, required this.endMs, this.scale = 1.3, this.centerX = 0.5, this.centerY = 0.5, this.rampMs = 250});
+  final String id;
+  final int startMs, endMs, rampMs;
+  final double scale, centerX, centerY;
+
+  factory EditIrZoom.fromJson(Map<String, dynamic> j) => EditIrZoom(
+        id: _str(j, 'id'),
+        startMs: _int(j, 'startMs'),
+        endMs: _int(j, 'endMs'),
+        scale: (j['scale'] as num?)?.toDouble() ?? 1.3,
+        centerX: (j['centerX'] as num?)?.toDouble() ?? 0.5,
+        centerY: (j['centerY'] as num?)?.toDouble() ?? 0.5,
+        rampMs: (j['rampMs'] as num?)?.toInt() ?? 250,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'startMs': startMs, 'endMs': endMs, 'scale': scale, 'centerX': centerX, 'centerY': centerY, 'rampMs': rampMs};
+}
+
+class EditIrDuck {
+  const EditIrDuck({this.enabled = true, this.duckDb = -12, this.attackMs = 120, this.releaseMs = 350});
+  final bool enabled;
+  final double duckDb;
+  final int attackMs, releaseMs;
+
+  factory EditIrDuck.fromJson(Map<String, dynamic> j) => EditIrDuck(
+        enabled: j['enabled'] as bool? ?? false,
+        duckDb: (j['duckDb'] as num?)?.toDouble() ?? -12,
+        attackMs: (j['attackMs'] as num?)?.toInt() ?? 120,
+        releaseMs: (j['releaseMs'] as num?)?.toInt() ?? 350,
+      );
+
+  Map<String, dynamic> toJson() => {'enabled': enabled, 'duckDb': duckDb, 'attackMs': attackMs, 'releaseMs': releaseMs};
+}
+
+class EditIrMusic {
+  const EditIrMusic({
+    required this.id,
+    required this.timelineStartMs,
+    required this.timelineEndMs,
+    this.sourceStartMs = 0,
+    this.source = const {},
+    this.volumeDb = -16,
+    this.fadeInMs = 0,
+    this.fadeOutMs = 0,
+    this.duck,
+  });
+
+  final String id;
+  final int timelineStartMs, timelineEndMs, sourceStartMs, fadeInMs, fadeOutMs;
+  final Map<String, dynamic> source;
+  final double volumeDb;
+  final EditIrDuck? duck;
+
+  factory EditIrMusic.fromJson(Map<String, dynamic> j) => EditIrMusic(
+        id: _str(j, 'id'),
+        timelineStartMs: _int(j, 'timelineStartMs'),
+        timelineEndMs: _int(j, 'timelineEndMs'),
+        sourceStartMs: (j['sourceStartMs'] as num?)?.toInt() ?? 0,
+        source: (j['source'] as Map?)?.cast<String, dynamic>() ?? const {},
+        volumeDb: (j['volumeDb'] as num?)?.toDouble() ?? 0,
+        fadeInMs: (j['fadeInMs'] as num?)?.toInt() ?? 0,
+        fadeOutMs: (j['fadeOutMs'] as num?)?.toInt() ?? 0,
+        duck: j['duck'] == null ? null : EditIrDuck.fromJson(_obj(j, 'duck')),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'timelineStartMs': timelineStartMs,
+        'timelineEndMs': timelineEndMs,
+        'sourceStartMs': sourceStartMs,
+        'source': source,
+        'volumeDb': volumeDb,
+        'fadeInMs': fadeInMs,
+        'fadeOutMs': fadeOutMs,
+        // The contract requires a duck object; "no ducking" is enabled:false, never null.
+        'duck': (duck ?? const EditIrDuck(enabled: false)).toJson(),
+      };
+}
+
+class EditIrAudio {
+  const EditIrAudio({this.originalVolumeDb = 0, this.music = const [], this.speechRangesMs = const []});
+  final double originalVolumeDb;
+  final List<EditIrMusic> music;
+
+  /// Sorted, non-overlapping `[startMs, endMs]` pairs on the timeline.
+  final List<List<int>> speechRangesMs;
+
+  factory EditIrAudio.fromJson(Map<String, dynamic> j) => EditIrAudio(
+        originalVolumeDb: ((j['originalTrack'] as Map?)?['volumeDb'] as num?)?.toDouble() ?? 0,
+        music: _list(j, 'music', EditIrMusic.fromJson),
+        speechRangesMs: ((j['speechRangesMs'] as List?) ?? const [])
+            .map((r) => (r as List).map((v) => (v as num).toInt()).toList())
+            .toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'originalTrack': {'volumeDb': originalVolumeDb},
+        'music': music.map((m) => m.toJson()).toList(),
+        'speechRangesMs': speechRangesMs,
+      };
+}
+
+// ---------------------------------------------------------------------------------------------
+
+Never _bad(String field, String problem) => throw MediaEngineException('INVALID_EDIT_IR', "Field '$field' $problem");
+
+Map<String, dynamic> _obj(Map<String, dynamic> j, String k) {
+  final v = j[k];
+  if (v is Map) return v.cast<String, dynamic>();
+  _bad(k, 'must be an object');
+}
+
+int _int(Map<String, dynamic> j, String k) {
+  final v = j[k];
+  if (v is num) return v.toInt();
+  _bad(k, 'must be a number');
+}
+
+double _dbl(Map<String, dynamic> j, String k) {
+  final v = j[k];
+  if (v is num) return v.toDouble();
+  _bad(k, 'must be a number');
+}
+
+String _str(Map<String, dynamic> j, String k) {
+  final v = j[k];
+  if (v is String) return v;
+  _bad(k, 'must be a string');
+}
+
+List<T> _list<T>(Map<String, dynamic> j, String k, T Function(Map<String, dynamic>) parse, {bool required = false}) {
+  final v = j[k];
+  if (v == null) {
+    if (required) _bad(k, 'is required');
+    return const [];
+  }
+  if (v is! List) _bad(k, 'must be an array');
+  return v.map((e) => parse((e as Map).cast<String, dynamic>())).toList();
+}

@@ -28,20 +28,57 @@ export const SENSITIVE_FIELDS = [
 ];
 
 /**
+ * The only Company fields a user payload may carry (`user.company` when the row was loaded with `include: { company: true }`).
+ * An ALLOW-list, unlike the user denylist above: the Company row holds the tenant admin's password hash, contact details
+ * and billing state, none of which a signed-in member needs. These are the fields the clients read
+ * (web NextAuth: id/slug/customDomain/isOnboardingComplete; mobile: id/name/logoUrl) plus display branding.
+ */
+export const PUBLIC_COMPANY_FIELDS = ['id', 'name', 'slug', 'customDomain', 'logoUrl', 'bannerUrl', 'isOnboardingComplete', 'currency', 'currencySymbol'];
+
+/** Keys stripped at ANY depth, whatever relation they arrive through (e.g. `adminPasswordHash`, `mfaSecret`, `clientSecret`). */
+const SENSITIVE_KEY = /(hash|secret|password)$/i;
+
+export function sanitizeCompany(company: any): any {
+    if (!company || typeof company !== 'object') return company;
+    const safe: Record<string, any> = {};
+    for (const field of PUBLIC_COMPANY_FIELDS) {
+        if (company[field] !== undefined) safe[field] = company[field];
+    }
+    return safe;
+}
+
+const isPlainObject = (v: any) => v !== null && typeof v === 'object' && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
+
+function scrubNested(value: any, depth: number): any {
+    if (depth > 4) return value;
+    if (Array.isArray(value)) return value.map((v) => scrubNested(v, depth + 1));
+    if (!isPlainObject(value)) return value;
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) {
+        if (SENSITIVE_KEY.test(k) || SENSITIVE_FIELDS.includes(k)) continue;
+        out[k] = scrubNested(v, depth + 1);
+    }
+    return out;
+}
+
+/**
  * Strips sensitive fields from a user object.
  * Works on plain objects and Prisma model instances.
  *
  * @param user - The raw user object (from Prisma or req.user)
- * @returns A shallow copy with sensitive fields removed
+ * @returns A copy with sensitive fields removed, nested relations scrubbed and `company` reduced to PUBLIC_COMPANY_FIELDS
  */
 export function sanitizeUser(user: any): any {
     if (!user) return user;
 
     // Create a shallow copy to avoid mutating the original
-    const sanitized = { ...user };
+    const sanitized = scrubNested({ ...user }, 0);
 
     for (const field of SENSITIVE_FIELDS) {
         delete sanitized[field];
+    }
+    if (sanitized.company && typeof sanitized.company === 'object') {
+        sanitized.company = sanitizeCompany(user.company);
     }
 
     return sanitized;

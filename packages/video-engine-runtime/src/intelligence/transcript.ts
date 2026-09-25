@@ -59,7 +59,7 @@ export class TranscriptIntelligenceService {
     let currentWindowTime = speechWindows[0].start;
 
     for (let i = 0; i < rawWords.length; i++) {
-      const cleanWord = rawWords[i].replace(/[^\p{L}\p{N}'?!.,\-]/gu, "");
+      const cleanWord = rawWords[i].replace(/[^\p{L}\p{M}\p{N}'?!.,\-]/gu, "");
       const isEmphasis =
         cleanWord === cleanWord.toUpperCase() && cleanWord.length > 2 ||
         Boolean(cleanWord.match(/(!|\?)$/)) ||

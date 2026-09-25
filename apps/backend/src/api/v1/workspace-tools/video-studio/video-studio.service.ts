@@ -1,4 +1,4 @@
-import { EditIR, RationalTimeMath } from "@workspace/video-contracts";
+import { EditIR, RationalTimeMath, MobileAIDirectRequest, DirectorContext } from "@workspace/video-contracts";
 import { videoAIDirectorService } from "@workspace/ai";
 import { prisma } from "@workspace/db";
 import * as crypto from "crypto";
@@ -162,6 +162,8 @@ export class VideoStudioService {
     availableAssets?: any[];
     selectedClipId?: string | null;
     playheadSec?: number;
+    /** Brand + calendar piece prompt sections (web Media Studio opened from a calendar piece). */
+    contextSections?: string[];
   }) {
     return await (videoAIDirectorService as any).compileAST({
       prompt: params.prompt,
@@ -174,8 +176,64 @@ export class VideoStudioService {
         availableAssets: params.availableAssets,
         selectedClipId: params.selectedClipId,
         playheadSec: params.playheadSec,
+        contextSections: params.contextSections,
       },
     });
+  }
+
+  /**
+   * Mobile AI Director (client-supplied media analysis). Returns MobileEditIR + planner provenance.
+   */
+  static async executeMobileAIDirector(request: MobileAIDirectRequest, companyId: string | undefined, context?: DirectorContext) {
+    return await (videoAIDirectorService as any).directMobile(request, {
+      companyId,
+      context,
+      resolveStockVideo: VideoStudioService.resolveStockVideo,
+      resolveSfx: process.env.FREESOUND_API_KEY ? VideoStudioService.searchFreesoundSfx : undefined,
+      stockTimeoutMs: Number(process.env.AI_DIRECTOR_STOCK_TIMEOUT_MS) > 0 ? Number(process.env.AI_DIRECTOR_STOCK_TIMEOUT_MS) : 8000,
+    });
+  }
+
+  /**
+   * B-roll research resolver: first HTTPS Pexels video, then Pixabay as the fallback. Keys come from env only
+   * (PEXELS_API_KEY / PIXABAY_API_KEY); a provider without a key is skipped. Null when nothing matched.
+   */
+  static async resolveStockVideo(query: string, aspect: string): Promise<string | null> {
+    const runtime = require("@workspace/video-engine-runtime");
+    const errors: string[] = [];
+    const portrait = aspect === "9:16" || aspect === "4:5";
+    try {
+      runtime.PexelsClient.getApiKey(); // throws when the key is not configured
+      const orientation = portrait ? "portrait" : aspect === "1:1" ? "square" : "landscape";
+      const { videos } = await runtime.PexelsClient.searchVideos({ query, orientation, perPage: 5 });
+      const hit = (videos || []).find((v: any) => typeof v?.downloadUrl === "string" && v.downloadUrl.startsWith("https://"));
+      if (hit) return hit.downloadUrl;
+    } catch (err: any) {
+      if (!/not (set|configured)/i.test(err?.message || "")) errors.push(`Pexels: ${err?.message || err}`);
+    }
+    try {
+      runtime.PixabayClient.getApiKey();
+      const { videos } = await runtime.PixabayClient.searchVideos({ query, orientation: portrait ? "vertical" : "horizontal", perPage: 5 });
+      const hit = (videos || []).find((v: any) => typeof v?.downloadUrl === "string" && v.downloadUrl.startsWith("https://"));
+      if (hit) return hit.downloadUrl;
+    } catch (err: any) {
+      if (!/not (set|configured)/i.test(err?.message || "")) errors.push(`Pixabay: ${err?.message || err}`);
+    }
+    if (errors.length) throw new Error(errors.join("; "));
+    return null;
+  }
+
+  /** Freesound SFX search: metadata + HTTPS MP3 previews only (nothing is downloaded). Needs FREESOUND_API_KEY. */
+  static async searchFreesoundSfx(query: string): Promise<Array<{ title: string; url: string; durationSec?: number; license?: string | null; query: string }>> {
+    const key = process.env.FREESOUND_API_KEY;
+    if (!key) throw new Error("FREESOUND_API_KEY is not set");
+    const url = `https://freesound.org/apiv2/search/text/?query=${encodeURIComponent(query)}&fields=id,name,previews,duration,license&filter=duration:[0 TO 4]&page_size=5`;
+    const res = await fetch(url, { headers: { Authorization: `Token ${key}` } });
+    if (!res.ok) throw new Error(`Freesound ${res.status}`);
+    const data: any = await res.json();
+    return (data?.results || [])
+      .map((r: any) => ({ title: r.name, url: r.previews?.["preview-hq-mp3"] || r.previews?.["preview-lq-mp3"], durationSec: r.duration, license: r.license || null, query }))
+      .filter((r: any) => typeof r.url === "string" && r.url.startsWith("https://"));
   }
 
   /**

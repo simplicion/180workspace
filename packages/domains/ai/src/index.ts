@@ -32,6 +32,7 @@ export * from './builders';
 
 // Content Calendar & Marketing
 export * from './content/ai-content-calendar.service';
+export * from './content/autopilot';
 
 // Analytics & Automation & CRM
 export * from './analytics/ai-business-insights.service';

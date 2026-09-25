@@ -1,0 +1,201 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:social_studio_mobile/core/widgets/universal_skeleton.dart';
+import 'package:social_studio_mobile/features/library/library_screen.dart';
+import 'package:social_studio_mobile/features/posts/post_composer_screen.dart';
+import 'package:social_studio_mobile/features/workspace/project_workspace_screen.dart';
+
+import '../support/app_harness.dart';
+import '../support/fixtures.dart';
+
+void main() {
+  appTest('Workspace: skeleton while the project loads; error offers retry and Go to Home', (tester) async {
+    final b = seededBackend();
+    final gate = b.hold('GET', '$sm/projects/p1', {'success': true, 'project': projectDetailJson()});
+    final h = await pumpApp(tester, b);
+    h.router.push('/projects/p1/content');
+    await settle(tester);
+    expect(find.byType(UniversalSkeleton), findsWidgets);
+    gate.complete();
+    await settle(tester);
+    expect(find.text('Launch teaser'), findsOneWidget);
+
+    b.fail('GET', '$sm/projects/p2', 404, 'Project not found');
+    h.router.push('/projects/p2/brand');
+    await settle(tester);
+    expect(find.text('Project not found'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+    await tester.tap(find.text('Go to Home'));
+    await settle(tester);
+    expect(h.router.routerDelegate.currentConfiguration.uri.path, '/home');
+  });
+
+  appTest('Content: empty list offers "Create content" which opens the composer', (tester) async {
+    final b = seededBackend()..json('GET', '$sm/posts', {'success': true, 'posts': []});
+    await pumpApp(tester, b, location: '/projects/p1/content');
+    expect(find.text('No content yet'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Create content'));
+    await settle(tester);
+    expect(find.byType(PostComposerScreen), findsOneWidget);
+    expect(b.last('GET', '$sm/posts')!.query['projectId'], 'p1');
+  });
+
+  appTest('Content: a list error keeps the section and offers retry', (tester) async {
+    final b = seededBackend()..fail('GET', '$sm/posts', 400, 'Invalid status filter');
+    await pumpApp(tester, b, location: '/projects/p1/content');
+    expect(find.text('Invalid status filter'), findsOneWidget);
+    b.json('GET', '$sm/posts', {'success': true, 'posts': [postJson()]});
+    await tester.tap(find.text('Try again'));
+    await settle(tester);
+    expect(find.text('Launch teaser'), findsOneWidget);
+  });
+
+  appTest('Calendar: month list shows this month\'s posts and asks the server for the range', (tester) async {
+    final now = DateTime.now();
+    final at = DateTime(now.year, now.month, 15, 10).toUtc().toIso8601String();
+    final b = seededBackend()..json('GET', '$sm/posts', {'success': true, 'posts': [postJson(status: 'scheduled', scheduledFor: at)]});
+    await pumpApp(tester, b, location: '/projects/p1/calendar');
+    await tester.tap(find.byTooltip('List view'));
+    await settle(tester);
+    expect(find.text('Launch teaser'), findsOneWidget);
+    final q = b.last('GET', '$sm/posts')!.query;
+    expect(q['from'], isNotNull);
+    expect(q['to'], isNotNull);
+  });
+
+  appTest('Media: empty state action opens the Library tab', (tester) async {
+    await pumpApp(tester, seededBackend(), location: '/projects/p1/media');
+    expect(find.text('No media yet'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Open Library'));
+    await settle(tester);
+    expect(find.byType(LibraryScreen), findsOneWidget);
+  });
+
+  appTest('Tasks: list renders; empty state has an action', (tester) async {
+    final b = seededBackend();
+    await pumpApp(tester, b, location: '/projects/p1/tasks');
+    expect(find.text('Edit launch teaser'), findsOneWidget);
+    expect(b.last('GET', '/api/tasks')!.query['projectId'], 'p1');
+
+    b.json('GET', '/api/tasks', {'success': true, 'tasks': []});
+    await tester.drag(find.byType(ListView).first, const Offset(0, 300));
+    await settle(tester);
+    expect(find.text('No editing tasks'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Open content'));
+    await settle(tester);
+    expect(find.descendant(of: find.byType(AppBar), matching: find.text('Content')), findsOneWidget);
+  });
+
+  appTest('Approvals: send for approval creates a review session for the project client', (tester) async {
+    final b = seededBackend()
+      ..json('POST', '$sm/reviews/sessions', {
+        'success': true,
+        'session': {'id': 'rs1', 'token': 'tok123', 'name': 'Acme Launch review', 'status': 'pending', 'clientId': 'c1', 'projectId': 'p1'},
+      }, status: 201);
+    await pumpApp(tester, b, location: '/projects/p1/approvals');
+    await tester.tap(find.text('Send for client approval'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Create review link'));
+    await settle(tester);
+    final body = b.last('POST', '$sm/reviews/sessions')!.json;
+    expect(body['clientId'], 'c1');
+    expect(body['projectId'], 'p1');
+    expect(body['name'], 'Acme Launch review');
+    expect(body['expiresInDays'], 14);
+    expect(body['startDate'], isNotNull);
+    expect(find.text('Review link ready'), findsOneWidget);
+    expect(find.textContaining('/review/tok123'), findsOneWidget);
+    // The project detail (sessions list) is reloaded after the mutation.
+    expect(b.calls('GET', '$sm/projects/p1').length, greaterThan(1));
+  });
+
+  appTest('Approvals: without a client the send action explains why, sends nothing', (tester) async {
+    final b = seededBackend()..json('GET', '$sm/projects/:id', {'success': true, 'project': projectDetailJson(clientId: null)});
+    await pumpApp(tester, b, location: '/projects/p1/approvals');
+    await tester.tap(find.text('Send for client approval'));
+    await settle(tester);
+    expect(find.textContaining('This project has no client'), findsOneWidget);
+    expect(b.calls('POST', '$sm/reviews/sessions'), isEmpty);
+  });
+
+  appTest('Publishing: empty queue offers an action', (tester) async {
+    await pumpApp(tester, seededBackend(), location: '/projects/p1/publishing');
+    expect(find.text('Nothing in the publishing queue'), findsOneWidget);
+    expect(find.widgetWithText(ElevatedButton, 'Open content'), findsOneWidget);
+  });
+
+  appTest('Analytics: a 404 says "not available" and never invents numbers', (tester) async {
+    await pumpApp(tester, seededBackend(), location: '/projects/p1/analytics');
+    expect(find.text('Not available on the server yet'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+    expect(find.text('Total posts'), findsOneWidget); // real counts from the project
+  });
+
+  appTest('Brand: edit and save posts the brand voice to /brand-voice/:projectId', (tester) async {
+    final b = seededBackend()..json('POST', '$sm/brand-voice/:projectId', {'success': true, 'profile': {'id': 'bv1', 'projectId': 'p1'}});
+    await pumpApp(tester, b, location: '/projects/p1/brand');
+    await tester.enterText(find.widgetWithText(TextField, 'Tone of voice'), 'Bold, never salesy');
+    await tester.pump();
+    await tapVisible(tester, find.widgetWithText(ElevatedButton, 'Save brand identity'));
+    final body = b.last('POST', '$sm/brand-voice/p1')!.json;
+    expect(body['tone'], 'Bold, never salesy');
+    expect(body['targetAudience'], 'Small business owners');
+    expect(body['forbiddenWords'], ['cheap']);
+    expect((body['metadata'] as Map)['contentPillars'], ['Education']);
+    expect(find.text('Brand identity saved'), findsOneWidget);
+    expect(b.calls('GET', '$sm/brand-voice/p1').length, 2); // reloaded after save
+  });
+
+  appTest('Brand: offline save is queued in the outbox', (tester) async {
+    final b = seededBackend()..networkError('POST', '$sm/brand-voice/:projectId');
+    final h = await pumpApp(tester, b, location: '/projects/p1/brand');
+    await tester.enterText(find.widgetWithText(TextField, 'Tone of voice'), 'Calm');
+    await tester.pump();
+    await tapVisible(tester, find.widgetWithText(ElevatedButton, 'Save brand identity'));
+    expect(find.text('Saved offline. It will sync when you are back online.'), findsOneWidget);
+    expect(h.outboxStorage.rows.single['path'], '$sm/brand-voice/p1');
+    expect(find.byTooltip('Sync status'), findsOneWidget);
+  });
+
+  appTest('Channels: linking another workspace account posts its id', (tester) async {
+    final b = seededBackend()..json('POST', '$sm/projects/:id/accounts', {'success': true, 'result': {}});
+    await pumpApp(tester, b, location: '/projects/p1/accounts');
+    expect(find.text('Acme LinkedIn'), findsOneWidget);
+    await tapVisible(tester, find.widgetWithText(TextButton, 'Link'));
+    expect(b.last('POST', '$sm/projects/p1/accounts')!.json, {'accountId': 'a2'});
+    expect(find.text('Acme LinkedIn linked'), findsOneWidget);
+  });
+
+  appTest('Evergreen: adding a slot posts it and reloads the slots', (tester) async {
+    final b = seededBackend()
+      ..json('POST', '$sm/evergreen/slots', {'success': true, 'slot': {'id': 's2', 'projectId': 'p1', 'dayOfWeek': 1, 'timeSlotUtc': '10:00', 'category': 'Educational'}}, status: 201);
+    await pumpApp(tester, b, location: '/projects/p1/evergreen');
+    expect(find.textContaining('Tuesday · 09:00 UTC'), findsOneWidget);
+    await tester.tap(find.text('Add slot'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(TextButton, 'Add'));
+    await settle(tester);
+    expect(b.last('POST', '$sm/evergreen/slots')!.json, {'projectId': 'p1', 'dayOfWeek': 1, 'timeSlotUtc': '10:00', 'category': 'Educational'});
+    expect(b.calls('GET', '$sm/evergreen/p1/slots'), hasLength(2));
+  });
+
+  appTest('Settings: save sends name, status and socialSettings with PUT', (tester) async {
+    final b = seededBackend()..json('PUT', '$sm/projects/:id', {'success': true, 'project': projectJson()});
+    await pumpApp(tester, b, location: '/projects/p1/settings');
+    await tester.enterText(find.widgetWithText(TextField, 'Project name'), 'Acme Relaunch');
+    await tapVisible(tester, find.widgetWithText(ElevatedButton, 'Save settings'));
+    final body = b.last('PUT', '$sm/projects/p1')!.json;
+    expect(body['name'], 'Acme Relaunch');
+    expect(body['status'], 'in_progress');
+    expect(body['socialSettings'], {'approvalRequired': true, 'defaultTimezone': 'UTC', 'storageRetentionDays': 30});
+    expect(find.text('Settings saved'), findsOneWidget);
+  });
+
+  appTest('Inbox tab inside a project filters conversations by project', (tester) async {
+    final b = seededBackend();
+    await pumpApp(tester, b, location: '/projects/p1/inbox');
+    expect(find.byType(ProjectWorkspaceScreen), findsOneWidget);
+    expect(find.text('Jordan Fan'), findsOneWidget);
+    expect(b.last('GET', '$sm/inbox/conversations')!.query['projectId'], 'p1');
+  });
+}
