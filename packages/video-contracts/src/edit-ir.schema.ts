@@ -31,7 +31,15 @@ export const TransformSchema = z.object({
     y: z.number().default(0.5),
   }),
   rotationDeg: z.number().default(0),
+  /** Mirror the source horizontally (applied together with rotationDeg, before crop). */
+  flipH: z.boolean().optional(),
+  /**
+   * true = fit (contain) the whole source on the canvas background instead of cropping to fill.
+   * Distinguishes an explicit "fit" choice from "no crop computed yet" (mobile `crop: null`).
+   */
+  letterbox: z.boolean().optional(),
   opacity: z.number().min(0).max(1).default(1.0),
+  /** Normalized insets (0..1) of the source frame, after rotation/flip. */
   crop: z
     .object({
       top: z.number().default(0),
@@ -147,6 +155,8 @@ export const CameraEventSchema = z.object({
     y: z.number(),
   }),
   scale: z.number().min(1.0).max(4.0).default(1.3),
+  /** Ease in/out ramp length (ms) for renderers that use a linear envelope (mobile). */
+  rampMs: z.number().nonnegative().optional(),
   spring: SpringConfigSchema.default({ stiffness: 180, damping: 18, mass: 1, overshootClamping: false }),
   motionBlur: z.boolean().default(true),
 });
@@ -188,6 +198,8 @@ export type TimedWord = z.infer<typeof TimedWordSchema>;
 
 export const CaptionSegmentSchema = z.object({
   id: z.string().min(1),
+  /** "caption" = speech-synced subtitle; "title" = free text overlay (addText). */
+  role: z.enum(["caption", "title"]).optional(),
   timeRange: TimeRangeSchema,
   text: z.string(),
   words: z.array(TimedWordSchema),
@@ -205,6 +217,13 @@ export const CaptionSegmentSchema = z.object({
     pillBackground: z.string().optional(),
     pillPadding: z.number().default(12).optional(),
     pillRadius: z.number().default(16).optional(),
+    uppercase: z.boolean().optional(),
+    animation: z.enum(["word_pop", "karaoke", "none"]).optional(),
+    fontWeight: z.number().int().optional(),
+    /** Wrap width as a fraction of the canvas width. */
+    maxWidthFraction: z.number().gt(0).max(1).optional(),
+    /** Client-side preset name when it is not one of the canonical `preset` values. */
+    presetLabel: z.string().optional(),
   }),
 });
 
@@ -232,6 +251,8 @@ export const AudioTrackSchema = z.object({
       sourceRange: TimeRangeSchema,
       timelineRange: TimeRangeSchema,
       volumeDb: z.number().default(0.0),
+      /** Stock search phrase this clip was (or still needs to be) resolved from. */
+      sourceQuery: z.string().optional(),
       fadeInDuration: RationalTimeSchema.optional(),
       fadeOutDuration: RationalTimeSchema.optional(),
     })
@@ -255,6 +276,8 @@ export const EditIRSchema = z.object({
     }),
     fps: FrameRateSchema,
     totalDuration: RationalTimeSchema,
+    /** Letterbox fill colour (#RRGGBB[AA]). Renderers default to black. */
+    background: z.string().optional(),
   }),
   directorStyle: z.object({
     preset: z.enum([

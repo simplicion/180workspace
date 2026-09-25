@@ -23,6 +23,7 @@ import { redis } from '../../../system-configs/config/redis';
 export const MAX_DEVICES_PER_USER = 5;
 export const DEVICE_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const DEVICE_HEADER = 'x-desktop-device-token';
+export const NATIVE_DEVICE_HEADER = 'x-device-token';
 
 export type EnforcementMode = 'off' | 'report' | 'enforce';
 
@@ -46,6 +47,34 @@ export interface DeviceRecord {
   createdAt: number;
   lastSeenAt: number;
   platform?: string;
+  /** Push notification registration (native mobile). Never returned to other users; per company + user registry. */
+  push?: { provider: PushProvider; token: string; updatedAt: number };
+}
+
+export type PushProvider = 'fcm' | 'apns';
+
+export const DESKTOP_PLATFORMS = ['windows', 'macos', 'linux'] as const;
+export const MOBILE_PLATFORMS = ['ios', 'android'] as const;
+
+/**
+ * Normalises the client-reported platform. Case-insensitive ("iOS" is a phone, not a desktop). Unknown values are kept
+ * (lower-cased, trimmed, bounded) for display/audit but never select the native-device token type.
+ */
+export function normalizePlatform(platform?: string): string | undefined {
+  if (typeof platform !== 'string') return undefined;
+  const p = platform.toLowerCase().trim().replace(/[^a-z0-9_-]/g, '').slice(0, 20);
+  if (!p) return undefined;
+  if (p === 'mac' || p === 'darwin' || p === 'osx') return 'macos';
+  if (p === 'win' || p === 'win32') return 'windows';
+  return p;
+}
+
+export const isMobilePlatform = (platform?: string) => (MOBILE_PLATFORMS as readonly string[]).includes(platform || '');
+
+function defaultLabel(platform?: string) {
+  if (platform === 'ios') return 'iOS app';
+  if (platform === 'android') return 'Android app';
+  return 'Desktop app';
 }
 
 // ── registry (Redis; process memory only outside production) ─────────────────────────────────────────────────
@@ -90,6 +119,9 @@ async function saveDevice(companyId: string, userId: string, d: DeviceRecord) {
 }
 
 export async function revokeDevice(companyId: string, userId: string, deviceId: string): Promise<boolean> {
+  // A revoked device must stop receiving notifications: drop its push token from the owner index too.
+  const current = await findDevice(companyId, userId, deviceId);
+  if (current?.push) await releasePushOwner(current.push.token, { companyId, userId, deviceId });
   return withRegistry(
     async () => (await redis!.hdel(registryKey(companyId, userId), deviceId)) > 0,
     () => memory.get(registryKey(companyId, userId))?.delete(deviceId) ?? false
@@ -106,12 +138,59 @@ async function findDevice(companyId: string, userId: string, deviceId: string): 
   );
 }
 
+// ── push token ownership ─────────────────────────────────────────────────────────────────────────────────────
+// An FCM/APNs token identifies one app install, so it may belong to exactly ONE device record platform-wide. When a
+// phone is handed to another user (or re-registers as a new device), the old record must stop pointing at it, or the
+// previous user's notifications would be delivered to the new user. Keyed by a hash so raw push tokens are not keys.
+
+interface PushOwner { companyId: string; userId: string; deviceId: string }
+
+const pushMemory = new Map<string, PushOwner>();
+const pushOwnerKey = (token: string) => `desktop:push-owner:v1:${crypto.createHash('sha256').update(token).digest('hex')}`;
+const sameOwner = (a: PushOwner, b: PushOwner) => a.companyId === b.companyId && a.userId === b.userId && a.deviceId === b.deviceId;
+
+async function getPushOwner(token: string): Promise<PushOwner | null> {
+  return withRegistry(
+    async () => {
+      const raw = await redis!.get(pushOwnerKey(token));
+      return raw ? (JSON.parse(raw) as PushOwner) : null;
+    },
+    () => pushMemory.get(pushOwnerKey(token)) ?? null
+  );
+}
+
+async function setPushOwner(token: string, owner: PushOwner) {
+  await withRegistry(
+    async () => {
+      await redis!.set(pushOwnerKey(token), JSON.stringify(owner));
+    },
+    () => {
+      pushMemory.set(pushOwnerKey(token), owner);
+    }
+  );
+}
+
+/** Removes the ownership entry only if it still points at `owner` (another device may have claimed it since). */
+async function releasePushOwner(token: string, owner: PushOwner) {
+  const current = await getPushOwner(token);
+  if (!current || !sameOwner(current, owner)) return;
+  await withRegistry(
+    async () => {
+      await redis!.del(pushOwnerKey(token));
+    },
+    () => {
+      pushMemory.delete(pushOwnerKey(token));
+    }
+  );
+}
+
 // ── registration ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export class DeviceLimitError extends Error {}
 
-function signToken(companyId: string, userId: string, deviceId: string) {
-  return jwt.sign({ typ: 'desktop-device', cid: companyId, did: deviceId }, secret(), {
+function signToken(companyId: string, userId: string, deviceId: string, platform?: string) {
+  const typ = isMobilePlatform(platform) ? 'native-device' : 'desktop-device';
+  return jwt.sign({ typ, cid: companyId, did: deviceId, platform }, secret(), {
     algorithm: 'HS256',
     subject: userId,
     expiresIn: DEVICE_TOKEN_TTL_SECONDS,
@@ -129,21 +208,68 @@ export async function registerDevice(params: { companyId: string; userId: string
     const current = await findDevice(params.companyId, params.userId, params.deviceId);
     if (current) {
       await saveDevice(params.companyId, params.userId, { ...current, lastSeenAt: now });
-      return { deviceId: current.deviceId, token: signToken(params.companyId, params.userId, current.deviceId), label: current.label, expiresAt: now + DEVICE_TOKEN_TTL_SECONDS * 1000, renewed: true };
+      return { deviceId: current.deviceId, token: signToken(params.companyId, params.userId, current.deviceId, current.platform), label: current.label, platform: current.platform ?? null, kind: isMobilePlatform(current.platform) ? 'native-device' : 'desktop-device', expiresAt: now + DEVICE_TOKEN_TTL_SECONDS * 1000, renewed: true };
     }
     // unknown / revoked device id: fall through and register a brand new device
   }
 
   const existing = await listDevices(params.companyId, params.userId);
   if (existing.length >= MAX_DEVICES_PER_USER) {
-    throw new DeviceLimitError(`You can register at most ${MAX_DEVICES_PER_USER} devices. Remove one first.`);
+    // Auto-evict oldest inactive device (LRU) so users are never bricked by reinstalling or switching devices
+    const sorted = [...existing].sort((a, b) => (a.lastSeenAt || a.createdAt || 0) - (b.lastSeenAt || b.createdAt || 0));
+    const oldest = sorted[0];
+    if (oldest) {
+      await revokeDevice(params.companyId, params.userId, oldest.deviceId);
+    }
   }
   const deviceId = crypto.randomUUID();
-  const label = (params.label || 'Desktop app').replace(/[^\w .\-()]/g, '').slice(0, 60) || 'Desktop app';
-  await saveDevice(params.companyId, params.userId, { deviceId, label, createdAt: now, lastSeenAt: now, platform: params.platform?.slice(0, 20) });
+  const platform = normalizePlatform(params.platform);
+  const fallbackLabel = defaultLabel(platform);
+  const label = (params.label || fallbackLabel).replace(/[^\w .\-()]/g, '').slice(0, 60) || fallbackLabel;
+  await saveDevice(params.companyId, params.userId, { deviceId, label, createdAt: now, lastSeenAt: now, platform });
 
-  const token = signToken(params.companyId, params.userId, deviceId);
-  return { deviceId, token, label, expiresAt: now + DEVICE_TOKEN_TTL_SECONDS * 1000, renewed: false };
+  const token = signToken(params.companyId, params.userId, deviceId, platform);
+  return { deviceId, token, label, platform: platform ?? null, kind: isMobilePlatform(platform) ? 'native-device' : 'desktop-device', expiresAt: now + DEVICE_TOKEN_TTL_SECONDS * 1000, renewed: false };
+}
+
+/**
+ * Attaches (or clears, with token=null) the FCM/APNs push token of one of the caller's OWN registered devices.
+ * Returns false when the device does not exist for this company + user (never touches anyone else's registry).
+ */
+export async function setDevicePushToken(params: { companyId: string; userId: string; deviceId: string; provider?: PushProvider; token: string | null }): Promise<DeviceRecord | null> {
+  const current = await findDevice(params.companyId, params.userId, params.deviceId);
+  if (!current) return null;
+  const self: PushOwner = { companyId: params.companyId, userId: params.userId, deviceId: params.deviceId };
+  const next: DeviceRecord = { ...current, lastSeenAt: Date.now() };
+  if (current.push && current.push.token !== params.token) await releasePushOwner(current.push.token, self);
+  if (params.token && params.provider) {
+    // The token may still be attached to another device (another user signed in on this phone before): detach it there.
+    const previous = await getPushOwner(params.token);
+    if (previous && !sameOwner(previous, self)) {
+      const other = await findDevice(previous.companyId, previous.userId, previous.deviceId);
+      if (other?.push?.token === params.token) {
+        const { push: _detached, ...rest } = other;
+        await saveDevice(previous.companyId, previous.userId, rest);
+      }
+    }
+    await setPushOwner(params.token, self);
+    next.push = { provider: params.provider, token: params.token, updatedAt: Date.now() };
+  } else {
+    delete next.push;
+  }
+  await saveDevice(params.companyId, params.userId, next);
+  return next;
+}
+
+/**
+ * Sign-out on a native device: clears that device's push token so a signed-out phone receives no more notifications.
+ * Scoped to the company + user proven by the caller (the verified refresh token); no-op for unknown devices.
+ */
+export async function clearDevicePushOnLogout(params: { companyId: string; userId: string; deviceId: string }): Promise<boolean> {
+  const current = await findDevice(params.companyId, params.userId, params.deviceId);
+  if (!current?.push) return false;
+  await setDevicePushToken({ ...params, token: null });
+  return true;
 }
 
 // ── verification ────────────────────────────────────────────────────────────────────────────────────────────
@@ -156,15 +282,15 @@ export interface DeviceClaims {
 
 export function verifyDeviceToken(token: string): DeviceClaims {
   const payload = jwt.verify(token, secret(), { algorithms: ['HS256'] }) as jwt.JwtPayload;
-  if (payload.typ !== 'desktop-device' || !payload.sub || !payload.cid || !payload.did) {
-    throw new Error('not a desktop device token');
+  if ((payload.typ !== 'desktop-device' && payload.typ !== 'native-device') || !payload.sub || !payload.cid || !payload.did) {
+    throw new Error('not a native device token');
   }
   return { userId: String(payload.sub), companyId: String(payload.cid), deviceId: String(payload.did) };
 }
 
 /** Full check for a request: valid signature and expiry, belongs to THIS user and company, and not revoked. */
 export async function checkRequestDevice(req: Request): Promise<{ ok: true; deviceId: string } | { ok: false; reason: string }> {
-  const raw = req.headers[DEVICE_HEADER];
+  const raw = req.headers[NATIVE_DEVICE_HEADER] || req.headers[DEVICE_HEADER];
   const token = Array.isArray(raw) ? raw[0] : raw;
   if (!token) return { ok: false, reason: 'missing_token' };
 
@@ -192,6 +318,13 @@ export async function checkRequestDevice(req: Request): Promise<{ ok: true; devi
   return { ok: true, deviceId: claims.deviceId };
 }
 
+const MESSAGES: Record<string, string> = {
+  missing_token: 'This feature is only available in the 180 Workspace desktop or mobile app. Install it, sign in, and try again.',
+  invalid_token: 'This device\'s registration has expired or is invalid. Sign in again in the 180 Workspace app to re-register it.',
+  wrong_user: 'This device is registered to a different account or workspace. Sign in again in the 180 Workspace app.',
+  revoked: 'This device was removed from your account. Sign in again in the 180 Workspace app to register it.',
+};
+
 /** Express middleware. Mount AFTER `protect` (it needs req.user). */
 export async function requireDesktopDevice(req: Request, res: Response, next: NextFunction) {
   const mode = enforcementMode();
@@ -202,19 +335,25 @@ export async function requireDesktopDevice(req: Request, res: Response, next: Ne
     (req as any).desktopDeviceId = result.deviceId;
     return next();
   }
+  // Explicit: the backend tsconfig has strictNullChecks off, which disables boolean-discriminant narrowing.
+  const { reason } = result as { ok: false; reason: string };
 
   if (mode === 'report') {
-    console.warn(`[DesktopDevice] would reject ${req.method} ${req.originalUrl} (${result.reason}) user=${(req as any).user?.id}`);
+    console.warn(`[DesktopDevice] would reject ${req.method} ${req.originalUrl} (${reason}) user=${(req as any).user?.id}`);
     return next();
   }
 
-  if (result.reason === 'server_misconfigured') {
+  if (reason === 'server_misconfigured') {
     return res.status(503).json({ success: false, error: 'DESKTOP_DEVICE_UNAVAILABLE', message: 'Desktop device verification is not configured on the server.' });
   }
   return res.status(403).json({
     success: false,
     error: 'DESKTOP_APP_REQUIRED',
-    reason: result.reason,
-    message: 'This feature is only available from the 180 Workspace desktop app. Install it, sign in, and try again.',
+    reason,
+    // The error code stays DESKTOP_APP_REQUIRED for existing web/desktop clients; the message covers the mobile app too.
+    message: MESSAGES[reason] || MESSAGES.missing_token,
   });
 }
+
+export const requireNativeDevice = requireDesktopDevice;
+

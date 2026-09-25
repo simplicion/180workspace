@@ -6,9 +6,10 @@ import {
     X, Save, Film, Image as ImageIcon, CheckCircle2, Clock, 
     Send, Sparkles, User, Link as LinkIcon, MessageSquare, 
     Eye, ShieldCheck, Video, ExternalLink, RefreshCw, AlertCircle,
-    Hash, ShieldAlert, Layers, Check, AlertTriangle
+    Hash, ShieldAlert, Layers, Check, AlertTriangle, Zap, Bot, Heart
 } from 'lucide-react';
 import { SocialProject, socialProjectService } from '@/lib/services/social-project.service';
+import { socialEngagementService } from '@/lib/services/social-engagement.service';
 import { socialEdgeGuard, PlatformConstraintResult, BrandAuditResult } from '@/lib/services/social-edge-guard';
 import { InstagramFeedPreview } from '@/app/(platform)/(social-media-management-app)/_components/previews/InstagramFeedPreview';
 import { LinkedInPreview } from '@/app/(platform)/(social-media-management-app)/_components/previews/LinkedInPreview';
@@ -35,9 +36,19 @@ export const ContentDetailDrawer: React.FC<ContentDetailDrawerProps> = ({
     onSubmitDeliverableClick,
     onSendForApprovalClick
 }) => {
-    const [activeTab, setActiveTab] = useState<'script' | 'media' | 'editing' | 'preview' | 'approval' | 'publishing'>('script');
+    const [activeTab, setActiveTab] = useState<'script' | 'media' | 'editing' | 'preview' | 'approval' | 'publishing' | 'engagement'>('script');
     const [previewPlatform, setPreviewPlatform] = useState<'instagram' | 'linkedin' | 'tiktok' | 'youtube'>('instagram');
     const [showSafeZone, setShowSafeZone] = useState(true);
+
+    // 180 Engagement Auto-DM state
+    const [enableAutoDm, setEnableAutoDm] = useState(Boolean(post.metadata?.autoDm?.enabled || post.autoDmKeyword));
+    const [autoDmKeyword, setAutoDmKeyword] = useState(post.autoDmKeyword || post.metadata?.autoDm?.keyword || 'BLUEPRINT');
+    const [autoDmLink, setAutoDmLink] = useState(post.autoDmLink || post.metadata?.autoDm?.link || 'https://180workspace.com/blueprint');
+    const [autoDmMessage, setAutoDmMessage] = useState(
+        post.autoDmMessage || post.metadata?.autoDm?.message || 'Hey {name}! Here is your VIP resource link: {link} 🚀 What is your target monthly goal?'
+    );
+    const [autoLikeComment, setAutoLikeComment] = useState(post.metadata?.autoDm?.autoLike ?? true);
+    const [activateAiAgent, setActivateAiAgent] = useState(post.metadata?.autoDm?.activateAiAgent ?? true);
 
     // Form fields
     const [title, setTitle] = useState(post.title || '');
@@ -106,7 +117,15 @@ export const ContentDetailDrawer: React.FC<ContentDetailDrawerProps> = ({
                     ...post.metadata,
                     hook,
                     objective,
-                    firstComment
+                    firstComment,
+                    autoDm: {
+                        enabled: enableAutoDm,
+                        keyword: autoDmKeyword,
+                        link: autoDmLink,
+                        message: autoDmMessage,
+                        autoLike: autoLikeComment,
+                        activateAiAgent: activateAiAgent
+                    }
                 },
                 externalStorageLinks: externalDriveUrl ? [{
                     url: externalDriveUrl,
@@ -115,6 +134,26 @@ export const ContentDetailDrawer: React.FC<ContentDetailDrawerProps> = ({
                     submittedAt: new Date().toISOString()
                 }] : post.externalStorageLinks
             });
+
+            // If auto-DM is enabled, sync the engagement rule on the backend
+            if (enableAutoDm) {
+                socialEngagementService.createRule({
+                    name: `Auto-DM for "${title || 'Post'}"`,
+                    projectId: project.id,
+                    postId: post.id,
+                    triggerType: 'comment_keyword',
+                    triggerKeywords: autoDmKeyword.split(',').map(k => k.trim()).filter(Boolean),
+                    matchMode: 'contains',
+                    actionAutoLike: autoLikeComment,
+                    actionPublicReplies: ['Sent to your DMs, {handle}! 🚀'],
+                    actionSendDm: true,
+                    actionDmTemplate: autoDmMessage,
+                    actionDmDeliverableUrl: autoDmLink,
+                    actionEnableAiAgent: activateAiAgent,
+                    aiAgentGoal: 'qualify_lead'
+                }).catch(() => null);
+            }
+
             toast.success('Content & edge settings saved successfully!');
             onUpdated();
         } catch (err: any) {
@@ -195,6 +234,7 @@ export const ContentDetailDrawer: React.FC<ContentDetailDrawerProps> = ({
                         { id: 'editing', name: '180 Media Studio', icon: Video },
                         { id: 'preview', name: 'Live Previews', icon: Eye },
                         { id: 'approval', name: 'Approvals & Versions', icon: ShieldCheck },
+                        { id: 'engagement', name: '180 Engagement', icon: Zap },
                         { id: 'publishing', name: 'Publishing', icon: Send }
                     ].map(t => {
                         const Icon = t.icon;
@@ -743,6 +783,117 @@ export const ContentDetailDrawer: React.FC<ContentDetailDrawerProps> = ({
                                     <Send className="w-3.5 h-3.5" />
                                     <span>{isPublishing ? 'Publishing...' : 'Publish Post Now'}</span>
                                 </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 7: 180 Engagement Automation */}
+                    {activeTab === 'engagement' && (
+                        <div className="space-y-6">
+                            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
+                                <div className="p-2 bg-amber-500 text-white rounded-xl">
+                                    <Zap className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                                        180 Engagement Automation for this Creative Item
+                                    </h4>
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                                        Automatically trigger DMs and lead qualification when prospects comment on this post.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="p-5 rounded-2xl bg-white dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 space-y-4 shadow-sm">
+                                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-700">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-900 dark:text-zinc-100 block">
+                                            Enable Auto-DM on Comment
+                                        </label>
+                                        <p className="text-[11px] text-slate-400">
+                                            Send resource link directly to commenter&apos;s direct messages
+                                        </p>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={enableAutoDm}
+                                        onChange={(e) => setEnableAutoDm(e.target.checked)}
+                                        className="w-5 h-5 rounded text-amber-500 focus:ring-amber-500 cursor-pointer"
+                                    />
+                                </div>
+
+                                {enableAutoDm && (
+                                    <div className="space-y-4 pt-2">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                                                Trigger Keyword(s)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={autoDmKeyword}
+                                                onChange={(e) => setAutoDmKeyword(e.target.value)}
+                                                placeholder="BLUEPRINT, WORKFLOW, LINK"
+                                                className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 font-mono"
+                                            />
+                                            <span className="text-[10px] text-slate-400 mt-0.5 block">Commenters must write this keyword to receive the automated deliverable</span>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                                                Deliverable / Resource Link
+                                            </label>
+                                            <input
+                                                type="url"
+                                                value={autoDmLink}
+                                                onChange={(e) => setAutoDmLink(e.target.value)}
+                                                placeholder="https://180workspace.com/blueprint"
+                                                className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                                                Private Direct Message Template
+                                            </label>
+                                            <textarea
+                                                rows={3}
+                                                value={autoDmMessage}
+                                                onChange={(e) => setAutoDmMessage(e.target.value)}
+                                                className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100"
+                                            />
+                                            <div className="mt-1 flex items-center gap-1.5">
+                                                <span className="text-[10px] text-slate-400">Available Tags:</span>
+                                                <button type="button" onClick={() => setAutoDmMessage(prev => `${prev} {name}`)} className="px-1.5 py-0.5 text-[10px] bg-slate-200 dark:bg-zinc-700 rounded font-mono text-slate-700 dark:text-zinc-300">{'{name}'}</button>
+                                                <button type="button" onClick={() => setAutoDmMessage(prev => `${prev} {handle}`)} className="px-1.5 py-0.5 text-[10px] bg-slate-200 dark:bg-zinc-700 rounded font-mono text-slate-700 dark:text-zinc-300">{'{handle}'}</button>
+                                                <button type="button" onClick={() => setAutoDmMessage(prev => `${prev} {link}`)} className="px-1.5 py-0.5 text-[10px] bg-slate-200 dark:bg-zinc-700 rounded font-mono text-slate-700 dark:text-zinc-300">{'{link}'}</button>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-2">
+                                            <span className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                                                Auto-Like Commenter&apos;s Comment (Boost Reach)
+                                            </span>
+                                            <input
+                                                type="checkbox"
+                                                checked={autoLikeComment}
+                                                onChange={(e) => setAutoLikeComment(e.target.checked)}
+                                                className="w-4 h-4 rounded text-rose-500 cursor-pointer"
+                                            />
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-1">
+                                            <span className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                                                Activate 180 AI Follow-Up Agent
+                                            </span>
+                                            <input
+                                                type="checkbox"
+                                                checked={activateAiAgent}
+                                                onChange={(e) => setActivateAiAgent(e.target.checked)}
+                                                className="w-4 h-4 rounded text-purple-600 cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

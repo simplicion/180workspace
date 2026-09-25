@@ -77,17 +77,29 @@ export class AudioDuckingMixer {
     const sfxTrack = tracks.find((t) => t.type === "SFX");
     const sfxClips = sfxTrack?.clips || [];
 
-    const hasBgm = bgmClip && fs.existsSync(bgmClip.sourcePath);
-    const validSfxClips = sfxClips.filter((c) => fs.existsSync(c.sourcePath));
+    // Only feed inputs that actually carry an audio stream; `[n:a]` on a video-only file
+    // fails the whole graph with "Stream specifier ':a' matches no streams".
+    const dialogue = await this.probeAudio(dialoguePath);
+    const hasBgm = Boolean(bgmClip && fs.existsSync(bgmClip.sourcePath) && (await this.probeAudio(bgmClip.sourcePath)).hasAudio);
+    const validSfxClips: typeof sfxClips = [];
+    for (const c of sfxClips) {
+      if (fs.existsSync(c.sourcePath) && (await this.probeAudio(c.sourcePath)).hasAudio) validSfxClips.push(c);
+    }
 
-    if (!hasBgm && validSfxClips.length === 0) {
+    if (!hasBgm && validSfxClips.length === 0 && dialogue.hasAudio) {
       if (dialoguePath !== outputPath) {
         fs.copyFileSync(dialoguePath, outputPath);
       }
       return outputPath;
     }
 
-    let cmd = ffmpeg(dialoguePath);
+    // Silent dialogue source (e.g. drone B-roll): substitute a silent stereo bed of the same
+    // length as input 0 so ducking/mixing still runs and the output length follows the video.
+    let cmd = dialogue.hasAudio
+      ? ffmpeg(dialoguePath)
+      : ffmpeg()
+          .input("anullsrc=channel_layout=stereo:sample_rate=48000")
+          .inputOptions(["-f lavfi", "-t", `${dialogue.durationSeconds > 0 ? dialogue.durationSeconds : 1}`]);
     let inputIdx = 1;
     let bgmIdx = -1;
     const sfxIndices: { idx: number; delayMs: number; volumeDb: number }[] = [];
@@ -149,6 +161,20 @@ export class AudioDuckingMixer {
           }
         })
         .run();
+    });
+  }
+
+  /**
+   * Reports whether a file has an audio stream, plus its container duration.
+   */
+  private static probeAudio(filePath: string): Promise<{ hasAudio: boolean; durationSeconds: number }> {
+    return new Promise((resolve) => {
+      ffmpeg.ffprobe(filePath, (err: Error | null, metadata: any) => {
+        if (err || !metadata) return resolve({ hasAudio: false, durationSeconds: 0 });
+        const hasAudio = Boolean(metadata.streams?.some((s: any) => s.codec_type === "audio"));
+        const durationSeconds = metadata.format?.duration ? parseFloat(metadata.format.duration) : 0;
+        resolve({ hasAudio, durationSeconds });
+      });
     });
   }
 

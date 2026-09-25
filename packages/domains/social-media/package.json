@@ -3,15 +3,19 @@
   "version": "1.0.0",
   "description": "Social Media Management Domain Services",
   "main": "dist/index.js",
+  "files": ["dist", "assets"],
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "fonts:fetch": "tsx scripts/fetch-brand-fonts.ts"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.80",
     "@workspace/ai": "workspace:*",
     "@workspace/db": "workspace:*",
-    "@workspace/workspace-tools": "workspace:*"
+    "@workspace/workspace-tools": "workspace:*",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

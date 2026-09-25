@@ -72,7 +72,7 @@ export class BrollIndexer {
 
     const queryTokens = query
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/[^\p{L}\p{M}\p{N}\s]/gu, "")
       .split(/\s+/)
       .filter((t) => t.length > 2);
 

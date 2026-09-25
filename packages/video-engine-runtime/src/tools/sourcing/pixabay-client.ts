@@ -86,7 +86,6 @@ interface CacheEntry<T> {
 }
 
 export class PixabayClient {
-  private static readonly DEFAULT_KEY = "57666814-12aaf03b6b1cd67addc8cbe20";
   private static readonly BASE_URL = "https://pixabay.com/api";
   private static readonly CACHE_TTL_MS = 24 * 60 * 60 * 1000; // Mandatory 24 hours per Pixabay API terms
   private static readonly DISK_CACHE_DIR = path.join(os.tmpdir(), "pixabay_cache_v1");
@@ -100,12 +99,13 @@ export class PixabayClient {
   private static rateLimitRemaining = 100;
   private static rateLimitReset = 60;
 
+  /** Reads the key from the environment only. Throws when unset (never falls back to a literal). */
   static getApiKey(): string {
-    return (
-      process.env.PIXABAY_API_KEY ||
-      process.env.NEXT_PUBLIC_PIXABAY_API_KEY ||
-      this.DEFAULT_KEY
-    );
+    const key = process.env.PIXABAY_API_KEY || process.env.NEXT_PUBLIC_PIXABAY_API_KEY;
+    if (!key) {
+      throw new Error("PIXABAY_API_KEY is not set.");
+    }
+    return key;
   }
 
   /**

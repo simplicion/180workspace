@@ -19,11 +19,17 @@ export class AICompanyConfigService {
         let metadata: any = {};
         let companyRecord: any = null;
 
+        // Fail closed: a tenant's AI keys live in its own company metadata. We never fall back to another
+        // company's record (the previous `findFirst()` fallback leaked the first tenant's keys to any caller whose
+        // company could not be resolved). With no companyId only platform-level env keys are used.
         if (companyId) {
-            companyRecord = await prisma.company.findUnique({ where: { id: companyId } }).catch(() => null);
-        }
-        if (!companyRecord) {
-            companyRecord = await prisma.company.findFirst().catch(() => null);
+            companyRecord = await prisma.company.findUnique({ where: { id: companyId } });
+            if (!companyRecord) {
+                const err: any = new Error('Company not found; AI settings cannot be resolved');
+                err.code = 'COMPANY_NOT_FOUND';
+                err.statusCode = 404;
+                throw err;
+            }
         }
 
         if (companyRecord) {

@@ -14,6 +14,7 @@ import { PublishingTab } from './_components/tabs/PublishingTab';
 import { InboxTab } from './_components/tabs/InboxTab';
 import { AnalyticsTab } from './_components/tabs/AnalyticsTab';
 import { BrandVoiceTab } from './_components/tabs/BrandVoiceTab';
+import { EngagementTab } from './_components/tabs/EngagementTab';
 import { SettingsTab } from './_components/tabs/SettingsTab';
 import { ContentDetailDrawer } from './_components/ContentDetailDrawer';
 import { AssignEditorModal } from './_components/AssignEditorModal';
@@ -86,8 +87,8 @@ export default function SocialProjectWorkspacePage() {
             const newPost = await socialProjectService.createPost({
                 projectId,
                 clientId: project?.clientIds?.[0] || undefined,
-                title: idea.headline,
-                content: `${idea.hook}\n\n[Full Script Talking Points]\n\nCTA: Link in bio.`,
+                title: idea.headline || idea.title,
+                content: [idea.hook, idea.caption].filter(Boolean).join('\n\n'),
                 scheduledFor: new Date(),
                 mediaType: idea.format || 'video'
             });
@@ -180,6 +181,10 @@ export default function SocialProjectWorkspacePage() {
 
                     {currentTab === 'inbox' && (
                         <InboxTab project={project} />
+                    )}
+
+                    {currentTab === 'engagement' && (
+                        <EngagementTab project={project} />
                     )}
 
                     {currentTab === 'analytics' && (

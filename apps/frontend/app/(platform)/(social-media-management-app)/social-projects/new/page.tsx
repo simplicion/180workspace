@@ -1,679 +1,390 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-    ArrowLeft, ArrowRight, Check, Sparkles, Building2, Layers, 
-    Share2, Users, ShieldCheck, Plus, X, Globe, MessageSquare, 
-    Film, Image, BarChart3, Palette, HelpCircle
-} from 'lucide-react';
-import { socialProjectService } from '@/lib/services/social-project.service';
-import api from '@/lib/api';
+import { ArrowLeft, ArrowRight, Check, Share2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Button, Input } from '@workspace/ui';
+import api from '@/lib/api';
+import { socialProjectService } from '@/lib/services/social-project.service';
+import {
+    BrandIdentitySection,
+    BrandPreviewCard,
+    CompletenessNotice,
+    Field,
+    PlatformPicker,
+    VisualIdentitySection,
+    VoiceSection,
+    brandCardClass,
+} from '../_components/brand/BrandSections';
+import {
+    BRAND_TYPE_OPTIONS,
+    CAPTION_PRESET_OPTIONS,
+    PLATFORM_OPTIONS,
+    draftErrors,
+    draftToPatch,
+    emptyBrandDraft,
+    missingRequired,
+    type BrandDraft,
+} from '../_components/brand/brand-draft';
 
-const SERVICES_OPTIONS = [
-    { id: 'content_calendar', name: 'Content Strategy & Calendar', icon: Layers, desc: 'AI-assisted content mapping and schedule management' },
-    { id: 'short_form_video', name: 'Short-Form Video Production', icon: Film, desc: 'Reels, TikToks, Shorts intake and 180 Media Studio editing' },
-    { id: 'static_posts', name: 'Static & Carousel Production', icon: Image, desc: 'Feed image creation, multi-slide carousels, and graphics' },
-    { id: 'publishing', name: 'Multi-Platform Publishing', icon: Share2, desc: 'Automated scheduling across Instagram, LinkedIn, TikTok, YouTube' },
-    { id: 'inbox', name: 'Community Inbox & AI Replies', icon: MessageSquare, desc: 'Unified comment and direct message response management' },
-    { id: 'analytics', name: 'Analytics & Attribution', icon: BarChart3, desc: 'Live reach, engagement reporting, and business outcome tracking' }
+const STEPS = ['Basics & client', 'Brand identity', 'Visual identity', 'Voice', 'Platforms & accounts', 'Review'];
+
+const SERVICES = [
+    { id: 'content_calendar', name: 'Content calendar' },
+    { id: 'short_form_video', name: 'Short-form video' },
+    { id: 'static_posts', name: 'Posts & carousels' },
+    { id: 'publishing', name: 'Publishing' },
+    { id: 'inbox', name: 'Inbox' },
+    { id: 'analytics', name: 'Analytics' },
 ];
 
-const TONE_PRESETS = [
-    'Professional & Insightful',
-    'Bold & Provocative',
-    'Casual & Authentic',
-    'Educational & Authoritative',
-    'Witty & Entertaining',
-    'Inspirational & Uplifting'
-];
+const TIMEZONES = ['UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Asia/Kolkata', 'Asia/Tokyo'];
+
+interface Basics {
+    name: string;
+    clientMode: 'existing' | 'new' | 'none';
+    clientId: string;
+    clientName: string;
+    clientEmail: string;
+    description: string;
+    startDate: string;
+    endDate: string;
+    socialServices: string[];
+    connectedAccountIds: string[];
+    approvalRequired: boolean;
+    defaultTimezone: string;
+}
+
+const selectClass = 'h-11 w-full rounded-2xl border border-input bg-background px-3 text-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100';
+const inputClass = 'h-11 dark:border-zinc-800 dark:bg-zinc-950';
 
 export default function CreateSocialProjectWizardPage() {
     const router = useRouter();
-    const [step, setStep] = useState(1);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // Existing clients & accounts for selection
+    const [step, setStep] = useState(0);
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
     const [clients, setClients] = useState<any[]>([]);
-    const [availableAccounts, setAvailableAccounts] = useState<any[]>([]);
-    const [teamMembers, setTeamMembers] = useState<any[]>([]);
-
-    // Wizard Form State
-    const [formData, setFormData] = useState({
-        // Step 1
-        name: '',
-        clientId: '',
-        clientName: '',
-        clientEmail: '',
-        isNewClient: false,
-        description: '',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: '',
-
-        // Step 2
-        socialServices: ['content_calendar', 'short_form_video', 'publishing', 'analytics'],
-
-        // Step 3: Brand Voice
-        brandTone: 'Professional & Insightful',
-        targetAudience: 'Growth-minded founders, marketers, and decision-makers',
-        contentPillars: ['Industry Trends & Insights', 'Actionable Frameworks', 'Customer Success Stories', 'Behind the Scenes'],
-        newPillarInput: '',
-        forbiddenWords: ['revolutionary', 'disruptive', 'cheap'],
-        newForbiddenWord: '',
-        standardCtas: ['Link in bio to get started', 'Comment YOUR thoughts below', 'DM us "GROW" for details'],
-        newCtaInput: '',
-
-        // Step 4: Social Accounts
-        connectedAccountIds: [] as string[],
-
-        // Step 5: Team & Rules
-        approvalRequired: true,
-        defaultTimezone: 'UTC',
-        storageRetentionDays: 30,
-        teamMemberIds: [] as string[]
+    const [accounts, setAccounts] = useState<any[]>([]);
+    const [prereqError, setPrereqError] = useState(false);
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [draft, setDraft] = useState<BrandDraft>(emptyBrandDraft);
+    const [basics, setBasics] = useState<Basics>(() => {
+        const tz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
+        return {
+            name: '', clientMode: 'existing', clientId: '', clientName: '', clientEmail: '', description: '',
+            startDate: new Date().toISOString().split('T')[0], endDate: '',
+            socialServices: ['content_calendar', 'short_form_video', 'publishing', 'analytics'],
+            connectedAccountIds: [], approvalRequired: true, defaultTimezone: TIMEZONES.includes(tz) ? tz : 'UTC',
+        };
     });
 
-    useEffect(() => {
-        // Fetch clients & social accounts for dropdowns
-        const fetchPrerequisites = async () => {
-            try {
-                const [clientsRes, accountsRes, usersRes] = await Promise.all([
-                    api.get('/api/clients').catch(() => ({ data: { clients: [] } })),
-                    api.get('/api/social-media/accounts').catch(() => ({ data: { accounts: [] } })),
-                    api.get('/api/users').catch(() => ({ data: { users: [] } }))
-                ]);
-                setClients(clientsRes.data?.clients || []);
-                setAvailableAccounts(accountsRes.data?.accounts || []);
-                setTeamMembers(usersRes.data?.users || []);
-            } catch (e) {
-                console.error('Failed to load prerequisites', e);
-            }
-        };
-        fetchPrerequisites();
-    }, []);
+    const update = (patch: Partial<BrandDraft>) => setDraft((d) => ({ ...d, ...patch }));
+    const setB = (patch: Partial<Basics>) => setBasics((b) => ({ ...b, ...patch }));
+    const errors = useMemo(() => draftErrors(draft), [draft]);
+    const missing = useMemo(() => missingRequired(draft), [draft]);
 
-    const toggleService = (serviceId: string) => {
-        setFormData(prev => ({
-            ...prev,
-            socialServices: prev.socialServices.includes(serviceId)
-                ? prev.socialServices.filter(s => s !== serviceId)
-                : [...prev.socialServices, serviceId]
-        }));
+    const loadPrereqs = async () => {
+        setPrereqError(false);
+        const [c, a] = await Promise.allSettled([api.get('/api/clients'), api.get('/api/social-media/accounts')]);
+        if (c.status === 'fulfilled') setClients(c.value.data?.clients || []);
+        if (a.status === 'fulfilled') setAccounts(a.value.data?.accounts || []);
+        if (c.status === 'rejected' || a.status === 'rejected') setPrereqError(true);
+    };
+    useEffect(() => { loadPrereqs(); }, []);
+
+    const stepError = (): string | null => {
+        if (step === 0 && !basics.name.trim()) return 'Give the project a name.';
+        if (step === 0 && basics.clientMode === 'new' && !basics.clientName.trim()) return 'Enter the new client’s name, or choose “No client”.';
+        if (step === 2 && Object.keys(errors).some((k) => k.startsWith('colors.'))) return 'Fix the colour values (use #RRGGBB).';
+        if (step === 1 && (errors.tagline || errors.positioning)) return errors.tagline || errors.positioning || null;
+        return null;
     };
 
-    const addPillar = () => {
-        if (!formData.newPillarInput.trim()) return;
-        setFormData(prev => ({
-            ...prev,
-            contentPillars: [...prev.contentPillars, prev.newPillarInput.trim()],
-            newPillarInput: ''
-        }));
+    const next = () => {
+        const e = stepError();
+        if (e) { toast.error(e); return; }
+        setStep((s) => Math.min(s + 1, STEPS.length - 1));
     };
 
-    const removePillar = (index: number) => {
-        setFormData(prev => ({
-            ...prev,
-            contentPillars: prev.contentPillars.filter((_, i) => i !== index)
-        }));
-    };
-
-    const addForbiddenWord = () => {
-        if (!formData.newForbiddenWord.trim()) return;
-        setFormData(prev => ({
-            ...prev,
-            forbiddenWords: [...prev.forbiddenWords, prev.newForbiddenWord.trim()],
-            newForbiddenWord: ''
-        }));
-    };
-
-    const removeForbiddenWord = (index: number) => {
-        setFormData(prev => ({
-            ...prev,
-            forbiddenWords: prev.forbiddenWords.filter((_, i) => i !== index)
-        }));
-    };
-
-    const toggleAccountSelection = (accId: string) => {
-        setFormData(prev => ({
-            ...prev,
-            connectedAccountIds: prev.connectedAccountIds.includes(accId)
-                ? prev.connectedAccountIds.filter(id => id !== accId)
-                : [...prev.connectedAccountIds, accId]
-        }));
-    };
-
-    const handleCreateProject = async () => {
-        if (!formData.name.trim()) {
-            toast.error('Please enter a project name');
-            setStep(1);
-            return;
-        }
-
-        setIsSubmitting(true);
+    const create = async () => {
+        if (!basics.name.trim()) { setStep(0); toast.error('Give the project a name.'); return; }
+        if (Object.keys(errors).length) { toast.error('Some brand fields need fixing before you can create the project.'); return; }
+        setSubmitting(true);
+        setSubmitError(null);
         try {
-            const payload = {
-                name: formData.name,
-                clientId: !formData.isNewClient && formData.clientId ? formData.clientId : undefined,
-                clientName: formData.isNewClient ? formData.clientName : undefined,
-                clientEmail: formData.isNewClient ? formData.clientEmail : undefined,
-                description: formData.description,
-                startDate: formData.startDate || undefined,
-                endDate: formData.endDate || undefined,
-                socialServices: formData.socialServices,
-                brandProfile: {
-                    tone: formData.brandTone,
-                    targetAudience: formData.targetAudience,
-                    contentPillars: formData.contentPillars,
-                    forbiddenWords: formData.forbiddenWords,
-                    standardCtas: formData.standardCtas
-                },
-                connectedAccountIds: formData.connectedAccountIds,
-                teamMemberIds: formData.teamMemberIds,
-                settings: {
-                    approvalRequired: formData.approvalRequired,
-                    defaultTimezone: formData.defaultTimezone,
-                    storageRetentionDays: formData.storageRetentionDays
+            const { logoUrl: _logo, ...brandConsciousness } = draftToPatch(draft);
+            const project = await socialProjectService.createProject({
+                name: basics.name.trim(),
+                clientId: basics.clientMode === 'existing' && basics.clientId ? basics.clientId : undefined,
+                clientName: basics.clientMode === 'new' ? basics.clientName.trim() : undefined,
+                clientEmail: basics.clientMode === 'new' && basics.clientEmail.trim() ? basics.clientEmail.trim() : undefined,
+                description: basics.description.trim(),
+                startDate: basics.startDate || undefined,
+                endDate: basics.endDate || undefined,
+                socialServices: basics.socialServices,
+                brandConsciousness,
+                connectedAccountIds: basics.connectedAccountIds,
+                settings: { approvalRequired: basics.approvalRequired, defaultTimezone: basics.defaultTimezone, storageRetentionDays: 30 },
+            });
+            if (logoFile) {
+                try {
+                    await socialProjectService.uploadBrandLogo(project.id, logoFile);
+                } catch (err: any) {
+                    toast.error(`Project created, but the logo did not upload: ${err.response?.data?.message || err.message}. Add it again in the Brand tab.`);
+                    router.push(`/social-projects/${project.id}?tab=brand`);
+                    return;
                 }
-            };
-
-            const project = await socialProjectService.createProject(payload);
-            toast.success('Social Media Project created successfully!');
+            }
+            toast.success('Project created');
             router.push(`/social-projects/${project.id}`);
         } catch (err: any) {
-            toast.error(err.response?.data?.error || err.message || 'Failed to create project');
+            const data = err.response?.data;
+            setSubmitError(data?.message || data?.error || err.message || 'The project could not be created.');
         } finally {
-            setIsSubmitting(false);
+            setSubmitting(false);
         }
     };
 
     return (
-        <div className="min-h-screen p-6 md:p-10 bg-slate-50/50 dark:bg-slate-950/50 flex flex-col justify-between">
-            <div className="max-w-4xl mx-auto w-full space-y-8">
-                {/* Top Nav Back */}
+        <div className="min-h-screen bg-gray-50 p-4 dark:bg-black md:p-10">
+            <div className="mx-auto w-full max-w-5xl space-y-6">
                 <div className="flex items-center justify-between">
-                    <Link
-                        href="/social-projects"
-                        className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        <span>Back to Projects</span>
+                    <Link href="/social-projects" className="inline-flex min-h-[44px] items-center gap-2 text-sm font-medium text-gray-600 transition-all duration-300 hover:text-gray-900 dark:text-gray-400 dark:hover:text-zinc-100">
+                        <ArrowLeft className="h-4 w-4" /> Back to projects
                     </Link>
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Step {step} of 5
-                    </span>
+                    <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400">Step {step + 1} of {STEPS.length}</span>
                 </div>
 
-                {/* Progress Indicator */}
-                <div className="grid grid-cols-5 gap-2">
-                    {[
-                        'Basic Info',
-                        'Services',
-                        'Brand Voice',
-                        'Social Accounts',
-                        'Team & Rules'
-                    ].map((title, idx) => {
-                        const stepNum = idx + 1;
-                        const isDone = step > stepNum;
-                        const isCurrent = step === stepNum;
+                <nav aria-label="Wizard steps">
+                    <ol className="grid grid-cols-6 gap-2">
+                        {STEPS.map((title, i) => (
+                            <li key={title}>
+                                <button
+                                    type="button"
+                                    onClick={() => (i < step ? setStep(i) : undefined)}
+                                    aria-current={i === step ? 'step' : undefined}
+                                    className="w-full space-y-1.5 text-left"
+                                    disabled={i > step}
+                                >
+                                    <div className={`h-1.5 rounded-full transition-all duration-300 ${i < step ? 'bg-emerald-500' : i === step ? 'bg-gray-900 dark:bg-white' : 'bg-gray-200 dark:bg-zinc-800'}`} />
+                                    <span className={`hidden truncate text-xs md:block ${i === step ? 'font-bold text-gray-900 dark:text-zinc-100' : 'text-gray-500 dark:text-zinc-500'}`}>{title}</span>
+                                </button>
+                            </li>
+                        ))}
+                    </ol>
+                </nav>
 
-                        return (
-                            <div key={title} className="space-y-1.5">
-                                <div
-                                    className={`h-2 rounded-full transition-all duration-300 ${
-                                        isDone
-                                            ? 'bg-emerald-500'
-                                            : isCurrent
-                                            ? 'bg-indigo-600 shadow-md shadow-indigo-600/30'
-                                            : 'bg-slate-200 dark:bg-slate-800'
-                                    }`}
-                                />
-                                <p className={`text-[11px] font-medium hidden sm:block truncate ${
-                                    isCurrent ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-400'
-                                }`}>
-                                    {title}
-                                </p>
-                            </div>
-                        );
-                    })}
-                </div>
+                <section className={brandCardClass}>
+                    <header className="mb-6">
+                        <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-zinc-100">{STEPS[step]}</h1>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            {[
+                                'Name the project and choose who it is for.',
+                                'Who the brand is. Every AI agent reads this before writing anything.',
+                                'Colours, logo and font used for captions, carousels and graphics.',
+                                'How the brand sounds, and what it never says.',
+                                'Where the brand publishes and which connected accounts belong to it.',
+                                'Check everything. You can change any of it later in the project’s Brand tab.',
+                            ][step]}
+                        </p>
+                    </header>
 
-                {/* Step Card Content */}
-                <div className="p-8 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 shadow-xl shadow-slate-900/5 min-h-[460px]">
-                    {/* STEP 1: Basic Info */}
-                    {step === 1 && (
+                    {step === 0 && (
                         <div className="space-y-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Project Overview</h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                    Name your social engagement and designate the client relationship.
-                                </p>
+                            <Field label="Project name" htmlFor="p-name">
+                                <Input id="p-name" value={basics.name} maxLength={120} placeholder="e.g. Acme Coffee social" onChange={(e) => setB({ name: e.target.value })} className={inputClass} />
+                            </Field>
+                            <Field label="Client">
+                                <div role="radiogroup" className="flex flex-wrap gap-2">
+                                    {([['existing', 'Existing client'], ['new', 'New client'], ['none', 'No client']] as const).map(([v, l]) => (
+                                        <Button key={v} type="button" role="radio" aria-checked={basics.clientMode === v} variant={basics.clientMode === v ? 'default' : 'outline'} className="h-11" onClick={() => setB({ clientMode: v })}>{l}</Button>
+                                    ))}
+                                </div>
+                                {basics.clientMode === 'existing' && (
+                                    <select aria-label="Existing client" value={basics.clientId} onChange={(e) => setB({ clientId: e.target.value })} className={`${selectClass} mt-2`}>
+                                        <option value="">{clients.length ? 'Choose a client' : 'No clients yet'}</option>
+                                        {clients.map((c) => <option key={c.id || c._id} value={c.id || c._id}>{c.name}{c.companyName ? ` (${c.companyName})` : ''}</option>)}
+                                    </select>
+                                )}
+                                {basics.clientMode === 'new' && (
+                                    <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        <Input aria-label="Client name" placeholder="Client name" value={basics.clientName} onChange={(e) => setB({ clientName: e.target.value })} className={inputClass} />
+                                        <Input aria-label="Client email" type="email" placeholder="Client email (optional)" value={basics.clientEmail} onChange={(e) => setB({ clientEmail: e.target.value })} className={inputClass} />
+                                    </div>
+                                )}
+                            </Field>
+                            <Field label="Project notes" hint="Goals and deliverables for the team. The brand description comes in the next step." htmlFor="p-desc">
+                                <textarea id="p-desc" rows={3} value={basics.description} onChange={(e) => setB({ description: e.target.value })} className="w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100" />
+                            </Field>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <Field label="Start date" htmlFor="p-start"><Input id="p-start" type="date" value={basics.startDate} onChange={(e) => setB({ startDate: e.target.value })} className={inputClass} /></Field>
+                                <Field label="End date (optional)" htmlFor="p-end"><Input id="p-end" type="date" value={basics.endDate} onChange={(e) => setB({ endDate: e.target.value })} className={inputClass} /></Field>
                             </div>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                                        Project Name <span className="text-rose-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. Acme Q3 Growth Campaign"
-                                        value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-3 text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 transition text-slate-900 dark:text-slate-100 font-medium"
-                                    />
-                                </div>
-
-                                <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                                            Client Association
-                                        </label>
-                                        <button
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, isNewClient: !formData.isNewClient })}
-                                            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
-                                        >
-                                            {formData.isNewClient ? '← Select Existing Client' : '+ Create New Client'}
-                                        </button>
-                                    </div>
-
-                                    {formData.isNewClient ? (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <input
-                                                type="text"
-                                                placeholder="Client Company Name"
-                                                value={formData.clientName}
-                                                onChange={e => setFormData({ ...formData, clientName: e.target.value })}
-                                                className="px-3.5 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100"
-                                            />
-                                            <input
-                                                type="email"
-                                                placeholder="Client Primary Email"
-                                                value={formData.clientEmail}
-                                                onChange={e => setFormData({ ...formData, clientEmail: e.target.value })}
-                                                className="px-3.5 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <select
-                                            value={formData.clientId}
-                                            onChange={e => setFormData({ ...formData, clientId: e.target.value })}
-                                            className="w-full px-4 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100"
-                                        >
-                                            <option value="">-- Select Existing Client --</option>
-                                            {clients.map(c => (
-                                                <option key={c.id || c._id} value={c.id || c._id}>
-                                                    {c.name} {c.companyName ? `(${c.companyName})` : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                                        Project Scope & Objective
-                                    </label>
-                                    <textarea
-                                        rows={3}
-                                        placeholder="Describe the strategic goals, key deliverables, and client KPIs..."
-                                        value={formData.description}
-                                        onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                        className="w-full px-4 py-3 text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 transition text-slate-900 dark:text-slate-100"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                                            Start Date
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={formData.startDate}
-                                            onChange={e => setFormData({ ...formData, startDate: e.target.value })}
-                                            className="w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                                            Target End / Milestone Date
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={formData.endDate}
-                                            onChange={e => setFormData({ ...formData, endDate: e.target.value })}
-                                            className="w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* STEP 2: Included Services */}
-                    {step === 2 && (
-                        <div className="space-y-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Engagement Services</h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                    Select the capabilities enabled for this client project workspace.
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {SERVICES_OPTIONS.map(service => {
-                                    const Icon = service.icon;
-                                    const isSelected = formData.socialServices.includes(service.id);
-
-                                    return (
-                                        <div
-                                            key={service.id}
-                                            onClick={() => toggleService(service.id)}
-                                            className={`p-5 rounded-2xl border cursor-pointer transition-all duration-200 flex items-start gap-4 ${
-                                                isSelected
-                                                    ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 shadow-md shadow-indigo-500/10'
-                                                    : 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                                            }`}
-                                        >
-                                            <div className={`p-3 rounded-xl ${
-                                                isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
-                                            }`}>
-                                                <Icon className="w-5 h-5" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between">
-                                                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                                                        {service.name}
-                                                    </h4>
-                                                    {isSelected && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
-                                                </div>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                    {service.desc}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* STEP 3: Brand Voice & AI Context */}
-                    {step === 3 && (
-                        <div className="space-y-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Brand Voice & AI Profile</h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                    Configure this project's isolated brand identity. The AI will strictly honor these guardrails.
-                                </p>
-                            </div>
-
-                            <div className="space-y-5">
-                                {/* Tone Selector */}
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
-                                        Brand Voice Tone
-                                    </label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                        {TONE_PRESETS.map(tone => (
-                                            <button
-                                                type="button"
-                                                key={tone}
-                                                onClick={() => setFormData({ ...formData, brandTone: tone })}
-                                                className={`p-2.5 text-xs font-semibold rounded-xl border text-left transition ${
-                                                    formData.brandTone === tone
-                                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
-                                                }`}
-                                            >
-                                                {tone}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Target Audience */}
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                                        Target Audience
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.targetAudience}
-                                        onChange={e => setFormData({ ...formData, targetAudience: e.target.value })}
-                                        className="w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100"
-                                    />
-                                </div>
-
-                                {/* Content Pillars */}
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                                        Content Pillars (Themes)
-                                    </label>
-                                    <div className="flex flex-wrap gap-2 mb-2">
-                                        {formData.contentPillars.map((p, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-lg border border-indigo-100 dark:border-indigo-900"
-                                            >
-                                                {p}
-                                                <button type="button" onClick={() => removePillar(idx)} className="hover:text-rose-500">
-                                                    <X className="w-3.5 h-3.5" />
-                                                </button>
-                                            </span>
-                                        ))}
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Add content pillar..."
-                                            value={formData.newPillarInput}
-                                            onChange={e => setFormData({ ...formData, newPillarInput: e.target.value })}
-                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPillar(); } }}
-                                            className="flex-1 px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={addPillar}
-                                            className="px-4 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Forbidden Words */}
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                                        Forbidden Words / Anti-Vocabulary
-                                    </label>
-                                    <div className="flex flex-wrap gap-2 mb-2">
-                                        {formData.forbiddenWords.map((w, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 rounded-lg border border-rose-100 dark:border-rose-900"
-                                            >
-                                                {w}
-                                                <button type="button" onClick={() => removeForbiddenWord(idx)} className="hover:text-rose-700">
-                                                    <X className="w-3.5 h-3.5" />
-                                                </button>
-                                            </span>
-                                        ))}
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. cheap, guarantee..."
-                                            value={formData.newForbiddenWord}
-                                            onChange={e => setFormData({ ...formData, newForbiddenWord: e.target.value })}
-                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addForbiddenWord(); } }}
-                                            className="flex-1 px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={addForbiddenWord}
-                                            className="px-4 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* STEP 4: Social Accounts */}
-                    {step === 4 && (
-                        <div className="space-y-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Social Accounts</h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                    Associate target social accounts for publishing and community management.
-                                </p>
-                            </div>
-
-                            {availableAccounts.length === 0 ? (
-                                <div className="text-center py-10 p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700">
-                                    <Share2 className="w-10 h-10 mx-auto text-slate-400 mb-2" />
-                                    <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">No Connected Social Accounts Yet</h4>
-                                    <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
-                                        You can continue project creation now and link Instagram, LinkedIn, TikTok, or YouTube accounts later in project settings.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {availableAccounts.map(acc => {
-                                        const isSelected = formData.connectedAccountIds.includes(acc.id);
+                            <Field label="Services in this project">
+                                <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                                    {SERVICES.map((s) => {
+                                        const on = basics.socialServices.includes(s.id);
                                         return (
-                                            <div
-                                                key={acc.id}
-                                                onClick={() => toggleAccountSelection(acc.id)}
-                                                className={`p-4 rounded-2xl border cursor-pointer flex items-center justify-between transition ${
-                                                    isSelected
-                                                        ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 shadow-sm'
-                                                        : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
-                                                }`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-xs uppercase">
-                                                        {acc.platform.slice(0, 2)}
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{acc.accountName}</h4>
-                                                        <p className="text-xs text-slate-500">@{acc.username} ({acc.platform})</p>
-                                                    </div>
-                                                </div>
-                                                {isSelected && <Check className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />}
-                                            </div>
+                                            <Button key={s.id} type="button" aria-pressed={on} variant={on ? 'default' : 'outline'} className="h-11 justify-between" onClick={() => setB({ socialServices: on ? basics.socialServices.filter((x) => x !== s.id) : [...basics.socialServices, s.id] })}>
+                                                {s.name} {on && <Check className="h-4 w-4" aria-hidden />}
+                                            </Button>
                                         );
                                     })}
                                 </div>
-                            )}
+                            </Field>
                         </div>
                     )}
 
-                    {/* STEP 5: Team & Workflow Rules */}
+                    {step === 1 && <BrandIdentitySection draft={draft} update={update} errors={errors} />}
+
+                    {step === 2 && (
+                        <VisualIdentitySection
+                            draft={draft}
+                            update={update}
+                            errors={errors}
+                            logo={{ pendingFile: logoFile, onFile: setLogoFile, onRemove: () => { setLogoFile(null); update({ logoUrl: '' }); } }}
+                        />
+                    )}
+
+                    {step === 3 && <VoiceSection draft={draft} update={update} />}
+
+                    {step === 4 && (
+                        <div className="space-y-8">
+                            <PlatformPicker draft={draft} update={update} />
+                            <Field label="Connected accounts" hint="Accounts already connected in this workspace. You can connect more later from the project’s Publishing tab.">
+                                {prereqError && (
+                                    <div role="alert" aria-live="polite" className="flex flex-wrap items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                                        Could not load accounts or clients.
+                                        <Button type="button" variant="outline" className="h-11" onClick={loadPrereqs}>Try again</Button>
+                                        <span>or continue and link accounts later.</span>
+                                    </div>
+                                )}
+                                {accounts.length === 0 && !prereqError ? (
+                                    <div className="rounded-2xl border border-dashed border-gray-300 p-6 text-center dark:border-zinc-700">
+                                        <Share2 className="mx-auto mb-2 h-8 w-8 text-gray-400" aria-hidden />
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">No connected accounts yet</p>
+                                        <p className="mx-auto mt-1 max-w-sm text-xs text-gray-600 dark:text-gray-400">Create the project now and connect Instagram, TikTok, YouTube, LinkedIn, Facebook or X from its Publishing tab.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                        {accounts.map((acc) => {
+                                            const on = basics.connectedAccountIds.includes(acc.id);
+                                            return (
+                                                <button
+                                                    key={acc.id}
+                                                    type="button"
+                                                    aria-pressed={on}
+                                                    onClick={() => setB({ connectedAccountIds: on ? basics.connectedAccountIds.filter((x) => x !== acc.id) : [...basics.connectedAccountIds, acc.id] })}
+                                                    className={`flex min-h-[56px] items-center justify-between rounded-2xl border p-3 text-left transition-all duration-300 ${on ? 'border-gray-900 bg-gray-50 dark:border-white dark:bg-zinc-800' : 'border-gray-200 hover:bg-gray-100 dark:border-zinc-800 dark:hover:bg-zinc-800'}`}
+                                                >
+                                                    <span>
+                                                        <span className="block text-sm font-semibold text-gray-900 dark:text-zinc-100">{acc.accountName}</span>
+                                                        <span className="block text-xs text-gray-500 dark:text-zinc-400">@{acc.username} · {acc.platform}</span>
+                                                    </span>
+                                                    {on && <Check className="h-4 w-4" aria-hidden />}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </Field>
+                        </div>
+                    )}
+
                     {step === 5 && (
-                        <div className="space-y-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Workflow Rules & Team Access</h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                    Set approval requirements, default timezones, and asset retention policies.
-                                </p>
-                            </div>
-
-                            <div className="space-y-4">
-                                {/* Approval Required Toggle */}
-                                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                                    <div>
-                                        <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                                            Require Client / Editorial Approval
-                                        </h4>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                            Content cannot be scheduled or published until approved via the client review portal.
-                                        </p>
-                                    </div>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.approvalRequired}
-                                        onChange={e => setFormData({ ...formData, approvalRequired: e.target.checked })}
-                                        className="w-5 h-5 accent-indigo-600 rounded cursor-pointer"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                                            Default Publishing Timezone
-                                        </label>
-                                        <select
-                                            value={formData.defaultTimezone}
-                                            onChange={e => setFormData({ ...formData, defaultTimezone: e.target.value })}
-                                            className="w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100"
-                                        >
-                                            <option value="UTC">UTC (Universal)</option>
-                                            <option value="America/New_York">Eastern Time (US/Canada)</option>
-                                            <option value="America/Los_Angeles">Pacific Time (US/Canada)</option>
-                                            <option value="Europe/London">London (GMT/BST)</option>
-                                            <option value="Asia/Kolkata">India (IST)</option>
-                                            <option value="Asia/Tokyo">Tokyo (JST)</option>
+                        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                            <div className="space-y-6">
+                                <CompletenessNotice missing={missing} />
+                                <ReviewList
+                                    onEdit={setStep}
+                                    rows={[
+                                        [0, 'Project', basics.name || '—'],
+                                        [0, 'Client', basics.clientMode === 'new' ? basics.clientName || '—' : basics.clientMode === 'existing' ? clients.find((c) => (c.id || c._id) === basics.clientId)?.name || '—' : 'None'],
+                                        [1, 'Brand', [draft.brandName, BRAND_TYPE_OPTIONS.find((o) => o.id === draft.brandType)?.label].filter(Boolean).join(' · ') || '—'],
+                                        [1, 'Positioning', draft.positioning || '—'],
+                                        [1, 'Tagline', draft.tagline || '—'],
+                                        [2, 'Font', draft.font || '—'],
+                                        [2, 'Caption style', CAPTION_PRESET_OPTIONS.find((o) => o.id === draft.captionStylePreset)?.label || '—'],
+                                        [2, 'Logo', logoFile ? logoFile.name : '—'],
+                                        [3, 'Tone', draft.tone || '—'],
+                                        [3, 'Audience', draft.audience || '—'],
+                                        [3, 'Restricted words', draft.forbiddenWords.join(', ') || '—'],
+                                        [3, 'CTAs', draft.ctas.join(' · ') || '—'],
+                                        [3, 'Hashtags', draft.hashtags.join(' ') || '—'],
+                                        [4, 'Platforms', draft.targetPlatforms.map((p) => PLATFORM_OPTIONS.find((o) => o.id === p)?.label).join(', ') || '—'],
+                                        [4, 'Accounts', basics.connectedAccountIds.length ? `${basics.connectedAccountIds.length} linked` : '—'],
+                                    ]}
+                                />
+                                <div className="space-y-4 rounded-2xl border border-gray-200 p-4 dark:border-zinc-800">
+                                    <label className="flex min-h-[44px] items-center justify-between gap-4 text-sm">
+                                        <span>
+                                            <span className="block font-semibold text-gray-900 dark:text-zinc-100">Require approval before publishing</span>
+                                            <span className="block text-xs text-gray-600 dark:text-gray-400">Posts go to the client review link first.</span>
+                                        </span>
+                                        <input type="checkbox" checked={basics.approvalRequired} onChange={(e) => setB({ approvalRequired: e.target.checked })} className="h-5 w-5 accent-gray-900 dark:accent-white" />
+                                    </label>
+                                    <Field label="Publishing timezone" htmlFor="p-tz">
+                                        <select id="p-tz" value={basics.defaultTimezone} onChange={(e) => setB({ defaultTimezone: e.target.value })} className={selectClass}>
+                                            {TIMEZONES.map((t) => <option key={t} value={t}>{t}</option>)}
                                         </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                                            Raw Footage Retention (Days)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={formData.storageRetentionDays}
-                                            onChange={e => setFormData({ ...formData, storageRetentionDays: parseInt(e.target.value) || 30 })}
-                                            className="w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100"
-                                        />
-                                    </div>
+                                    </Field>
                                 </div>
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Brand preview</p>
+                                <LogoAwarePreview draft={draft} file={logoFile} />
                             </div>
                         </div>
                     )}
-                </div>
 
-                {/* Wizard Footer Controls */}
-                <div className="flex items-center justify-between pt-4">
-                    {step > 1 ? (
-                        <button
-                            type="button"
-                            onClick={() => setStep(step - 1)}
-                            className="px-6 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 transition"
-                        >
-                            Previous Step
-                        </button>
-                    ) : <div />}
+                    {submitError && (
+                        <div role="alert" aria-live="assertive" className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                            <span className="flex-1">{submitError}</span>
+                            <Button type="button" variant="outline" className="h-11" onClick={create}>Try again</Button>
+                            <Button type="button" variant="ghost" className="h-11" onClick={() => setStep(1)}>Review brand fields</Button>
+                        </div>
+                    )}
+                </section>
 
-                    {step < 5 ? (
-                        <button
-                            type="button"
-                            onClick={() => setStep(step + 1)}
-                            className="inline-flex items-center gap-2 px-7 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-600/25 transition active:scale-95"
-                        >
-                            <span>Next Step</span>
-                            <ArrowRight className="w-4 h-4" />
-                        </button>
+                <div className="flex items-center justify-between">
+                    {step > 0 ? <Button type="button" variant="outline" size="lg" onClick={() => setStep(step - 1)}>Back</Button> : <span />}
+                    {step < STEPS.length - 1 ? (
+                        <div className="flex items-center gap-2">
+                            {step >= 1 && step <= 4 && <Button type="button" variant="ghost" size="lg" onClick={() => setStep(step + 1)}>Skip for now</Button>}
+                            <Button type="button" size="lg" onClick={next}>Continue <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                        </div>
                     ) : (
-                        <button
-                            type="button"
-                            onClick={handleCreateProject}
-                            disabled={isSubmitting}
-                            className="inline-flex items-center gap-2 px-8 py-3 text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-xl shadow-lg shadow-emerald-600/25 transition active:scale-95 disabled:opacity-50"
-                        >
-                            <Sparkles className="w-4 h-4" />
-                            <span>{isSubmitting ? 'Creating Project...' : 'Launch Social Project'}</span>
-                        </button>
+                        <Button type="button" size="lg" onClick={create} disabled={submitting}>{submitting ? 'Creating…' : 'Create project'}</Button>
                     )}
                 </div>
             </div>
         </div>
     );
+}
+
+function ReviewList({ rows, onEdit }: { rows: [number, string, string][]; onEdit: (step: number) => void }) {
+    return (
+        <dl className="divide-y divide-gray-100 rounded-2xl border border-gray-200 dark:divide-zinc-800 dark:border-zinc-800">
+            {rows.map(([s, label, value]) => (
+                <div key={label} className="flex items-start gap-3 p-3">
+                    <dt className="w-32 shrink-0 text-xs font-semibold text-gray-500 dark:text-zinc-400">{label}</dt>
+                    <dd className={`flex-1 break-words text-sm ${value === '—' ? 'text-gray-400 dark:text-zinc-600' : 'text-gray-900 dark:text-zinc-100'}`}>{value}</dd>
+                    <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => onEdit(s)}>Edit</Button>
+                </div>
+            ))}
+        </dl>
+    );
+}
+
+function LogoAwarePreview({ draft, file }: { draft: BrandDraft; file: File | null }) {
+    const [url, setUrl] = useState<string | null>(null);
+    useEffect(() => {
+        if (!file) { setUrl(null); return; }
+        const u = URL.createObjectURL(file);
+        setUrl(u);
+        return () => URL.revokeObjectURL(u);
+    }, [file]);
+    return <BrandPreviewCard draft={draft} logoPreview={url} />;
 }

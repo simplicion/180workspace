@@ -1,5 +1,16 @@
 import { prisma, requestContext } from '@workspace/db';
 
+import {
+    brandPatchFromCreateBody,
+    getProjectBrandConsciousness,
+    mergeBrandPatch,
+    updateProjectBrandConsciousness,
+    type BrandConsciousnessWithPrompt,
+} from './brand-consciousness';
+
+/** @deprecated use `BrandConsciousness` from './brand-consciousness'. Kept so existing imports compile (legacy getters included). */
+export type BrandConsciousnessProfile = BrandConsciousnessWithPrompt;
+
 export interface CreateSocialProjectDTO {
     name: string;
     clientId?: string;
@@ -12,6 +23,12 @@ export interface CreateSocialProjectDTO {
     startDate?: Date | string;
     endDate?: Date | string;
     socialServices?: string[];
+    /**
+     * Brand consciousness fields may be sent top-level (canonical names such as `positioning`, `colors`, `logoUrl`,
+     * or the older `brandPositioning`, `brandColors`, `brandLogo`, ...), inside `brandProfile`, or as
+     * `brandConsciousness{...}`. They are validated by `brandPatchFromCreateBody` (brand-consciousness.ts).
+     */
+    [brandField: string]: any;
     brandProfile?: {
         tone?: string;
         targetAudience?: string;
@@ -236,6 +253,10 @@ export class SocialProjectService {
         const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
         if (!companyId) throw new Error('Company context required');
 
+        if (!data?.name || typeof data.name !== 'string' || !data.name.trim()) throw new Error('Project name is required');
+        // Validate brand input before anything is written, so a bad colour never leaves a half-created project.
+        const brand = brandPatchFromCreateBody(data);
+
         let clientId = data.clientId;
 
         // Auto-create client if clientName provided and clientId absent
@@ -280,20 +301,10 @@ export class SocialProjectService {
             }
         });
 
-        // 2. Initialize Brand Voice Profile if provided or default
-        const brandProfile = data.brandProfile || {};
+        // 2. Brand voice / brand consciousness: store exactly what the user gave (validated above), nothing invented.
+        const { columns, metadata } = mergeBrandPatch(project, null, brand.patch, brand.extraMetadata);
         await (prisma as any).brandVoiceProfile.create({
-            data: {
-                companyId,
-                projectId: project.id,
-                tone: brandProfile.tone || 'Professional & Insightful',
-                targetAudience: brandProfile.targetAudience || 'General Audience',
-                sampleViralPosts: brandProfile.sampleViralPosts || [],
-                forbiddenWords: brandProfile.forbiddenWords || [],
-                defaultHashtags: brandProfile.defaultHashtags || [],
-                standardCtas: brandProfile.standardCtas || [],
-                metadata: brandProfile.metadata || {}
-            }
+            data: { companyId, projectId: project.id, ...columns, metadata }
         });
 
         // 3. Associate connected social accounts if provided
@@ -328,7 +339,7 @@ export class SocialProjectService {
             }
         }
 
-        return this.getProjectById(project.id);
+        return this.getProjectById(project.id, companyId);
     }
 
     /**
@@ -658,5 +669,17 @@ export class SocialProjectService {
         });
 
         return updated;
+    }
+
+    /** Delegates to `getProjectBrandConsciousness` in brand-consciousness.ts (the canonical entry point). */
+    static async getProjectBrandConsciousness(projectId: string, explicitCompanyId?: string): Promise<BrandConsciousnessWithPrompt> {
+        const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
+        return getProjectBrandConsciousness(projectId, companyId);
+    }
+
+    /** Validated partial update; delegates to brand-consciousness.ts. */
+    static async updateBrandConsciousness(projectId: string, payload: unknown, explicitCompanyId?: string): Promise<BrandConsciousnessWithPrompt> {
+        const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
+        return updateProjectBrandConsciousness(projectId, companyId, payload);
     }
 }

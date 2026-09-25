@@ -258,6 +258,12 @@ router.post('/v1/traffic-director/verify-tag', (req: any, res: any, next: any) =
 // Public Social Media Review Session (Magic Link Portal)
 router.use('/v1/social-media/reviews/public', require('../api/v1/social-media/reviews/client-review.routes').publicReviewRouter);
 
+// Public social-account OAuth callback (provider redirects the browser here; trust comes from the signed one-time state)
+router.use('/v1/social-media/accounts/oauth', require('../api/v1/social-media/accounts/social-account.routes').oauthCallbackRouter);
+
+// Public Meta Webhooks & Callbacks (Challenge handshake, event receiver, deauthorization, data deletion)
+router.use('/v1/social-media/webhooks/meta', require('../api/v1/social-media/webhooks/meta-webhook.routes').metaWebhookRouter);
+
 router.use('/v1/communications', protect, communicationsRoutes);
 router.use('/v1/advertising', protect, moduleGuard('advertising'), advertisingRoutes);
 router.use('/v1/traffic-director', protect, moduleGuard('traffic-director'), trafficDirectorRoutes);

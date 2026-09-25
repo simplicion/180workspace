@@ -54,7 +54,8 @@ export function currentDeviceToken(now = Date.now()): string | null {
 /** Media processing endpoints that require the device token. */
 export function isMediaApiUrl(url: string | undefined | null): boolean {
   if (!url) return false;
-  return /\/(media-editor|video-studio)\/(ai-direct|generate-from-prompt|render)(\/|$|\?)/.test(url) || /\/social-media\/posts\/sync-studio-render(\/|$|\?)/.test(url);
+  return /\/(media-editor|video-studio)\/(ai-direct|generate-from-prompt|render)(\/|$|\?)/.test(url) || /\/social-media\/posts\/sync-studio-render(\/|$|\?)/.test(url)
+    || /\/social-media\/calendar-pieces\/[^/?]+\/final-video(\/|$|\?)/.test(url);
 }
 
 export type RegisterFn = (body: { label: string; platform: string; deviceId?: string }) => Promise<StoredDevice>;

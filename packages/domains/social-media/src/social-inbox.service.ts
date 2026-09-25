@@ -1,9 +1,10 @@
 import { prisma, requestContext } from '@workspace/db';
 import { BrandVoiceService } from './brand-voice.service';
+import { getDb } from './publishing/http';
 
 export interface IngestMessageDTO {
     socialAccountId: string;
-    platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube';
+    platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube' | 'threads';
     platformThreadId: string;
     participantName: string;
     participantHandle: string;
@@ -18,12 +19,13 @@ export class SocialInboxService {
         const companyId = requestContext.getStore()?.companyId as string;
         if (!companyId) throw new Error('Company context required');
 
+        const db = getDb();
         const whereClause: any = { companyId };
         if (filters?.projectId) whereClause.projectId = filters.projectId;
         if (filters?.platform) whereClause.platform = filters.platform;
         if (filters?.isRead !== undefined) whereClause.isRead = filters.isRead;
 
-        const conversations = await (prisma as any).socialConversation.findMany({
+        const conversations = await db.socialConversation.findMany({
             where: whereClause,
             orderBy: { lastMessageAt: 'desc' },
             include: {
@@ -38,7 +40,8 @@ export class SocialInboxService {
 
     static async getConversation(id: string) {
         const companyId = requestContext.getStore()?.companyId as string;
-        const conversation = await (prisma as any).socialConversation.findUnique({
+        const db = getDb();
+        const conversation = await db.socialConversation.findUnique({
             where: { id },
             include: {
                 socialAccount: true,
@@ -53,7 +56,7 @@ export class SocialInboxService {
 
         // Mark as read
         if (!conversation.isRead) {
-            await (prisma as any).socialConversation.update({
+            await db.socialConversation.update({
                 where: { id },
                 data: { isRead: true }
             }).catch(() => null);
@@ -64,10 +67,11 @@ export class SocialInboxService {
 
     static async sendMessage(conversationId: string, content: string, senderType: 'agent' | 'ai_bot' = 'agent') {
         const companyId = requestContext.getStore()?.companyId as string;
-        const conversation = await (prisma as any).socialConversation.findUnique({ where: { id: conversationId } });
+        const db = getDb();
+        const conversation = await db.socialConversation.findUnique({ where: { id: conversationId } });
         if (!conversation || conversation.companyId !== companyId) throw new Error('Conversation not found');
 
-        const message = await (prisma as any).socialMessage.create({
+        const message = await db.socialMessage.create({
             data: {
                 conversationId,
                 senderType,
@@ -75,7 +79,7 @@ export class SocialInboxService {
             }
         });
 
-        await (prisma as any).socialConversation.update({
+        await db.socialConversation.update({
             where: { id: conversationId },
             data: {
                 lastMessageSnippet: content.substring(0, 120),
@@ -91,7 +95,8 @@ export class SocialInboxService {
      */
     static async generateAiSmartReplies(conversationId: string) {
         const companyId = requestContext.getStore()?.companyId as string;
-        const conversation = await (prisma as any).socialConversation.findUnique({
+        const db = getDb();
+        const conversation = await db.socialConversation.findUnique({
             where: { id: conversationId },
             include: { messages: { take: 5, orderBy: { createdAt: 'desc' } } }
         });
@@ -130,16 +135,19 @@ export class SocialInboxService {
      * Populates CRM Leads in packages/domains/crm-and-sales
      */
     static async convertToCrmLead(conversationId: string) {
-        const companyId = requestContext.getStore()?.companyId as string;
-        const conversation = await (prisma as any).socialConversation.findUnique({
+        const db = getDb();
+        const contextCompanyId = requestContext.getStore()?.companyId as string | undefined;
+        const conversation = await db.socialConversation.findUnique({
             where: { id: conversationId },
             include: { messages: true }
         });
 
-        if (!conversation || conversation.companyId !== companyId) throw new Error('Conversation not found');
+        if (!conversation) throw new Error('Conversation not found');
+        const companyId = contextCompanyId || conversation.companyId;
+        if (contextCompanyId && conversation.companyId !== contextCompanyId) throw new Error('Conversation not found');
 
         // Create Lead in CRM
-        const lead = await (prisma as any).lead.create({
+        const lead = await db.lead.create({
             data: {
                 companyId,
                 name: conversation.participantName || `@${conversation.participantHandle}`,
@@ -150,7 +158,7 @@ export class SocialInboxService {
         });
 
         // Link to conversation
-        await (prisma as any).socialConversation.update({
+        await db.socialConversation.update({
             where: { id: conversationId },
             data: { convertedLeadId: lead.id }
         });
@@ -161,4 +169,69 @@ export class SocialInboxService {
             lead
         };
     }
+
+    /**
+     * Ingests an incoming message (or comment/mention) from a platform webhook into the database.
+     * Upserts the conversation and inserts the message.
+     */
+    static async ingestMessage(dto: IngestMessageDTO & { companyId: string }) {
+        const db = getDb();
+        const {
+            companyId,
+            socialAccountId,
+            platform,
+            platformThreadId,
+            participantName,
+            participantHandle,
+            participantAvatar,
+            messageContent,
+            platformMessageId,
+            projectId,
+        } = dto;
+
+        // Upsert the conversation
+        const conversation = await db.socialConversation.upsert({
+            where: {
+                companyId_platform_platformThreadId: {
+                    companyId,
+                    platform,
+                    platformThreadId,
+                },
+            },
+            update: {
+                lastMessageSnippet: (messageContent || '').substring(0, 120),
+                lastMessageAt: new Date(),
+                isRead: false,
+                ...(participantName ? { participantName } : {}),
+                ...(participantHandle ? { participantHandle } : {}),
+                ...(participantAvatar ? { participantAvatar } : {}),
+            },
+            create: {
+                companyId,
+                projectId: projectId ?? null,
+                socialAccountId,
+                platform,
+                platformThreadId,
+                participantName: participantName || participantHandle || 'Participant',
+                participantHandle: participantHandle || 'anonymous',
+                participantAvatar: participantAvatar ?? null,
+                lastMessageSnippet: (messageContent || '').substring(0, 120),
+                lastMessageAt: new Date(),
+                isRead: false,
+            },
+        });
+
+        // Insert the incoming message
+        const message = await db.socialMessage.create({
+            data: {
+                conversationId: conversation.id,
+                senderType: 'participant',
+                content: messageContent || '',
+                platformMessageId: platformMessageId ?? null,
+            },
+        });
+
+        return { conversation, message };
+    }
 }
+

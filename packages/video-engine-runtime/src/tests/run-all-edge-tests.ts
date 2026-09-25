@@ -68,7 +68,9 @@ async function main() {
 
   for (const t of tests) {
     try {
-      await t.fn();
+      // Some suites report failure by returning false instead of throwing.
+      const result: unknown = await t.fn();
+      if (result === false) throw new Error("suite reported failure (returned false)");
       passed++;
     } catch (err: any) {
       console.error(`\n❌ FAILED [Test ${t.id}]: ${t.name}`);

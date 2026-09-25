@@ -104,6 +104,8 @@ api.interceptors.response.use(
                     { refreshToken }
                 );
                 localStorage.setItem('platform_auth_token', data.token);
+                // Refresh tokens rotate: the presented one is consumed, so the new one must replace it.
+                if (data.refreshToken) localStorage.setItem('platform_refresh_token', data.refreshToken);
                 updateSocketAuth(data.token);
                 original.headers.Authorization = `Bearer ${data.token}`;
                 return api(original);

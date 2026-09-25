@@ -12,7 +12,7 @@ import type { AddressInfo } from 'net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import desktopRoutes from './desktop.routes';
-import { DEVICE_HEADER, MAX_DEVICES_PER_USER, requireDesktopDevice, verifyDeviceToken } from './desktop-device';
+import { DEVICE_HEADER, NATIVE_DEVICE_HEADER, MAX_DEVICES_PER_USER, requireDesktopDevice, requireNativeDevice, verifyDeviceToken } from './desktop-device';
 
 let server: http.Server;
 let base = '';
@@ -185,4 +185,93 @@ test('enforce without a server secret answers 503 (misconfiguration), not a misl
   delete process.env.DESKTOP_DEVICE_JWT_SECRET;
   const r = await render(u, token);
   assert.equal(r.status, 503);
+});
+
+test('native mobile devices (ios/android) register native-device tokens and authenticate via x-device-token', async () => {
+  const u = freshUser();
+  const regIos = await call('POST', '/api/desktop/devices/register', { user: u, body: { label: 'iPhone 15 Pro', platform: 'ios' } });
+  assert.equal(regIos.status, 201);
+  assert.equal(regIos.json.success, true);
+
+  // Token should verify as native device
+  const claims = verifyDeviceToken(regIos.json.token);
+  assert.equal(claims.userId, u);
+  assert.equal(claims.deviceId, regIos.json.deviceId);
+
+  // Authenticate using NATIVE_DEVICE_HEADER ('x-device-token')
+  const authResponse = await fetch(base + '/api/media/render', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-test-user': u,
+      [NATIVE_DEVICE_HEADER]: regIos.json.token,
+    },
+  }).then(async (r) => ({ status: r.status, json: (await r.json()) as any }));
+
+  assert.equal(authResponse.status, 200);
+  assert.equal(authResponse.json.deviceId, regIos.json.deviceId);
+});
+
+
+test('platform is normalised: "iOS" / "Android" get native-device tokens, desktop platforms and unknown values stay desktop-device', async () => {
+  const u = freshUser();
+  const kindOf = (t: string) => (jwt.decode(t) as any).typ;
+  const ios = await call('POST', '/api/desktop/devices/register', { user: u, body: { platform: 'iOS' } });
+  assert.equal(ios.status, 201);
+  assert.equal(ios.json.platform, 'ios');
+  assert.equal(ios.json.kind, 'native-device');
+  assert.equal(ios.json.label, 'iOS app', 'mobile devices do not default to "Desktop app"');
+  assert.equal(kindOf(ios.json.token), 'native-device');
+
+  const android = await call('POST', '/api/desktop/devices/register', { user: u, body: { platform: ' ANDROID ' } });
+  assert.equal(kindOf(android.json.token), 'native-device');
+
+  const win = await call('POST', '/api/desktop/devices/register', { user: u, body: { platform: 'windows' } });
+  assert.equal(win.json.kind, 'desktop-device');
+  assert.equal(win.json.label, 'Desktop app');
+  const legacy = await call('POST', '/api/desktop/devices/register', { user: u, body: {} });
+  assert.equal(kindOf(legacy.json.token), 'desktop-device', 'desktop app that sends no platform keeps its old token type');
+
+  // renewal keeps the stored platform even if the client omits it
+  const renewed = await call('POST', '/api/desktop/devices/register', { user: u, body: { deviceId: ios.json.deviceId } });
+  assert.equal(renewed.json.renewed, true);
+  assert.equal(kindOf(renewed.json.token), 'native-device');
+});
+
+test('the legacy x-desktop-device-token header still works for native-device tokens, and rejections explain themselves', async () => {
+  const u = freshUser();
+  const reg = await call('POST', '/api/desktop/devices/register', { user: u, body: { platform: 'android' } });
+  const viaLegacyHeader = await render(u, reg.json.token);
+  assert.equal(viaLegacyHeader.status, 200);
+
+  const missing = await render(u);
+  assert.equal(missing.json.error, 'DESKTOP_APP_REQUIRED', 'error code unchanged for existing clients');
+  assert.match(missing.json.message, /desktop or mobile app/);
+  await call('DELETE', `/api/desktop/devices/${reg.json.deviceId}`, { user: u });
+  const revoked = await render(u, reg.json.token);
+  assert.equal(revoked.json.reason, 'revoked');
+  assert.match(revoked.json.message, /removed from your account/);
+});
+
+test('push tokens: owner can set and clear; token never echoed; other users cannot touch the device; input validated', async () => {
+  const u = freshUser();
+  const reg = await call('POST', '/api/desktop/devices/register', { user: u, body: { platform: 'ios', label: 'iPhone' } });
+  const path = `/api/desktop/devices/${reg.json.deviceId}/push-token`;
+  const pushToken = 'a'.repeat(64);
+
+  assert.equal((await call('PUT', path, { user: u, body: { provider: 'gcm', token: pushToken } })).status, 400);
+  assert.equal((await call('PUT', path, { user: u, body: { provider: 'apns', token: 'short' } })).status, 400);
+  assert.equal((await call('PUT', path, { user: freshUser(), body: { provider: 'apns', token: pushToken } })).status, 404, 'not your device');
+  assert.equal((await call('PUT', path, { user: u, company: 'co-2', body: { provider: 'apns', token: pushToken } })).status, 404, 'not your company');
+
+  const ok = await call('PUT', path, { user: u, body: { provider: 'apns', token: pushToken } });
+  assert.equal(ok.status, 200);
+  assert.deepEqual({ provider: ok.json.device.push.provider, registered: ok.json.device.push.registered }, { provider: 'apns', registered: true });
+  assert.ok(!JSON.stringify(ok.json).includes(pushToken), 'push token is not echoed');
+  const listed = await call('GET', '/api/desktop/devices', { user: u });
+  assert.ok(!JSON.stringify(listed.json).includes(pushToken), 'nor listed');
+
+  const cleared = await call('PUT', path, { user: u, body: { token: null } });
+  assert.equal(cleared.status, 200);
+  assert.equal(cleared.json.device.push, null);
 });

@@ -9,14 +9,18 @@ import {
   Video,
   Layers,
   Wand2,
+  FolderOpen,
+  Search,
 } from "lucide-react";
-import { EditIR, DirectorStylePreset, VideoClip, Transition } from "@workspace/video-contracts";
+import { EditIR, DirectorStylePreset, MediaAssetDescriptor, VideoClip, Transition } from "@workspace/video-contracts";
 import { AIDirectorPanel, DirectorChatMessage } from "./AIDirectorPanel";
 import { ClipInspector } from "./ClipInspector";
 import { AICriticDrawer } from "./AICriticDrawer";
+import { StockMediaPanel } from "./StockMediaPanel";
+import { AssetBin } from "./AssetBin";
 import { CompanyAIStatus, AIDirectorProgressEvent } from "../services/tauri-bridge";
 
-export type LeftSidebarTab = "director" | "inspector" | "critic";
+export type LeftSidebarTab = "director" | "inspector" | "critic" | "assets" | "stock";
 
 interface LeftSidebarDockProps {
   activeTab: LeftSidebarTab;
@@ -60,6 +64,13 @@ interface LeftSidebarDockProps {
   // Critic Props
   editIR: EditIR;
   onApplyCriticRepairs?: (repairs: any[]) => void;
+  // Assets & Stock Props
+  assets?: MediaAssetDescriptor[];
+  onImportFiles?: () => void;
+  onAddAssetToProject?: (asset: MediaAssetDescriptor) => void;
+  onAddClipToTimeline?: (asset: MediaAssetDescriptor) => void;
+  onDeleteAsset?: (assetId: string) => void;
+  onAddAssetToTimeline?: (asset: MediaAssetDescriptor) => void;
 }
 
 export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
@@ -97,6 +108,12 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
   onCloseInspector,
   editIR,
   onApplyCriticRepairs,
+  assets = [],
+  onImportFiles,
+  onAddAssetToProject,
+  onAddClipToTimeline,
+  onDeleteAsset,
+  onAddAssetToTimeline,
 }) => {
   if (!isOpen) {
     return (
@@ -168,6 +185,43 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
         >
           <Sparkles className="w-4 h-4" />
         </button>
+
+        <div className="w-5 h-px bg-[#1C1C22]" />
+
+        <button
+          onClick={() => {
+            onTabChange("assets");
+            onToggleOpen();
+          }}
+          className={`p-2 rounded-lg transition relative ${
+            activeTab === "assets"
+              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+              : "text-zinc-500 hover:text-zinc-300 hover:bg-[#15151C]"
+          }`}
+          title="Project Assets"
+        >
+          <FolderOpen className="w-4 h-4" />
+          {assets.length > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full bg-emerald-500 text-[8px] text-white font-bold flex items-center justify-center px-0.5">
+              {assets.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => {
+            onTabChange("stock");
+            onToggleOpen();
+          }}
+          className={`p-2 rounded-lg transition ${
+            activeTab === "stock"
+              ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+              : "text-zinc-500 hover:text-zinc-300 hover:bg-[#15151C]"
+          }`}
+          title="Stock Media & Audio"
+        >
+          <Search className="w-4 h-4" />
+        </button>
       </div>
     );
   }
@@ -231,6 +285,42 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5 text-pink-400" />
             <span>Critic</span>
+          </button>
+
+          {/* Separator */}
+          <div className="w-px h-5 bg-[#1F202B] mx-0.5" />
+
+          {/* Tab 4: Assets */}
+          <button
+            onClick={() => onTabChange("assets")}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition relative ${
+              activeTab === "assets"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-[#181926]"
+            }`}
+            title="Project Assets"
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Assets</span>
+            {assets.length > 0 && (
+              <span className="min-w-[16px] h-[16px] rounded-full bg-emerald-500/80 text-[9px] text-white font-bold flex items-center justify-center px-1">
+                {assets.length}
+              </span>
+            )}
+          </button>
+
+          {/* Tab 5: Stock Media */}
+          <button
+            onClick={() => onTabChange("stock")}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition ${
+              activeTab === "stock"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-[#181926]"
+            }`}
+            title="Stock Media & Audio Search"
+          >
+            <Search className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Stock</span>
           </button>
         </div>
 
@@ -306,6 +396,27 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
               editIR={editIR}
               onExecutePrompt={onApplyPrompt}
               onApplyRepairs={onApplyCriticRepairs || (() => {})}
+            />
+          </div>
+        )}
+
+        {activeTab === "assets" && (
+          <div className="h-full flex flex-col overflow-hidden">
+            <AssetBin
+              assets={assets}
+              onImportFiles={onImportFiles ? ((_files: FileList | File[]) => onImportFiles()) : (() => {})}
+              onAddClipToTimeline={onAddAssetToTimeline || (() => {})}
+              onRemoveAsset={onDeleteAsset}
+            />
+          </div>
+        )}
+
+        {activeTab === "stock" && (
+          <div className="h-full flex flex-col overflow-hidden">
+            <StockMediaPanel
+              onAddAssetToProject={onAddAssetToProject || (() => {})}
+              onAddClipToTimeline={onAddClipToTimeline || (() => {})}
+              aspectRatio={currentAspect}
             />
           </div>
         )}

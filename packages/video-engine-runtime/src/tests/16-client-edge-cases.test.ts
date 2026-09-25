@@ -103,11 +103,14 @@ export async function runClientEdgeCasesTest(): Promise<boolean> {
 
     const silentBgmOut = path.join(tempDir, "silent_bgm_out.aac");
     await AudioDuckingMixer.mixTracks(silentVideoPath, stereoBgmPath, silentBgmOut);
-    if (!fs.existsSync(silentBgmOut)) {
-      console.error("  ❌ Failed: AudioDuckingMixer failed on audio-less input");
+    // The error path copies the (video-only) input verbatim, so existence alone proves nothing:
+    // the output must be a real stereo audio stream with no video.
+    const silentBgmProbe = fs.existsSync(silentBgmOut) ? await MediaProber.probeFile(silentBgmOut) : null;
+    if (!silentBgmProbe || !silentBgmProbe.hasAudio || silentBgmProbe.audioChannels !== 2 || silentBgmProbe.codecVideo) {
+      console.error(`  ❌ Failed: AudioDuckingMixer did not produce a stereo audio mix for audio-less dialogue (${JSON.stringify(silentBgmProbe && { hasAudio: silentBgmProbe.hasAudio, ch: silentBgmProbe.audioChannels, v: silentBgmProbe.codecVideo })})`);
       allPassed = false;
     } else {
-      console.log("  ✓ AudioDuckingMixer bypassed ducking cleanly when dialogue track has no audio");
+      console.log("  ✓ AudioDuckingMixer substituted a silent bed for audio-less dialogue and mixed BGM to stereo");
     }
 
     // ------------------------------------------------------------------
@@ -150,6 +153,15 @@ export async function runClientEdgeCasesTest(): Promise<boolean> {
       allPassed = false;
     } else {
       console.log(`  ✓ Multilingual letters preserved: "${words.slice(0, 7).join(" ")}..."`);
+    }
+
+    // Devanagari vowel signs are combining marks (\p{M}); stripping them corrupts Hindi words.
+    const hindiWords = TranscriptIntelligenceService.parseFromTextOrSubtitles("नमस्ते दुनिया", 2.0).words.map((w) => w.word);
+    if (hindiWords[0] !== "नमस्ते" || hindiWords[1] !== "दुनिया") {
+      console.error(`  ❌ Failed: Devanagari combining marks were stripped (got "${hindiWords.join(" ")}")`);
+      allPassed = false;
+    } else {
+      console.log(`  ✓ Devanagari script preserved with combining vowel signs: "${hindiWords.join(" ")}"`);
     }
 
     // ------------------------------------------------------------------
@@ -308,7 +320,8 @@ export async function runClientEdgeCasesTest(): Promise<boolean> {
         projectId: "test_faststart",
         title: "FastStart Test",
         targetAspect: "16:9",
-        resolution: { width: 640, height: 360 },
+        // Source is 640x360: the project canvas differs, so the splicer must reframe (not stream-copy)
+        resolution: { width: 1280, height: 720 },
         fps: { numerator: 30, denominator: 1 },
         totalDuration: RationalTimeMath.fromSeconds(2.0),
       },
@@ -356,6 +369,14 @@ export async function runClientEdgeCasesTest(): Promise<boolean> {
       allPassed = false;
     } else {
       console.log(`  ✓ FastStart metadata verified: 'moov' atom at offset ${moovPos} (before 'mdat' at ${mdatPos}) for instant streaming`);
+    }
+
+    const exportProbe = await MediaProber.probeFile(faststartVideoPath);
+    if (exportProbe.width !== 1280 || exportProbe.height !== 720 || !exportProbe.hasAudio) {
+      console.error(`  ❌ Failed: Expected 1280x720 export with an audio stream, got ${exportProbe.width}x${exportProbe.height} hasAudio=${exportProbe.hasAudio}`);
+      allPassed = false;
+    } else {
+      console.log("  ✓ 640x360 silent source reframed to the 1280x720 project canvas with a silent stereo track");
     }
 
   } catch (err: any) {

@@ -30,10 +30,11 @@ export function serverVideoProcessingEnabled(): boolean {
 
 // In-memory storage - 50MB max to accommodate videos
 const storage = multer.memoryStorage();
+export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 const upload = multer({
     storage,
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+    limits: { fileSize: MAX_UPLOAD_BYTES }, // 50MB
     fileFilter: (req: Request, file: any, cb: any) => {
         const allowed = [
             'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -55,6 +56,34 @@ const upload = multer({
         }
     },
 });
+
+/**
+ * `upload.single(field)` with client errors reported as client errors: no file -> 400 NO_FILE (instead of reaching the
+ * storage layer and failing as a 500), oversize -> 413 FILE_TOO_LARGE, disallowed type -> 415 UNSUPPORTED_MEDIA.
+ */
+function requireSingleFile(field: string = 'file') {
+    const parser = upload.single(field);
+    return (req: Request, res: Response, next: NextFunction) => {
+        parser(req, res, (err: any) => {
+            if (err) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(413).json({ success: false, error: 'FILE_TOO_LARGE', message: `The file exceeds the ${MAX_UPLOAD_BYTES / 1024 / 1024} MB upload limit.` });
+                }
+                if (/not allowed/.test(err.message || '')) {
+                    return res.status(415).json({ success: false, error: 'UNSUPPORTED_MEDIA', message: err.message });
+                }
+                if (err instanceof multer.MulterError) {
+                    return res.status(400).json({ success: false, error: 'BAD_UPLOAD', message: err.message });
+                }
+                return next(err);
+            }
+            if (!(req as any).file) {
+                return res.status(400).json({ success: false, error: 'NO_FILE', message: `No file was sent. Upload it as the multipart field "${field}".` });
+            }
+            next();
+        });
+    };
+}
 
 function handleUpload(folder: string = 'general', options: any = {}) {
     return async (req: any, res: Response, next: NextFunction) => {
@@ -253,4 +282,4 @@ function handleUpload(folder: string = 'general', options: any = {}) {
     };
 }
 
-export { upload, handleUpload };
+export { upload, handleUpload, requireSingleFile };

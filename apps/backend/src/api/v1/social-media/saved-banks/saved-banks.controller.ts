@@ -29,7 +29,7 @@ export class SavedBanksController {
         try {
             const { id } = req.params;
 
-            await SavedBanksService.deleteBank(id);
+            await SavedBanksService.deleteBank(String(id));
             return res.json({ success: true, message: 'Bank deleted' });
         } catch (error: any) {
             if (error.message === 'Bank not found') {

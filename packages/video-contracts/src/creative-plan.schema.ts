@@ -71,27 +71,30 @@ export const RemoveRangeOpSchema = z.object({
 
 export const RippleDeleteOpSchema = z.object({
   type: z.literal("rippleDelete"),
-  clipId: z.string(),
-  reason: z.string(),
+  clipId: z.string().min(1).describe("Id of the main-track clip to delete (see 'main clips')."),
+  reason: z.string().default("creator asked"),
 });
 
 export const TrimClipOpSchema = z.object({
   type: z.literal("trimClip"),
-  clipId: z.string(),
-  startTrimSec: z.number().nonnegative().default(0),
-  endTrimSec: z.number().nonnegative().default(0),
+  clipId: z.string().min(1).describe("Id of the main-track clip to trim."),
+  startTrimSec: z.number().nonnegative().default(0).describe("Timeline seconds to remove from the clip's head."),
+  endTrimSec: z.number().nonnegative().default(0).describe("Timeline seconds to remove from the clip's tail."),
 });
 
 export const SplitClipOpSchema = z.object({
   type: z.literal("splitClip"),
-  clipId: z.string(),
-  splitTimeSec: z.number().nonnegative(),
+  clipId: z.string().min(1).describe("Id of the main-track clip to split."),
+  splitTimeSec: z.number().nonnegative().describe("Timeline second (inside the clip) to split at."),
 });
 
 export const MoveClipOpSchema = z.object({
   type: z.literal("moveClip"),
-  clipId: z.string(),
-  targetTimelineStartSec: z.number().nonnegative(),
+  clipId: z.string().min(1).describe("Id of the main-track clip to move."),
+  targetTimelineStartSec: z
+    .number()
+    .nonnegative()
+    .describe("Point on the current timeline where the clip is inserted (0 = the very start, the total duration = the end). Snaps to the nearest clip boundary."),
 });
 
 export const DuplicateClipOpSchema = z.object({
@@ -108,7 +111,12 @@ export const ReplaceClipOpSchema = z.object({
 
 export const InsertBrollOpSchema = z.object({
   type: z.literal("insertBroll"),
-  assetId: z.string(),
+  // "stock" (or any id not in the asset registry) when the clip comes from `stockQuery`/`sourceUrl`.
+  assetId: z.string().default("stock"),
+  /** Stock-footage search phrase (e.g. "gym workout"). Resolved to a URL server-side when possible. */
+  stockQuery: z.string().min(1).max(120).optional(),
+  /** Direct HTTPS video URL for the overlay. */
+  sourceUrl: z.string().url().optional(),
   timelineStartSec: z.number().nonnegative(),
   durationSec: z.number().positive(),
   sourceStartSec: z.number().nonnegative().default(0),
@@ -134,6 +142,13 @@ export const AddCaptionOpSchema = z.object({
     })
   ),
   stylePreset: z.string().default("HORMOZI_BOUNCE"),
+  fontSize: z.number().min(16).max(200).optional(),
+  position: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).optional(),
+  uppercase: z.boolean().optional(),
+  animation: z.enum(["word_pop", "karaoke", "none"]).optional(),
+  strokeColor: z.string().optional(),
+  strokeWidth: z.number().min(0).max(20).optional(),
+  background: z.string().optional(),
 });
 
 export const StyleCaptionOpSchema = z.object({
@@ -173,14 +188,37 @@ export const ReframeSubjectOpSchema = z.object({
 export const ChangeAspectRatioOpSchema = z.object({
   type: z.literal("changeAspectRatio"),
   targetAspect: z.enum(["9:16", "16:9", "1:1", "4:5"]),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
+  /** Output size; defaults to the standard size for the aspect (e.g. 1080x1920 for 9:16). */
+  width: z.number().int().positive().max(8192).optional(),
+  height: z.number().int().positive().max(8192).optional(),
+  /** "fill" = crop the footage to fill the frame; "fit" = show the whole frame on `background`. */
+  mode: z.enum(["fill", "fit"]).optional().describe('"fill" (default) crops to fill the frame; "fit" shows the whole frame on `background`.'),
+  background: z.string().regex(/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/).optional(),
 });
+
+/** Well-known track id for the main footage's own audio (mobile `audio.originalTrack`). */
+export const ORIGINAL_AUDIO_TRACK_ID = "original";
 
 export const AdjustVolumeOpSchema = z.object({
   type: z.literal("adjustVolume"),
-  trackId: z.string(),
-  volumeDb: z.number(),
+  trackId: z
+    .string()
+    .min(1)
+    .describe(`"original" = the video's own sound (voice), "music" = the background music bed, or an exact audio track id.`),
+  volumeDb: z.number().min(-60).max(12).describe("Absolute gain in dB (0 = unchanged level, -6 = about half as loud, -60 = mute)."),
+});
+
+/** Rotate and/or mirror main-track footage. At least one of rotationDeg / flipH must be given. */
+export const RotateClipOpSchema = z.object({
+  type: z.literal("rotateClip"),
+  clipId: z.string().min(1).default("all").describe('Main-track clip id, or "all".'),
+  rotationDeg: z
+    .number()
+    .int()
+    .refine((v) => v === 0 || v === 90 || v === 180 || v === 270, { message: "rotationDeg must be 0, 90, 180 or 270" })
+    .optional()
+    .describe("Absolute clockwise rotation: 0, 90, 180 or 270."),
+  flipH: z.boolean().optional().describe("true = mirror horizontally, false = not mirrored."),
 });
 
 export const DuckAudioOpSchema = z.object({
@@ -197,8 +235,9 @@ export const NormalizeAudioOpSchema = z.object({
 
 export const AddTransitionOpSchema = z.object({
   type: z.literal("addTransition"),
-  fromClipId: z.string(),
-  toClipId: z.string(),
+  // "*" = every cut boundary on the main track.
+  fromClipId: z.string().default("*"),
+  toClipId: z.string().default("*"),
   transitionType: z.enum(["CUT", "CROSSFADE", "DISSOLVE", "ZOOM_SWOOSH", "SLIDE_LEFT", "SLIDE_UP", "WIPE", "BLUR_PUNCH"]),
   durationSec: z.number().positive().default(0.3),
 });
@@ -211,8 +250,9 @@ export const BeatAlignOpSchema = z.object({
 
 export const ChangeSpeedOpSchema = z.object({
   type: z.literal("changeSpeed"),
-  clipId: z.string(),
-  speedMultiplier: z.number().positive().default(1.0),
+  // "all" = the whole main track.
+  clipId: z.string().default("all"),
+  speedMultiplier: z.number().min(0.25).max(4).default(1.0),
 });
 
 export const FreezeFrameOpSchema = z.object({
@@ -265,10 +305,13 @@ export const SelectTakeOpSchema = z.object({
 
 export const ReorderSegmentOpSchema = z.object({
   type: z.literal("reorderSegment"),
-  segmentStartSec: z.number().nonnegative(),
+  segmentStartSec: z.number().nonnegative().describe("Start of the part to move, in timeline seconds as it is now."),
   segmentDurationSec: z.number().positive(),
-  newStartSec: z.number().nonnegative(),
-  reason: z.string(),
+  newStartSec: z
+    .number()
+    .nonnegative()
+    .describe("Point on the current timeline where the part is inserted (0 = the very start, the total duration = the end). Snaps to the nearest clip boundary."),
+  reason: z.string().default("creator asked"),
 });
 
 export const AutoSoundDesignOpSchema = z.object({
@@ -282,7 +325,8 @@ export const AutoSoundDesignOpSchema = z.object({
 
 export const CleanFillersOpSchema = z.object({
   type: z.literal("cleanFillers"),
-  fillerTypes: z.array(z.string()).default(["um", "uh", "er", "like", "you know"]),
+  // Deliberately excludes ambiguous words like "like" / "you know" unless the caller asks for them.
+  fillerTypes: z.array(z.string()).default(["um", "uh", "uhm", "umm", "er", "erm", "ah", "hmm"]),
   reason: z.string().optional(),
 });
 
@@ -291,6 +335,58 @@ export const AsynchronousSplitOpSchema = z.object({
   clipId: z.string(),
   splitType: z.enum(["J_CUT", "L_CUT"]),
   offsetSec: z.number().default(0.4),
+  reason: z.string().optional(),
+});
+
+
+/**
+ * Remove every silence (from the media graph) at least `minDurationSec` long, keeping
+ * `paddingSec` of air on each side so cuts never clip a word. Expanded into `removeRange`
+ * ops by PlanExpander before compilation.
+ */
+export const RemoveSilencesOpSchema = z.object({
+  type: z.literal("removeSilences"),
+  minDurationSec: z.number().min(0.15).max(10).default(0.5),
+  paddingSec: z.number().min(0).max(0.5).default(0.1),
+  reason: z.string().optional(),
+});
+
+/**
+ * Word-synced kinetic captions generated from the transcript. Expanded into
+ * `clearCaptions` + `addCaption` ops by PlanExpander.
+ */
+export const AutoCaptionsOpSchema = z.object({
+  type: z.literal("autoCaptions"),
+  stylePreset: z.enum(["HORMOZI_BOUNCE", "ALI_ABDAAL_CLEAN", "MINIMAL_SUBTITLE", "BOLD_CENTER"]).default("HORMOZI_BOUNCE"),
+  textColor: z.string().regex(/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/).default("#FFFFFF"),
+  highlightColor: z.string().regex(/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/).default("#FFE600"),
+  wordsPerCaption: z.number().int().min(1).max(8).default(3),
+  fontSize: z.number().min(16).max(200).optional(),
+  position: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).optional(),
+  uppercase: z.boolean().default(false),
+  animation: z.enum(["word_pop", "karaoke", "none"]).default("word_pop"),
+  strokeColor: z.string().optional(),
+  strokeWidth: z.number().min(0).max(20).optional(),
+  background: z.string().optional(),
+  reason: z.string().optional(),
+});
+
+/** Removes existing speech captions (role "caption") before new ones are added. */
+export const ClearCaptionsOpSchema = z.object({
+  type: z.literal("clearCaptions"),
+});
+
+/** Background music bed, optionally ducked under speech. */
+export const AddBackgroundMusicOpSchema = z.object({
+  type: z.literal("addBackgroundMusic"),
+  /** Mood / genre keywords used to pick a track when no URL is known (e.g. "upbeat energetic pop"). */
+  query: z.string().min(1).max(120),
+  sourceUrl: z.string().url().optional(),
+  volumeDb: z.number().min(-40).max(0).default(-16),
+  duckUnderSpeech: z.boolean().default(true),
+  duckDb: z.number().min(-40).max(0).default(-12),
+  fadeInSec: z.number().min(0).max(10).default(0.5),
+  fadeOutSec: z.number().min(0).max(10).default(1.0),
   reason: z.string().optional(),
 });
 
@@ -310,6 +406,7 @@ export const CreativeOperationSchema = z.discriminatedUnion("type", [
   ReframeSubjectOpSchema,
   ChangeAspectRatioOpSchema,
   AdjustVolumeOpSchema,
+  RotateClipOpSchema,
   DuckAudioOpSchema,
   NormalizeAudioOpSchema,
   AddTransitionOpSchema,
@@ -325,6 +422,10 @@ export const CreativeOperationSchema = z.discriminatedUnion("type", [
   AutoSoundDesignOpSchema,
   CleanFillersOpSchema,
   AsynchronousSplitOpSchema,
+  RemoveSilencesOpSchema,
+  AutoCaptionsOpSchema,
+  ClearCaptionsOpSchema,
+  AddBackgroundMusicOpSchema,
 ]);
 
 export type CreativeOperation = z.infer<typeof CreativeOperationSchema>;

@@ -381,7 +381,7 @@ export default function MediaEditorDashboardPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-indigo-600 dark:text-indigo-400 font-semibold">
-                      {proj.templatePreset || "MRBEAST_FAST"}
+                      {proj.templatePreset || "CUSTOM"}
                     </span>
                     <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400">
                       {proj.aspectRatio}

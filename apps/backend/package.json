@@ -8,7 +8,9 @@
     "dev": "cross-env PORT=4002 nodemon --exec tsx server.js",
     "seed": "node src/utils/seed.js",
     "migrate": "node src/utils/migrate-from-sqlite.js",
-    "test": "jest"
+    "test": "jest",
+    "social:scheduler": "tsx scripts/social-publish-scheduler.ts",
+    "social:migrate-tokens": "tsx scripts/social-publish-scheduler.ts --migrate-tokens"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

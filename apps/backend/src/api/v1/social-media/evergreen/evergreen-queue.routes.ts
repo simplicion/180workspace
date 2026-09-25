@@ -6,7 +6,7 @@ const router = Router();
 // List slots for project
 router.get('/:projectId/slots', async (req: Request, res: Response) => {
     try {
-        const slots = await EvergreenQueueService.listSlots(req.params.projectId);
+        const slots = await EvergreenQueueService.listSlots(String(req.params.projectId));
         res.json({ success: true, slots });
     } catch (error: any) {
         res.status(400).json({ success: false, error: error.message });
@@ -26,7 +26,7 @@ router.post('/slots', async (req: Request, res: Response) => {
 // Delete slot
 router.delete('/slots/:id', async (req: Request, res: Response) => {
     try {
-        const result = await EvergreenQueueService.deleteSlot(req.params.id);
+        const result = await EvergreenQueueService.deleteSlot(String(req.params.id));
         res.json(result);
     } catch (error: any) {
         res.status(400).json({ success: false, error: error.message });

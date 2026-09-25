@@ -1294,6 +1294,9 @@ importers:
 
   packages/domains/social-media:
     dependencies:
+      '@napi-rs/canvas':
+        specifier: ^0.1.80
+        version: 0.1.80
       '@workspace/ai':
         specifier: workspace:*
         version: link:../ai
@@ -1303,6 +1306,9 @@ importers:
       '@workspace/workspace-tools':
         specifier: workspace:*
         version: link:../workspace-tools
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^20.0.0

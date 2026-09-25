@@ -3,6 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { VideoDirectorTool, DirectorExecutionContext } from "../base-tool";
 import ffmpeg from "../../ffmpeg-setup";
+import { MUSIC_CATALOG, MusicTrack, moodToMusicGenre, searchMusicCatalog } from "@workspace/video-contracts";
 
 export const BgmGenreSchema = z.enum([
   "AMBIENT_CALM",
@@ -29,10 +30,38 @@ export interface SourcedBgmTrack {
   durationSec: number;
   volumeDb: number;
   isPublicDomain: boolean;
+  /** Licence and credit line of the downloaded track (absent for the synthesized fallback). */
+  license?: string;
+  attribution?: string;
 }
 
 export interface BgmSearchOutput {
   bgmTrack: SourcedBgmTrack;
+}
+
+/** One music search hit as returned by `GET /media-editor/stock/music`. */
+export interface MusicSearchHit {
+  title: string;
+  /** HTTPS audio URL the phone can stream/download directly. */
+  url: string;
+  durationSec: number;
+  license: string;
+  attribution: string | null;
+  artist: string | null;
+  genre: BgmGenre | null;
+  provider: "catalog" | "freesound";
+  sourcePage: string | null;
+}
+
+export interface MusicSearchResult {
+  query: string;
+  genre: BgmGenre;
+  /** false when the query names a mood the curated catalogue does not cover. */
+  genreMatched: boolean;
+  tracks: MusicSearchHit[];
+  /** Providers consulted: always "catalog"; "freesound" only when FREESOUND_API_KEY is set. */
+  providers: Array<"catalog" | "freesound">;
+  warnings: string[];
 }
 
 export class BgmSearchTool extends VideoDirectorTool<BgmSearchInput, BgmSearchOutput> {
@@ -42,44 +71,107 @@ export class BgmSearchTool extends VideoDirectorTool<BgmSearchInput, BgmSearchOu
   readonly inputSchema = BgmSearchInputSchema;
 
   /**
-   * Curated Public Domain (CC-0) Open Audio CDN Catalog
+   * Curated royalty-free catalogue (Kevin MacLeod, CC BY, hosted on Wikimedia Commons), shared
+   * with the AI Director via @workspace/video-contracts. The previous hard-coded "CC-0" URLs all
+   * returned 404 and were mislabelled, so they were replaced by verified entries.
    */
-  private static readonly CC0_AUDIO_CATALOG: Record<BgmGenre, Array<{ title: string; url: string }>> = {
-    AMBIENT_CALM: [
-      {
-        title: "Deep Relaxation Ambient (CC-0)",
-        url: "https://upload.wikimedia.org/wikipedia/commons/4/4c/Moonlight_Sonata_first_movement.ogg",
-      },
-      {
-        title: "Gentle Ocean Waves Ambient (CC-0)",
-        url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/36/Ocean_Waves_Gentle.ogg/Ocean_Waves_Gentle.ogg.mp3",
-      },
-    ],
-    ELECTRONIC_UPBEAT: [
-      {
-        title: "Synthwave Beat Loop (CC-0)",
-        url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e0/Synthesizer_Techno_Loop.ogg/Synthesizer_Techno_Loop.ogg.mp3",
-      },
-    ],
-    CINEMATIC_DRAMATIC: [
-      {
-        title: "Cinematic String Atmosphere (CC-0)",
-        url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/5/50/Beethoven_Symphony_No._5_first_movement.ogg/Beethoven_Symphony_No._5_first_movement.ogg.mp3",
-      },
-    ],
-    LOFI_STUDY: [
-      {
-        title: "Warm Lo-Fi Chord Progression (CC-0)",
-        url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d4/Gymnopedie_No._1.ogg/Gymnopedie_No._1.ogg.mp3",
-      },
-    ],
-    ACOUSTIC_WARM: [
-      {
-        title: "Acoustic Reflection (CC-0)",
-        url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d4/Gymnopedie_No._1.ogg/Gymnopedie_No._1.ogg.mp3",
-      },
-    ],
-  };
+  private static readonly AUDIO_CATALOG: Record<BgmGenre, MusicTrack[]> = BgmGenreSchema.options.reduce(
+    (acc, g) => ({ ...acc, [g]: MUSIC_CATALOG.filter((t) => t.genre === g) }),
+    {} as Record<BgmGenre, MusicTrack[]>
+  );
+
+  /** Mood keywords ("upbeat energetic", "chill lofi") -> genre. */
+  static moodToGenre(query: string): { genre: BgmGenre; matched: boolean } {
+    return moodToMusicGenre(query);
+  }
+
+  /**
+   * Metadata-only music search for clients that play/download the track themselves (the phone).
+   * Never downloads or transcodes anything on the server. Curated catalogue first; Freesound
+   * (CC0 / CC BY only) is added when FREESOUND_API_KEY is configured. The key is read from the
+   * environment only; without it Freesound is skipped and `providers` says so.
+   */
+  static async searchTracks(options: {
+    query: string;
+    limit?: number;
+    minDurationSec?: number;
+    fetchImpl?: typeof fetch;
+  }): Promise<MusicSearchResult> {
+    const query = options.query.trim();
+    const limit = Math.min(Math.max(options.limit ?? 10, 1), 30);
+    const warnings: string[] = [];
+    const providers: MusicSearchResult["providers"] = ["catalog"];
+    const cat = searchMusicCatalog(query, { minDurationSec: options.minDurationSec, limit });
+    const tracks: MusicSearchHit[] = cat.tracks.map((t) => ({
+      title: t.title,
+      url: t.url,
+      durationSec: t.durationSec,
+      license: t.license,
+      attribution: t.attribution,
+      artist: t.artist,
+      genre: t.genre,
+      provider: "catalog",
+      sourcePage: t.sourcePage,
+    }));
+
+    const apiKey = process.env.FREESOUND_API_KEY;
+    if (apiKey && tracks.length < limit) {
+      providers.push("freesound");
+      try {
+        tracks.push(...(await BgmSearchTool.searchFreesoundMusic(query, apiKey, limit - tracks.length, options.fetchImpl || fetch)));
+      } catch (err: any) {
+        warnings.push(`freesound: ${err?.message || err}`);
+      }
+    }
+    if (tracks.length === 0) {
+      warnings.push(`no royalty-free track matches "${query}"${apiKey ? "" : " (FREESOUND_API_KEY is not set, so only the curated catalogue was searched)"}`);
+    }
+    return { query, genre: cat.genre, genreMatched: cat.matched, tracks: tracks.slice(0, limit), providers, warnings };
+  }
+
+  /** Freesound text search restricted to music-length, commercially usable (CC0 / CC BY) sounds. */
+  private static async searchFreesoundMusic(query: string, apiKey: string, limit: number, fetchImpl: typeof fetch): Promise<MusicSearchHit[]> {
+    const params = new URLSearchParams({
+      query: `${query} music`,
+      filter: "duration:[30 TO 900]",
+      fields: "id,name,username,duration,license,previews,url",
+      page_size: String(Math.min(limit * 2, 30)),
+      sort: "rating_desc",
+    });
+    const res = await fetchImpl(`https://freesound.org/apiv2/search/text/?${params}`, {
+      headers: { Authorization: `Token ${apiKey}` },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) throw new Error(`search failed with HTTP ${res.status}`);
+    const data: any = await res.json();
+    const out: MusicSearchHit[] = [];
+    for (const r of data?.results || []) {
+      const license = BgmSearchTool.freesoundLicense(String(r.license || ""));
+      const url = r.previews?.["preview-hq-mp3"] || r.previews?.["preview-lq-mp3"];
+      if (!license || typeof url !== "string" || !/^https:\/\//i.test(url)) continue;
+      out.push({
+        title: String(r.name || `Freesound #${r.id}`),
+        url,
+        durationSec: Math.round(Number(r.duration) || 0),
+        license,
+        attribution: license === "CC0-1.0" ? null : `"${r.name}" by ${r.username} (freesound.org), licensed under ${license.replace(/-(\d)/, " $1").replace(/-/g, " ")}`,
+        artist: r.username ? String(r.username) : null,
+        genre: null,
+        provider: "freesound",
+        sourcePage: typeof r.url === "string" ? r.url : null,
+      });
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  /** Freesound licence URL -> short name; null for licences unsuitable for published videos (NC, Sampling+). */
+  private static freesoundLicense(url: string): string | null {
+    const u = url.toLowerCase();
+    if (u.includes("publicdomain/zero")) return "CC0-1.0";
+    const m = u.match(/licenses\/by\/(\d\.\d)/);
+    return m ? `CC-BY-${m[1]}` : null;
+  }
 
   async execute(input: BgmSearchInput, context: DirectorExecutionContext): Promise<BgmSearchOutput> {
     const genre = input.genre || "AMBIENT_CALM";
@@ -91,14 +183,23 @@ export class BgmSearchTool extends VideoDirectorTool<BgmSearchInput, BgmSearchOu
     }
 
     const outputWavPath = path.join(audioCacheDir, `bgm_${genre.toLowerCase()}.wav`);
+    const creditPath = `${outputWavPath}.credit.json`;
+    let chosen: MusicTrack | null = null;
+    if (fs.existsSync(outputWavPath) && fs.existsSync(creditPath)) {
+      try {
+        chosen = JSON.parse(fs.readFileSync(creditPath, "utf8"));
+      } catch {
+        chosen = null;
+      }
+    }
 
     if (!fs.existsSync(outputWavPath)) {
       let downloadedOnline = false;
-      const candidates = BgmSearchTool.CC0_AUDIO_CATALOG[genre] || BgmSearchTool.CC0_AUDIO_CATALOG.AMBIENT_CALM;
+      const candidates = BgmSearchTool.AUDIO_CATALOG[genre]?.length ? BgmSearchTool.AUDIO_CATALOG[genre] : BgmSearchTool.AUDIO_CATALOG.AMBIENT_CALM;
 
       for (const candidate of candidates) {
         try {
-          context.log?.(`[BgmSearchTool] Attempting stream from CC-0 endpoint: ${candidate.title}...`);
+          context.log?.(`[BgmSearchTool] Attempting stream from royalty-free catalogue: ${candidate.title}...`);
           const res = await fetch(candidate.url);
           if (res.ok) {
             const rawBuffer = Buffer.from(await res.arrayBuffer());
@@ -126,7 +227,8 @@ export class BgmSearchTool extends VideoDirectorTool<BgmSearchInput, BgmSearchOu
             });
 
             downloadedOnline = true;
-            context.log?.(`[BgmSearchTool] Successfully transcoded public domain BGM: ${candidate.title}`);
+            chosen = candidate;
+            context.log?.(`[BgmSearchTool] Successfully transcoded royalty-free BGM: ${candidate.title} (${candidate.license})`);
             break;
           }
         } catch (e: any) {
@@ -138,6 +240,8 @@ export class BgmSearchTool extends VideoDirectorTool<BgmSearchInput, BgmSearchOu
         // Fallback: Synthesize smooth ambient harmonic soundbed (48kHz stereo WAV)
         context.log?.("[BgmSearchTool] Synthesizing acoustic harmonic soundbed locally...");
         this.synthesizeAmbientDrone(outputWavPath, input.targetDurationSec || 60.0, genre);
+      } else if (chosen) {
+        fs.writeFileSync(creditPath, JSON.stringify(chosen));
       }
     }
 
@@ -147,7 +251,9 @@ export class BgmSearchTool extends VideoDirectorTool<BgmSearchInput, BgmSearchOu
       filePath: outputWavPath,
       durationSec: input.targetDurationSec || 60.0,
       volumeDb: input.volumeDb ?? -22.0,
-      isPublicDomain: true,
+      // Catalogue tracks are CC BY (credit required); only the locally synthesized drone is free of terms.
+      isPublicDomain: !chosen,
+      ...(chosen ? { license: chosen.license, attribution: chosen.attribution } : {}),
     };
 
     context.artifacts.set("sourced_bgm_track", bgmTrack);

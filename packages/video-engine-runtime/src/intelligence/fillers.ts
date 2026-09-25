@@ -25,7 +25,7 @@ export class FillerAnalyzer {
 
     for (let i = 0; i < words.length; i++) {
       const current = words[i];
-      const lower = current.word.toLowerCase().replace(/[^a-z]/g, "");
+      const lower = current.word.toLowerCase().replace(/[^\p{L}\p{M}]/gu, "");
 
       // 1. Single-word vocal fillers (um, uh, er)
       if (["um", "uh", "er", "ah"].includes(lower)) {
@@ -43,7 +43,7 @@ export class FillerAnalyzer {
 
       // 2. Multi-word phrase fillers (e.g. "you know")
       if (lower === "you" && i < words.length - 1) {
-        const nextLower = words[i + 1].word.toLowerCase().replace(/[^a-z]/g, "");
+        const nextLower = words[i + 1].word.toLowerCase().replace(/[^\p{L}\p{M}]/gu, "");
         if (nextLower === "know") {
           candidates.push({
             id: `filler_${crypto.randomUUID().slice(0, 8)}`,
@@ -77,7 +77,7 @@ export class FillerAnalyzer {
 
       // 4. Repeated adjacent word stutters ("the the", "I I")
       if (i < words.length - 1) {
-        const nextLower = words[i + 1].word.toLowerCase().replace(/[^a-z]/g, "");
+        const nextLower = words[i + 1].word.toLowerCase().replace(/[^\p{L}\p{M}]/gu, "");
         if (lower === nextLower && lower.length > 0) {
           candidates.push({
             id: `filler_${crypto.randomUUID().slice(0, 8)}`,

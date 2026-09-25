@@ -188,7 +188,7 @@ class DesktopEngineBridge implements EngineBridge {
           totalDuration: RationalTimeMath.fromSeconds(0.0),
         },
         directorStyle: {
-          preset: "MRBEAST_FAST",
+          preset: "CUSTOM",
           pacingMultiplier: 1.0,
           zoomAggressiveness: 0.5,
           brollFrequencySeconds: 10.0,

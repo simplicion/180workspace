@@ -37,6 +37,7 @@ import { OtioService } from "../services/otio-service";
 import { engineBridge, CompanyAIStatus, ExportResult } from "../services/tauri-bridge";
 import toast from "react-hot-toast";
 import { hasNativeMedia } from "@/lib/native/desktop-media";
+import api from "@/lib/api";
 
 function safeUUID(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -173,15 +174,119 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     if (projId) {
       loadProject(projId);
     } else {
-      createNewProject(template || initialTemplate || "MRBEAST_FAST");
+      createNewProject(template || initialTemplate || "CUSTOM");
     }
   }, [initialProjectId, initialTemplate]);
+
+  const applySocialMediaContext = async (manifest: ProjectPackageManifest, targetProjId?: string | null) => {
+    let currentManifest = manifest;
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const resolvedProjId = targetProjId || params?.get("project") || params?.get("projectId");
+    const calendarPieceId = params?.get("calendarPieceId");
+    const rawVideoUrl = params?.get("rawVideoUrl");
+
+    // 1. If rawVideoUrl provided, auto-inject as asset and video track clip
+    if (rawVideoUrl) {
+      const decodedRawUrl = decodeURIComponent(rawVideoUrl);
+      const alreadyExists = currentManifest.assets.some((a) => a.filePath === decodedRawUrl);
+      if (!alreadyExists && (decodedRawUrl.startsWith("http") || decodedRawUrl.startsWith("blob:"))) {
+        const rawAsset: MediaAssetDescriptor = {
+          id: safeUUID(),
+          name: "Raw Social Footage",
+          filePath: decodedRawUrl,
+          mimeType: "video/mp4",
+          durationSeconds: 15.0,
+          width: 1080,
+          height: 1920,
+          fps: 30,
+          fileSizeBytes: 10 * 1024 * 1024,
+          hasAudio: true,
+          sha256Hash: safeUUID(),
+        };
+        const updatedAssets = [...currentManifest.assets, rawAsset];
+        let updatedIR = { ...currentManifest.editIR };
+        const mainTrack = updatedIR.tracks.videoTracks[0];
+        if (mainTrack && mainTrack.clips.length === 0) {
+          const clipDur = RationalTimeMath.fromSeconds(15.0);
+          const newClip: VideoClip = {
+            id: safeUUID(),
+            assetId: rawAsset.id,
+            sourcePath: rawAsset.filePath,
+            sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: clipDur },
+            timelineRange: { start: RationalTimeMath.fromSeconds(0), duration: clipDur },
+            transform: {
+              scale: { start: 1.0, end: 1.0, easing: "spring" },
+              position: { x: 0, y: 0 },
+              anchor: { x: 0.5, y: 0.5 },
+              rotationDeg: 0,
+              opacity: 1.0,
+              crop: { top: 0, bottom: 0, left: 0, right: 0 },
+            },
+            speedMultiplier: 1.0,
+            effects: [],
+          };
+          updatedIR = {
+            ...updatedIR,
+            meta: {
+              ...updatedIR.meta,
+              totalDuration: clipDur,
+              targetAspect: "9:16",
+            },
+            tracks: {
+              ...updatedIR.tracks,
+              videoTracks: [{ ...mainTrack, clips: [newClip] }],
+            },
+          };
+        }
+        currentManifest = {
+          ...currentManifest,
+          assets: updatedAssets,
+          editIR: updatedIR,
+        };
+      }
+    }
+
+    // 2. Load Brand Consciousness if project ID exists
+    if (resolvedProjId) {
+      try {
+        const res = await api.get(`/api/social-media/projects/${resolvedProjId}/brand-consciousness`);
+        const brand = res.data?.brand;
+        if (brand) {
+          setAspectRatio("9:16");
+          const visual = brand.visualIdentity || {};
+          const brandGreeting: DirectorChatMessage = {
+            id: safeUUID(),
+            sender: "director",
+            text: `🎬 **Creative Director Loaded**\n\nI have locked in brand consciousness for **${brand.brandName || "Your Brand"}** (${brand.brandType === "creator" ? "Personal Creator" : "Company / Organization"}).\n\n` +
+              `• **Positioning**: ${brand.positioning || "High-Impact Authority"}\n` +
+              `• **Visual DNA**: Primary \`${visual.primaryColor || "#3B82F6"}\`, Accent \`${visual.accentColor || "#F59E0B"}\`, Font: **${visual.typography || "Inter"}**\n` +
+              `• **Kinetic Captions**: \`${visual.captionPreset || "HORMOZI_BOUNCE"}\` in safe-zone margins\n` +
+              (calendarPieceId ? `• **Social Calendar Deliverable**: Linked to scheduled piece \`#${calendarPieceId.slice(-6)}\`\n\n` : `\n`) +
+              `I'm ready to direct this cut. What would you like to do? I can trim dead air, insert brand-colored kinetic captions, sidechain duck background music, or source HD B-roll.`,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            actions: [
+              "Apply Brand Color Grade",
+              "Insert Safe-Zone Kinetic Captions",
+              "Trim Silence & Pauses",
+              "Ducked Background Audio",
+            ],
+          };
+          setAiMessages((prev) => (prev.length === 0 ? [brandGreeting] : prev));
+        }
+      } catch (err) {
+        console.warn("Could not retrieve brand consciousness:", err);
+      }
+    }
+
+    return currentManifest;
+  };
 
   const loadProject = async (id: string) => {
     const loaded = ProjectStorageService.loadProjectManifest(id);
     if (loaded) {
       // Re-hydrate any expired browser blob URLs from IndexedDB or replace with safe offline slate
-      const repaired = await MediaCacheService.verifyAndRepairProjectManifest(loaded);
+      let repaired = await MediaCacheService.verifyAndRepairProjectManifest(loaded);
+      repaired = await applySocialMediaContext(repaired, id);
       setProject(repaired);
       setHistory([repaired.editIR]);
       setHistoryIndex(0);
@@ -192,14 +297,15 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         setAspectRatio("16:9");
       }
     } else {
-      createNewProject("MRBEAST_FAST");
+      createNewProject("CUSTOM", id);
     }
   };
 
-  const createNewProject = async (templatePreset: string) => {
+  const createNewProject = async (templatePreset: string, targetProjId?: string | null) => {
     const newProj = await engineBridge.openProject();
-    newProj.editIR.directorStyle.preset = (templatePreset as DirectorStylePreset) || "MRBEAST_FAST";
-    const repaired = await MediaCacheService.verifyAndRepairProjectManifest(newProj);
+    newProj.editIR.directorStyle.preset = (templatePreset as DirectorStylePreset) || "CUSTOM";
+    let repaired = await MediaCacheService.verifyAndRepairProjectManifest(newProj);
+    repaired = await applySocialMediaContext(repaired, targetProjId);
     setProject(repaired);
     setHistory([repaired.editIR]);
     setHistoryIndex(0);
@@ -624,7 +730,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
     if (!voiceTrack) {
       voiceTrack = {
-        id: `voice_track_${Date.now()}`,
+        id: safeUUID(),
         type: "PRIMARY_VOICE",
         volumeDb: 0.0,
         duckWithSpeech: false,
@@ -635,7 +741,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
     const targetVoiceTrackId = voiceTrack.id;
     const detachedAudioClip = {
-      id: `aclip_detached_${Date.now()}`,
+      id: safeUUID(),
       sourcePath: clip.sourcePath,
       sourceRange: { ...clip.sourceRange },
       timelineRange: { ...clip.timelineRange },
@@ -849,6 +955,22 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       );
       setExportedResult(result);
       setExportedPath(result.savedPath || result.downloadName);
+
+      const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const calendarPieceId = params?.get("calendarPieceId");
+      const finalUrl = (result as any).downloadUrl || result.savedPath || result.downloadName;
+      if (calendarPieceId && finalUrl) {
+        try {
+          await api.post('/api/social-media/posts/sync-studio-render', {
+            calendarPieceId,
+            finalVideoUrl: finalUrl,
+            thumbnailUrl: (result as any).thumbnailUrl || undefined,
+          });
+          toast.success("🎬 Master deliverable synced back to Social Calendar!", { duration: 7000 });
+        } catch (syncErr: any) {
+          console.error("Failed to sync studio render with social calendar:", syncErr);
+        }
+      }
     } catch (err: any) {
       if (err?.name === "RenderCancelledError") {
         toast("Export cancelled.");
@@ -1057,6 +1179,24 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
               }
             }
             pushHistory(updated);
+          }}
+          // Assets & Stock Media Props
+          assets={project.assets}
+          onImportFiles={openImportDialog}
+          onAddAssetToProject={(asset: MediaAssetDescriptor) => {
+            addAssetsToProject([asset]);
+          }}
+          onAddClipToTimeline={(asset: MediaAssetDescriptor) => {
+            addAssetsToProject([asset]);
+          }}
+          onDeleteAsset={(assetId: string) => {
+            const filtered = project.assets.filter((a) => a.id !== assetId);
+            const updated = { ...project, assets: filtered };
+            setProject(updated);
+            ProjectStorageService.saveProject(updated);
+          }}
+          onAddAssetToTimeline={(asset: MediaAssetDescriptor) => {
+            addAssetsToProject([asset]);
           }}
         />
 

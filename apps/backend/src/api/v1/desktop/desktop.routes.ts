@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { DeviceLimitError, listDevices, registerDevice, revokeDevice } from './desktop-device';
+import { DeviceLimitError, DeviceRecord, listDevices, registerDevice, revokeDevice, setDevicePushToken } from './desktop-device';
 
 /**
  * Desktop device management. Mounted behind `protect`, so every call is a signed-in user acting on their OWN devices
@@ -9,6 +9,7 @@ import { DeviceLimitError, listDevices, registerDevice, revokeDevice } from './d
  *                                      (send the stored deviceId to RENEW a token without using another device slot)
  *   GET    /desktop/devices                                   -> the caller's devices
  *   DELETE /desktop/devices/:deviceId                         -> revoke one (its token stops working immediately)
+ *   PUT    /desktop/devices/:deviceId/push-token  { provider: 'fcm'|'apns', token } | { token: null }  -> register/clear push
  */
 const router: Router = Router();
 
@@ -17,6 +18,12 @@ function scope(req: Request) {
   if (!user?.id || !user?.companyId) return null;
   return { userId: String(user.id), companyId: String(user.companyId) };
 }
+
+/** Never echo a push token back; clients only need to know one is registered. */
+const publicDevice = (d: DeviceRecord) => {
+  const { push, ...rest } = d;
+  return { ...rest, push: push ? { provider: push.provider, registered: true, updatedAt: push.updatedAt } : null };
+};
 
 const failure = (res: Response, err: any) => {
   if (err instanceof DeviceLimitError) return res.status(409).json({ success: false, error: 'DEVICE_LIMIT', message: err.message });
@@ -49,7 +56,7 @@ router.get('/devices', async (req: Request, res: Response) => {
   const s = scope(req);
   if (!s) return res.status(401).json({ success: false, error: 'Authentication required' });
   try {
-    return res.json({ success: true, devices: await listDevices(s.companyId, s.userId) });
+    return res.json({ success: true, devices: (await listDevices(s.companyId, s.userId)).map(publicDevice) });
   } catch (err) {
     return failure(res, err);
   }
@@ -61,6 +68,26 @@ router.delete('/devices/:deviceId', async (req: Request, res: Response) => {
   try {
     const removed = await revokeDevice(s.companyId, s.userId, String(req.params.deviceId));
     return removed ? res.json({ success: true }) : res.status(404).json({ success: false, error: 'Device not found' });
+  } catch (err) {
+    return failure(res, err);
+  }
+});
+
+router.put('/devices/:deviceId/push-token', async (req: Request, res: Response) => {
+  const s = scope(req);
+  if (!s) return res.status(401).json({ success: false, error: 'Authentication required' });
+  const { provider, token } = req.body || {};
+  const clearing = token === null;
+  if (!clearing) {
+    if (provider !== 'fcm' && provider !== 'apns') return res.status(400).json({ success: false, error: "provider must be 'fcm' or 'apns'" });
+    if (typeof token !== 'string' || token.length < 16 || token.length > 4096 || /\s/.test(token)) {
+      return res.status(400).json({ success: false, error: 'token must be the FCM registration token or APNs device token string' });
+    }
+  }
+  try {
+    const updated = await setDevicePushToken({ ...s, deviceId: String(req.params.deviceId), provider: clearing ? undefined : provider, token: clearing ? null : token });
+    if (!updated) return res.status(404).json({ success: false, error: 'Device not found' });
+    return res.json({ success: true, device: publicDevice(updated) });
   } catch (err) {
     return failure(res, err);
   }

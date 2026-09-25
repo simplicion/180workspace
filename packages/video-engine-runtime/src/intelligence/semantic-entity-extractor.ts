@@ -166,7 +166,7 @@ export class SemanticEntityExtractor {
         // appear in the transcript, honoring the same hook-protection and spacing rules.
         const promptTokens = options.userPrompt
           .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, " ")
+          .replace(/[^\p{L}\p{M}\p{N}\s-]/gu, " ")
           .split(/\s+/)
           .filter((w) => w.length >= 4 && !["video", "short", "edit", "make", "create"].includes(w));
 

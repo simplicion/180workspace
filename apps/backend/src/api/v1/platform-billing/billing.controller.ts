@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { BillingService } from '@workspace/platform-billing';
 import { prisma } from '@workspace/db';
 import * as crypto from 'crypto';
+import { effectiveEnabledAppsFor, isPaidPlanFor } from './entitlements';
 
 let cachedRates: any = null;
 let lastRatesFetchTime = 0;
@@ -70,21 +71,8 @@ export class BillingController {
             const rawEnabledApps = Array.isArray(companyMetadata.enabledApps) ? companyMetadata.enabledApps : [];
             const rawEnabledModules = Array.isArray(companyMetadata.enabledModules) ? companyMetadata.enabledModules : [];
 
-            const isPaidPlan = Boolean(
-                (plan && Number(plan.price) > 0) ||
-                (currentSubscription && currentSubscription.status?.toUpperCase() === 'ACTIVE' && plan && Number(plan.price) > 0) ||
-                (plan && (plan.planName?.toLowerCase().includes('limitless') || plan.planName?.toLowerCase().includes('momentum')))
-            );
-
-            const ALL_PLATFORM_APPS = [
-                'system', 'settings', 'projects', 'communications', 'workspace-tools',
-                'crm', 'hr', 'finance', 'insights', 'analytics', 'advertising',
-                'social-media', 'traffic-director', 'voiceforce', 'media-editor', 'ai', 'storage', 'database', 'google-integrations'
-            ];
-
-            const effectiveEnabledApps = isPaidPlan
-                ? Array.from(new Set([...rawEnabledApps, ...ALL_PLATFORM_APPS]))
-                : rawEnabledApps;
+            const isPaidPlan = isPaidPlanFor(plan, currentSubscription);
+            const effectiveEnabledApps = effectiveEnabledAppsFor(rawEnabledApps, isPaidPlan);
 
             const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director', 'voiceforce', 'media-editor'];
             const activeAppsCount = effectiveEnabledApps.filter((app: string) => app !== 'system' && app !== 'settings' && validAppIds.includes(app)).length;
@@ -520,8 +508,15 @@ export class BillingController {
                 data: { status: 'CANCELLED', cancelledAt: new Date() }
             });
 
-            // Re-sync limits/config based on the free plan (Kickstart)
-            await BillingService.syncWorkspaceConfig(companyId);
+            // Move the workspace onto the free plan. There is no stored "workspace config" to re-sync: limits and app
+            // entitlements are derived live from the active subscription (see entitlements.ts, enforceUserLimit), and
+            // getActiveSubscription provisions the free fallback subscription when none is active. Non-fatal: the
+            // cancellation above already succeeded, and the next billing read provisions the fallback anyway.
+            try {
+                await BillingService.getActiveSubscription(companyId);
+            } catch (syncErr: any) {
+                console.error('[Billing] could not provision the free plan after cancellation:', syncErr?.message);
+            }
 
             res.json({ success: true, message: 'Subscription cancelled successfully. You are now on the free Kickstart plan.' });
         } catch (err) { next(err); }

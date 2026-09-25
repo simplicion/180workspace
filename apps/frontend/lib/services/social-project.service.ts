@@ -47,6 +47,44 @@ export interface AttentionItem {
     actionLink: string;
 }
 
+export type BrandType = 'company' | 'creator' | 'agency';
+export type BrandPlatform = 'instagram' | 'facebook' | 'youtube' | 'linkedin' | 'twitter' | 'tiktok';
+export type CaptionStylePreset = 'HORMOZI_BOUNCE' | 'ALI_ABDAAL_CLEAN' | 'MINIMAL_SUBTITLE' | 'BOLD_CENTER';
+export interface BrandColors { primary: string | null; accent: string | null; background: string | null; text: string | null }
+
+/** Mirrors `BrandConsciousness` in packages/domains/social-media/src/brand-consciousness.ts. */
+export interface BrandConsciousness {
+    projectId: string;
+    projectName: string | null;
+    brandName: string | null;
+    brandType: BrandType | null;
+    positioning: string | null;
+    tagline: string | null;
+    description: string | null;
+    ideation: string | null;
+    ideology: string | null;
+    colors: BrandColors;
+    logoUrl: string | null;
+    font: string | null;
+    tone: string | null;
+    audience: string | null;
+    forbiddenWords: string[];
+    ctas: string[];
+    hashtags: string[];
+    contentPillars: string[];
+    sampleViralPosts: string[];
+    targetPlatforms: BrandPlatform[];
+    captionStylePreset: CaptionStylePreset | null;
+    watermarkEnabled: boolean | null;
+    customGuidelines: string | null;
+    updatedAt: string | null;
+    completeness: { percent: number; isComplete: boolean; missingRequired: string[]; missingRecommended: string[] };
+}
+
+export type BrandConsciousnessPatch = Partial<Omit<BrandConsciousness, 'projectId' | 'projectName' | 'updatedAt' | 'completeness' | 'colors'>> & {
+    colors?: Partial<BrandColors> | null;
+};
+
 export const socialProjectService = {
     async getProjects(params?: { search?: string; status?: string; clientId?: string; limit?: number; offset?: number }) {
         const { data } = await api.get('/api/social-media/projects', { params });
@@ -66,6 +104,26 @@ export const socialProjectService = {
     async updateProject(id: string, payload: any) {
         const { data } = await api.put(`/api/social-media/projects/${id}`, payload);
         return data.project as SocialProject;
+    },
+
+    /** Brand profile exactly as the user gave it, plus `completeness`. See docs/social-studio-mobile/BRAND_CONSCIOUSNESS_API.md */
+    async getBrandConsciousness(id: string) {
+        const { data } = await api.get(`/api/social-media/projects/${id}/brand-consciousness`);
+        return data.brand as BrandConsciousness;
+    },
+
+    /** Partial update: absent = unchanged, null / "" / [] = clear. Validation errors come back as 400 with `details`. */
+    async updateBrandConsciousness(id: string, patch: BrandConsciousnessPatch) {
+        const { data } = await api.put(`/api/social-media/projects/${id}/brand-consciousness`, patch);
+        return data.brand as BrandConsciousness;
+    },
+
+    /** PNG / JPEG / WebP / SVG, max 2 MB. Saves and returns the new logoUrl. */
+    async uploadBrandLogo(id: string, file: File) {
+        const form = new FormData();
+        form.append('logo', file);
+        const { data } = await api.post(`/api/social-media/projects/${id}/brand-consciousness/logo`, form);
+        return { logoUrl: data.logoUrl as string, brand: data.brand as BrandConsciousness };
     },
 
     async getProjectDashboard(id: string) {

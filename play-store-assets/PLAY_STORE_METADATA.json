@@ -1,0 +1,59 @@
+{
+  "app_details": {
+    "app_name": "180 Manager",
+    "package_name": "com.workspace180.social_studio_mobile",
+    "version_name": "1.0.0",
+    "version_code": 1,
+    "primary_category": "Video Players & Editors",
+    "secondary_category": "Productivity",
+    "content_rating": "Everyone (PEGI 3 / ESRB Everyone)",
+    "target_sdk": 37,
+    "min_sdk": 24
+  },
+  "store_listing": {
+    "title": "180 Manager: AI Social Studio",
+    "short_description": "Hire your AI social media manager: edit real videos & post everywhere in 1-click.",
+    "full_description": "Hire your autonomous AI Social Media Manager with 180 Manager—the complete multi-channel growth platform that edits your real existing videos, designs 30 days of high-converting content, and posts everywhere from one unified hub.\n\nStop juggling disjointed tools, burning agency retainers, or relying on synthetic AI avatars. 180 Manager takes your authentic footage, refines it with professional NLE video editing, applies your custom 5CP brand identity, and distributes it across all major networks so your cost savings stack up and your business can truly fly.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nTHE 3 CORE PILLARS OF 180 MANAGER\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n1️⃣ YOUR AUTONOMOUS SOCIAL MEDIA MANAGER\n• Strategy & Brand Growth: 30-day autonomous content calendar designed around your business goals.\n• 5 Psychological Viral Hooks: Pattern Interrupts, Curiosity Gaps, Contrarian Truths, Social Proof, and Retention Loops.\n• Growth Analytics & Revenue Velocity: Track output velocity, analyze what converts, and scale your brand reach.\n• 5CP Brand Identity: Automatically locks in your brand colors, typography, logos, and custom voice guidelines.\n\n2️⃣ 1-PLATFORM HUB FOR POSTING EVERYWHERE\n• Instant Simultaneous Publishing: Publish high-impact video posts to YouTube (Shorts & Long-form), Instagram Reels, TikTok, X (Twitter), and LinkedIn in just one click.\n• Verified OAuth Connectors: Manage all multi-platform tokens safely with real-time status and live post confirmation.\n• Background Retention: Built-in Android foreground services ensure your multi-platform uploads complete seamlessly.\n\n3️⃣ AUTONOMOUS VIDEO EDITING (YOUR REAL VIDEOS)\n• Zero Fake Avatars: Built to edit your authentic, real-world video recordings—not synthetic hallucinations.\n• AndroidX Media3 Hardware NLE: Fast 60 FPS Full HD timeline rendering on your device.\n• Smart Silence Trimming: Automatically cuts awkward pauses and dead air for maximum viewer retention.\n• Deterministic Audio Ducking: Speech audio is intelligently prioritized while background music ducks smoothly.\n• Dynamic Kinetic Captions: Auto-generates captions styled in your brand's exact DNA colors and typography.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nENTERPRISE SECURITY & DATA PRIVACY\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n• End-to-end TLS 1.3 encryption on all network transfers.\n• Zero unauthorized data harvesting: Media files remain strictly isolated on your device until export.\n• Full compliance with GDPR & CCPA privacy standards.\n\nOfficial Website: https://180workspace.com\nPrivacy Policy: https://180workspace.com/privacy\nTerms of Service: https://180workspace.com/terms\nSupport & Inquiries: support@180workspace.com"
+  },
+  "compliance_links": {
+    "privacy_policy_url": "https://180workspace.com/privacy",
+    "terms_of_service_url": "https://180workspace.com/terms",
+    "developer_website": "https://180workspace.com",
+    "data_deletion_url": "https://180workspace.com/privacy#data-retention",
+    "account_deletion_url": "https://180workspace.com/account-delete",
+    "support_email": "support@180workspace.com"
+  },
+  "branding_assets": {
+    "theme": "White Theme App Icon",
+    "icon_specs": "512x512 PNG, White background, Solid black '1' and '8', 180 Brand Favicon with blue needle in place of '0', MANAGER studio badge",
+    "app_icon_512": "play-store-assets/icon-512x512.png",
+    "feature_graphic_1024": "play-store-assets/feature-graphic-1024x500.png",
+    "in_app_favicon": "apps/social-studio-mobile/assets/logo/brand_favicon.png",
+    "screenshots": [
+      {
+        "filename": "play-store-assets/screenshot-1-content-calendar.png",
+        "caption": "Pillar 1: Hire Your Autonomous AI Social Media Manager"
+      },
+      {
+        "filename": "play-store-assets/screenshot-2-teleprompter-script.png",
+        "caption": "Pillar 2: 1-Platform Hub for Posting Everywhere (YouTube, IG, TikTok, X, LinkedIn)"
+      },
+      {
+        "filename": "play-store-assets/screenshot-3-media-studio-nle.png",
+        "caption": "Pillar 3: Autonomous Video Editing of Your Real Videos (No fake avatars)"
+      },
+      {
+        "filename": "play-store-assets/screenshot-4-multi-platform-publish.png",
+        "caption": "Growth & Revenue Engine: Scale Reach & Stack Savings"
+      },
+      {
+        "filename": "play-store-assets/screenshot-5-brand-consciousness.png",
+        "caption": "5CP Brand Identity & Voice DNA Consistency"
+      }
+    ]
+  },
+  "distribution_binaries": {
+    "play_store_bundle": "180manager-release.aab",
+    "direct_test_apk": "180manager-release.apk"
+  }
+}

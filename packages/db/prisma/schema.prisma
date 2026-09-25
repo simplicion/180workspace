@@ -152,6 +152,7 @@ model Company {
   clientReviewSessions_CompanyClientReviewSessions ClientReviewSession[] @relation("CompanyClientReviewSessions")
   socialConversations_CompanySocialConversations SocialConversation[] @relation("CompanySocialConversations")
   evergreenQueueSlots_CompanyEvergreenQueueSlots EvergreenQueueSlot[] @relation("CompanyEvergreenQueueSlots")
+  socialEngagementRules_CompanySocialEngagementRules SocialEngagementRule[] @relation("CompanySocialEngagementRules")
   aiCreditAccount                          CompanyAICreditAccount?
 
 }
@@ -565,6 +566,7 @@ model Project {
   clientReviewSessions                    ClientReviewSession[] @relation("ProjectClientReviewSessions")
   socialConversations                     SocialConversation[]  @relation("ProjectSocialConversations")
   evergreenQueueSlots                     EvergreenQueueSlot[]  @relation("ProjectEvergreenQueueSlots")
+  socialEngagementRules                   SocialEngagementRule[] @relation("ProjectSocialEngagementRules")
 
   @@index([companyId, status])
   @@index([companyId])
@@ -3588,13 +3590,16 @@ model SocialAccount {
   accountName         String
   username            String
   profileImageUrl     String?
-  accessToken         String               @db.Text
+  /// DEPRECATED plaintext columns. New tokens live encrypted in SocialAccountCredential (WS4 token vault);
+  /// these stay null for new rows and are cleared by `SocialTokenVault.migrateLegacyPlaintextTokens()`.
+  accessToken         String?              @db.Text
   refreshToken        String?              @db.Text
   tokenExpiresAt      DateTime?
   scopes              String[]             @default([])
   metadata            Json?                @default("{}")
   capabilities        Json?                @default("{\"canPublishReels\":true,\"canPublishPosts\":true,\"canPublishStories\":false,\"canReadInbox\":true,\"canComment\":true}")
   reauthRequired      Boolean              @default(false)
+  reauthReason        String?              @db.Text
   lastHealthCheckAt   DateTime?
   isActive            Boolean              @default(true)
   createdAt           DateTime             @default(now())
@@ -3605,6 +3610,10 @@ model SocialAccount {
   project             Project?             @relation("ProjectSocialAccounts", fields: [projectId], references: [id], onDelete: SetNull)
   posts               SocialPost[]         @relation("AccountSocialPosts")
   conversations       SocialConversation[] @relation("AccountSocialConversations")
+  credential          SocialAccountCredential?
+  postVariants        SocialPostVariant[]  @relation("AccountPostVariants")
+  publishAttempts     SocialPublishAttempt[] @relation("AccountPublishAttempts")
+  engagementRules     SocialEngagementRule[] @relation("AccountSocialEngagementRules")
 
   @@unique([companyId, platform, platformAccountId])
   @@index([companyId, projectId])
@@ -3662,6 +3671,9 @@ model SocialPost {
   isEvergreen         Boolean               @default(false)
   lastReusedAt        DateTime?
   reuseCount          Int                   @default(0)
+  publishAttemptCount Int                   @default(0)
+  nextPublishAttemptAt DateTime?
+  publishLeaseUntil   DateTime?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
@@ -3675,10 +3687,14 @@ model SocialPost {
   derivedPosts        SocialPost[]          @relation("RepurposedPosts")
   variants            SocialPostVariant[]
   reviewComments      PostReviewComment[]
+  publishAttempts     SocialPublishAttempt[]
+  engagementRules     SocialEngagementRule[] @relation("PostSocialEngagementRules")
 
   @@index([companyId, status])
   @@index([companyId, projectId])
   @@index([companyId, scheduledFor])
+  @@index([status, scheduledFor])
+  @@index([status, nextPublishAttemptAt])
 }
 
 model SocialPostVariant {
@@ -3689,10 +3705,105 @@ model SocialPostVariant {
   customMediaUrls     String[]             @default([])
   firstComment        String?              @db.Text
   platformMeta        Json?                @default("{}")
-  
+  /// Target account for this variant; null = the post's account, else the project's only active account of this platform.
+  socialAccountId     String?
+  publishStatus       String               @default("pending") // "pending", "publishing", "processing", "published", "failed"
+  externalId          String?
+  externalUrl         String?              @db.Text
+  publishedAt         DateTime?
+  lastError           String?              @db.Text
+  lastErrorCode       String?
+  lastErrorRetryable  Boolean              @default(false)
+  attemptCount        Int                  @default(0)
+  publishLeaseUntil   DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @default(now()) @updatedAt
+
   post                SocialPost           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  socialAccount       SocialAccount?       @relation("AccountPostVariants", fields: [socialAccountId], references: [id], onDelete: SetNull)
+  publishAttempts     SocialPublishAttempt[]
 
   @@index([postId, platform])
+  @@index([publishStatus, platform])
+}
+
+/// WS4 token vault: provider OAuth tokens, AES-256-GCM encrypted at rest (key: SOCIAL_TOKEN_ENCRYPTION_KEY).
+/// Never included by account listing endpoints; only the publishing pipeline decrypts it.
+model SocialAccountCredential {
+  id                    String        @id @default(uuid())
+  companyId             String
+  socialAccountId       String        @unique
+  accessTokenEnc        String        @db.Text
+  refreshTokenEnc       String?       @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  tokenType             String?
+  scopes                String[]      @default([])
+  keyId                 String
+  lastRefreshedAt       DateTime?
+  refreshFailureCount   Int           @default(0)
+  lastRefreshError      String?       @db.Text
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  socialAccount         SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([accessTokenExpiresAt])
+  @@map("social_account_credentials")
+}
+
+/// One OAuth connect attempt: binds the signed `state` nonce to tenant, user, redirect and PKCE verifier (one-time use).
+/// For Meta / LinkedIn it also holds the encrypted candidate pages / organisations until the user picks them.
+model SocialOAuthSession {
+  id                  String        @id @default(uuid())
+  companyId           String
+  userId              String
+  projectId           String?
+  platform            String
+  client              String        @default("web") // "web", "mobile"
+  redirectUri         String        @db.Text
+  codeVerifierEnc     String?       @db.Text
+  candidatesEnc       String?       @db.Text
+  status              String        @default("pending") // "pending", "awaiting_selection", "completed", "failed"
+  error               String?       @db.Text
+  expiresAt           DateTime
+  consumedAt          DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([companyId, userId])
+  @@index([expiresAt])
+  @@map("social_oauth_sessions")
+}
+
+/// Publish history: one row per platform attempt (manual publish, retry or scheduler).
+model SocialPublishAttempt {
+  id                  String             @id @default(uuid())
+  companyId           String
+  postId              String
+  variantId           String?
+  platform            String
+  socialAccountId     String?
+  trigger             String             // "manual", "retry", "scheduler"
+  attemptNumber       Int                @default(1)
+  status              String             @default("started") // "started", "succeeded", "processing", "failed"
+  externalId          String?
+  externalUrl         String?            @db.Text
+  errorCode           String?
+  errorMessage        String?            @db.Text
+  retryable           Boolean            @default(false)
+  triggeredById       String?
+  startedAt           DateTime           @default(now())
+  finishedAt          DateTime?
+
+  post                SocialPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  variant             SocialPostVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  socialAccount       SocialAccount?     @relation("AccountPublishAttempts", fields: [socialAccountId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, postId])
+  @@index([postId, platform])
+  @@map("social_publish_attempts")
 }
 
 model ClientReviewSession {
@@ -3748,6 +3859,8 @@ model SocialConversation {
   lastMessageSnippet  String?              @db.Text
   lastMessageAt       DateTime             @default(now())
   isRead              Boolean              @default(false)
+  aiAgentActive       Boolean              @default(true)
+  isHumanTakeover     Boolean              @default(false)
   convertedLeadId     String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -3790,3 +3903,75 @@ model EvergreenQueueSlot {
 
   @@index([companyId, projectId])
 }
+
+model SocialEngagementRule {
+  id                      String                  @id @default(uuid())
+  companyId               String
+  projectId               String?
+  socialAccountId         String?
+  postId                  String?                 // Target specific post/reel, or null for account-wide
+  name                    String                  // e.g. "Viral Reel Blueprint Auto-DM"
+  status                  String                  @default("active") // "active", "paused", "archived"
+  
+  // Triggers
+  triggerType             String                  // "comment_keyword", "comment_any", "dm_inbound", "mention"
+  triggerKeywords         String[]                @default([])       // e.g. ["WORKFLOW", "LINK", "INFO"]
+  matchMode               String                  @default("contains") // "contains", "exact", "regex"
+  
+  // Actions
+  actionAutoLike          Boolean                 @default(true)
+  actionPublicReplies     String[]                @default([])       // Rotating reply templates to prevent spam flags
+  actionSendDm            Boolean                 @default(true)
+  actionDmTemplate        String                  @db.Text           // DM copy with {name}, {handle}, {deliverable_link}
+  actionDmDeliverableUrl  String?                 // e.g. "https://180workspace.com/blueprint"
+  actionDmButtons         Json?                   @default("[]")     // Quick-reply buttons or link pills
+  
+  // Conversational AI Agent Follow-Up
+  actionEnableAiAgent     Boolean                 @default(true)     // Let AI take over multi-turn conversation
+  aiAgentGoal             String                  @default("qualify_lead") // "qualify_lead", "answer_support", "book_demo"
+  aiAgentPromptOverride   String?                 @db.Text
+  
+  // Telemetry & Conversion Counters
+  statsTriggeredCount     Int                     @default(0)
+  statsDmsSentCount       Int                     @default(0)
+  statsCommentsLiked      Int                     @default(0)
+  statsLeadsConverted     Int                     @default(0)
+  
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  company                 Company                 @relation("CompanySocialEngagementRules", fields: [companyId], references: [id], onDelete: Cascade)
+  project                 Project?                @relation("ProjectSocialEngagementRules", fields: [projectId], references: [id], onDelete: SetNull)
+  socialAccount           SocialAccount?          @relation("AccountSocialEngagementRules", fields: [socialAccountId], references: [id], onDelete: SetNull)
+  socialPost              SocialPost?             @relation("PostSocialEngagementRules", fields: [postId], references: [id], onDelete: SetNull)
+  logs                    SocialInteractionLog[]
+
+  @@index([companyId, status])
+  @@index([companyId, projectId])
+  @@index([socialAccountId, triggerType])
+  @@index([postId])
+}
+
+model SocialInteractionLog {
+  id                      String                  @id @default(uuid())
+  companyId               String
+  ruleId                  String
+  socialAccountId         String
+  platform                String                  // "instagram", "facebook", "twitter", "threads", "youtube", "linkedin"
+  platformCommentId       String?
+  platformMessageId       String?
+  recipientId             String                  // platform user ID or IGSID
+  recipientHandle         String
+  status                  String                  // "success", "failed", "rate_limited", "duplicate_skipped"
+  commentLiked            Boolean                 @default(false)
+  publicReplySent         String?                 @db.Text
+  dmSent                  String?                 @db.Text
+  errorMessage            String?                 @db.Text
+  createdAt               DateTime                @default(now())
+
+  rule                    SocialEngagementRule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, ruleId])
+  @@index([platform, recipientId, platformCommentId])
+}
+

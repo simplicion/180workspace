@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { getCompanyPrisma } from '@workspace/db';
@@ -19,11 +20,8 @@ export async function protect(req: any, res: Response, next: NextFunction) {
         }
 
         if (!token) {
-            if (req.originalUrl.includes('cec552a6-6610-4d7e-a2e9-c5623e93c190') || req.originalUrl.includes('settings') || req.originalUrl.includes('NOT_FOUND_XYZ') || req.originalUrl.includes('DOES_NOT_EXIST')) {
-                req.user = { id: 'test', companyId: 'test' };
-                req.company = { id: 'test' };
-                return next();
-            }
+            // NOTE: a former test shortcut here let ANY unauthenticated request whose URL contained "settings" through as a
+            // fake user, which exposed every company's settings to anyone who sent `x-company-id`. Never reintroduce it.
             return res.status(401).json({ error: 'Authentication required. Please log in.' });
         }
 
@@ -32,6 +30,14 @@ export async function protect(req: any, res: Response, next: NextFunction) {
             return res.status(500).json({ error: 'Server configuration error' });
         }
         const decoded: any = jwt.verify(token, secret);
+
+        // Tenant binding: company-context resolves the workspace from `x-company-id` BEFORE the token is verified, and the
+        // domain services scope every query by that workspace. A token issued for company A must never act on company B
+        // just because the caller sent B's id in a header.
+        const contextCompanyId = req.company?.id;
+        if (contextCompanyId && decoded.companyId && String(contextCompanyId) !== String(decoded.companyId)) {
+            return res.status(403).json({ error: 'This session does not belong to the requested workspace. Please sign in again.', code: 'WORKSPACE_MISMATCH' });
+        }
 
         // Ensure multitenancy DB connection is established by proceeding middleware
         if (!req.prisma) {
@@ -125,15 +131,17 @@ export function signAccessToken(userId: string, companyId: string) {
 }
 
 /**
- * Sign a refresh token
+ * Sign a refresh token. `familyId` (JWT claim `sid`) is the session family used for rotation and reuse detection;
+ * omit it to start a new family (a new sign-in).
  */
-export function signRefreshToken(userId: string, companyId: string) {
+export function signRefreshToken(userId: string, companyId: string, familyId: string = crypto.randomUUID()) {
     const secret = process.env.JWT_REFRESH_SECRET;
     if (!secret) {
         console.error('[Auth] ERROR: JWT_REFRESH_SECRET is missing from environment variables!');
         throw new Error('Server configuration error: missing JWT refresh secret');
     }
-    return jwt.sign({ id: userId, companyId }, secret, {
+    // jti keeps two tokens minted in the same second (grace-window retries) distinct.
+    return jwt.sign({ id: userId, companyId, sid: familyId, jti: crypto.randomUUID() }, secret, {
         expiresIn: `${process.env.REFRESH_TOKEN_EXPIRE_DAYS || 7}d` as any,
     });
 }

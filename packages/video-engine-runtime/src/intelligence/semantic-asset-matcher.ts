@@ -72,12 +72,12 @@ export class SemanticAssetMatcher {
 
     // 1. Spoken Brand / Entity Matching (Logos & Badges)
     for (const graphic of report.graphicOverlays) {
-      const cleanAssetName = graphic.asset.name.toLowerCase().replace(/[^a-z0-9]/g, " ");
+      const cleanAssetName = graphic.asset.name.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, " ");
       const assetKeywords = cleanAssetName.split(/\s+/).filter((w) => w.length > 2);
 
       // Search transcript for keyword occurrences
       for (const tWord of transcript) {
-        const wordClean = tWord.word.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const wordClean = tWord.word.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, "");
         const isMatch = assetKeywords.some((k) => wordClean.includes(k) || k.includes(wordClean));
 
         if (isMatch && tWord.startSeconds >= lastCueEndTime + 1.0 && tWord.startSeconds + 2.0 <= totalDurationSec) {
@@ -108,13 +108,13 @@ export class SemanticAssetMatcher {
 
     // 2. B-Roll & Screencast Matching
     for (const broll of report.supportiveAssets) {
-      const cleanAssetName = broll.asset.name.toLowerCase().replace(/[^a-z0-9]/g, " ");
+      const cleanAssetName = broll.asset.name.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, " ");
       const assetKeywords = cleanAssetName.split(/\s+/).filter((w) => w.length > 2);
 
       // Look for semantic overlap or emphasis peaks
       let bestMatchWord: TranscriptWord | null = null;
       for (const tWord of transcript) {
-        const wordClean = tWord.word.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const wordClean = tWord.word.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, "");
         if (assetKeywords.some((k) => wordClean.includes(k) || k.includes(wordClean))) {
           bestMatchWord = tWord;
           break;

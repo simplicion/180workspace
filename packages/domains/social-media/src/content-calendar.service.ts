@@ -1,5 +1,6 @@
 import { prisma, requestContext } from '@workspace/db';
-import { aiContentService } from '@workspace/ai';
+import { aiContentService, expandAutopilotFields } from '@workspace/ai';
+import { SocialProjectService } from './social-project.service';
 export class ContentCalendarService {
     static async listCalendars(limit: number = 10, offset: number = 0) {
         const calendars = await prisma.contentCalendar.findMany({
@@ -55,7 +56,7 @@ export class ContentCalendarService {
                     tags = p.hashtagsResearched;
                 }
             }
-            return {
+            return expandAutopilotFields({
                 ...p,
                 _id: p.id,
                 hashtags: tags,
@@ -63,7 +64,7 @@ export class ContentCalendarService {
                     estimatedImpressions: p.engagementTargetEstimatedImpressions || 0,
                     estimatedEngagementPercent: p.engagementTargetEstimatedEngagementPercent || 0
                 }
-            };
+            });
         });
 
         return { calendar: mappedCalendar, pieces: mappedPieces };
@@ -73,23 +74,43 @@ export class ContentCalendarService {
         const startTime = Date.now();
         const companyId = requestContext.getStore()?.companyId as string;
 
-        // 1. Call AI Service to generate calendar data based on req.body
-        const aiResponse = await aiContentService.generateContentCalendar(body, user.id);
+        // 1. Resolve Brand Consciousness if projectId is provided
+        let brandConsciousness = body.brandConsciousness;
+        if (body.projectId && !brandConsciousness) {
+            try {
+                brandConsciousness = await SocialProjectService.getProjectBrandConsciousness(body.projectId, companyId);
+            } catch (e) {
+                console.warn('[ContentCalendarService] Failed to load brand consciousness:', e);
+            }
+        }
+
+        const enrichedBody = {
+            ...body,
+            brandConsciousness: brandConsciousness || body.brandConsciousness,
+            brandVoice: brandConsciousness?.tone || body.brandVoice || body.brand_voice,
+            contentPillars: brandConsciousness?.contentPillars || body.contentPillars || body.content_pillars
+        };
+
+        // 2. Call AI Service to generate calendar data based on enrichedBody
+        const aiResponse = await aiContentService.generateContentCalendar(enrichedBody, user.id, companyId);
 
         if (!aiResponse.success) {
-            throw new Error(aiResponse.error || 'AI generation failed');
+            const err: any = new Error(aiResponse.error || 'AI generation failed');
+            err.code = (aiResponse as any).code || 'AI_PROVIDER_ERROR';
+            err.statusCode = (aiResponse as any).statusCode || 502;
+            throw err;
         }
 
         const generatedPieces = aiResponse.data;
         const meta: any = aiResponse.meta || {};
 
-        // 2. Save Calendar Metadata
+        // 3. Save Calendar Metadata
         const calendar = await prisma.contentCalendar.create({ data: {
             companyId: companyId,
-            name: body.name || `${body.brandName || body.brand_name || 'Brand'} Content Calendar`,
+            name: body.name || `${body.brandName || body.brand_name || brandConsciousness?.brandTagline || 'Brand'} Content Calendar`,
             startDate: body.startDate ? new Date(body.startDate) : new Date(),
-            contentPillars: body.contentPillars || body.content_pillars || [],
-            tone: body.brandVoice || body.brand_voice || 'Professional',
+            contentPillars: enrichedBody.contentPillars || [],
+            tone: enrichedBody.brandVoice || 'Professional',
             engagementGoal: body.engagementGoal || body.engagement_goal || 'Growth',
             hashtagStrategy: body.hashtagStrategy || body.hashtag_strategy || 'Mixed',
             competitors: body.competitors || [],
@@ -101,7 +122,9 @@ export class ContentCalendarService {
             metadata: { 
                 aiProviderUsed: meta.provider,
                 userId: user.id,
+                projectId: body.projectId || null,
                 brandName: body.brandName || body.brand_name || 'Brand',
+                brandConsciousness: brandConsciousness || null,
                 industry: body.industry || 'General',
                 subdomain: body.subdomain || 'company',
                 targetAudience: body.targetAudience || body.target_audience || 'General Audience',
@@ -112,7 +135,23 @@ export class ContentCalendarService {
             }
         } });
 
-        // 3. Save Calendar Pieces
+        // Connect calendar to project if projectId exists
+        if (body.projectId) {
+            try {
+                await (prisma as any).project.update({
+                    where: { id: body.projectId },
+                    data: {
+                        contentCalendars_ProjectContentCalendars: {
+                            connect: { id: calendar.id }
+                        }
+                    }
+                });
+            } catch (err) {
+                // Connection schema optional, captured in metadata
+            }
+        }
+
+        // 4. Save Calendar Pieces
         const piecesToInsert = generatedPieces.map((piece: any, index: number) => {
             const et = piece.engagementTarget || {};
             return {
@@ -123,9 +162,9 @@ export class ContentCalendarService {
                 pillar: piece.pillar || 'General',
                 headline: piece.headline || '',
                 adCopyFull: piece.adCopyFull || '',
-                videoScriptOrHooks: piece.videoScriptOrHooks || '',
-                visualAssetsBrief: piece.visualAssetsBrief || '',
-                hashtagsResearched: piece.hashtags ? (Array.isArray(piece.hashtags) ? piece.hashtags.join(', ') : String(piece.hashtags)) : '',
+                videoScriptOrHooks: typeof piece.videoScriptOrHooks === 'object' ? JSON.stringify(piece.videoScriptOrHooks) : String(piece.videoScriptOrHooks || ''),
+                visualAssetsBrief: typeof piece.visualAssetsBrief === 'object' ? JSON.stringify(piece.visualAssetsBrief) : String(piece.visualAssetsBrief || ''),
+                hashtagsResearched: piece.hashtags ? (Array.isArray(piece.hashtags) ? piece.hashtags.join(', ') : String(piece.hashtags)) : (piece.hashtagsResearched || ''),
                 callToAction: piece.callToAction || '',
                 engagementTargetEstimatedImpressions: et.estimatedImpressions ? String(et.estimatedImpressions) : '',
                 engagementTargetEstimatedEngagementPercent: et.estimatedEngagementPercent ? parseFloat(et.estimatedEngagementPercent) || 0 : 0,
@@ -195,7 +234,7 @@ export class ContentCalendarService {
                     tags = p.hashtagsResearched;
                 }
             }
-            return {
+            return expandAutopilotFields({
                 ...p,
                 _id: p.id,
                 hashtags: tags,
@@ -203,7 +242,7 @@ export class ContentCalendarService {
                     estimatedImpressions: p.engagementTargetEstimatedImpressions || 0,
                     estimatedEngagementPercent: p.engagementTargetEstimatedEngagementPercent || 0
                 }
-            };
+            });
         });
         return mappedPieces;
     }
@@ -242,7 +281,7 @@ export class ContentCalendarService {
             }
         }
         
-        const mappedPiece = {
+        const mappedPiece = expandAutopilotFields({
             ...piece,
             _id: piece.id,
             hashtags: tags,
@@ -250,7 +289,7 @@ export class ContentCalendarService {
                 estimatedImpressions: piece.engagementTargetEstimatedImpressions || 0,
                 estimatedEngagementPercent: piece.engagementTargetEstimatedEngagementPercent || 0
             }
-        };
+        });
 
         return mappedPiece;
     }

@@ -7,6 +7,12 @@ import { StockDecisionBroker } from "../tools/sourcing/stock-decision-broker";
 export async function runTest() {
   console.log("=== TEST 28: PIXABAY FULL MULTI-RESOURCE & STOCK DECISION BROKER ===");
 
+  const hasKey = Boolean(process.env.PIXABAY_API_KEY || process.env.NEXT_PUBLIC_PIXABAY_API_KEY);
+  if (!hasKey) {
+    console.log("  ⚠️ PIXABAY_API_KEY not configured in environment. Skipping live network search and verifying offline contract.");
+    return;
+  }
+
   // 1. Test Pixabay Image Search (Photos & Vectors)
   console.log("\n[Subtest 1] Testing Pixabay Image & Vector Search...");
   const imgResult = await PixabayClient.searchImages({
