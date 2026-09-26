@@ -22,6 +22,8 @@ export interface AutopilotRunInput {
     platforms: AutopilotPlatform[];
     goals: string[];
     brand: AutopilotBrandContext;
+    /** Compact, project-scoped memory lines (creator preferences, feedback, performance history). */
+    memoryContext?: string[];
 }
 
 export interface PieceCopy {

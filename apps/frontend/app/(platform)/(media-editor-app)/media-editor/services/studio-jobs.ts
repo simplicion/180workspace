@@ -23,7 +23,7 @@ const WORK: JobState[] = ["ANALYZING", "PLANNING", "EDITING", "RENDERING", "CRIT
 export function canTransition(from: JobState, to: JobState): boolean {
   if (isTerminal(from)) return false;
   if (to === "QUEUED") return false;
-  return from === "QUEUED" ? to !== "QUEUED" : WORK.includes(from);
+  return from === "QUEUED" || WORK.includes(from);
 }
 
 export const JOB_STATE_LABEL: Record<JobState, string> = {
@@ -65,12 +65,15 @@ export class StudioJobRegistry {
   private controllers = new Map<string, AbortController>();
   private listeners = new Set<Listener>();
   private seq = 0;
+  private restored = false;
 
   constructor(private storage: Pick<Storage, "getItem" | "setItem"> | null = null, private now: () => number = () => Date.now()) {}
 
   /** Restores the last session's jobs; the ones that were still running become FAILED + interrupted. */
   restore(): StudioJob[] {
-    if (!this.storage) return [];
+    // Once per app session: a remount of the Studio must not mark this session's running jobs as interrupted.
+    if (!this.storage || this.restored) return [];
+    this.restored = true;
     let saved: StudioJob[] = [];
     try {
       saved = JSON.parse(this.storage.getItem(STORAGE_KEY) || "[]");

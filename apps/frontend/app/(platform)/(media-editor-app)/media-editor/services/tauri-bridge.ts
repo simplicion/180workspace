@@ -22,7 +22,21 @@ import {
   runNativeRender,
   RenderCancelledError,
   fetchRemoteMediaWithProgress,
+  runMediaAnalysis,
+  AnalysisCancelledError,
 } from "@/lib/native/desktop-media";
+import {
+  parseSceneCutsMs,
+  parseLoudness,
+  missingFilter,
+  exportQaFromReports,
+  qaIssues,
+  qaExpectationsFor,
+  type DesktopMediaAnalysis,
+  type LastExportQa,
+  type QaIssue,
+} from "./media-analysis";
+import type { DirectorConstraintsPayload } from "./director-locks";
 import { captionStateAt, drawCaptionState, ensureCaptionFonts, rasterizeCaptionStates } from "./caption-raster";
 import { buildNativeRenderPlan, describeUnsupported } from "./native-render-plan";
 import { effectVisualsAt } from "./editor-library";
@@ -82,6 +96,16 @@ export interface ExportResult {
   sizeBytes: number;
   /** Set when the desktop app already wrote the file where the user chose; there is nothing to download. */
   savedPath?: string;
+  /** Post-export QA of the written file (desktop export only). */
+  qa?: ExportQaResult;
+}
+
+/** Measured facts about an export (ffprobe + blackdetect + freezedetect + ebur128) and the issues found. */
+export interface ExportQaResult {
+  report: LastExportQa;
+  issues: QaIssue[];
+  /** Checks this FFmpeg build could not run (e.g. freezedetect); never reported as "no issues". */
+  unavailable: string[];
 }
 
 /** The export cannot run without losing something (e.g. the audio); the message says why and what to do. */
@@ -96,6 +120,8 @@ export interface ExportOptions {
   signal?: AbortSignal;
   /** Non-fatal information for the user (why a fallback renderer was used, features not applied, ...). */
   onNotice?: (message: string) => void;
+  /** Job stage changes: downloading stock media, rendering, then checking the result (post-export QA). */
+  onStage?: (stage: "DOWNLOADING" | "RENDERING" | "CRITIQUING", detail?: string) => void;
 }
 
 // ── AI Director (web) ────────────────────────────────────────────────────────
@@ -131,6 +157,12 @@ export interface DirectorPipelineOptions {
   telemetry?: DirectorTelemetry;
   context?: DirectorTurnContext;
   history?: DirectorHistoryTurn[];
+  /** Timeline locks the director must respect (enforced by the server validator and re-checked on the client). */
+  constraints?: DirectorConstraintsPayload;
+  /** QA of the last export, so the director can fix what the check found. */
+  lastExportQa?: LastExportQa;
+  /** Called when on-device analysis starts and when the request is sent (job state ANALYZING -> PLANNING). */
+  onStage?: (stage: "ANALYZING" | "PLANNING") => void;
   timeoutMs?: number;
   signal?: AbortSignal;
   onProgress?: (event: AIDirectorProgressEvent) => void;
@@ -149,6 +181,64 @@ export interface DirectorPipelineResult {
   warnings: string[];
   /** Whether local speech telemetry went with the request. */
   sentTelemetry: boolean;
+  /** The server applied this turn without asking (project autonomy AUTO and only safe operations). */
+  autoApplied?: boolean;
+  /** The server critic's review of this turn's result (after its bounded repair rounds). */
+  critique?: DirectorCritique;
+  /** Operations the server dropped because they broke the user's constraints. */
+  violations?: string[];
+  runId?: string;
+  /** On-device scene/loudness analysis sent with this turn. */
+  mediaAnalysis?: DesktopMediaAnalysis;
+}
+
+export interface DirectorCritiqueIssue {
+  id: string;
+  severity: string;
+  category?: string;
+  title: string;
+  timeRangeMs?: [number, number];
+}
+
+export interface DirectorCritique {
+  score: number;
+  issues: DirectorCritiqueIssue[];
+  repairRounds: number;
+}
+
+/** Reads the optional critique block of a director response; anything malformed is dropped, never guessed. */
+export function parseDirectorCritique(raw: any): DirectorCritique | undefined {
+  if (!raw || typeof raw !== "object" || typeof raw.score !== "number" || !Number.isFinite(raw.score)) return undefined;
+  const issues: DirectorCritiqueIssue[] = (Array.isArray(raw.issues) ? raw.issues : [])
+    .filter((i: any) => i && typeof i.title === "string")
+    .slice(0, 50)
+    .map((i: any, n: number) => {
+      const r = i.timeRangeMs;
+      const range =
+        Array.isArray(r) && r.length === 2 && r.every((x: any) => typeof x === "number" && Number.isFinite(x)) && r[1] >= r[0]
+          ? ([r[0], r[1]] as [number, number])
+          : undefined;
+      return {
+        id: typeof i.id === "string" ? i.id : `issue-${n}`,
+        severity: typeof i.severity === "string" ? i.severity : "info",
+        ...(typeof i.category === "string" ? { category: i.category } : {}),
+        title: i.title.slice(0, 300),
+        ...(range ? { timeRangeMs: range } : {}),
+      };
+    });
+  return { score: raw.score, issues, repairRounds: typeof raw.repairRounds === "number" ? raw.repairRounds : 0 };
+}
+
+/** Violation lines from a director response (strings, or objects with a message/detail/reason). */
+export function parseDirectorViolations(raw: any): string[] | undefined {
+  if (!Array.isArray(raw) || !raw.length) return undefined;
+  const out = raw
+    .map((v: any) =>
+      typeof v === "string" ? v : typeof v?.message === "string" ? v.message : typeof v?.detail === "string" ? v.detail : typeof v?.reason === "string" ? v.reason : null
+    )
+    .filter((v: any): v is string => !!v)
+    .map((v: string) => v.slice(0, 300));
+  return out.length ? out : undefined;
 }
 
 export interface DirectorGreeting {
@@ -204,6 +294,61 @@ async function analyzeSpeechNative(nativePath: string): Promise<{ telemetry?: Di
     .map((s) => ({ timeRange: { start: ms(s.startMs), duration: ms(s.endMs - s.startMs) } }));
   if (!words.length && !silenceGaps.length) return { warning };
   return { telemetry: { transcript: words, silenceGaps }, warning };
+}
+
+/**
+ * Scene cuts and loudness of one picked file with the bundled FFmpeg (analysis.rs). Each measurement is independent:
+ * one that fails is reported as a warning and left out, never filled in.
+ */
+export async function analyzeMediaNative(nativePath: string, signal?: AbortSignal): Promise<{ analysis: DesktopMediaAnalysis; warnings: string[] }> {
+  const analysis: DesktopMediaAnalysis = {};
+  const warnings: string[] = [];
+  try {
+    analysis.scenesMs = parseSceneCutsMs(await runMediaAnalysis(nativePath, "scenes", { signal }));
+  } catch (e: any) {
+    if (e instanceof AnalysisCancelledError) throw e;
+    warnings.push(`Scene detection failed: ${e?.message || e}`);
+  }
+  try {
+    const loud = parseLoudness(await runMediaAnalysis(nativePath, "loudness", { signal }));
+    if (loud) {
+      analysis.loudness = {
+        integratedLufs: loud.integratedLufs,
+        ...(loud.truePeakDb != null ? { truePeakDb: loud.truePeakDb } : {}),
+        ...(loud.clippingPct != null ? { clippingPct: loud.clippingPct } : {}),
+      };
+    }
+  } catch (e: any) {
+    if (e instanceof AnalysisCancelledError) throw e;
+    warnings.push(`Loudness measurement failed: ${e?.message || e}`);
+  }
+  return { analysis, warnings };
+}
+
+/**
+ * Post-export QA of a finished file: ffprobe + blackdetect + freezedetect + ebur128. On an FFmpeg build without
+ * freezedetect, frozen picture is measured with mpdecimate instead (still a real measurement).
+ */
+export async function runExportQa(
+  path: string,
+  editIR: EditIR,
+  spec: { width: number; height: number; durationSec: number; hasAudio: boolean },
+  signal?: AbortSignal
+): Promise<ExportQaResult> {
+  const probe = await desktopMedia.probeMedia(path);
+  const unavailable: string[] = [];
+  let report: string;
+  let method: "freezedetect" | "mpdecimate" = "freezedetect";
+  try {
+    report = await runMediaAnalysis(path, "qa", { signal, durationSec: spec.durationSec });
+  } catch (e: any) {
+    if (!missingFilter(String(e?.message || ""), "freezedetect")) throw e;
+    method = "mpdecimate";
+    report = await runMediaAnalysis(path, "qa_nofreeze", { signal, durationSec: spec.durationSec });
+  }
+  const qa = exportQaFromReports(probe, report, method);
+  if (!qa.hasAudio && spec.hasAudio) unavailable.push("loudness (the export has no audio stream)");
+  return { report: qa, issues: qaIssues(qa, qaExpectationsFor(editIR, spec)), unavailable };
 }
 
 /** Transcript words and silences from an on-device analysis graph; undefined when there is none. */
@@ -315,6 +460,8 @@ class DesktopEngineBridge implements EngineBridge {
   private nativeHasAudio = new Map<string, boolean>();
   /** Speech analysis per source URL, so a file is only transcribed once per session. */
   private speechCache = new Map<string, Promise<{ telemetry?: DirectorTelemetry; warning?: string }>>();
+  /** Scene/loudness analysis per source URL (once per session). */
+  private mediaCache = new Map<string, DesktopMediaAnalysis>();
 
   constructor() {
     this.isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -877,6 +1024,21 @@ class DesktopEngineBridge implements EngineBridge {
     let speechWarning: string | undefined;
     const primarySrc = currentEditIR?.tracks?.videoTracks?.[0]?.clips?.[0]?.sourcePath;
     const nativePath = primarySrc ? fromAssetUrl(primarySrc) : null;
+    const analysisWarnings: string[] = [];
+    let mediaAnalysis: DesktopMediaAnalysis | undefined = primarySrc ? this.mediaCache.get(primarySrc) : undefined;
+    if (nativePath && primarySrc && (!telemetry || !mediaAnalysis)) options?.onStage?.("ANALYZING");
+    if (nativePath && primarySrc && !mediaAnalysis) {
+      options?.onProgress?.({
+        phase: "INTELLIGENCE",
+        stageName: "Reading your footage",
+        detail: "Finding scene cuts and measuring loudness on this computer...",
+        percent: 2,
+      });
+      const r = await analyzeMediaNative(nativePath, options?.signal);
+      mediaAnalysis = r.analysis;
+      analysisWarnings.push(...r.warnings);
+      if (!r.warnings.length) this.mediaCache.set(primarySrc, r.analysis);
+    }
     if (!telemetry && nativePath && primarySrc) {
       options?.onProgress?.({
         phase: "INGESTION",
@@ -894,7 +1056,13 @@ class DesktopEngineBridge implements EngineBridge {
       speechWarning = r.warning;
       if (!r.telemetry) this.speechCache.delete(primarySrc); // retry next turn (e.g. after a network error)
     }
+    if (options?.signal?.aborted) throw new AnalysisCancelledError();
+    options?.onStage?.("PLANNING");
     const ctx = options?.context || {};
+    // The web route reads media analysis inside `telemetry` (a top-level `media` key switches the server to the mobile
+    // director), so scenes/loudness travel as telemetry.scenesMs / telemetry.loudness.
+    const hasAnalysis = !!(mediaAnalysis && (mediaAnalysis.scenesMs || mediaAnalysis.loudness));
+    if (hasAnalysis) telemetry = { ...(telemetry ?? { transcript: [], silenceGaps: [] }), ...mediaAnalysis };
     const body = JSON.stringify({
       prompt: prompt || `Apply ${stylePreset} editing style`,
       stylePreset,
@@ -907,6 +1075,8 @@ class DesktopEngineBridge implements EngineBridge {
       ...(ctx.calendarPieceId ? { calendarPieceId: ctx.calendarPieceId } : {}),
       ...(ctx.postId ? { postId: ctx.postId } : {}),
       ...(options?.history?.length ? { history: options.history.slice(-12) } : {}),
+      ...(options?.constraints ? { constraints: options.constraints } : {}),
+      ...(options?.lastExportQa ? { lastExportQa: options.lastExportQa } : {}),
     });
 
     const timeoutMs = options?.timeoutMs ?? DIRECTOR_REQUEST_TIMEOUT_MS;
@@ -926,6 +1096,8 @@ class DesktopEngineBridge implements EngineBridge {
     }
     options?.onProgress?.({ phase: "COMPLETE", stageName: "Director response ready", detail: "Received the updated timeline.", percent: 100 });
     const d = data.data;
+    const critique = parseDirectorCritique(d.critique);
+    const violations = parseDirectorViolations(d.violations);
     return {
       editIR: d.ast,
       outputPath: "rendered_master.mp4",
@@ -936,8 +1108,13 @@ class DesktopEngineBridge implements EngineBridge {
       confirmationDetails: d.confirmationDetails,
       plannerSource: d.plannerSource === "llm" ? "llm" : "deterministic",
       plannerReason: typeof d.plannerReason === "string" ? d.plannerReason : undefined,
-      warnings: [...(speechWarning ? [speechWarning] : []), ...(Array.isArray(d.warnings) ? d.warnings : [])],
+      warnings: [...(speechWarning ? [speechWarning] : []), ...analysisWarnings, ...(Array.isArray(d.warnings) ? d.warnings : [])],
       sentTelemetry: !!telemetry,
+      ...(typeof d.autoApplied === "boolean" ? { autoApplied: d.autoApplied } : {}),
+      ...(critique ? { critique } : {}),
+      ...(violations ? { violations } : {}),
+      ...(typeof d.runId === "string" ? { runId: d.runId } : {}),
+      ...(hasAnalysis ? { mediaAnalysis } : {}),
     };
   }
 
@@ -1120,9 +1297,11 @@ class DesktopEngineBridge implements EngineBridge {
     const remote = [...sources].filter((s) => !fromAssetUrl(s) && /^https:\/\//i.test(s));
     for (const [i, src] of remote.entries()) {
       options.onNotice?.(`Downloading stock media ${i + 1} of ${remote.length} for the export...`);
+      options.onStage?.("DOWNLOADING", `Stock media ${i + 1} of ${remote.length}`);
       try {
-        localPath.set(src, await fetchRemoteMediaWithProgress(src));
+        localPath.set(src, await fetchRemoteMediaWithProgress(src, undefined, 300, options.signal));
       } catch (e: any) {
+        if (options.signal?.aborted || String(e?.message || e).startsWith("DOWNLOAD_CANCELLED")) throw new RenderCancelledError();
         throw new Error(`Could not download ${src.split("?")[0].split("/").pop() || "a stock file"} for the export: ${e?.message || e}. Check your connection and export again, or replace that clip.`);
       }
       if (options.signal?.aborted) throw new RenderCancelledError();
@@ -1176,6 +1355,7 @@ class DesktopEngineBridge implements EngineBridge {
       validateRenderSpec(plan.spec);
       for (const w of plan.warnings) options.onNotice?.(w);
 
+      options.onStage?.("RENDERING");
       const savedTo = await runNativeRender(plan.spec, outputPath, onProgress, options.signal);
       let sizeBytes = 0;
       try {
@@ -1183,7 +1363,22 @@ class DesktopEngineBridge implements EngineBridge {
       } catch {
         /* size is informational */
       }
-      return { result: { blobUrl: toAssetUrl(savedTo), downloadName: baseName(savedTo), sizeBytes, savedPath: savedTo }, reasons: [] };
+      // Post-export QA: measure what was actually written. A QA failure never fails the export (the file is fine to
+      // use); it is reported so the user knows the check did not run.
+      options.onStage?.("CRITIQUING", "Checking the exported video");
+      let qa: ExportQaResult | undefined;
+      try {
+        qa = await runExportQa(
+          savedTo,
+          editIR,
+          { width: plan.spec.width, height: plan.spec.height, durationSec: plan.spec.durationSec, hasAudio: plan.spec.hasAudio },
+          options.signal
+        );
+      } catch (e: any) {
+        if (e instanceof AnalysisCancelledError) throw new RenderCancelledError();
+        options.onNotice?.(`The export is saved, but the quality check could not run: ${e?.message || e}`);
+      }
+      return { result: { blobUrl: toAssetUrl(savedTo), downloadName: baseName(savedTo), sizeBytes, savedPath: savedTo, ...(qa ? { qa } : {}) }, reasons: [] };
     } finally {
       if (overlayList) desktopMedia.clearCaptionOverlays(overlayList).catch(() => {});
     }

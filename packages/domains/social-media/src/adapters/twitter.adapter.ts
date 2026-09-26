@@ -4,10 +4,15 @@
  *        POST /2/media/upload/{id}/finalize → GET /2/media/upload?command=STATUS&media_id= until succeeded
  * Post:  POST /2/tweets { text, media: { media_ids } }; first comment = a reply to the new post.
  * Requires OAuth 2.0 user context with tweet.write + media.write, and an X API tier that allows posting.
+ * Verified 2026-09-27 against docs.x.com/x-api/media/quickstart/media-upload-chunked + best-practices and
+ * docs.x.com/x-api/getting-started/pricing: up to 4 images (≤ 5 MB, JPG/PNG/GIF/WEBP) OR 1 GIF (≤ 15 MB) OR 1 video
+ * (≤ 512 MB via chunked upload, 0.5s–20min for standard accounts, aspect 1:3–3:1, ≤ 60 fps); chunks ≤ 5 MB.
+ * Since 2026-02-06 the X API is pay-per-use (no free write tier): each created post consumes paid credits, so an
+ * app without credits gets HTTP 402/403, mapped below to a non-retryable, clearly worded error.
  */
 import { intEnv } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
-import { asBody, downloadMedia, expectOk, pollUntil, providerFetch } from '../publishing/http';
+import { asBody, downloadMedia, expectOk, pollUntil, providerFailure, providerFetch, readBody } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, checkUrls, checkVideo } from './types';
 
 const API = () => (process.env.X_API_BASE_URL?.trim() || 'https://api.x.com').replace(/\/+$/, '');
@@ -23,6 +28,21 @@ export function weightedTweetLength(text: string): number {
         n += cp <= 0x10ff || (cp >= 0x2000 && cp <= 0x200d) || (cp >= 0x2010 && cp <= 0x201f) || (cp >= 0x2032 && cp <= 0x2037) ? 1 : 2;
     }
     return n + urls * 23;
+}
+
+const isGif = (m: { url: string; mimeType?: string }) => m.mimeType === 'image/gif' || /\.gif(\?|$)/i.test(m.url);
+
+/** X-specific failure mapping: no paid credits / not enrolled → clear, non-retryable; duplicate text → validation. */
+export function xFailure(res: { status: number }, body: any, what: string): PublishError {
+    const detail = String(body?.detail || body?.title || body?.errors?.[0]?.message || '');
+    const type = String(body?.type || '');
+    if (res.status === 402 || /credit|client-not-enrolled|enrol|payment/i.test(`${type} ${detail}`)) {
+        return new PublishError('PUBLISH_NOT_CONFIGURED', `${what}: the X developer app has no posting access (pay-per-use credits are required since 2026-02). ${detail}`.trim(), { platform: 'x', details: { httpStatus: res.status } });
+    }
+    if (res.status === 403 && /duplicate/i.test(detail)) {
+        return new PublishError('VALIDATION_FAILED', `${what}: X rejects posts identical to a recent one. Change the text.`, { platform: 'x' });
+    }
+    return providerFailure('x', res, body, what);
 }
 
 export class XPublisher implements PlatformPublisher {
@@ -44,21 +64,26 @@ export class XPublisher implements PlatformPublisher {
         if (videos.length > 1) issues.push('X allows one video per post.');
         if (videos.length && images.length) issues.push('X cannot mix video and images in one post.');
         if (images.length > 4) issues.push('X allows at most 4 images per post.');
-        checkVideo(videos[0], { minSec: 0.5, maxSec: 140, maxBytes: 512 * 1024 * 1024, minAspect: 1 / 3, maxAspect: 3 }, 'X video', issues);
-        images.forEach((m) => m.sizeBytes && m.sizeBytes > 5 * 1024 * 1024 && issues.push('X images must be at most 5 MB.'));
+        checkVideo(videos[0], { minSec: 0.5, maxSec: 20 * 60, maxBytes: 512 * 1024 * 1024, minAspect: 1 / 3, maxAspect: 3 }, 'X video', issues);
+        const gifs = images.filter(isGif);
+        if (gifs.length && images.length > 1) issues.push('X allows one animated GIF per post, without other images.');
+        images.forEach((m) => {
+            const cap = isGif(m) ? 15 : 5;
+            if (m.sizeBytes && m.sizeBytes > cap * 1024 * 1024) issues.push(`X ${isGif(m) ? 'GIFs' : 'images'} must be at most ${cap} MB.`);
+        });
         if (input.format === 'text' && !input.caption.trim()) issues.push('X posts need text or media.');
         return issues;
     }
 
     private async uploadMedia(url: string, kind: 'video' | 'image', token: string): Promise<string> {
-        const media = await downloadMedia('x', url, kind === 'video' ? 512 * 1024 * 1024 : 5 * 1024 * 1024);
+        const media = await downloadMedia('x', url, kind === 'video' ? 512 * 1024 * 1024 : isGif({ url }) ? 15 * 1024 * 1024 : 5 * 1024 * 1024);
         const mediaType = kind === 'video' ? (media.contentType.startsWith('video/') ? media.contentType : 'video/mp4') : media.contentType.startsWith('image/') ? media.contentType : 'image/jpeg';
         const auth = { Authorization: `Bearer ${token}` };
 
         const init = await providerFetch('x', `${API()}/2/media/upload/initialize`, {
             method: 'POST',
             headers: { ...auth, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ media_type: mediaType, total_bytes: media.size, media_category: kind === 'video' ? 'tweet_video' : 'tweet_image' }),
+            body: JSON.stringify({ media_type: mediaType, total_bytes: media.size, media_category: kind === 'video' ? 'tweet_video' : mediaType === 'image/gif' ? 'tweet_gif' : 'tweet_image' }),
         });
         const initBody = await expectOk('x', init, 'X media initialize');
         const mediaId: string = initBody.data?.id || initBody.data?.media_id || initBody.media_id_string;
@@ -102,6 +127,7 @@ export class XPublisher implements PlatformPublisher {
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
+        if (!r.ok) throw xFailure(r, await readBody(r), what);
         const b = await expectOk('x', r, what);
         if (!b.data?.id) throw new PublishError('PROVIDER_ERROR', `${what} returned no id.`, { platform: 'x' });
         return String(b.data.id);

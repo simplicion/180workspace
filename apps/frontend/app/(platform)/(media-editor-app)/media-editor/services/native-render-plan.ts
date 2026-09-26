@@ -158,6 +158,7 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
     trOut: TransitionSpec | null;
   }
   const vclips: VClip[] = [];
+  const voiceTrackDb = (editIR.tracks.audioTracks ?? []).find((t) => t.type === "PRIMARY_VOICE")?.volumeDb ?? 0;
   const audioParts: Array<{
     idx: number;
     srcStart: number;
@@ -225,7 +226,8 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
           srcDur,
           tlStart,
           speed,
-          volumeDb: clip.volumeDb ?? 0,
+          // adjustVolume("original") sets the PRIMARY_VOICE track level, which is the main video's own sound
+          volumeDb: (clip.volumeDb ?? 0) + voiceTrackDb,
           fadeIn: 0,
           fadeOut: 0,
         });

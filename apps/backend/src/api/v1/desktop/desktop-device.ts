@@ -21,6 +21,20 @@ import type { NextFunction, Request, Response } from 'express';
 import { redis } from '../../../system-configs/config/redis';
 
 export const MAX_DEVICES_PER_USER = 20;
+
+/**
+ * When the device limit is reached, the least-recently-seen device is evicted (LRU) instead of locking the user out,
+ * but only if it has been idle for at least this many minutes, so two devices in active use can never evict each other.
+ * DESKTOP_DEVICE_EVICTION_MIN_IDLE_MINUTES overrides the default (0 = any device except the requesting one).
+ */
+export const DEFAULT_EVICTION_MIN_IDLE_MINUTES = 30;
+export function evictionMinIdleMs(): number {
+  const raw = process.env.DESKTOP_DEVICE_EVICTION_MIN_IDLE_MINUTES;
+  const n = raw == null || raw.trim() === '' ? DEFAULT_EVICTION_MIN_IDLE_MINUTES : Number(raw);
+  return (Number.isFinite(n) && n >= 0 ? n : DEFAULT_EVICTION_MIN_IDLE_MINUTES) * 60_000;
+}
+/** lastSeenAt is refreshed on authenticated use at most this often (keeps Redis writes off the hot path). */
+const LAST_SEEN_WRITE_INTERVAL_MS = 5 * 60_000;
 export const DEVICE_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const DEVICE_HEADER = 'x-desktop-device-token';
 export const NATIVE_DEVICE_HEADER = 'x-device-token';
@@ -188,6 +202,27 @@ async function releasePushOwner(token: string, owner: PushOwner) {
 
 export class DeviceLimitError extends Error {}
 
+export interface EvictedDevice {
+  deviceId: string;
+  label: string;
+  platform: string | null;
+  lastSeenAt: number;
+}
+
+/**
+ * Picks the device to evict when the user is at the limit: the least-recently-seen one that is NOT the requesting
+ * device and has been idle for at least `minIdleMs`. Returns null when every device is protected. Pure (tested directly).
+ */
+export function pickEvictionCandidate(devices: DeviceRecord[], opts: { now: number; minIdleMs: number; protectDeviceIds: Array<string | undefined> }): DeviceRecord | null {
+  const protectedIds = new Set(opts.protectDeviceIds.filter(Boolean) as string[]);
+  const seen = (d: DeviceRecord) => d.lastSeenAt || d.createdAt || 0;
+  const candidates = devices
+    .filter((d) => !protectedIds.has(d.deviceId))
+    .filter((d) => opts.now - seen(d) >= opts.minIdleMs)
+    .sort((a, b) => seen(a) - seen(b));
+  return candidates[0] ?? null;
+}
+
 function signToken(companyId: string, userId: string, deviceId: string, platform?: string) {
   const typ = isMobilePlatform(platform) ? 'native-device' : 'desktop-device';
   return jwt.sign({ typ, cid: companyId, did: deviceId, platform }, secret(), {
@@ -202,27 +237,34 @@ function signToken(companyId: string, userId: string, deviceId: string, platform
  * same device that does not use up another slot. Tokens last 30 days, so without this every renewal would consume one of
  * the MAX_DEVICES_PER_USER slots. A revoked device cannot be renewed (it must be registered again, as a new device).
  */
-export async function registerDevice(params: { companyId: string; userId: string; label?: string; platform?: string; deviceId?: string }) {
+export async function registerDevice(params: { companyId: string; userId: string; label?: string; platform?: string; deviceId?: string; currentDeviceId?: string }) {
   const now = Date.now();
   if (params.deviceId) {
     const current = await findDevice(params.companyId, params.userId, params.deviceId);
     if (current) {
       await saveDevice(params.companyId, params.userId, { ...current, lastSeenAt: now });
-      return { deviceId: current.deviceId, token: signToken(params.companyId, params.userId, current.deviceId, current.platform), label: current.label, platform: current.platform ?? null, kind: isMobilePlatform(current.platform) ? 'native-device' : 'desktop-device', expiresAt: now + DEVICE_TOKEN_TTL_SECONDS * 1000, renewed: true };
+      return { deviceId: current.deviceId, token: signToken(params.companyId, params.userId, current.deviceId, current.platform), label: current.label, platform: current.platform ?? null, kind: isMobilePlatform(current.platform) ? 'native-device' : 'desktop-device', expiresAt: now + DEVICE_TOKEN_TTL_SECONDS * 1000, renewed: true, evicted: null as EvictedDevice | null };
     }
     // unknown / revoked device id: fall through and register a brand new device
   }
 
-  const existing = await listDevices(params.companyId, params.userId);
-  if (existing.length >= MAX_DEVICES_PER_USER) {
-    // LRU auto-eviction: prune the oldest inactive device(s) so active creators are never locked out
-    const toPrune = [...existing].sort((a, b) => a.lastSeenAt - b.lastSeenAt);
-    while (toPrune.length >= MAX_DEVICES_PER_USER) {
-      const oldest = toPrune.shift();
-      if (oldest) {
-        await revokeDevice(params.companyId, params.userId, oldest.deviceId);
-      }
+  let evicted: EvictedDevice | null = null;
+  let existing = await listDevices(params.companyId, params.userId);
+  // Normally at most one eviction; the loop covers registries already over the limit (e.g. the limit was lowered).
+  while (existing.length >= MAX_DEVICES_PER_USER) {
+    const victim = pickEvictionCandidate(existing, { now, minIdleMs: evictionMinIdleMs(), protectDeviceIds: [params.currentDeviceId, params.deviceId] });
+    if (!victim) {
+      const minutes = Math.round(evictionMinIdleMs() / 60_000);
+      throw new DeviceLimitError(
+        `You already have ${existing.length} devices signed in and all of them were active in the last ${minutes} minutes. Remove one in Settings > Active devices, then try again.`
+      );
     }
+    await revokeDevice(params.companyId, params.userId, victim.deviceId);
+    evicted = { deviceId: victim.deviceId, label: victim.label, platform: victim.platform ?? null, lastSeenAt: victim.lastSeenAt };
+    console.warn(
+      `[DesktopDevice] device limit reached for user=${params.userId} company=${params.companyId}; evicted least-recently-seen device ${victim.deviceId} (${victim.label}, last seen ${new Date(victim.lastSeenAt).toISOString()})`
+    );
+    existing = existing.filter((d) => d.deviceId !== victim.deviceId);
   }
   const deviceId = crypto.randomUUID();
   const platform = normalizePlatform(params.platform);
@@ -231,7 +273,7 @@ export async function registerDevice(params: { companyId: string; userId: string
   await saveDevice(params.companyId, params.userId, { deviceId, label, createdAt: now, lastSeenAt: now, platform });
 
   const token = signToken(params.companyId, params.userId, deviceId, platform);
-  return { deviceId, token, label, platform: platform ?? null, kind: isMobilePlatform(platform) ? 'native-device' : 'desktop-device', expiresAt: now + DEVICE_TOKEN_TTL_SECONDS * 1000, renewed: false };
+  return { deviceId, token, label, platform: platform ?? null, kind: isMobilePlatform(platform) ? 'native-device' : 'desktop-device', expiresAt: now + DEVICE_TOKEN_TTL_SECONDS * 1000, renewed: false, evicted };
 }
 
 /**
@@ -317,6 +359,10 @@ export async function checkRequestDevice(req: Request): Promise<{ ok: true; devi
     return { ok: true, deviceId: claims.deviceId };
   }
   if (!device) return { ok: false, reason: 'revoked' };
+  // Keep lastSeenAt meaningful for LRU eviction without writing on every request.
+  if (Date.now() - (device.lastSeenAt || 0) > LAST_SEEN_WRITE_INTERVAL_MS) {
+    await saveDevice(claims.companyId, claims.userId, { ...device, lastSeenAt: Date.now() }).catch(() => undefined);
+  }
   return { ok: true, deviceId: claims.deviceId };
 }
 
@@ -358,4 +404,25 @@ export async function requireDesktopDevice(req: Request, res: Response, next: Ne
 }
 
 export const requireNativeDevice = requireDesktopDevice;
+
+/** Device id proven by a valid device token on this request (signature + same user and company), else undefined. */
+export function requestDeviceId(req: Request): string | undefined {
+  const raw = req.headers[NATIVE_DEVICE_HEADER] || req.headers[DEVICE_HEADER];
+  const token = Array.isArray(raw) ? raw[0] : raw;
+  if (!token) return undefined;
+  try {
+    const c = verifyDeviceToken(token);
+    const user = (req as any).user;
+    return user?.id && c.userId === String(user.id) && c.companyId === String(user.companyId) ? c.deviceId : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Test hook (refuses in production): set a device's lastSeenAt to simulate an idle device. */
+export async function __setDeviceLastSeenForTest(companyId: string, userId: string, deviceId: string, lastSeenAt: number) {
+  if (process.env.NODE_ENV === 'production') throw new Error('test hook is not available in production');
+  const d = await findDevice(companyId, userId, deviceId);
+  if (d) await saveDevice(companyId, userId, { ...d, lastSeenAt });
+}
 

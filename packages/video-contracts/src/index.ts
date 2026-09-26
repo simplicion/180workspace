@@ -26,3 +26,6 @@ export * from "./director-tools";
 export * from "./ai-director-api.schema";
 export * from "./music-catalog";
 export * from "./director-context";
+export * from "./director-constraints";
+export * from "./untrusted-content";
+export * from "./director-critic";

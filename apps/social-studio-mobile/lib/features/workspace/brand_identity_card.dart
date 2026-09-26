@@ -40,7 +40,13 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
   late String? _type = b.brandType;
   late final Set<String> _platforms = {...b.targetPlatforms};
   late bool? _watermark = b.watermarkEnabled;
+  late String? _editingAutonomy = b.editingAutonomy ?? 'ASSISTED';
+  late String? _publishingAutonomy = b.publishingAutonomy ?? 'MANUAL';
   late final _name = TextEditingController(text: b.brandName);
+  late final _website = TextEditingController(text: b.website);
+  late final _industry = TextEditingController(text: b.industry);
+  late final _country = TextEditingController(text: b.country);
+  late final _language = TextEditingController(text: b.language);
   late final _positioning = TextEditingController(text: b.positioning);
   late final _tagline = TextEditingController(text: b.tagline);
   late final _description = TextEditingController(text: b.description);
@@ -48,12 +54,29 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
   late final _ideology = TextEditingController(text: b.ideology);
   late final _bg = TextEditingController(text: b.backgroundColor);
   late final _text = TextEditingController(text: b.textColor);
+  late final _secondary = TextEditingController(text: b.secondaryColor);
+  late final _postsPerWeek = TextEditingController(text: b.postsPerWeek != null ? b.postsPerWeek.toString() : '');
   late final _guidelines = TextEditingController(text: b.customGuidelines);
   bool _dirty = false;
   bool _saving = false;
 
-  List<TextEditingController> get _all =>
-      [_name, _positioning, _tagline, _description, _ideation, _ideology, _bg, _text, _guidelines];
+  List<TextEditingController> get _all => [
+        _name,
+        _website,
+        _industry,
+        _country,
+        _language,
+        _positioning,
+        _tagline,
+        _description,
+        _ideation,
+        _ideology,
+        _bg,
+        _text,
+        _secondary,
+        _postsPerWeek,
+        _guidelines,
+      ];
 
   @override
   void initState() {
@@ -78,13 +101,18 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
   String? _nn(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
 
   Future<void> _save() async {
-    for (final c in [_bg, _text]) {
+    for (final c in [_bg, _text, _secondary]) {
       final v = c.text.trim();
       if (v.isNotEmpty && !_hex.hasMatch(v)) return showError(context, 'Colours must look like #1F3A2E.');
     }
+    final pw = int.tryParse(_postsPerWeek.text.trim());
     final next = BrandConsciousness(
       brandName: _nn(_name),
       brandType: _type,
+      website: _nn(_website),
+      industry: _nn(_industry),
+      country: _nn(_country)?.toUpperCase(),
+      language: _nn(_language),
       positioning: _nn(_positioning),
       tagline: _nn(_tagline),
       description: _nn(_description),
@@ -92,8 +120,12 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
       ideology: _nn(_ideology),
       backgroundColor: _nn(_bg)?.toUpperCase(),
       textColor: _nn(_text)?.toUpperCase(),
+      secondaryColor: _nn(_secondary)?.toUpperCase(),
       targetPlatforms: _platforms.toList(),
       watermarkEnabled: _watermark,
+      postsPerWeek: pw,
+      editingAutonomy: _editingAutonomy,
+      publishingAutonomy: _publishingAutonomy,
       customGuidelines: _nn(_guidelines),
     );
     setState(() => _saving = true);
@@ -150,6 +182,16 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
             ),
         ]),
         const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: _field(_website, 'Website', hint: 'https://example.com')),
+          const SizedBox(width: 12),
+          Expanded(child: _field(_industry, 'Industry', hint: 'Technology / Retail')),
+        ]),
+        Row(children: [
+          Expanded(child: _field(_country, 'Country code', hint: 'US, UK, IN')),
+          const SizedBox(width: 12),
+          Expanded(child: _field(_language, 'Language', hint: 'en-US, hi-IN')),
+        ]),
         _field(_positioning, 'Positioning', hint: 'Who it is for and why it is different', maxLines: 3, maxLength: 500),
         _field(_tagline, 'Tagline', maxLength: 160),
         _field(_description, 'What the brand does', maxLines: 5, maxLength: 2000),
@@ -157,8 +199,10 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
         _field(_ideology, 'Beliefs and values', maxLines: 5, maxLength: 2000),
         Row(children: [
           Expanded(child: _field(_bg, 'Background colour', hint: '#FFFFFF')),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(child: _field(_text, 'Text colour', hint: '#111111')),
+          const SizedBox(width: 8),
+          Expanded(child: _field(_secondary, 'Secondary colour', hint: '#E0E0E0')),
         ]),
         const Text('Target platforms'),
         const SizedBox(height: 6),
@@ -174,13 +218,34 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
             ),
         ]),
         const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: _field(_postsPerWeek, 'Target posts per week', hint: '5')),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              isExpanded: true,
+              value: _editingAutonomy,
+              decoration: fieldDecoration('Editing autonomy'),
+              items: const [
+                DropdownMenuItem(value: 'AUTO', child: Text('Auto', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(value: 'ASSISTED', child: Text('Assisted', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(value: 'MANUAL', child: Text('Manual', overflow: TextOverflow.ellipsis)),
+              ],
+              onChanged: (v) => setState(() {
+                _editingAutonomy = v;
+                _dirty = true;
+              }),
+            ),
+          ),
+        ]),
         DropdownButtonFormField<bool?>(
+          isExpanded: true,
           initialValue: _watermark,
           decoration: fieldDecoration('Logo watermark on videos'),
           items: const [
-            DropdownMenuItem(value: null, child: Text('Not chosen')),
-            DropdownMenuItem(value: true, child: Text('Yes')),
-            DropdownMenuItem(value: false, child: Text('No')),
+            DropdownMenuItem(value: null, child: Text('Not chosen', overflow: TextOverflow.ellipsis)),
+            DropdownMenuItem(value: true, child: Text('Yes', overflow: TextOverflow.ellipsis)),
+            DropdownMenuItem(value: false, child: Text('No', overflow: TextOverflow.ellipsis)),
           ],
           onChanged: (v) => setState(() {
             _watermark = v;

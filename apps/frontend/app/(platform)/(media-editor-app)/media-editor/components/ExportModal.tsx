@@ -20,6 +20,7 @@ import {
   RationalTimeMath,
 } from "@workspace/video-contracts";
 import { ExportResult } from "../services/tauri-bridge";
+import { QualityIssuesList } from "./QualityIssuesList";
 
 /** Upload of the finished export to the calendar piece / post the Studio was opened from. */
 export interface ExportAttachState {
@@ -45,6 +46,10 @@ interface ExportModalProps {
   onRetryAttach?: () => void;
   /** Second recovery path: the user picks the exported MP4 from disk. */
   onAttachFile?: (file: File) => void;
+  /** Sends the post-export QA to the AI Director as the next turn. */
+  onAskDirectorFix?: () => void;
+  /** Seeks the timeline (ms) from a QA issue. */
+  onSeekMs?: (ms: number) => void;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -60,6 +65,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   attachState,
   onRetryAttach,
   onAttachFile,
+  onAskDirectorFix,
+  onSeekMs,
 }) => {
   const attachFileRef = React.useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<"video" | "nle" | "bundle" | "subtitles">("video");
@@ -467,6 +474,26 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     className="w-full max-h-52 object-contain bg-black"
                   />
                 </div>
+              )}
+
+              {exportedResult?.qa && (
+                <QualityIssuesList
+                  heading="Quality check"
+                  issues={exportedResult.qa.issues}
+                  unavailable={exportedResult.qa.unavailable}
+                  onSeekMs={onSeekMs}
+                  emptyText="No black frames, frozen picture, missing audio or loudness problems found."
+                >
+                  {exportedResult.qa.issues.length > 0 && onAskDirectorFix && (
+                    <button
+                      type="button"
+                      onClick={onAskDirectorFix}
+                      className="w-full min-h-[44px] rounded-lg bg-[#4F46E5] hover:bg-indigo-500 text-white text-[11px] font-semibold transition"
+                    >
+                      Ask AI Director to fix
+                    </button>
+                  )}
+                </QualityIssuesList>
               )}
 
               {/* Primary Download Button */}

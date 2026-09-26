@@ -1,13 +1,15 @@
 import { Router, Request, Response } from 'express';
-import { DeviceLimitError, DeviceRecord, listDevices, registerDevice, revokeDevice, setDevicePushToken } from './desktop-device';
+import { DeviceLimitError, DeviceRecord, listDevices, registerDevice, requestDeviceId, revokeDevice, setDevicePushToken } from './desktop-device';
 
 /**
  * Desktop device management. Mounted behind `protect`, so every call is a signed-in user acting on their OWN devices
  * (the registry is keyed by company + user; there is no way to name another user's devices).
  *
- *   POST   /desktop/devices/register   { label?, platform?, deviceId? }  -> { deviceId, token, expiresAt, renewed }
- *                                      (send the stored deviceId to RENEW a token without using another device slot)
- *   GET    /desktop/devices                                   -> the caller's devices
+ *   POST   /desktop/devices/register   { label?, platform?, deviceId? }  -> { deviceId, token, expiresAt, renewed, evicted }
+ *                                      (send the stored deviceId to RENEW a token without using another device slot;
+ *                                      at the limit the least-recently-seen idle device is evicted and returned in
+ *                                      `evicted`; 409 DEVICE_LIMIT only when every device was active recently)
+ *   GET    /desktop/devices                                   -> the caller's devices (`current: true` marks the caller's)
  *   DELETE /desktop/devices/:deviceId                         -> revoke one (its token stops working immediately)
  *   PUT    /desktop/devices/:deviceId/push-token  { provider: 'fcm'|'apns', token } | { token: null }  -> register/clear push
  */
@@ -45,6 +47,8 @@ router.post('/devices/register', async (req: Request, res: Response) => {
       label: typeof label === 'string' ? label : undefined,
       platform: typeof platform === 'string' ? platform : undefined,
       deviceId: typeof deviceId === 'string' ? deviceId : undefined,
+      // The device making the request (if it presents its token) is never evicted.
+      currentDeviceId: requestDeviceId(req),
     });
     return res.status(201).json({ success: true, ...device });
   } catch (err) {
@@ -56,7 +60,8 @@ router.get('/devices', async (req: Request, res: Response) => {
   const s = scope(req);
   if (!s) return res.status(401).json({ success: false, error: 'Authentication required' });
   try {
-    return res.json({ success: true, devices: (await listDevices(s.companyId, s.userId)).map(publicDevice) });
+    const current = requestDeviceId(req);
+    return res.json({ success: true, devices: (await listDevices(s.companyId, s.userId)).map((d) => ({ ...publicDevice(d), current: d.deviceId === current })) });
   } catch (err) {
     return failure(res, err);
   }

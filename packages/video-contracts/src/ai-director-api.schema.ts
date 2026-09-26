@@ -1,5 +1,27 @@
 import { z } from "zod";
 import { MobileMediaDescriptorSchema, MobileEditIRSchema } from "./mobile-edit-ir";
+import { DirectorConstraintsSchema } from "./director-constraints";
+
+const qaMs = z.number().int().nonnegative().max(4 * 60 * 60 * 1000);
+const qaRange = z.tuple([qaMs, qaMs]);
+
+/**
+ * Quick QA of the last export, measured on the device after rendering (`currentEditIR` is the timeline that was
+ * exported). The director's critic compares it with that timeline (duration, size, audio, black/frozen frames).
+ */
+export const LastExportQaSchema = z.object({
+  durationMs: qaMs,
+  width: z.number().int().positive().max(16384),
+  height: z.number().int().positive().max(16384),
+  fps: z.number().positive().max(240).optional(),
+  hasAudio: z.boolean(),
+  audioChannels: z.number().int().min(0).max(16).optional(),
+  blackRangesMs: z.array(qaRange).max(500),
+  frozenRangesMs: z.array(qaRange).max(500),
+  integratedLufs: z.number().min(-100).max(10).optional(),
+  clippingPct: z.number().min(0).max(100).optional(),
+});
+export type LastExportQa = z.infer<typeof LastExportQaSchema>;
 
 /** Chat turn supplied by the client (oldest first). */
 export const DirectorHistoryTurnSchema = z.object({
@@ -33,6 +55,10 @@ export const MobileAIDirectRequestSchema = z.object({
   postId: z.string().min(1).max(128).optional(),
   media: MobileMediaDescriptorSchema,
   currentEditIR: MobileEditIRSchema.nullable().optional(),
+  /** Preservation locks (ms on the current timeline). Enforced: operations that break them are dropped (`violations`). */
+  constraints: DirectorConstraintsSchema.optional(),
+  /** Device QA of the last export of `currentEditIR`; fed to the critic. */
+  lastExportQa: LastExportQaSchema.optional(),
 }).superRefine((v, ctx) => {
   const greet = v.intent === "greet" || (!v.prompt && (v.projectId || v.calendarPieceId || v.postId));
   if (!v.prompt && !greet) {

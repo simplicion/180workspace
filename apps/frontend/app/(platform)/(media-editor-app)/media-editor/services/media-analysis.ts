@@ -29,7 +29,8 @@ export function analysisArgs(kind: AnalysisKind, input: string, sceneThreshold?:
   } else if (kind === "loudness") {
     a.push("-vn", "-sn", "-dn", "-af", LOUD);
   } else {
-    const vf = kind === "qa" ? "blackdetect=d=0.1:pix_th=0.10,freezedetect=n=-60dB:d=0.5" : "blackdetect=d=0.1:pix_th=0.10";
+    // qa_nofreeze: builds without freezedetect measure frozen picture with mpdecimate + showinfo instead.
+    const vf = kind === "qa" ? "blackdetect=d=0.1:pix_th=0.10,freezedetect=n=-60dB:d=0.5" : "blackdetect=d=0.1:pix_th=0.10,mpdecimate,showinfo";
     a.push("-sn", "-dn", "-vf", vf, "-af", LOUD);
   }
   a.push("-f", "null", "-");
@@ -169,6 +170,20 @@ export function parseFrozenRangesMs(report: string, durationMs?: number): RangeM
   return out;
 }
 
+/**
+ * Frozen picture from `mpdecimate,showinfo` (the qa_nofreeze pass): the frames that survive decimation are the ones
+ * that changed, so a gap of `minMs` or more between two kept frames (or from the last one to the end) is a freeze.
+ */
+export function parseFrozenFromDecimate(report: string, durationMs: number, minMs = 500): RangeMs[] {
+  const kept = [...report.matchAll(/Parsed_showinfo[^\n]*?pts_time:\s*([0-9.]+)/g)].map((m) => Math.round(parseFloat(m[1]) * 1000)).filter(Number.isFinite);
+  const out: RangeMs[] = [];
+  const points = [...kept, durationMs];
+  for (let i = 1; i < points.length; i++) {
+    if (points[i] - points[i - 1] >= minMs) out.push([points[i - 1], points[i]]);
+  }
+  return out;
+}
+
 // ── director payloads ─────────────────────────────────────────────────────────
 
 /** What the desktop sends with a director turn (web route: inside `telemetry`, see tauri-bridge). */
@@ -177,7 +192,7 @@ export interface DesktopMediaAnalysis {
   loudness?: { integratedLufs: number; truePeakDb?: number; clippingPct?: number };
 }
 
-/** The shared-contract `lastExportQa` block. `frozenRangesMs` is omitted when this FFmpeg build cannot measure it. */
+/** The shared-contract `lastExportQa` block (LastExportQaSchema in @workspace/video-contracts). */
 export interface LastExportQa {
   durationMs: number;
   width: number;
@@ -186,7 +201,7 @@ export interface LastExportQa {
   hasAudio: boolean;
   audioChannels?: number;
   blackRangesMs: RangeMs[];
-  frozenRangesMs?: RangeMs[];
+  frozenRangesMs: RangeMs[];
   integratedLufs?: number;
   clippingPct?: number;
 }
@@ -200,8 +215,11 @@ function parseRate(r: unknown): number | undefined {
   return Math.round((n / d) * 1000) / 1000;
 }
 
-/** ffprobe JSON + the QA report of the same file → `lastExportQa`. */
-export function exportQaFromReports(probe: Probe, qaReport: string, freezeMeasured: boolean): LastExportQa {
+/**
+ * ffprobe JSON + the QA report of the same file → `lastExportQa`. `freezeMethod` says which pass produced the report:
+ * "freezedetect" (qa) or "mpdecimate" (qa_nofreeze).
+ */
+export function exportQaFromReports(probe: Probe, qaReport: string, freezeMethod: "freezedetect" | "mpdecimate" = "freezedetect"): LastExportQa {
   const v = (probe.streams || []).find((s) => s.codec_type === "video");
   const a = (probe.streams || []).find((s) => s.codec_type === "audio");
   const durSec = num(String(probe.format?.duration ?? "")) ?? num(String(v?.duration ?? ""));
@@ -215,7 +233,7 @@ export function exportQaFromReports(probe: Probe, qaReport: string, freezeMeasur
     hasAudio: !!a,
     ...(a ? { audioChannels: Number(a.channels) || loud?.audioChannels } : {}),
     blackRangesMs: parseBlackRangesMs(qaReport),
-    ...(freezeMeasured ? { frozenRangesMs: parseFrozenRangesMs(qaReport, durationMs) } : {}),
+    frozenRangesMs: freezeMethod === "freezedetect" ? parseFrozenRangesMs(qaReport, durationMs) : parseFrozenFromDecimate(qaReport, durationMs),
     ...(loud ? { integratedLufs: loud.integratedLufs } : {}),
     ...(loud?.clippingPct != null ? { clippingPct: loud.clippingPct } : {}),
   };
@@ -272,8 +290,9 @@ export function qaIssues(qa: LastExportQa, expect: QaExpectations = {}): QaIssue
     const bad = uncoveredMs(r, expect.intendedBlackRangesMs);
     if (bad >= 100) issues.push({ id: `black-${i}`, severity: bad >= 500 ? "critical" : "warning", category: "video", title: `Black frames for ${secs(r[1] - r[0])}`, timeRangeMs: r });
   });
-  (qa.frozenRangesMs || []).forEach((r, i) => {
-    const bad = uncoveredMs(r, expect.intendedStillRangesMs);
+  qa.frozenRangesMs.forEach((r, i) => {
+    // black frames are also "frozen"; they are reported (or intended) as black, not twice
+    const bad = uncoveredMs(r, [...(expect.intendedStillRangesMs ?? []), ...qa.blackRangesMs, ...(expect.intendedBlackRangesMs ?? [])]);
     if (bad >= 1000) issues.push({ id: `frozen-${i}`, severity: "warning", category: "video", title: `Picture frozen for ${secs(r[1] - r[0])}`, timeRangeMs: r });
   });
   if (qa.hasAudio && qa.integratedLufs != null) {

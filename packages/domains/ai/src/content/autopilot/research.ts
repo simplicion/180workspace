@@ -7,6 +7,7 @@
 import { AutopilotLLM, UsageMeter } from './llm';
 import { runJsonAgent } from './json-agent';
 import { ResearchDigest, ResearchDigestSchema } from './schemas';
+import { UNTRUSTED_DATA_POLICY, fenceUntrusted, sanitizeInlineUntrusted } from '@workspace/video-contracts';
 
 export interface WebSearchResult {
     title: string;
@@ -115,14 +116,16 @@ export async function runResearchAgent(params: {
         meter: params.meter,
         maxTokens: 1500,
         schema: ResearchDigestSchema,
-        system: 'You are a social media trend researcher. You only use the search results given to you and cite them by exact URL.',
+        system: `You are a social media trend researcher. You only use the search results given to you and cite them by exact URL. ${UNTRUSTED_DATA_POLICY}`,
         prompt: [
             `Industry: ${params.industry}`,
             `Audience: ${params.audience}`,
             `Brand positioning: ${params.positioning}`,
             '',
-            'Search results (title | url | snippet):',
-            ...results.map((r) => `- ${r.title} | ${r.url} | ${r.snippet}`),
+            'Search results (title | url | snippet), fenced as untrusted web data:',
+            // Web pages can contain prompt injection: titles/snippets are neutralised and fenced; URLs are only
+            // ever used as citations and checked against this exact list.
+            fenceUntrusted('research', results.map((r) => `- ${sanitizeInlineUntrusted(r.title, 200)} | ${r.url} | ${sanitizeInlineUntrusted(r.snippet, 600)}`).join('\n'), { maxChars: 12000 }).block,
             '',
             'Pick up to 6 current topics this brand could credibly post about. Every sourceUrls entry MUST be one of the URLs above.',
             'Return JSON: {"trends":[{"topic":"...","whyNow":"...","sourceUrls":["https://..."]}]}',

@@ -24,7 +24,9 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { DirectorStylePreset, EditIR } from "@workspace/video-contracts";
-import { CompanyAIStatus, AIDirectorProgressEvent, DirectorPlannerSource } from "../services/tauri-bridge";
+import { CompanyAIStatus, AIDirectorProgressEvent, DirectorPlannerSource, DirectorCritique } from "../services/tauri-bridge";
+import { QualityIssuesList } from "./QualityIssuesList";
+import type { LastExportQa } from "../services/media-analysis";
 import { AICreditProgressWidget } from "@workspace/ui";
 
 export interface DirectorChatMessage {
@@ -40,6 +42,12 @@ export interface DirectorChatMessage {
   warnings?: string[];
   /** Set on a failed turn: the prompt to retry (or run with the offline rules). */
   retryPrompt?: string;
+  /** The server applied this turn without asking (project editing autonomy AUTO, safe operations only). */
+  autoApplied?: boolean;
+  /** The server critic's review of the result. */
+  critique?: DirectorCritique;
+  /** Changes dropped because they broke the timeline locks (server validator or the client re-check). */
+  violations?: string[];
   pendingConfirmation?: {
     whatFound: string;
     whatWillChange: string;
@@ -56,6 +64,8 @@ export interface DirectorPromptOptions {
   preconfirmed?: boolean;
   /** Use the offline keyword rules on this device instead of the AI Director. */
   offline?: boolean;
+  /** QA of the last export: this turn is a repair of what the quality check found. */
+  lastExportQa?: LastExportQa;
 }
 
 const PLANNER_LABEL: Record<DirectorPlannerSource, string> = {
@@ -87,6 +97,12 @@ interface AIDirectorPanelProps {
   onToggleCollapse?: () => void;
   onConfirmAutonomousEdit?: (message: DirectorChatMessage) => void;
   onCancelAutonomousEdit?: (message: DirectorChatMessage) => void;
+  /** Stops the running director turn (analysis or request). */
+  onCancelRun?: () => void;
+  /** Seeks the timeline (ms), e.g. from a critique issue. */
+  onSeekMs?: (ms: number) => void;
+  /** Number of locked tracks/ranges the director will be told to respect. */
+  lockCount?: number;
 }
 
 
@@ -153,6 +169,9 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
   onToggleCollapse,
   onConfirmAutonomousEdit,
   onCancelAutonomousEdit,
+  onCancelRun,
+  onSeekMs,
+  lockCount = 0,
 }) => {
   const [prompt, setPrompt] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -406,6 +425,32 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
                   </div>
                 )}
 
+                {!isUser && msg.autoApplied && (
+                  <div className="mt-1.5 text-[10px] text-emerald-300/90">Applied automatically (project autonomy: AUTO). Undo reverts it.</div>
+                )}
+
+                {!isUser && msg.violations && msg.violations.length > 0 && (
+                  <div role="alert" className="mt-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/30 text-[10px] text-amber-200 space-y-0.5">
+                    <p className="font-semibold">Kept your locks:</p>
+                    <ul className="list-disc pl-4">
+                      {msg.violations.slice(0, 6).map((v, i) => (
+                        <li key={i}>{v}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {!isUser && msg.critique && (
+                  <div className="mt-2">
+                    <QualityIssuesList
+                      heading={`Director review${msg.critique.repairRounds ? ` · ${msg.critique.repairRounds} repair round${msg.critique.repairRounds === 1 ? "" : "s"}` : ""}`}
+                      score={msg.critique.score}
+                      issues={msg.critique.issues}
+                      onSeekMs={onSeekMs}
+                    />
+                  </div>
+                )}
+
                 {!isUser && msg.warnings && msg.warnings.length > 0 && (
                   <ul className="mt-1.5 space-y-0.5 text-[10px] text-gray-500 list-disc pl-4">
                     {msg.warnings.slice(0, 4).map((w, i) => (
@@ -551,6 +596,16 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
                 </div>
               </div>
 
+              {onCancelRun && (
+                <button
+                  type="button"
+                  onClick={onCancelRun}
+                  className="min-h-[44px] px-3 rounded-lg border border-[#38435C] text-[11px] text-slate-200 hover:bg-[#1C2230] transition"
+                >
+                  Cancel
+                </button>
+              )}
+
               {/* Live Status Detail String */}
               <p className="text-[11px] text-gray-300 leading-relaxed font-sans bg-black/30 p-2 rounded-lg border border-white/5">
                 {currentProgress?.detail || "Analyzing speech dynamics, silence gaps, and camera keyframes..."}
@@ -570,6 +625,12 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
+
+      {lockCount > 0 && (
+        <div className="px-3 py-1.5 border-t border-[#171922] bg-[#0B0D14] text-[10px] text-amber-300/90 shrink-0">
+          {lockCount} timeline lock{lockCount === 1 ? "" : "s"} active: the director will not change locked tracks or ranges.
+        </div>
+      )}
 
       {/* Suggestion Chips */}
       <div className="px-3 py-2 border-t border-[#171922] bg-[#0B0D14] shrink-0">

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, defaultTargetPlatform, TargetPlatform;
+
 /// Build-time configuration. Nothing in here is a secret.
 ///
 /// Override per build with `--dart-define`, e.g.
@@ -6,10 +8,18 @@ class AppConfig {
   AppConfig._();
 
   /// Origin of the 180 Workspace backend (no trailing slash, no `/api`).
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://api.180workspace.com',
-  );
+  static String get apiBaseUrl {
+    const fromEnv = String.fromEnvironment('API_BASE_URL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    
+    if (kDebugMode) {
+      if (kIsWeb) return 'http://localhost:4002';
+      if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:4002';
+      return 'http://localhost:4002'; // iOS Simulator or Desktop
+    }
+    
+    return 'https://api.180workspace.com';
+  }
 
   /// Origin of the web app. Used to build shareable links such as `/review/<token>`.
   static const String webAppUrl = String.fromEnvironment(

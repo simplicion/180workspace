@@ -5,12 +5,15 @@ import {
 } from "./creative-plan.schema";
 import { EditIR } from "./edit-ir.schema";
 import { MediaAssetDescriptor } from "./project.schema";
+import { constraintTimelineFromEditIR, constraintViolation, mergeDirectorConstraints } from "./director-constraints";
 
 export interface PlanValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
   validatedPlan?: CreativeEditPlan;
+  /** Operations rejected because of the creator's constraints (also in `errors`, prefixed "Operation #i"). */
+  violations: string[];
 }
 
 export class CreativePlanValidator {
@@ -33,12 +36,20 @@ export class CreativePlanValidator {
         valid: false,
         errors: parseResult.error.errors.map((e) => `Schema error at ${e.path.join(".")}: ${e.message}`),
         warnings: [],
+        violations: [],
       };
     }
 
     const validatedPlan = parseResult.data;
     const knownAssetIds = new Set(availableAssets.map((a) => a.id));
     const lockedTrackIds = new Set(validatedPlan.constraints.lockedTrackIds || []);
+    const violations: string[] = [];
+    // Preservation locks: protected ranges (seconds) + locked track kinds, enforced for every timed/track op.
+    const locks = mergeDirectorConstraints(null, {
+      lockedRanges: (validatedPlan.constraints.protectedTimeRanges || []).map((r) => [Math.round(r.startSec * 1000), Math.round((r.startSec + r.durationSec) * 1000)] as [number, number]),
+      lockedTracks: validatedPlan.constraints.lockedTracks || [],
+    });
+    const lockTimeline = locks.lockedRanges.length || locks.lockedTracks.length ? constraintTimelineFromEditIR(currentEditIR) : null;
 
     // 2. Validate Operations
     for (let i = 0; i < validatedPlan.operations.length; i++) {
@@ -72,18 +83,12 @@ export class CreativePlanValidator {
         }
       }
 
-      // Check protected time ranges
-      if (op.type === "removeRange" || op.type === "rippleDelete") {
-        for (const prot of validatedPlan.constraints.protectedTimeRanges) {
-          const protEnd = prot.startSec + prot.durationSec;
-          if (op.type === "removeRange") {
-            const opEnd = op.startSec + op.durationSec;
-            if (Math.max(op.startSec, prot.startSec) < Math.min(opEnd, protEnd)) {
-              errors.push(
-                `Operation #${i} (removeRange) intersects protected time range (${prot.startSec}s - ${protEnd}s)`
-              );
-            }
-          }
+      // Protected ranges and locked tracks (director-constraints.ts)
+      if (lockTimeline) {
+        const why = constraintViolation(op, locks, lockTimeline);
+        if (why) {
+          violations.push(why);
+          errors.push(`Operation #${i} (${op.type}) violates constraint: ${why}`);
         }
       }
     }
@@ -93,6 +98,7 @@ export class CreativePlanValidator {
       errors,
       warnings,
       validatedPlan: errors.length === 0 ? validatedPlan : undefined,
+      violations,
     };
   }
 }

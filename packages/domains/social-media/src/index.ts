@@ -24,3 +24,4 @@ export * from './tenant-scope';
 export * from './post-guards';
 export * from './linkedin';
 export * from './youtube';
+export * from './agent-os';

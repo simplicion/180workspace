@@ -14,6 +14,9 @@ import {
   DirectorHistoryTurn,
   DirectorTimeoutError,
   withTimeout,
+  UNTRUSTED_DATA_POLICY,
+  fenceUntrusted,
+  sanitizeInlineUntrusted,
 } from "@workspace/video-contracts";
 import { AIProviderService, AIClient, AISettings } from "../kernel/ai-provider.service";
 
@@ -52,6 +55,10 @@ export interface PlannerOutcome {
   repairedErrors?: string[];
   /** finish_edit `brandWatermark` from the LLM (undefined = keep). */
   brandWatermark?: "add" | "remove" | "keep";
+  /** finish_edit `preserve`: locks the model derived from the creator's words (can only add locks). */
+  preserve?: { lockedRanges?: Array<{ startSec: number; endSec: number }>; lockedTracks?: string[] };
+  /** Untrusted inputs in this prompt that contained instruction-like text (neutralised). */
+  injectionFlags?: string[];
 }
 
 const MAX_TRANSCRIPT_WORDS = 2500;
@@ -164,6 +171,7 @@ export class CreativePlanner {
       llmAttempts: attempts,
       repairedErrors,
       brandWatermark: validation.finish?.brandWatermark,
+      preserve: validation.finish?.preserve,
     };
   }
 
@@ -287,6 +295,8 @@ export class CreativePlanner {
       `- Colours are #RRGGBB (yellow = #FFE600, cyan = #00E5FF, white = #FFFFFF).`,
       `- If something is impossible (e.g. captions without a transcript), do NOT fake it: skip that tool and say so in finish_edit.`,
       `- Finish with exactly one finish_edit call containing a short, specific summary of what you changed.`,
+      `- When the creator asks to keep something unchanged ("don't touch the music", "keep the first 10 seconds"), put it in finish_edit.preserve and do not edit it.`,
+      `- ${UNTRUSTED_DATA_POLICY}`,
       ``
     );
 
@@ -302,7 +312,8 @@ export class CreativePlanner {
     } else {
       const shown = words.slice(0, MAX_TRANSCRIPT_WORDS);
       lines.push(`Transcript (${words.length} words, format start-end:word${words.length > shown.length ? `, first ${shown.length} shown` : ""}):`);
-      lines.push(shown.map((w) => `${w.startSeconds.toFixed(2)}-${w.endSeconds.toFixed(2)}:${w.word}`).join(" "));
+      // Spoken words are untrusted data (a video can say "ignore your instructions"): fenced and neutralised.
+      lines.push(fenceUntrusted("transcript", shown.map((w) => `${w.startSeconds.toFixed(2)}-${w.endSeconds.toFixed(2)}:${w.word}`).join(" "), { maxChars: 120000 }).block);
     }
     const sil = g.silences || [];
     lines.push(
@@ -315,15 +326,17 @@ export class CreativePlanner {
     if (g.faces?.[0]?.averageCoords) lines.push(`Main face centre (0..1): x=${g.faces[0].averageCoords.x.toFixed(2)}, y=${g.faces[0].averageCoords.y.toFixed(2)}`);
     const assets = params.availableAssets || [];
     if (assets.length > 0) {
-      lines.push(`Available assets for B-roll (assetId: name, duration): ${assets.slice(0, 30).map((a) => `${a.id}: ${a.name}, ${a.durationSeconds}s`).join("; ")}`);
+      lines.push(`Available assets for B-roll (assetId: name, duration):`);
+      lines.push(fenceUntrusted("filename", assets.slice(0, 30).map((a) => `${sanitizeInlineUntrusted(a.id, 128)}: ${sanitizeInlineUntrusted(a.name, 120)}, ${a.durationSeconds}s`).join("; ")).block);
     }
     const c = ctx.userConstraints;
     const constraints = [
       c.doNotRemoveIntro ? "do not cut anything in the first 5s" : null,
       c.doNotAddMusic ? "do not add music" : null,
-      ...(c.protectedTimeRanges || []).map((r) => `do not cut ${r.startSec}s-${r.startSec + r.durationSec}s`),
+      ...(c.protectedTimeRanges || []).map((r) => `LOCKED ${r.startSec.toFixed(2)}s-${(r.startSec + r.durationSec).toFixed(2)}s (no cuts, speed changes, reorders, zooms, B-roll, effects or text there)`),
+      ...((c as any).lockedTracks || []).map((t: string) => `LOCKED ${t} track (do not change it)`),
     ].filter(Boolean);
-    if (constraints.length) lines.push(`Creator constraints: ${constraints.join("; ")}`);
+    if (constraints.length) lines.push(`Creator constraints (enforced by the server; operations that break them are dropped): ${constraints.join("; ")}`);
     lines.push(``);
 
     const history = (params.history || []).slice(-MAX_HISTORY_TURNS);
@@ -355,7 +368,7 @@ export class CreativePlanner {
     }
     const caps = ir.tracks.captionTrack.filter((c) => c.role !== "title");
     const titles = ir.tracks.captionTrack.filter((c) => c.role === "title");
-    out.push(`- captions: ${caps.length}${caps[0] ? ` (preset ${caps[0].style.preset}, text ${caps[0].style.textColor}, highlight ${caps[0].style.highlightColor})` : ""}; titles: ${titles.map((t) => `"${truncate(t.text, 40)}"@${s(t.timeRange.start)}`).join(", ") || "none"}`);
+    out.push(`- captions: ${caps.length}${caps[0] ? ` (preset ${caps[0].style.preset}, text ${caps[0].style.textColor}, highlight ${caps[0].style.highlightColor})` : ""}; titles: ${titles.map((t) => `"${sanitizeInlineUntrusted(truncate(t.text, 40), 60)}"@${s(t.timeRange.start)}`).join(", ") || "none"}`);
     out.push(`- zooms: ${ir.tracks.cameraTrack.map((z) => `${s(z.timeRange.start)}+${s(z.timeRange.duration)} x${z.scale}`).join(", ") || "none"}`);
     const broll = ir.tracks.videoTracks.filter((t) => t.type === "B_ROLL_OVERLAY").flatMap((t) => t.clips);
     out.push(`- b-roll overlays: ${broll.map((b) => `${b.assetId}@${s(b.timelineRange.start)}+${s(b.timelineRange.duration)}`).join(", ") || "none"}`);

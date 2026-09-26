@@ -353,7 +353,17 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         for (final p in SocialPlatform.connectable)
           FilterChip(
             avatar: Icon(p.icon, size: 16, color: p.color),
-            label: Text(p.label + (p.isUserAssisted ? ' (Assisted)' : '')),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(p.label),
+                const SizedBox(width: 6),
+                Text(
+                  p.isAutomated ? '● Auto & Manual' : '○ Manual Assist',
+                  style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+                ),
+              ],
+            ),
             selected: _platforms.contains(p),
             onSelected: (on) => setState(() => on ? _platforms.add(p) : _platforms.remove(p)),
           ),

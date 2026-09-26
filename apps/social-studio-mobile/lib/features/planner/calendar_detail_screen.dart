@@ -306,7 +306,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
                     const Icon(Icons.devices_rounded, color: AppTheme.primary),
                     const SizedBox(width: 8),
                     const Expanded(
-                      child: Text('Piece Mockup Preview', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: Text('Post Preview', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                     IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
                   ],

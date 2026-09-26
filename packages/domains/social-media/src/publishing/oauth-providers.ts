@@ -2,7 +2,9 @@
  * OAuth 2.0 provider definitions (authorize URL, code exchange, refresh, account discovery) per platform.
  * All app credentials come from env via requireAppCredentials() — a missing key is a 503 PUBLISH_NOT_CONFIGURED.
  */
-import { LINKEDIN_API_VERSION, META_GRAPH_VERSION, PublishPlatform, requireAppCredentials } from './config';
+import { META_GRAPH_VERSION, PublishPlatform, requireAppCredentials } from './config';
+import { linkedInApiVersion } from './linkedin-version';
+import { redditUserAgent } from '../adapters/reddit.adapter';
 import { PublishError } from './errors';
 import { providerFetch, providerMessage, readBody } from './http';
 
@@ -337,7 +339,7 @@ const linkedinProvider: OAuthProvider = {
             { candidateId: `member:${me.sub}`, platform: 'linkedin', kind: 'member', platformAccountId: `urn:li:person:${me.sub}`, accountName: me.name || 'LinkedIn member', username: me.name || me.sub, profileImageUrl: me.picture ?? null, metadata: { memberId: me.sub }, tokens },
         ];
         if (tokens.scopes.includes('w_organization_social') || process.env.LINKEDIN_ENABLE_ORGANIZATIONS === 'true') {
-            const h = { ...auth, 'LinkedIn-Version': LINKEDIN_API_VERSION(), 'X-Restli-Protocol-Version': '2.0.0' };
+            const h = { ...auth, 'LinkedIn-Version': linkedInApiVersion(), 'X-Restli-Protocol-Version': '2.0.0' };
             const aclRes = await providerFetch('linkedin', 'https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED', { headers: h });
             if (aclRes.ok) {
                 const acl = await readBody(aclRes);
@@ -640,7 +642,7 @@ const redditProvider: OAuthProvider = {
             headers: {
                 Authorization: authHeader,
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': '180Workspace/1.0',
+                'User-Agent': redditUserAgent(),
             },
             body: form({ grant_type: 'authorization_code', code, redirect_uri: redirectUri }),
         }), 'Reddit token exchange');
@@ -656,7 +658,7 @@ const redditProvider: OAuthProvider = {
         const res = await providerFetch('reddit', 'https://oauth.reddit.com/api/v1/me', {
             headers: {
                 Authorization: `Bearer ${tokens.accessToken}`,
-                'User-Agent': '180Workspace/1.0',
+                'User-Agent': redditUserAgent(),
             },
         });
         const b = await readBody(res);
@@ -681,7 +683,7 @@ const redditProvider: OAuthProvider = {
             headers: {
                 Authorization: authHeader,
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': '180Workspace/1.0',
+                'User-Agent': redditUserAgent(),
             },
             body: form({ grant_type: 'refresh_token', refresh_token: refreshToken }),
         }), 'Reddit token refresh');

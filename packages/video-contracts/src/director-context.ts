@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fenceUntrusted } from "./untrusted-content";
 
 /**
  * Brand + script context for the AI Director (WS5). Everything here is pure and deterministic:
@@ -36,6 +37,8 @@ export interface DirectorBrandContext {
    * `usedDefaults`, reported as warnings) and never saved to the brand.
    */
   rendering?: DirectorBrandRendering;
+  /** Project autonomy policy (editing AUTO|ASSISTED|MANUAL). Absent = the ASSISTED default. */
+  autonomy?: { editing: "AUTO" | "ASSISTED" | "MANUAL"; publishing: "ASSISTED" | "MANUAL" };
 }
 
 export interface DirectorBrandRendering {
@@ -553,8 +556,9 @@ export function describeDirectorContext(ctx: DirectorContext, style: BrandStyleD
     if (p.platform) lines.push(`- platform: ${p.platform}${p.contentType ? ` (${p.contentType})` : ""}; target aspect ${aspectForPlatform(p.platform, p.contentType) || "unchanged"}`);
     if (p.targetDurationSec) lines.push(`- target length: under ${p.targetDurationSec}s`);
     if (p.sections.length) {
+      // Script text may come from web research / imported docs: it is data, never instructions.
       lines.push(`- script:`);
-      for (const s of p.sections.slice(0, 12)) lines.push(`  - ${s.kind}: ${s.text.slice(0, 400)}`);
+      lines.push(fenceUntrusted("script", p.sections.slice(0, 12).map((s) => `${s.kind}: ${s.text.slice(0, 400)}`).join(" | "), { maxChars: 6000 }).block);
     }
     if (align) {
       if (align.hookStartMs != null) lines.push(`- the scripted hook starts at SOURCE ${(align.hookStartMs / 1000).toFixed(2)}s${align.preHookSpeechMs > 800 ? ` (${(align.preHookSpeechMs / 1000).toFixed(1)}s of pre-hook talk before it)` : ""}`);

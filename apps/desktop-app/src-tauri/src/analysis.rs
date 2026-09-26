@@ -35,7 +35,8 @@ const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
 const MAX_RUNNING: usize = 3;
 const MAX_FINISHED: usize = 30;
 
-/// What to measure. `QaNoFreeze` is the QA pass for FFmpeg builds without the `freezedetect` filter.
+/// What to measure. `QaNoFreeze` is the QA pass for FFmpeg builds without the `freezedetect` filter: it measures
+/// frozen picture with `mpdecimate` (drops near-duplicate frames) + `showinfo` (times of the frames that remain).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AnalysisKind {
     Scenes,
@@ -82,7 +83,7 @@ pub fn build_analysis_args(kind: AnalysisKind, input: &Path, scene_threshold: f6
             let vf = if kind == AnalysisKind::Qa {
                 "blackdetect=d=0.1:pix_th=0.10,freezedetect=n=-60dB:d=0.5"
             } else {
-                "blackdetect=d=0.1:pix_th=0.10"
+                "blackdetect=d=0.1:pix_th=0.10,mpdecimate,showinfo"
             };
             a.extend(["-sn", "-dn", "-vf", vf, "-af", loud].iter().map(|s| s.to_string()));
         }
@@ -330,7 +331,7 @@ mod tests {
         assert!(qa.iter().any(|a| a.contains("freezedetect")));
         let qa2 = build_analysis_args(AnalysisKind::QaNoFreeze, Path::new("/m/a.mp4"), 0.3);
         assert!(!qa2.iter().any(|a| a.contains("freezedetect")));
-        assert!(qa2.iter().any(|a| a.contains("blackdetect")));
+        assert!(qa2.iter().any(|a| a.contains("blackdetect") && a.contains("mpdecimate,showinfo")));
     }
 
     #[test]

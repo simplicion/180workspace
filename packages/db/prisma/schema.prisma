@@ -3982,3 +3982,62 @@ model SocialInteractionLog {
   @@index([status, nextAttemptAt])
 }
 
+
+model AgentRunEvent {
+  id        String   @id @default(uuid())
+  runId     String
+  projectId String?
+  companyId String
+  agent     String
+  seq       Int      @default(0)
+  type      String
+  payload   Json     @default("{}")
+  ts        DateTime
+  createdAt DateTime @default(now())
+
+  @@index([companyId, projectId])
+  @@index([runId])
+  @@index([ts])
+}
+
+/// Per-project agent memory (P4): accepted/rejected proposals, explicit creator preferences and performance
+/// history. Strictly scoped by companyId + projectId; read compactly into strategist and Director prompts.
+model AgentMemory {
+  id        String   @id @default(uuid())
+  companyId String
+  projectId String
+  /// proposal_accepted | proposal_rejected | preference | performance
+  kind      String
+  /// director | strategist | all
+  scope     String   @default("all")
+  /// Dedupe key for preferences (e.g. "zoom", "captions.size"); a newer value replaces the older one.
+  key       String?
+  text      String
+  payload   Json?
+  weight    Float    @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, projectId, kind])
+  @@index([companyId, projectId, key])
+}
+
+/// Project-scoped semantic library index (transcripts, scenes, OCR, captions of the user's own media).
+/// Media never leaves the device: rows hold text + timings sent by the client, not media.
+model MediaIndexEntry {
+  id        String   @id @default(uuid())
+  companyId String
+  projectId String
+  assetId   String
+  /// transcript | scene | ocr | caption
+  kind      String
+  text      String
+  startMs   Int?
+  endMs     Int?
+  url       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, projectId])
+  @@index([companyId, projectId, assetId, kind])
+}

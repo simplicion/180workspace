@@ -1,9 +1,12 @@
 /**
- * Omni-Platform Simulation Engine.
- * Enables end-to-end publishing, testing, and UI validation across all 8 networks
- * immediately without waiting for third-party developer API keys or approval review.
+ * Sandbox publisher (SIMULATE_SOCIAL_PUBLISHING=true, never in production: getPublisher only wraps publishers with
+ * this class when isSimulationMode() is true, which is hard-off under NODE_ENV=production).
+ * Runs the platform's REAL validate() so every limit (caption length, carousel size, durations, boards, titles…)
+ * is still enforced, then returns a result that is unmistakably fake: externalId `sim_<platform>_…`,
+ * meta.simulated = true and a permalink on the platform's domain that does not exist.
  */
-import type { PublishPlatform } from '../publishing/config';
+import { isSimulationMode, type PublishPlatform } from '../publishing/config';
+import { PublishError } from '../publishing/errors';
 import { PlatformPublisher, PublishInput, PublishOutcome } from './types';
 
 export class SimulatedPlatformPublisher implements PlatformPublisher {
@@ -13,14 +16,21 @@ export class SimulatedPlatformPublisher implements PlatformPublisher {
     ) {}
 
     validate(input: PublishInput): string[] {
-        // Run authentic platform validation rules so user gets genuine validity feedback
+        // Run authentic platform validation rules so the user gets genuine validity feedback. Only the account
+        // identity of sandbox accounts is adapted (a sandbox LinkedIn account has no real author URN).
         if (this.realPublisher) {
-            return this.realPublisher.validate(input);
+            return this.realPublisher.validate(sandboxAccountShape(this.platform, input));
         }
         return [];
     }
 
     async publish(input: PublishInput, _accessToken: string): Promise<PublishOutcome> {
+        if (!isSimulationMode()) {
+            // Defence in depth: a stale reference must never fake a publish once the sandbox is off (or in production).
+            throw new PublishError('PUBLISH_NOT_CONFIGURED', 'Simulated publishing is disabled on this server.', { platform: this.platform });
+        }
+        const issues = this.validate(input);
+        if (issues.length) throw new PublishError('VALIDATION_FAILED', issues.join(' '), { platform: this.platform, details: { issues, simulated: true } });
         // Simulate realistic network round-trip latency
         const delay = 350 + Math.floor(Math.random() * 250);
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -63,8 +73,10 @@ export class SimulatedPlatformPublisher implements PlatformPublisher {
             externalId: `sim_${this.platform}_${simId}`,
             url: permalink,
             state: 'published',
+            warning: 'Simulated publish (sandbox mode): nothing was posted to the platform.',
             meta: {
                 simulated: true,
+                label: 'SIMULATED',
                 platform: this.platform,
                 accountName: input.account.accountName,
                 format: input.format,
@@ -73,4 +85,14 @@ export class SimulatedPlatformPublisher implements PlatformPublisher {
             },
         };
     }
+}
+
+/** Sandbox accounts carry placeholder ids; give them the identity shape the real validator expects. */
+function sandboxAccountShape(platform: PublishPlatform, input: PublishInput): PublishInput {
+    const id = input.account.platformAccountId || '';
+    const sandboxId = /^(sim_|sandbox_|mock_)/.test(id) || input.account.metadata?.simulated === true;
+    if (platform === 'linkedin' && sandboxId && !/^urn:li:(person|organization):/.test(id)) {
+        return { ...input, account: { ...input.account, platformAccountId: `urn:li:person:${id}` } };
+    }
+    return input;
 }

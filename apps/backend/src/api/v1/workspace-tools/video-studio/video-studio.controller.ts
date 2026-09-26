@@ -16,6 +16,29 @@ function companyOf(req: any, res: Response): string | null {
   return String(companyId);
 }
 
+/** Agent OS hooks for the Director (run log + per-project memory), injectable for tests. */
+export interface DirectorAgentOs {
+  createEmitter(companyId: string, projectId?: string): any;
+  memoryContext(projectId: string, companyId: string): Promise<string[]>;
+  rememberPreferences(projectId: string, companyId: string, prompt: string): Promise<unknown>;
+}
+let agentOsOverride: DirectorAgentOs | null = null;
+export function setDirectorAgentOs(v: DirectorAgentOs | null) {
+  agentOsOverride = v;
+}
+function directorAgentOs(): DirectorAgentOs {
+  if (agentOsOverride) return agentOsOverride;
+  const runs = require("@workspace/ai/dist/agent-runs");
+  const { AgentMemoryService } = require("@workspace/social-media");
+  const memory = new AgentMemoryService();
+  return {
+    createEmitter: (companyId, projectId) =>
+      runs.createAgentRunEmitter({ store: runs.getDefaultAgentEventStore(), agent: "director", scope: projectId ? { companyId, projectId } : null }),
+    memoryContext: (projectId, companyId) => memory.buildMemoryContext(projectId, companyId, "director"),
+    rememberPreferences: (projectId, companyId, prompt) => memory.rememberPreferencesFrom(projectId, companyId, prompt, "director"),
+  };
+}
+
 /** Unexpected errors are logged server-side; the client gets a generic message (no internals). */
 function sendInternal(res: Response, scope: string, err: any) {
   console.error(`[VideoStudio] ${scope} failed:`, err?.message || err);
@@ -90,8 +113,16 @@ export class VideoStudioController {
       const ctx = await loadDirectorContext({ companyId, projectId: str(projectId), calendarPieceId: str(calendarPieceId), postId: str(postId) }).catch(() => ({ warnings: [] as string[] }));
       const contextSections = (ctx as any).brand || (ctx as any).piece ? describeDirectorContext(ctx as any, brandStyleDefaults((ctx as any).brand)) : undefined;
 
+      const socialProjectId = (ctx as any).brand?.projectId || str(projectId);
+      const agentOs = directorAgentOs();
+      const memoryContext = socialProjectId ? await agentOs.memoryContext(socialProjectId, companyId).catch(() => []) : [];
+      let finalContextSections = contextSections ? [...contextSections] : [];
+      if (memoryContext.length) {
+        finalContextSections.push(`## Project memory (this project only)`, ...memoryContext, ``);
+      }
+
       const result = await VideoStudioService.executeAIDirector({
-        contextSections,
+        contextSections: finalContextSections.length ? finalContextSections : undefined,
         prompt,
         companyId,
         stylePreset,
@@ -103,6 +134,10 @@ export class VideoStudioController {
         // Earlier chat turns (role/content), capped; the director normalises and ignores anything else.
         history: Array.isArray(history) ? history.slice(-12) : undefined,
       });
+
+      if (socialProjectId && prompt) {
+        agentOs.rememberPreferences(socialProjectId, companyId, prompt).catch((e: any) => console.warn("[AI Director] memory", e?.message || e));
+      }
 
       return res.status(200).json({ success: true, data: result });
     } catch (err: any) {
@@ -125,7 +160,16 @@ export class VideoStudioController {
     try {
       const { projectId, calendarPieceId, postId } = parsed.data;
       const context = await loadDirectorContext({ companyId, projectId, calendarPieceId, postId });
-      const data = await VideoStudioService.executeMobileAIDirector(parsed.data, companyId, context);
+      // Only a project the brand loader verified for this company scopes the run log and the memory.
+      const socialProjectId = context.brand?.projectId;
+      const agentOs = directorAgentOs();
+      const events = agentOs.createEmitter(companyId, socialProjectId);
+      const memoryContext = socialProjectId ? await agentOs.memoryContext(socialProjectId, companyId).catch(() => []) : [];
+      const data = await VideoStudioService.executeMobileAIDirector(parsed.data, companyId, context, { events, memoryContext });
+      if (socialProjectId && parsed.data.prompt) {
+        // Explicit preferences in the creator's words ("less zoom", "smaller captions") are remembered per project.
+        agentOs.rememberPreferences(socialProjectId, companyId, parsed.data.prompt).catch((e: any) => console.warn("[AI Director] memory", e?.message || e));
+      }
       return res.status(200).json({ success: true, data });
     } catch (err: any) {
       console.error("[AI Director][mobile]", err?.message || err);

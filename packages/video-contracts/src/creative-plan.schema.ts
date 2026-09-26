@@ -54,6 +54,8 @@ export const UserConstraintsSchema = z.object({
   useUploadedBrollOnly: z.boolean().default(true),
   lockedTrackIds: z.array(z.string()).default([]),
   preserveVoiceAudio: z.boolean().default(true),
+  /** Director preservation locks by track kind (see director-constraints.ts); enforced by CreativePlanValidator. */
+  lockedTracks: z.array(z.enum(["music", "captions", "broll", "sfx", "effects", "text"])).default([]),
 });
 
 export type UserConstraints = z.infer<typeof UserConstraintsSchema>;

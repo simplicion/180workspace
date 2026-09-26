@@ -10,3 +10,4 @@ export * from './reddit.adapter';
 export * from './simulation.adapter';
 export * from './registry';
 
+export * from './capabilities';

@@ -1,4 +1,123 @@
 import '../../core/util/json.dart';
+import 'platform.dart';
+
+/// Generic, universal payload for manual pre-filled publishing across any SocialPlatform.
+class UniversalPlatformPayload {
+  const UniversalPlatformPayload({
+    required this.platform,
+    required this.caption,
+    this.title,
+    this.hashtags = const [],
+    this.mediaPath,
+    this.mimeType = 'video/mp4',
+    this.subreddit,
+    this.extraMetadata = const {},
+    this.sourceContentId,
+    this.calendarItemId,
+    this.projectId,
+  });
+
+  final SocialPlatform platform;
+  final String caption;
+  final String? title;
+  final List<String> hashtags;
+  final String? mediaPath;
+  final String mimeType;
+  final String? subreddit;
+  final Map<String, dynamic> extraMetadata;
+  final String? sourceContentId;
+  final String? calendarItemId;
+  final String? projectId;
+
+  /// Returns full formatted text including hashtags if provided
+  String get fullText {
+    final tagsText = hashtags.isNotEmpty
+        ? '\n\n${hashtags.map((t) => t.startsWith('#') ? t : '#$t').join(' ')}'
+        : '';
+    return '$caption$tagsText'.trim();
+  }
+
+  /// Converts to legacy XPublishPayload
+  XPublishPayload toXPayload() => XPublishPayload(
+        text: fullText,
+        mediaPath: mediaPath,
+        mimeType: mimeType,
+        sourceContentId: sourceContentId,
+        calendarItemId: calendarItemId,
+        projectId: projectId,
+      );
+
+  /// Converts to legacy RedditPublishPayload
+  RedditPublishPayload toRedditPayload() => RedditPublishPayload(
+        subreddit: subreddit,
+        title: title ?? (caption.length > 80 ? '${caption.substring(0, 77)}...' : caption),
+        body: caption,
+        mediaPath: mediaPath,
+        mimeType: mimeType,
+        sourceContentId: sourceContentId,
+        calendarItemId: calendarItemId,
+        projectId: projectId,
+      );
+
+  factory UniversalPlatformPayload.fromPlatform({
+    required SocialPlatform platform,
+    required String caption,
+    String? title,
+    List<String> hashtags = const [],
+    String? mediaPath,
+    String mimeType = 'video/mp4',
+    String? subreddit,
+    Map<String, dynamic> extraMetadata = const {},
+    String? sourceContentId,
+    String? calendarItemId,
+    String? projectId,
+  }) {
+    return UniversalPlatformPayload(
+      platform: platform,
+      caption: caption,
+      title: title,
+      hashtags: hashtags,
+      mediaPath: mediaPath,
+      mimeType: mimeType,
+      subreddit: subreddit,
+      extraMetadata: extraMetadata,
+      sourceContentId: sourceContentId,
+      calendarItemId: calendarItemId,
+      projectId: projectId,
+    );
+  }
+
+  factory UniversalPlatformPayload.fromJson(Json j) {
+    final plat = SocialPlatform.parse(j['platform']);
+    return UniversalPlatformPayload(
+      platform: plat,
+      caption: jStrOr(j['caption'] ?? j['text'], ''),
+      title: jStr(j['title']),
+      hashtags: (j['hashtags'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      mediaPath: jStr(j['mediaPath']) ?? jStr(j['mediaUri']),
+      mimeType: jStrOr(j['mimeType'], 'video/mp4'),
+      subreddit: jStr(j['subreddit']),
+      extraMetadata: (j['extraMetadata'] is Map) ? Map<String, dynamic>.from(j['extraMetadata'] as Map) : const {},
+      sourceContentId: jStr(j['sourceContentId']),
+      calendarItemId: jStr(j['calendarItemId']),
+      projectId: jStr(j['projectId']),
+    );
+  }
+
+  Json toJson() => compact({
+        'platform': platform.id,
+        'caption': caption,
+        'title': title,
+        'hashtags': hashtags.isNotEmpty ? hashtags : null,
+        'mediaPath': mediaPath,
+        'mimeType': mimeType,
+        'subreddit': subreddit,
+        'extraMetadata': extraMetadata.isNotEmpty ? extraMetadata : null,
+        'sourceContentId': sourceContentId,
+        'calendarItemId': calendarItemId,
+        'projectId': projectId,
+      });
+}
 
 /// Payload prepared specifically for X (Twitter) user-assisted handoff.
 class XPublishPayload {
@@ -115,6 +234,7 @@ class UserAssistedPublishPackage {
     this.caption,
     this.xPayload,
     this.redditPayload,
+    this.platformPayloads = const {},
     this.status = 'ready',
     this.createdAt,
   });
@@ -128,22 +248,37 @@ class UserAssistedPublishPackage {
   final String? caption;
   final XPublishPayload? xPayload;
   final RedditPublishPayload? redditPayload;
+  final Map<SocialPlatform, UniversalPlatformPayload> platformPayloads;
   final String status;
   final DateTime? createdAt;
 
-  factory UserAssistedPublishPackage.fromJson(Json j) => UserAssistedPublishPackage(
-        id: jStrOr(j['id'], ''),
-        projectId: jStrOr(j['projectId'], ''),
-        calendarItemId: jStr(j['calendarItemId']),
-        mediaPath: jStr(j['mediaPath']) ?? jStr(j['mediaUri']),
-        mimeType: jStrOr(j['mimeType'], 'video/mp4'),
-        title: jStr(j['title']),
-        caption: jStr(j['caption']),
-        xPayload: j['xPayload'] is Map ? XPublishPayload.fromJson(jMap(j['xPayload'])) : null,
-        redditPayload: j['redditPayload'] is Map ? RedditPublishPayload.fromJson(jMap(j['redditPayload'])) : null,
-        status: jStrOr(j['status'], 'ready'),
-        createdAt: jDate(j['createdAt']),
-      );
+  factory UserAssistedPublishPackage.fromJson(Json j) {
+    final rawPlatformPayloads = j['platformPayloads'];
+    final Map<SocialPlatform, UniversalPlatformPayload> payloads = {};
+    if (rawPlatformPayloads is Map) {
+      for (final entry in rawPlatformPayloads.entries) {
+        final plat = SocialPlatform.parse(entry.key);
+        if (plat != SocialPlatform.unknown && entry.value is Map) {
+          payloads[plat] = UniversalPlatformPayload.fromJson(jMap(entry.value));
+        }
+      }
+    }
+
+    return UserAssistedPublishPackage(
+      id: jStrOr(j['id'], ''),
+      projectId: jStrOr(j['projectId'], ''),
+      calendarItemId: jStr(j['calendarItemId']),
+      mediaPath: jStr(j['mediaPath']) ?? jStr(j['mediaUri']),
+      mimeType: jStrOr(j['mimeType'], 'video/mp4'),
+      title: jStr(j['title']),
+      caption: jStr(j['caption']),
+      xPayload: j['xPayload'] is Map ? XPublishPayload.fromJson(jMap(j['xPayload'])) : null,
+      redditPayload: j['redditPayload'] is Map ? RedditPublishPayload.fromJson(jMap(j['redditPayload'])) : null,
+      platformPayloads: payloads,
+      status: jStrOr(j['status'], 'ready'),
+      createdAt: jDate(j['createdAt']),
+    );
+  }
 
   Json toJson() => compact({
         'id': id,
@@ -155,6 +290,9 @@ class UserAssistedPublishPackage {
         'caption': caption,
         'xPayload': xPayload?.toJson(),
         'redditPayload': redditPayload?.toJson(),
+        'platformPayloads': platformPayloads.isNotEmpty
+            ? platformPayloads.map((k, v) => MapEntry(k.id, v.toJson()))
+            : null,
         'status': status,
         'createdAt': createdAt?.toIso8601String(),
       });
