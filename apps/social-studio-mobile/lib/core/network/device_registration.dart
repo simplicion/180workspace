@@ -17,7 +17,15 @@ class DeviceRegistration {
 
   static const _renewBefore = Duration(days: 2);
 
-  String get platform => _platformOverride ?? (Platform.isIOS ? 'ios' : 'android');
+  String get platform {
+    if (_platformOverride != null) return _platformOverride!;
+    if (Platform.isIOS) return 'ios';
+    if (Platform.isAndroid) return 'android';
+    if (Platform.isWindows) return 'windows';
+    if (Platform.isMacOS) return 'macos';
+    if (Platform.isLinux) return 'linux';
+    return 'unknown';
+  }
 
   Future<String> ensureToken({bool forceRenew = false}) async {
     final tokens = _api.tokens;
