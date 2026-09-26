@@ -13,18 +13,31 @@ import {
 } from "./media-transcription";
 
 const withKey = async (value: string | undefined, fn: () => Promise<void>) => {
-  const prev = process.env.CARTESIA_API_KEY;
-  if (value === undefined) delete process.env.CARTESIA_API_KEY;
-  else process.env.CARTESIA_API_KEY = value;
+  const prevCartesia = process.env.CARTESIA_API_KEY;
+  const prevGroq = process.env.GROQ_API_KEY;
+  const prevOpenAI = process.env.OPENAI_API_KEY;
+
+  delete process.env.CARTESIA_API_KEY;
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+
+  if (value !== undefined) process.env.CARTESIA_API_KEY = value;
+
   try {
     await fn();
   } finally {
-    if (prev === undefined) delete process.env.CARTESIA_API_KEY;
-    else process.env.CARTESIA_API_KEY = prev;
+    if (prevCartesia !== undefined) process.env.CARTESIA_API_KEY = prevCartesia;
+    else delete process.env.CARTESIA_API_KEY;
+
+    if (prevGroq !== undefined) process.env.GROQ_API_KEY = prevGroq;
+    else delete process.env.GROQ_API_KEY;
+
+    if (prevOpenAI !== undefined) process.env.OPENAI_API_KEY = prevOpenAI;
+    else delete process.env.OPENAI_API_KEY;
   }
 };
 
-test("throws TranscriptionUnavailableError when CARTESIA_API_KEY is missing (no literal fallback)", async () => {
+test("throws TranscriptionUnavailableError when no STT keys are configured (no literal fallback)", async () => {
   await withKey(undefined, async () => {
     let called = false;
     const fakeFetch: any = async () => { called = true; };
@@ -94,6 +107,42 @@ test("maps Groq Whisper word timestamps (seconds) to ms and sends verbose_json",
   } finally {
     if (prevGroq === undefined) delete process.env.GROQ_API_KEY;
     else process.env.GROQ_API_KEY = prevGroq;
+  }
+});
+
+test("maps OpenAI Whisper word timestamps (seconds) to ms and sends verbose_json with whisper-1", async () => {
+  const prevOpenai = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "sk-test-openai-key";
+  try {
+    let captured: any;
+    const fakeFetch: any = async (url: string, init: any) => {
+      captured = { url, init };
+      return new Response(JSON.stringify({
+        text: "transform your content with ai",
+        language: "english",
+        duration: 3.2,
+        words: [
+          { word: "transform", start: 0.15, end: 0.7 },
+          { word: "your", start: 0.75, end: 0.95 },
+          { word: "content", start: 1.0, end: 1.5 },
+          { word: "with", start: 1.55, end: 1.8 },
+          { word: "ai", start: 1.85, end: 2.3 },
+        ],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    };
+    const out = await transcribeAudioBuffer(Buffer.from("fake-audio"), "audio.wav", "audio/wav", "en", fakeFetch);
+    assert.equal(captured.url, "https://api.openai.com/v1/audio/transcriptions");
+    assert.equal(captured.init.headers.Authorization, "Bearer sk-test-openai-key");
+    const form: FormData = captured.init.body;
+    assert.equal(form.get("model"), "whisper-1");
+    assert.equal(form.get("response_format"), "verbose_json");
+    assert.equal(form.get("timestamp_granularities[]"), "word");
+    assert.equal(out.words.length, 5);
+    assert.deepEqual(out.words[0], { text: "transform", startMs: 150, endMs: 700 });
+    assert.equal(out.durationMs, 3200);
+  } finally {
+    if (prevOpenai === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = prevOpenai;
   }
 });
 

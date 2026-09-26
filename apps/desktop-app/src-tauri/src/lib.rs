@@ -4,6 +4,7 @@
 //! adds offline support on top of it (the web app's local database + service worker), and provides the native
 //! capabilities the browser cannot: local file access and bundled FFmpeg for all media processing.
 
+mod analysis;
 mod media;
 mod overlays;
 mod remote;
@@ -100,6 +101,7 @@ pub fn run() {
         .manage(media::AllowedPaths::default())
         .manage(render::RenderJobs::default())
         .manage(remote::RemoteDownloads::default())
+        .manage(analysis::AnalysisJobs::default())
         .setup(|app| {
             let origin = app_origin();
             let initial_route = std::env::args()
@@ -148,6 +150,10 @@ pub fn run() {
             overlays::clear_caption_overlays,
             remote::fetch_remote_media,
             remote::remote_media_status,
+            remote::cancel_remote_media,
+            analysis::start_media_analysis,
+            analysis::media_analysis_status,
+            analysis::cancel_media_analysis,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the 180 Workspace desktop app");

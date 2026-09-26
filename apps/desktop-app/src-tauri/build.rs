@@ -18,6 +18,10 @@ fn main() {
             "clear_caption_overlays",
             "fetch_remote_media",
             "remote_media_status",
+            "cancel_remote_media",
+            "start_media_analysis",
+            "media_analysis_status",
+            "cancel_media_analysis",
         ])),
     )
     .expect("failed to run tauri-build");

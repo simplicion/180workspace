@@ -20,6 +20,10 @@
     "allow-write-caption-overlays",
     "allow-clear-caption-overlays",
     "allow-fetch-remote-media",
-    "allow-remote-media-status"
+    "allow-remote-media-status",
+    "allow-cancel-remote-media",
+    "allow-start-media-analysis",
+    "allow-media-analysis-status",
+    "allow-cancel-media-analysis"
   ]
 }
