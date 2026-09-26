@@ -255,6 +255,30 @@ export class PixabayStockProvider implements ImageProvider {
     }
 }
 
+/* ------------------------------------------------------------------ Pollinations.ai FLUX (100% Free, No Key) */
+
+export class PollinationsFluxProvider implements ImageProvider {
+    id = 'pollinations';
+    kind: ImageProviderKind = 'generative';
+    model = 'flux-schnell';
+    constructor(private fetchImpl: FetchLike = fetch) {}
+
+    async generate(req: ImageRequest): Promise<ImageResult> {
+        const width = round16(req.width);
+        const height = round16(req.height);
+        const promptText = encodeURIComponent(withInlineNegative(req.prompt));
+        const seedParam = req.seed !== undefined ? `&seed=${req.seed}` : '';
+        const url = `https://image.pollinations.ai/prompt/${promptText}?model=flux&width=${width}&height=${height}&nologo=true${seedParam}`;
+        const img = await download(this.fetchImpl, url, 'pollinations');
+        return {
+            ...img,
+            provider: 'pollinations',
+            model: this.model,
+            kind: 'generative',
+        };
+    }
+}
+
 /* ------------------------------------------------------------------ resolution */
 
 export interface ImageProviderChain {
@@ -287,6 +311,10 @@ export function resolveImageProviders(opts: ResolveOptions = {}): ImageProviderC
         .filter(Boolean);
     const generative: ImageProvider[] = [];
     for (const id of order) {
+        if (id === 'pollinations' && (env.POLLINATIONS_ALLOW === 'true' || m.allowPollinations === true)) {
+            generative.push(new PollinationsFluxProvider(f));
+            continue;
+        }
         if (!keys[id]) continue;
         if (id === 'bfl') generative.push(new BflFluxProvider(keys.bfl, env.BFL_IMAGE_MODEL || 'flux-2-pro', f));
         if (id === 'gemini') generative.push(new GeminiImageProvider(keys.gemini, env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image', f));

@@ -55,6 +55,7 @@ router.get("/stock/unified", async (req, res) => {
       StockDecisionBroker,
       DirectorToolRegistry,
       BgmSearchTool,
+      searchFreeMedia,
     } = require("@workspace/video-engine-runtime");
 
     // Audio-only searches (music / sfx) must not return (or wait on) video and photo providers,
@@ -106,7 +107,28 @@ router.get("/stock/unified", async (req, res) => {
       ? BgmSearchTool.searchTracks({ query, limit: parseInt(perPage as string, 10) || 12 }).catch((err: any) => ({ tracks: [], warnings: [err?.message || String(err)] }))
       : Promise.resolve({ tracks: [], warnings: [] });
 
-    const [pexels, pixabay, freesound, music] = await Promise.all([pexelsPromise, pixabayPromise, freesoundPromise, musicPromise]);
+    // Zero-cost free media providers (Openverse, Wikimedia Commons, Internet Archive, Jamendo)
+    const freeVideoPromise = (!audioOnly && (type === "all" || type === "video") && typeof searchFreeMedia === "function")
+      ? searchFreeMedia({ query, kind: "video", limit: 6, orientation: orientation as any }).catch(() => ({ items: [] }))
+      : Promise.resolve({ items: [] });
+
+    const freePhotoPromise = (!audioOnly && (type === "all" || type === "photo" || type === "image") && typeof searchFreeMedia === "function")
+      ? searchFreeMedia({ query, kind: "image", limit: 6, orientation: orientation as any }).catch(() => ({ items: [] }))
+      : Promise.resolve({ items: [] });
+
+    const freeAudioPromise = ((wantsMusic || wantsSfx) && typeof searchFreeMedia === "function")
+      ? searchFreeMedia({ query, kind: wantsMusic ? "music" : "sfx", limit: 6 }).catch(() => ({ items: [] }))
+      : Promise.resolve({ items: [] });
+
+    const [pexels, pixabay, freesound, music, freeVideos, freePhotos, freeAudio] = await Promise.all([
+      pexelsPromise,
+      pixabayPromise,
+      freesoundPromise,
+      musicPromise,
+      freeVideoPromise,
+      freePhotoPromise,
+      freeAudioPromise,
+    ]);
 
     // FreesoundSfxTool returns `effects` (the old code read a non-existent `sfx` key, so audio was
     // always empty). Only real HTTPS previews are listed, never its local synthesized fallback.
@@ -114,6 +136,43 @@ router.get("/stock/unified", async (req, res) => {
       .filter((e: any) => typeof e.downloadUrl === "string" && /^https:\/\//i.test(e.downloadUrl))
       .map((e: any) => ({ kind: "sfx", title: e.name, url: e.downloadUrl, durationSec: e.durationSec, license: null, provider: "freesound" }));
     const musicAudio = ((music as any).tracks || []).map((t: any) => ({ kind: "music", ...t }));
+
+    const normFreeVideos = (freeVideos.items || []).map((item: any) => ({
+      id: item.id,
+      title: item.title,
+      duration: item.durationSec || 0,
+      url: item.url,
+      previewUrl: item.previewUrl || item.url,
+      source: item.provider,
+      license: item.license,
+      attribution: item.attribution,
+      sourcePage: item.sourcePage,
+    }));
+
+    const normFreePhotos = (freePhotos.items || []).map((item: any) => ({
+      id: item.id,
+      title: item.title,
+      url: item.url,
+      previewUrl: item.previewUrl || item.url,
+      width: item.width,
+      height: item.height,
+      source: item.provider,
+      license: item.license,
+      attribution: item.attribution,
+      sourcePage: item.sourcePage,
+    }));
+
+    const normFreeAudio = (freeAudio.items || []).map((item: any) => ({
+      kind: item.kind,
+      id: item.id,
+      title: item.title,
+      url: item.url,
+      durationSec: item.durationSec,
+      provider: item.provider,
+      license: item.license,
+      attribution: item.attribution,
+      sourcePage: item.sourcePage,
+    }));
 
     const brokerDecision = StockDecisionBroker.evaluate({
       prompt: query,
@@ -132,11 +191,17 @@ router.get("/stock/unified", async (req, res) => {
       pixabay,
       freesound,
       music,
-      unifiedVideos: [...(pexels.videos || []), ...(pixabay.videos || [])],
-      unifiedPhotos: [...(pexels.photos || []), ...(pixabay.photos || [])],
+      freeMedia: {
+        videos: normFreeVideos,
+        photos: normFreePhotos,
+        audio: normFreeAudio,
+      },
+      unifiedVideos: [...(pexels.videos || []), ...(pixabay.videos || []), ...normFreeVideos],
+      unifiedPhotos: [...(pexels.photos || []), ...(pixabay.photos || []), ...normFreePhotos],
       unifiedIllustrations: [...(pixabay.illustrations || []), ...(pixabay.vectors || [])],
-      unifiedAudio: [...musicAudio, ...sfxAudio],
+      unifiedAudio: [...musicAudio, ...sfxAudio, ...normFreeAudio],
     });
+
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }

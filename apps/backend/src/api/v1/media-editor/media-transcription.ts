@@ -42,17 +42,20 @@ export interface TranscriptionResponse {
   words: WordTimestamp[];
 }
 
-/** Throws when the key is missing; never falls back to a literal. */
-function requireCartesiaKey(): string {
-  const key = process.env.CARTESIA_API_KEY;
-  if (!key) {
-    throw new TranscriptionUnavailableError("CARTESIA_API_KEY is not set.");
+const GROQ_STT_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
+
+/** Throws when no STT key is configured; never falls back to a literal. */
+function requireSttCredentials(): { groqKey?: string; cartesiaKey?: string } {
+  const groqKey = process.env.GROQ_API_KEY;
+  const cartesiaKey = process.env.CARTESIA_API_KEY;
+  if (!groqKey && !cartesiaKey) {
+    throw new TranscriptionUnavailableError("No STT key configured on server (set GROQ_API_KEY or CARTESIA_API_KEY).");
   }
-  return key;
+  return { groqKey, cartesiaKey };
 }
 
 /**
- * Sends audio to Cartesia batch STT with word timestamps. Throws TranscriptionFailedError when the
+ * Sends audio to Groq Whisper or Cartesia batch STT with word timestamps. Throws TranscriptionFailedError when the
  * provider fails or returns no word timings (we never synthesize fake timings).
  */
 export async function transcribeAudioBuffer(
@@ -62,7 +65,57 @@ export async function transcribeAudioBuffer(
   language = "en",
   fetchImpl: typeof fetch = fetch
 ): Promise<TranscriptionResponse> {
-  const apiKey = requireCartesiaKey();
+  const { groqKey, cartesiaKey } = requireSttCredentials();
+
+  // Tier 1: Groq Whisper Cloud (ultra-fast ~0.5s, free tier: 7,200s/day)
+  if (groqKey) {
+    try {
+      const groqForm = new FormData();
+      groqForm.append("file", new Blob([new Uint8Array(audio)], { type: mimeType }), filename || "audio.wav");
+      groqForm.append("model", "whisper-large-v3-turbo");
+      groqForm.append("language", language);
+      groqForm.append("response_format", "verbose_json");
+      groqForm.append("timestamp_granularities[]", "word");
+
+      const groqRes = await fetchImpl(GROQ_STT_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${groqKey}` },
+        body: groqForm,
+        signal: AbortSignal.timeout(30_000),
+      });
+
+      if (groqRes.ok) {
+        const data: any = await groqRes.json();
+        const rawWords: any[] = Array.isArray(data?.words) ? data.words : [];
+        const words: WordTimestamp[] = rawWords
+          .filter((w) => typeof w?.word === "string" && typeof w?.start === "number" && typeof w?.end === "number")
+          .map((w) => ({
+            text: String(w.word).trim(),
+            startMs: Math.max(0, Math.round(w.start * 1000)),
+            endMs: Math.max(0, Math.round(w.end * 1000)),
+          }))
+          .filter((w) => w.text.length > 0 && w.endMs >= w.startMs);
+
+        const text: string = typeof data?.text === "string" ? data.text.trim() : "";
+        if (words.length > 0 || !text) {
+          const durationSec = typeof data?.duration === "number" ? data.duration : words.length ? words[words.length - 1].endMs / 1000 : 0;
+          return {
+            language: typeof data?.language === "string" ? data.language : language,
+            durationMs: Math.round(durationSec * 1000),
+            text,
+            words,
+          };
+        }
+      }
+    } catch (groqErr: any) {
+      console.warn("[Transcribe] Groq Whisper fallback notice:", groqErr?.message || groqErr);
+    }
+  }
+
+  // Tier 2: Cartesia STT (ink-whisper)
+  if (!cartesiaKey) {
+    throw new TranscriptionFailedError("Groq Whisper did not succeed and CARTESIA_API_KEY is not configured.");
+  }
 
   const form = new FormData();
   form.append("file", new Blob([new Uint8Array(audio)], { type: mimeType }), filename || "audio");
@@ -74,7 +127,7 @@ export async function transcribeAudioBuffer(
   try {
     res = await fetchImpl(CARTESIA_STT_URL, {
       method: "POST",
-      headers: { "X-API-Key": apiKey, "Cartesia-Version": CARTESIA_VERSION },
+      headers: { "X-API-Key": cartesiaKey, "Cartesia-Version": CARTESIA_VERSION },
       body: form,
       signal: AbortSignal.timeout(120_000),
     });

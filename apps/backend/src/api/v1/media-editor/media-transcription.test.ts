@@ -61,6 +61,42 @@ test("maps Cartesia word timestamps (seconds) to ms and sends word granularity",
   });
 });
 
+test("maps Groq Whisper word timestamps (seconds) to ms and sends verbose_json", async () => {
+  const prevGroq = process.env.GROQ_API_KEY;
+  process.env.GROQ_API_KEY = "gsk_test_key";
+  try {
+    let captured: any;
+    const fakeFetch: any = async (url: string, init: any) => {
+      captured = { url, init };
+      return new Response(JSON.stringify({
+        text: "growth happens every single day",
+        language: "english",
+        duration: 2.5,
+        words: [
+          { word: "growth", start: 0.1, end: 0.5 },
+          { word: "happens", start: 0.51, end: 0.9 },
+          { word: "every", start: 0.91, end: 1.2 },
+          { word: "single", start: 1.21, end: 1.6 },
+          { word: "day", start: 1.61, end: 2.1 },
+        ],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    };
+    const out = await transcribeAudioBuffer(Buffer.from("fake-audio"), "speech.wav", "audio/wav", "en", fakeFetch);
+    assert.equal(captured.url, "https://api.groq.com/openai/v1/audio/transcriptions");
+    assert.equal(captured.init.headers.Authorization, "Bearer gsk_test_key");
+    const form: FormData = captured.init.body;
+    assert.equal(form.get("model"), "whisper-large-v3-turbo");
+    assert.equal(form.get("response_format"), "verbose_json");
+    assert.equal(form.get("timestamp_granularities[]"), "word");
+    assert.equal(out.words.length, 5);
+    assert.deepEqual(out.words[0], { text: "growth", startMs: 100, endMs: 500 });
+    assert.equal(out.durationMs, 2500);
+  } finally {
+    if (prevGroq === undefined) delete process.env.GROQ_API_KEY;
+    else process.env.GROQ_API_KEY = prevGroq;
+  }
+});
+
 test("provider errors and missing word timings are failures, never fabricated timings", async () => {
   await withKey("test-key-not-real", async () => {
     const err500: any = async () => new Response("upstream down", { status: 500 });
