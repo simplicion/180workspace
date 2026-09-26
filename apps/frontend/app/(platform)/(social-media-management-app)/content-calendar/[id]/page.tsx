@@ -178,7 +178,7 @@ export default function CalendarDetailView() {
                         Multi-Channel Post
                     </button>
                     <button 
-                        onClick={() => router.push(`/content-calendar/create?extendFrom=${calendar.id}`)}
+                        onClick={() => router.push(`/content-calendar/create?extendFrom=${calendar.id}&projectId=${(calendar as any)?.projectId || calendar?.metadata?.projectId || ""}`)}
                         className="btn flex items-center gap-2 text-sm bg-white hover:bg-indigo-50 text-indigo-600 border-indigo-200"
                     >
                         <Sparkles className="w-4 h-4" />
@@ -403,6 +403,7 @@ export default function CalendarDetailView() {
                 <ContentPieceDrawer 
                     piece={selectedPiece} 
                     calendarId={calendar?.id || ''}
+                    projectId={(calendar as any)?.projectId || calendar?.metadata?.projectId || undefined}
                     onClose={() => setSelectedPiece(null)} 
                     onSave={() => {
                         fetchDetails();

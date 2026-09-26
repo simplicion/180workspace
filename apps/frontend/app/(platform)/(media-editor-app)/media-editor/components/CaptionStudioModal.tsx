@@ -12,7 +12,182 @@ import {
   Coffee,
   Zap,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { CaptionSegment, RationalTimeMath } from "@workspace/video-contracts";
+
+export interface CaptionStyleTemplate {
+  id: string;
+  name: string;
+  subtitle: string;
+  icon: any;
+  color: string;
+  style: {
+    preset: any;
+    fontFamily: string;
+    fontSize: number;
+    textColor: string;
+    highlightColor: string;
+    strokeWidth?: number;
+    strokeColor?: string;
+    shadow?: boolean;
+    glow?: boolean;
+    pillBackground?: string;
+    pillRadius?: number;
+    pillPadding?: number;
+  };
+}
+
+export const CAPTION_STYLE_PRESETS: CaptionStyleTemplate[] = [
+  {
+    id: "HORMOZI_BOUNCE",
+    name: "Hormozi Viral",
+    subtitle: "Yellow / Green Bold",
+    icon: Flame,
+    color: "text-amber-400 border-amber-500/40",
+    style: {
+      preset: "HORMOZI_BOUNCE",
+      fontFamily: "Anton",
+      fontSize: 52,
+      textColor: "#FACC15",
+      highlightColor: "#22C55E",
+      strokeWidth: 3,
+      strokeColor: "#000000",
+      shadow: true,
+      glow: false,
+    },
+  },
+  {
+    id: "MRBEAST_HYPE",
+    name: "MrBeast Punch",
+    subtitle: "Red / White Impact",
+    icon: Zap,
+    color: "text-rose-400 border-rose-500/40",
+    style: {
+      preset: "HORMOZI_BOUNCE",
+      fontFamily: "Montserrat",
+      fontSize: 54,
+      textColor: "#FFFFFF",
+      highlightColor: "#EF4444",
+      strokeWidth: 4,
+      strokeColor: "#000000",
+      shadow: true,
+      glow: false,
+    },
+  },
+  {
+    id: "ALI_ABDAAL_CLEAN",
+    name: "Abdaal Aesthetic",
+    subtitle: "Clean Teal & White",
+    icon: Coffee,
+    color: "text-teal-400 border-teal-500/40",
+    style: {
+      preset: "ALI_ABDAAL_CLEAN",
+      fontFamily: "Poppins",
+      fontSize: 44,
+      textColor: "#FFFFFF",
+      highlightColor: "#14B8A6",
+      strokeWidth: 0,
+      shadow: true,
+      glow: false,
+      pillBackground: "rgba(0,0,0,0.45)",
+      pillRadius: 14,
+      pillPadding: 6,
+    },
+  },
+  {
+    id: "DAN_KOE_MINIMAL",
+    name: "Dan Koe Clean",
+    subtitle: "Minimalist Grotesque",
+    icon: Type,
+    color: "text-zinc-300 border-zinc-500/40",
+    style: {
+      preset: "MINIMAL_SUBTITLE",
+      fontFamily: "Syne",
+      fontSize: 40,
+      textColor: "#FFFFFF",
+      highlightColor: "#94A3B8",
+      strokeWidth: 0,
+      shadow: false,
+      glow: false,
+    },
+  },
+  {
+    id: "CYBER_NEON",
+    name: "Cyber Neon",
+    subtitle: "Cyan & Magenta Glow",
+    icon: Sparkles,
+    color: "text-cyan-400 border-cyan-500/40",
+    style: {
+      preset: "BOLD_CENTER",
+      fontFamily: "Outfit",
+      fontSize: 48,
+      textColor: "#38BDF8",
+      highlightColor: "#EC4899",
+      strokeWidth: 1,
+      strokeColor: "#0284C7",
+      shadow: false,
+      glow: true,
+    },
+  },
+  {
+    id: "KARAOKE_FROSTED",
+    name: "Frosted Pill",
+    subtitle: "Blurred Backdrop Box",
+    icon: Subtitles,
+    color: "text-indigo-400 border-indigo-500/40",
+    style: {
+      preset: "HORMOZI_BOUNCE",
+      fontFamily: "Inter",
+      fontSize: 46,
+      textColor: "#FFFFFF",
+      highlightColor: "#FBBF24",
+      strokeWidth: 0,
+      shadow: true,
+      glow: false,
+      pillBackground: "rgba(15,23,42,0.85)",
+      pillRadius: 20,
+      pillPadding: 10,
+    },
+  },
+  {
+    id: "VOX_EXPLAINER",
+    name: "Vox Explainer",
+    subtitle: "Yellow Highlighter",
+    icon: Palette,
+    color: "text-yellow-400 border-yellow-500/40",
+    style: {
+      preset: "BOLD_CENTER",
+      fontFamily: "Roboto",
+      fontSize: 42,
+      textColor: "#0F172A",
+      highlightColor: "#000000",
+      strokeWidth: 0,
+      shadow: false,
+      glow: false,
+      pillBackground: "#FACC15",
+      pillRadius: 6,
+      pillPadding: 6,
+    },
+  },
+  {
+    id: "CINEMATIC_SUBTITLE",
+    name: "Cinema Subtitle",
+    subtitle: "Bebas Neue Sans",
+    icon: Clock,
+    color: "text-amber-200 border-amber-300/40",
+    style: {
+      preset: "MINIMAL_SUBTITLE",
+      fontFamily: "Bebas Neue",
+      fontSize: 48,
+      textColor: "#F8FAFC",
+      highlightColor: "#F59E0B",
+      strokeWidth: 1,
+      strokeColor: "#0F172A",
+      shadow: true,
+      glow: false,
+    },
+  },
+];
 
 interface CaptionStudioModalProps {
   isOpen: boolean;
@@ -56,18 +231,30 @@ export const CaptionStudioModal: React.FC<CaptionStudioModalProps> = ({
     onUpdateCaptions(updated);
   };
 
-  const handlePresetChange = (preset: "HORMOZI_BOUNCE" | "ALI_ABDAAL_CLEAN" | "BOLD_CENTER" | "MINIMAL_SUBTITLE") => {
+  const handleApplyPreset = (template: CaptionStyleTemplate, applyToAll = false) => {
     if (!activeCap) return;
-    const updated = captions.map((c) => ({
-      ...c,
-      style: {
-        ...c.style,
-        preset,
-        textColor: preset === "HORMOZI_BOUNCE" ? "#FACC15" : preset === "BOLD_CENTER" ? "#38BDF8" : "#FFFFFF",
-        highlightColor: "#00FF88",
-      },
-    }));
-    onUpdateCaptions(updated);
+    if (applyToAll) {
+      const updated = captions.map((c) => ({
+        ...c,
+        style: {
+          ...c.style,
+          ...template.style,
+        },
+      }));
+      onUpdateCaptions(updated);
+      toast.success(`Applied "${template.name}" style to all subtitles!`);
+    } else {
+      const updated = [...captions];
+      updated[selectedCapIndex] = {
+        ...activeCap,
+        style: {
+          ...activeCap.style,
+          ...template.style,
+        },
+      };
+      onUpdateCaptions(updated);
+      toast.success(`Applied "${template.name}" to selected subtitle!`);
+    }
   };
 
   const handleStyleUpdate = (styleUpdates: any) => {
@@ -204,30 +391,48 @@ export const CaptionStudioModal: React.FC<CaptionStudioModalProps> = ({
             <div className="flex-1 p-6 overflow-y-auto space-y-6">
               {/* Preset Selector */}
               <div>
-                <label className="text-xs font-semibold text-gray-300 block mb-2">
-                  Subtitle Style Presets
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-200 block">
+                      CapCut Viral Style Pretemplates (8 Styles)
+                    </label>
+                    <span className="text-[10px] text-zinc-400">Click a style to apply to this subtitle, or apply to all</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const matched = CAPTION_STYLE_PRESETS.find(
+                        (p) => p.style.fontFamily === activeCap.style.fontFamily || p.id === activeCap.style.preset
+                      ) || CAPTION_STYLE_PRESETS[0];
+                      handleApplyPreset(matched, true);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 text-[11px] font-semibold transition shadow-sm active:scale-95"
+                    title="Apply current style to all subtitles on the timeline"
+                  >
+                    Apply Style to All ({captions.length})
+                  </button>
+                </div>
                 <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { id: "HORMOZI_BOUNCE", name: "Hormozi Bounce", icon: Flame, color: "text-amber-400 border-amber-500/40" },
-                    { id: "ALI_ABDAAL_CLEAN", name: "Abdaal Clean", icon: Coffee, color: "text-teal-400 border-teal-500/40" },
-                    { id: "BOLD_CENTER", name: "Neon Punch", icon: Zap, color: "text-cyan-400 border-cyan-500/40" },
-                    { id: "MINIMAL_SUBTITLE", name: "Minimal", icon: Type, color: "text-zinc-400 border-zinc-500/40" },
-                  ].map((p) => {
+                  {CAPTION_STYLE_PRESETS.map((p) => {
                     const Icon = p.icon;
-                    const isSelected = activeCap.style.preset === p.id;
+                    const isSelected =
+                      activeCap.style.preset === p.id ||
+                      (activeCap.style.fontFamily === p.style.fontFamily &&
+                        activeCap.style.highlightColor === p.style.highlightColor);
                     return (
                       <button
                         key={p.id}
-                        onClick={() => handlePresetChange(p.id as any)}
-                        className={`p-2.5 rounded-xl border flex items-center space-x-2 text-xs font-semibold transition ${
+                        onClick={() => handleApplyPreset(p, false)}
+                        className={`p-2.5 rounded-xl border flex flex-col items-start space-y-1 text-left transition ${
                           isSelected
-                            ? `bg-surface border-cyan-500 text-white shadow-lg`
-                            : `bg-surface-subtle border-surface-border text-gray-400 hover:text-white`
+                            ? `bg-cyan-950/40 border-cyan-400 text-white shadow-lg ring-1 ring-cyan-400/40`
+                            : `bg-surface-subtle border-surface-border text-gray-400 hover:text-white hover:border-surface-hover`
                         }`}
                       >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span className="truncate">{p.name}</span>
+                        <div className="flex items-center space-x-1.5 w-full">
+                          <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-cyan-400" : "text-zinc-400"} shrink-0`} />
+                          <span className="text-xs font-bold truncate text-zinc-100">{p.name}</span>
+                        </div>
+                        <span className="text-[9px] text-zinc-400 font-mono truncate w-full">{p.subtitle}</span>
                       </button>
                     );
                   })}

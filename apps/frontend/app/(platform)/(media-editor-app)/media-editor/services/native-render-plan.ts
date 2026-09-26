@@ -8,15 +8,23 @@
  * What is rendered natively (matches the canvas preview/export semantics):
  *   - clip trim, speed (0.25x-4x), volume, opacity, static scale and position, several overlapping tracks in z-order
  *   - main-track clips are fit to the canvas width; overlay tracks are drawn at 40% width (same rule as the canvas export)
- *   - image clips; gaps between clips render black / silent
+ *   - image clips (`mediaType: "image"` photos are scaled and cropped to cover the canvas); gaps render black / silent
+ *   - the effect track (flash, fade_black, shake, zoom_pulse, black_white, vignette), see `buildEffectChains`
  *   - audio: audio of main-track video clips + every audio track clip (volume, fade in/out, speed)
  *
  * What is NOT rendered natively yet (the plan then reports `supported: false` with reasons, and the editor falls back to
  * the compatibility renderer): captions, camera zoom events, rotation, crop, animated (keyframed / start != end) scale,
- * transitions other than CUT, clip effects. Audio ducking is applied as plain track volume (reported as a warning).
+ * clip effects (the string list on a clip; the effect TRACK is rendered).
+ *
+ * Transitions: the bundled FFmpeg (4.1, see prepare-sidecars.mjs) has no `xfade`, and timeline clips do not overlap, so
+ * every transition is drawn at the cut with the incoming clip's own stream over a FREEZE of the outgoing clip's last
+ * frame (overlay eof_action=repeat for the transition length): CROSSFADE/DISSOLVE alpha-fade, SLIDE_* animate the
+ * overlay position, WIPE/WIPE_RIGHT reveal with a `geq` alpha mask, DIP_* fade through a colour, BLUR_PUNCH/GLITCH are
+ * hard cuts with a blur / RGB-split burst, ZOOM_SWOOSH/ZOOM_OUT settle a zoom on the composite (see `planTransitions`). Audio ducking is applied as plain track volume (reported as a warning).
  */
 
-import type { EditIR } from "@workspace/video-contracts";
+import type { EditIR, EffectEvent } from "@workspace/video-contracts";
+import { EFFECT_CONSTANTS } from "./effect-constants";
 
 export type RenderQuality = "draft" | "balanced" | "high";
 
@@ -123,6 +131,8 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
   interface VClip {
     idx: number;
     isImage: boolean;
+    /** photo that covers the canvas (clip.mediaType === "image") */
+    cover: boolean;
     main: boolean;
     srcStart: number;
     srcDur: number;
@@ -133,6 +143,9 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
     posX: number;
     posY: number;
     opacity: number;
+    trackIdx: number;
+    trIn: TransitionSpec | null;
+    trOut: TransitionSpec | null;
   }
   const vclips: VClip[] = [];
   const audioParts: Array<{
@@ -146,9 +159,10 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
     fadeOut: number;
   }> = [];
 
-  for (const track of tracks) {
+  for (const [trackIdx, track] of tracks.entries()) {
     const main = track.type === "MAIN_VIDEO";
-    for (const clip of track.clips) {
+    const ordered = [...track.clips].sort((a, b) => sec(a.timelineRange.start) - sec(b.timelineRange.start));
+    for (const clip of ordered) {
       const path = options.resolveNativePath(clip.sourcePath);
       if (!path) {
         addReason(`clip "${clip.id}" is not a file on this computer`);
@@ -163,9 +177,6 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
       if (Array.isArray((t as any)?.keyframes) && (t as any).keyframes.length > 0) addReason("keyframe animation");
       if (t?.scale && Math.abs((t.scale.start ?? 1) - (t.scale.end ?? 1)) > EPS) addReason("animated scale");
       if ((clip.effects ?? []).length > 0) addReason(`clip effects (${clip.effects.join(", ")})`);
-      for (const tr of [clip.transitionIn, clip.transitionOut]) {
-        if (tr && tr.type !== "CUT" && sec(tr.duration) > EPS) addReason(`transition ${tr.type}`);
-      }
 
       const srcStart = sec(clip.sourceRange.start);
       const srcDur = sec(clip.sourceRange.duration);
@@ -177,10 +188,11 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
       }
 
       const idx = inputIndex(path);
-      const isImage = IMAGE_EXT.test(path);
+      const isImage = clip.mediaType === "image" || IMAGE_EXT.test(path);
       vclips.push({
         idx,
         isImage,
+        cover: clip.mediaType === "image",
         main,
         srcStart,
         srcDur,
@@ -191,6 +203,9 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
         posX: t?.position?.x ?? 0,
         posY: t?.position?.y ?? 0,
         opacity: Math.max(0, Math.min(1, t?.opacity ?? 1)),
+        trackIdx,
+        trIn: transitionSpec(clip.transitionIn),
+        trOut: transitionSpec(clip.transitionOut),
       });
 
       if (main && !isImage && options.sourceHasAudio(clip.sourcePath)) {
@@ -243,6 +258,8 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
   const chains: string[] = [];
   chains.push(`color=c=black:s=${width}x${height}:r=${fps}:d=${num(durationSec)}[base0]`);
 
+  const tr = planTransitions(vclips, { width, height });
+
   let prev = "base0";
   vclips.forEach((c, i) => {
     const label = `v${i}`;
@@ -253,24 +270,36 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
     const targetW = Math.max(2, 2 * Math.round((width * (c.main ? 1 : 0.4) * c.scale) / 2));
     const px = c.posX * (width / 1920);
     const py = c.posY * (height / 1080);
+    // Photos (mediaType "image") cover the whole canvas: scale up to fill, then centre-crop.
+    const coverW = Math.max(2, 2 * Math.round((width * c.scale) / 2));
+    const coverH = Math.max(2, 2 * Math.round((height * c.scale) / 2));
+    const sizing = c.cover
+      ? [`scale=w=${coverW}:h=${coverH}:force_original_aspect_ratio=increase`, `crop=w=${coverW}:h=${coverH}`]
+      : [`scale=w=${targetW}:h=-2`];
     const parts = [
       src,
-      `setpts=(PTS-STARTPTS)/${num(c.speed)}+${num(c.tlStart)}/TB`,
-      `scale=w=${targetW}:h=-2`,
+      `setpts=(PTS-STARTPTS)/${num(c.isImage ? 1 : c.speed)}+${num(c.tlStart)}/TB`,
+      ...sizing,
       `setsar=1`,
       `format=yuva420p`,
     ];
     if (c.opacity < 1 - EPS) parts.push(`colorchannelmixer=aa=${num(c.opacity)}`);
+    const look = tr.perClip[i];
+    parts.push(...look.filters);
     chains.push(`${parts.join(",")}[${label}]`);
 
     const out = `base${i + 1}`;
-    const x = `(main_w-overlay_w)/2+${num(px)}`;
-    const y = `(main_h-overlay_h)/2+${num(py)}`;
+    const x = `(main_w-overlay_w)/2+${num(px)}${look.x}`;
+    const y = `(main_h-overlay_h)/2+${num(py)}${look.y}`;
+    const end = c.tlStart + c.tlDur + look.freezeSec;
     chains.push(
-      `[${prev}][${label}]overlay=x='${x}':y='${y}':enable='between(t,${num(c.tlStart)},${num(c.tlStart + c.tlDur)})':eof_action=pass[${out}]`
+      `[${prev}][${label}]overlay=x='${x}':y='${y}':enable='between(t,${num(c.tlStart)},${num(end)})':eof_action=${look.freezeSec > 0 ? "repeat" : "pass"}[${out}]`
     );
     prev = out;
   });
+  const fx = buildEffectChains(editIR.tracks.effectTrack ?? [], prev, { width, height, fps, durationSec }, tr.zoomSettles);
+  chains.push(...fx.chains);
+  prev = fx.out;
   chains.push(`[${prev}]format=yuv420p,fps=${fps}[vout]`);
 
   // audio
@@ -321,6 +350,233 @@ export function buildNativeRenderPlan(editIR: EditIR, options: RenderPlanOptions
       hasAudio,
     },
   };
+}
+
+// ── transitions ───────────────────────────────────────────────────────────────
+
+type TransitionKind =
+  | "CUT" | "CROSSFADE" | "DISSOLVE" | "ZOOM_SWOOSH" | "ZOOM_OUT" | "SLIDE_LEFT" | "SLIDE_UP" | "WIPE" | "WIPE_RIGHT"
+  | "BLUR_PUNCH" | "GLITCH" | "DIP_BLACK" | "DIP_WHITE";
+export interface TransitionSpec {
+  type: TransitionKind;
+  durationSec: number;
+}
+export interface ZoomSettle {
+  startSec: number;
+  durationSec: number;
+  /** extra zoom at the start of the range; eases back to none */
+  peak: number;
+}
+export interface ClipTransitionLook {
+  /** filters appended to the clip's own chain */
+  filters: string[];
+  /** appended to the overlay x / y expressions ("" or "+...") */
+  x: string;
+  y: string;
+  /** keep showing this clip's last frame (overlay eof_action=repeat) under the next clip for this long */
+  freezeSec: number;
+}
+
+function transitionSpec(t: { type: string; duration: Time } | undefined): TransitionSpec | null {
+  if (!t || t.type === "CUT") return null;
+  const d = sec(t.duration);
+  return d > EPS ? { type: t.type as TransitionKind, durationSec: d } : null;
+}
+
+/** Transitions whose incoming clip is drawn over a freeze of the outgoing clip's last frame. */
+const OVER_FREEZE = new Set<TransitionKind>(["CROSSFADE", "DISSOLVE", "ZOOM_SWOOSH", "SLIDE_LEFT", "SLIDE_UP", "WIPE", "WIPE_RIGHT"]);
+
+/**
+ * Per-clip transition looks. The incoming side of a cut uses `clip.transitionIn`, else the adjacent previous clip's
+ * `transitionOut` (same track). A `transitionOut` with no adjacent next clip fades the clip out at its end.
+ */
+export function planTransitions(
+  clips: ReadonlyArray<{ trackIdx: number; tlStart: number; tlDur: number; trIn: TransitionSpec | null; trOut: TransitionSpec | null }>,
+  canvas: { width: number; height: number }
+): { perClip: ClipTransitionLook[]; zoomSettles: ZoomSettle[] } {
+  const perClip: ClipTransitionLook[] = clips.map(() => ({ filters: [], x: "", y: "", freezeSec: 0 }));
+  const zoomSettles: ZoomSettle[] = [];
+  const adjacent = (i: number, dir: -1 | 1) =>
+    clips.findIndex(
+      (o, j) =>
+        j !== i &&
+        o.trackIdx === clips[i].trackIdx &&
+        (dir < 0
+          ? Math.abs(o.tlStart + o.tlDur - clips[i].tlStart) < 0.02
+          : Math.abs(clips[i].tlStart + clips[i].tlDur - o.tlStart) < 0.02)
+    );
+
+  clips.forEach((c, i) => {
+    const look = perClip[i];
+    const s = c.tlStart;
+    const p = adjacent(i, -1);
+    const entry = c.trIn ?? (p >= 0 ? clips[p].trOut : null);
+    if (entry) {
+      const d = Math.max(0.05, Math.min(entry.durationSec, c.tlDur / 2));
+      const P = `clip((t-${num(s)})/${num(d)},0,1)`;
+      const inRange = (a: number, b: number) => `enable='between(t,${num(a)},${num(b)})'`;
+      if (p >= 0 && OVER_FREEZE.has(entry.type)) perClip[p].freezeSec = Math.max(perClip[p].freezeSec, d);
+      switch (entry.type) {
+        case "CROSSFADE":
+        case "DISSOLVE":
+          look.filters.push(`fade=t=in:st=${num(s)}:d=${num(d)}:alpha=1`);
+          break;
+        case "ZOOM_SWOOSH":
+          look.filters.push(`fade=t=in:st=${num(s)}:d=${num(d)}:alpha=1`);
+          zoomSettles.push({ startSec: s, durationSec: d, peak: 0.45 });
+          break;
+        case "ZOOM_OUT":
+          zoomSettles.push({ startSec: s, durationSec: d, peak: 0.3 });
+          break;
+        case "SLIDE_LEFT":
+          look.x = `+main_w*(1-${P})`;
+          break;
+        case "SLIDE_UP":
+          look.y = `+main_h*(1-${P})`;
+          break;
+        case "WIPE": // wipe left: the edge moves right-to-left, revealing the new clip from the right
+        case "WIPE_RIGHT": {
+          const T = `clip((T-${num(s)})/${num(d)},0,1)`;
+          const mask = entry.type === "WIPE" ? `gte(X,W*(1-${T}))` : `lte(X,W*${T})`;
+          look.filters.push(`geq=lum='lum(X,Y)':cb='cb(X,Y)':cr='cr(X,Y)':a='if(${mask},alpha(X,Y),0)':${inRange(s, s + d)}`);
+          break;
+        }
+        case "BLUR_PUNCH":
+          look.filters.push(`gblur=sigma=18:${inRange(s, s + d / 2)}`, `gblur=sigma=6:${inRange(s + d / 2, s + d)}`);
+          break;
+        case "GLITCH": {
+          const R = Math.max(4, Math.round(canvas.width * 0.012));
+          look.filters.push(`rgbashift=rh=-${R}:bh=${R}:${inRange(s, s + d)}`, `noise=alls=40:allf=t:all_seed=180:${inRange(s, s + d)}`);
+          break;
+        }
+        case "DIP_BLACK":
+        case "DIP_WHITE": {
+          const color = entry.type === "DIP_BLACK" ? "black" : "white";
+          look.filters.push(`fade=t=in:st=${num(s)}:d=${num(d / 2)}:color=${color}`);
+          if (p >= 0) {
+            const pe = clips[p].tlStart + clips[p].tlDur;
+            const pd = Math.min(d / 2, clips[p].tlDur / 2);
+            perClip[p].filters.push(`fade=t=out:st=${num(pe - pd)}:d=${num(pd)}:color=${color}`);
+          }
+          break;
+        }
+      }
+    }
+    // An out-transition with nothing after it: fade the clip out at its end.
+    if (c.trOut && adjacent(i, 1) < 0) {
+      const d = Math.max(0.05, Math.min(c.trOut.durationSec, c.tlDur / 2));
+      const st = num(s + c.tlDur - d);
+      look.filters.push(
+        c.trOut.type === "DIP_WHITE" ? `fade=t=out:st=${st}:d=${num(d)}:color=white` : `fade=t=out:st=${st}:d=${num(d)}:alpha=1`
+      );
+    }
+  });
+  return { perClip, zoomSettles };
+}
+
+export const MAX_EFFECTS = 64;
+const even = (n: number) => Math.max(2, 2 * Math.round(n / 2));
+
+/**
+ * FFmpeg chains for the effect track, applied to the composited picture (label `input`) before the final format/fps.
+ * Deterministic (no random sources) and built only from allow-listed filters. The formulas mirror `effectVisualsAt`
+ * in editor-library.ts:
+ *  - flash / fade_black: a white / black `color` layer whose alpha ramps with `fade` (alpha=1), scaled by intensity
+ *  - black_white: `hue=s=1-intensity`, vignette: `vignette=angle=...`, both gated with timeline `enable`
+ *  - shake / zoom_pulse: ONE full-length branch per kind (crop jitter + scale back / zoompan), overlaid only inside
+ *    the ranges. Full-length on purpose: a trimmed branch of a split makes overlay buffer every frame before it.
+ */
+export function buildEffectChains(
+  effects: readonly EffectEvent[],
+  input: string,
+  canvas: { width: number; height: number; fps: number; durationSec: number },
+  zoomSettles: readonly ZoomSettle[] = []
+): { chains: string[]; out: string } {
+  const { width: W, height: H, fps, durationSec } = canvas;
+  const k = EFFECT_CONSTANTS;
+  const items = effects
+    .map((e) => {
+      const a = Math.max(0, sec(e.timeRange.start));
+      const b = Math.min(durationSec, a + Math.max(0.1, sec(e.timeRange.duration)));
+      const I = Math.max(0, Math.min(1, Number.isFinite(e.intensity) ? e.intensity : 0.6));
+      return { type: e.type, a, b, d: b - a, I };
+    })
+    .filter((e) => e.d > EPS && e.I > EPS)
+    .sort((x, y) => x.a - y.a)
+    .slice(0, MAX_EFFECTS);
+
+  const chains: string[] = [];
+  let prev = input;
+  let n = 0;
+  const next = () => `fx${n++}`;
+  const between = (list: typeof items) => list.map((e) => `between(t,${num(e.a)},${num(e.b)})`).join("+");
+
+  // 1. zoom_pulse (geometry first)
+  const zooms = items.filter((e) => e.type === "zoom_pulse");
+  const settles = zoomSettles
+    .map((z) => ({ a: Math.max(0, z.startSec), d: z.durationSec, b: Math.min(durationSec, z.startSec + z.durationSec), peak: z.peak }))
+    .filter((z) => z.b - z.a > EPS && z.peak > EPS);
+  if (zooms.length > 0 || settles.length > 0) {
+    const T = `(in/${fps})`;
+    const z = [
+      ...zooms.map((e) => `between(${T},${num(e.a)},${num(e.b)})*${num(k.zoomPulsePeak * e.I)}*sin(PI*(${T}-${num(e.a)})/${num(e.d)})`),
+      // transition zoom: starts at 1+peak and eases (quadratically) back to 1
+      ...settles.map((e) => `between(${T},${num(e.a)},${num(e.b)})*${num(e.peak)}*pow(1-(${T}-${num(e.a)})/${num(e.d)},2)`),
+    ].join("+");
+    const [main, copy, zoomed, out] = [next(), next(), next(), next()];
+    chains.push(`[${prev}]split=2[${main}][${copy}]`);
+    chains.push(
+      `[${copy}]zoompan=z='1+max(0,${z})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${W}x${H}:fps=${fps},setsar=1[${zoomed}]`
+    );
+    const enable = [...zooms, ...settles].map((e) => `between(t,${num(e.a)},${num(e.b)})`).join("+");
+    chains.push(`[${main}][${zoomed}]overlay=x=0:y=0:enable='${enable}':eof_action=pass[${out}]`);
+    prev = out;
+  }
+
+  // 2. shake
+  const shakes = items.filter((e) => e.type === "shake");
+  if (shakes.length > 0) {
+    const mx = even(W * k.shakeMargin);
+    const my = even(H * k.shakeMargin);
+    const amp = (m: number) => shakes.map((e) => `between(t,${num(e.a)},${num(e.b)})*${num(m * e.I)}`).join("+");
+    const x = `${mx}+clip((${amp(mx)})*sin(2*PI*${k.shakeFreqX}*t),-${mx},${mx})`;
+    const y = `${my}+clip((${amp(my)})*cos(2*PI*${k.shakeFreqY}*t),-${my},${my})`;
+    const [main, copy, shaken, out] = [next(), next(), next(), next()];
+    chains.push(`[${prev}]split=2[${main}][${copy}]`);
+    chains.push(`[${copy}]crop=w=${W - 2 * mx}:h=${H - 2 * my}:x='${x}':y='${y}',scale=w=${W}:h=${H},setsar=1[${shaken}]`);
+    chains.push(`[${main}][${shaken}]overlay=x=0:y=0:enable='${between(shakes)}':eof_action=pass[${out}]`);
+    prev = out;
+  }
+
+  // 3. colour / tone
+  for (const e of items) {
+    if (e.type !== "black_white" && e.type !== "vignette") continue;
+    const out = next();
+    const filter =
+      e.type === "black_white"
+        ? `hue=s=${num(1 - e.I)}`
+        : `vignette=angle=${num(k.vignetteAngleBase + k.vignetteAngleSpan * e.I)}`;
+    chains.push(`[${prev}]${filter}:enable='between(t,${num(e.a)},${num(e.b)})'[${out}]`);
+    prev = out;
+  }
+
+  // 4. flash / dip to black layers
+  for (const e of items) {
+    if (e.type !== "flash" && e.type !== "fade_black") continue;
+    const up = e.type === "flash" ? e.d * k.flashAttack : e.d / 2;
+    const down = e.d - up;
+    const layer = next();
+    const out = next();
+    chains.push(
+      `color=c=${e.type === "flash" ? "white" : "black"}:s=${W}x${H}:r=${fps}:d=${num(e.d)},format=yuva420p,` +
+        `fade=t=in:st=0:d=${num(up)}:alpha=1,fade=t=out:st=${num(up)}:d=${num(down)}:alpha=1,` +
+        `colorchannelmixer=aa=${num(e.I)},setpts=PTS-STARTPTS+${num(e.a)}/TB[${layer}]`
+    );
+    chains.push(`[${prev}][${layer}]overlay=x=0:y=0:enable='between(t,${num(e.a)},${num(e.b)})':eof_action=pass[${out}]`);
+    prev = out;
+  }
+
+  return { chains, out: prev };
 }
 
 /** Human-readable explanation of why the native exporter was not used. */

@@ -68,8 +68,12 @@ class EngagementTab extends ConsumerWidget {
             // Stats summary card
             statsAsync.when(
               data: (stats) => _buildStatsRow(context, stats),
-              loading: () => const LinearProgressIndicator(),
-              error: (_, _) => const SizedBox.shrink(),
+              loading: () => const SizedBox(height: 84, child: UniversalSkeleton(type: SkeletonType.metrics)),
+              error: (err, _) => ErrorView(
+                error: err,
+                compact: true,
+                onRetry: () => ref.invalidate(engagementStatsProvider(project.id)),
+              ),
             ),
             _buildLiveMetricsCard(context, ref),
             const SizedBox(height: 20),
@@ -85,6 +89,7 @@ class EngagementTab extends ConsumerWidget {
                       label: const Text('Test Matcher', style: TextStyle(fontSize: 12, color: AppTheme.accent)),
                     ),
                     IconButton(
+                      tooltip: 'Refresh',
                       icon: const Icon(Icons.refresh_rounded, size: 20),
                       onPressed: () {
                         ref.invalidate(engagementRulesProvider(project.id));
@@ -296,7 +301,10 @@ class _RuleCard extends ConsumerWidget {
           const SizedBox(height: 10),
 
           // Details summary
-          Row(
+          Wrap(
+            spacing: 0,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               if (rule.actionAutoLike) ...[
                 const Icon(Icons.favorite_rounded, size: 14, color: AppTheme.accent),

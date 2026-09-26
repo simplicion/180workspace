@@ -16,7 +16,7 @@
  */
 
 export type FreeMediaKind = "video" | "image" | "music" | "sfx";
-export type FreeMediaProviderId = "openverse" | "wikimedia" | "internet_archive" | "jamendo" | "unsplash";
+export type FreeMediaProviderId = "openverse" | "wikimedia" | "internet_archive" | "jamendo" | "unsplash" | "nasa";
 export type FreeMediaOrientation = "portrait" | "landscape" | "square";
 /** Ranking class: cc0 > pd > cc-by > cc-by-sa ("platform" = Unsplash licence, no credit required). */
 export type FreeLicenseClass = "cc0" | "pd" | "platform" | "cc-by" | "cc-by-sa";
@@ -535,6 +535,72 @@ export async function trackUnsplashDownload(downloadLocation: string, fetchImpl:
   return res.ok;
 }
 
+// ── NASA Media Provider (100% Public Domain, Zero API Key) ───────────────────
+
+export const NasaMediaProvider: FreeMediaProvider = {
+  id: "nasa",
+  kinds: ["video", "image", "sfx"],
+  unavailableReason: () => null,
+  async search(q: FreeMediaQuery): Promise<FreeMediaItem[]> {
+    const mediaType = q.kind === "video" ? "video" : q.kind === "image" ? "image" : "audio";
+    const url = `https://images-api.nasa.gov/search?q=${encodeURIComponent(q.query)}&media_type=${mediaType}`;
+    let data: any;
+    try {
+      data = await getJson(url, q);
+    } catch {
+      return [];
+    }
+    const rawItems: any[] = data?.collection?.items || [];
+    const out: FreeMediaItem[] = [];
+    const limit = clampLimit(q.limit, 12);
+
+    for (const item of rawItems) {
+      if (out.length >= limit) break;
+      const d = item.data?.[0];
+      if (!d) continue;
+      const title = stripHtml(d.title || "NASA Media");
+      const nasaId = d.nasa_id || `nasa_${Date.now()}`;
+      const previewUrl = item.links?.[0]?.href ? item.links[0].href.replace(/^http:\/\//i, "https://") : null;
+
+      let directUrl = previewUrl || "";
+      if (item.href) {
+        try {
+          const files = await getJson(item.href.replace(/^http:\/\//i, "https://"), q);
+          if (Array.isArray(files)) {
+            const best = files.find((f: string) =>
+              f.includes("~medium.mp4") ||
+              f.includes("~orig.mp4") ||
+              f.endsWith(".mp3") ||
+              f.includes("~large.jpg")
+            ) || files[0];
+            if (best) directUrl = best.replace(/^http:\/\//i, "https://");
+          }
+        } catch {
+          // Keep previewUrl if collection resolution fails
+        }
+      }
+
+      if (!directUrl) continue;
+
+      out.push({
+        id: `nasa_${nasaId}`,
+        kind: q.kind,
+        title,
+        url: directUrl,
+        previewUrl,
+        license: "Public Domain",
+        licenseUrl: "https://www.nasa.gov/multimedia/guidelines/index.html",
+        licenseClass: "pd",
+        creditRequired: false,
+        attribution: `NASA (${d.center || "NASA"})`,
+        sourcePage: `https://images.nasa.gov/details-${encodeURIComponent(nasaId)}`,
+        provider: "nasa",
+      });
+    }
+    return out;
+  },
+};
+
 // ── Federation + ranking ────────────────────────────────────────────────────
 
 export const FREE_MEDIA_PROVIDERS: FreeMediaProvider[] = [
@@ -543,6 +609,7 @@ export const FREE_MEDIA_PROVIDERS: FreeMediaProvider[] = [
   InternetArchiveProvider,
   JamendoProvider,
   UnsplashProvider,
+  NasaMediaProvider,
 ];
 
 /** Providers allowed by FREE_MEDIA_PROVIDERS ("none" disables all; unset = all). */

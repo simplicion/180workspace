@@ -1,3 +1,4 @@
+import { VIDEO_EFFECT_TYPES, TRANSITION_TYPES } from "./edit-ir.schema";
 import { z } from "zod";
 import { RationalTimeSchema, TimeRangeSchema } from "./time";
 import { SpringConfigSchema } from "./edit-ir.schema";
@@ -121,6 +122,17 @@ export const InsertBrollOpSchema = z.object({
   durationSec: z.number().positive(),
   sourceStartSec: z.number().nonnegative().default(0),
   cropMode: z.enum(["center", "face_track"]).default("center"),
+  /** "image" = a still photo held for durationSec (needs sourceUrl or an image asset; no stock search). */
+  mediaType: z.enum(["video", "image"]).optional(),
+  reason: z.string().optional(),
+});
+
+export const AddEffectOpSchema = z.object({
+  type: z.literal("addEffect"),
+  effect: z.enum(VIDEO_EFFECT_TYPES),
+  startSec: z.number().nonnegative(),
+  durationSec: z.number().positive().max(30),
+  intensity: z.number().min(0).max(1).default(0.6),
   reason: z.string().optional(),
 });
 
@@ -238,7 +250,7 @@ export const AddTransitionOpSchema = z.object({
   // "*" = every cut boundary on the main track.
   fromClipId: z.string().default("*"),
   toClipId: z.string().default("*"),
-  transitionType: z.enum(["CUT", "CROSSFADE", "DISSOLVE", "ZOOM_SWOOSH", "SLIDE_LEFT", "SLIDE_UP", "WIPE", "BLUR_PUNCH"]),
+  transitionType: z.enum(TRANSITION_TYPES),
   durationSec: z.number().positive().default(0.3),
 });
 
@@ -323,6 +335,18 @@ export const AutoSoundDesignOpSchema = z.object({
   reason: z.string().optional(),
 });
 
+export const AddSoundEffectOpSchema = z.object({
+  type: z.literal("addSoundEffect"),
+  timelineStartSec: z.number().nonnegative().describe("Timeline second to place the sound effect."),
+  sfxType: z
+    .enum(["whoosh", "pop", "sub_drop", "riser", "impact", "glitch", "bell"])
+    .default("whoosh")
+    .describe("Type of sound effect: whoosh (transitions/zooms), pop (UI/captions), sub_drop (bass impact), riser (tension build), impact (heavy beat), glitch (digital hit), bell (notification/ding)."),
+  sourceUrl: z.string().url().optional().describe("Direct HTTPS audio URL if sourcing from a sound library."),
+  volumeDb: z.number().min(-40).max(6).default(-8.0).describe("Volume in dB (-8dB default)."),
+  reason: z.string().optional().describe("Why this sound effect was placed (e.g. 'punctuate punch-in zoom')."),
+});
+
 export const CleanFillersOpSchema = z.object({
   type: z.literal("cleanFillers"),
   // Deliberately excludes ambiguous words like "like" / "you know" unless the caller asks for them.
@@ -403,6 +427,7 @@ export const CreativeOperationSchema = z.discriminatedUnion("type", [
   StyleCaptionOpSchema,
   EmphasizeWordOpSchema,
   AddZoomOpSchema,
+  AddEffectOpSchema,
   ReframeSubjectOpSchema,
   ChangeAspectRatioOpSchema,
   AdjustVolumeOpSchema,
@@ -420,6 +445,7 @@ export const CreativeOperationSchema = z.discriminatedUnion("type", [
   SelectTakeOpSchema,
   ReorderSegmentOpSchema,
   AutoSoundDesignOpSchema,
+  AddSoundEffectOpSchema,
   CleanFillersOpSchema,
   AsynchronousSplitOpSchema,
   RemoveSilencesOpSchema,

@@ -43,16 +43,50 @@ export interface EngagementStats {
     totalLeadsConverted: number;
 }
 
+/** One drafted reply from POST /inbox/ai-reply-all/suggestions (BatchAiReplyItem on the server). */
 export interface AiReplySuggestion {
     conversationId: string;
-    participantName: string;
-    participantHandle: string;
     platform: string;
+    participantHandle: string;
     lastCustomerMessage: string;
     suggestedReply: string;
-    category: 'link' | 'price' | 'feedback' | 'general';
-    confidence: number;
-    approved: boolean;
+    tone: string;
+    intent?: string;
+    confidence?: number | null;
+    /** False when the platform / messaging window does not allow this reply now. */
+    canSend?: boolean;
+    blockedReason?: string;
+    selected: boolean;
+}
+
+export interface AiReplyDispatchItemResult {
+    conversationId: string;
+    status: 'sent' | 'rate_limited' | 'failed';
+    code?: string;
+    error?: string;
+    retryAfterMs?: number;
+}
+
+export interface AiReplyDispatchResult {
+    dispatched: number;
+    failed: number;
+    rateLimited: number;
+    errors: string[];
+    results: AiReplyDispatchItemResult[];
+}
+
+/** The API stores rule counters as stats*; the UI reads total*. */
+function normalizeRule(r: any): EngagementRule {
+    if (!r) return r;
+    return {
+        ...r,
+        triggerKeywords: r.triggerKeywords || [],
+        actionPublicReplies: r.actionPublicReplies || [],
+        totalTriggered: r.statsTriggeredCount ?? r.totalTriggered ?? 0,
+        totalDmsSent: r.statsDmsSentCount ?? r.totalDmsSent ?? 0,
+        totalLiked: r.statsCommentsLiked ?? r.totalLiked ?? 0,
+        totalLeadsConverted: r.statsLeadsConverted ?? r.totalLeadsConverted ?? 0,
+    };
 }
 
 export interface CreateEngagementRuleDTO {
@@ -76,27 +110,27 @@ export interface CreateEngagementRuleDTO {
 export const socialEngagementService = {
     async getRules(params?: { projectId?: string; triggerType?: string; status?: string }): Promise<EngagementRule[]> {
         const { data } = await api.get('/api/social-media/engagement/rules', { params });
-        return data.rules || [];
+        return (data.rules || []).map(normalizeRule);
     },
 
     async getRule(id: string): Promise<EngagementRule> {
         const { data } = await api.get(`/api/social-media/engagement/rules/${id}`);
-        return data.rule;
+        return normalizeRule(data.rule);
     },
 
     async createRule(payload: CreateEngagementRuleDTO): Promise<EngagementRule> {
         const { data } = await api.post('/api/social-media/engagement/rules', payload);
-        return data.rule;
+        return normalizeRule(data.rule);
     },
 
     async updateRule(id: string, payload: Partial<CreateEngagementRuleDTO>): Promise<EngagementRule> {
         const { data } = await api.put(`/api/social-media/engagement/rules/${id}`, payload);
-        return data.rule;
+        return normalizeRule(data.rule);
     },
 
     async toggleRule(id: string): Promise<EngagementRule> {
-        const { data } = await api.post(`/api/social-media/engagement/rules/${id}/toggle`);
-        return data.rule;
+        const { data } = await api.patch(`/api/social-media/engagement/rules/${id}/toggle`);
+        return normalizeRule(data.rule);
     },
 
     async deleteRule(id: string): Promise<{ success: boolean }> {
@@ -108,26 +142,29 @@ export const socialEngagementService = {
         const { data } = await api.get('/api/social-media/engagement/stats', {
             params: projectId ? { projectId } : undefined
         });
-        return data.stats;
+        const st = data.stats || {};
+        return { ...st, totalLeadsConverted: st.totalLeadsGenerated ?? st.totalLeadsConverted ?? 0 };
     },
 
-    async testMatch(payload: { text: string; keywords: string[]; matchMode?: string }): Promise<{ matched: boolean; rule: any }> {
-        const { data } = await api.post('/api/social-media/engagement/test-match', payload);
-        return data;
-    },
-
-    // Centralized AI Reply All Batch
-    async getAiReplyAllSuggestions(projectId?: string): Promise<{ suggestions: AiReplySuggestion[]; total: number }> {
-        const { data } = await api.get('/api/social-media/inbox/ai-reply-all/suggestions', {
-            params: projectId ? { projectId } : undefined
+    /** Dry-runs the saved active rules against a sample comment / DM (nothing is sent). */
+    async testMatch(payload: { text: string; eventType: 'comment' | 'dm' | 'mention'; projectId?: string; platform?: string; socialAccountId?: string }): Promise<{ matched: boolean; rule: EngagementRule | null }> {
+        const { data } = await api.post('/api/social-media/engagement/test-match', {
+            socialAccountId: '',
+            platform: 'instagram',
+            senderId: 'test-sender',
+            senderHandle: 'test_user',
+            ...payload,
         });
-        return {
-            suggestions: (data.suggestions || []).map((s: any) => ({ ...s, approved: true })),
-            total: data.total || 0
-        };
+        return { matched: !!data.matched, rule: data.rule ? normalizeRule(data.rule) : null };
     },
 
-    async dispatchAiReplyAll(replies: { conversationId: string; text: string; approved: boolean }[]): Promise<any> {
+    // Centralized AI Reply All: draft -> review/edit -> dispatch
+    async getAiReplyAllSuggestions(params?: { projectId?: string; platform?: string; limit?: number }): Promise<AiReplySuggestion[]> {
+        const { data } = await api.post('/api/social-media/inbox/ai-reply-all/suggestions', params || {});
+        return (data.suggestions || []).map((s: any) => ({ ...s, selected: s.canSend !== false }));
+    },
+
+    async dispatchAiReplyAll(replies: { conversationId: string; replyText: string }[]): Promise<AiReplyDispatchResult> {
         const { data } = await api.post('/api/social-media/inbox/ai-reply-all/dispatch', { replies });
         return data;
     },

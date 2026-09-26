@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EditIR, VideoClip, CaptionSegment } from "./edit-ir.schema";
+import { EditIR, VideoClip, CaptionSegment, VIDEO_EFFECT_TYPES } from "./edit-ir.schema";
 import { RationalTimeMath } from "./time";
 import { ORIGINAL_AUDIO_TRACK_ID } from "./creative-plan.schema";
 import { MobileWatermarkSchema } from "./director-context";
@@ -28,8 +28,11 @@ export const MobileFilterSchema = z.object({
   saturation: z.number(),
 });
 
+/** Transitions the Android renderer draws natively (added 2026-09: dips, zooms, glitch); others map to CROSSFADE. */
+export const MOBILE_TRANSITION_TYPES = ["CROSSFADE", "DISSOLVE", "CUT", "DIP_BLACK", "DIP_WHITE", "ZOOM_SWOOSH", "ZOOM_OUT", "GLITCH"] as const;
+
 export const MobileTransitionSchema = z.object({
-  type: z.enum(["CROSSFADE", "DISSOLVE", "CUT"]),
+  type: z.enum(MOBILE_TRANSITION_TYPES),
   durationMs: ms,
 });
 
@@ -68,7 +71,19 @@ export const MobileOverlaySchema = z.object({
   fit: z.literal("cover"),
   opacity: z.number().min(0).max(1),
   muted: z.boolean(),
+  /** "image" = still photo held for the slot (added 2026-09). Absent = video. */
+  mediaType: z.enum(["video", "image"]).optional(),
 });
+
+/** Timeline effect (optional `effects`, added 2026-09); ids from VIDEO_EFFECT_TYPES. Older clients ignore it. */
+export const MobileEffectSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(VIDEO_EFFECT_TYPES),
+  startMs: ms,
+  endMs: ms,
+  intensity: z.number().min(0).max(1),
+});
+export type MobileEffect = z.infer<typeof MobileEffectSchema>;
 
 export const MobileCaptionWordSchema = z.object({
   text: z.string(),
@@ -170,6 +185,8 @@ export const MobileEditIRSchema = z.object({
   overlays: z.array(MobileOverlaySchema),
   captions: z.array(MobileCaptionSchema),
   zooms: z.array(MobileZoomSchema),
+  /** Optional effects lane; omitted when empty. */
+  effects: z.array(MobileEffectSchema).max(60).optional(),
   audio: z.object({
     originalTrack: z.object({ volumeDb: z.number() }),
     music: z.array(MobileMusicSchema).max(1),
@@ -479,7 +496,8 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
       (t.brightness ?? 1) !== 1 || (t.contrast ?? 1) !== 1 || (t.saturation ?? 1) !== 1;
     let transitionIn: MobileClip["transitionIn"] = null;
     if (i > 0 && c.transitionIn) {
-      const type = c.transitionIn.type === "DISSOLVE" || c.transitionIn.type === "CUT" ? c.transitionIn.type : "CROSSFADE";
+      const t = c.transitionIn.type;
+      const type: (typeof MOBILE_TRANSITION_TYPES)[number] = (MOBILE_TRANSITION_TYPES as readonly string[]).includes(t) ? (t as any) : "CROSSFADE";
       if (type !== c.transitionIn.type) warnings.push(`transition ${c.transitionIn.type} rendered as CROSSFADE on mobile`);
       transitionIn = { type, durationMs: toMs(sec(c.transitionIn.duration)) };
     }
@@ -527,6 +545,7 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
         id: c.id, kind: "broll", timelineStartMs: start, timelineEndMs: end,
         sourceStartMs: toMs(sec(c.sourceRange.start)), source, fit: "cover",
         opacity: c.transform?.opacity ?? 1, muted: true,
+        ...(c.mediaType === "image" ? { mediaType: "image" as const } : {}),
       });
     }
   }
@@ -598,6 +617,18 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
     lastEnd = endMs;
   }
 
+  const effects: NonNullable<MobileEditIR["effects"]> = (editIR.tracks.effectTrack ?? [])
+    .map((e) => ({
+      id: e.id,
+      type: e.type,
+      startMs: clampT(toMs(sec(e.timeRange.start))),
+      endMs: clampT(toMs(sec(e.timeRange.start) + sec(e.timeRange.duration))),
+      intensity: Math.min(1, Math.max(0, e.intensity ?? 0.6)),
+    }))
+    .filter((e) => e.endMs - e.startMs >= 100)
+    .sort((a, b) => a.startMs - b.startMs)
+    .slice(0, 60);
+
   const music: MobileEditIR["audio"]["music"] = [];
   const sfx: MobileSfx[] = [];
   for (const t of editIR.tracks.audioTracks) {
@@ -664,6 +695,7 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
     overlays,
     captions,
     zooms,
+    ...(effects.length > 0 ? { effects } : {}),
     audio: { originalTrack: { volumeDb: originalVolumeDb }, music, speechRangesMs: speech, ...(sfx.length ? { sfx: sfx.sort((a, b) => a.timelineStartMs - b.timelineStartMs) } : {}) },
   };
   return { editIR: MobileEditIRSchema.parse(mobile), warnings: Array.from(new Set(warnings)) };
@@ -742,6 +774,7 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
                 speedMultiplier: 1,
                 volumeDb: -60,
                 effects: [],
+                ...(o.mediaType === "image" ? { mediaType: "image" as const } : {}),
               })),
             }]
           : []),
@@ -755,6 +788,12 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
         rampMs: z.rampMs,
         spring: { stiffness: 180, damping: 18, mass: 1, overshootClamping: false },
         motionBlur: false,
+      })),
+      effectTrack: (m.effects ?? []).map((e) => ({
+        id: e.id,
+        type: e.type,
+        timeRange: { start: S(e.startMs), duration: S(e.endMs - e.startMs) },
+        intensity: e.intensity,
       })),
       captionTrack: m.captions.map((c) => ({
         id: c.id,

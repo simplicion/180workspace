@@ -9,6 +9,7 @@ import { Sparkles, ChevronRight, ChevronLeft, Calendar as CalendarIcon, Target, 
 import clsx from 'clsx';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { industriesList } from '@workspace/common';
+import AutopilotCreate from './AutopilotCreate';
 const STEPS = [
     { id: 1, title: 'Basic Info', icon: Settings2 },
     { id: 2, title: 'Audience', icon: Users },
@@ -19,7 +20,18 @@ const STEPS = [
     { id: 7, title: 'Hashtags & Competitors', icon: Hash },
 ];
 
+/**
+ * Calendar creation uses the autopilot job (POST /projects/:id/autopilot/calendar). The legacy wizard below is kept
+ * only as a fallback for a backend without the autopilot route (404 without a typed code).
+ */
 export default function CreateCalendarPage() {
+    const searchParams = useSearchParams();
+    const [legacy, setLegacy] = useState(false);
+    if (legacy) return <LegacyCreateCalendar />;
+    return <AutopilotCreate initialProjectId={searchParams?.get('projectId') || undefined} onRouteMissing={() => setLegacy(true)} />;
+}
+
+function LegacyCreateCalendar() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const extendFrom = searchParams?.get('extendFrom');

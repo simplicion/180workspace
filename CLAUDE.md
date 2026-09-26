@@ -56,7 +56,7 @@ docs relevant to the task.
 - Director tests: `npx tsx --test packages/domains/ai/tests/video-director.test.ts`.
 - Video edge tests: `cd packages/video-engine-runtime && npx tsx src/tests/run-all-edge-tests.ts` (26/28 need live keys).
 - Flutter: `flutter analyze && flutter test` (must stay green); Kotlin: `cd android && ./gradlew :app:compileDebugKotlin -q`;
-  APK: `flutter build apk --debug`.
+  APK: `flutter build apk --debug`; release: `flutter build appbundle --release` (Play) or `flutter build apk --release --split-per-abi` (needs `android/key.properties`).
 
 ## Key docs (read on demand, don't preload)
 `docs/social-studio-mobile/`: PRODUCTION_GAP_AUDIT.md (current status + phased plan — **start here**),

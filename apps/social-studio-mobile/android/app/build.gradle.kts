@@ -39,18 +39,32 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+        // The upload key lives outside git (android/key.properties + *.jks are ignored).
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
         }
+    }
+}
+
+// Debug builds (and CI tests) work without the upload key; a release build without it fails loudly
+// instead of producing an APK/AAB the Play Store would reject.
+gradle.taskGraph.whenReady {
+    val releaseTask = allTasks.any { t ->
+        t.project == project && t.name.contains("Release") && (t.name.startsWith("assemble") || t.name.startsWith("bundle"))
+    }
+    if (releaseTask && !keystorePropertiesFile.exists()) {
+        throw GradleException("android/key.properties is missing: release builds must be signed with the upload key.")
     }
 }
 

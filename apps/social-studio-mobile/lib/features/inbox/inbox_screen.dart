@@ -263,7 +263,7 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
   bool _loading = true;
   bool _dispatching = false;
   List<BatchAiReplySuggestion> _suggestions = [];
-  String? _error;
+  Object? _error;
 
   @override
   void initState() {
@@ -290,7 +290,7 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = e;
           _loading = false;
         });
       }
@@ -391,11 +391,17 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
 
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const UniversalSkeleton(type: SkeletonType.chat)
                 : _error != null
-                    ? Center(child: Text('Error: $_error', style: const TextStyle(color: AppTheme.error)))
+                    ? ErrorView(error: _error!, onRetry: _fetchSuggestions)
                     : _suggestions.isEmpty
-                        ? const Center(child: Text('No pending unread conversations found.'))
+                        ? EmptyView(
+                            icon: Icons.mark_chat_read_rounded,
+                            title: 'Nothing waiting for a reply',
+                            message: 'Every conversation has been answered.',
+                            actionLabel: 'Close',
+                            onAction: () => Navigator.pop(context),
+                          )
                         : ListView.separated(
                             itemCount: _suggestions.length,
                             separatorBuilder: (_, _) => const SizedBox(height: 12),

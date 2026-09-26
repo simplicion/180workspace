@@ -15,6 +15,10 @@ class OAuthCallback {
   String? get platform => uri.queryParameters['platform'];
   String? get accountId => uri.queryParameters['accountId'];
   String? get state => uri.queryParameters['state'];
+  String? get selectionId => uri.queryParameters['selectionId'];
+
+  /// The provider returned several pages / organisations; the user picks which to connect.
+  bool get needsSelection => status == 'select' && (selectionId?.isNotEmpty ?? false);
   bool get isSuccess => error == null && (status == null || status == 'success' || status == 'connected');
 }
 
@@ -31,10 +35,12 @@ class DeepLinkService {
 
   /// Returns an in-app location for [uri], or null if it is an OAuth callback / unknown.
   String? routeFor(Uri uri) {
-    if (uri.scheme != AppConfig.deepLinkScheme && !(uri.scheme == 'https' && uri.host.contains('180workspace'))) {
+    final isCustomScheme =
+        uri.scheme == AppConfig.deepLinkScheme || uri.scheme == 'one80' || uri.scheme == 'workspace180';
+    if (!isCustomScheme && !(uri.scheme == 'https' && uri.host.contains('180workspace'))) {
       return null;
     }
-    final segments = [if (uri.scheme == AppConfig.deepLinkScheme && uri.host.isNotEmpty) uri.host, ...uri.pathSegments];
+    final segments = [if (isCustomScheme && uri.host.isNotEmpty) uri.host, ...uri.pathSegments];
     if (segments.isEmpty) return '/home';
     switch (segments.first) {
       case 'oauth':

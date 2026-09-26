@@ -877,7 +877,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                 ? Image.network(
                     firstMedia,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _mediaPlaceholder(
+                    errorBuilder: (_, _, _) => _mediaPlaceholder(
                       _mediaType == 'video' ? Icons.videocam_rounded : Icons.image_rounded,
                       _mediaType == 'video' ? 'Reddit Video' : 'Reddit Image',
                     ),

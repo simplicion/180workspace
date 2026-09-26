@@ -1,0 +1,201 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/providers.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/common.dart';
+import '../../data/models/autopilot.dart';
+
+final brandConsciousnessProvider = FutureProvider.autoDispose.family<BrandConsciousness, String>(
+  (ref, projectId) => ref.watch(socialApiProvider).getBrandConsciousness(projectId),
+);
+
+/// Who the brand is (`/brand-consciousness`): type, positioning, story, beliefs, extra colours, platforms.
+/// Every AI agent (autopilot, carousels, AI Director, engagement) reads these. Nothing is prefilled or invented.
+class BrandIdentityCard extends ConsumerWidget {
+  const BrandIdentityCard({super.key, required this.projectId});
+  final String projectId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => AsyncBody<BrandConsciousness>(
+        value: ref.watch(brandConsciousnessProvider(projectId)),
+        onRetry: () => ref.invalidate(brandConsciousnessProvider(projectId)),
+        builder: (b) => _IdentityEditor(key: ValueKey(b), projectId: projectId, initial: b),
+      );
+}
+
+class _IdentityEditor extends ConsumerStatefulWidget {
+  const _IdentityEditor({super.key, required this.projectId, required this.initial});
+  final String projectId;
+  final BrandConsciousness initial;
+
+  @override
+  ConsumerState<_IdentityEditor> createState() => _IdentityEditorState();
+}
+
+class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
+  static final _hex = RegExp(r'^#[0-9A-Fa-f]{6}$');
+
+  late final BrandConsciousness b = widget.initial;
+  late String? _type = b.brandType;
+  late final Set<String> _platforms = {...b.targetPlatforms};
+  late bool? _watermark = b.watermarkEnabled;
+  late final _name = TextEditingController(text: b.brandName);
+  late final _positioning = TextEditingController(text: b.positioning);
+  late final _tagline = TextEditingController(text: b.tagline);
+  late final _description = TextEditingController(text: b.description);
+  late final _ideation = TextEditingController(text: b.ideation);
+  late final _ideology = TextEditingController(text: b.ideology);
+  late final _bg = TextEditingController(text: b.backgroundColor);
+  late final _text = TextEditingController(text: b.textColor);
+  late final _guidelines = TextEditingController(text: b.customGuidelines);
+  bool _dirty = false;
+  bool _saving = false;
+
+  List<TextEditingController> get _all =>
+      [_name, _positioning, _tagline, _description, _ideation, _ideology, _bg, _text, _guidelines];
+
+  @override
+  void initState() {
+    super.initState();
+    for (final c in _all) {
+      c.addListener(_markDirty);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _all) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _markDirty() {
+    if (!_dirty) setState(() => _dirty = true);
+  }
+
+  String? _nn(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
+
+  Future<void> _save() async {
+    for (final c in [_bg, _text]) {
+      final v = c.text.trim();
+      if (v.isNotEmpty && !_hex.hasMatch(v)) return showError(context, 'Colours must look like #1F3A2E.');
+    }
+    final next = BrandConsciousness(
+      brandName: _nn(_name),
+      brandType: _type,
+      positioning: _nn(_positioning),
+      tagline: _nn(_tagline),
+      description: _nn(_description),
+      ideation: _nn(_ideation),
+      ideology: _nn(_ideology),
+      backgroundColor: _nn(_bg)?.toUpperCase(),
+      textColor: _nn(_text)?.toUpperCase(),
+      targetPlatforms: _platforms.toList(),
+      watermarkEnabled: _watermark,
+      customGuidelines: _nn(_guidelines),
+    );
+    setState(() => _saving = true);
+    final saved = await guarded(
+        context, () => ref.read(socialApiProvider).putBrandConsciousness(widget.projectId, next.toIdentityJson()));
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (saved == null) return;
+    showSuccess(context, 'Brand consciousness saved');
+    ref.invalidate(brandConsciousnessProvider(widget.projectId));
+  }
+
+  Widget _field(TextEditingController c, String label, {String? hint, int maxLines = 1, int? maxLength}) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextField(
+          controller: c,
+          minLines: 1,
+          maxLines: maxLines,
+          maxLength: maxLength,
+          decoration: fieldDecoration(label, hint: hint),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final missing = b.missingRequired.map((f) => BrandConsciousness.fieldLabels[f] ?? f).toList();
+    return SectionCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Expanded(child: Text('Brand consciousness', style: Theme.of(context).textTheme.titleMedium)),
+          Text('${b.percent}%', style: Theme.of(context).textTheme.labelLarge),
+        ]),
+        const SizedBox(height: 8),
+        LinearProgressIndicator(value: b.percent / 100, minHeight: 4),
+        if (missing.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('The AI still needs: ${missing.join(', ')}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.warning)),
+          ),
+        const SizedBox(height: 16),
+        _field(_name, 'Brand name', maxLength: 120),
+        const Text('Brand type'),
+        const SizedBox(height: 6),
+        Wrap(spacing: 8, children: [
+          for (final e in BrandConsciousness.brandTypes.entries)
+            ChoiceChip(
+              label: Text(e.value),
+              selected: _type == e.key,
+              onSelected: (on) => setState(() {
+                _type = on ? e.key : null;
+                _dirty = true;
+              }),
+            ),
+        ]),
+        const SizedBox(height: 12),
+        _field(_positioning, 'Positioning', hint: 'Who it is for and why it is different', maxLines: 3, maxLength: 500),
+        _field(_tagline, 'Tagline', maxLength: 160),
+        _field(_description, 'What the brand does', maxLines: 5, maxLength: 2000),
+        _field(_ideation, 'Big idea / story', maxLines: 5, maxLength: 2000),
+        _field(_ideology, 'Beliefs and values', maxLines: 5, maxLength: 2000),
+        Row(children: [
+          Expanded(child: _field(_bg, 'Background colour', hint: '#FFFFFF')),
+          const SizedBox(width: 12),
+          Expanded(child: _field(_text, 'Text colour', hint: '#111111')),
+        ]),
+        const Text('Target platforms'),
+        const SizedBox(height: 6),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final e in BrandConsciousness.platforms.entries)
+            FilterChip(
+              label: Text(e.value),
+              selected: _platforms.contains(e.key),
+              onSelected: (on) => setState(() {
+                on ? _platforms.add(e.key) : _platforms.remove(e.key);
+                _dirty = true;
+              }),
+            ),
+        ]),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<bool?>(
+          initialValue: _watermark,
+          decoration: fieldDecoration('Logo watermark on videos'),
+          items: const [
+            DropdownMenuItem(value: null, child: Text('Not chosen')),
+            DropdownMenuItem(value: true, child: Text('Yes')),
+            DropdownMenuItem(value: false, child: Text('No')),
+          ],
+          onChanged: (v) => setState(() {
+            _watermark = v;
+            _dirty = true;
+          }),
+        ),
+        const SizedBox(height: 12),
+        _field(_guidelines, 'Other guidelines for the AI', maxLines: 5, maxLength: 4000),
+        ElevatedButton(
+          onPressed: _saving || !_dirty ? null : _save,
+          child: _saving
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Save brand consciousness'),
+        ),
+      ]),
+    );
+  }
+}

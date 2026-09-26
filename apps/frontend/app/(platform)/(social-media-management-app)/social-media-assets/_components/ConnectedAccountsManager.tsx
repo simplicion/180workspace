@@ -71,6 +71,7 @@ export function ConnectedAccountsManager({ projectId }: { projectId?: string }) 
     const [accounts, setAccounts] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
+    const [selectionId, setSelectionId] = useState<string | null>(null);
 
     useEffect(() => {
         loadAccounts();
@@ -92,34 +93,45 @@ export function ConnectedAccountsManager({ projectId }: { projectId?: string }) 
         }
     };
 
+    // Real OAuth: the server returns the provider's authorize URL; the provider comes back to the server callback,
+    // which redirects here with ?status=connected|select|error (see packages/.../publishing/oauth.service.ts).
     const handleConnectAccount = async (cfg: typeof PLATFORM_CONFIGS[0]) => {
         setConnectingPlatform(cfg.platform);
         try {
-            // Simulated OAuth 2.0 handshake or live connect payload
-            const mockUsername = `${cfg.platform}_brand_user`;
-            const payload = {
-                projectId: projectId || undefined,
-                platform: cfg.platform,
-                platformAccountId: `${cfg.platform}_acc_${Date.now()}`,
-                accountName: `${cfg.name} (Official)`,
-                username: `@${mockUsername}`,
-                accessToken: `live_token_${cfg.platform}_${Date.now()}`,
-                refreshToken: `refresh_token_${cfg.platform}_${Date.now()}`,
-                scopes: cfg.scopes,
-                tokenExpiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) // 60 days
-            };
-
-            const { data } = await api.post('/api/social-media/accounts/connect', payload);
-            if (data.success) {
-                toast.success(`Successfully connected ${cfg.name}! Zero-cost publishing active.`);
-                loadAccounts();
-            }
+            const redirectUri = `${window.location.origin}${window.location.pathname}`;
+            const { data } = await api.get(`/api/social-media/accounts/oauth/${cfg.platform}/authorize`, {
+                params: { projectId: projectId || undefined, redirectUri, client: 'web' },
+            });
+            if (!data?.url) throw new Error('The server did not return an authorization URL.');
+            window.location.assign(data.url);
         } catch (err: any) {
-            toast.error(err.response?.data?.error || `Failed to connect ${cfg.name}`);
-        } finally {
+            const code = err.response?.data?.code;
+            const msg = err.response?.data?.error || err.response?.data?.message || err.message;
+            toast.error(code === 'PUBLISH_NOT_CONFIGURED'
+                ? `${cfg.name} is not set up on this server yet (missing app credentials).`
+                : msg || `Failed to connect ${cfg.name}`);
             setConnectingPlatform(null);
         }
     };
+
+    // Return leg of OAuth: read the result from the URL once, then clean it.
+    useEffect(() => {
+        const q = new URLSearchParams(window.location.search);
+        const status = q.get('status');
+        if (!status) return;
+        const platform = q.get('platform') || 'Account';
+        if (status === 'connected') {
+            toast.success(`${platform} connected`);
+            loadAccounts();
+        } else if (status === 'select' && q.get('selectionId')) {
+            setSelectionId(q.get('selectionId'));
+        } else if (status === 'error') {
+            toast.error(`${platform}: ${q.get('error_description') || q.get('error') || 'connection failed'}`);
+        }
+        ['status', 'platform', 'accountId', 'accountIds', 'selectionId', 'count', 'error', 'error_description'].forEach((k) => q.delete(k));
+        const rest = q.toString();
+        window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
+    }, []);
 
     const handleDisconnectAccount = async (id: string, name: string) => {
         if (!confirm(`Are you sure you want to disconnect ${name}? Scheduled posts for this channel will be paused.`)) return;
@@ -209,6 +221,15 @@ export function ConnectedAccountsManager({ projectId }: { projectId?: string }) 
                                 </div>
                             </div>
 
+                            {connected?.reauthRequired && (
+                                <button
+                                    onClick={() => handleConnectAccount(cfg)}
+                                    disabled={connectingPlatform === cfg.platform}
+                                    className="mb-2 w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all min-h-[44px]"
+                                >
+                                    <AlertCircle className="w-3.5 h-3.5" /> {connectingPlatform === cfg.platform ? 'Authorizing...' : 'Reconnect: access expired'}
+                                </button>
+                            )}
                             {connected ? (
                                 <button
                                     onClick={() => handleDisconnectAccount(connected.id, cfg.name)}
@@ -233,6 +254,107 @@ export function ConnectedAccountsManager({ projectId }: { projectId?: string }) 
                         </div>
                     );
                 })}
+            </div>
+            {selectionId && (
+                <AccountSelectionDialog
+                    selectionId={selectionId}
+                    onClose={() => setSelectionId(null)}
+                    onConnected={() => { setSelectionId(null); loadAccounts(); }}
+                />
+            )}
+        </div>
+    );
+}
+
+type Candidate = { candidateId: string; kind: string; accountName: string; username?: string | null; profileImageUrl?: string | null };
+
+const KIND_LABELS: Record<string, string> = {
+    page: 'Facebook Page', instagram_business: 'Instagram account', member: 'Personal profile',
+    organization: 'Company page', channel: 'YouTube channel', user: 'Profile',
+};
+
+/** Pick which Pages / Instagram accounts / LinkedIn organisations to connect after OAuth (status=select). */
+function AccountSelectionDialog({ selectionId, onClose, onConnected }: { selectionId: string; onClose: () => void; onConnected: () => void }) {
+    const [candidates, setCandidates] = useState<Candidate[] | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [picked, setPicked] = useState<Set<string>>(new Set());
+    const [saving, setSaving] = useState(false);
+
+    const load = async () => {
+        setError(null);
+        setCandidates(null);
+        try {
+            const { data } = await api.get(`/api/social-media/accounts/oauth/selections/${encodeURIComponent(selectionId)}`);
+            setCandidates(data.candidates || []);
+        } catch (err: any) {
+            setError(err.response?.data?.error || err.response?.data?.message || 'Could not load the accounts to choose from.');
+        }
+    };
+    useEffect(() => { load(); }, [selectionId]);
+
+    const connect = async () => {
+        setSaving(true);
+        try {
+            const { data } = await api.post(`/api/social-media/accounts/oauth/selections/${encodeURIComponent(selectionId)}`, { candidateIds: [...picked] });
+            const n = (data.accounts || []).length;
+            toast.success(n === 1 ? `${data.accounts[0].accountName} connected` : `${n} accounts connected`);
+            onConnected();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || err.response?.data?.message || 'Could not connect the chosen accounts.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const toggle = (id: string) => setPicked((prev) => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
+
+    return (
+        <div role="dialog" aria-modal="true" aria-labelledby="acct-select-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-5 shadow-xl">
+                <h2 id="acct-select-title" className="text-lg font-semibold text-white">Choose accounts to connect</h2>
+                <p className="mt-1 text-sm text-zinc-400">Only the accounts you tick are connected.</p>
+                <div className="mt-4 max-h-80 space-y-2 overflow-y-auto">
+                    {!candidates && !error && [0, 1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-white/5" />)}
+                    {error && (
+                        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+                            <p>{error}</p>
+                            <div className="mt-2 flex gap-3">
+                                <button className="min-h-[44px] font-medium underline" onClick={load}>Retry</button>
+                                <button className="min-h-[44px] font-medium underline" onClick={onClose}>Connect again later</button>
+                            </div>
+                        </div>
+                    )}
+                    {candidates && candidates.length === 0 && (
+                        <div className="rounded-xl bg-white/5 p-4 text-sm text-zinc-300">
+                            No pages or organisations were shared. Connect again and allow access to at least one.
+                            <button className="mt-2 block min-h-[44px] font-medium underline" onClick={onClose}>Close</button>
+                        </div>
+                    )}
+                    {candidates?.map((c) => (
+                        <label key={c.candidateId} className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl bg-white/5 p-3 hover:bg-white/10">
+                            <input type="checkbox" className="h-5 w-5" checked={picked.has(c.candidateId)} onChange={() => toggle(c.candidateId)} />
+                            {c.profileImageUrl ? <img src={c.profileImageUrl} alt="" className="h-8 w-8 rounded-full" /> : <div className="h-8 w-8 rounded-full bg-white/10" />}
+                            <span className="min-w-0">
+                                <span className="block truncate text-sm font-medium text-white">{c.accountName}</span>
+                                <span className="block truncate text-xs text-zinc-400">{KIND_LABELS[c.kind] || c.kind}{c.username ? ` · @${c.username}` : ''}</span>
+                            </span>
+                        </label>
+                    ))}
+                </div>
+                <div className="mt-5 flex justify-end gap-2">
+                    <button className="min-h-[44px] rounded-xl px-4 text-sm text-zinc-300 hover:bg-white/5" onClick={onClose}>Cancel</button>
+                    <button
+                        className="min-h-[44px] rounded-xl bg-white px-4 text-sm font-semibold text-black disabled:opacity-40"
+                        disabled={saving || picked.size === 0}
+                        onClick={connect}
+                    >
+                        {saving ? 'Connecting…' : picked.size ? `Connect ${picked.size}` : 'Pick at least one'}
+                    </button>
+                </div>
             </div>
         </div>
     );

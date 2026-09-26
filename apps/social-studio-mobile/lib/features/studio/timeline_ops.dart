@@ -321,15 +321,12 @@ class TimelineOps {
     final overlays = <EditIrOverlay>[
       for (final o in ir.overlays)
         if (map.range(o.timelineStartMs, o.timelineEndMs) case final r?)
-          EditIrOverlay(
-            id: o.id,
-            timelineStartMs: r.$1,
-            timelineEndMs: r.$2,
-            sourceStartMs: o.sourceStartMs,
-            source: o.source,
-            opacity: o.opacity,
-            muted: o.muted,
-          ),
+          o.copyWith(timelineStartMs: r.$1, timelineEndMs: r.$2),
+    ];
+    final effects = <EditIrEffect>[
+      for (final e in ir.effects)
+        if (map.range(e.startMs, e.endMs) case final r?)
+          if (r.$2 - r.$1 >= 100) e.copyWith(startMs: r.$1, endMs: r.$2),
     ];
     final music = <EditIrMusic?>[
       for (final m in ir.audio.music)
@@ -366,6 +363,7 @@ class TimelineOps {
       overlays: overlays,
       captions: captions..sort((a, b) => a.startMs.compareTo(b.startMs)),
       zooms: zooms,
+      effects: effects,
       audio: EditIrAudio(
         originalVolumeDb: ir.audio.originalVolumeDb,
         music: music,
@@ -412,18 +410,16 @@ class TimelineOps {
     List<EditIrCaption>? captions,
     List<EditIrZoom>? zooms,
     EditIrAudio? audio,
+    List<EditIrEffect>? effects,
   }) {
-    final out = MobileEditIr(
-      projectId: ir.projectId,
-      canvas: canvas ?? ir.canvas,
-      durationMs: ir.durationMs,
-      sources: ir.sources,
-      watermark: ir.watermark,
-      clips: clips ?? ir.clips,
-      overlays: overlays ?? ir.overlays,
-      captions: captions ?? ir.captions,
-      zooms: zooms ?? ir.zooms,
-      audio: audio ?? ir.audio,
+    final out = ir.copyWith(
+      canvas: canvas,
+      clips: clips,
+      overlays: overlays,
+      captions: captions,
+      zooms: zooms,
+      audio: audio,
+      effects: effects,
     );
     out.validate();
     return out;
@@ -931,6 +927,7 @@ class TimelineOps {
     required int startMs,
     required int durationMs,
     double positionY = 0.2,
+    Map<String, dynamic>? style,
   }) {
     final t = text.trim();
     if (t.isEmpty) {
@@ -945,7 +942,7 @@ class TimelineOps {
       endMs: e,
       text: t,
       words: [EditIrWord(text: t, startMs: s, endMs: e)],
-      style: captionStyle('TITLE', positionY: positionY),
+      style: style ?? captionStyle('TITLE', positionY: positionY),
     );
     return _copy(
       ir,
@@ -1005,6 +1002,7 @@ class TimelineOps {
     Map<String, dynamic> source, {
     required int startMs,
     int durationMs = 3000,
+    bool image = false,
   }) {
     final s = startMs.clamp(0, math.max(0, ir.durationMs - 300)).toInt();
     final e = math.min(ir.durationMs, s + math.max(durationMs, 300)).toInt();
@@ -1013,6 +1011,7 @@ class TimelineOps {
       timelineStartMs: s,
       timelineEndMs: e,
       source: source,
+      mediaType: image ? 'image' : 'video',
     );
     return _copy(
       ir,
@@ -1087,6 +1086,270 @@ class TimelineOps {
 
   static MobileEditIr removeMusic(MobileEditIr ir) =>
       _withAudio(ir, music: const []);
+
+  // ── Sound effects ──────────────────────────────────────────────────────────
+
+  static const maxSfx = 40;
+
+  /// One-shot sound effect at [startMs] from an HTTPS [url]. [credit] is kept for export attribution.
+  static MobileEditIr addSfx(
+    MobileEditIr ir, {
+    required String url,
+    required int startMs,
+    int? durationMs,
+    double volumeDb = -8,
+    String? credit,
+  }) {
+    if (!url.startsWith('https://') && !url.startsWith('http://')) {
+      throw MediaEngineException('INVALID_EDIT', 'Sound effects must come from the library (a web address).');
+    }
+    if (ir.audio.sfx.length >= maxSfx) {
+      throw MediaEngineException('INVALID_EDIT', 'This video already has $maxSfx sound effects.');
+    }
+    final s = startMs.clamp(0, math.max(0, ir.durationMs - 100)).toInt();
+    final e = EditIrSfx(
+      id: _id('sfx'),
+      timelineStartMs: s,
+      durationMs: durationMs == null ? null : math.max(100, math.min(durationMs, ir.durationMs - s)),
+      source: {'kind': 'url', 'url': url},
+      volumeDb: volumeDb.clamp(-60.0, 12.0),
+      credit: credit,
+    );
+    return _withSfx(ir, [...ir.audio.sfx, e]..sort((a, b) => a.timelineStartMs.compareTo(b.timelineStartMs)));
+  }
+
+  static MobileEditIr setSfxVolume(MobileEditIr ir, String id, double db) => _withSfx(ir, [
+        for (final e in ir.audio.sfx)
+          e.id == id
+              ? EditIrSfx(id: e.id, timelineStartMs: e.timelineStartMs, durationMs: e.durationMs, source: e.source, volumeDb: db.clamp(-60.0, 12.0), credit: e.credit)
+              : e,
+      ]);
+
+  static MobileEditIr removeSfx(MobileEditIr ir, String id) =>
+      _withSfx(ir, ir.audio.sfx.where((e) => e.id != id).toList());
+
+  static MobileEditIr _withSfx(MobileEditIr ir, List<EditIrSfx> sfx) => _copy(
+        ir,
+        audio: EditIrAudio(
+          originalVolumeDb: ir.audio.originalVolumeDb,
+          music: ir.audio.music,
+          speechRangesMs: ir.audio.speechRangesMs,
+          sfx: sfx,
+        ),
+      );
+
+  // ── Timeline items (what the multi-track timeline shows) ───────────────────
+
+  /// Every placed item, per track, in timeline order. Clips are the video track.
+  static List<TimelineItem> items(MobileEditIr ir) => [
+        for (var i = 0; i < ir.clips.length; i++)
+          TimelineItem(TrackKind.video, ir.clips[i].id, ir.clips[i].timelineStartMs, ir.clips[i].timelineEndMs, 'Clip ${i + 1}'),
+        for (final o in ir.overlays)
+          TimelineItem(TrackKind.broll, o.id, o.timelineStartMs, o.timelineEndMs, '${o.isImage ? 'Photo' : 'Video'}: ${o.source['query'] ?? 'B-roll'}'),
+        for (final e in ir.effects) TimelineItem(TrackKind.effect, e.id, e.startMs, e.endMs, e.label),
+        for (final c in ir.captions)
+          TimelineItem(c.kind == 'text' ? TrackKind.text : TrackKind.captions, c.id, c.startMs, c.endMs, c.text),
+        for (final z in ir.zooms) TimelineItem(TrackKind.zoom, z.id, z.startMs, z.endMs, '${z.scale.toStringAsFixed(1)}x'),
+        for (final m in ir.audio.music)
+          TimelineItem(TrackKind.music, m.id, m.timelineStartMs, m.timelineEndMs, '${m.source['title'] ?? m.source['query'] ?? 'Music'}'),
+        for (final e in ir.audio.sfx)
+          TimelineItem(TrackKind.sfx, e.id, e.timelineStartMs, e.timelineStartMs + (e.durationMs ?? 1000), e.credit ?? 'Sound effect'),
+      ];
+
+  /// Moves an item so it starts at [startMs], keeping its length (clamped to the video). Captions keep their
+  /// word timing relative to the caption. Video clips move with [moveClip] instead.
+  static MobileEditIr moveItem(MobileEditIr ir, TrackKind kind, String id, int startMs) {
+    int clampStart(int len) => startMs.clamp(0, math.max(0, ir.durationMs - len)).toInt();
+    switch (kind) {
+      case TrackKind.broll:
+        return _copy(ir, overlays: [
+          for (final o in ir.overlays)
+            if (o.id != id)
+              o
+            else
+              () {
+                final len = o.timelineEndMs - o.timelineStartMs;
+                final s = clampStart(len);
+                return o.copyWith(timelineStartMs: s, timelineEndMs: s + len);
+              }(),
+        ]);
+      case TrackKind.text:
+      case TrackKind.captions:
+        return _copy(ir, captions: [
+          for (final c in ir.captions)
+            if (c.id != id) c else _shiftCaption(c, clampStart(c.endMs - c.startMs) - c.startMs),
+        ]..sort((a, b) => a.startMs.compareTo(b.startMs)));
+      case TrackKind.zoom:
+        final z = ir.zooms.firstWhere((z) => z.id == id);
+        final s = clampStart(z.endMs - z.startMs);
+        final moved = EditIrZoom(id: z.id, startMs: s, endMs: s + z.endMs - z.startMs, scale: z.scale, centerX: z.centerX, centerY: z.centerY, rampMs: z.rampMs);
+        if (ir.zooms.any((o) => o.id != id && o.startMs < moved.endMs && moved.startMs < o.endMs)) {
+          throw MediaEngineException('INVALID_EDIT', 'Zooms cannot overlap. Move the other zoom first.');
+        }
+        return _copy(ir, zooms: [for (final o in ir.zooms) o.id == id ? moved : o]..sort((a, b) => a.startMs.compareTo(b.startMs)));
+      case TrackKind.sfx:
+        return _withSfx(ir, [
+          for (final e in ir.audio.sfx) e.id == id ? e.moved(clampStart(e.durationMs ?? 100)) : e,
+        ]..sort((a, b) => a.timelineStartMs.compareTo(b.timelineStartMs)));
+      case TrackKind.effect:
+        return _copy(ir, effects: [
+          for (final e in ir.effects)
+            if (e.id != id) e else () {
+              final s = clampStart(e.endMs - e.startMs);
+              return e.copyWith(startMs: s, endMs: s + e.endMs - e.startMs);
+            }(),
+        ]..sort((a, b) => a.startMs.compareTo(b.startMs)));
+      case TrackKind.music:
+      case TrackKind.video:
+        throw MediaEngineException('INVALID_EDIT', 'Use Trim for ${kind.label.toLowerCase()}.');
+    }
+  }
+
+  /// Sets an item's start/end on the timeline (trim). Minimum 300 ms.
+  static MobileEditIr setItemRange(MobileEditIr ir, TrackKind kind, String id, int startMs, int endMs) {
+    if (kind == TrackKind.effect) {
+      final s = startMs.clamp(0, math.max(0, ir.durationMs - 100)).toInt();
+      final e = endMs.clamp(s + 100, ir.durationMs).toInt();
+      return _copy(ir, effects: [for (final x in ir.effects) x.id == id ? x.copyWith(startMs: s, endMs: e) : x]);
+    }
+    final s = startMs.clamp(0, math.max(0, ir.durationMs - 300)).toInt();
+    final e = endMs.clamp(s + 300, ir.durationMs).toInt();
+    switch (kind) {
+      case TrackKind.broll:
+        return _copy(ir, overlays: [
+          for (final o in ir.overlays)
+            o.id != id
+                ? o
+                : o.copyWith(timelineStartMs: s, timelineEndMs: e, sourceStartMs: o.isImage ? 0 : o.sourceStartMs + math.max(0, s - o.timelineStartMs)),
+        ]);
+      case TrackKind.text:
+      case TrackKind.captions:
+        return _copy(ir, captions: [
+          for (final c in ir.captions)
+            c.id != id
+                ? c
+                : EditIrCaption(
+                    id: c.id,
+                    kind: c.kind,
+                    startMs: s,
+                    endMs: e,
+                    text: c.text,
+                    words: c.kind == 'text'
+                        ? [EditIrWord(text: c.text, startMs: s, endMs: e)]
+                        : [for (final w in c.words) if (w.endMs > s && w.startMs < e) EditIrWord(text: w.text, startMs: math.max(w.startMs, s), endMs: math.min(w.endMs, e), highlight: w.highlight, color: w.color, scale: w.scale)],
+                    style: c.style,
+                  ),
+        ]..sort((a, b) => a.startMs.compareTo(b.startMs)));
+      case TrackKind.zoom:
+        final z = ir.zooms.firstWhere((z) => z.id == id);
+        if (ir.zooms.any((o) => o.id != id && o.startMs < e && s < o.endMs)) {
+          throw MediaEngineException('INVALID_EDIT', 'Zooms cannot overlap.');
+        }
+        return _copy(ir, zooms: [
+          for (final o in ir.zooms)
+            o.id == id ? EditIrZoom(id: z.id, startMs: s, endMs: e, scale: z.scale, centerX: z.centerX, centerY: z.centerY, rampMs: math.min(z.rampMs, (e - s) ~/ 2)) : o,
+        ]);
+      case TrackKind.music:
+        final m = ir.audio.music.firstOrNull;
+        if (m == null) throw MediaEngineException('INVALID_EDIT', 'Add music first.');
+        return _withAudio(ir, music: [_music(m, start: s, end: e)]);
+      case TrackKind.sfx:
+        return _withSfx(ir, [
+          for (final x in ir.audio.sfx)
+            x.id == id ? EditIrSfx(id: x.id, timelineStartMs: s, durationMs: e - s, source: x.source, volumeDb: x.volumeDb, credit: x.credit) : x,
+        ]);
+      case TrackKind.effect:
+      case TrackKind.video:
+        throw MediaEngineException('INVALID_EDIT', 'Use Trim on the clip.');
+    }
+  }
+
+  /// Removes any non-video item.
+  static MobileEditIr deleteItem(MobileEditIr ir, TrackKind kind, String id) => switch (kind) {
+        TrackKind.broll => removeOverlay(ir, id),
+        TrackKind.text || TrackKind.captions => removeCaption(ir, id),
+        TrackKind.zoom => removeZoom(ir, id),
+        TrackKind.music => removeMusic(ir),
+        TrackKind.sfx => removeSfx(ir, id),
+        TrackKind.effect => removeEffect(ir, id),
+        TrackKind.video => deleteClip(ir, ir.clips.indexWhere((c) => c.id == id)),
+      };
+
+  /// Replaces a text item's words and/or style (text templates, font, colours).
+  static MobileEditIr editText(MobileEditIr ir, String id, {String? text, Map<String, dynamic>? style}) {
+    final t = text?.trim();
+    if (t != null && t.isEmpty) throw MediaEngineException('INVALID_EDIT', 'Type some text first.');
+    return _copy(ir, captions: [
+      for (final c in ir.captions)
+        c.id != id
+            ? c
+            : EditIrCaption(
+                id: c.id,
+                kind: c.kind,
+                startMs: c.startMs,
+                endMs: c.endMs,
+                text: t ?? c.text,
+                words: t == null ? c.words : [EditIrWord(text: t, startMs: c.startMs, endMs: c.endMs)],
+                style: style ?? c.style,
+              ),
+    ]);
+  }
+
+  // ── Effects ────────────────────────────────────────────────────────────────
+
+  static const maxEffects = 60;
+
+  /// Adds a [type] effect (see [EditIrEffect.types]) at [startMs]; default length per type.
+  static MobileEditIr addEffect(MobileEditIr ir, String type, {required int startMs, int? durationMs, double intensity = 0.6}) {
+    final spec = EditIrEffect.types[type];
+    if (spec == null) throw MediaEngineException('INVALID_EDIT', 'Unknown effect "$type".');
+    if (ir.effects.length >= maxEffects) throw MediaEngineException('INVALID_EDIT', 'This video already has $maxEffects effects.');
+    final len = math.max(100, durationMs ?? spec.$3);
+    final s = startMs.clamp(0, math.max(0, ir.durationMs - 100)).toInt();
+    final e = math.min(ir.durationMs, s + len).toInt();
+    final fx = EditIrEffect(id: _id('fx'), type: type, startMs: s, endMs: e, intensity: intensity.clamp(0.0, 1.0));
+    return _copy(ir, effects: [...ir.effects, fx]..sort((a, b) => a.startMs.compareTo(b.startMs)));
+  }
+
+  static MobileEditIr setEffectIntensity(MobileEditIr ir, String id, double intensity) =>
+      _copy(ir, effects: [for (final e in ir.effects) e.id == id ? e.copyWith(intensity: intensity.clamp(0.0, 1.0)) : e]);
+
+  static MobileEditIr removeEffect(MobileEditIr ir, String id) =>
+      _copy(ir, effects: ir.effects.where((e) => e.id != id).toList());
+
+  static EditIrCaption _shiftCaption(EditIrCaption c, int d) => EditIrCaption(
+        id: c.id,
+        kind: c.kind,
+        startMs: c.startMs + d,
+        endMs: c.endMs + d,
+        text: c.text,
+        words: [for (final w in c.words) EditIrWord(text: w.text, startMs: w.startMs + d, endMs: w.endMs + d, highlight: w.highlight, color: w.color, scale: w.scale)],
+        style: c.style,
+      );
+}
+
+/// Timeline tracks, top to bottom.
+enum TrackKind {
+  video('Video'),
+  broll('B-roll'),
+  text('Text'),
+  captions('Captions'),
+  zoom('Zoom'),
+  effect('Effects'),
+  music('Music'),
+  sfx('Sound FX');
+
+  const TrackKind(this.label);
+  final String label;
+}
+
+class TimelineItem {
+  const TimelineItem(this.kind, this.id, this.startMs, this.endMs, this.label);
+  final TrackKind kind;
+  final String id;
+  final int startMs;
+  final int endMs;
+  final String label;
 }
 
 class _Seg {

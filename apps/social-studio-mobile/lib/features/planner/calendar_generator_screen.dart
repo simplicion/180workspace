@@ -7,10 +7,12 @@ import '../../core/widgets/common.dart';
 import '../../data/models/content_calendar.dart';
 import '../../data/models/project.dart';
 import '../projects/project_provider.dart';
+import 'autopilot_generator.dart';
 import 'planner_providers.dart';
 
-/// Three-step AI calendar generator (`POST /content-calendar/create`). Prefilled from the
-/// active project's brand voice, or from an existing calendar when extending it.
+/// Autopilot calendar for the active project ([AutopilotGenerator]). The classic three-step generator
+/// (`POST /content-calendar/create`) remains for extending a calendar or on request; it is prefilled from the
+/// active project's brand voice, or from the calendar being extended.
 class CalendarGeneratorScreen extends ConsumerStatefulWidget {
   const CalendarGeneratorScreen({super.key, this.extendFrom});
   final ContentCalendar? extendFrom;
@@ -24,6 +26,7 @@ class _CalendarGeneratorScreenState extends ConsumerState<CalendarGeneratorScree
   int _step = 0;
   bool _generating = false;
   bool _prefilled = false;
+  bool _classic = false;
 
   late final _brand = TextEditingController(text: _c.brandName);
   late final _industry = TextEditingController(text: _c.industry);
@@ -92,6 +95,12 @@ class _CalendarGeneratorScreenState extends ConsumerState<CalendarGeneratorScree
   Widget build(BuildContext context) {
     final active = ref.watch(activeProjectProvider).valueOrNull;
     if (active != null) _prefillFromProject(active);
+    if (widget.extendFrom == null && active != null && !_classic) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Generate calendar')),
+        body: AutopilotGenerator(project: active, onUseClassic: () => setState(() => _classic = true)),
+      );
+    }
     if (_generating) {
       return const Scaffold(
         body: LoadingView(label: 'Writing your calendar…\nThis usually takes 30–90 seconds. Keep the app open.'),

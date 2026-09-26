@@ -12,7 +12,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:label="180 Manager"
+        android:label="180 Social Media Manager"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -36,12 +36,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- OAuth Deep Link: workspace180://oauth/callback -->
+            <!-- Deep Links: workspace180:// and one80:// (OAuth, project launch, review) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="workspace180" android:host="oauth" />
+                <data android:scheme="workspace180" />
+                <data android:scheme="one80" />
             </intent-filter>
         </activity>
         <!-- Keeps renders alive in the background (mediaengine/RenderForegroundService.kt).

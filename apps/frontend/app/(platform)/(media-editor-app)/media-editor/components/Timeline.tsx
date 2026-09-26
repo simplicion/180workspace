@@ -21,6 +21,7 @@ import {
   Keyboard,
   Type,
   Music,
+  Plus,
   Play,
   Pause,
   SkipBack,
@@ -704,21 +705,83 @@ export const Timeline: React.FC<TimelineProps> = ({
             );
           })}
 
-          {/* 4. Audio Dialogue Track Header */}
-          <div className="h-12 border-b border-surface-border px-3 flex items-center justify-between text-xs font-semibold text-emerald-400 bg-surface/60">
-            <div className="flex items-center space-x-1.5 truncate">
-              <Volume2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="truncate">Audio (A1)</span>
+          {/* 4. Dynamic Audio Track Headers */}
+          {editIR.tracks.audioTracks && editIR.tracks.audioTracks.length > 0 ? (
+            editIR.tracks.audioTracks.map((aTrack, aIdx) => {
+              const trackKey = `a_${aTrack.id || aIdx}`;
+              const isVoice = aTrack.type === "PRIMARY_VOICE" || aIdx === 0;
+              const isBgm = aTrack.type === "BGM";
+              const isSfx = aTrack.type === "SFX";
+              const trackLabel = isBgm
+                ? `Music (A${aIdx + 1})`
+                : isSfx
+                ? `SFX (A${aIdx + 1})`
+                : isVoice
+                ? `Voice (A${aIdx + 1})`
+                : `Audio (A${aIdx + 1})`;
+
+              const colorClass = isBgm
+                ? "text-purple-400"
+                : isSfx
+                ? "text-amber-400"
+                : "text-emerald-400";
+
+              return (
+                <div
+                  key={aTrack.id || aIdx}
+                  className="h-12 border-b border-surface-border px-3 flex items-center justify-between text-xs font-semibold bg-surface/60"
+                >
+                  <div className={`flex items-center space-x-1.5 truncate ${colorClass}`}>
+                    {isBgm ? (
+                      <Music className="w-3.5 h-3.5 shrink-0 text-purple-400" />
+                    ) : isSfx ? (
+                      <Zap className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                    ) : (
+                      <Volume2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                    )}
+                    <span className="truncate">{trackLabel}</span>
+                  </div>
+                  <div className="flex items-center space-x-1 text-gray-400">
+                    {(isBgm || isSfx) && onAddAudioTrack && (
+                      <button
+                        onClick={onAddAudioTrack}
+                        className={`p-1 transition rounded ${
+                          isBgm
+                            ? "hover:text-purple-300 hover:bg-purple-950/40 text-purple-400/80"
+                            : "hover:text-amber-300 hover:bg-amber-950/40 text-amber-400/80"
+                        }`}
+                        title={isBgm ? "Browse / Replace Background Music" : "Browse / Add Sound Effects"}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => toggleTrackMute(trackKey)}
+                      className="p-1 hover:text-white transition"
+                      title={mutedTracks[trackKey] ? "Unmute track" : "Mute track"}
+                    >
+                      {mutedTracks[trackKey] ? <VolumeX className="w-3 h-3 text-rose-400" /> : <Volume2 className="w-3 h-3" />}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="h-12 border-b border-surface-border px-3 flex items-center justify-between text-xs font-semibold text-emerald-400 bg-surface/60">
+              <div className="flex items-center space-x-1.5 truncate">
+                <Volume2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">Audio (A1)</span>
+              </div>
+              <div className="flex items-center space-x-1 text-gray-400">
+                <button
+                  onClick={() => toggleTrackMute("a1")}
+                  className="p-1 hover:text-white transition"
+                >
+                  {mutedTracks["a1"] ? <VolumeX className="w-3 h-3 text-rose-400" /> : <Volume2 className="w-3 h-3" />}
+                </button>
+              </div>
             </div>
-            <div className="flex items-center space-x-1 text-gray-400">
-              <button
-                onClick={() => toggleTrackMute("a1")}
-                className="p-1 hover:text-white transition"
-              >
-                {mutedTracks["a1"] ? <VolumeX className="w-3 h-3 text-rose-400" /> : <Volume2 className="w-3 h-3" />}
-              </button>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Right Scrollable Tracks Area */}
@@ -766,12 +829,16 @@ export const Timeline: React.FC<TimelineProps> = ({
                 return (
                   <div
                     key={cam.id}
-                    className="timeline-clip absolute top-1.5 bottom-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 px-2 flex items-center space-x-1.5 text-amber-300 text-[10px] font-mono shadow-sm cursor-default min-w-[48px] overflow-hidden"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSeek(startSec);
+                    }}
+                    className="timeline-clip absolute top-1.5 bottom-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 hover:border-amber-400 hover:bg-amber-500/25 px-2 flex items-center space-x-1.5 text-amber-300 text-[10px] font-mono shadow-sm cursor-pointer min-w-[48px] overflow-hidden transition"
                     style={{
                       left: `${startSec * pixelsPerSecond}px`,
                       width: `${widthPx}px`,
                     }}
-                    title={`Auto-Zoom ${cam.scale}x (Spring Physics) [${startSec.toFixed(1)}s - ${(startSec + durationSec).toFixed(1)}s]`}
+                    title={`Click to seek to Auto-Zoom ${cam.scale}x (${startSec.toFixed(1)}s)`}
                   >
                     <Camera className="w-3 h-3 text-amber-400 shrink-0" />
                     <span className="truncate font-bold whitespace-nowrap">Auto-Zoom {cam.scale}x</span>
@@ -793,11 +860,16 @@ export const Timeline: React.FC<TimelineProps> = ({
               return (
                 <div
                   key={cap.id}
-                  className="timeline-clip absolute top-1.5 bottom-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/40 px-2.5 flex items-center space-x-1.5 text-cyan-300 text-[10px] font-semibold truncate shadow-sm cursor-default"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenCaptions?.();
+                  }}
+                  className="timeline-clip absolute top-1.5 bottom-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/40 hover:border-cyan-300 hover:bg-cyan-500/25 px-2.5 flex items-center space-x-1.5 text-cyan-300 text-[10px] font-semibold truncate shadow-sm cursor-pointer transition"
                   style={{
                     left: `${startSec * pixelsPerSecond}px`,
                     width: `${durationSec * pixelsPerSecond}px`,
                   }}
+                  title={`Click to edit caption in Studio: "${cap.text}" (${startSec.toFixed(1)}s)`}
                 >
                   <Subtitles className="w-3 h-3 text-cyan-400 shrink-0" />
                   <span className="truncate">"{cap.text}"</span>
@@ -982,70 +1054,143 @@ export const Timeline: React.FC<TimelineProps> = ({
             );
           })}
 
-          {/* 4. Audio Waveform Track Lane */}
-          <div className="h-12 border-b border-surface-border/40 relative bg-[#08080A] flex items-center">
-            {editIR.tracks.audioTracks &&
-            editIR.tracks.audioTracks[0]?.clips &&
-            editIR.tracks.audioTracks[0].clips.length > 0 ? (
-              editIR.tracks.audioTracks[0].clips.map((aClip) => {
-                const startSec = RationalTimeMath.toSeconds(aClip.timelineRange.start);
-                const durationSec = RationalTimeMath.toSeconds(aClip.timelineRange.duration);
-                const clipWidthPx = durationSec * pixelsPerSecond;
+          {/* 4. Dynamic Audio Waveform Track Lanes */}
+          {editIR.tracks.audioTracks && editIR.tracks.audioTracks.length > 0 ? (
+            editIR.tracks.audioTracks.map((aTrack, aIdx) => {
+              const isVoice = aTrack.type === "PRIMARY_VOICE" || aIdx === 0;
+              const isBgm = aTrack.type === "BGM";
+              const isSfx = aTrack.type === "SFX";
+              const waveformColor = isBgm ? "purple" : isSfx ? "amber" : "emerald";
+              const bgBadgeColor = isBgm
+                ? "bg-purple-950/50 border-purple-500/40 text-purple-200"
+                : isSfx
+                ? "bg-amber-950/50 border-amber-500/40 text-amber-200"
+                : "bg-emerald-950/50 border-emerald-500/40 text-emerald-200";
 
-                return (
-                  <div
-                    key={aClip.id}
-                    className="timeline-clip absolute top-1 bottom-1 rounded-lg bg-emerald-950/50 border border-emerald-500/40 px-1 flex items-center overflow-hidden group shadow-sm"
-                    style={{
-                      left: `${startSec * pixelsPerSecond}px`,
-                      width: `${clipWidthPx}px`,
-                    }}
-                    title={`Audio Clip: ${aClip.sourcePath.split(/[\/\\]/).pop() || "Audio"} (${durationSec.toFixed(1)}s)`}
-                  >
-                    <VisibleWaveformCanvas
-                      sourceUrl={aClip.sourcePath}
-                      durationSec={durationSec}
-                      width={clipWidthPx}
-                      height={38}
-                      color="emerald"
-                    />
-                  </div>
-                );
-              })
-            ) : videoTrack && videoTrack.clips.length > 0 ? (
-              /* Linked Primary Video Audio Waveform for active video clips */
-              videoTrack.clips.map((vClip) => {
-                const startSec = RationalTimeMath.toSeconds(vClip.timelineRange.start);
-                const durationSec = RationalTimeMath.toSeconds(vClip.timelineRange.duration);
-                const clipWidthPx = durationSec * pixelsPerSecond;
+              return (
+                <div
+                  key={aTrack.id || aIdx}
+                  className="h-12 border-b border-surface-border/40 relative bg-[#08080A] flex items-center"
+                >
+                  {aTrack.clips && aTrack.clips.length > 0 ? (
+                    aTrack.clips.map((aClip) => {
+                      const startSec = RationalTimeMath.toSeconds(aClip.timelineRange.start);
+                      const durationSec = RationalTimeMath.toSeconds(aClip.timelineRange.duration);
+                      const clipWidthPx = durationSec * pixelsPerSecond;
+                      const isSelected = selectedClipId === aClip.id;
 
-                return (
-                  <div
-                    key={`v_audio_${vClip.id}`}
-                    className="absolute top-1 bottom-1 rounded-lg bg-cyan-950/30 border border-cyan-500/30 px-1 flex items-center overflow-hidden shadow-inner"
-                    style={{
-                      left: `${startSec * pixelsPerSecond}px`,
-                      width: `${clipWidthPx}px`,
-                    }}
-                    title={`Embedded Audio Track (${durationSec.toFixed(1)}s)`}
-                  >
-                    <VisibleWaveformCanvas
-                      sourceUrl={vClip.sourcePath}
-                      durationSec={durationSec}
-                      width={clipWidthPx}
-                      height={38}
-                      color="cyan"
-                    />
-                  </div>
-                );
-              })
-            ) : (
-              /* Clean Empty State when no clips exist */
+                      return (
+                        <div
+                          key={aClip.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectClip(aClip.id);
+                          }}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            onSelectClip(aClip.id);
+                            setDraggingClip({
+                              id: aClip.id,
+                              mode: "move",
+                              startX: e.clientX,
+                              initialStart: startSec,
+                              initialDuration: durationSec,
+                            });
+                          }}
+                          className={`timeline-clip absolute top-1 bottom-1 rounded-lg ${bgBadgeColor} border px-1 flex items-center overflow-hidden group shadow-sm cursor-grab active:cursor-grabbing ${
+                            isSelected ? "ring-1 ring-white/50 border-white" : ""
+                          }`}
+                          style={{
+                            left: `${startSec * pixelsPerSecond}px`,
+                            width: `${clipWidthPx}px`,
+                          }}
+                          title={`${isBgm ? "BGM" : isSfx ? "SFX" : "Audio"}: ${aClip.sourcePath.split(/[\/\\]/).pop() || "Audio"} (${durationSec.toFixed(1)}s)`}
+                        >
+                          {/* Left Trim Handle */}
+                          <div
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              onSelectClip(aClip.id);
+                              setDraggingClip({
+                                id: aClip.id,
+                                mode: "trim-start",
+                                startX: e.clientX,
+                                initialStart: startSec,
+                                initialDuration: durationSec,
+                              });
+                            }}
+                            className="absolute left-0 top-0 bottom-0 w-2 bg-white/0 group-hover:bg-white/20 hover:!bg-white cursor-ew-resize transition-colors rounded-l-lg z-10"
+                            title="Trim start"
+                          />
+
+                          <VisibleWaveformCanvas
+                            sourceUrl={aClip.sourcePath}
+                            durationSec={durationSec}
+                            width={clipWidthPx}
+                            height={38}
+                            color={waveformColor as any}
+                          />
+
+                          {/* Right Trim Handle */}
+                          <div
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              onSelectClip(aClip.id);
+                              setDraggingClip({
+                                id: aClip.id,
+                                mode: "trim-end",
+                                startX: e.clientX,
+                                initialStart: startSec,
+                                initialDuration: durationSec,
+                              });
+                            }}
+                            className="absolute right-0 top-0 bottom-0 w-2 bg-white/0 group-hover:bg-white/20 hover:!bg-white cursor-ew-resize transition-colors rounded-r-lg z-10"
+                            title="Trim end"
+                          />
+                        </div>
+                      );
+                    })
+                  ) : isVoice && videoTrack && videoTrack.clips.length > 0 ? (
+                    videoTrack.clips.map((vClip) => {
+                      const startSec = RationalTimeMath.toSeconds(vClip.timelineRange.start);
+                      const durationSec = RationalTimeMath.toSeconds(vClip.timelineRange.duration);
+                      const clipWidthPx = durationSec * pixelsPerSecond;
+
+                      return (
+                        <div
+                          key={`v_audio_${vClip.id}`}
+                          className="absolute top-1 bottom-1 rounded-lg bg-cyan-950/30 border border-cyan-500/30 px-1 flex items-center overflow-hidden shadow-inner"
+                          style={{
+                            left: `${startSec * pixelsPerSecond}px`,
+                            width: `${clipWidthPx}px`,
+                          }}
+                          title={`Embedded Audio Track (${durationSec.toFixed(1)}s)`}
+                        >
+                          <VisibleWaveformCanvas
+                            sourceUrl={vClip.sourcePath}
+                            durationSec={durationSec}
+                            width={clipWidthPx}
+                            height={38}
+                            color="cyan"
+                          />
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-[10px] text-zinc-600 font-mono italic px-4 select-none pointer-events-none">
+                      No audio clips on {isBgm ? "Music" : isSfx ? "SFX" : "Audio"} track
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="h-12 border-b border-surface-border/40 relative bg-[#08080A] flex items-center">
               <div className="text-[10px] text-zinc-600 font-mono italic px-4 select-none pointer-events-none">
-                No audio clips on track A1
+                No audio tracks configured
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

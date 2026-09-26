@@ -108,10 +108,20 @@ export type ClipKeyframe = {
 export type Transform = z.infer<typeof TransformSchema>;
 
 /**
+ * Cut-point transitions. Renderers without a native look for a type fall back to CROSSFADE with a warning.
+ * DIP_BLACK/DIP_WHITE fade through a colour; GLITCH is a short RGB-split/jitter burst; WIPE = wipe left.
+ */
+export const TRANSITION_TYPES = [
+  "CUT", "CROSSFADE", "DISSOLVE", "ZOOM_SWOOSH", "ZOOM_OUT", "SLIDE_LEFT", "SLIDE_UP", "WIPE", "WIPE_RIGHT",
+  "BLUR_PUNCH", "GLITCH", "DIP_BLACK", "DIP_WHITE",
+] as const;
+export type TransitionType = (typeof TRANSITION_TYPES)[number];
+
+/**
  * Visual Transition Definition
  */
 export const TransitionSchema = z.object({
-  type: z.enum(["CUT", "CROSSFADE", "DISSOLVE", "ZOOM_SWOOSH", "SLIDE_LEFT", "SLIDE_UP", "WIPE", "BLUR_PUNCH"]),
+  type: z.enum(TRANSITION_TYPES),
   duration: RationalTimeSchema,
   sfx: z.string().optional().describe("Associated sound effect file path or key"),
 });
@@ -139,9 +149,29 @@ export const VideoClipSchema = z.object({
   speedMultiplier: z.number().positive().default(1.0),
   volumeDb: z.number().default(0.0).optional(),
   effects: z.array(z.string()).default([]),
+  /** "image" = a still photo shown for timelineRange.duration (B-roll / sticker tracks). Absent = video. */
+  mediaType: z.enum(["video", "image"]).optional(),
 });
 
 export type VideoClip = z.infer<typeof VideoClipSchema>;
+
+/**
+ * Timeline video effects both renderers draw (Android Media3 + desktop FFmpeg). Fixed list: the AI Director and
+ * the manual editors may only use these ids. `intensity` 0..1 scales the effect.
+ *  - flash: brief white flash (peaks mid-range)          - fade_black: dip to black and back
+ *  - shake: camera shake (translation jitter)            - zoom_pulse: quick punch in/out on the beat
+ *  - black_white: desaturate for the range               - vignette: darkened edges for the range
+ */
+export const VIDEO_EFFECT_TYPES = ["flash", "fade_black", "shake", "zoom_pulse", "black_white", "vignette"] as const;
+export type VideoEffectType = (typeof VIDEO_EFFECT_TYPES)[number];
+
+export const EffectEventSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(VIDEO_EFFECT_TYPES),
+  timeRange: TimeRangeSchema,
+  intensity: z.number().min(0).max(1).default(0.6),
+});
+export type EffectEvent = z.infer<typeof EffectEventSchema>;
 
 /**
  * Automated Camera Zoom & Attention Track Event
@@ -309,6 +339,8 @@ export const EditIRSchema = z.object({
       })
     ),
     cameraTrack: z.array(CameraEventSchema),
+    /** Timeline effects (optional; older IRs have none). */
+    effectTrack: z.array(EffectEventSchema).optional(),
     captionTrack: z.array(CaptionSegmentSchema),
     audioTracks: z.array(AudioTrackSchema),
   }),

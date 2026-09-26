@@ -71,6 +71,15 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
 
                 {/* Header Action Buttons */}
                 <div className="flex items-center gap-2 flex-wrap">
+                    <a
+                        href={`one80://projects/${project.id}?tab=${activeTab}`}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl shadow-md shadow-indigo-600/20 transition active:scale-95"
+                        title="Open in native 180 Social Media Manager app (Windows / Mac / Android / iOS)"
+                    >
+                        <Zap className="w-3.5 h-3.5 text-amber-300" />
+                        <span>Launch in 180 Studio</span>
+                    </a>
+
                     <button
                         onClick={onSendForApprovalClick}
                         className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"

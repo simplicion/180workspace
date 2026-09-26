@@ -161,6 +161,15 @@ class StockVideoResult {
   final String? author;
 }
 
+class StockPhotoResult {
+  const StockPhotoResult({required this.id, required this.url, required this.thumbnailUrl, required this.title, this.attribution});
+  final String id;
+  final String url;
+  final String thumbnailUrl;
+  final String title;
+  final String? attribution;
+}
+
 class StockAudioResult {
   const StockAudioResult({
     required this.id,
@@ -267,6 +276,32 @@ class AiDirectorService {
   }
 
   /// Searches unified stock media (Pexels + Pixabay) for B-roll video clips.
+  /// Free stock photos (Pexels / Pixabay / other free sources) for photo overlays. Errors propagate so the
+  /// UI can show them with a retry.
+  Future<List<StockPhotoResult>> searchStockPhotos(String query, {String orientation = 'portrait'}) async {
+    final r = await _api.get('/api/v1/media-editor/stock/unified', query: {
+      'query': query,
+      'type': 'photo',
+      'orientation': orientation,
+      'perPage': 24,
+    });
+    final list = <StockPhotoResult>[];
+    for (final p in (r['unifiedPhotos'] as List?)?.whereType<Map>() ?? const <Map>[]) {
+      final url = jStr(p['downloadUrl']) ?? jStr(p['url']);
+      if (url == null || !url.startsWith('https://')) continue;
+      final author = jStr(p['photographer']) ?? jStr(p['user']);
+      final provider = jStr(p['provider']) ?? 'stock';
+      list.add(StockPhotoResult(
+        id: jStr(p['id']) ?? 'img_${list.length}',
+        url: url,
+        thumbnailUrl: jStr(p['thumbnailUrl']) ?? url,
+        title: jStr(p['title']) ?? query,
+        attribution: jStr(p['attribution']) ?? (author == null ? null : 'Photo: $author / $provider'),
+      ));
+    }
+    return list;
+  }
+
   Future<List<StockVideoResult>> searchStockVideos(String query, {String orientation = 'portrait'}) async {
     try {
       final r = await _api.get('/api/v1/media-editor/stock/unified', query: {

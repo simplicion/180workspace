@@ -15,6 +15,7 @@ import '../../core/widgets/common.dart';
 import 'director_panel.dart';
 import 'export_sheet.dart';
 import 'studio_controller.dart';
+import 'studio_timeline.dart';
 import 'studio_tools.dart';
 import 'timeline_ops.dart';
 
@@ -226,10 +227,15 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
                     Expanded(child: _Preview(controller: c, player: _player, playing: _playing)),
                     _TransportBar(controller: c, playing: _playing, onPlay: _togglePlay, onSplit: () => _edit((ir) => TimelineOps.split(ir, c.playheadMs))),
                     _TranscriptChip(controller: c),
-                    _ClipStrip(controller: c, onScrub: (ms) {
-                      _stop();
-                      c.seek(ms);
-                    }),
+                    StudioTimeline(
+                      controller: c,
+                      onScrub: (ms) {
+                        _stop();
+                        c.seek(ms);
+                      },
+                      onEdit: _edit,
+                      onOpenTool: _openTool,
+                    ),
                     _ToolBar(onTool: _openTool),
                   ]),
       ),
@@ -295,12 +301,18 @@ class _Preview extends StatelessWidget {
                     alignment: Alignment(((zoom?.centerX ?? 0.5) * 2) - 1, ((zoom?.centerY ?? 0.5) * 2) - 1),
                     child: _CroppedVideo(player: p, clip: clip, filter: clip.filter),
                   ),
+                if (broll != null && broll.isImage && broll.source['url'] is String)
+                  Image.network(
+                    broll.source['url'] as String,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
                 if (broll != null)
                   Container(
-                    color: Colors.black54,
+                    color: broll.isImage ? null : Colors.black54,
                     alignment: Alignment.topLeft,
                     padding: const EdgeInsets.all(8),
-                    child: StatusChip(label: 'B-roll: ${broll.source['query'] ?? broll.source['kind']}', color: AppTheme.accentBlue, icon: Icons.layers_rounded),
+                    child: StatusChip(label: '${broll.isImage ? 'Photo' : 'B-roll'}: ${broll.source['query'] ?? broll.source['kind']}', color: AppTheme.accentBlue, icon: Icons.layers_rounded),
                   ),
                 for (final cap in captions)
                   Align(
@@ -392,18 +404,22 @@ class _CaptionPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final st = caption.style;
-    Color col(String k, Color d) {
-      final v = st[k];
+
+    Color col2(Object? v, Color d) {
       if (v is! String) return d;
       final h = v.replaceFirst('#', '');
+      if (h.length != 6 && h.length != 8) return d;
       final n = int.tryParse(h.length == 6 ? 'FF$h' : h.substring(6) + h.substring(0, 6), radix: 16);
       return n == null ? d : Color(n);
     }
 
+    Color col(String k, Color d) => col2(st[k], d);
+
     final upper = st['uppercase'] == true;
     final text = col('textColor', Colors.white);
     final hi = col('highlightColor', const Color(0xFFFFE600));
-    final bg = st['background'] is Map ? Colors.black.withValues(alpha: 0.7) : null;
+    final bgSpec = st['background'];
+    final bg = bgSpec is Map ? col2(bgSpec['color'], Colors.black.withValues(alpha: 0.7)) : null;
     final spans = caption.words.isEmpty || caption.kind == 'text'
         ? [TextSpan(text: upper ? caption.text.toUpperCase() : caption.text)]
         : [
@@ -496,92 +512,6 @@ class _TranscriptChip extends StatelessWidget {
 }
 
 /// Main track as proportional blocks, with caption / zoom / B-roll / music lanes and a scrubber.
-class _ClipStrip extends StatelessWidget {
-  const _ClipStrip({required this.controller, required this.onScrub});
-  final StudioController controller;
-  final ValueChanged<int> onScrub;
-
-  @override
-  Widget build(BuildContext context) {
-    final ir = controller.ir!;
-    final total = ir.durationMs.toDouble();
-    return Container(
-      color: AppTheme.surfaceSubtle,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: LayoutBuilder(builder: (context, box) {
-        final w = box.maxWidth;
-        double x(int ms) => ms / total * w;
-        Widget lane(List<(int, int)> items, Color color, double h) => SizedBox(
-              height: h,
-              child: Stack(children: [
-                for (final (s, e) in items)
-                  Positioned(
-                    left: x(s),
-                    width: (x(e) - x(s)).clamp(2, w),
-                    top: 1,
-                    bottom: 1,
-                    child: DecoratedBox(decoration: BoxDecoration(color: color.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(2))),
-                  ),
-              ]),
-            );
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onHorizontalDragUpdate: (d) => onScrub((d.localPosition.dx / w * total).round()),
-          onTapDown: (d) => onScrub((d.localPosition.dx / w * total).round()),
-          child: Stack(children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              SizedBox(
-                height: 44,
-                child: Row(children: [
-                  for (var i = 0; i < ir.clips.length; i++)
-                    Expanded(
-                      flex: (ir.clips[i].timelineEndMs - ir.clips[i].timelineStartMs).clamp(1, 1 << 30),
-                      child: GestureDetector(
-                        onLongPress: () => controller.select(controller.selectedClip == i ? null : i),
-                        onDoubleTap: () => controller.select(controller.selectedClip == i ? null : i),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 0.5),
-                          decoration: BoxDecoration(
-                            color: AppTheme.accentBlue.withValues(alpha: controller.selectedClip == i ? 0.55 : 0.25),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: controller.selectedClip == i ? AppTheme.accentBlue : AppTheme.border),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            [
-                              if (ir.clips[i].speed != 1) '${ir.clips[i].speed}x',
-                              if (ir.clips[i].filter != null) 'fx',
-                              if (ir.clips[i].volumeDb <= -60) 'muted',
-                            ].join(' '),
-                            style: const TextStyle(fontSize: 10, color: AppTheme.textPrimary),
-                            overflow: TextOverflow.clip,
-                            maxLines: 1,
-                          ),
-                        ),
-                      ),
-                    ),
-                ]),
-              ),
-              const SizedBox(height: 3),
-              lane([for (final c in ir.captions) (c.startMs, c.endMs)], AppTheme.accentCyan, 8),
-              lane([for (final o in ir.overlays) (o.timelineStartMs, o.timelineEndMs)], AppTheme.accent, 8),
-              lane([for (final z in ir.zooms) (z.startMs, z.endMs)], AppTheme.warning, 6),
-              lane([for (final m in ir.audio.music) (m.timelineStartMs, m.timelineEndMs)], AppTheme.success, 8),
-              const SizedBox(height: 6),
-            ]),
-            Positioned(
-              left: x(controller.playheadMs).clamp(0, w - 2),
-              top: 0,
-              bottom: 0,
-              child: Container(width: 2, color: AppTheme.primary),
-            ),
-          ]),
-        );
-      }),
-    );
-  }
-}
-
 class _ToolBar extends StatelessWidget {
   const _ToolBar({required this.onTool});
   final ValueChanged<StudioTool> onTool;

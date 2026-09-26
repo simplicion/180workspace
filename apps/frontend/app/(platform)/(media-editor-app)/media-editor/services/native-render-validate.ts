@@ -12,6 +12,8 @@ import type { NativeRenderSpec } from "./native-render-plan";
 export const ALLOWED_FILTERS = [
   "color", "trim", "atrim", "setpts", "asetpts", "scale", "setsar", "format", "aformat", "overlay", "loop",
   "colorchannelmixer", "fps", "atempo", "volume", "adelay", "afade", "amix", "anullsrc", "aresample", "null", "anull",
+  // photos + effect track (none of these read files)
+  "crop", "split", "zoompan", "hue", "vignette", "fade",
 ] as const;
 
 export const MAX_GRAPH_LEN = 100_000;
