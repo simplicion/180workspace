@@ -5,7 +5,7 @@ import { SocialDomainError, notFound } from './tenant-scope';
 import { getDb } from './publishing/http';
 
 /** Post states that would still publish on their own; these are paused when their account goes away. */
-const PENDING_PUBLISH_STATUSES = ['scheduled', 'approved', 'in_review', 'failed', 'partially_published'];
+const PENDING_PUBLISH_STATUSES = ['scheduled', 'approved'];
 
 export interface ConnectAccountDTO {
     platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube' | 'x' | 'twitter';

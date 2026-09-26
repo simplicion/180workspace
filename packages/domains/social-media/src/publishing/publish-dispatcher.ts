@@ -524,6 +524,11 @@ export class PublishDispatcher {
         if (ok.length && !post.publishedAt) data.publishedAt = new Date(timing.now());
         const updated = await db.socialPost.update({ where: { id: postId }, data });
 
+        // Scheduled publishing runs unattended: a final failure (no retry left) must reach a person with the reason.
+        if (!note && opts.trigger === 'scheduler' && !retryAt && (status === 'failed' || status === 'partially_published')) {
+            await this.notifyPublishFailure(post, errors, status).catch((e) => console.warn('[publish] failure notification not sent:', e?.message));
+        }
+
         const variantResults: VariantResult[] = variants.map((v) => ({
             id: v.id,
             platform: v.platform,
@@ -561,6 +566,28 @@ export class PublishDispatcher {
             post: { ...updated, variants },
             retryScheduledFor: retryAt ? retryAt.toISOString() : null,
         };
+    }
+
+    /**
+     * Needs-attention notification for the post's author: which platforms failed and the provider's reason, with a
+     * link to the post where "Retry" is available. No author (system-created post) → nothing to notify.
+     */
+    static async notifyPublishFailure(post: any, errors: Record<string, string>, status: string) {
+        if (!post.createdById) return;
+        const db = getDb();
+        const failed = Object.entries(errors).filter(([, e]) => e !== 'Not published yet');
+        if (!failed.length) return;
+        const label = post.title || String(post.content || '').slice(0, 60) || 'Scheduled post';
+        const reasons = failed.map(([p, e]) => `${p}: ${String(e).slice(0, 200)}`).join('; ');
+        await db.notification.create({
+            data: {
+                userId: post.createdById,
+                type: 'social_publish_failed',
+                title: status === 'partially_published' ? `Partly published: ${label}` : `Publishing failed: ${label}`,
+                message: `${reasons}. Open the post to fix it and retry.`.slice(0, 1000),
+                link: post.projectId ? `/social-projects/${post.projectId}?post=${post.id}` : `/social-projects`,
+            },
+        });
     }
 
     /**
