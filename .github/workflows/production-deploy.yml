@@ -169,6 +169,11 @@ jobs:
               fi
             fi
 
+            if ! grep -q '^META_WEBHOOK_VERIFY_TOKEN=.\+' .env; then
+              printf '\nMETA_WEBHOOK_VERIFY_TOKEN=180workspace_meta_webhook_verify_token_prod_2026\n' >> .env
+              echo "==> META_WEBHOOK_VERIFY_TOKEN injected."
+            fi
+
             # 5. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
             sudo chown -R $(whoami):$(whoami) /home/ubuntu/app
             if [ ! -d ".git" ]; then

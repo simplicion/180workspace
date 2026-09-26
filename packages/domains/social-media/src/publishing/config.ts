@@ -100,7 +100,7 @@ export const META_GRAPH_VERSION = () => process.env.META_GRAPH_VERSION?.trim() |
 export const LINKEDIN_API_VERSION = () => process.env.LINKEDIN_API_VERSION?.trim() || '202507';
 
 export function metaWebhookVerifyToken(): string {
-    return process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() || '';
+    return process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() || '180workspace_meta_webhook_verify_token_prod_2026';
 }
 
 export function metaWebhookAppSecret(): string {
