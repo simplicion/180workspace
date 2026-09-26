@@ -95,7 +95,6 @@ export class PlatformAiVaultService {
         const raw = (
             process.env.PLATFORM_AI_ENCRYPTION_KEY ||
             process.env.AI_TOKEN_ENCRYPTION_KEY ||
-            process.env.SOCIAL_TOKEN_ENCRYPTION_KEY ||
             process.env.ENCRYPTION_KEY ||
             ''
         ).trim();
