@@ -5,6 +5,8 @@
 //! capabilities the browser cannot: local file access and bundled FFmpeg for all media processing.
 
 mod media;
+mod overlays;
+mod remote;
 mod render;
 
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -97,6 +99,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(media::AllowedPaths::default())
         .manage(render::RenderJobs::default())
+        .manage(remote::RemoteDownloads::default())
         .setup(|app| {
             let origin = app_origin();
             let initial_route = std::env::args()
@@ -141,6 +144,10 @@ pub fn run() {
             render::render_timeline,
             render::render_status,
             render::cancel_render,
+            overlays::write_caption_overlays,
+            overlays::clear_caption_overlays,
+            remote::fetch_remote_media,
+            remote::remote_media_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the 180 Workspace desktop app");

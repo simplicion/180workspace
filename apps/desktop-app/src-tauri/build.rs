@@ -14,6 +14,10 @@ fn main() {
             "render_timeline",
             "render_status",
             "cancel_render",
+            "write_caption_overlays",
+            "clear_caption_overlays",
+            "fetch_remote_media",
+            "remote_media_status",
         ])),
     )
     .expect("failed to run tauri-build");

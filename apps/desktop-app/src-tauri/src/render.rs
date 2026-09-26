@@ -53,6 +53,10 @@ pub struct RenderSpec {
     pub duration_sec: f64,
     pub quality: String,
     pub has_audio: bool,
+    /// Caption/title overlay list written by `write_caption_overlays` (an ffconcat image sequence). When present it is
+    /// the LAST input, `[<inputs.len()>:v]` in the graph, and is opened with the concat demuxer in safe mode.
+    #[serde(default)]
+    pub overlay_sequence: Option<String>,
 }
 
 // ── validation ────────────────────────────────────────────────────────────────
@@ -165,13 +169,19 @@ pub fn validate_spec(spec: &RenderSpec) -> Result<(), String> {
     if spec.maps.len() != expected.len() || spec.maps.iter().zip(expected).any(|(a, b)| a != b) {
         return Err("invalid output maps".to_string());
     }
-    validate_filter_graph(&spec.filter_complex, spec.inputs.len())
+    if let Some(p) = &spec.overlay_sequence {
+        if !p.ends_with("list.ffconcat") || p.len() > 4096 {
+            return Err("invalid overlay sequence".to_string());
+        }
+    }
+    let input_count = spec.inputs.len() + usize::from(spec.overlay_sequence.is_some());
+    validate_filter_graph(&spec.filter_complex, input_count)
 }
 
 // ── command line ──────────────────────────────────────────────────────────────
 
 /// Mirrors `renderSpec` in tests/integration/native-render-plan.integration.ts, which is run against real FFmpeg.
-pub fn build_args(spec: &RenderSpec, inputs: &[PathBuf], output: &Path) -> Vec<String> {
+pub fn build_args(spec: &RenderSpec, inputs: &[PathBuf], overlay_list: Option<&Path>, output: &Path) -> Vec<String> {
     let mut a: Vec<String> = ["-y", "-hide_banner", "-loglevel", "error", "-nostats", "-progress", "pipe:1"]
         .iter()
         .map(|s| s.to_string())
@@ -179,6 +189,13 @@ pub fn build_args(spec: &RenderSpec, inputs: &[PathBuf], output: &Path) -> Vec<S
     for p in inputs {
         a.push("-i".into());
         a.push(p.to_string_lossy().into_owned());
+    }
+    if let Some(list) = overlay_list {
+        // safe mode: the list may only name plain relative files (it only ever contains f00000.png-style names)
+        for s in ["-f", "concat", "-safe", "1", "-i"] {
+            a.push(s.into());
+        }
+        a.push(list.to_string_lossy().into_owned());
     }
     a.push("-filter_complex".into());
     a.push(spec.filter_complex.clone());
@@ -292,6 +309,10 @@ pub async fn render_timeline(
     for p in &spec.inputs {
         inputs.push(allowed.check_existing(p)?);
     }
+    let overlay_list = match &spec.overlay_sequence {
+        Some(p) => Some(crate::overlays::check_overlay_list(&app, p)?),
+        None => None,
+    };
     let output = allowed.check_output(&output_path)?;
     if inputs.iter().any(|p| p == &output) {
         return Err("Output must be a different file from every input.".to_string());
@@ -305,7 +326,7 @@ pub async fn render_timeline(
         }
     }
 
-    let args = build_args(&spec, &inputs, &output);
+    let args = build_args(&spec, &inputs, overlay_list.as_deref(), &output);
     let (mut rx, child) = app
         .shell()
         .sidecar("ffmpeg")
@@ -511,7 +532,7 @@ mod tests {
     fn command_line_has_the_tested_shape() {
         let s = spec();
         let inputs: Vec<PathBuf> = s.inputs.iter().map(PathBuf::from).collect();
-        let args = build_args(&s, &inputs, Path::new("/out/final.mp4"));
+        let args = build_args(&s, &inputs, None, Path::new("/out/final.mp4"));
         assert_eq!(&args[..5], ["-y", "-hide_banner", "-loglevel", "error", "-nostats"]);
         assert!(args.windows(2).any(|w| w[0] == "-filter_complex" && w[1] == s.filter_complex));
         assert_eq!(args.iter().filter(|a| *a == "-i").count(), s.inputs.len());
@@ -519,6 +540,25 @@ mod tests {
         assert_eq!(args.last().map(String::as_str), Some("/out/final.mp4"));
         // never anything the caller controls except the graph, size/fps and quality
         assert!(!args.iter().any(|a| a == "-f" || a == "-vf" || a == "-af"));
+    }
+
+    #[test]
+    fn caption_overlay_list_is_the_last_input_opened_with_the_concat_demuxer() {
+        let mut s = spec();
+        let inputs: Vec<PathBuf> = s.inputs.iter().map(PathBuf::from).collect();
+        let n = s.inputs.len();
+        s.overlay_sequence = Some("/cache/render-overlays/o1-1/list.ffconcat".to_string());
+        s.filter_complex = format!("{};[base9][{n}:v]overlay=x=0:y=0:eof_action=repeat[cap]", s.filter_complex);
+        validate_spec(&s).expect("overlay input index is in range");
+        let args = build_args(&s, &inputs, Some(Path::new("/cache/render-overlays/o1-1/list.ffconcat")), Path::new("/out/final.mp4"));
+        let i = args.iter().position(|a| a == "concat").expect("concat demuxer");
+        assert_eq!(&args[i - 1..i + 5], ["-f", "concat", "-safe", "1", "-i", "/cache/render-overlays/o1-1/list.ffconcat"]);
+        assert_eq!(args.iter().filter(|a| *a == "-i").count(), n + 1);
+        // without the overlay list, the extra input index is out of range
+        s.overlay_sequence = None;
+        assert!(validate_spec(&s).is_err());
+        s.overlay_sequence = Some("/etc/passwd".to_string());
+        assert!(validate_spec(&s).is_err());
     }
 
     #[test]
