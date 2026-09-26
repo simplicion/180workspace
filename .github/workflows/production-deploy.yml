@@ -202,6 +202,15 @@ jobs:
             docker compose pull
             docker compose -f docker-compose.livekit.yml pull || true
 
+            # 8b. Apply pending Prisma migrations (packages/db/prisma/migrations) with the NEW backend image, before any
+            #     container is restarted, so new code never runs against an old schema. `migrate deploy` only applies
+            #     committed migrations: it never resets, drops or generates. Any failure stops the deploy here (set -e).
+            #     One-time prerequisite for a database that was created with `prisma db push`: baseline it with
+            #     `prisma migrate resolve --applied <migration>` for every migration already reflected in the schema,
+            #     otherwise this step fails with P3005.
+            echo "==> Applying database migrations (prisma migrate deploy)..."
+            docker compose run --rm --no-deps -T -w /app/packages/db backend ./node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+
             # 9. Stop host-level services / processes binding to port 80 or 443
             sudo systemctl stop nginx apache2 2>/dev/null || true
             sudo systemctl disable nginx apache2 2>/dev/null || true
