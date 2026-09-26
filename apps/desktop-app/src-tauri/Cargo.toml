@@ -19,6 +19,8 @@ tauri-plugin-dialog = "2"       # native file pickers; picked paths are the ONLY
 tauri-plugin-deep-link = "2"    # workspace180:// links
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# downloads allow-listed https stock media into the app cache before a render (src/remote.rs); rustls, no OpenSSL
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"   # second launch (e.g. clicking a workspace180:// link) focuses the running window

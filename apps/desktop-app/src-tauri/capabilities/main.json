@@ -16,6 +16,10 @@
     "allow-extract-audio-for-transcription",
     "allow-render-timeline",
     "allow-render-status",
-    "allow-cancel-render"
+    "allow-cancel-render",
+    "allow-write-caption-overlays",
+    "allow-clear-caption-overlays",
+    "allow-fetch-remote-media",
+    "allow-remote-media-status"
   ]
 }

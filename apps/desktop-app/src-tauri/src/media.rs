@@ -62,6 +62,14 @@ impl AllowedPaths {
         Ok(canon.to_string_lossy().into_owned())
     }
 
+    /// Allows a file the app itself created in its cache (downloaded stock media) for this session only; it is never
+    /// added to the remembered list.
+    pub(crate) fn allow_session_file(&self, path: &Path) -> Result<String, String> {
+        let canon = simplify(path.canonicalize().map_err(|e| format!("Cannot access {}: {e}", path.display()))?);
+        self.0.lock().map_err(|_| "internal state error".to_string())?.insert(canon.clone());
+        Ok(canon.to_string_lossy().into_owned())
+    }
+
     /// Records an output file that may not exist yet (canonicalises its directory instead).
     fn allow_new_output(&self, path: &Path) -> Result<String, String> {
         let file_name = path.file_name().ok_or("Output path has no file name")?;
