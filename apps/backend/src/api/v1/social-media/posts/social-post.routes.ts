@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { SocialPostService, EditingTaskService, PublishDispatcher, isPublishError } from '@workspace/social-media';
+import { SocialPostService, EditingTaskService, PublishDispatcher } from '@workspace/social-media';
 import { requireDesktopDevice } from '../../desktop/desktop-device';
 import { deliverableMultipart, submitForApproval } from './deliverable-upload';
+import { companyOfUser, sendRouteError } from '../route-errors';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get('/', async (req: Request, res: Response) => {
         });
         res.json({ success: true, posts });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 
@@ -30,7 +31,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         const post = await SocialPostService.getPost(String(req.params.id));
         res.json({ success: true, post });
     } catch (error: any) {
-        res.status(404).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 
@@ -41,7 +42,7 @@ router.post('/', async (req: Request, res: Response) => {
         const post = await SocialPostService.createPost(req.body, user?.id);
         res.status(201).json({ success: true, post });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 
@@ -52,7 +53,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         const post = await SocialPostService.updatePost(String(req.params.id), req.body, user?.id);
         res.json({ success: true, post });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 
@@ -62,7 +63,7 @@ router.post('/:id/footage', async (req: Request, res: Response) => {
         const result = await SocialPostService.submitFootage(String(req.params.id), req.body);
         res.json(result);
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 
@@ -83,7 +84,7 @@ router.post('/:id/assign-editor', async (req: Request, res: Response) => {
         }, user?.id || 'system_user');
         res.status(201).json({ success: true, task });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 
@@ -95,7 +96,7 @@ router.post('/tasks/:taskId/submit-deliverable', async (req: Request, res: Respo
         const result = await EditingTaskService.submitEditorDeliverable(String(req.params.taskId), deliverableUrl, thumbnailUrl, notes);
         res.json(result);
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 
@@ -105,7 +106,7 @@ router.get('/:id/studio-launch-context', async (req: Request, res: Response) => 
         const context = await EditingTaskService.buildMediaStudioLaunchContext(undefined, String(req.params.id));
         res.json({ success: true, context });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 
@@ -115,21 +116,24 @@ router.get('/:id/validate-publish', async (req: Request, res: Response) => {
         const validation = await SocialPostService.validatePublishingReadiness(String(req.params.id));
         res.json({ success: true, ...validation });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 
 // Sync video rendered from 180 Media Studio (web or native desktop)
 router.post('/sync-studio-render', async (req: Request, res: Response) => {
     try {
-        const { calendarPieceId, finalVideoUrl, thumbnailUrl } = req.body;
+        // Tenant = the caller's JWT company only: another company's piece id is a 404 and nothing is written.
+        const companyId = companyOfUser(req);
+        if (!companyId) return res.status(401).json({ success: false, error: 'Authentication required' });
+        const { calendarPieceId, finalVideoUrl, thumbnailUrl } = req.body || {};
         if (!calendarPieceId || !finalVideoUrl) {
             return res.status(400).json({ success: false, error: 'calendarPieceId and finalVideoUrl are required' });
         }
-        const result = await SocialPostService.syncVideoFromStudio(calendarPieceId, finalVideoUrl, thumbnailUrl);
+        const result = await SocialPostService.syncVideoFromStudio(String(calendarPieceId), String(finalVideoUrl), thumbnailUrl ? String(thumbnailUrl) : undefined, companyId);
         res.json(result);
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 
@@ -138,12 +142,7 @@ router.post('/sync-studio-render', async (req: Request, res: Response) => {
 router.post('/:id/submit-for-approval', requireDesktopDevice, deliverableMultipart, submitForApproval);
 
 /** Typed publishing errors keep their HTTP status and code (e.g. 503 PUBLISH_NOT_CONFIGURED, 409 APPROVAL_REQUIRED). */
-const sendPublishError = (res: Response, error: any) => {
-    if (isPublishError(error)) {
-        return res.status(error.httpStatus).json({ success: false, code: error.code, error: error.message, platform: error.platform, details: error.details });
-    }
-    return res.status(400).json({ success: false, error: error?.message || 'Publishing failed' });
-};
+const sendPublishError = (res: Response, error: any) => sendRouteError(res, error, 'posts.publish');
 
 // Publish now: every unpublished variant; per-platform status, honest partial failure, never re-posts a published variant.
 router.post('/:id/publish', async (req: Request, res: Response) => {
@@ -187,7 +186,7 @@ router.post('/:id/repurpose', async (req: Request, res: Response) => {
         const result = await SocialPostService.repurposePost(String(req.params.id), req.body);
         res.status(201).json({ success: true, post: result });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'posts');
     }
 });
 

@@ -245,22 +245,18 @@ export class PublishDispatcher {
         return this.summarize(post.id, opts);
     }
 
-    /** Creates the implicit variant for posts that only have `socialAccountId` or in simulation mode. */
+    /**
+     * Creates the implicit variant for posts that only have `socialAccountId` (or in simulation mode, with no account).
+     * A post with neither variants nor an account throws ACCOUNT_NOT_CONNECTED; no account is ever picked for it.
+     */
     static async ensureVariants(post: any): Promise<any[]> {
         const db = getDb();
         const variants = await db.socialPostVariant.findMany({ where: { postId: post.id }, take: 50 });
         if (variants.length) return variants;
 
         if (!post.socialAccountId) {
-            const anyAccount = await db.socialAccount.findFirst({
-                where: { companyId: post.companyId, isActive: true, ...(post.projectId ? { projectId: post.projectId } : {}) },
-            });
-            if (anyAccount) {
-                const v = await db.socialPostVariant.create({
-                    data: { postId: post.id, platform: anyAccount.platform, customContent: post.content, customMediaUrls: post.mediaUrls || [], platformMeta: {}, socialAccountId: anyAccount.id },
-                });
-                return [v];
-            }
+            // Never guess: publishing to "whichever active account the query returns first" could post to the wrong
+            // brand's channel. Without a variant or an explicit account the user must choose one.
             if (isSimulationMode()) {
                 const v = await db.socialPostVariant.create({
                     data: { postId: post.id, platform: 'instagram', customContent: post.content, customMediaUrls: post.mediaUrls || [], platformMeta: {} },

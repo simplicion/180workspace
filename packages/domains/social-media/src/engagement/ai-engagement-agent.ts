@@ -3,6 +3,7 @@ import { SocialTokenVault } from '../publishing/token-vault';
 import { InstagramPublisher } from '../adapters/meta.adapter';
 import { SocialInboxService } from '../social-inbox.service';
 import { BrandVoiceService } from '../brand-voice.service';
+import { VAULT_ACCOUNT_SELECT } from '../tenant-scope';
 
 export interface AiAgentTurnOutcome {
     replied: boolean;
@@ -48,7 +49,7 @@ export class AiEngagementAgent {
         const conversation = await db.socialConversation.findUnique({
             where: { id: conversationId },
             include: {
-                socialAccount: true,
+                socialAccount: { select: VAULT_ACCOUNT_SELECT },
                 messages: {
                     orderBy: { createdAt: 'desc' },
                     take: 10,
@@ -156,20 +157,9 @@ export class AiEngagementAgent {
 
         if (account && conversation.platform === 'instagram') {
             try {
-                let token: string | null = null;
-                try {
-                    token = await SocialTokenVault.getAccessToken(account);
-                } catch {
-                    if ((account as any).accessToken) {
-                        token = (account as any).accessToken;
-                    }
-                }
-                if (!token && (account as any).accessToken) {
-                    token = (account as any).accessToken;
-                }
-                if (token) {
-                    await InstagramPublisher.sendDirectMessage(account.platformAccountId, conversation.platformThreadId, text, token);
-                }
+                // Tokens come only from the encrypted vault (never the legacy plaintext columns).
+                const token = await SocialTokenVault.getAccessToken(account);
+                await InstagramPublisher.sendDirectMessage(account.platformAccountId, conversation.platformThreadId, text, token);
             } catch (err: any) {
                 console.warn(`[AiEngagementAgent] Platform dispatch warning: ${err.message}`);
             }

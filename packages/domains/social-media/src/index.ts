@@ -20,3 +20,4 @@ export * from './autopilot-calendar.service';
 export * from './creative';
 export * from './publishing';
 export * from './engagement';
+export * from './tenant-scope';

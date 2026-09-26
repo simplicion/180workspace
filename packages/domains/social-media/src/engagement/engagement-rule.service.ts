@@ -1,11 +1,36 @@
 import { getDb } from '../publishing/http';
 import { CreateEngagementRuleDTO, UpdateEngagementRuleDTO } from './types';
+import { SAFE_ACCOUNT_SELECT, SocialDomainError, notFound, requireCompanyId } from '../tenant-scope';
+
+const invalid = (message: string) => new SocialDomainError('VALIDATION_FAILED', 400, message);
 
 export class EngagementRuleService {
+    /**
+     * A rule may only reference the caller's own project, social account and post: otherwise a tenant could make
+     * another company's account auto-reply / DM. Ids of another company (or unknown ids) are a 404.
+     */
+    private static async assertReferencesOwned(companyId: string, dto: { projectId?: string | null; socialAccountId?: string | null; postId?: string | null }) {
+        const db = getDb();
+        if (dto.projectId && !(await db.project.findFirst({ where: { id: String(dto.projectId), companyId }, select: { id: true } }))) {
+            throw notFound('Project');
+        }
+        if (dto.socialAccountId && !(await db.socialAccount.findFirst({ where: { id: String(dto.socialAccountId), companyId }, select: { id: true } }))) {
+            throw notFound('Social account');
+        }
+        if (dto.postId && !(await db.socialPost.findFirst({ where: { id: String(dto.postId), companyId }, select: { id: true } }))) {
+            throw notFound('Post');
+        }
+    }
+
     /**
      * Creates a new engagement automation rule.
      */
     static async createRule(companyId: string, dto: CreateEngagementRuleDTO): Promise<any> {
+        requireCompanyId(companyId);
+        if (!dto || typeof dto.name !== 'string' || !dto.name.trim()) throw invalid('name is required');
+        if (!dto.triggerType) throw invalid('triggerType is required');
+        if (typeof dto.actionDmTemplate !== 'string') throw invalid('actionDmTemplate is required');
+        await this.assertReferencesOwned(companyId, dto);
         const db = getDb();
 
         const rule = await db.socialEngagementRule.create({
@@ -64,7 +89,8 @@ export class EngagementRuleService {
         const rule = await db.socialEngagementRule.findUnique({
             where: { id: ruleId },
             include: {
-                socialAccount: true,
+                // Never the full account row: it carries the legacy plaintext token columns.
+                socialAccount: { select: SAFE_ACCOUNT_SELECT },
                 socialPost: true,
                 logs: {
                     orderBy: { createdAt: 'desc' },
@@ -74,7 +100,7 @@ export class EngagementRuleService {
         });
 
         if (!rule || rule.companyId !== companyId) {
-            throw new Error(`Engagement rule ${ruleId} not found`);
+            throw notFound('Engagement rule');
         }
 
         return rule;
@@ -86,10 +112,14 @@ export class EngagementRuleService {
     static async updateRule(companyId: string, ruleId: string, dto: UpdateEngagementRuleDTO): Promise<any> {
         const db = getDb();
         await this.getRule(companyId, ruleId); // asserts ownership
+        await this.assertReferencesOwned(companyId, dto || {});
 
         return db.socialEngagementRule.update({
             where: { id: ruleId },
             data: {
+                ...(dto.projectId !== undefined ? { projectId: dto.projectId || null } : {}),
+                ...(dto.socialAccountId !== undefined ? { socialAccountId: dto.socialAccountId || null } : {}),
+                ...(dto.postId !== undefined ? { postId: dto.postId || null } : {}),
                 ...(dto.name ? { name: dto.name.trim() } : {}),
                 ...(dto.status ? { status: dto.status } : {}),
                 ...(dto.triggerType ? { triggerType: dto.triggerType } : {}),
@@ -150,19 +180,20 @@ export class EngagementRuleService {
 
         const rules = await db.socialEngagementRule.findMany({
             where: whereClause,
+            // Schema column names (SocialEngagementRule.stats*); the response keeps the total* names.
             select: {
                 status: true,
-                totalTriggered: true,
-                totalDmsSent: true,
-                totalLiked: true,
+                statsTriggeredCount: true,
+                statsDmsSentCount: true,
+                statsCommentsLiked: true,
             },
         });
 
         const totalRules = rules.length;
         const activeRules = rules.filter((r: any) => r.status === 'active').length;
-        const totalTriggered = rules.reduce((acc: number, r: any) => acc + (r.totalTriggered || 0), 0);
-        const totalDmsSent = rules.reduce((acc: number, r: any) => acc + (r.totalDmsSent || 0), 0);
-        const totalLiked = rules.reduce((acc: number, r: any) => acc + (r.totalLiked || 0), 0);
+        const totalTriggered = rules.reduce((acc: number, r: any) => acc + (r.statsTriggeredCount || 0), 0);
+        const totalDmsSent = rules.reduce((acc: number, r: any) => acc + (r.statsDmsSentCount || 0), 0);
+        const totalLiked = rules.reduce((acc: number, r: any) => acc + (r.statsCommentsLiked || 0), 0);
 
         const logs = await db.socialInteractionLog.count({
             where: {
