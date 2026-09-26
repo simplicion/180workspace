@@ -31,13 +31,41 @@ export function toPublicAccount<T extends Record<string, any> | null | undefined
     const out: Record<string, any> = {};
     for (const [k, v] of Object.entries(a)) if (!SECRET_FIELDS.includes(k)) out[k] = v;
     out.hasCredential = Boolean((a as any).credential || (a as any).accessToken || (a as any).hasCredential);
+    out.tokenHealth = accountTokenHealth(a as any);
     return out;
+}
+
+export interface TokenHealth {
+    state: 'ok' | 'expiring_soon' | 'expired' | 'reauth_required' | 'unknown';
+    /** When publishing stops working without a reconnect (null = no known end). */
+    lapsesAt: string | null;
+    message: string | null;
+}
+
+/**
+ * When the account stops being usable. With a refresh token the proactive job keeps the access token fresh, so the
+ * account lapses when the refresh token does; without one it lapses with the access token. Warns 7 days ahead.
+ */
+export function accountTokenHealth(a: { reauthRequired?: boolean; reauthReason?: string | null; credential?: any }, now: number = Date.now()): TokenHealth {
+    if (a?.reauthRequired) return { state: 'reauth_required', lapsesAt: null, message: a.reauthReason || 'The platform rejected the saved login. Reconnect the account.' };
+    const c = a?.credential;
+    if (!c) return { state: 'unknown', lapsesAt: null, message: null };
+    const hasRefresh = Boolean(c.refreshTokenEnc);
+    const raw = hasRefresh ? c.refreshTokenExpiresAt : c.accessTokenExpiresAt;
+    if (!raw) return { state: 'ok', lapsesAt: null, message: null };
+    const at = new Date(raw).getTime();
+    const iso = new Date(at).toISOString();
+    if (at <= now) return { state: 'expired', lapsesAt: iso, message: 'The saved login has expired. Reconnect the account to keep publishing.' };
+    const days = Math.ceil((at - now) / 86_400_000);
+    if (days <= 7) return { state: 'expiring_soon', lapsesAt: iso, message: `The saved login expires in ${days} day${days === 1 ? '' : 's'}. Reconnect before then so scheduled posts keep publishing.` };
+    return { state: 'ok', lapsesAt: iso, message: null };
 }
 
 const PUBLIC_INCLUDE = {
     project: { select: { id: true, name: true } },
     client: { select: { id: true, name: true } },
-    credential: { select: { id: true, accessTokenExpiresAt: true } },
+    // refreshTokenEnc is read only to derive tokenHealth; toPublicAccount drops the whole credential object.
+    credential: { select: { id: true, accessTokenExpiresAt: true, refreshTokenExpiresAt: true, refreshTokenEnc: true } },
 };
 
 export class SocialAccountService {

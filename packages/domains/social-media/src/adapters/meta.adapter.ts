@@ -6,7 +6,7 @@
  */
 import { META_GRAPH_VERSION, intEnv } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
-import { requireToken } from "./engagement-token";
+import { isSandboxToken, requireToken } from "./engagement-token";
 import { expectOk, pollUntil, providerFetch } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkAspect, checkUrls, checkVideo } from './types';
 
@@ -310,7 +310,9 @@ export interface FacebookPublishParams {
 export class MetaAdapter {
     static async publishInstagramMedia(params: InstagramPublishParams): Promise<{ mediaId: string; liveUrl: string }> {
         const { accessToken, igUserId, caption, videoUrl, imageUrl, mediaType = 'REELS' } = params;
-        if (!accessToken || accessToken.startsWith('mock_') || !igUserId) {
+        requireToken(accessToken, 'meta');
+        if (!igUserId) throw new PublishError('ACCOUNT_NOT_CONNECTED', 'The meta account id is missing; reconnect the account.', { platform: 'meta' as any });
+        if (isSandboxToken(accessToken)) {
             const shortcode = Math.random().toString(36).substring(2, 9);
             return {
                 mediaId: `mock_ig_${Date.now()}`,
@@ -333,7 +335,9 @@ export class MetaAdapter {
 
     static async publishFacebookPost(params: FacebookPublishParams): Promise<{ postId: string; liveUrl: string }> {
         const { accessToken, pageId, message, videoUrl, photoUrl } = params;
-        if (!accessToken || accessToken.startsWith('mock_') || !pageId) {
+        requireToken(accessToken, 'meta');
+        if (!pageId) throw new PublishError('ACCOUNT_NOT_CONNECTED', 'The meta account id is missing; reconnect the account.', { platform: 'meta' as any });
+        if (isSandboxToken(accessToken)) {
             const mockPostId = `${pageId}_${Date.now()}`;
             return {
                 postId: mockPostId,

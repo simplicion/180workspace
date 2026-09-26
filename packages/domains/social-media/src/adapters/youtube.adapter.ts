@@ -7,7 +7,7 @@
  */
 import { intEnv } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
-import { requireToken } from "./engagement-token";
+import { isSandboxToken, requireToken } from "./engagement-token";
 import { asBody, downloadMedia, expectOk, providerFailure, providerFetch, readBody } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkUrls, checkVideo, isVertical } from './types';
 
@@ -50,6 +50,9 @@ export class YouTubePublisher implements PlatformPublisher {
         checkUrls(input, issues);
         const v = input.media.find((m) => m.kind === 'video');
         if (input.format !== 'video' || !v) issues.push('YouTube needs a video.');
+        const rawTitle = String(input.title || input.platformMeta.title || input.caption.split('\n')[0] || '').trim();
+        if (!rawTitle) issues.push('YouTube videos need a title (add a title or a first caption line).');
+        else if (charLength(rawTitle) > 100) issues.push('YouTube titles are limited to 100 characters.');
         const meta = this.buildMetadata(input);
         if (/[<>]/.test(meta.snippet.title)) issues.push('YouTube titles cannot contain < or >.');
         if (Buffer.byteLength(meta.snippet.description, 'utf8') > 5000) issues.push('YouTube descriptions are limited to 5,000 bytes.');
@@ -147,7 +150,8 @@ export interface YouTubePublishParams {
 export class YouTubeAdapter {
     static async publishVideo(params: YouTubePublishParams): Promise<{ videoId: string; liveUrl: string }> {
         const { accessToken, title, description, tags = [], privacyStatus = 'public', isShort = false, videoUrl } = params;
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'youtube');
+        if (isSandboxToken(accessToken)) {
             const mockId = Math.random().toString(36).substring(2, 13);
             return {
                 videoId: mockId,
@@ -170,7 +174,8 @@ export class YouTubeAdapter {
     }
 
     static async replyToComment(commentId: string, text: string, accessToken: string): Promise<{ commentId: string }> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'youtube');
+        if (isSandboxToken(accessToken)) {
             return { commentId: `yt_reply_${Date.now()}` };
         }
         requireToken(accessToken, "youtube");
@@ -192,7 +197,8 @@ export class YouTubeAdapter {
     }
 
     static async likeVideo(videoId: string, accessToken: string): Promise<boolean> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'youtube');
+        if (isSandboxToken(accessToken)) {
             return true;
         }
         requireToken(accessToken, "youtube");
@@ -205,7 +211,8 @@ export class YouTubeAdapter {
     }
 
     static async fetchComments(videoId: string, accessToken: string, maxResults = 50): Promise<any[]> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'youtube');
+        if (isSandboxToken(accessToken)) {
             return [{ id: 'yt_comm_mock', snippet: { topLevelComment: { snippet: { textDisplay: 'Mock comment' } } } }];
         }
         requireToken(accessToken, "youtube");
@@ -217,7 +224,8 @@ export class YouTubeAdapter {
     }
 
     static async getAnalytics(channelId: string, startDate: string, endDate: string, accessToken: string): Promise<any> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'youtube');
+        if (isSandboxToken(accessToken)) {
             return { views: 1250, likes: 340, comments: 42, estimatedMinutesWatched: 4500 };
         }
         requireToken(accessToken, "youtube");
@@ -229,7 +237,8 @@ export class YouTubeAdapter {
     }
 
     static async uploadCaption(videoId: string, language: string, name: string, captionBytes: Uint8Array, accessToken: string): Promise<any> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'youtube');
+        if (isSandboxToken(accessToken)) {
             return { id: 'mock_caption_id' };
         }
         const meta = { snippet: { videoId, language, name } };

@@ -63,6 +63,26 @@ const nextConfig = {
                 destination: '/media-editor',
                 permanent: false,
             },
+            {
+                source: '/content-calendar/:path*',
+                destination: '/social-projects',
+                permanent: false,
+            },
+            {
+                source: '/social-media-assets/:path*',
+                destination: '/social-projects',
+                permanent: false,
+            },
+            {
+                source: '/inbox',
+                destination: '/social-projects',
+                permanent: false,
+            },
+            {
+                source: '/social-projects/new',
+                destination: '/social-projects',
+                permanent: false,
+            },
         ];
     },
     async rewrites() {

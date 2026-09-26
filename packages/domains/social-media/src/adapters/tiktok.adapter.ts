@@ -11,7 +11,7 @@
  */
 import { intEnv } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
-import { requireToken } from "./engagement-token";
+import { isSandboxToken, requireToken } from "./engagement-token";
 import { asBody, downloadMedia, providerFailure, providerFetch, readBody, timing } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkUrls, checkVideo } from './types';
 
@@ -188,7 +188,8 @@ export interface TikTokPublishParams {
 export class TikTokAdapter {
     static async publishVideo(params: TikTokPublishParams): Promise<{ publishId: string; liveUrl: string }> {
         const { accessToken, videoUrl, title } = params;
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'tiktok');
+        if (isSandboxToken(accessToken)) {
             const mockPubId = `v_pub_${Math.random().toString(36).substring(2, 9)}`;
             return {
                 publishId: mockPubId,
