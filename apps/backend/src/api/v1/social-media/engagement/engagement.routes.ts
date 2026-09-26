@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { EngagementRuleService, EngagementMatcher, InboundEngagementEvent } from '@workspace/social-media';
+import { EngagementRuleService, EngagementMatcher, InboundEngagementEvent, SocialDomainError } from '@workspace/social-media';
+import { sendRouteError } from '../route-errors';
 import { requestContext } from '@workspace/db';
 
 const router = Router();
@@ -9,7 +10,7 @@ function getCompanyId(req: Request): string {
     if (fromContext) return String(fromContext);
     const fromUser = (req as any).user?.companyId;
     if (fromUser) return String(fromUser);
-    throw new Error('Authentication / Company context required');
+    throw new SocialDomainError('UNAUTHENTICATED', 401, 'Authentication / Company context required');
 }
 
 /**
@@ -27,7 +28,7 @@ router.get('/rules', async (req: Request, res: Response) => {
         });
         res.json({ success: true, rules });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'engagement');
     }
 });
 
@@ -41,7 +42,7 @@ router.post('/rules', async (req: Request, res: Response) => {
         const rule = await EngagementRuleService.createRule(companyId, req.body);
         res.status(201).json({ success: true, rule });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'engagement');
     }
 });
 
@@ -58,7 +59,7 @@ router.get('/rules/:id', async (req: Request, res: Response) => {
         }
         res.json({ success: true, rule });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'engagement');
     }
 });
 
@@ -72,7 +73,7 @@ router.put('/rules/:id', async (req: Request, res: Response) => {
         const rule = await EngagementRuleService.updateRule(companyId, String(req.params.id), req.body);
         res.json({ success: true, rule });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'engagement');
     }
 });
 
@@ -86,7 +87,7 @@ router.delete('/rules/:id', async (req: Request, res: Response) => {
         const result = await EngagementRuleService.deleteRule(companyId, String(req.params.id));
         res.json({ success: true, ...result });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'engagement');
     }
 });
 
@@ -100,7 +101,7 @@ router.patch('/rules/:id/toggle', async (req: Request, res: Response) => {
         const rule = await EngagementRuleService.toggleRule(companyId, String(req.params.id));
         res.json({ success: true, rule });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'engagement');
     }
 });
 
@@ -117,7 +118,7 @@ router.get('/stats', async (req: Request, res: Response) => {
         );
         res.json({ success: true, stats });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'engagement');
     }
 });
 
@@ -139,7 +140,7 @@ router.post('/test-match', async (req: Request, res: Response) => {
             rule: matchingRule,
         });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'engagement');
     }
 });
 

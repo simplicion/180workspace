@@ -1,6 +1,7 @@
 import { prisma, requestContext } from '@workspace/db';
 import { SocialTokenVault } from './publishing/token-vault';
 import { normalizePlatform } from './publishing/config';
+import { SocialDomainError, notFound } from './tenant-scope';
 
 export interface ConnectAccountDTO {
     platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube' | 'x' | 'twitter';
@@ -38,7 +39,7 @@ const PUBLIC_INCLUDE = {
 export class SocialAccountService {
     static async listAccounts(projectId?: string) {
         const companyId = requestContext.getStore()?.companyId as string;
-        if (!companyId) throw new Error('Company context required');
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
 
         const whereClause: any = { companyId, isActive: true };
         if (projectId) whereClause.projectId = projectId;
@@ -57,7 +58,7 @@ export class SocialAccountService {
             where: { id, companyId },
             include: PUBLIC_INCLUDE,
         });
-        if (!account) throw new Error('Social account not found');
+        if (!account) throw notFound('Social account');
         return toPublicAccount(account);
     }
 
@@ -67,10 +68,10 @@ export class SocialAccountService {
      */
     static async connectAccount(data: ConnectAccountDTO) {
         const companyId = requestContext.getStore()?.companyId as string;
-        if (!companyId) throw new Error('Company context required');
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
         const platform = normalizePlatform(data.platform);
-        if (!platform) throw new Error(`Unsupported platform "${data.platform}"`);
-        if (!data.platformAccountId || !data.accessToken) throw new Error('platformAccountId and accessToken are required');
+        if (!platform) throw new SocialDomainError('VALIDATION_FAILED', 400, `Unsupported platform "${data.platform}"`);
+        if (!data.platformAccountId || !data.accessToken) throw new SocialDomainError('VALIDATION_FAILED', 400, 'platformAccountId and accessToken are required');
 
         const fields = {
             accountName: data.accountName,
@@ -101,7 +102,7 @@ export class SocialAccountService {
     static async disconnectAccount(id: string) {
         const companyId = requestContext.getStore()?.companyId as string;
         const account = await (prisma as any).socialAccount.findFirst({ where: { id, companyId } });
-        if (!account) throw new Error('Social account not found');
+        if (!account) throw notFound('Social account');
 
         await (prisma as any).socialAccount.update({
             where: { id },

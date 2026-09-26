@@ -1,8 +1,7 @@
 import { prisma, requestContext } from '@workspace/db';
 import { PublishDispatcher, isPostApproved, projectRequiresApproval } from './publishing/publish-dispatcher';
-
-/** Account fields safe to embed in post responses (never tokens). */
-const SAFE_ACCOUNT_SELECT = { id: true, platform: true, accountName: true, username: true, profileImageUrl: true, reauthRequired: true, isActive: true };
+import { getDb } from './publishing/http';
+import { SAFE_ACCOUNT_SELECT, SocialDomainError, notFound, pieceScope, requireCompanyId } from './tenant-scope';
 
 export interface PostVariantInput {
     platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube' | 'twitter' | 'x' | 'threads' | 'pinterest' | 'reddit' | string;
@@ -37,7 +36,7 @@ export interface CreateSocialPostDTO {
 export class SocialPostService {
     static async createPost(data: CreateSocialPostDTO, userId?: string) {
         const companyId = requestContext.getStore()?.companyId as string;
-        if (!companyId) throw new Error('Company context required');
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
 
         const post = await (prisma as any).socialPost.create({
             data: {
@@ -90,8 +89,9 @@ export class SocialPostService {
 
         // If linked to a calendarPiece, sync the status & media
         if (data.calendarPieceId) {
-            await (prisma as any).calendarContentPiece.update({
-                where: { id: data.calendarPieceId },
+            // Scoped: a piece id of another company matches nothing (update by id alone bypasses the tenant filter).
+            await (prisma as any).calendarContentPiece.updateMany({
+                where: pieceScope(data.calendarPieceId, companyId),
                 data: {
                     rawMediaUrls: data.rawMediaUrls || [],
                     finalVideoUrl: data.finalVideoUrl,
@@ -122,7 +122,7 @@ export class SocialPostService {
         });
 
         if (!post || (companyId && post.companyId !== companyId)) {
-            throw new Error('Post not found');
+            throw notFound('Post');
         }
 
         return post;
@@ -130,7 +130,7 @@ export class SocialPostService {
 
     static async listPosts(filters?: { projectId?: string; clientId?: string; status?: string; calendarId?: string; isEvergreen?: boolean; limit?: number; offset?: number }) {
         const companyId = requestContext.getStore()?.companyId as string;
-        if (!companyId) throw new Error('Company context required');
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
 
         const whereClause: any = { companyId };
         if (filters?.projectId) whereClause.projectId = filters.projectId;
@@ -159,11 +159,12 @@ export class SocialPostService {
     static async updatePost(id: string, data: Partial<CreateSocialPostDTO> & { status?: string }, userId?: string) {
         const companyId = requestContext.getStore()?.companyId as string;
         const existing = await (prisma as any).socialPost.findUnique({ where: { id } });
-        if (!existing || existing.companyId !== companyId) throw new Error('Post not found');
+        if (!existing || existing.companyId !== companyId) throw notFound('Post');
 
         const updatePayload: any = { ...data };
         delete updatePayload.variants;
         delete updatePayload.id;
+        delete updatePayload.companyId; // a post can never be moved to another tenant
 
         if (data.scheduledFor) {
             updatePayload.scheduledFor = new Date(data.scheduledFor);
@@ -207,7 +208,7 @@ export class SocialPostService {
     static async submitFootage(postId: string, footage: { rawMediaUrls?: string[]; externalStorageLinks?: Array<{ url: string; provider: string; label?: string }> }) {
         const companyId = requestContext.getStore()?.companyId as string;
         const existing = await (prisma as any).socialPost.findUnique({ where: { id: postId } });
-        if (!existing || existing.companyId !== companyId) throw new Error('Post not found');
+        if (!existing || existing.companyId !== companyId) throw notFound('Post');
 
         const updated = await (prisma as any).socialPost.update({
             where: { id: postId },
@@ -230,7 +231,7 @@ export class SocialPostService {
             include: { variants: true, socialAccount: { select: SAFE_ACCOUNT_SELECT }, project: true }
         });
 
-        if (!post || (companyId && post.companyId !== companyId)) throw new Error('Post not found');
+        if (!post || (companyId && post.companyId !== companyId)) throw notFound('Post');
 
         const issues: string[] = [];
         let platformChecks: Array<{ platform: string; publishStatus: string; issues: string[] }> = [];
@@ -281,34 +282,33 @@ export class SocialPostService {
     }
 
     /**
-     * Syncs a rendered video from 180 Media Studio / ReelWorker back to the calendar and post
+     * Syncs a rendered video from 180 Media Studio / ReelWorker back to the calendar piece and its linked post.
+     * Tenant-scoped: the piece and post must belong to `companyId` (the caller's JWT company); otherwise 404 and
+     * nothing is written. Prefer POST /calendar-pieces/:id/final-video for new clients.
      */
-    static async syncVideoFromStudio(calendarPieceId: string, finalVideoUrl: string, thumbnailUrl?: string) {
-        const companyId = requestContext.getStore()?.companyId as string;
+    static async syncVideoFromStudio(
+        calendarPieceId: string,
+        finalVideoUrl: string,
+        thumbnailUrl?: string,
+        companyId: string | undefined = requestContext.getStore()?.companyId as string | undefined,
+    ) {
+        const tenant = requireCompanyId(companyId);
+        const db = getDb();
 
-        // 1. Update Calendar Piece
-        const piece = await (prisma as any).calendarContentPiece.update({
-            where: { id: calendarPieceId },
-            data: {
-                finalVideoUrl,
-                thumbnailUrl,
-                status: 'ready'
-            }
+        // 1. Update the calendar piece (only if it is ours)
+        const { count } = await db.calendarContentPiece.updateMany({
+            where: pieceScope(calendarPieceId, tenant),
+            data: { finalVideoUrl, thumbnailUrl, status: 'ready' },
         });
+        if (!count) throw notFound('Calendar piece');
+        const piece = await db.calendarContentPiece.findFirst({ where: pieceScope(calendarPieceId, tenant) });
 
-        // 2. Update linked SocialPost if exists
-        const linkedPost = await (prisma as any).socialPost.findFirst({
-            where: { calendarPieceId }
-        });
-
+        // 2. Update the linked SocialPost of the same company, if any
+        const linkedPost = await db.socialPost.findFirst({ where: { calendarPieceId, companyId: tenant } });
         if (linkedPost) {
-            await (prisma as any).socialPost.update({
-                where: { id: linkedPost.id },
-                data: {
-                    finalVideoUrl,
-                    thumbnailUrl,
-                    status: 'ready'
-                }
+            await db.socialPost.updateMany({
+                where: { id: linkedPost.id, companyId: tenant },
+                data: { finalVideoUrl, thumbnailUrl, status: 'ready' },
             });
         }
 
@@ -344,7 +344,7 @@ export class SocialPostService {
     /** Publish history (one row per platform attempt), newest first. */
     static async listPublishAttempts(postId: string, limit = 50) {
         const companyId = requestContext.getStore()?.companyId as string;
-        if (!companyId) throw new Error('Company context required');
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
         return (prisma as any).socialPublishAttempt.findMany({
             where: { postId, companyId },
             orderBy: { startedAt: 'desc' },
@@ -358,7 +358,7 @@ export class SocialPostService {
     static async repurposePost(postId: string, options?: { newScheduleDate?: Date | string; newProjectId?: string; newContent?: string }) {
         const companyId = requestContext.getStore()?.companyId as string;
         const original = await (prisma as any).socialPost.findUnique({ where: { id: postId }, include: { variants: true } });
-        if (!original || original.companyId !== companyId) throw new Error('Original post not found');
+        if (!original || original.companyId !== companyId) throw notFound('Original post');
 
         // Increment reuse count on original
         await (prisma as any).socialPost.update({

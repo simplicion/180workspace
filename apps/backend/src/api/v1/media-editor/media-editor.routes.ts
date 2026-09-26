@@ -16,7 +16,7 @@ router.post("/transcribe", requireNativeDevice, audioUpload, transcribeHandler);
 // Brand + calendar-script context and greeting (no media, no LLM). See AI_DIRECTOR_CONTRACT.md §2.5.
 router.get("/director-context", directorContextHandler());
 router.post("/generate-from-prompt", requireDesktopDevice, VideoStudioController.generateFromPrompt);
-router.post("/render", requireDesktopDevice, VideoStudioController.renderProject);
+// No POST /render: server-side rendering was removed (media is processed on the device only).
 
 // Autonomous Stock Media Sourcing (Pexels API Integration for B-Roll & Visual Assets)
 router.get("/stock/search", async (req, res) => {
@@ -170,11 +170,14 @@ router.get("/stock/music", async (req, res) => {
 // Real-time Company AI Configuration Status
 router.get("/ai-status", async (req, res) => {
   try {
-    const companyId = (req.query.companyId as string) || (req.headers["x-company-id"] as string) || (req as any).user?.companyId;
+    // Only the caller's own company (verified JWT); never a query/header value.
+    const companyId = (req as any).user?.companyId;
+    if (!companyId) return res.status(401).json({ success: false, error: "UNAUTHENTICATED", message: "Authentication required" });
     const status = await AICompanyConfigService.getStatus(companyId);
     return res.status(200).json({ success: true, ...status });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    console.error("[media-editor] ai-status failed:", err?.message || err);
+    return res.status(500).json({ success: false, error: "INTERNAL", message: "Unexpected error" });
   }
 });
 

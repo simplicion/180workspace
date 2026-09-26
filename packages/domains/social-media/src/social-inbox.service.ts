@@ -1,6 +1,7 @@
 import { prisma, requestContext } from '@workspace/db';
 import { BrandVoiceService } from './brand-voice.service';
 import { getDb } from './publishing/http';
+import { SAFE_ACCOUNT_SELECT } from './tenant-scope';
 
 export interface IngestMessageDTO {
     socialAccountId: string;
@@ -44,7 +45,7 @@ export class SocialInboxService {
         const conversation = await db.socialConversation.findUnique({
             where: { id },
             include: {
-                socialAccount: true,
+                socialAccount: { select: SAFE_ACCOUNT_SELECT },
                 project: true,
                 messages: { orderBy: { createdAt: 'asc' } }
             }

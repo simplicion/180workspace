@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import * as SocialMediaModule from '@workspace/social-media';
 import { getProjectAnalytics, fetchLivePlatformMetrics, SocialInsightsError } from '@workspace/social-media';
 import { brandLogoHandler, brandLogoMultipart, defaultBrandLogoDeps } from './brand-logo-upload';
+import { sendRouteError } from '../route-errors';
 
 const router = Router();
 
@@ -164,10 +165,10 @@ router.post('/:id/accounts', async (req: Request, res: Response) => {
         if (!accountId) return res.status(400).json({ success: false, error: 'accountId is required' });
         const companyId = (req as any).user?.companyId || (req as any).companyId;
         const service = getService();
-        const result = await service.linkSocialAccount(String(req.params.id), accountId, companyId);
+        const result = await service.linkSocialAccount(String(req.params.id), String(accountId), companyId);
         res.json({ success: true, result });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'projects.link-account');
     }
 });
 
@@ -179,7 +180,7 @@ router.delete('/:id/accounts/:accId', async (req: Request, res: Response) => {
         const result = await service.unlinkSocialAccount(String(req.params.id), String(req.params.accId), companyId);
         res.json({ success: true, result });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'projects.unlink-account');
     }
 });
 

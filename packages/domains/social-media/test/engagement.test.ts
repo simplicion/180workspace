@@ -28,8 +28,13 @@ import {
     ThreadsAdapter,
     TikTokAdapter,
     fetchLivePlatformMetrics,
-    setPublishingDb
+    setPublishingDb,
+    encryptSecret
 } from '../src';
+import crypto from 'crypto';
+
+// Tokens are served only by the encrypted vault (no plaintext fallback), so the suite needs a vault key.
+process.env.SOCIAL_TOKEN_ENCRYPTION_KEY = process.env.SOCIAL_TOKEN_ENCRYPTION_KEY || crypto.randomBytes(32).toString('base64');
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -65,6 +70,23 @@ const inMemoryConversations: any[] = [];
 const inMemoryMessages: any[] = [];
 const inMemoryLeads: any[] = [];
 const inMemoryAccounts: any[] = [];
+
+/** Fixture accounts: `vaultToken` is what the vault returns; there are no plaintext token columns. */
+function findAccount(id?: string, companyId?: string): any {
+    const found = inMemoryAccounts.find(a => a.id === id);
+    if (found) return found;
+    // Unknown id: a default Instagram account, remembered so later vault lookups see the same company.
+    const created = {
+        id: id || 'acc_123',
+        platformAccountId: 'ig_page_123',
+        companyId: companyId || 'comp_test',
+        platform: 'instagram',
+        vaultToken: 'mock_test_access_token_123',
+        reauthRequired: false,
+    };
+    inMemoryAccounts.push(created);
+    return created;
+}
 
 const mockDb = {
     socialEngagementRule: {
@@ -163,22 +185,25 @@ const mockDb = {
         findUnique: async () => ({ tone: 'Helpful & Professional', keywords: ['scale', 'growth'] }),
     },
     socialAccount: {
-        findUnique: async (args: any) => {
-            const found = inMemoryAccounts.find(a => a.id === args?.where?.id);
-            if (found) return found;
-            return {
-                id: args?.where?.id || 'acc_123',
-                platformAccountId: 'ig_page_123',
-                companyId: 'comp_test',
-                platform: 'instagram',
-                accessToken: 'mock_test_access_token_123',
-                reauthRequired: false,
-            };
+        findUnique: async (args: any) => findAccount(args?.where?.id),
+        // The dispatcher scopes the lookup to the event's company.
+        findFirst: async (args: any) => {
+            const acc = findAccount(args?.where?.id, args?.where?.companyId);
+            return acc && (!args?.where?.companyId || acc.companyId === args.where.companyId) ? acc : null;
         },
         findMany: async (args: any) => inMemoryAccounts.filter(a => !args?.where?.companyId || a.companyId === args.where.companyId),
     },
+    // Vault stand-in: each fixture account's token is stored encrypted (bound to the account id), like SocialTokenVault.
     socialAccountCredential: {
-        findUnique: async () => null,
+        findUnique: async (args: any) => {
+            const acc = findAccount(args?.where?.socialAccountId);
+            if (!acc || !acc.vaultToken) return null;
+            return {
+                companyId: acc.companyId,
+                accessTokenEnc: encryptSecret(acc.vaultToken, `social-account:${acc.id}:access`),
+                accessTokenExpiresAt: null,
+            };
+        },
     },
 };
 
@@ -659,12 +684,12 @@ async function runAllTests() {
                 companyId: 'comp_ai',
                 platformAccountId: 'ig_page_ai',
                 platform: 'instagram',
-                accessToken: 'mock_test_access_token_ai',
                 reauthRequired: false,
             }
         };
 
         inMemoryConversations.push(testConv);
+        inMemoryAccounts.push({ id: 'acc_ai', companyId: 'comp_ai', platformAccountId: 'ig_page_ai', platform: 'instagram', vaultToken: 'mock_test_access_token_ai', reauthRequired: false });
 
         const outcome = await AiEngagementAgent.handleIncomingDm(
             testConv.id,
@@ -732,10 +757,10 @@ async function runAllTests() {
 
         // Seed connected accounts in inMemoryAccounts
         inMemoryAccounts.push(
-            { id: 'acc_yt', companyId: companyMulti, platform: 'youtube', platformAccountId: 'yt_chan_1', accessToken: 'mock_yt' },
-            { id: 'acc_li', companyId: companyMulti, platform: 'linkedin', platformAccountId: 'urn:li:organization:99', accessToken: 'mock_li' },
-            { id: 'acc_th', companyId: companyMulti, platform: 'threads', platformAccountId: 'th_creator_1', accessToken: 'mock_th' },
-            { id: 'acc_tt', companyId: companyMulti, platform: 'tiktok', platformAccountId: 'tt_creator_1', accessToken: 'mock_tt' },
+            { id: 'acc_yt', companyId: companyMulti, platform: 'youtube', platformAccountId: 'yt_chan_1', vaultToken: 'mock_yt' },
+            { id: 'acc_li', companyId: companyMulti, platform: 'linkedin', platformAccountId: 'urn:li:organization:99', vaultToken: 'mock_li' },
+            { id: 'acc_th', companyId: companyMulti, platform: 'threads', platformAccountId: 'th_creator_1', vaultToken: 'mock_th' },
+            { id: 'acc_tt', companyId: companyMulti, platform: 'tiktok', platformAccountId: 'tt_creator_1', vaultToken: 'mock_tt' },
         );
 
         // YouTube Comment Event

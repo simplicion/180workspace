@@ -1,18 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { SocialAccountService, SocialOAuthService, isPublishError, toPublicAccount } from '@workspace/social-media';
 import { prisma } from '@workspace/db';
+import { requireRole } from '../../../../system-configs/middleware/auth/rbac';
+import { sendRouteError } from '../route-errors';
 
 const router = Router();
 
 /** OAuth credentials of connected channels never leave the server (tokens live only in the encrypted vault). */
 const publicAccount = (a: any) => toPublicAccount(a);
 
-const sendError = (res: Response, error: any, fallbackStatus = 400) => {
-    if (isPublishError(error)) {
-        return res.status(error.httpStatus).json({ success: false, code: error.code, error: error.message, platform: error.platform, details: error.details });
-    }
-    return res.status(fallbackStatus).json({ success: false, error: error?.message || 'Request failed' });
-};
+/** Typed errors keep their status/code; anything else is logged and answered with a generic 500 (route-errors.ts). */
+const sendError = (res: Response, error: any) => sendRouteError(res, error, 'accounts');
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -55,7 +53,7 @@ router.get('/oauth/selections/:id', async (req: Request, res: Response) => {
         const selection = await SocialOAuthService.getSelection(String(req.params.id), user?.companyId, user?.id);
         res.json({ success: true, ...selection });
     } catch (error: any) {
-        sendError(res, error, 404);
+        sendError(res, error);
     }
 });
 
@@ -71,7 +69,10 @@ router.post('/oauth/selections/:id', async (req: Request, res: Response) => {
 });
 
 // Connect an account with an externally obtained token (legacy / admin). Tokens go to the encrypted vault.
-router.post('/connect', async (req: Request, res: Response) => {
+// Company admins only: any member could otherwise attach an arbitrary (or someone else's) token to the workspace.
+// Normal users connect through OAuth (/oauth/:platform/authorize). The web ConnectedAccountsManager still posts a
+// placeholder token here; that flow is replaced by real OAuth in Phase 3 (PRODUCTION_GAP_AUDIT.md).
+router.post('/connect', requireRole('admin'), async (req: Request, res: Response) => {
     try {
         // Tenant scoping: an account may only be attached to a project / client of the caller's own company.
         const companyId = (req as any).user?.companyId;

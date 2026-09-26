@@ -1,4 +1,5 @@
 import { prisma, requestContext } from '@workspace/db';
+import { SocialDomainError, notFound, pieceScope } from './tenant-scope';
 
 export interface CreateEditingTaskDTO {
     contentPieceId?: string;
@@ -19,25 +20,31 @@ export class EditingTaskService {
      */
     static async createEditingTask(data: CreateEditingTaskDTO, userId: string) {
         const companyId = requestContext.getStore()?.companyId as string;
-        if (!companyId) throw new Error('Company context required');
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
+
+        if (data.projectId && !(await (prisma as any).project.findFirst({ where: { id: data.projectId, companyId }, select: { id: true } }))) {
+            throw notFound('Project');
+        }
 
         // 1. Resolve content details for task prepopulation
         let contentTitle = 'Social Media Video';
         let scriptExcerpt = '';
 
         if (data.socialPostId) {
-            const post = await (prisma as any).socialPost.findUnique({
-                where: { id: data.socialPostId }
+            const post = await (prisma as any).socialPost.findFirst({
+                where: { id: data.socialPostId, companyId }
             });
-            if (post) {
+            if (!post) throw notFound('Post');
+            {
                 contentTitle = post.title || post.content?.slice(0, 40) || contentTitle;
                 scriptExcerpt = post.content || '';
             }
         } else if (data.contentPieceId) {
-            const piece = await (prisma as any).calendarContentPiece.findUnique({
-                where: { id: data.contentPieceId }
+            const piece = await (prisma as any).calendarContentPiece.findFirst({
+                where: pieceScope(data.contentPieceId, companyId)
             });
-            if (piece) {
+            if (!piece) throw notFound('Calendar piece');
+            {
                 contentTitle = piece.headline || piece.videoScriptOrHooks?.slice(0, 40) || contentTitle;
                 scriptExcerpt = piece.videoScriptOrHooks || piece.adCopyFull || '';
             }
@@ -72,15 +79,15 @@ export class EditingTaskService {
 
         // 3. Mark the linked post / calendar piece as in_editing
         if (data.socialPostId) {
-            await (prisma as any).socialPost.update({
-                where: { id: data.socialPostId },
+            await (prisma as any).socialPost.updateMany({
+                where: { id: data.socialPostId, companyId },
                 data: { status: 'in_editing' }
             }).catch(() => null);
         }
 
         if (data.contentPieceId) {
-            await (prisma as any).calendarContentPiece.update({
-                where: { id: data.contentPieceId },
+            await (prisma as any).calendarContentPiece.updateMany({
+                where: pieceScope(data.contentPieceId, companyId),
                 data: { status: 'in_progress' }
             }).catch(() => null);
         }
@@ -93,14 +100,14 @@ export class EditingTaskService {
      */
     static async submitEditorDeliverable(taskId: string, deliverableUrl: string, thumbnailUrl?: string, notes?: string) {
         const companyId = requestContext.getStore()?.companyId as string;
-        if (!companyId) throw new Error('Company context required');
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
 
         const task = await (prisma as any).task.findUnique({
             where: { id: taskId }
         });
 
         if (!task || task.companyId !== companyId) {
-            throw new Error('Task not found');
+            throw notFound('Task');
         }
 
         // 1. Update task deliverable & transition status
@@ -114,8 +121,8 @@ export class EditingTaskService {
 
         // 2. Sync final video URL to linked SocialPost
         if (task.socialPostId) {
-            await (prisma as any).socialPost.update({
-                where: { id: task.socialPostId },
+            await (prisma as any).socialPost.updateMany({
+                where: { id: task.socialPostId, companyId },
                 data: {
                     finalVideoUrl: deliverableUrl,
                     thumbnailUrl: thumbnailUrl || null,
@@ -127,8 +134,8 @@ export class EditingTaskService {
 
         // 3. Sync to linked CalendarContentPiece if exists
         if (task.contentPieceId) {
-            await (prisma as any).calendarContentPiece.update({
-                where: { id: task.contentPieceId },
+            await (prisma as any).calendarContentPiece.updateMany({
+                where: pieceScope(task.contentPieceId, companyId),
                 data: {
                     finalVideoUrl: deliverableUrl,
                     thumbnailUrl: thumbnailUrl || null,
@@ -150,6 +157,7 @@ export class EditingTaskService {
      */
     static async buildMediaStudioLaunchContext(contentPieceId?: string, postId?: string) {
         const companyId = requestContext.getStore()?.companyId as string;
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
 
         let title = 'New Project';
         let rawMediaUrls: string[] = [];
@@ -158,22 +166,24 @@ export class EditingTaskService {
         let projectId: string | null = null;
 
         if (postId) {
-            const post = await (prisma as any).socialPost.findUnique({
-                where: { id: postId },
+            const post = await (prisma as any).socialPost.findFirst({
+                where: { id: postId, companyId },
                 include: { project: true }
             });
-            if (post) {
+            if (!post) throw notFound('Post');
+            {
                 title = post.title || 'Social Video';
                 rawMediaUrls = post.rawMediaUrls || [];
                 script = post.content || '';
                 projectId = post.projectId;
             }
         } else if (contentPieceId) {
-            const piece = await (prisma as any).calendarContentPiece.findUnique({
-                where: { id: contentPieceId },
+            const piece = await (prisma as any).calendarContentPiece.findFirst({
+                where: pieceScope(contentPieceId, companyId),
                 include: { calendar: true }
             });
-            if (piece) {
+            if (!piece) throw notFound('Calendar piece');
+            {
                 title = piece.headline || 'Social Video';
                 rawMediaUrls = piece.rawMediaUrls || [];
                 script = piece.videoScriptOrHooks || piece.adCopyFull || '';

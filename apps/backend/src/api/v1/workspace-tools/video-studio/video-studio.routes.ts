@@ -9,6 +9,6 @@ router.get("/projects/:id", VideoStudioController.getProject);
 router.post("/projects", VideoStudioController.saveProject);
 router.post("/ai-direct", requireDesktopDevice, VideoStudioController.executeAIDirector);
 router.post("/generate-from-prompt", requireDesktopDevice, VideoStudioController.generateFromPrompt);
-router.post("/render", requireDesktopDevice, VideoStudioController.renderProject);
+// No POST /render: server-side rendering was removed (media is processed on the device only).
 
 export default router;

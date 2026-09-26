@@ -1,4 +1,5 @@
 import { prisma, requestContext } from '@workspace/db';
+import { SAFE_ACCOUNT_SELECT, notFound } from './tenant-scope';
 
 import {
     brandPatchFromCreateBody,
@@ -189,10 +190,10 @@ export class SocialProjectService {
         const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
         if (!companyId) throw new Error('Company context required');
 
-        const project = await (prisma as any).project.findUnique({
-            where: { id: projectId },
+        const project = await (prisma as any).project.findFirst({
+            where: { id: projectId, companyId },
             include: {
-                socialAccounts: true,
+                socialAccounts: { select: SAFE_ACCOUNT_SELECT },
                 brandVoiceProfile: true,
                 contentCalendars_ProjectContentCalendars: {
                     include: {
@@ -235,8 +236,8 @@ export class SocialProjectService {
         // Fetch client details if clientIds present
         let client = null;
         if (project.clientIds && project.clientIds.length > 0) {
-            client = await (prisma as any).client.findUnique({
-                where: { id: project.clientIds[0] }
+            client = await (prisma as any).client.findFirst({
+                where: { id: project.clientIds[0], companyId }
             });
         }
 
@@ -374,8 +375,8 @@ export class SocialProjectService {
             unreadInboxCount,
             upcomingPosts
         ] = await Promise.all([
-            (prisma as any).project.findUnique({
-                where: { id: projectId },
+            (prisma as any).project.findFirst({
+                where: { id: projectId, companyId },
                 select: { id: true, name: true, status: true, projectType: true, socialSettings: true }
             }),
             (prisma as any).socialPost.count({
@@ -628,12 +629,14 @@ export class SocialProjectService {
         const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
         if (!companyId) throw new Error('Company context required');
 
-        const updated = await (prisma as any).socialAccount.update({
-            where: { id: accountId },
-            data: { projectId }
+        // Both the project and the account must belong to the caller (update by id alone bypasses the tenant filter).
+        await this.assertOwnedSocialProject(projectId, companyId);
+        await this.assertOwnedAccount(accountId, companyId);
+        return (prisma as any).socialAccount.update({
+            where: { id: accountId, companyId },
+            data: { projectId },
+            select: SAFE_ACCOUNT_SELECT
         });
-
-        return updated;
     }
 
     /**
@@ -643,12 +646,23 @@ export class SocialProjectService {
         const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
         if (!companyId) throw new Error('Company context required');
 
-        const updated = await (prisma as any).socialAccount.update({
-            where: { id: accountId },
-            data: { projectId: null }
+        await this.assertOwnedSocialProject(projectId, companyId);
+        await this.assertOwnedAccount(accountId, companyId);
+        return (prisma as any).socialAccount.update({
+            where: { id: accountId, companyId },
+            data: { projectId: null },
+            select: SAFE_ACCOUNT_SELECT
         });
+    }
 
-        return updated;
+    private static async assertOwnedSocialProject(projectId: string, companyId: string) {
+        const project = await (prisma as any).project.findFirst({ where: { id: projectId, companyId, projectType: 'social_media', deletedAt: null }, select: { id: true } });
+        if (!project) throw notFound('Project');
+    }
+
+    private static async assertOwnedAccount(accountId: string, companyId: string) {
+        const account = await (prisma as any).socialAccount.findFirst({ where: { id: accountId, companyId }, select: { id: true } });
+        if (!account) throw notFound('Social account');
     }
 
     /**

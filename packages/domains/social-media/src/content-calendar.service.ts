@@ -1,9 +1,38 @@
 import { prisma, requestContext } from '@workspace/db';
 import { aiContentService, expandAutopilotFields } from '@workspace/ai';
 import { SocialProjectService } from './social-project.service';
+import { getDb } from './publishing/http';
+import { notFound, pieceScope, requireCompanyId } from './tenant-scope';
+
+/** The caller's company: explicit (from the verified JWT) or the request context. Never "any company". */
+const tenantOf = (companyId?: string) => requireCompanyId(companyId || (requestContext.getStore()?.companyId as string | undefined));
+
+/** Fields a client may never write through the generic update endpoints. */
+const IMMUTABLE_FIELDS = ['id', '_id', 'companyId', 'company', 'createdAt', 'updatedAt'];
+
+/**
+ * Legacy content calendars. Every read/write carries the caller's companyId: lookups use findFirst, writes use
+ * update / deleteMany with `companyId` in the where. findUnique / update / delete by id alone bypass the Prisma
+ * tenant filter (packages/db/src/index.ts), so another company's id is always a 404.
+ */
 export class ContentCalendarService {
-    static async listCalendars(limit: number = 10, offset: number = 0) {
-        const calendars = await prisma.contentCalendar.findMany({
+    /** 404 unless the calendar exists and belongs to the company. */
+    private static async ownedCalendar(id: string, companyId: string) {
+        const calendar = await getDb().contentCalendar.findFirst({ where: { id, companyId } });
+        if (!calendar) throw notFound('Calendar');
+        return calendar;
+    }
+
+    /** 404 unless the project exists and belongs to the company. */
+    private static async assertOwnedProject(projectId: string, companyId: string) {
+        const project = await getDb().project.findFirst({ where: { id: projectId, companyId }, select: { id: true } });
+        if (!project) throw notFound('Project');
+    }
+
+    static async listCalendars(limit: number = 10, offset: number = 0, explicitCompanyId?: string) {
+        const companyId = tenantOf(explicitCompanyId);
+        const calendars: any[] = await getDb().contentCalendar.findMany({
+            where: { companyId },
             orderBy: { createdAt: 'desc' },
             skip: offset,
             take: limit
@@ -26,11 +55,11 @@ export class ContentCalendarService {
         return mappedCalendars;
     }
 
-    static async getCalendar(id: string) {
-        const calendar = await prisma.contentCalendar.findUnique({ where: { id } });
-        if (!calendar) throw new Error('Calendar not found');
+    static async getCalendar(id: string, explicitCompanyId?: string) {
+        const companyId = tenantOf(explicitCompanyId);
+        const calendar = await this.ownedCalendar(id, companyId);
 
-        const pieces = await prisma.calendarContentPiece.findMany({
+        const pieces: any[] = await getDb().calendarContentPiece.findMany({
             where: { calendarId: calendar.id },
             orderBy: { dateScheduled: 'asc' },
             take: 200
@@ -70,9 +99,11 @@ export class ContentCalendarService {
         return { calendar: mappedCalendar, pieces: mappedPieces };
     }
 
-    static async createCalendar(body: any, user: any) {
-        const startTime = Date.now();
-        const companyId = requestContext.getStore()?.companyId as string;
+    static async createCalendar(body: any, user: any, explicitCompanyId?: string) {
+        const companyId = tenantOf(explicitCompanyId || user?.companyId);
+
+        // Verify the project before spending AI credits: a project of another company is a 404, not a silent skip.
+        if (body.projectId) await this.assertOwnedProject(String(body.projectId), companyId);
 
         // 1. Resolve Brand Consciousness if projectId is provided
         let brandConsciousness = body.brandConsciousness;
@@ -135,20 +166,12 @@ export class ContentCalendarService {
             }
         } });
 
-        // Connect calendar to project if projectId exists
+        // Link the calendar to the (already ownership-checked) project.
         if (body.projectId) {
-            try {
-                await (prisma as any).project.update({
-                    where: { id: body.projectId },
-                    data: {
-                        contentCalendars_ProjectContentCalendars: {
-                            connect: { id: calendar.id }
-                        }
-                    }
-                });
-            } catch (err) {
-                // Connection schema optional, captured in metadata
-            }
+            await getDb().contentCalendar.update({
+                where: { id: calendar.id, companyId },
+                data: { projectId: String(body.projectId) }
+            });
         }
 
         // 4. Save Calendar Pieces
@@ -156,6 +179,7 @@ export class ContentCalendarService {
             const et = piece.engagementTarget || {};
             return {
                 calendarId: calendar.id,
+                companyId,
                 dateScheduled: piece.dateScheduled ? new Date(piece.dateScheduled) : new Date(),
                 platform: piece.platform || 'General',
                 contentType: piece.contentType || 'Post',
@@ -199,27 +223,35 @@ export class ContentCalendarService {
         };
     }
 
-    static async updateCalendar(id: string, body: any) {
+    static async updateCalendar(id: string, body: any, explicitCompanyId?: string) {
+        const companyId = tenantOf(explicitCompanyId);
         const updateData = { ...body };
-        delete updateData.id;
-        delete updateData._id;
+        for (const f of IMMUTABLE_FIELDS) delete updateData[f];
+        if (updateData.projectId) await this.assertOwnedProject(String(updateData.projectId), companyId);
 
-        const calendar = await prisma.contentCalendar.update({ 
-            where: { id }, 
-            data: updateData 
+        await this.ownedCalendar(id, companyId);
+        // `update` with the extra companyId filter (Prisma 5 extended unique where): still scoped, and unlike
+        // updateMany it accepts the relation writes the FK normaliser in packages/db turns projectId/clientId into.
+        const calendar = await getDb().contentCalendar.update({
+            where: { id, companyId },
+            data: updateData
         });
-
         return { ...calendar, _id: calendar.id };
     }
 
-    static async deleteCalendar(id: string) {
-        await prisma.contentCalendar.delete({ where: { id } });
-        await prisma.calendarContentPiece.deleteMany({ where: { calendarId: id } });
+    static async deleteCalendar(id: string, explicitCompanyId?: string) {
+        const companyId = tenantOf(explicitCompanyId);
+        await this.ownedCalendar(id, companyId);
+        await getDb().calendarContentPiece.deleteMany({ where: { calendarId: id } });
+        const { count } = await getDb().contentCalendar.deleteMany({ where: { id, companyId } });
+        if (!count) throw notFound('Calendar');
         return { success: true, message: 'Calendar deleted successfully' };
     }
 
-    static async getCalendarPieces(calendarId: string) {
-        const pieces = await prisma.calendarContentPiece.findMany({ 
+    static async getCalendarPieces(calendarId: string, explicitCompanyId?: string) {
+        const companyId = tenantOf(explicitCompanyId);
+        await this.ownedCalendar(calendarId, companyId);
+        const pieces: any[] = await getDb().calendarContentPiece.findMany({ 
             where: { calendarId }, 
             orderBy: { dateScheduled: 'asc' },
             take: 200
@@ -247,10 +279,10 @@ export class ContentCalendarService {
         return mappedPieces;
     }
 
-    static async updateCalendarPiece(pieceId: string, body: any) {
+    static async updateCalendarPiece(pieceId: string, body: any, explicitCompanyId?: string, calendarId?: string) {
+        const companyId = tenantOf(explicitCompanyId);
         const updateData = { ...body };
-        delete updateData.id;
-        delete updateData._id;
+        for (const f of [...IMMUTABLE_FIELDS, 'calendarId', 'calendar']) delete updateData[f];
 
         if (updateData.hashtags !== undefined) {
             updateData.hashtagsResearched = JSON.stringify(updateData.hashtags);
@@ -267,10 +299,10 @@ export class ContentCalendarService {
             updateData.dateScheduled = new Date(updateData.dateScheduled);
         }
 
-        const piece = await prisma.calendarContentPiece.update({
-            where: { id: pieceId },
-            data: updateData
-        });
+        const scope: any = pieceScope(pieceId, companyId);
+        if (calendarId) scope.calendarId = calendarId;
+        if (!(await getDb().calendarContentPiece.findFirst({ where: scope, select: { id: true } }))) throw notFound('Calendar piece');
+        const piece = await getDb().calendarContentPiece.update({ where: scope, data: updateData });
 
         let tags: any[] = [];
         if (piece.hashtagsResearched) {

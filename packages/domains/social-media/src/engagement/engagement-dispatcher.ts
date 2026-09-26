@@ -8,6 +8,7 @@ import { TikTokAdapter } from '../adapters/tiktok.adapter';
 import { SocialInboxService } from '../social-inbox.service';
 import { InboundEngagementEvent, EngagementExecutionResult } from './types';
 import { EngagementMatcher } from './engagement-matcher';
+import { VAULT_ACCOUNT_SELECT } from '../tenant-scope';
 
 export class EngagementDispatcher {
     /**
@@ -78,9 +79,11 @@ export class EngagementDispatcher {
             commentLiked: false,
         };
 
-        // 1. Fetch Account and Decrypt Stored OAuth Token
-        const account = await db.socialAccount.findUnique({
-            where: { id: event.socialAccountId },
+        // 1. Fetch the event's account (same company only) and its token from the encrypted vault.
+        //    There is no plaintext fallback: an account without vault credentials must be reconnected.
+        const account = await db.socialAccount.findFirst({
+            where: { id: event.socialAccountId, companyId: event.companyId },
+            select: VAULT_ACCOUNT_SELECT,
         });
 
         if (!account) {
@@ -92,14 +95,7 @@ export class EngagementDispatcher {
         try {
             token = await SocialTokenVault.getAccessToken(account);
         } catch (err: any) {
-            if ((account as any).accessToken) {
-                token = (account as any).accessToken;
-            } else {
-                outcome.error = `Failed to decrypt token: ${err.message}`;
-            }
-        }
-        if (!token && (account as any).accessToken) {
-            token = (account as any).accessToken;
+            outcome.error = `No usable credentials for this account: ${err.message}`;
         }
 
         // 2. Auto-Like Comment (Always engage with incoming comments to maximize reach)

@@ -1,5 +1,6 @@
 import { getDb } from '../publishing/http';
 import { SocialTokenVault } from '../publishing/token-vault';
+import { VAULT_ACCOUNT_SELECT } from '../tenant-scope';
 import { InstagramPublisher } from '../adapters/meta.adapter';
 import { BrandVoiceService } from '../brand-voice.service';
 import { BatchAiReplyItem } from './types';
@@ -103,7 +104,7 @@ export class AiReplyAllService {
             try {
                 const conversation = await db.socialConversation.findUnique({
                     where: { id: item.conversationId },
-                    include: { socialAccount: true },
+                    include: { socialAccount: { select: VAULT_ACCOUNT_SELECT } },
                 });
 
                 if (!conversation || conversation.companyId !== companyId) {

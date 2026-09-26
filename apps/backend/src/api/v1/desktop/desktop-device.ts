@@ -2,7 +2,7 @@
  * Desktop device tokens: entitlement, limit and audit for the desktop-only media routes.
  *
  * The desktop app registers itself once per install (while the user is signed in) and receives a per-device, expiring,
- * revocable token. Server media routes (`/media-editor/render`, `/ai-direct`, ...) require it, so:
+ * revocable token. Server media routes (`/ai-direct`, `/generate-from-prompt`, ...) require it, so:
  *   - a lost or stolen laptop can be revoked without touching the user's password or other devices;
  *   - a user can only have a bounded number of devices (MAX_DEVICES_PER_USER);
  *   - every use is attributable to a device.
@@ -215,12 +215,10 @@ export async function registerDevice(params: { companyId: string; userId: string
 
   const existing = await listDevices(params.companyId, params.userId);
   if (existing.length >= MAX_DEVICES_PER_USER) {
-    // Auto-evict oldest inactive device (LRU) so users are never bricked by reinstalling or switching devices
-    const sorted = [...existing].sort((a, b) => (a.lastSeenAt || a.createdAt || 0) - (b.lastSeenAt || b.createdAt || 0));
-    const oldest = sorted[0];
-    if (oldest) {
-      await revokeDevice(params.companyId, params.userId, oldest.deviceId);
-    }
+    // Hard cap (409 DEVICE_LIMIT), not LRU eviction: silently revoking the oldest device would let anyone holding a
+    // session push the owner's real devices out. Reinstalls keep their slot by renewing with their deviceId; otherwise
+    // the user removes a device from the list first.
+    throw new DeviceLimitError(`You can register at most ${MAX_DEVICES_PER_USER} devices. Remove one first.`);
   }
   const deviceId = crypto.randomUUID();
   const platform = normalizePlatform(params.platform);
