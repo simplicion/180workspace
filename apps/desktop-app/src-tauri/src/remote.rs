@@ -220,7 +220,7 @@ fn set_progress(downloads: &RemoteDownloads, url: &str, f: impl FnOnce(&mut Down
     }
 }
 
-async fn download(url: &reqwest::Url, dir: &PathBuf, key: &str, downloads: &RemoteDownloads) -> Result<PathBuf, String> {
+async fn download(url: &reqwest::Url, dir: &PathBuf, key: &str, downloads: &RemoteDownloads, progress_key: &str) -> Result<PathBuf, String> {
     let extra = configured_hosts();
     let policy_hosts = extra.clone();
     let client = reqwest::Client::builder()
@@ -250,7 +250,7 @@ async fn download(url: &reqwest::Url, dir: &PathBuf, key: &str, downloads: &Remo
     if total.map(|t| t > cap).unwrap_or(false) {
         return Err(format!("The file is larger than the {} MB limit.", cap / (1024 * 1024)));
     }
-    let key_url = url.as_str().to_string();
+    let key_url = progress_key.to_string();
     set_progress(downloads, &key_url, |p| p.total = total);
 
     let part = dir.join(format!("{key}.part"));
@@ -299,7 +299,7 @@ pub async fn fetch_remote_media(
         Some(p) => p,
         None => {
             set_progress(&downloads, &url, |p| *p = DownloadProgress::default());
-            match download(&parsed, &dir, &key, &downloads).await {
+            match download(&parsed, &dir, &key, &downloads, &url).await {
                 Ok(p) => p,
                 Err(e) => {
                     set_progress(&downloads, &url, |p| {
