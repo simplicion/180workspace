@@ -185,9 +185,56 @@ export const MobileMediaDescriptorSchema = z.object({
     })
     .optional(),
   silences: z.array(z.object({ startMs: ms, endMs: ms })).max(5000).optional(),
+  /**
+   * On-device face track (ML Kit, sampled every ~500 ms): one entry per detected face, the
+   * face-box CENTRE (x, y) and size (w, h) as 0..1 fractions of the display-oriented frame, at
+   * source time tMs. Used to centre reframe crops and FACE zooms on the speaker.
+   */
+  faces: z
+    .array(z.object({
+      tMs: ms,
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+      w: z.number().min(0).max(1),
+      h: z.number().min(0).max(1),
+    }))
+    .max(20000)
+    .optional(),
+  /** On-device beat/onset times of the clip's own audio (source ms, ascending). */
+  beatsMs: z.array(ms).max(20000).optional(),
 });
 
 export type MobileMediaDescriptor = z.infer<typeof MobileMediaDescriptorSchema>;
+export type MobileFaceSample = NonNullable<MobileMediaDescriptor["faces"]>[number];
+
+const median = (v: number[]) => {
+  const s = [...v].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+/**
+ * The dominant face centre: the largest face of each sample, then the median x/y over the
+ * samples in [fromMs, toMs] (the whole clip by default), clamped to 0.1..0.9 so a crop never
+ * hugs the frame edge. Null when no face was seen in that range.
+ */
+export function dominantFaceCenter(
+  faces: MobileFaceSample[] | null | undefined,
+  range: { fromMs?: number; toMs?: number } = {}
+): { x: number; y: number } | null {
+  if (!faces?.length) return null;
+  const largest = new Map<number, MobileFaceSample>();
+  for (const f of faces) {
+    if (range.fromMs != null && f.tMs < range.fromMs) continue;
+    if (range.toMs != null && f.tMs > range.toMs) continue;
+    const cur = largest.get(f.tMs);
+    if (!cur || f.w * f.h > cur.w * cur.h) largest.set(f.tMs, f);
+  }
+  if (largest.size === 0) return null;
+  const picks = [...largest.values()];
+  const c = (v: number) => Math.round(Math.min(0.9, Math.max(0.1, v)) * 10000) / 10000;
+  return { x: c(median(picks.map((f) => f.x))), y: c(median(picks.map((f) => f.y))) };
+}
 
 const sec = (t: { value: number; timescale: number }) => RationalTimeMath.toSeconds(t);
 const toMs = (s: number) => Math.max(0, Math.round(s * 1000));
@@ -363,6 +410,8 @@ export interface MobileProjectionInput {
   /** Source-time transcript words (seconds) of the primary asset, to derive speechRangesMs. */
   sourceWords?: Array<{ startSec: number; endSec: number }>;
   primaryAssetId: string;
+  /** Where fill crops of the primary asset centre (e.g. `dominantFaceCenter(media.faces)`). Default {0.5, 0.4}. */
+  faceCenter?: { x: number; y: number } | null;
 }
 
 /**
@@ -374,7 +423,9 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
   const warnings: string[] = [];
   const canvas = { w: editIR.meta.resolution.width, h: editIR.meta.resolution.height };
   const srcById = new Map(sources.map((s) => [s.assetId, s]));
-  const faceCenter = { x: 0.5, y: 0.4 };
+  // Fill crops centre on the detected face of the primary asset; other sources keep the
+  // upper-centre default where a speaker's face usually is.
+  const defaultCenter = { x: 0.5, y: 0.4 };
 
   const clips = mainClipsSorted(editIR);
   let cursor = 0;
@@ -400,6 +451,8 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
       if (!crop) warnings.push(`clip ${c.id}: invalid crop was replaced by a centred fill crop`);
     }
     if (!t.letterbox && !crop && src) {
+      // Face coordinates are in the unrotated display frame, so a quarter-turned clip keeps the default.
+      const faceCenter = (c.assetId === primaryAssetId && !sideways && input.faceCenter) || defaultCenter;
       crop = cropFor(sideways ? src.height : src.width, sideways ? src.width : src.height, canvas.w, canvas.h, faceCenter.x, faceCenter.y);
     }
     const hasFilter =
