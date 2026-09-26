@@ -13,6 +13,7 @@ import {
 import { EditIR, RationalTimeMath, MediaAssetDescriptor } from "@workspace/video-contracts";
 import { MediaCacheService } from "../services/media-cache";
 import { effectVisualsAt, isTitleSegment } from "../services/editor-library";
+import { STUDIO_FONTS_LINK_ID, STUDIO_FONTS_URL } from "../services/caption-raster";
 
 export interface RemotionVideoCompositionProps extends Record<string, unknown> {
   editIR: EditIR;
@@ -44,13 +45,12 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
 
   React.useEffect(() => {
     if (typeof document === "undefined") return;
-    const linkId = "google-fonts-180-studio";
+    const linkId = STUDIO_FONTS_LINK_ID;
     if (!document.getElementById(linkId)) {
       const link = document.createElement("link");
       link.id = linkId;
       link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;700;900&family=Montserrat:wght@700;900&family=Outfit:wght@600;800&family=Poppins:wght@700;900&family=Roboto:wght@700;900&family=Syne:wght@700;800&display=swap";
+      link.href = STUDIO_FONTS_URL; // same fonts the exporters wait for (caption-raster.ts)
       document.head.appendChild(link);
     }
   }, []);
