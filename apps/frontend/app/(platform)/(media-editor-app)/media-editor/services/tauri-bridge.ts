@@ -14,9 +14,18 @@ import {
 import { store } from "@redux/store";
 import { DEVICE_HEADER, currentDeviceToken } from "@/lib/native/device-token";
 import { MediaCacheService } from "./media-cache";
-import { desktopMedia, hasNativeMedia, fromAssetUrl, toAssetUrl, runNativeRender, RenderCancelledError } from "@/lib/native/desktop-media";
+import {
+  desktopMedia,
+  hasNativeMedia,
+  fromAssetUrl,
+  toAssetUrl,
+  runNativeRender,
+  RenderCancelledError,
+  fetchRemoteMediaWithProgress,
+} from "@/lib/native/desktop-media";
+import { captionStateAt, drawCaptionState, ensureCaptionFonts, rasterizeCaptionStates } from "./caption-raster";
 import { buildNativeRenderPlan, describeUnsupported } from "./native-render-plan";
-import { effectVisualsAt, isTitleSegment } from "./editor-library";
+import { effectVisualsAt } from "./editor-library";
 import { validateRenderSpec } from "./native-render-validate";
 import { descriptorFromFfprobe, baseName } from "./native-probe";
 
@@ -73,6 +82,14 @@ export interface ExportResult {
   sizeBytes: number;
   /** Set when the desktop app already wrote the file where the user chose; there is nothing to download. */
   savedPath?: string;
+}
+
+/** The export cannot run without losing something (e.g. the audio); the message says why and what to do. */
+export class ExportBlockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExportBlockedError";
+  }
 }
 
 export interface ExportOptions {
@@ -1055,64 +1072,121 @@ class DesktopEngineBridge implements EngineBridge {
     onProgress: (percent: number) => void,
     options: ExportOptions = {}
   ): Promise<ExportResult> {
+    let reasons: string[] = [];
     if (hasNativeMedia()) {
       const native = await this.renderExportNative(editIR, settings, onProgress, options);
-      if (native) return native;
+      if (native.result) return native.result;
+      reasons = native.reasons;
+    } else {
+      reasons = ["this is not the desktop app"];
     }
-    options.onNotice?.("Exported with the compatibility renderer: video only, no audio.");
+    // The compatibility renderer records the canvas only (no audio). Never drop sound silently: if the timeline has
+    // any, block the export and say why; otherwise explain which renderer is used.
+    if (this.timelineHasAudio(editIR)) {
+      throw new ExportBlockedError(
+        `This export needs the desktop exporter, which can't render ${reasons.join(", ")}. ` +
+          `Remove or change that part and export again, or open the project in the 180 Workspace desktop app. ` +
+          `(The fallback renderer would drop the audio, so it was not used.)`
+      );
+    }
+    options.onNotice?.(`Exported with the compatibility renderer (${reasons.join(", ")}). This timeline has no audio.`);
     return this.renderExportCanvas(editIR, settings, onProgress);
   }
 
+  /** True when the timeline would play sound: any audio-track clip, or a main-track video clip with an audio stream. */
+  private timelineHasAudio(editIR: EditIR): boolean {
+    if ((editIR.tracks.audioTracks ?? []).some((t) => t.clips.length > 0)) return true;
+    const main = editIR.tracks.videoTracks.find((t) => t.type === "MAIN_VIDEO") ?? editIR.tracks.videoTracks[0];
+    return (main?.clips ?? []).some((c) => c.mediaType !== "image" && this.nativeHasAudio.get(c.sourcePath) !== false);
+  }
+
   /**
-   * Renders with the bundled FFmpeg. Returns null when this timeline uses something the native exporter does not
-   * render yet (or its media is not a picked local file); the caller then uses the compatibility renderer. A native
-   * render that STARTS and fails is an error, not a silent downgrade.
+   * Renders with the bundled FFmpeg: remote stock media is downloaded into the app cache first, captions/titles are
+   * rasterised (caption-raster.ts) and overlaid as an image sequence. Returns `reasons` when the timeline uses something
+   * the native exporter does not render; a native render that STARTS and fails is an error, not a downgrade.
    */
   private async renderExportNative(
     editIR: EditIR,
     settings: { format: string; resolution: string; fps: number },
     onProgress: (percent: number) => void,
     options: ExportOptions
-  ): Promise<ExportResult | null> {
-    // Which sources carry audio: referencing a missing audio stream would make FFmpeg fail.
+  ): Promise<{ result: ExportResult | null; reasons: string[] }> {
     const sources = new Set<string>();
     for (const t of editIR.tracks.videoTracks) for (const c of t.clips) sources.add(c.sourcePath);
     for (const t of editIR.tracks.audioTracks ?? []) for (const c of t.clips) sources.add(c.sourcePath);
+
+    // 1. local paths: picked files (asset URLs) as they are, https stock/music/SFX/photos downloaded into the cache
+    const localPath = new Map<string, string>();
+    const remote = [...sources].filter((s) => !fromAssetUrl(s) && /^https:\/\//i.test(s));
+    for (const [i, src] of remote.entries()) {
+      options.onNotice?.(`Downloading stock media ${i + 1} of ${remote.length} for the export...`);
+      try {
+        localPath.set(src, await fetchRemoteMediaWithProgress(src));
+      } catch (e: any) {
+        throw new Error(`Could not download ${src.split("?")[0].split("/").pop() || "a stock file"} for the export: ${e?.message || e}. Check your connection and export again, or replace that clip.`);
+      }
+      if (options.signal?.aborted) throw new RenderCancelledError();
+    }
+    const resolve = (src: string) => localPath.get(src) ?? fromAssetUrl(src);
+
+    // 2. which sources carry audio (referencing a missing audio stream would make FFmpeg fail)
     for (const src of sources) {
-      const path = fromAssetUrl(src);
+      const path = resolve(src);
       if (!path || this.nativeHasAudio.has(src)) continue;
       try {
         this.nativeHasAudio.set(src, descriptorFromFfprobe(await desktopMedia.probeMedia(path), path, src, "probe").hasAudio);
       } catch {
-        options.onNotice?.(`${baseName(path)} is no longer available to the app. Re-import it to use the fast exporter.`);
-        return null;
+        return { result: null, reasons: [`${baseName(path)}, which is no longer available to the app (re-import it)`] };
       }
     }
 
-    const plan = buildNativeRenderPlan(editIR, {
-      resolveNativePath: (src) => fromAssetUrl(src),
-      sourceHasAudio: (src) => this.nativeHasAudio.get(src) ?? false,
-      settings: { resolution: settings.resolution, fps: settings.fps || 30, quality: "balanced" },
-    });
-    if (!plan.supported) {
-      options.onNotice?.(describeUnsupported(plan.reasons));
-      return null;
+    const hasCaptions = (editIR.tracks.captionTrack ?? []).length > 0;
+    const planFor = (captionOverlay: string | null) =>
+      buildNativeRenderPlan(editIR, {
+        resolveNativePath: resolve,
+        sourceHasAudio: (src) => this.nativeHasAudio.get(src) ?? false,
+        settings: { resolution: settings.resolution, fps: settings.fps || 30, quality: "balanced" },
+        captionOverlay,
+      });
+    // Dry run (placeholder list) to learn size/duration and whether everything else is supported.
+    const probePlan = planFor(hasCaptions ? "pending/list.ffconcat" : null);
+    if (!probePlan.supported) {
+      options.onNotice?.(describeUnsupported(probePlan.reasons));
+      return { result: null, reasons: probePlan.reasons };
     }
-    validateRenderSpec(plan.spec);
-    for (const w of plan.warnings) options.onNotice?.(w);
 
     const title = (editIR.meta.title || "180_media_export").replace(/[^\w\-. ]+/g, "").trim().replace(/\s+/g, "_") || "180_media_export";
     const outputPath = await desktopMedia.pickExportPath(`${title}.mp4`);
     if (!outputPath) throw new RenderCancelledError();
 
-    const savedTo = await runNativeRender(plan.spec, outputPath, onProgress, options.signal);
-    let sizeBytes = 0;
+    // 3. captions/titles -> PNG states in the app cache
+    let overlayList: string | null = null;
     try {
-      sizeBytes = Number((await desktopMedia.probeMedia(savedTo)).format?.size) || 0;
-    } catch {
-      /* size is informational */
+      if (hasCaptions) {
+        options.onNotice?.("Drawing captions and titles...");
+        const { width, height, durationSec } = probePlan.spec;
+        const raster = await rasterizeCaptionStates(editIR, width, height, durationSec);
+        if (raster.missingFonts.length > 0) {
+          options.onNotice?.(`Some caption fonts could not be loaded (${raster.missingFonts.join(", ")}); the preview shows the same fallback.`);
+        }
+        overlayList = await desktopMedia.writeCaptionOverlays(raster.images, raster.sequence);
+      }
+      const plan = planFor(overlayList);
+      if (!plan.supported) return { result: null, reasons: plan.reasons };
+      validateRenderSpec(plan.spec);
+      for (const w of plan.warnings) options.onNotice?.(w);
+
+      const savedTo = await runNativeRender(plan.spec, outputPath, onProgress, options.signal);
+      let sizeBytes = 0;
+      try {
+        sizeBytes = Number((await desktopMedia.probeMedia(savedTo)).format?.size) || 0;
+      } catch {
+        /* size is informational */
+      }
+      return { result: { blobUrl: toAssetUrl(savedTo), downloadName: baseName(savedTo), sizeBytes, savedPath: savedTo }, reasons: [] };
+    } finally {
+      if (overlayList) desktopMedia.clearCaptionOverlays(overlayList).catch(() => {});
     }
-    return { blobUrl: toAssetUrl(savedTo), downloadName: baseName(savedTo), sizeBytes, savedPath: savedTo };
   }
 
   private async renderExportCanvas(
@@ -1137,6 +1211,7 @@ class DesktopEngineBridge implements EngineBridge {
       canvasH = isVertical ? 1280 : isSquare ? 720 : 720;
     }
 
+    await ensureCaptionFonts(editIR.tracks.captionTrack ?? []);
     const canvas = document.createElement("canvas");
     canvas.width = canvasW;
     canvas.height = canvasH;
@@ -1330,77 +1405,9 @@ class DesktopEngineBridge implements EngineBridge {
           ctx.restore();
         }
 
-        // Titles (text templates): the segment's own font, colours, box and position
-        for (const title of editIR.tracks.captionTrack ?? []) {
-          if (!isTitleSegment(title)) continue;
-          const ts = RationalTimeMath.toSeconds(title.timeRange.start);
-          if (curTime < ts || curTime > ts + RationalTimeMath.toSeconds(title.timeRange.duration)) continue;
-          const st = title.style;
-          const unit = Math.min(canvas.width, canvas.height) / 1080;
-          const size = Math.round((st.fontSize || 64) * unit);
-          const text = st.uppercase ? title.text.toUpperCase() : title.text;
-          const cx = (st.position?.x ?? 0.5) * canvas.width;
-          const cy = (st.position?.y ?? 0.5) * canvas.height;
-          ctx.save();
-          ctx.font = `${st.fontWeight ?? 800} ${size}px '${st.fontFamily || "Inter"}', Inter, sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          const w = ctx.measureText(text).width;
-          if (st.pillBackground) {
-            const pad = (st.pillPadding ?? 12) * unit;
-            ctx.fillStyle = st.pillBackground;
-            ctx.beginPath();
-            (ctx as any).roundRect
-              ? (ctx as any).roundRect(cx - w / 2 - pad * 1.4, cy - size / 2 - pad, w + pad * 2.8, size + pad * 2, (st.pillRadius ?? 12) * unit)
-              : ctx.rect(cx - w / 2 - pad * 1.4, cy - size / 2 - pad, w + pad * 2.8, size + pad * 2);
-            ctx.fill();
-          }
-          if (st.shadow) {
-            ctx.shadowColor = "rgba(0,0,0,0.85)";
-            ctx.shadowBlur = 14 * unit;
-            ctx.shadowOffsetY = 4 * unit;
-          }
-          if (st.strokeWidth) {
-            ctx.lineWidth = st.strokeWidth * unit;
-            ctx.strokeStyle = st.strokeColor || "#000000";
-            ctx.lineJoin = "round";
-            ctx.strokeText(text, cx, cy);
-          }
-          ctx.fillStyle = st.textColor || "#FFFFFF";
-          ctx.fillText(text, cx, cy);
-          ctx.restore();
-        }
-
-        // 4. Kinetic Subtitles / Captions Overlay
-        const activeCaption = editIR.tracks.captionTrack?.find((cap) => {
-          if (isTitleSegment(cap)) return false;
-          const s = RationalTimeMath.toSeconds(cap.timeRange.start);
-          const e = s + RationalTimeMath.toSeconds(cap.timeRange.duration);
-          return curTime >= s && curTime <= e;
-        });
-
-        if (activeCaption) {
-          ctx.save();
-          const fontSize = Math.round(52 * (canvas.width / 1920));
-          ctx.font = `900 ${fontSize}px Inter, sans-serif`;
-          ctx.textAlign = "center";
-          const textY = canvas.height - Math.round(180 * (canvas.height / 1080));
-          const textWidth = ctx.measureText(activeCaption.text).width;
-
-          ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-          ctx.fillRect(
-            canvas.width / 2 - textWidth / 2 - 24,
-            textY - fontSize,
-            textWidth + 48,
-            fontSize * 1.35
-          );
-
-          ctx.fillStyle = activeCaption.style?.highlightColor || "#FACC15";
-          ctx.shadowColor = "rgba(250, 204, 21, 0.6)";
-          ctx.shadowBlur = 16;
-          ctx.fillText(activeCaption.text, canvas.width / 2, textY);
-          ctx.restore();
-        }
+        // Captions and titles: the same drawing code the native export rasterises (caption-raster.ts)
+        const captions = editIR.tracks.captionTrack ?? [];
+        if (captions.length > 0) drawCaptionState(ctx, captions, captionStateAt(captions, curTime), canvas.width, canvas.height);
       }
 
       const pct = Math.floor((frame / totalFrames) * 98);

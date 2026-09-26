@@ -197,7 +197,7 @@ pub fn build_args(spec: &RenderSpec, inputs: &[PathBuf], overlay_list: Option<&P
         for s in ["-f", "concat", "-safe", "1", "-i"] {
             a.push(s.into());
         }
-        a.push(list.to_string_lossy().into_owned());
+        a.push(concat_list_arg(list));
     }
     a.push("-filter_complex".into());
     a.push(spec.filter_complex.clone());
@@ -224,6 +224,19 @@ pub fn build_args(spec: &RenderSpec, inputs: &[PathBuf], overlay_list: Option<&P
     a.push("+faststart".into());
     a.push(output.to_string_lossy().into_owned());
     a
+}
+
+/// The concat demuxer resolves the list's relative entries against the list path, which only works with `/`
+/// separators and without the `\\?\` prefix that canonicalisation adds on Windows (verified with the bundled FFmpeg in
+/// native-render-plan.integration.ts).
+pub fn concat_list_arg(list: &Path) -> String {
+    let s = list.to_string_lossy();
+    let s = s.strip_prefix(r"\\?\").unwrap_or(&s);
+    if cfg!(windows) {
+        s.replace('\\', "/")
+    } else {
+        s.to_string()
+    }
 }
 
 /// `out_time_us=1234567` (FFmpeg >= 4.4) or `out_time_ms=1234567` (older builds; the value is microseconds there too).
@@ -561,6 +574,15 @@ mod tests {
         assert!(validate_spec(&s).is_err());
         s.overlay_sequence = Some("/etc/passwd".to_string());
         assert!(validate_spec(&s).is_err());
+    }
+
+    #[test]
+    fn concat_list_path_uses_forward_slashes_without_the_verbatim_prefix() {
+        if cfg!(windows) {
+            assert_eq!(concat_list_arg(Path::new(r"\\?\C:\Users\me\cache\list.ffconcat")), "C:/Users/me/cache/list.ffconcat");
+        } else {
+            assert_eq!(concat_list_arg(Path::new("/home/me/.cache/list.ffconcat")), "/home/me/.cache/list.ffconcat");
+        }
     }
 
     #[test]

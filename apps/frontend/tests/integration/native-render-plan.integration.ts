@@ -8,7 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, existsSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire } from "node:module";
@@ -34,6 +34,7 @@ function renderSpec(spec: NativeRenderSpec, output: string) {
   const enc = { draft: ["-preset", "veryfast", "-crf", "26"], balanced: ["-preset", "medium", "-crf", "20"], high: ["-preset", "slow", "-crf", "17"] }[spec.quality];
   const args = ["-y", "-hide_banner", "-loglevel", "error", "-nostats"];
   for (const i of spec.inputs) args.push("-i", i);
+  if (spec.overlaySequence) args.push("-f", "concat", "-safe", "1", "-i", spec.overlaySequence);
   args.push("-filter_complex", spec.filterComplex);
   for (const m of spec.maps) args.push("-map", m);
   args.push("-c:v", "libx264", ...enc, "-pix_fmt", "yuv420p");
@@ -192,9 +193,7 @@ GRAPH: ${(plan as any).spec.filterComplex}`);
     const base = { total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3])] }] };
     const cases: Array<[string, any, RegExp]> = [
       ["captions", project({ ...base, captions: [{ id: "cap", timeRange: range(0, 1), text: "hi", words: [], style: {} }] }), /captions/],
-      ["camera zoom", project({ ...base, camera: [{ id: "z", timeRange: range(0, 1), scale: 1.4 }] }), /camera zoom/],
-      ["animated scale", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3], { transform: { scale: { start: 1, end: 1.3 }, position: { x: 0, y: 0 }, rotationDeg: 0, opacity: 1 } })] }] }), /animated scale/],
-      ["rotation", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3], { transform: { scale: { start: 1, end: 1 }, position: { x: 0, y: 0 }, rotationDeg: 15, opacity: 1 } })] }] }), /rotation/],
+      ["keyframed motion", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3], { transform: { scale: { start: 1, end: 1 }, position: { x: 0, y: 0 }, rotationDeg: 0, opacity: 1, keyframes: [{ id: "k", timeOffsetSec: 1, property: "posX", value: 100 }] } })] }] }), /keyframe/],
       ["effects", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3], { effects: ["glitch"] })] }] }), /effects/],
       ["speed out of range", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3], { speedMultiplier: 8 })] }] }), /speed/],
       ["empty timeline", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [] }] }), /no video clips/],
@@ -341,6 +340,82 @@ GRAPH: ${(plan as any).spec.filterComplex}`);
       check(out);
     });
   }
+
+  // ── captions (ffconcat PNG sequence), camera zoom, rotation (M3 native parity) ─────────────────────────────────
+  const OVL = f("ovl");
+  mkdirSync(OVL, { recursive: true });
+  const png = (name: string, lavfi: string) => assert.ok(run(FFMPEG, ["-y", "-v", "error", "-f", "lavfi", "-i", lavfi, "-frames:v", "1", join(OVL, name)]).ok, name);
+  png("f00000.png", "color=c=0x00000000:s=1920x1080,format=rgba"); // blank (transparent)
+  png("f00001.png", "color=c=white:s=320x100,format=rgba,pad=1920:1080:800:900:color=0x00000000"); // "word 1 highlighted"
+  png("f00002.png", "color=c=green:s=320x100,format=rgba,pad=1920:1080:800:900:color=0x00000000"); // "word 2 highlighted"
+  // Same text overlays.rs `build_ffconcat` writes (last entry repeated).
+  const steps: Array<[number, number]> = [[0, 1], [1, 1], [2, 1], [0, 1]];
+  writeFileSync(
+    join(OVL, "list.ffconcat"),
+    "ffconcat version 1.0\n" + steps.map(([i, d]) => `file f0000${i}.png\nduration ${d.toFixed(6)}\n`).join("") + `file f0000${steps[steps.length - 1][0]}.png\n`
+  );
+
+  await t("captions: the rasterised caption sequence is overlaid at the right times, over video with its audio", () => {
+    const ir = project({
+      total: 4,
+      tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c1", A, [0, 4], [0, 4])] }],
+      captions: [{ id: "cap", role: "caption", timeRange: range(1, 2), text: "one two", words: [], style: {} }],
+      camera: [],
+    });
+    // render.rs passes the list with forward slashes (the concat demuxer resolves entries against it; see overlays.rs)
+    const plan = buildNativeRenderPlan(ir, { ...opts(), captionOverlay: join(OVL, "list.ffconcat").split("\\").join("/") });
+    assert.ok(plan.supported, JSON.stringify(plan));
+    const out = f("captions.mp4");
+    const r = renderSpec((plan as any).spec, out);
+    assert.ok(r.ok, `${r.err}\nGRAPH: ${(plan as any).spec.filterComplex}`);
+    const at = (s: number) => pixel(out, s, 960, 950);
+    assert.ok(isRed(at(0.5)), `t=0.5 no caption yet (transparent state), got ${at(0.5)}`);
+    const w = at(1.5);
+    assert.ok(Math.min(...w) > 200, `t=1.5 first caption state (white), got ${w}`);
+    const g = at(2.5);
+    assert.ok(g[1] > 90 && g[0] < 60, `t=2.5 second caption state (green), got ${g}`);
+    assert.ok(isRed(at(3.5)), `t=3.5 caption gone, got ${at(3.5)}`);
+    assert.ok(isRed(pixel(out, 1.5, 200, 200)), "outside the caption box the video shows through");
+    const p = probe(out);
+    assert.ok(p.streams.some((s: any) => s.codec_type === "audio" && s.codec_name === "aac"), "audio stream present");
+    const vol = /mean_volume: (-?[\d.]+) dB/.exec(run(FFMPEG, ["-v", "info", "-i", out, "-af", "volumedetect", "-f", "null", "-"]).err);
+    assert.ok(vol && Number(vol[1]) > -50, `audible, mean ${vol?.[1]} dB`);
+  });
+
+  await t("camera zoom: springs to the event scale about its target, only inside the event", () => {
+    const ir = project({
+      total: 4,
+      tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("bg", BOX, [0, 4], [0, 4])] }],
+      camera: [{ id: "z", timeRange: range(1, 1.5), targetType: "MANUAL", targetCoords: { x: 0.5, y: 0.5 }, scale: 1.5, spring: { stiffness: 180, damping: 18, mass: 1 } }],
+    });
+    const plan = buildNativeRenderPlan(ir, opts());
+    assert.ok(plan.supported, JSON.stringify(plan));
+    const out = f("camera.mp4");
+    const r = renderSpec((plan as any).spec, out);
+    assert.ok(r.ok, `${r.err}\nGRAPH: ${(plan as any).spec.filterComplex}`);
+    // bar x=900..1019 around the centre: at x1.5 it spans ~870..1049
+    assert.ok(pixel(out, 0.5, 1040, 540)[0] < 60, "before the event: no zoom");
+    assert.ok(pixel(out, 2.2, 1040, 540)[0] > 200, "settled zoom x1.5 widens the bar past x=1040");
+    assert.ok(pixel(out, 3.5, 1040, 540)[0] < 60, "after the event: no zoom");
+  });
+
+  await t("rotation: a 90 degree overlay clip is drawn rotated about its centre", () => {
+    const rot = { scale: { start: 1, end: 1, easing: "linear" }, position: { x: 0, y: 0 }, anchor: { x: 0.5, y: 0.5 }, rotationDeg: 90, opacity: 1 };
+    const ir = project({
+      total: 2,
+      tracks: [
+        { id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c1", A, [0, 2], [0, 2])] },
+        { id: "pip", type: "PICTURE_IN_PICTURE", zIndex: 1, clips: [clip("b", B, [0, 2], [0, 2], { transform: rot })] },
+      ],
+    });
+    const plan = buildNativeRenderPlan(ir, opts());
+    assert.ok(plan.supported, JSON.stringify(plan));
+    const out = f("rotate.mp4");
+    const r = renderSpec((plan as any).spec, out);
+    assert.ok(r.ok, `${r.err}\nGRAPH: ${(plan as any).spec.filterComplex}`);
+    assert.ok(isRed(pixel(out, 1, 660, 540)), "rotated clip is narrow: x=660 shows the main clip");
+    assert.ok(isBlue(pixel(out, 1, 960, 840)), "rotated clip is tall: y=840 is inside it");
+  });
 
   rmSync(work, { recursive: true, force: true });
   console.log(`\n${passed}/${passed + failed} passed`);

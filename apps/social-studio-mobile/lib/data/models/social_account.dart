@@ -17,6 +17,7 @@ class SocialAccount {
     this.reauthRequired = false,
     this.tokenExpiresAt,
     this.capabilities = const [],
+    this.tokenHealth,
   });
 
   final String id;
@@ -32,12 +33,16 @@ class SocialAccount {
   final DateTime? tokenExpiresAt;
   final List<String> capabilities;
 
-  bool get tokenExpired => tokenExpiresAt != null && tokenExpiresAt!.isBefore(DateTime.now());
+  /// Server-computed: ok | expiring_soon | expired | reauth_required (null on older servers).
+  final String? tokenHealth;
+
+  bool get tokenExpired => tokenHealth == 'expired' || (tokenExpiresAt != null && tokenExpiresAt!.isBefore(DateTime.now()));
 
   bool get expiresSoon =>
-      tokenExpiresAt != null && !tokenExpired && tokenExpiresAt!.difference(DateTime.now()).inDays < 7;
+      tokenHealth == 'expiring_soon' ||
+      (tokenExpiresAt != null && !tokenExpired && tokenExpiresAt!.difference(DateTime.now()).inDays < 7);
 
-  bool get needsAttention => reauthRequired || tokenExpired;
+  bool get needsAttention => reauthRequired || tokenHealth == 'reauth_required' || tokenExpired;
 
   factory SocialAccount.fromJson(Json j) {
     final project = jMapOrNull(j['project']);
@@ -55,6 +60,7 @@ class SocialAccount {
       reauthRequired: jBool(j['reauthRequired']),
       tokenExpiresAt: jDate(j['tokenExpiresAt']),
       capabilities: jStrList(j['capabilities']),
+      tokenHealth: jStr(j['tokenHealth']),
     );
   }
 }

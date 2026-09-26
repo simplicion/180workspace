@@ -398,3 +398,140 @@ Open: web parity screens (engagement rules / inbox Reply All), Flutter tests for
 - M1 (mobile multi-track timeline, Library with music/SFX/video/photos/text templates/effects, item inspector) is done.
 - M2 (effects and photo contract, director `addEffect`, Android renderer) is done.
 - M3 (desktop editor and FFmpeg) is in progress.
+
+## Social manager edge cases (2026-09-27)
+
+All social web screens except the hub (`social-projects/page.tsx`) and the public review page were retired in
+`3923a29`, so client-side fixes went to the public review page only. The mobile app is the main client for the rest.
+
+### Gaps found (verified in code)
+- **Client review links.**
+  - Batch approve did not check expiry and approved every post in the window, including published and failed ones.
+    It did not pin `approvedVersion` and left no audit entry.
+  - Comments accepted any `postId`, including another tenant's posts, and a caller-supplied `authorType`.
+  - Links could not be revoked.
+  - `GET /reviews/sessions` did not exist; the web and mobile Approvals tabs both called it.
+  - `createReviewSession` did not check that the client belonged to the caller, and link lifetime had no limit.
+- **Post updates.**
+  - `PUT /posts/:id` spread the whole body into the update. A caller could set `status: 'approved'`, `approvedVersion`,
+    `versionNumber` or `publishedLinks`.
+  - Editing a post that had been approved and then scheduled did not require approval again, so unapproved copy
+    could publish.
+  - Variants sent on update were silently dropped (mobile sends them).
+  - Published posts could still be edited.
+  - `scheduledFor` values in the past were accepted, so the scheduler published them on the next tick.
+- **Disconnecting an account** left its scheduled posts in place to fail at publish time, although the UI promised
+  they would be paused.
+- **Unattended publish failures** from the scheduler were never shown to anyone.
+- **Token expiry** was not shown before it lapsed.
+- **Fake success and silent fallbacks.**
+  - The legacy static helpers (`MetaAdapter`, `LinkedInAdapter`, `TikTokAdapter`, `YouTubeAdapter`) returned random
+    fake URLs and IDs when the token was missing.
+  - `LinkedInAdapter.getAnalytics` returned made-up numbers.
+  - `linkedin/tools.ts` swallowed vault errors, including REAUTH_REQUIRED, and used a `mock_token` in live mode.
+- **Platform rules.** Pinterest boards were not required. YouTube fell back to the title "Untitled".
+- **Readiness** had no duplicate-content check. It could not tell scheduling blockers apart from "approval pending".
+  With no company context it returned any post.
+
+### Fixed
+- **`packages/domains/social-media/src/post-guards.ts` (new, pure).**
+  - `parseScheduledFor` rejects past times with `SCHEDULE_IN_PAST` (422). There is a 2-minute grace window, and
+    `INVALID_SCHEDULE` covers unparseable values.
+  - `sanitizePostUpdate` applies a whitelist. `STATUS_NOT_SETTABLE` blocks approved and publish states.
+  - `hasSubstantiveChange` counts copy, media, first comment and variant edits.
+  - `findDuplicateCaptions` flags the same caption on the same account or platform within 7 days, ignoring case,
+    whitespace and links.
+  - Review-link state helpers return `REVIEW_LINK_EXPIRED` or `REVIEW_LINK_REVOKED` (410) and `REVIEW_LINK_INVALID`
+    (404).
+- **`social-post.service.ts`.**
+  - `createPost` and `updatePost` both validate the schedule.
+  - `updatePost` is tenant-safe (`findFirst`/`updateMany`) and uses the whitelist.
+  - It refuses to edit published posts (`POST_ALREADY_PUBLISHED`).
+  - A substantive edit to an approved version bumps the version and moves the post to `in_review` when the project
+    requires approval. The response includes `reapprovalRequired`.
+  - A schedule-only change keeps the approval.
+  - Variants are synced. Published, processing and assisted variants are never rewritten.
+  - Readiness now:
+    - requires a company;
+    - returns `schedulingBlockers`, `approvalPending` and `warnings` (the duplicate-content warning).
+- **`client-review.service.ts` and `reviews/client-review.routes.ts`.**
+  - New endpoints: `GET /reviews/sessions` and `POST /reviews/sessions/:id/revoke`.
+  - Every public action checks expiry and revocation.
+  - Comments are limited to posts in the session and are always authored as `client`. They are recorded in post
+    history.
+  - Batch approve only touches review states and pins `approvedVersion`. The update filters on `versionNumber` to
+    avoid races.
+  - An optional `seenVersions` gives `REVIEW_STALE` (409) when the agency edited a post after the page loaded.
+  - The client is checked on create, lifetime is capped at 90 days, and `postIds` are tenant-scoped.
+  - Errors go through `sendRouteError` with typed codes.
+- **`social-account.service.ts`.**
+  - Disconnecting moves the account's `scheduled` and `approved` posts to `draft`. Each gets an `errorMessage` with
+    the reason and a history entry, and the response returns `pausedPosts`.
+  - Public accounts include `tokenHealth` (`ok | expiring_soon | expired | reauth_required`, `lapsesAt`, `message`).
+    The lapse time is the refresh-token expiry when there is a refresh token, otherwise the access-token expiry. It
+    warns 7 days ahead.
+- **`publishing/publish-dispatcher.ts`.** A final scheduler failure (`failed` or `partially_published` with no retry
+  left) creates a `Notification` for the post author. It carries each platform's provider error and a link to the
+  post.
+- **Adapters.**
+  - A missing token gives `REAUTH_REQUIRED` and a missing account ID gives `ACCOUNT_NOT_CONNECTED`.
+  - `mock_` sandbox tokens are honoured only outside production (`isSandboxToken`).
+  - Pinterest requires a board. YouTube requires a title of at most 100 characters.
+  - `linkedin/tools.ts` rethrows vault errors unless the provider mode is `mock`.
+- **`tenant-scope.ts`.** `SocialDomainError` takes optional `details`.
+- **Web: `app/(public)/review/[token]/page.tsx`.**
+  - Distinct expired, withdrawn and invalid states.
+  - Network errors show "Try again" plus "Reload page" (44px targets).
+  - It sends `seenVersions` and reloads on `REVIEW_STALE`.
+  - Server messages are shown, and the page no longer sends `authorType`.
+
+### Tests
+- `packages/domains/social-media/test/post-edge-cases.test.ts`: **15/15**.
+- Existing suites still pass: publishing 29/29, tenant isolation 16, engagement 17, LinkedIn and YouTube 39,
+  user-assisted 3, readiness 3, creative 20.
+- Two suites fail for reasons unrelated to these changes:
+  - `social-suite.test.ts` needs a live database (it fails on a `SocialConversation` foreign key);
+  - `edge-cases-master.test.ts` reports 18/18 internally but its runner exits non-zero.
+- `tsc` passes with 0 errors on the social-media package (rebuilt) and on the frontend. The backend files touched here
+  have no errors.
+
+### Remaining (with reasons)
+- **Mobile follow-ups** (another agent owns `apps/social-studio-mobile`):
+  - `approvals_tab.dart` can now use `GET /reviews/sessions`, `linkState` and revoke;
+  - the composer should use `schedulingBlockers`, `warnings` and `reapprovalRequired`, and show `tokenHealth` on
+    accounts;
+  - handle `SCHEDULE_IN_PAST`, `STATUS_NOT_SETTABLE` and `POST_ALREADY_PUBLISHED`;
+  - `approveBatch` should send `seenVersions`.
+- **Web hub.** It has no composer or drawer anymore, so pre-publish validation in the web UI is out of scope unless
+  those screens return.
+- **Not done yet:**
+  - A UTM-parameter option for links.
+  - Checking brand forbidden words at dispatch time. Today it is a readiness issue only; blocking the scheduler
+    needs a product decision because false positives would stop posts from publishing.
+  - Showing times in the project timezone on the client. The server already stores UTC and honours offsets.
+- **Token-expiry notifications.** A push or in-app notification when an account turns `reauthRequired` or
+  `expiring_soon` needs an owner user on `SocialAccount`, which the schema does not have. The warning is currently
+  shown through `tokenHealth` in the accounts list.
+- **Legacy sandbox helpers.** `LinkedInAdapter.getAnalytics` and similar still return sandbox figures for `mock_`
+  tokens outside production only. Delete these helpers once `social-suite.test.ts` and
+  `youtube-production.test.ts` stop using them.
+
+### Editor parity + social edge cases: verification (2026-09-27)
+- **Mobile:** 164 tests passing, analyze clean.
+  - 8 caption presets, with fonts passed to export.
+  - Drag to move and edge trim on the timeline; per-track mute.
+  - Transitions: DIP_WHITE, ZOOM_SWOOSH, ZOOM_OUT, GLITCH.
+  - Accounts use the server's `tokenHealth`.
+  - Review approve sends `seenVersions` and reloads after REVIEW_STALE.
+- **Desktop:** jest 158/158, real-FFmpeg suite 27/27, `tsc` 0 errors.
+  - Native export now covers captions (PNG overlays), camera zoom, rotation/crop, remote media download (`fetch_remote_media`), effects, photos and all 13 transitions.
+  - The fallback renderer blocks export when there is audio instead of dropping it.
+  - **Rust not compiled** (new `overlays.rs`, `remote.rs`, `reqwest`). Needs `cargo test --lib` in CI.
+- **Social domain:** `post-edge-cases.test.ts` 15/15. Covers review links (expiry/revoke/stale/version pin), the post edit allow-list, re-approval, past-schedule rejection, account disconnect pausing posts, failure notifications, `tokenHealth` and adapter fake-success removal.
+  - **Caution:** `social-suite.test.ts` connects to the configured DATABASE_URL. Do not run it against a shared DB.
+- **Open:**
+  - UTM parameters.
+  - Blocking forbidden words at publish time (currently a warning only; needs a product decision).
+  - Showing times in the project timezone.
+  - Reconnect notifications (accounts have no owner user).
+  - Device tests: real phone export, live stock downloads, Rust build.

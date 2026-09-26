@@ -345,6 +345,8 @@ function groupByWeek<T extends { weekNumber: number }>(items: T[]): T[][] {
 
 export function validateRunInput(input: AutopilotRunInput) {
     if (![7, 14, 30].includes(input.days)) throw new AutopilotError('INVALID_INPUT', 'days must be 7, 14 or 30');
+    const dateMatch = String(input.startDate || '').trim().match(/^(\d{4}-\d{2}-\d{2})/);
+    if (dateMatch) (input as any).startDate = dateMatch[1];
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate) || Number.isNaN(Date.parse(`${input.startDate}T00:00:00Z`))) {
         throw new AutopilotError('INVALID_INPUT', 'startDate must be YYYY-MM-DD');
     }

@@ -422,10 +422,8 @@ export function springExpression(cfg: SpringConfig, x: string): string {
     const wd = w0 * Math.sqrt(1 - zeta * zeta);
     return `(1-exp(-${num(zeta * w0)}*${x})*(cos(${num(wd)}*${x})+${num((zeta * w0) / wd)}*sin(${num(wd)}*${x})))`;
   }
-  if (zeta <= 1 + 1e-6) return `(1-exp(-${num(w0)}*${x})*(1+${num(w0)}*${x}))`;
-  const r1 = -w0 * (zeta - Math.sqrt(zeta * zeta - 1));
-  const r2 = -w0 * (zeta + Math.sqrt(zeta * zeta - 1));
-  return `(1-((${num(r2)})*exp((${num(r1)})*${x})-(${num(r1)})*exp((${num(r2)})*${x}))/(${num(r2 - r1)}))`;
+  // Remotion uses the critically damped motion for every damping ratio >= 1 (spring-utils.js); so do we.
+  return `(1-exp(-${num(w0)}*${x})*(1+${num(w0)}*${x}))`;
 }
 
 /** The same spring evaluated in JS (tests compare it with Remotion's spring). */
@@ -440,10 +438,7 @@ export function springValue(cfg: SpringConfig, t: number): number {
     const wd = w0 * Math.sqrt(1 - zeta * zeta);
     return 1 - Math.exp(-zeta * w0 * x) * (Math.cos(wd * x) + ((zeta * w0) / wd) * Math.sin(wd * x));
   }
-  if (zeta <= 1 + 1e-6) return 1 - Math.exp(-w0 * x) * (1 + w0 * x);
-  const r1 = -w0 * (zeta - Math.sqrt(zeta * zeta - 1));
-  const r2 = -w0 * (zeta + Math.sqrt(zeta * zeta - 1));
-  return 1 - (r2 * Math.exp(r1 * x) - r1 * Math.exp(r2 * x)) / (r2 - r1);
+  return 1 - Math.exp(-w0 * x) * (1 + w0 * x);
 }
 
 type CameraEventLike = {
