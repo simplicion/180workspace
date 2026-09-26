@@ -16,6 +16,8 @@ export const ALLOWED_FILTERS = [
   "crop", "split", "zoompan", "hue", "vignette", "fade",
   // transitions
   "geq", "gblur", "rgbashift", "noise",
+  // clip rotation
+  "rotate",
 ] as const;
 
 export const MAX_GRAPH_LEN = 100_000;

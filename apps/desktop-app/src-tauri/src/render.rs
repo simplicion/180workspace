@@ -35,6 +35,8 @@ const ALLOWED_FILTERS: &[&str] = &[
     "crop", "split", "zoompan", "hue", "vignette", "fade",
     // transitions (geq only evaluates expressions over pixels; no file access)
     "geq", "gblur", "rgbashift", "noise",
+    // clip rotation
+    "rotate",
 ];
 const MAX_GRAPH_LEN: usize = 100_000;
 const MAX_FINISHED_JOBS: usize = 20;
