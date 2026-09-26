@@ -76,8 +76,7 @@ export class AIContentCalendarService {
                 Array.isArray(bc.forbiddenWords) && bc.forbiddenWords.length ? `Never use these words: ${bc.forbiddenWords.join(', ')}` : '',
                 Array.isArray(bc.completeness?.missingRequired) && bc.completeness.missingRequired.length
                     ? `Not provided by the brand (do not invent these): ${bc.completeness.missingRequired.join(', ')}` : '',
-            ].filter(Boolean).join('
-') || 'No brand profile was provided. Do not invent brand facts; keep claims generic and verifiable.';
+            ].filter(Boolean).join('\n') || 'No brand profile was provided. Do not invent brand facts; keep claims generic and verifiable.';
         const platformList = platforms.length > 0 ? platforms.join(', ') : (Array.isArray(bc.targetPlatforms) ? bc.targetPlatforms.join(', ') : '');
 
         return `
