@@ -237,7 +237,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(find.byType(CaptionPresetCard), findsWidgets);
-    final hormozi = find.bySemanticsLabel('Caption style Hormozi Viral');
+    final hormozi = find.bySemanticsLabel(RegExp('^Caption style Hormozi Viral'));
     await tester.dragUntilVisible(hormozi, find.byType(ListView), const Offset(-120, 0));
     await tester.tap(hormozi);
     await tester.pumpAndSettle();
