@@ -1,9 +1,9 @@
 import { CreativeEditPlan, CreativeOperation } from "./creative-plan.schema";
-import { MediaIntelligenceGraph, TranscriptWordIntelligence, ClassifiedSilence } from "./media-intelligence.schema";
+import { MediaIntelligenceGraph, TranscriptWordIntelligence, ClassifiedSilence, FaceTrack, MusicBeatTrack } from "./media-intelligence.schema";
 import { EditIR } from "./edit-ir.schema";
 import { RationalTimeMath } from "./time";
 import { MediaGraphBuilder } from "./media-graph";
-import { MobileMediaDescriptor, mapSourceToTimeline } from "./mobile-edit-ir";
+import { MobileMediaDescriptor, MobileFaceSample, mapSourceToTimeline, dominantFaceCenter, cropFor } from "./mobile-edit-ir";
 
 /**
  * PlanExpander turns high-level, transcript-driven operations (removeSilences, cleanFillers,
@@ -11,7 +11,16 @@ import { MobileMediaDescriptor, mapSourceToTimeline } from "./mobile-edit-ir";
  * The graph passed in must be in CURRENT TIMELINE coordinates (see graphFromMobileMedia).
  */
 export class PlanExpander {
-  static expand(plan: CreativeEditPlan, graph: MediaIntelligenceGraph, warnings: string[] = []): CreativeEditPlan {
+  /**
+   * `opts.canvas` is the output size the plan renders at: FACE zooms are centred on the detected
+   * face (graph.faces), converted from source-frame to canvas coordinates through the fill crop.
+   */
+  static expand(
+    plan: CreativeEditPlan,
+    graph: MediaIntelligenceGraph,
+    warnings: string[] = [],
+    opts: { canvas?: { width: number; height: number } } = {}
+  ): CreativeEditPlan {
     const out: CreativeOperation[] = [];
     for (const op of plan.operations) {
       switch (op.type) {
@@ -39,11 +48,49 @@ export class PlanExpander {
           out.push({ type: "clearCaptions" }, ...this.captionOps(graph.transcript, op));
           break;
         }
+        case "addZoom": {
+          const face = (op.targetType ?? "FACE") === "FACE" ? this.faceZoomCenter(graph, op.startSec, op.startSec + op.durationSec, opts.canvas) : null;
+          out.push(face ? { ...op, targetCoords: face } : op);
+          break;
+        }
         default:
           out.push(op);
       }
     }
     return { ...plan, operations: out };
+  }
+
+  /**
+   * Canvas point of the speaker's face during [startSec, endSec] (timeline): the median of the face
+   * samples in that window (else the clip-wide dominant face), mapped through the fill crop that
+   * toMobileEditIR centres on the dominant face. Null when there is no face track.
+   */
+  static faceZoomCenter(
+    graph: MediaIntelligenceGraph,
+    startSec: number,
+    endSec: number,
+    canvas?: { width: number; height: number }
+  ): { x: number; y: number } | null {
+    const track = graph.faces[0];
+    if (!track) return null;
+    const inWindow = track.samples.filter((s) => s.timeSeconds >= startSec - 0.25 && s.timeSeconds <= endSec + 0.25);
+    const med = (v: number[]) => {
+      const a = [...v].sort((p, q) => p - q);
+      const m = a.length >> 1;
+      return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+    };
+    let x = inWindow.length ? med(inWindow.map((s) => s.x)) : track.averageCoords.x;
+    let y = inWindow.length ? med(inWindow.map((s) => s.y)) : track.averageCoords.y;
+    const { width: srcW, height: srcH } = graph.technicalMetadata;
+    const crop = canvas && srcW > 0 && srcH > 0
+      ? cropFor(srcW, srcH, canvas.width, canvas.height, track.averageCoords.x, track.averageCoords.y)
+      : null;
+    if (crop) {
+      x = (x - crop.x) / crop.width;
+      y = (y - crop.y) / crop.height;
+    }
+    const c = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 10000) / 10000;
+    return { x: c(x), y: c(y) };
   }
 
   static silenceCuts(graph: MediaIntelligenceGraph, minDurationSec: number, paddingSec: number): CreativeOperation[] {
@@ -213,6 +260,9 @@ export function graphFromMobileMedia(media: MobileMediaDescriptor, editIR: EditI
     });
   });
 
+  const faces = faceTrackFromMobile(media.faces, editIR, assetId);
+  const beats = beatTrackFromMobile(media.beatsMs, editIR, assetId);
+
   return MediaGraphBuilder.build({
     assetId,
     technicalMetadata: {
@@ -227,5 +277,47 @@ export function graphFromMobileMedia(media: MobileMediaDescriptor, editIR: EditI
     },
     transcript: words,
     silences,
+    ...(faces ? { faces: [faces] } : {}),
+    ...(beats ? { beats } : {}),
   });
+}
+
+/** The client face samples as one primary-speaker FaceTrack in timeline seconds (largest face per sample). */
+function faceTrackFromMobile(samples: MobileFaceSample[] | undefined, editIR: EditIR, assetId: string): FaceTrack | null {
+  const center = dominantFaceCenter(samples);
+  if (!samples?.length || !center) return null;
+  const largest = new Map<number, MobileFaceSample>();
+  for (const f of samples) {
+    const cur = largest.get(f.tMs);
+    if (!cur || f.w * f.h > cur.w * cur.h) largest.set(f.tMs, f);
+  }
+  const points: FaceTrack["samples"] = [];
+  for (const f of [...largest.values()].sort((a, b) => a.tMs - b.tMs)) {
+    const t = mapSourceToTimeline(editIR, assetId, f.tMs / 1000);
+    if (t == null) continue;
+    points.push({ timeSeconds: round3(t), subjectId: "speaker_1", x: f.x, y: f.y, width: f.w, height: f.h, confidence: 0.9, isPrimarySpeaker: true });
+  }
+  return { subjectId: "speaker_1", label: "speaker_1", isPrimarySpeaker: true, averageCoords: center, samples: points };
+}
+
+/** Client beat times (source ms) as a MusicBeatTrack in timeline seconds; bpm from the median beat gap. */
+function beatTrackFromMobile(beatsMs: number[] | undefined, editIR: EditIR, assetId: string): MusicBeatTrack | null {
+  if (!beatsMs?.length) return null;
+  const src = [...beatsMs].sort((a, b) => a - b);
+  const beatTimestamps: number[] = [];
+  for (const b of src) {
+    const t = mapSourceToTimeline(editIR, assetId, b / 1000);
+    if (t != null) beatTimestamps.push(round3(t));
+  }
+  const gaps = src.slice(1).map((b, i) => b - src[i]).filter((g) => g > 0).sort((a, b) => a - b);
+  const gap = gaps.length ? gaps[gaps.length >> 1] : 0;
+  const bpm = gap > 0 ? Math.round(60000 / gap) : 0;
+  return {
+    hasMusic: src.length >= 4,
+    ...(bpm >= 40 && bpm <= 240 ? { bpm } : {}),
+    confidence: src.length >= 8 ? 0.6 : 0.3,
+    beatTimestamps,
+    downbeatTimestamps: [],
+    energyCurve: [],
+  };
 }
