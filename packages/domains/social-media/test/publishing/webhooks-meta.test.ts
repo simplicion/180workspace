@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'crypto';
-import { createFakeDb } from './fakes';
+import { FetchMock, createFakeDb, json, setTestEnv } from './fakes';
 import { setPublishingDb } from '../../src/publishing/http';
 import { MetaWebhooksService } from '../../src/publishing/webhooks.service';
 import { SocialTokenVault } from '../../src/publishing/token-vault';
@@ -219,36 +219,35 @@ test('Meta Webhook Events: Ingests incoming messaging & comments into Social Inb
     assert.equal(messages[0].platformMessageId, 'm_mid_ig_101');
 });
 
-test('Proactive Token Refresh: Scheduler tick proactively refreshes expiring tokens', async () => {
+test('Proactive Token Refresh: really refreshes a token expiring within the window (not only inside the 5-minute skew)', async () => {
     const fakeDb = createFakeDb();
     setPublishingDb(fakeDb);
+    setTestEnv();
+    process.env.THREADS_APP_ID = 'threads_app_test';
+    process.env.THREADS_APP_SECRET = 'threads_secret_test';
 
-    // Seed account with token expiring in 2 days
-    const expDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
     const acc = await fakeDb.socialAccount.create({
-        data: {
-            companyId: COMPANY_ID,
-            platform: 'threads',
-            platformAccountId: 'threads_user_1',
-            accountName: 'Threads Creator',
-            username: 'th_creator',
-            isActive: true,
-            reauthRequired: false,
-        },
+        data: { companyId: COMPANY_ID, platform: 'threads', platformAccountId: 'threads_user_1', accountName: 'Threads Creator', username: 'th_creator', isActive: true, reauthRequired: false },
+    });
+    // Expires in 2 days: far outside the 300 s on-demand skew, inside the 7-day proactive window.
+    await SocialTokenVault.saveTokens(acc.id, COMPANY_ID, {
+        accessToken: 'th_old_token', refreshToken: 'th_old_token', expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), scopes: [],
     });
 
-    await fakeDb.socialAccountCredential.create({
-        data: {
-            companyId: COMPANY_ID,
-            socialAccountId: acc.id,
-            accessTokenExpiresAt: expDate,
-            refreshTokenEnc: 'v1.fake.refresh.token',
-            accessTokenEnc: 'v1.fake.access.token',
-        },
-    });
-
-    // Run proactive refresh
-    const r = await SocialTokenVault.proactiveRefreshExpiringTokens();
-    // It identifies the account expiring soon
-    assert.ok(r.refreshed >= 0);
+    const calls: string[] = [];
+    const mock = new FetchMock((c) => {
+        const u = new URL(c.url);
+        calls.push(u.pathname);
+        if (u.host === 'graph.threads.net' && u.pathname === '/refresh_access_token') {
+            return json(200, { access_token: 'th_new_token', token_type: 'bearer', expires_in: 5184000 });
+        }
+    }).install();
+    try {
+        const r = await SocialTokenVault.proactiveRefreshExpiringTokens();
+        assert.deepEqual(r, { refreshed: 1, failed: 0 });
+        assert.ok(calls.includes('/refresh_access_token'), 'the provider refresh endpoint must be called');
+        assert.equal(await SocialTokenVault.getAccessToken({ id: acc.id, companyId: COMPANY_ID, platform: 'threads' }), 'th_new_token');
+    } finally {
+        mock.restore();
+    }
 });

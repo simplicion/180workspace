@@ -95,8 +95,64 @@ export const StockMediaPanel: React.FC<StockMediaPanelProps> = ({
     }
   };
 
+  const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
+
+  const getVideoThumb = (vid: any): string | null => {
+    return vid.thumbnailUrl || vid.previewUrl || vid.image || null;
+  };
+
+  const getVideoDownloadUrl = (vid: any): string | null => {
+    return vid.downloadUrl || vid.previewVideoUrl || vid.video_files?.[0]?.link || vid.url || null;
+  };
+
+  const getMediaProvider = (item: any): string => {
+    if (item.provider) return String(item.provider).toUpperCase();
+    const id = String(item.id || "").toLowerCase();
+    if (id.startsWith("pexels")) return "PEXELS";
+    if (id.startsWith("pixabay")) return "PIXABAY";
+    if (id.startsWith("freesound")) return "FREESOUND";
+    return "STOCK";
+  };
+
+  const getVideoAuthor = (vid: any): string => {
+    return vid.photographer || vid.user?.name || (typeof vid.user === "string" ? vid.user : null) || "Creator";
+  };
+
+  const getPhotoThumb = (photo: any): string | null => {
+    return (
+      photo.thumbnailUrl ||
+      photo.previewUrl ||
+      photo.webformatUrl ||
+      photo.webformatURL ||
+      photo.src?.medium ||
+      photo.downloadUrl ||
+      (typeof photo.url === "string" && !photo.url.includes("pexels.com/photo/") ? photo.url : null)
+    );
+  };
+
+  const getPhotoDownloadUrl = (photo: any): string | null => {
+    return (
+      photo.downloadUrl ||
+      photo.largeImageUrl ||
+      photo.src?.large2x ||
+      photo.src?.large ||
+      photo.webformatUrl ||
+      photo.previewUrl ||
+      null
+    );
+  };
+
+  const getPhotoAuthor = (photo: any): string => {
+    return (
+      photo.photographer ||
+      photo.attribution ||
+      (typeof photo.user === "string" ? photo.user : photo.user?.name) ||
+      "Creator"
+    );
+  };
+
   const handleAddVideo = (video: any, directToTimeline = false) => {
-    const downloadUrl = video.downloadUrl || video.video_files?.[0]?.link || video.url;
+    const downloadUrl = getVideoDownloadUrl(video);
     if (!downloadUrl) {
       toast.error("Video stream URL not available");
       return;
@@ -104,10 +160,10 @@ export const StockMediaPanel: React.FC<StockMediaPanelProps> = ({
 
     const descriptor: MediaAssetDescriptor = {
       id: `stock_vid_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      name: `Stock: ${query || "Clip"} (${video.duration || 10}s)`,
+      name: video.title || `Stock: ${query || "Clip"} (${video.duration || 10}s)`,
       filePath: downloadUrl,
       mimeType: "video/mp4",
-      durationSeconds: Number(video.duration) || 10,
+      durationSeconds: Number(video.durationSec || video.duration) || 10,
       width: video.width || (aspectRatio === "9:16" ? 1080 : 1920),
       height: video.height || (aspectRatio === "9:16" ? 1920 : 1080),
       fps: 30,
@@ -156,12 +212,15 @@ export const StockMediaPanel: React.FC<StockMediaPanelProps> = ({
   };
 
   const handleAddPhoto = (photo: any, directToTimeline = false) => {
-    const imageUrl = photo.src?.large2x || photo.src?.large || photo.webformatURL || photo.url;
-    if (!imageUrl) return;
+    const imageUrl = getPhotoDownloadUrl(photo);
+    if (!imageUrl) {
+      toast.error("Photo download URL not available");
+      return;
+    }
 
     const descriptor: MediaAssetDescriptor = {
       id: `stock_img_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      name: `Stock Photo: ${query || "Visual"}`,
+      name: photo.title ? `Stock: ${photo.title}` : `Stock Photo: ${query || "Visual"}`,
       filePath: imageUrl,
       mimeType: "image/jpeg",
       durationSeconds: 5,
@@ -181,6 +240,13 @@ export const StockMediaPanel: React.FC<StockMediaPanelProps> = ({
       toast.success("Added photo to asset bin!");
     }
   };
+
+  const filteredAudio =
+    activeTab === "music"
+      ? results.audio.filter((a) => a.kind === "music")
+      : activeTab === "sfx"
+      ? results.audio.filter((a) => a.kind === "sfx")
+      : results.audio;
 
   const totalResults =
     results.videos.length + results.photos.length + results.illustrations.length + results.audio.length;
@@ -238,7 +304,7 @@ export const StockMediaPanel: React.FC<StockMediaPanelProps> = ({
             { id: "video", label: `Videos (${results.videos.length})` },
             { id: "music", label: `Music (${results.audio.filter((a) => a.kind === "music").length})` },
             { id: "sfx", label: `SFX (${results.audio.filter((a) => a.kind === "sfx").length})` },
-            { id: "photo", label: `Photos (${results.photos.length})` },
+            { id: "photo", label: `Photos (${results.photos.length + results.illustrations.length})` },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -303,71 +369,89 @@ export const StockMediaPanel: React.FC<StockMediaPanelProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {results.videos.map((vid, idx) => (
-                    <div
-                      key={vid.id || idx}
-                      className="group relative rounded-xl overflow-hidden bg-[#11131C] border border-[#1E212E] hover:border-indigo-500/50 transition-all flex flex-col justify-between"
-                    >
-                      <div className="relative aspect-video bg-black/40 overflow-hidden">
-                        {vid.image ? (
-                          <img
-                            src={vid.image}
-                            alt="Stock Video"
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-600">
-                            <Film className="w-6 h-6" />
+                  {results.videos.map((vid, idx) => {
+                    const thumb = getVideoThumb(vid);
+                    const provider = getMediaProvider(vid);
+                    const author = getVideoAuthor(vid);
+                    const isHovered = hoveredVideoId === (vid.id || String(idx));
+                    return (
+                      <div
+                        key={vid.id || idx}
+                        onMouseEnter={() => setHoveredVideoId(vid.id || String(idx))}
+                        onMouseLeave={() => setHoveredVideoId(null)}
+                        className="group relative rounded-xl overflow-hidden bg-[#11131C] border border-[#1E212E] hover:border-indigo-500/50 transition-all flex flex-col justify-between"
+                      >
+                        <div className="relative aspect-video bg-black/40 overflow-hidden">
+                          {thumb ? (
+                            <img
+                              src={thumb}
+                              alt={vid.title || "Stock Video"}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-600">
+                              <Film className="w-6 h-6" />
+                            </div>
+                          )}
+
+                          <span className="absolute top-1 left-1 px-1.5 py-0.2 rounded text-[8px] font-mono uppercase bg-black/80 text-emerald-400 border border-emerald-500/30">
+                            {provider}
+                          </span>
+
+                          <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-mono text-gray-300">
+                            {vid.duration ? `${vid.duration}s` : "HD"}
+                          </span>
+                        </div>
+
+                        <div className="p-2 space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px] text-gray-400">
+                            <span className="truncate max-w-[105px]" title={author}>
+                              {author}
+                            </span>
+                            <span className="uppercase text-[9px] font-mono text-indigo-400">
+                              {vid.width && vid.height ? `${vid.width >= 3840 ? "4K" : "HD"}` : "HD"}
+                            </span>
                           </div>
-                        )}
-                        <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-mono text-gray-300">
-                          {vid.duration ? `${vid.duration}s` : "HD"}
-                        </span>
-                      </div>
 
-                      <div className="p-2 space-y-1.5">
-                        <div className="flex items-center justify-between text-[10px] text-gray-400">
-                          <span className="truncate">{vid.user?.name || "Pexels Video"}</span>
-                          <span className="uppercase text-[9px] font-mono text-indigo-400">HD</span>
-                        </div>
-
-                        <div className="flex items-center space-x-1">
-                          <button
-                            onClick={() => handleAddVideo(vid, true)}
-                            className="flex-1 py-1 px-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[10px] font-semibold flex items-center justify-center gap-1 transition"
-                          >
-                            <Plus className="w-3 h-3" />
-                            <span>+ Track</span>
-                          </button>
-                          <button
-                            onClick={() => handleAddVideo(vid, false)}
-                            className="py-1 px-2 rounded-lg bg-[#191D2B] hover:bg-[#23293D] text-gray-300 text-[10px] font-medium transition"
-                            title="Add to Project Asset Bin"
-                          >
-                            Bin
-                          </button>
+                          <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => handleAddVideo(vid, true)}
+                              className="flex-1 py-1 px-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[10px] font-semibold flex items-center justify-center gap-1 transition"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>+ Track</span>
+                            </button>
+                            <button
+                              onClick={() => handleAddVideo(vid, false)}
+                              className="py-1 px-2 rounded-lg bg-[#191D2B] hover:bg-[#23293D] text-gray-300 text-[10px] font-medium transition"
+                              title="Add to Project Asset Bin"
+                            >
+                              Bin
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
             {/* 2. Audio Section (Music & SFX) */}
-            {(activeTab === "all" || activeTab === "music" || activeTab === "sfx") && results.audio.length > 0 && (
+            {(activeTab === "all" || activeTab === "music" || activeTab === "sfx") && filteredAudio.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs font-semibold text-gray-300">
                   <span className="flex items-center gap-1.5">
                     <Music className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Audio & Sound Effects</span>
+                    <span>{activeTab === "sfx" ? "Sound Effects" : activeTab === "music" ? "Royalty-Free Music" : "Audio & Sound Effects"}</span>
                   </span>
-                  <span className="text-[10px] text-gray-500 font-mono">{results.audio.length} tracks</span>
+                  <span className="text-[10px] text-gray-500 font-mono">{filteredAudio.length} tracks</span>
                 </div>
 
                 <div className="space-y-1.5">
-                  {results.audio.map((track, idx) => {
+                  {filteredAudio.map((track, idx) => {
                     const isPlaying = previewAudioUrl === (track.url || track.previewUrl);
+                    const provider = getMediaProvider(track);
                     return (
                       <div
                         key={idx}
@@ -387,6 +471,9 @@ export const StockMediaPanel: React.FC<StockMediaPanelProps> = ({
                           <div className="flex items-center space-x-1.5 text-[9px] text-gray-400 font-mono mt-0.5">
                             <span className="px-1 py-0.2 rounded bg-black/40 text-emerald-300 uppercase">
                               {track.kind || "audio"}
+                            </span>
+                            <span className="px-1 py-0.2 rounded bg-indigo-950/60 text-indigo-300 uppercase text-[8px]">
+                              {provider}
                             </span>
                             {track.durationSec && <span>{track.durationSec.toFixed(1)}s</span>}
                             {track.genre && <span>• {track.genre}</span>}
@@ -409,43 +496,60 @@ export const StockMediaPanel: React.FC<StockMediaPanelProps> = ({
               </div>
             )}
 
-            {/* 3. Photos Section */}
-            {(activeTab === "all" || activeTab === "photo") && results.photos.length > 0 && (
+            {/* 3. Photos & Graphics Section */}
+            {(activeTab === "all" || activeTab === "photo") && (results.photos.length > 0 || results.illustrations.length > 0) && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs font-semibold text-gray-300">
                   <span className="flex items-center gap-1.5">
                     <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
                     <span>Photos & Graphics</span>
                   </span>
-                  <span className="text-[10px] text-gray-500 font-mono">{results.photos.length}</span>
+                  <span className="text-[10px] text-gray-500 font-mono">
+                    {results.photos.length + results.illustrations.length} items
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {results.photos.map((photo, idx) => (
-                    <div
-                      key={photo.id || idx}
-                      className="group relative rounded-xl overflow-hidden bg-[#11131C] border border-[#1E212E] hover:border-cyan-500/50 transition flex flex-col justify-between"
-                    >
-                      <div className="relative aspect-video bg-black/40 overflow-hidden">
-                        <img
-                          src={photo.src?.medium || photo.webformatURL || photo.url}
-                          alt="Stock Visual"
-                          className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                        />
+                  {[...results.photos, ...results.illustrations].map((photo, idx) => {
+                    const imgSrc = getPhotoThumb(photo);
+                    const provider = getMediaProvider(photo);
+                    const author = getPhotoAuthor(photo);
+                    return (
+                      <div
+                        key={photo.id || idx}
+                        className="group relative rounded-xl overflow-hidden bg-[#11131C] border border-[#1E212E] hover:border-cyan-500/50 transition flex flex-col justify-between"
+                      >
+                        <div className="relative aspect-video bg-black/40 overflow-hidden">
+                          {imgSrc ? (
+                            <img
+                              src={imgSrc}
+                              alt={photo.title || "Stock Visual"}
+                              className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-600">
+                              <ImageIcon className="w-6 h-6" />
+                            </div>
+                          )}
+
+                          <span className="absolute top-1 left-1 px-1.5 py-0.2 rounded text-[8px] font-mono uppercase bg-black/80 text-cyan-400 border border-cyan-500/30">
+                            {provider}
+                          </span>
+                        </div>
+                        <div className="p-1.5 flex items-center justify-between">
+                          <span className="text-[9px] text-gray-400 truncate max-w-[80px]" title={author}>
+                            {author}
+                          </span>
+                          <button
+                            onClick={() => handleAddPhoto(photo, true)}
+                            className="px-2 py-0.5 rounded bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white text-[9px] font-semibold transition"
+                          >
+                            + Track
+                          </button>
+                        </div>
                       </div>
-                      <div className="p-1.5 flex items-center justify-between">
-                        <span className="text-[9px] text-gray-400 truncate max-w-[80px]">
-                          {photo.photographer || "Pixabay"}
-                        </span>
-                        <button
-                          onClick={() => handleAddPhoto(photo, true)}
-                          className="px-2 py-0.5 rounded bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white text-[9px] font-semibold transition"
-                        >
-                          + Track
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -455,3 +559,4 @@ export const StockMediaPanel: React.FC<StockMediaPanelProps> = ({
     </div>
   );
 };
+

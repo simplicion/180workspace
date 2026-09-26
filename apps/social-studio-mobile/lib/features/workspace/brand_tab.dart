@@ -11,6 +11,7 @@ import '../../data/models/library.dart';
 import '../../data/models/project.dart';
 import '../projects/brand_voice_form.dart';
 import '../projects/project_provider.dart';
+import 'brand_identity_card.dart';
 
 /// Brand identity editor plus AI content ideas grounded in it.
 class BrandTab extends ConsumerWidget {
@@ -114,6 +115,8 @@ class _BrandEditorState extends ConsumerState<_BrandEditor> {
             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
             : const Text('Save brand identity'),
       ),
+      const SizedBox(height: 16),
+      BrandIdentityCard(projectId: widget.project.id),
       SectionHeader('Content ideas',
           trailing: TextButton.icon(
             onPressed: _ideasLoading ? null : _generateIdeas,

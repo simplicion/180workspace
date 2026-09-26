@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.workspace180" "\0"
-            VALUE "FileDescription", "social_studio_mobile" "\0"
+            VALUE "FileDescription", "180 Social Media Manager" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "social_studio_mobile" "\0"
+            VALUE "InternalName", "180_social_media_manager" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.workspace180. All rights reserved." "\0"
-            VALUE "OriginalFilename", "social_studio_mobile.exe" "\0"
-            VALUE "ProductName", "social_studio_mobile" "\0"
+            VALUE "OriginalFilename", "180-social-media-manager.exe" "\0"
+            VALUE "ProductName", "180 Social Media Manager" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

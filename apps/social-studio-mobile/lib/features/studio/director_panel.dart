@@ -184,7 +184,7 @@ class _MessageTile extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: FilledButton.icon(onPressed: onApply, icon: const Icon(Icons.check_rounded, size: 18), label: const Text('Apply to timeline')),
           ),
-        if (m.applied) const Padding(padding: EdgeInsets.only(top: 6), child: Text('Applied · Undo is in the top bar', style: TextStyle(fontSize: 11, color: AppTheme.success))),
+        if (m.applied) const Padding(padding: EdgeInsets.only(top: 6), child: Text('Applied · tap any item on the timeline to change it · Undo is in the top bar', style: TextStyle(fontSize: 11, color: AppTheme.success))),
       ]),
     );
   }

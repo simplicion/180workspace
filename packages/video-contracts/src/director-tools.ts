@@ -11,6 +11,7 @@ import {
   ReframeSubjectOpSchema,
   ChangeSpeedOpSchema,
   InsertBrollOpSchema,
+  AddEffectOpSchema,
   AddBackgroundMusicOpSchema,
   DuckAudioOpSchema,
   ApplyFilterOpSchema,
@@ -23,6 +24,8 @@ import {
   ChangeAspectRatioOpSchema,
   AdjustVolumeOpSchema,
   RotateClipOpSchema,
+  AutoSoundDesignOpSchema,
+  AddSoundEffectOpSchema,
 } from "./creative-plan.schema";
 
 /**
@@ -113,11 +116,12 @@ export const DIRECTOR_TOOL_SPECS: DirectorToolSpec[] = [
   { name: "addZoom", schema: AddZoomOpSchema, description: "Punch-in camera zoom for emphasis (e.g. on a punchline). targetCoords are 0..1 canvas fractions (face ≈ {x:0.5,y:0.38}). Keep durations 0.8-3s, scale 1.15-1.5." },
   { name: "reframeSubject", schema: ReframeSubjectOpSchema, description: "Change the canvas aspect ratio and reframe (crop) the footage, e.g. 9:16 for TikTok/Reels/Shorts." },
   { name: "changeSpeed", schema: ChangeSpeedOpSchema, description: "Change playback speed. clipId 'all' for the whole video." },
-  { name: "insertBroll", schema: InsertBrollOpSchema, description: "Overlay B-roll footage. Set stockQuery to a short visual search phrase (e.g. 'gym workout') unless an assetId from the available assets list fits. timelineStartSec/durationSec in timeline seconds." },
+  { name: "insertBroll", schema: InsertBrollOpSchema, description: "Overlay B-roll footage. Set stockQuery to a short visual search phrase (e.g. 'gym workout') unless an assetId from the available assets list fits. timelineStartSec/durationSec in timeline seconds. mediaType 'image' shows a still photo (only with sourceUrl or an image asset; 1.5-4s)." },
+  { name: "addEffect", schema: AddEffectOpSchema, description: "Visual effect for a time range: flash (white flash on a cut/beat, 0.2-0.5s), fade_black (dip to black between sections), shake (impact/energy, 0.3-1s), zoom_pulse (beat punch, 0.3-0.8s), black_white (flashback/contrast moment), vignette (moody focus). Use sparingly: at most one every ~5s." },
   { name: "addBackgroundMusic", schema: AddBackgroundMusicOpSchema, description: "Add a background music bed. query = mood/genre keywords. duckUnderSpeech lowers music while someone talks." },
   { name: "duckAudio", schema: DuckAudioOpSchema, description: "Duck EXISTING background music under speech. Only valid when music already exists; for new music use addBackgroundMusic with duckUnderSpeech." },
   { name: "applyFilter", schema: ApplyFilterOpSchema, description: "Colour look. preset one of NOIR_BW, VIVID, CINEMATIC_TEAL_ORANGE, VINTAGE_WARM, CYBER_NEON, GLOW, NORMAL; brightness/contrast/saturation are multipliers around 1.0." },
-  { name: "addTransition", schema: AddTransitionOpSchema, description: "Add a transition at cut boundaries. fromClipId/toClipId '*' = every cut." },
+  { name: "addTransition", schema: AddTransitionOpSchema, description: "Add a transition at cut boundaries. fromClipId/toClipId '*' = every cut. Types: CROSSFADE, DISSOLVE, DIP_BLACK/DIP_WHITE (section change), ZOOM_SWOOSH/ZOOM_OUT (energy), WIPE/WIPE_RIGHT, SLIDE_LEFT/SLIDE_UP, GLITCH (tech/hype), BLUR_PUNCH. Keep 0.2-0.6s." },
   { name: "rippleDelete", schema: RippleDeleteOpSchema, description: "Delete one whole main-track clip (by id from 'main clips') and close the gap." },
   { name: "trimClip", schema: TrimClipOpSchema, description: "Shorten one main-track clip by removing seconds from its start and/or end (ripple; the rest of the video moves up)." },
   { name: "splitClip", schema: SplitClipOpSchema, description: "Split a main-track clip in two at a timeline second. Nothing changes visually; the parts get ids <clipId>_1 and <clipId>_2 so later calls in this response (applyFilter, changeSpeed, rotateClip, addTransition) can target one part." },
@@ -126,6 +130,8 @@ export const DIRECTOR_TOOL_SPECS: DirectorToolSpec[] = [
   { name: "changeAspectRatio", schema: ChangeAspectRatioOpSchema, description: "Change the canvas aspect ratio. mode 'fill' crops the footage to fill the frame (same as reframeSubject); mode 'fit' shows the whole frame with bars in `background` (#RRGGBB)." },
   { name: "adjustVolume", schema: AdjustVolumeOpSchema, description: "Set a volume level. trackId 'original' = the video's own sound (voice), 'music' = the background music (only when music exists)." },
   { name: "rotateClip", schema: RotateClipOpSchema, description: "Rotate (absolute 0/90/180/270 clockwise) and/or mirror the footage. clipId 'all' for the whole video. Use for sideways or upside-down footage." },
+  { name: "autoSoundDesign", schema: AutoSoundDesignOpSchema, description: "Automatically synthesize acoustic sound design across the entire video: whooshes under zooms/cuts, UI pops on caption highlights, and sub-bass drops on punchlines." },
+  { name: "addSoundEffect", schema: AddSoundEffectOpSchema, description: "Place a specific acoustic sound effect (whoosh, pop, sub_drop, riser, impact, glitch, bell) at a precise timeline second to punctuate key moments." },
 ];
 
 export const FINISH_TOOL_NAME = "finish_edit";

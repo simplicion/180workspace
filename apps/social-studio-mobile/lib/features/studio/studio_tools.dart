@@ -8,13 +8,17 @@ import '../../core/native_engine/edit_ir.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/universal_skeleton.dart';
 import '../director/ai_director_service.dart';
+import '../projects/project_provider.dart';
 import 'studio_controller.dart';
 import 'studio_session_screen.dart' show timecode;
+import 'text_templates.dart';
 import 'timeline_ops.dart';
 
 enum StudioTool {
   director('AI Director', Icons.auto_awesome_rounded),
+  library('Library', Icons.library_add_rounded),
   trim('Trim', Icons.straighten_rounded),
   delete('Delete', Icons.delete_outline_rounded),
   order('Reorder', Icons.swap_horiz_rounded),
@@ -75,6 +79,7 @@ Future<void> showStudioTool(BuildContext context, StudioTool tool, StudioControl
           StudioTool.zoom => _ZoomSheet(c: c, onEdit: onEdit),
           StudioTool.broll => _BrollSheet(c: c, onEdit: onEdit),
           StudioTool.transition => _TransitionSheet(c: c, onEdit: onEdit),
+          StudioTool.library => _LibrarySheet(c: c, onEdit: onEdit),
           StudioTool.director => const SizedBox.shrink(),
         },
       ),
@@ -834,10 +839,7 @@ class _MusicSheetState extends ConsumerState<_MusicSheet> {
               ),
             ),
             if (_searching)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              const SizedBox(height: 160, child: UniversalSkeleton(type: SkeletonType.projects)),
             if (_results != null && !_searching) ...[
               const SizedBox(height: 12),
               Text(
@@ -1114,10 +1116,7 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
               ),
             ),
             if (_searching)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              const SizedBox(height: 160, child: UniversalSkeleton(type: SkeletonType.projects)),
             if (_results != null && !_searching) ...[
               const SizedBox(height: 12),
               Text(
@@ -1259,4 +1258,460 @@ class _TransitionSheet extends StatelessWidget {
         ),
     ]);
   }
+}
+
+// ── Library: browse music, sound effects, stock video and text templates ─────
+
+class _LibrarySheet extends StatelessWidget {
+  const _LibrarySheet({required this.c, required this.onEdit});
+  final StudioController c;
+  final EditFn onEdit;
+
+  @override
+  Widget build(BuildContext context) => DefaultTabController(
+        length: 6,
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              tabs: [
+                Tab(icon: Icon(Icons.music_note_rounded), text: 'Music'),
+                Tab(icon: Icon(Icons.graphic_eq_rounded), text: 'Sound FX'),
+                Tab(icon: Icon(Icons.movie_rounded), text: 'Video'),
+                Tab(icon: Icon(Icons.photo_rounded), text: 'Photos'),
+                Tab(icon: Icon(Icons.title_rounded), text: 'Text'),
+                Tab(icon: Icon(Icons.auto_fix_high_rounded), text: 'Effects'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: TabBarView(children: [
+                _MusicSheet(c: c, onEdit: onEdit),
+                _SfxTab(c: c, onEdit: onEdit),
+                _BrollSheet(c: c, onEdit: onEdit),
+                _PhotosTab(c: c, onEdit: onEdit),
+                _TextTemplatesTab(c: c, onEdit: onEdit),
+                _EffectsTab(c: c, onEdit: onEdit),
+              ]),
+            ),
+          ]),
+        ),
+      );
+}
+
+class _SfxTab extends ConsumerStatefulWidget {
+  const _SfxTab({required this.c, required this.onEdit});
+  final StudioController c;
+  final EditFn onEdit;
+
+  @override
+  ConsumerState<_SfxTab> createState() => _SfxTabState();
+}
+
+class _SfxTabState extends ConsumerState<_SfxTab> {
+  static const suggestions = ['whoosh', 'pop', 'click', 'swoosh', 'ding', 'bass drop', 'camera shutter', 'notification'];
+  final _q = TextEditingController();
+  List<StockAudioResult>? _results;
+  Object? _error;
+  bool _searching = false;
+  String? _previewing;
+  VideoPlayerController? _player;
+
+  @override
+  void dispose() {
+    _q.dispose();
+    _player?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search([String? query]) async {
+    final q = (query ?? _q.text).trim();
+    if (q.isEmpty) return;
+    _q.text = q;
+    setState(() {
+      _searching = true;
+      _error = null;
+    });
+    try {
+      final res = await ref.read(aiDirectorServiceProvider).searchStockAudio(q, type: 'sfx');
+      if (mounted) setState(() => _results = res.where((r) => r.kind != 'music').toList());
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  Future<void> _preview(StockAudioResult r) async {
+    final same = _previewing == r.url;
+    await _player?.dispose();
+    _player = null;
+    if (same) return setState(() => _previewing = null);
+    final p = VideoPlayerController.networkUrl(Uri.parse(r.url));
+    _player = p;
+    setState(() => _previewing = r.url);
+    try {
+      await p.initialize();
+      if (mounted && _player == p) await p.play();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _previewing = null);
+        showError(context, 'This sound could not be played. Try another one.');
+      }
+    }
+  }
+
+  void _add(StockAudioResult r) {
+    if (r.attribution != null && r.attribution!.isNotEmpty) widget.c.mediaCredits[r.url] = r.attribution!;
+    final ms = r.durationSec == null ? null : (r.durationSec! * 1000).round();
+    _close(context);
+    widget.onEdit(
+      (ir) => TimelineOps.addSfx(ir, url: r.url, startMs: widget.c.playheadMs, durationMs: ms, credit: r.attribution),
+      done: 'Sound effect added at ${timecode(widget.c.playheadMs)}',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final results = _results;
+    return ListView(children: [
+      _Title('Sound effects', subtitle: 'Added at the playhead (${timecode(widget.c.playheadMs)}).'),
+      TextField(
+        controller: _q,
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) => _search(),
+        decoration: fieldDecoration('Search sounds', hint: 'whoosh, pop, applause…').copyWith(
+          suffixIcon: IconButton(tooltip: 'Search', icon: const Icon(Icons.search_rounded), onPressed: _search),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, runSpacing: 4, children: [
+        for (final sgg in suggestions) ActionChip(label: Text(sgg), onPressed: () => _search(sgg)),
+      ]),
+      const SizedBox(height: 12),
+      if (_searching) const SizedBox(height: 160, child: UniversalSkeleton(type: SkeletonType.activity)),
+      if (_error != null && !_searching) ErrorView(error: _error!, compact: true, onRetry: _search),
+      if (!_searching && _error == null && results != null && results.isEmpty)
+        EmptyView(
+          icon: Icons.graphic_eq_rounded,
+          title: 'No sounds found',
+          message: 'Try a simpler word like "whoosh" or "click".',
+          actionLabel: 'Search "whoosh"',
+          onAction: () => _search('whoosh'),
+        ),
+      if (!_searching && results != null)
+        for (final r in results)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: IconButton(
+              tooltip: _previewing == r.url ? 'Stop' : 'Preview',
+              icon: Icon(_previewing == r.url ? Icons.stop_rounded : Icons.play_arrow_rounded),
+              onPressed: () => _preview(r),
+            ),
+            title: Text(r.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+              [if (r.durationSec != null) '${r.durationSec!.toStringAsFixed(1)} s', r.provider].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: TextButton(onPressed: () => _add(r), child: const Text('Add')),
+          ),
+    ]);
+  }
+}
+
+class _TextTemplatesTab extends ConsumerStatefulWidget {
+  const _TextTemplatesTab({required this.c, required this.onEdit});
+  final StudioController c;
+  final EditFn onEdit;
+
+  @override
+  ConsumerState<_TextTemplatesTab> createState() => _TextTemplatesTabState();
+}
+
+class _TextTemplatesTabState extends ConsumerState<_TextTemplatesTab> {
+  final _text = TextEditingController();
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  BrandLook _brand() {
+    final pid = widget.c.projectId;
+    if (pid == null) return BrandLook.none;
+    final v = ref.watch(brandVoiceProvider(pid)).valueOrNull;
+    if (v == null) return BrandLook.none;
+    return BrandLook(font: v.font, primaryColor: v.primaryColor, accentColor: v.accentColor);
+  }
+
+  void _add(TextTemplate t, BrandLook brand) {
+    final words = _text.text.trim().isEmpty ? t.sample : _text.text.trim();
+    _close(context);
+    widget.onEdit(
+      (ir) => TimelineOps.addText(
+        ir,
+        words,
+        startMs: widget.c.playheadMs,
+        durationMs: t.defaultSeconds * 1000,
+        positionY: t.positionY,
+        style: t.style(brand),
+      ),
+      done: '${t.name} added. Tap it on the timeline to edit.',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = _brand();
+    return ListView(children: [
+      _Title('Text templates', subtitle: brand.font == null ? 'Tap a style to add it at the playhead.' : 'Using your brand font ${brand.font}.'),
+      TextField(controller: _text, decoration: fieldDecoration('Your text', hint: 'Leave empty to use the sample')),
+      const SizedBox(height: 12),
+      GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.6,
+        children: [
+          for (final t in TextTemplate.all)
+            Semantics(
+              button: true,
+              label: 'Add ${t.name} text',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _add(t, brand),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceElevated,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.border),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    Expanded(child: Center(child: _TemplateSample(template: t, brand: brand))),
+                    Text(t.name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                  ]),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ]);
+  }
+}
+
+/// Small approximation of a template (the export uses the full style).
+class _TemplateSample extends StatelessWidget {
+  const _TemplateSample({required this.template, required this.brand});
+  final TextTemplate template;
+  final BrandLook brand;
+
+  static Color _hex(Object? v, Color d) {
+    if (v is! String) return d;
+    final h = v.replaceFirst('#', '');
+    if (h.length != 6 && h.length != 8) return d;
+    final n = int.tryParse(h.length == 6 ? 'FF$h' : h.substring(6) + h.substring(0, 6), radix: 16);
+    return n == null ? d : Color(n);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final st = template.style(brand);
+    final bg = st['background'] is Map ? _hex((st['background'] as Map)['color'], Colors.black) : null;
+    final text = st['uppercase'] == true ? template.sample.toUpperCase() : template.sample;
+    return Container(
+      padding: bg == null ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: bg == null ? null : BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: ((st['fontSizePx'] as num?) ?? 64).toDouble().clamp(40, 180) / 5,
+          fontWeight: FontWeight.values[(((st['fontWeight'] as num?) ?? 700).toInt() ~/ 100 - 1).clamp(0, 8)],
+          color: _hex(st['textColor'], Colors.white),
+          shadows: st['shadow'] == true ? const [Shadow(blurRadius: 3)] : null,
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotosTab extends ConsumerStatefulWidget {
+  const _PhotosTab({required this.c, required this.onEdit});
+  final StudioController c;
+  final EditFn onEdit;
+
+  @override
+  ConsumerState<_PhotosTab> createState() => _PhotosTabState();
+}
+
+class _PhotosTabState extends ConsumerState<_PhotosTab> {
+  final _q = TextEditingController();
+  List<StockPhotoResult>? _results;
+  Object? _error;
+  bool _busy = false;
+  double _seconds = 3;
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search() async {
+    final q = _q.text.trim();
+    if (q.isEmpty) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final res = await ref.read(aiDirectorServiceProvider).searchStockPhotos(q, orientation: widget.c.ir!.canvas.width < widget.c.ir!.canvas.height ? 'portrait' : 'landscape');
+      if (mounted) setState(() => _results = res);
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _add(String url, String label, String? credit) {
+    if (credit != null && credit.isNotEmpty) widget.c.mediaCredits[url] = credit;
+    _close(context);
+    widget.onEdit(
+      (ir) => TimelineOps.addBroll(ir, {'kind': 'url', 'url': url, 'query': label},
+          startMs: widget.c.playheadMs, durationMs: (_seconds * 1000).round(), image: true),
+      done: 'Photo added. Tap it on the timeline to adjust.',
+    );
+  }
+
+  Future<void> _fromGallery() async {
+    final f = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 2160, maxHeight: 2160);
+    if (f == null || !mounted) return;
+    setState(() => _busy = true);
+    final url = await guarded(context, () => ref.read(socialApiProvider).uploadFile(f.path));
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (url != null) _add(url, 'my photo', null);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final results = _results;
+    return ListView(children: [
+      _Title('Photos', subtitle: 'Shown full-screen at the playhead (${timecode(widget.c.playheadMs)}).'),
+      Row(children: [
+        Expanded(
+          child: TextField(
+            controller: _q,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => _search(),
+            decoration: fieldDecoration('Search free photos', hint: 'coffee beans, city at night…').copyWith(
+              suffixIcon: IconButton(tooltip: 'Search', icon: const Icon(Icons.search_rounded), onPressed: _search),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton.filledTonal(tooltip: 'From my gallery', onPressed: _busy ? null : _fromGallery, icon: const Icon(Icons.add_photo_alternate_rounded)),
+      ]),
+      Row(children: [
+        Text('Show for ${_seconds.toStringAsFixed(1)} s', style: Theme.of(context).textTheme.bodySmall),
+        Expanded(child: Slider(value: _seconds, min: 1, max: 8, divisions: 14, onChanged: (v) => setState(() => _seconds = v))),
+      ]),
+      if (_busy) const SizedBox(height: 200, child: UniversalSkeleton(type: SkeletonType.projects)),
+      if (_error != null && !_busy) ErrorView(error: _error!, compact: true, onRetry: _search),
+      if (!_busy && _error == null && results != null && results.isEmpty)
+        EmptyView(
+          icon: Icons.photo_rounded,
+          title: 'No photos found',
+          message: 'Try another word, or add one from your gallery.',
+          actionLabel: 'From my gallery',
+          onAction: _fromGallery,
+        ),
+      if (!_busy && results != null && results.isNotEmpty)
+        GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+          childAspectRatio: 0.75,
+          children: [
+            for (final p in results)
+              Semantics(
+                button: true,
+                label: 'Add photo ${p.title}',
+                child: InkWell(
+                  onTap: () => _add(p.url, p.title, p.attribution),
+                  borderRadius: BorderRadius.circular(8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      p.thumbnailUrl,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (_, child, prog) => prog == null ? child : Container(color: AppTheme.surfaceElevated),
+                      errorBuilder: (_, _, _) => Container(color: AppTheme.surfaceElevated, child: const Icon(Icons.broken_image_rounded)),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+    ]);
+  }
+}
+
+class _EffectsTab extends StatefulWidget {
+  const _EffectsTab({required this.c, required this.onEdit});
+  final StudioController c;
+  final EditFn onEdit;
+
+  @override
+  State<_EffectsTab> createState() => _EffectsTabState();
+}
+
+class _EffectsTabState extends State<_EffectsTab> {
+  double _intensity = 0.6;
+
+  static const _icons = {
+    'flash': Icons.flash_on_rounded,
+    'fade_black': Icons.brightness_3_rounded,
+    'shake': Icons.vibration_rounded,
+    'zoom_pulse': Icons.center_focus_strong_rounded,
+    'black_white': Icons.filter_b_and_w_rounded,
+    'vignette': Icons.vignette_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context) => ListView(children: [
+        _Title('Effects', subtitle: 'Added at the playhead (${timecode(widget.c.playheadMs)}). Tap it on the timeline to change timing.'),
+        Row(children: [
+          Text('Strength ${(_intensity * 100).round()}%', style: Theme.of(context).textTheme.bodySmall),
+          Expanded(child: Slider(value: _intensity, min: 0.1, max: 1, divisions: 9, onChanged: (v) => setState(() => _intensity = v))),
+        ]),
+        for (final e in EditIrEffect.types.entries)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(_icons[e.key] ?? Icons.auto_fix_high_rounded, color: AppTheme.primary),
+            title: Text(e.value.$1),
+            subtitle: Text('${e.value.$2} · ${(e.value.$3 / 1000).toStringAsFixed(1)} s'),
+            trailing: TextButton(
+              onPressed: () {
+                _close(context);
+                widget.onEdit(
+                  (ir) => TimelineOps.addEffect(ir, e.key, startMs: widget.c.playheadMs, intensity: _intensity),
+                  done: '${e.value.$1} added',
+                );
+              },
+              child: const Text('Add'),
+            ),
+          ),
+      ]);
 }

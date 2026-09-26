@@ -49,6 +49,19 @@ data class IrOverlay(
     val sourceStartMs: Long,
     val opacity: Double,
     val muted: Boolean,
+    /** "video" or "image" (a still photo held for the slot). */
+    val mediaType: String = "video",
+) {
+    val isImage: Boolean get() = mediaType == "image"
+}
+
+/** Timeline effect (contract VIDEO_EFFECT_TYPES), drawn over the whole frame for [startMs, endMs). */
+data class IrEffect(
+    val id: String,
+    val type: String,
+    val startMs: Long,
+    val endMs: Long,
+    val intensity: Double,
 )
 
 data class IrWord(
@@ -151,6 +164,7 @@ data class MobileEditIr(
     val zooms: List<IrZoom>,
     val audio: IrAudio,
     val watermark: IrWatermark? = null,
+    val effects: List<IrEffect> = emptyList(),
 ) {
     companion object {
         const val SCHEMA_VERSION = "mobile-editir/1"
@@ -216,6 +230,16 @@ data class MobileEditIr(
                     sourceStartMs = j.optLong("sourceStartMs", 0L),
                     opacity = j.optDouble("opacity", 1.0),
                     muted = j.optBoolean("muted", true),
+                    mediaType = if (j.optNullableString("mediaType") == "image") "image" else "video",
+                )
+            }
+            val effects = (o.optJSONArray("effects") ?: JSONArray()).objects().map { j ->
+                IrEffect(
+                    id = j.req("id"),
+                    type = j.req("type"),
+                    startMs = j.getLong("startMs"),
+                    endMs = j.getLong("endMs"),
+                    intensity = j.optDouble("intensity", 0.6).coerceIn(0.0, 1.0),
                 )
             }
             val captions = (o.optJSONArray("captions") ?: JSONArray()).objects().map { j ->
@@ -321,6 +345,7 @@ data class MobileEditIr(
                 captions = captions,
                 zooms = zooms,
                 audio = audio,
+                effects = effects,
                 watermark = o.optNullableObject("watermark")?.let {
                     IrWatermark(
                         imageUrl = it.optNullableString("imageUrl") ?: "",

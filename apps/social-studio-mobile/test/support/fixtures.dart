@@ -168,6 +168,17 @@ Map<String, dynamic> pieceJson() => {
       'status': 'ready',
     };
 
+Map<String, dynamic> brandConsciousnessJson() => {
+      'projectId': 'p1',
+      'brandName': 'Acme',
+      'brandType': null,
+      'positioning': null,
+      'colors': {'primary': '#1F3A2E', 'accent': null, 'background': null, 'text': null},
+      'targetPlatforms': ['instagram'],
+      'watermarkEnabled': null,
+      'completeness': {'percent': 40, 'isComplete': false, 'missingRequired': ['brandType', 'positioning'], 'missingRecommended': []},
+    };
+
 /// Every read the signed-in app makes on its happy path, with one project "p1".
 FakeBackend seededBackend() {
   final b = FakeBackend()..validAccessToken = 'access-1';
@@ -186,6 +197,7 @@ FakeBackend seededBackend() {
   b.json('GET', '$sm/projects/:id/activity', {'success': true, 'activity': []});
   b.json('GET', '$sm/posts', {'success': true, 'posts': [postJson()]});
   b.json('GET', '$sm/posts/:id', {'success': true, 'post': postJson()});
+  b.json('GET', '$sm/projects/:id/brand-consciousness', {'success': true, 'brand': brandConsciousnessJson()});
   b.json('GET', '$sm/brand-voice/:projectId', {
     'success': true,
     'profile': {

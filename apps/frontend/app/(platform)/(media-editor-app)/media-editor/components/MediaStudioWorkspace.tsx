@@ -670,23 +670,224 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     ProjectStorageService.saveProject(updatedProject);
   };
 
-  const handleSplitClip = () => {
+  const handleAddClipToTimeline = (asset: MediaAssetDescriptor) => {
     if (!project) return;
-    const mainTrack = project.editIR.tracks.videoTracks[0];
-    if (!mainTrack) return;
 
-    let targetClip: VideoClip | undefined;
-    if (selectedClipId) {
-      targetClip = mainTrack.clips.find((c) => c.id === selectedClipId);
+    // 1. Ensure asset exists in project asset bin
+    const assetExists = project.assets.some((a) => a.id === asset.id);
+    const updatedAssets = assetExists ? project.assets : [...project.assets, asset];
+
+    const updatedEditIR: EditIR = JSON.parse(JSON.stringify(project.editIR));
+
+    const isAudio =
+      asset.mimeType?.startsWith("audio/") ||
+      Boolean(asset.name.match(/\.(mp3|wav|aac|m4a|flac|ogg)$/i)) ||
+      asset.id.startsWith("stock_audio");
+
+    const isSFX =
+      asset.name.toLowerCase().startsWith("sfx:") ||
+      asset.id.toLowerCase().includes("sfx") ||
+      asset.name.toLowerCase().includes("sfx");
+
+    const isImage =
+      asset.mimeType?.startsWith("image/") ||
+      Boolean(asset.name.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i)) ||
+      asset.id.startsWith("stock_img");
+
+    if (isAudio) {
+      // 2. Audio Asset handling (Background Music or SFX)
+      const targetType = isSFX ? "SFX" : "BGM";
+      let targetTrack = updatedEditIR.tracks.audioTracks.find((t) => t.type === targetType);
+
+      if (!targetTrack) {
+        targetTrack = {
+          id: `track_audio_${targetType.toLowerCase()}_${Date.now()}`,
+          type: targetType,
+          volumeDb: targetType === "BGM" ? -18.0 : -4.0,
+          duckWithSpeech: targetType === "BGM",
+          duckingConfig:
+            targetType === "BGM" ? { duckDb: -18, attackMs: 120, releaseMs: 350 } : undefined,
+          clips: [],
+        };
+        updatedEditIR.tracks.audioTracks.push(targetTrack);
+      }
+
+      const clipDurSec = Math.max(0.5, asset.durationSeconds || (isSFX ? 1.5 : 30.0));
+      const startSec = isSFX
+        ? currentTimeSeconds
+        : currentTimeSeconds > 0
+        ? currentTimeSeconds
+        : 0;
+
+      const newAudioClip = {
+        id: `aclip_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        sourcePath: asset.filePath,
+        sourceRange: {
+          start: RationalTimeMath.fromSeconds(0),
+          duration: RationalTimeMath.fromSeconds(clipDurSec),
+        },
+        timelineRange: {
+          start: RationalTimeMath.fromSeconds(startSec),
+          duration: RationalTimeMath.fromSeconds(clipDurSec),
+        },
+        volumeDb: 0.0,
+        sourceQuery: asset.name,
+      };
+
+      targetTrack.clips.push(newAudioClip);
+
+      const currentTotalSec = RationalTimeMath.toSeconds(updatedEditIR.meta.totalDuration);
+      if (startSec + clipDurSec > currentTotalSec) {
+        updatedEditIR.meta.totalDuration = RationalTimeMath.fromSeconds(startSec + clipDurSec);
+      }
+
+      toast.success(
+        `Added ${targetType === "SFX" ? "sound effect" : "background music"} to track at ${startSec.toFixed(1)}s!`
+      );
     } else {
-      targetClip = mainTrack.clips.find((c) => {
-        const start = RationalTimeMath.toSeconds(c.timelineRange.start);
-        const dur = RationalTimeMath.toSeconds(c.timelineRange.duration);
-        return currentTimeSeconds > start && currentTimeSeconds < start + dur;
-      });
+      // 3. Visual Asset handling (Video or Photo B-Roll / Overlay)
+      const mainTrack = updatedEditIR.tracks.videoTracks[0];
+
+      if (!mainTrack || mainTrack.clips.length === 0) {
+        // Main track is empty: place as primary clip
+        const durSec = isImage ? 4.0 : Math.max(1, asset.durationSeconds || 5.0);
+        const newClip: VideoClip = {
+          id: safeUUID(),
+          assetId: asset.id,
+          sourcePath: asset.filePath,
+          sourceRange: {
+            start: RationalTimeMath.fromSeconds(0),
+            duration: RationalTimeMath.fromSeconds(durSec),
+          },
+          timelineRange: {
+            start: RationalTimeMath.fromSeconds(0),
+            duration: RationalTimeMath.fromSeconds(durSec),
+          },
+          transform: {
+            scale: { start: 1.0, end: 1.0, easing: "spring" },
+            position: { x: 0, y: 0 },
+            anchor: { x: 0.5, y: 0.5 },
+            rotationDeg: 0,
+            opacity: 1.0,
+            crop: { top: 0, bottom: 0, left: 0, right: 0 },
+          },
+          speedMultiplier: 1.0,
+          effects: [],
+        };
+
+        if (!mainTrack) {
+          updatedEditIR.tracks.videoTracks.unshift({
+            id: "track_main_v1",
+            type: "MAIN_VIDEO",
+            zIndex: 1,
+            clips: [newClip],
+          });
+        } else {
+          mainTrack.clips.push(newClip);
+        }
+
+        updatedEditIR.meta.totalDuration = RationalTimeMath.fromSeconds(durSec);
+        setSelectedClipId(newClip.id);
+        toast.success("Added clip to main video track!");
+      } else {
+        // Main track has clips: add as B-Roll Overlay on V2 at current playhead!
+        let brollTrack = updatedEditIR.tracks.videoTracks.find(
+          (t) => t.type === "B_ROLL_OVERLAY"
+        );
+        if (!brollTrack) {
+          brollTrack = {
+            id: `track_broll_v2`,
+            type: "B_ROLL_OVERLAY",
+            zIndex: 10,
+            clips: [],
+          };
+          updatedEditIR.tracks.videoTracks.push(brollTrack);
+        }
+
+        const durSec = isImage
+          ? 4.0
+          : Math.min(15, Math.max(1.5, asset.durationSeconds || 4.0));
+        const startSec = currentTimeSeconds;
+
+        const newClip: VideoClip = {
+          id: safeUUID(),
+          assetId: asset.id,
+          sourcePath: asset.filePath,
+          sourceRange: {
+            start: RationalTimeMath.fromSeconds(0),
+            duration: RationalTimeMath.fromSeconds(durSec),
+          },
+          timelineRange: {
+            start: RationalTimeMath.fromSeconds(startSec),
+            duration: RationalTimeMath.fromSeconds(durSec),
+          },
+          transform: {
+            scale: { start: 1.0, end: 1.0, easing: "spring" },
+            position: { x: 0, y: 0 },
+            anchor: { x: 0.5, y: 0.5 },
+            rotationDeg: 0,
+            opacity: 1.0,
+            crop: { top: 0, bottom: 0, left: 0, right: 0 },
+          },
+          speedMultiplier: 1.0,
+          effects: [],
+        };
+
+        brollTrack.clips.push(newClip);
+
+        const currentTotalSec = RationalTimeMath.toSeconds(updatedEditIR.meta.totalDuration);
+        if (startSec + durSec > currentTotalSec) {
+          updatedEditIR.meta.totalDuration = RationalTimeMath.fromSeconds(startSec + durSec);
+        }
+
+        setSelectedClipId(newClip.id);
+        setLeftSidebarTab("inspector");
+        setIsLeftPanelOpen(true);
+        toast.success(`Added ${isImage ? "image" : "B-Roll"} overlay at ${startSec.toFixed(1)}s!`);
+      }
     }
 
-    if (!targetClip) return;
+    const updatedProject = {
+      ...project,
+      assets: updatedAssets,
+      editIR: updatedEditIR,
+    };
+
+    setProject(updatedProject);
+    pushHistory(updatedEditIR);
+    ProjectStorageService.saveProject(updatedProject);
+  };
+
+  const handleSplitClip = () => {
+    if (!project) return;
+    let targetTrackIdx = -1;
+    let targetClip: VideoClip | undefined;
+
+    for (let i = 0; i < project.editIR.tracks.videoTracks.length; i++) {
+      const t = project.editIR.tracks.videoTracks[i];
+      if (selectedClipId) {
+        targetClip = t.clips.find((c) => c.id === selectedClipId);
+        if (targetClip) {
+          targetTrackIdx = i;
+          break;
+        }
+      } else {
+        targetClip = t.clips.find((c) => {
+          const start = RationalTimeMath.toSeconds(c.timelineRange.start);
+          const dur = RationalTimeMath.toSeconds(c.timelineRange.duration);
+          return currentTimeSeconds > start && currentTimeSeconds < start + dur;
+        });
+        if (targetClip) {
+          targetTrackIdx = i;
+          break;
+        }
+      }
+    }
+
+    if (!targetClip || targetTrackIdx === -1) {
+      toast.error("Place playhead over a clip to split it");
+      return;
+    }
 
     const clipStart = RationalTimeMath.toSeconds(targetClip.timelineRange.start);
     const clipDur = RationalTimeMath.toSeconds(targetClip.timelineRange.duration);
@@ -721,13 +922,16 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       },
     };
 
-    const updatedClips = mainTrack.clips.flatMap((c) => (c.id === targetClip!.id ? [firstClip, secondClip] : [c]));
+    const targetTrack = project.editIR.tracks.videoTracks[targetTrackIdx];
+    const updatedClips = targetTrack.clips.flatMap((c) => (c.id === targetClip!.id ? [firstClip, secondClip] : [c]));
+    const updatedVideoTracks = [...project.editIR.tracks.videoTracks];
+    updatedVideoTracks[targetTrackIdx] = { ...targetTrack, clips: updatedClips };
 
     const updatedIR: EditIR = {
       ...project.editIR,
       tracks: {
         ...project.editIR.tracks,
-        videoTracks: [{ ...mainTrack, clips: updatedClips }],
+        videoTracks: updatedVideoTracks,
       },
     };
 
@@ -737,38 +941,55 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
   const handleDeleteSelectedClip = () => {
     if (!project || !selectedClipId) return;
-    const mainTrack = project.editIR.tracks.videoTracks[0];
-    if (!mainTrack) return;
 
-    const remaining = mainTrack.clips.filter((c) => c.id !== selectedClipId);
-    let curTime = 0;
-    const reindexed = remaining.map((c) => {
-      const dur = RationalTimeMath.toSeconds(c.timelineRange.duration);
-      const updated = {
-        ...c,
-        timelineRange: {
-          start: RationalTimeMath.fromSeconds(curTime),
-          duration: c.timelineRange.duration,
-        },
-      };
-      curTime += dur;
-      return updated;
+    // Check video tracks
+    let foundInVideo = false;
+    const updatedVideoTracks = project.editIR.tracks.videoTracks.map((t, idx) => {
+      if (t.clips.some((c) => c.id === selectedClipId)) {
+        foundInVideo = true;
+        const remaining = t.clips.filter((c) => c.id !== selectedClipId);
+        // Only reindex timeline time on main video track
+        if (idx === 0) {
+          let curTime = 0;
+          return {
+            ...t,
+            clips: remaining.map((c) => {
+              const dur = RationalTimeMath.toSeconds(c.timelineRange.duration);
+              const updated = {
+                ...c,
+                timelineRange: {
+                  start: RationalTimeMath.fromSeconds(curTime),
+                  duration: c.timelineRange.duration,
+                },
+              };
+              curTime += dur;
+              return updated;
+            }),
+          };
+        }
+        return { ...t, clips: remaining };
+      }
+      return t;
     });
+
+    // Also check audio tracks
+    const updatedAudioTracks = project.editIR.tracks.audioTracks.map((at) => ({
+      ...at,
+      clips: at.clips.filter((ac) => ac.id !== selectedClipId),
+    }));
 
     const updatedIR: EditIR = {
       ...project.editIR,
-      meta: {
-        ...project.editIR.meta,
-        totalDuration: RationalTimeMath.fromSeconds(Math.max(1, curTime)),
-      },
       tracks: {
         ...project.editIR.tracks,
-        videoTracks: [{ ...mainTrack, clips: reindexed }],
+        videoTracks: updatedVideoTracks,
+        audioTracks: updatedAudioTracks,
       },
     };
 
     pushHistory(updatedIR);
     setSelectedClipId(null);
+    toast.success("Removed clip from timeline");
   };
 
   const handleDetachAudio = () => {
@@ -879,10 +1100,13 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       meta: { ...project.editIR.meta, totalDuration: newTotal },
       tracks: { ...project.editIR.tracks, captionTrack: updatedCaptions },
     });
+    setIsCaptionsModalOpen(true);
+    toast.success("Added kinetic text overlay! Customize typography and preset in Studio.");
   };
 
   const handleAddMusicTrack = () => {
-    openImportDialog();
+    setLeftSidebarTab("stock");
+    setIsLeftPanelOpen(true);
   };
 
   // Real-time Playback Loop
@@ -1078,7 +1302,10 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     );
   }
 
-  const selectedClip = project.editIR.tracks.videoTracks[0]?.clips.find((c) => c.id === selectedClipId) || null;
+  const selectedClip =
+    project.editIR.tracks.videoTracks
+      .flatMap((t) => t.clips)
+      .find((c) => c.id === selectedClipId) || null;
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#07090E] text-white overflow-hidden select-none font-sans">
@@ -1134,7 +1361,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           onClearAiMessages={handleClearAiMessages}
           currentAspect={aspectRatio}
           timelineDurationSec={RationalTimeMath.toSeconds(project.editIR.meta.totalDuration)}
-          clipsCount={project.editIR.tracks.videoTracks[0]?.clips?.length || 0}
+          clipsCount={project.editIR.tracks.videoTracks.reduce((acc, t) => acc + (t.clips?.length || 0), 0)}
           userProfile={{
             name: authSession.userName,
             email: authSession.userEmail,
@@ -1146,72 +1373,78 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           currentTimeSeconds={currentTimeSeconds}
           onUpdateTransform={(transform) => {
             if (!selectedClipId) return;
-            const track = project.editIR.tracks.videoTracks[0];
-            if (!track) return;
-            const updated = track.clips.map((c) =>
-              c.id === selectedClipId ? { ...c, transform } : c
-            );
+            const updatedTracks = project.editIR.tracks.videoTracks.map((t) => ({
+              ...t,
+              clips: t.clips.map((c) => (c.id === selectedClipId ? { ...c, transform } : c)),
+            }));
             pushHistory({
               ...project.editIR,
-              tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+              tracks: { ...project.editIR.tracks, videoTracks: updatedTracks },
             });
           }}
           onUpdateSpeed={(speed) => {
             if (!selectedClipId) return;
-            const track = project.editIR.tracks.videoTracks[0];
-            if (!track) return;
-            const updated = track.clips.map((c) =>
-              c.id === selectedClipId ? { ...c, speedMultiplier: speed } : c
-            );
+            const updatedTracks = project.editIR.tracks.videoTracks.map((t) => ({
+              ...t,
+              clips: t.clips.map((c) => (c.id === selectedClipId ? { ...c, speedMultiplier: speed } : c)),
+            }));
             pushHistory({
               ...project.editIR,
-              tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+              tracks: { ...project.editIR.tracks, videoTracks: updatedTracks },
             });
           }}
           onUpdateVolume={(volumeDb) => {
             if (!selectedClipId) return;
-            const track = project.editIR.tracks.videoTracks[0];
-            if (!track) return;
-            const updated = track.clips.map((c) =>
-              c.id === selectedClipId ? { ...c, volumeDb } : c
-            );
+            const updatedTracks = project.editIR.tracks.videoTracks.map((t) => ({
+              ...t,
+              clips: t.clips.map((c) => (c.id === selectedClipId ? { ...c, volumeDb } : c)),
+            }));
             pushHistory({
               ...project.editIR,
-              tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+              tracks: { ...project.editIR.tracks, videoTracks: updatedTracks },
             });
           }}
           onUpdateTransitions={(transitionIn, transitionOut) => {
             if (!selectedClipId) return;
-            const track = project.editIR.tracks.videoTracks[0];
-            if (!track) return;
-            const updated = track.clips.map((c) =>
-              c.id === selectedClipId ? { ...c, transitionIn, transitionOut } : c
-            );
+            const updatedTracks = project.editIR.tracks.videoTracks.map((t) => ({
+              ...t,
+              clips: t.clips.map((c) => (c.id === selectedClipId ? { ...c, transitionIn, transitionOut } : c)),
+            }));
             pushHistory({
               ...project.editIR,
-              tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+              tracks: { ...project.editIR.tracks, videoTracks: updatedTracks },
             });
           }}
           onDetachAudio={handleDetachAudio}
           onDuplicateClip={() => {
             if (!selectedClipId) return;
-            const track = project.editIR.tracks.videoTracks[0];
-            const clip = track?.clips.find((c) => c.id === selectedClipId);
-            if (!clip || !track) return;
-            const startSec = RationalTimeMath.toSeconds(clip.timelineRange.start) + RationalTimeMath.toSeconds(clip.timelineRange.duration);
-            const dup: VideoClip = {
-              ...clip,
-              id: safeUUID(),
-              timelineRange: {
-                ...clip.timelineRange,
-                start: RationalTimeMath.fromSeconds(startSec),
-              },
-            };
-            pushHistory({
-              ...project.editIR,
-              tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: [...track.clips, dup] }] },
+            let dupClip: VideoClip | null = null;
+            const updatedTracks = project.editIR.tracks.videoTracks.map((t) => {
+              const clip = t.clips.find((c) => c.id === selectedClipId);
+              if (!clip) return t;
+              const startSec =
+                RationalTimeMath.toSeconds(clip.timelineRange.start) +
+                RationalTimeMath.toSeconds(clip.timelineRange.duration);
+              dupClip = {
+                ...clip,
+                id: safeUUID(),
+                timelineRange: {
+                  ...clip.timelineRange,
+                  start: RationalTimeMath.fromSeconds(startSec),
+                },
+              };
+              return {
+                ...t,
+                clips: [...t.clips, dupClip],
+              };
             });
-            setSelectedClipId(dup.id);
+            if (dupClip) {
+              pushHistory({
+                ...project.editIR,
+                tracks: { ...project.editIR.tracks, videoTracks: updatedTracks },
+              });
+              setSelectedClipId((dupClip as VideoClip).id);
+            }
           }}
           onDeleteClip={handleDeleteSelectedClip}
           onCloseInspector={() => setSelectedClipId(null)}
@@ -1248,7 +1481,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
             addAssetsToProject([asset]);
           }}
           onAddClipToTimeline={(asset: MediaAssetDescriptor) => {
-            addAssetsToProject([asset]);
+            handleAddClipToTimeline(asset);
           }}
           onDeleteAsset={(assetId: string) => {
             const filtered = project.assets.filter((a) => a.id !== assetId);
@@ -1257,7 +1490,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
             ProjectStorageService.saveProject(updated);
           }}
           onAddAssetToTimeline={(asset: MediaAssetDescriptor) => {
-            addAssetsToProject([asset]);
+            handleAddClipToTimeline(asset);
           }}
         />
 
@@ -1328,57 +1561,89 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
               onSplitClip={handleSplitClip}
               onDeleteSelectedClip={handleDeleteSelectedClip}
               onUpdateClipTiming={(clipId, newStart, newDur) => {
-                const track = project.editIR.tracks.videoTracks[0];
-                if (!track) return;
-                const updated = track.clips.map((c) =>
-                  c.id === clipId
-                    ? {
-                        ...c,
-                        timelineRange: {
-                          start: RationalTimeMath.fromSeconds(newStart),
-                          duration: RationalTimeMath.fromSeconds(newDur),
-                        },
-                      }
-                    : c
-                );
+                const updatedVideoTracks = project.editIR.tracks.videoTracks.map((t) => ({
+                  ...t,
+                  clips: t.clips.map((c) =>
+                    c.id === clipId
+                      ? {
+                          ...c,
+                          timelineRange: {
+                            start: RationalTimeMath.fromSeconds(newStart),
+                            duration: RationalTimeMath.fromSeconds(newDur),
+                          },
+                        }
+                      : c
+                  ),
+                }));
+
+                const updatedAudioTracks = project.editIR.tracks.audioTracks.map((at) => ({
+                  ...at,
+                  clips: at.clips.map((ac) =>
+                    ac.id === clipId
+                      ? {
+                          ...ac,
+                          timelineRange: {
+                            start: RationalTimeMath.fromSeconds(newStart),
+                            duration: RationalTimeMath.fromSeconds(newDur),
+                          },
+                        }
+                      : ac
+                  ),
+                }));
+
                 pushHistory({
                   ...project.editIR,
-                  tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+                  tracks: {
+                    ...project.editIR.tracks,
+                    videoTracks: updatedVideoTracks,
+                    audioTracks: updatedAudioTracks,
+                  },
                 });
               }}
               onDuplicateClip={() => {
                 if (!selectedClipId) return;
-                const track = project.editIR.tracks.videoTracks[0];
-                const clip = track?.clips.find((c) => c.id === selectedClipId);
-                if (!clip || !track) return;
-                const startSec = RationalTimeMath.toSeconds(clip.timelineRange.start) + RationalTimeMath.toSeconds(clip.timelineRange.duration);
-                const dup: VideoClip = {
-                  ...clip,
-                  id: safeUUID(),
-                  timelineRange: {
-                    ...clip.timelineRange,
-                    start: RationalTimeMath.fromSeconds(startSec),
-                  },
-                };
-                pushHistory({
-                  ...project.editIR,
-                  tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: [...track.clips, dup] }] },
+                let dupClip: VideoClip | null = null;
+                const updatedTracks = project.editIR.tracks.videoTracks.map((t) => {
+                  const clip = t.clips.find((c) => c.id === selectedClipId);
+                  if (!clip) return t;
+                  const startSec =
+                    RationalTimeMath.toSeconds(clip.timelineRange.start) +
+                    RationalTimeMath.toSeconds(clip.timelineRange.duration);
+                  dupClip = {
+                    ...clip,
+                    id: safeUUID(),
+                    timelineRange: {
+                      ...clip.timelineRange,
+                      start: RationalTimeMath.fromSeconds(startSec),
+                    },
+                  };
+                  return {
+                    ...t,
+                    clips: [...t.clips, dupClip],
+                  };
                 });
-                setSelectedClipId(dup.id);
+                if (dupClip) {
+                  pushHistory({
+                    ...project.editIR,
+                    tracks: { ...project.editIR.tracks, videoTracks: updatedTracks },
+                  });
+                  setSelectedClipId((dupClip as VideoClip).id);
+                }
               }}
               onAddTextOverlay={handleAddTextOverlay}
               onAddAudioTrack={handleAddMusicTrack}
               onOpenCaptions={() => setIsCaptionsModalOpen(true)}
               onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
               onUpdateClipTransition={(clipId, transitionIn, transitionOut) => {
-                const track = project.editIR.tracks.videoTracks[0];
-                if (!track) return;
-                const updated = track.clips.map((c) =>
-                  c.id === clipId ? { ...c, transitionIn, transitionOut } : c
-                );
+                const updatedTracks = project.editIR.tracks.videoTracks.map((t) => ({
+                  ...t,
+                  clips: t.clips.map((c) =>
+                    c.id === clipId ? { ...c, transitionIn, transitionOut } : c
+                  ),
+                }));
                 pushHistory({
                   ...project.editIR,
-                  tracks: { ...project.editIR.tracks, videoTracks: [{ ...track, clips: updated }] },
+                  tracks: { ...project.editIR.tracks, videoTracks: updatedTracks },
                 });
               }}
             />

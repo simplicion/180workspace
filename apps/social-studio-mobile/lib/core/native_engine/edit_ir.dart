@@ -17,6 +17,7 @@ class MobileEditIr {
     this.zooms = const [],
     this.audio = const EditIrAudio(),
     this.watermark,
+    this.effects = const [],
   });
 
   static const schemaVersion = 'mobile-editir/1';
@@ -37,6 +38,9 @@ class MobileEditIr {
   /// Brand logo drawn over the whole output (contract §3.9); null = none.
   final EditIrWatermark? watermark;
 
+  /// Timeline effects (flash, shake, …); omitted from JSON when empty.
+  final List<EditIrEffect> effects;
+
   /// Same timeline with a different (or no) watermark.
   MobileEditIr withWatermark(EditIrWatermark? w) => MobileEditIr(
         projectId: projectId,
@@ -49,6 +53,33 @@ class MobileEditIr {
         zooms: zooms,
         audio: audio,
         watermark: w,
+        effects: effects,
+      );
+
+  /// Copy with some parts replaced; every other field (including ones added later) is kept.
+  MobileEditIr copyWith({
+    EditIrCanvas? canvas,
+    int? durationMs,
+    List<EditIrClip>? clips,
+    List<EditIrSource>? sources,
+    List<EditIrOverlay>? overlays,
+    List<EditIrCaption>? captions,
+    List<EditIrZoom>? zooms,
+    EditIrAudio? audio,
+    List<EditIrEffect>? effects,
+  }) =>
+      MobileEditIr(
+        projectId: projectId,
+        canvas: canvas ?? this.canvas,
+        durationMs: durationMs ?? this.durationMs,
+        clips: clips ?? this.clips,
+        sources: sources ?? this.sources,
+        overlays: overlays ?? this.overlays,
+        captions: captions ?? this.captions,
+        zooms: zooms ?? this.zooms,
+        audio: audio ?? this.audio,
+        watermark: watermark,
+        effects: effects ?? this.effects,
       );
 
   factory MobileEditIr.fromJson(Map<String, dynamic> json) {
@@ -67,6 +98,7 @@ class MobileEditIr {
       zooms: _list(json, 'zooms', EditIrZoom.fromJson),
       audio: json['audio'] == null ? const EditIrAudio() : EditIrAudio.fromJson(_obj(json, 'audio')),
       watermark: json['watermark'] == null ? null : EditIrWatermark.fromJson(_obj(json, 'watermark')),
+      effects: _list(json, 'effects', EditIrEffect.fromJson),
     );
   }
 
@@ -82,6 +114,7 @@ class MobileEditIr {
         'zooms': zooms.map((z) => z.toJson()).toList(),
         'audio': audio.toJson(),
         if (watermark != null) 'watermark': watermark!.toJson(),
+        if (effects.isNotEmpty) 'effects': effects.map((e) => e.toJson()).toList(),
       };
 
   /// Checks the contract invariants the renderer relies on. Throws `INVALID_EDIT_IR`.
@@ -103,6 +136,10 @@ class MobileEditIr {
     }
     if ((clips.last.timelineEndMs - durationMs).abs() > 1) fail('durationMs does not equal the last clip end');
     if (audio.music.length > 1) fail('at most one music item is allowed');
+    for (final e in effects) {
+      if (!EditIrEffect.types.containsKey(e.type)) fail('effect ${e.id}: unknown type ${e.type}');
+      if (e.endMs <= e.startMs) fail('effect ${e.id}: empty range');
+    }
   }
 
   /// Every local file id the renderer will ask for, so callers can resolve downloads first.
@@ -273,10 +310,26 @@ class EditIrOverlay {
     this.source = const {},
     this.opacity = 1,
     this.muted = true,
+    this.mediaType = 'video',
   });
 
   final String id;
   final int timelineStartMs, timelineEndMs, sourceStartMs;
+
+  /// `video` or `image` (a still photo held for the slot).
+  final String mediaType;
+  bool get isImage => mediaType == 'image';
+
+  EditIrOverlay copyWith({int? timelineStartMs, int? timelineEndMs, int? sourceStartMs}) => EditIrOverlay(
+        id: id,
+        timelineStartMs: timelineStartMs ?? this.timelineStartMs,
+        timelineEndMs: timelineEndMs ?? this.timelineEndMs,
+        sourceStartMs: sourceStartMs ?? this.sourceStartMs,
+        source: source,
+        opacity: opacity,
+        muted: muted,
+        mediaType: mediaType,
+      );
 
   /// `{kind:"url"|"asset"|"stock_query", ...}` — resolve to a local file before rendering.
   final Map<String, dynamic> source;
@@ -291,6 +344,7 @@ class EditIrOverlay {
         source: (j['source'] as Map?)?.cast<String, dynamic>() ?? const {},
         opacity: (j['opacity'] as num?)?.toDouble() ?? 1,
         muted: j['muted'] as bool? ?? true,
+        mediaType: j['mediaType'] == 'image' ? 'image' : 'video',
       );
 
   Map<String, dynamic> toJson() => {
@@ -303,6 +357,7 @@ class EditIrOverlay {
         'fit': 'cover',
         'opacity': opacity,
         'muted': muted,
+        if (isImage) 'mediaType': 'image',
       };
 }
 
@@ -576,4 +631,46 @@ class FaceSample {
       );
 
   Map<String, dynamic> toJson() => {'tMs': tMs, 'x': x, 'y': y, 'w': w, 'h': h};
+}
+
+/// Timeline effect (contract VIDEO_EFFECT_TYPES). Drawn over the whole frame for [startMs, endMs).
+class EditIrEffect {
+  const EditIrEffect({required this.id, required this.type, required this.startMs, required this.endMs, this.intensity = 0.6});
+
+  final String id;
+  final String type;
+  final int startMs, endMs;
+
+  /// 0..1
+  final double intensity;
+
+  /// Type → (label, one-line description, default length ms). Same ids as the server and desktop editor.
+  static const types = <String, (String, String, int)>{
+    'flash': ('Flash', 'Quick white flash on a cut or beat', 300),
+    'fade_black': ('Dip to black', 'Fades to black and back between sections', 600),
+    'shake': ('Shake', 'Camera shake for impact and energy', 500),
+    'zoom_pulse': ('Zoom pulse', 'Fast punch in and out on the beat', 500),
+    'black_white': ('Black & white', 'Removes colour for a flashback or contrast moment', 2000),
+    'vignette': ('Vignette', 'Darkens the edges to focus attention', 3000),
+  };
+
+  String get label => types[type]?.$1 ?? type;
+
+  EditIrEffect copyWith({int? startMs, int? endMs, double? intensity}) => EditIrEffect(
+        id: id,
+        type: type,
+        startMs: startMs ?? this.startMs,
+        endMs: endMs ?? this.endMs,
+        intensity: intensity ?? this.intensity,
+      );
+
+  factory EditIrEffect.fromJson(Map<String, dynamic> j) => EditIrEffect(
+        id: _str(j, 'id'),
+        type: _str(j, 'type'),
+        startMs: _int(j, 'startMs'),
+        endMs: _int(j, 'endMs'),
+        intensity: ((j['intensity'] as num?)?.toDouble() ?? 0.6).clamp(0.0, 1.0),
+      );
+
+  Map<String, dynamic> toJson() => {'id': id, 'type': type, 'startMs': startMs, 'endMs': endMs, 'intensity': intensity};
 }

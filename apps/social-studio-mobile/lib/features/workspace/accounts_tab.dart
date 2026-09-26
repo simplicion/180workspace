@@ -12,6 +12,7 @@ import '../../data/models/platform.dart';
 import '../../data/models/project.dart';
 import '../../data/models/social_account.dart';
 import '../projects/project_provider.dart';
+import 'account_selection_sheet.dart';
 
 final allAccountsProvider = FutureProvider.autoDispose<List<SocialAccount>>((ref) => ref.watch(socialApiProvider).listAccounts());
 
@@ -33,6 +34,10 @@ class _AccountsTabState extends ConsumerState<AccountsTab> {
     super.initState();
     _oauthSub = ref.read(deepLinksProvider).oauthCallbacks.listen((cb) {
       if (!mounted) return;
+      if (cb.needsSelection) {
+        showAccountSelectionSheet(context, cb.selectionId!).then((_) => _refresh());
+        return;
+      }
       if (cb.isSuccess) {
         showInfo(context, '${cb.platform ?? 'Account'} connected', color: AppTheme.success);
       } else {

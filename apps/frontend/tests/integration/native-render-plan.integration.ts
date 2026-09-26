@@ -240,6 +240,75 @@ GRAPH: ${(plan as any).spec.filterComplex}`);
     assert.ok(Math.abs(au.durationSeconds - 20) < 0.2);
   });
 
+  // ── photos + effect track (M3) ─────────────────────────────────────────────
+  const WIDE = f("wide.png"); // 800x200 green photo: must be scaled/cropped to COVER the canvas
+  assert.ok(run(FFMPEG, ["-y", "-v", "error", "-f", "lavfi", "-i", "color=c=green:s=800x200", "-frames:v", "1", WIDE]).ok);
+  const BOX = f("box.png"); // black 1920x1080 with a white vertical bar x=900..1019 (to see geometry effects)
+  assert.ok(run(FFMPEG, ["-y", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=1920x1080,drawbox=x=900:y=0:w=120:h=1080:color=white:t=fill", "-frames:v", "1", BOX]).ok);
+  const fx = (id: string, type: string, a: number, d: number, intensity = 1) => ({ id, type, timeRange: range(a, d), intensity });
+
+  await t("a mediaType:image photo on the B-roll track covers the whole canvas for its slot", () => {
+    const ir = project({
+      total: 5,
+      tracks: [
+        { id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c1", A, [0, 5], [0, 5])] },
+        { id: "broll", type: "B_ROLL_OVERLAY", zIndex: 10, clips: [clip("ph", WIDE, [0, 3], [1, 3], { mediaType: "image", volumeDb: -60 })] },
+      ],
+    });
+    const plan = buildNativeRenderPlan(ir, opts());
+    assert.ok(plan.supported, JSON.stringify(plan));
+    const out = f("photo.mp4");
+    const r = renderSpec((plan as any).spec, out);
+    assert.ok(r.ok, `${r.err}\nGRAPH: ${(plan as any).spec.filterComplex}`);
+    for (const [x, y] of [[5, 5], [1915, 1075], [960, 540]]) {
+      const [pr, pg] = pixel(out, 2, x, y);
+      assert.ok(pg > 90 && pr < 60, `t=2 (${x},${y}) expected green photo, got ${[pr, pg]}`);
+    }
+    const [r0, g0] = pixel(out, 4.6, 5, 5);
+    assert.ok(r0 > 180 && g0 < 90, `after the slot the main clip shows again, got ${[r0, g0]}`);
+  });
+
+  await t("colour effects render in their ranges only: black_white, vignette, flash, fade_black", () => {
+    const ir = project({ total: 6, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c1", A, [0, 6], [0, 6])] }] });
+    ir.tracks.effectTrack = [fx("bw", "black_white", 0.5, 1), fx("vg", "vignette", 2, 1), fx("fl", "flash", 3.2, 0.4), fx("fb", "fade_black", 4, 1)];
+    const plan = buildNativeRenderPlan(ir, opts());
+    assert.ok(plan.supported, JSON.stringify(plan));
+    const out = f("fx-colour.mp4");
+    const r = renderSpec((plan as any).spec, out);
+    assert.ok(r.ok, `${r.err}\nGRAPH: ${(plan as any).spec.filterComplex}`);
+    const [r0, g0] = pixel(out, 0.2, 960, 540);
+    assert.ok(r0 > 180 && g0 < 90, `before: red, got ${[r0, g0]}`);
+    const [r1, g1, b1] = pixel(out, 1, 960, 540);
+    assert.ok(Math.abs(r1 - g1) < 30 && Math.abs(g1 - b1) < 30, `black_white: grey, got ${[r1, g1, b1]}`);
+    const centre = pixel(out, 2.5, 960, 540)[0];
+    const corner = pixel(out, 2.5, 4, 4)[0];
+    assert.ok(corner < centre - 40, `vignette: corner ${corner} darker than centre ${centre}`);
+    const [r3, g3, b3] = pixel(out, 3.3, 960, 540);
+    assert.ok(g3 > 150 && b3 > 150, `flash: near white, got ${[r3, g3, b3]}`);
+    const [r4, g4, b4] = pixel(out, 4.5, 960, 540);
+    assert.ok(r4 < 60 && g4 < 40 && b4 < 40, `fade_black: near black at the midpoint, got ${[r4, g4, b4]}`);
+    const [r5, g5] = pixel(out, 5.6, 960, 540);
+    assert.ok(r5 > 180 && g5 < 90, `after: red again, got ${[r5, g5]}`);
+  });
+
+  await t("geometry effects render: zoom_pulse punches in at its peak, shake moves the frame, both only in range", () => {
+    const ir = project({ total: 4, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("bg", BOX, [0, 4], [0, 4])] }] });
+    ir.tracks.effectTrack = [fx("zp", "zoom_pulse", 0.5, 1), fx("sh", "shake", 2.5, 1)];
+    const plan = buildNativeRenderPlan(ir, opts());
+    assert.ok(plan.supported, JSON.stringify(plan));
+    const out = f("fx-geo.mp4");
+    const r = renderSpec((plan as any).spec, out);
+    assert.ok(r.ok, `${r.err}\nGRAPH: ${(plan as any).spec.filterComplex}`);
+    const p = probe(out);
+    assert.ok(Math.abs(Number(p.format.duration) - 4) < 0.25, `duration ${p.format.duration}`);
+    assert.ok(pixel(out, 0.2, 1025, 540)[0] < 60, "outside the zoom the bar ends at x=1019");
+    assert.ok(pixel(out, 1.0, 1025, 540)[0] > 200, "at the zoom peak (x1.25) the bar reaches x=1025");
+    assert.ok(pixel(out, 2.0, 1025, 540)[0] < 60, "after the zoom it is back");
+    const inShake = [2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2].map((s) => pixel(out, s, 1025, 540)[0] > 200);
+    assert.ok(inShake.some(Boolean), `shake moves the bar over x=1025 at some frame: ${inShake}`);
+    assert.ok(pixel(out, 3.8, 1025, 540)[0] < 60, "after the shake it is still");
+  });
+
   rmSync(work, { recursive: true, force: true });
   console.log(`\n${passed}/${passed + failed} passed`);
   process.exit(failed ? 1 : 0);

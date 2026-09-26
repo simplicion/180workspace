@@ -60,8 +60,11 @@ export class SocialTokenVault {
         return Boolean(await getDb().socialAccountCredential.findUnique({ where: { socialAccountId: accountId }, select: { id: true } }));
     }
 
-    /** Returns a usable access token, refreshing it when it expires within SOCIAL_TOKEN_REFRESH_SKEW_SEC (default 300). */
-    static async getAccessToken(account: VaultAccountRef): Promise<string> {
+    /**
+     * Returns a usable access token, refreshing it when it expires within SOCIAL_TOKEN_REFRESH_SKEW_SEC (default 300).
+     * `forceRefresh` refreshes regardless of expiry (used by the proactive job for long-lived tokens).
+     */
+    static async getAccessToken(account: VaultAccountRef, opts: { forceRefresh?: boolean } = {}): Promise<string> {
         const platform = normalizePlatform(account.platform) as PublishPlatform;
         if (account.reauthRequired) throw new PublishError('REAUTH_REQUIRED', 'This account must be reconnected.', { platform });
         const db = getDb();
@@ -71,7 +74,7 @@ export class SocialTokenVault {
         }
         const skew = intEnv('SOCIAL_TOKEN_REFRESH_SKEW_SEC', 300) * 1000;
         const exp = cred.accessTokenExpiresAt ? new Date(cred.accessTokenExpiresAt).getTime() : null;
-        if (exp == null || exp - timing.now() > skew) return decryptSecret(cred.accessTokenEnc, aad(account.id, 'access'));
+        if (!opts.forceRefresh && (exp == null || exp - timing.now() > skew)) return decryptSecret(cred.accessTokenEnc, aad(account.id, 'access'));
 
         const key = account.id;
         if (!inflight.has(key)) {
@@ -159,8 +162,8 @@ export class SocialTokenVault {
                 const account = await db.socialAccount.findUnique({
                     where: { id: cred.socialAccountId },
                 });
-                if (!account || !account.isActive || account.reauthRequired) continue;
-                await this.getAccessToken(account);
+                if (!account || !account.isActive || account.reauthRequired || account.companyId !== cred.companyId) continue;
+                await this.getAccessToken(account, { forceRefresh: true });
                 refreshed++;
             } catch {
                 failed++;

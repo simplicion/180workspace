@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { 
     FolderKanban, Plus, Search, Filter, Calendar, CheckCircle2, Clock, 
     AlertCircle, Sparkles, Layers, ArrowRight, Instagram, Linkedin, 
-    Youtube, MessageSquare, ShieldCheck, ChevronRight, User, Users, Share2
+    Youtube, MessageSquare, ShieldCheck, ChevronRight, User, Users, Share2,
+    Zap, Download, Monitor, Smartphone, X
 } from 'lucide-react';
 import { socialProjectService, SocialProject } from '@/lib/services/social-project.service';
 import { UniversalSkeleton, SkeletonBoundary } from '@workspace/ui';
@@ -18,6 +19,7 @@ export default function SocialProjectsListPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
     const loadProjects = async () => {
         try {
@@ -74,13 +76,23 @@ export default function SocialProjectsListPage() {
                     </p>
                 </div>
 
-                <Link
-                    href="/social-projects/new"
-                    className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl shadow-lg shadow-indigo-600/20 transition-all duration-200 active:scale-95"
-                >
-                    <Plus className="w-4 h-4" />
-                    <span>Create Social Project</span>
-                </Link>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsDownloadModalOpen(true)}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 rounded-xl shadow-sm transition active:scale-95"
+                    >
+                        <Download className="w-4 h-4 text-indigo-500" />
+                        <span>Download 180 Studio</span>
+                    </button>
+
+                    <Link
+                        href="/social-projects/new"
+                        className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl shadow-lg shadow-indigo-600/20 transition-all duration-200 active:scale-95"
+                    >
+                        <Plus className="w-4 h-4" />
+                        <span>Create Social Project</span>
+                    </Link>
+                </div>
             </div>
 
             {/* Filter Bar */}
@@ -210,14 +222,105 @@ export default function SocialProjectsListPage() {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between text-xs text-indigo-600 dark:text-indigo-400 font-semibold group-hover:translate-x-1 transition-transform">
-                                        <span>Open Workspace</span>
-                                        <ChevronRight className="w-4 h-4" />
+                                    <div className="flex items-center justify-between pt-2">
+                                        <div className="flex items-center text-xs text-indigo-600 dark:text-indigo-400 font-semibold group-hover:translate-x-1 transition-transform">
+                                            <span>Open Workspace</span>
+                                            <ChevronRight className="w-4 h-4 ml-0.5" />
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                window.location.href = `one80://projects/${project.id}`;
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl shadow-sm transition active:scale-95 z-10"
+                                            title="Launch in 180 Social Media Manager Native App"
+                                        >
+                                            <Zap className="w-3.5 h-3.5 text-amber-300" />
+                                            <span>Launch Studio</span>
+                                        </button>
                                     </div>
                                 </div>
                             </Link>
                         );
                     })}
+                </div>
+            )}
+
+            {/* Native App Download Modal */}
+            {isDownloadModalOpen && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600">
+                                    <Download className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                                        180 Social Media Manager
+                                    </h3>
+                                    <p className="text-xs text-slate-400">Native High-Performance Creative Suite</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setIsDownloadModalOpen(false)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                            For heavy 4K video editing, teleprompter recording, and seamless cross-platform publishing, download our native app for your device:
+                        </p>
+
+                        <div className="space-y-2.5">
+                            <a
+                                href="/downloads/180-social-media-manager-windows-x64.exe"
+                                className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Monitor className="w-5 h-5 text-indigo-500" />
+                                    <div className="text-left">
+                                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">Windows (64-bit)</p>
+                                        <p className="text-[10px] text-slate-400">Windows 10 / 11 Native Installer (.exe)</p>
+                                    </div>
+                                </div>
+                                <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform">Download</span>
+                            </a>
+
+                            <a
+                                href="/downloads/180-social-media-manager-macos-universal.dmg"
+                                className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Monitor className="w-5 h-5 text-indigo-500" />
+                                    <div className="text-left">
+                                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">macOS (Universal)</p>
+                                        <p className="text-[10px] text-slate-400">Apple Silicon M1-M4 & Intel (.dmg)</p>
+                                    </div>
+                                </div>
+                                <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform">Download</span>
+                            </a>
+
+                            <a
+                                href="/downloads/180-social-media-manager.apk"
+                                className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Smartphone className="w-5 h-5 text-indigo-500" />
+                                    <div className="text-left">
+                                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">Android APK</p>
+                                        <p className="text-[10px] text-slate-400">Direct phone package (.apk)</p>
+                                    </div>
+                                </div>
+                                <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform">Download</span>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

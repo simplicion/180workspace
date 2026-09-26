@@ -146,6 +146,34 @@ void main() {
     expect(b.calls('GET', '$sm/brand-voice/p1').length, 2); // reloaded after save
   });
 
+  appTest('Brand consciousness: shows what the AI still needs and PUTs identity fields', (tester) async {
+    final b = seededBackend()
+      ..json('PUT', '$sm/projects/:id/brand-consciousness', {'success': true, 'brand': brandConsciousnessJson()});
+    await pumpApp(tester, b, location: '/projects/p1/brand');
+    final list = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('The AI still needs: Brand type, Positioning'), 300, scrollable: list);
+    await tapVisible(tester, find.widgetWithText(ChoiceChip, 'Creator'));
+    final positioning = find.widgetWithText(TextField, 'Positioning');
+    await tester.scrollUntilVisible(positioning, 200, scrollable: list);
+    await tester.enterText(positioning, 'Home baristas who want café results');
+    final bg = find.widgetWithText(TextField, 'Background colour');
+    await tester.scrollUntilVisible(bg, 200, scrollable: list);
+    await tester.enterText(bg, '#fafafa');
+    await tester.pump();
+    final save = find.widgetWithText(ElevatedButton, 'Save brand consciousness');
+    await tester.ensureVisible(save);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -400)); // collapse the outer header
+    await settle(tester, frames: 6);
+    await tester.tap(save);
+    await settle(tester);
+    final body = b.last('PUT', '$sm/projects/p1/brand-consciousness')!.json;
+    expect(body['brandType'], 'creator');
+    expect(body['positioning'], 'Home baristas who want café results');
+    expect(body['colors'], {'background': '#FAFAFA', 'text': null});
+    expect(body['targetPlatforms'], ['instagram']);
+    expect(body.containsKey('logoUrl'), isFalse); // never touched from here
+  });
+
   appTest('Brand: offline save is queued in the outbox', (tester) async {
     final b = seededBackend()..networkError('POST', '$sm/brand-voice/:projectId');
     final h = await pumpApp(tester, b, location: '/projects/p1/brand');

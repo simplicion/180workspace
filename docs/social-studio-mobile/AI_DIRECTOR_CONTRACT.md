@@ -433,3 +433,17 @@ turn**.
 | 2026-09-25 | **Live Cartesia STT** (`transcribeAudioBuffer`, model `ink-whisper`, word granularity) on a 12.7 s synthesized English speech WAV | 29 words with real timings, e.g. `{"text":"So","startMs":20,"endMs":280}`, `{"text":"gym.","startMs":1360,"endMs":2160}`, `durationMs: 12747` |
 | 2026-09-25 | **Live E2E**: that STT output sent to `directMobile("remove the pauses and add yellow captions")` | `plannerSource:"deterministic"`, `plannerReason:"no workspace (company) context, so no LLM key could be resolved"`. 8 word-synced captions (`#FFFF00` highlight). No pause cuts, because synthesized speech has no gaps ≥ 0.5 s. |
 | 2026-09-25 | **Live LLM call** | **Not run.** No `ANTHROPIC_API_KEY`/`CLAUDE_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY` exists in the server env files or the dev shell. The LLM path is covered only by mocked-provider tests. First real verification: set `ANTHROPIC_API_KEY` (or a workspace Claude key) and send any §2.1 request. `plannerSource` must be `"llm"`. |
+
+## Addendum 2026-09-26: effects and photo overlays
+- `effects?: [{ id, type, startMs, endMs, intensity 0..1 }]`, with `type` one of
+  `flash | fade_black | shake | zoom_pulse | black_white | vignette` (`VIDEO_EFFECT_TYPES`). It is omitted when empty,
+  and older clients ignore it.
+- `overlays[].mediaType?: "image"` means a still photo held for the slot. It is absent for video. The source must be a
+  `url` or an `asset`; photos never come from `stock_query`.
+- Director op `addEffect { effect, startSec, durationSec, intensity }`. `insertBroll` gains `mediaType`.
+- Both renderers use the same envelopes (see `TimelineEffects.kt`):
+  - flash: fast attack, linear decay;
+  - fade_black: triangle;
+  - black_white and vignette: 150 ms ramps;
+  - zoom_pulse: `1 + (0.06 + 0.14·i)·sin(πp)`;
+  - shake: small sinusoidal jitter with cover scale.

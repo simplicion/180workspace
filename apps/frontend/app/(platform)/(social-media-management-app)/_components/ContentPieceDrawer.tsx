@@ -12,11 +12,16 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import api from '@/lib/api';
+import AutopilotScriptPanel from './piece/AutopilotScriptPanel';
+import RawFootageUpload from './piece/RawFootageUpload';
+import PiecePublishPanel from './piece/PiecePublishPanel';
+import CarouselMaker from './creative/CarouselMaker';
 
 interface ContentPieceModalProps {
     piece: ContentPiece;
     calendarId: string;
+    /** Social project of the calendar; needed for autopilot regenerate and the creative engine. */
+    projectId?: string;
     onClose: () => void;
     onSave: (updated: ContentPiece) => void;
 }
@@ -35,12 +40,10 @@ const STATUS_BADGE: Record<string, string> = {
     published: 'badge-green',
 };
 
-export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave }: ContentPieceModalProps) {
+export default function ContentPieceDrawer({ piece, calendarId, projectId, onClose, onSave }: ContentPieceModalProps) {
     const router = useRouter();
     const [editing, setEditing] = useState<Partial<ContentPiece> & Record<string, any>>({ ...piece });
     const [isSaving, setIsSaving] = useState(false);
-    const [isPublishing, setIsPublishing] = useState(false);
-    const [rawVideoInput, setRawVideoInput] = useState(editing.rawMediaUrls?.[0] || '');
     const [selectedHookType, setSelectedHookType] = useState<string>('patternInterrupt');
 
     // Parse JSON script & hooks if available
@@ -57,6 +60,9 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
 
     const isVideo = ['reel', 'video', 'tiktok', 'short'].includes((piece.contentType || '').toLowerCase());
     const isCarousel = (piece.contentType || '').toLowerCase() === 'carousel';
+    const isStatic = !isVideo && !isCarousel && ((editing as any).format === 'static' || ['post', 'image', 'static'].includes((piece.contentType || '').toLowerCase()));
+    const pieceId = piece.id || piece._id || '';
+    const rawMediaUrls: string[] = editing.rawMediaUrls || [];
 
     const [activeTab, setActiveTab] = useState<'copy' | 'script' | 'media' | 'strategy' | 'metrics'>('copy');
 
@@ -67,7 +73,11 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const updated = await contentCalendarService.updateCalendarPiece(calendarId, piece.id || '', editing);
+            // Autopilot fields are derived from videoScriptOrHooks by the API (expandAutopilotFields) and are not columns.
+            const body: Record<string, any> = { ...editing };
+            for (const k of ['autopilot', 'slotId', 'format', 'platforms', 'hookType', 'spokenHook', 'onScreenHook', 'script', 'hasScript',
+                'shotNotes', 'carouselBrief', 'captions', 'sources', 'critic', 'postingTime']) delete body[k];
+            const updated = await contentCalendarService.updateCalendarPiece(calendarId, piece.id || '', body);
             toast.success('Content piece saved!');
             onSave(updated.piece);
             onClose();
@@ -79,7 +89,7 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
     };
 
     const handleOpenMediaStudio = () => {
-        const rawUrl = rawVideoInput || editing.rawMediaUrls?.[0] || '';
+        const rawUrl = rawMediaUrls[rawMediaUrls.length - 1] || '';
         const params = new URLSearchParams();
         params.set('mode', 'studio');
         params.set('project', calendarId);
@@ -87,22 +97,6 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
         if (rawUrl) params.set('rawVideoUrl', rawUrl);
         params.set('title', piece.headline || 'Calendar Video');
         router.push(`/media-editor?${params.toString()}`);
-    };
-
-    const handlePublishNow = async () => {
-        setIsPublishing(true);
-        try {
-            await api.post(`/api/social-media/posts/${piece.id}/publish`).catch(async () => {
-                return await api.post(`/api/social-media/calendar-pieces/${piece.id}/publish`);
-            });
-            toast.success(`Published to ${piece.platform} successfully!`);
-            setEditing(prev => ({ ...prev, status: 'published' }));
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Publishing dispatched to queue');
-            setEditing(prev => ({ ...prev, status: 'published' }));
-        } finally {
-            setIsPublishing(false);
-        }
     };
 
     const applyHook = (hookText: string) => {
@@ -260,7 +254,17 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
                     )}
 
                     {/* ---- Script Tab: 5 Psychological Hooks & Teleprompter ---- */}
-                    {activeTab === 'script' && (
+                    {activeTab === 'script' && editing.autopilot && (
+                        <AutopilotScriptPanel
+                            piece={editing as any}
+                            projectId={projectId}
+                            onRegenerated={(updated) => {
+                                setEditing(prev => ({ ...prev, ...updated }));
+                                toast.success('Piece rewritten');
+                            }}
+                        />
+                    )}
+                    {activeTab === 'script' && !editing.autopilot && (
                         <div className="space-y-6">
                             {/* 5 Psychological Hooks Section */}
                             {scriptData?.hookVariations && (
@@ -406,7 +410,21 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
                     {/* ---- Media Tab: Raw Footage Intake & Media Studio Bridge ---- */}
                     {activeTab === 'media' && (
                         <div className="space-y-6">
+                            {(isCarousel || isStatic) && (
+                                projectId ? (
+                                    <CarouselMaker
+                                        projectId={projectId}
+                                        pieceId={pieceId}
+                                        kind={isCarousel ? 'carousel' : 'static'}
+                                        initialJobId={scriptData?.renderedCarousel?.jobId || null}
+                                    />
+                                ) : (
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400">Link this calendar to a social project to design {isCarousel ? 'carousel slides' : 'images'}.</p>
+                                )
+                            )}
+
                             {/* Raw Video Intake Box */}
+                            {!(isCarousel || isStatic) && (
                             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -415,26 +433,17 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
                                             Raw Video Footage Intake
                                         </h4>
                                     </div>
-                                    <span className="text-[11px] text-slate-500">Record on phone/camera and paste or drop</span>
+                                    <span className="text-[11px] text-slate-500">Record on your phone or camera, then upload</span>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-semibold text-slate-600">
-                                        Raw Video URL or Cloud File Link
-                                    </label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={rawVideoInput}
-                                            onChange={e => {
-                                                setRawVideoInput(e.target.value);
-                                                setEditing(prev => ({ ...prev, rawMediaUrls: [e.target.value] }));
-                                            }}
-                                            placeholder="https://storage.googleapis.com/... or raw video link"
-                                            className="flex-1 px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-slate-900"
-                                        />
-                                    </div>
-                                </div>
+                                <RawFootageUpload
+                                    pieceId={pieceId}
+                                    rawMediaUrls={rawMediaUrls}
+                                    onUploaded={({ rawMediaUrls: urls }) => {
+                                        setEditing(prev => ({ ...prev, rawMediaUrls: urls, status: prev.status === 'ready' ? 'in_progress' : prev.status }));
+                                        toast.success('Footage uploaded');
+                                    }}
+                                />
 
                                 {/* Media Studio Launcher Banner */}
                                 <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-900 to-purple-950 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -461,6 +470,7 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
                                     </button>
                                 </div>
                             </div>
+                            )}
 
                             {/* Final Rendered Video Player (if exported from studio) */}
                             {(editing.finalVideoUrl || editing.deliverableUrl) ? (
@@ -489,18 +499,18 @@ export default function ContentPieceDrawer({ piece, calendarId, onClose, onSave 
                                         <span className="text-xs text-slate-500 truncate max-w-[280px]">
                                             {editing.finalVideoUrl || editing.deliverableUrl}
                                         </span>
-                                        <button
-                                            type="button"
-                                            onClick={handlePublishNow}
-                                            disabled={isPublishing}
-                                            className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-md shadow-emerald-600/20 transition active:scale-95 disabled:opacity-50"
-                                        >
-                                            <Send className="w-3.5 h-3.5" />
-                                            <span>{isPublishing ? 'Publishing...' : `Publish to ${piece.platform} Now`}</span>
-                                        </button>
                                     </div>
                                 </div>
                             ) : null}
+
+                            {/* Publish via the piece's linked post (honest per-platform result) */}
+                            <PiecePublishPanel
+                                pieceId={pieceId}
+                                platformLabel={piece.platform}
+                                projectId={projectId}
+                                calendarId={calendarId}
+                                onPublished={(res) => { if (res.success) setEditing(prev => ({ ...prev, status: 'published' })); }}
+                            />
                         </div>
                     )}
 

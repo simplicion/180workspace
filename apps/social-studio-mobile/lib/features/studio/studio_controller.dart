@@ -299,6 +299,7 @@ class StudioController extends ChangeNotifier {
           overlays: ir.overlays,
           captions: ir.captions,
           zooms: ir.zooms,
+          effects: ir.effects,
           audio: EditIrAudio(
             originalVolumeDb: ir.audio.originalVolumeDb,
             music: ir.audio.music,
@@ -457,6 +458,7 @@ class StudioController extends ChangeNotifier {
             captions: next.captions,
             zooms: next.zooms,
             audio: next.audio,
+            effects: next.effects,
           );
     _push(ir);
     _ir = withSources;
@@ -498,7 +500,7 @@ class StudioController extends ChangeNotifier {
       for (final o in ir.overlays) {
         final kind = o.source['kind'];
         String? url = kind == 'url' ? o.source['url'] as String? : null;
-        if (kind == 'stock_query') {
+        if (kind == 'stock_query' && !o.isImage) {
           final hit = await director.resolveStockVideo(
             '${o.source['query'] ?? ''}',
           );
@@ -518,9 +520,16 @@ class StudioController extends ChangeNotifier {
         }
         export = ExportState(stage: 'Downloading B-roll…', warnings: warnings);
         _notify();
+        // The renderer detects photos by file type, so keep the image extension.
+        final imgExt = Uri.tryParse(url)?.path.split('.').last.toLowerCase();
+        final ext = !o.isImage
+            ? 'mp4'
+            : const {'jpg', 'jpeg', 'png', 'webp'}.contains(imgExt)
+                ? imgExt!
+                : 'jpg';
         overlayPaths[o.id] = await director.download(
           url,
-          '${dir.path}/${o.id}.mp4',
+          '${dir.path}/${o.id}.$ext',
         );
         usedUrls.add(url);
       }
@@ -595,6 +604,7 @@ class StudioController extends ChangeNotifier {
           overlays: working.overlays,
           captions: working.captions,
           zooms: working.zooms,
+          effects: working.effects,
           audio: EditIrAudio(
             originalVolumeDb: a.originalVolumeDb,
             music: a.music,

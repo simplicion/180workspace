@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../data/models/brand_voice.dart';
+import '../../data/models/autopilot.dart';
 import '../../data/models/content_calendar.dart';
 import '../../data/models/engagement_rule.dart';
 import '../../data/models/inbox.dart';
@@ -202,6 +203,17 @@ class SocialApi {
     return uri;
   }
 
+  /// Pages / Instagram accounts / LinkedIn organisations found after OAuth (`status=select`).
+  Future<({String platform, List<OAuthCandidate> candidates})> getOAuthSelection(String selectionId) async {
+    final r = await _api.get('$base/accounts/oauth/selections/$selectionId');
+    return (platform: jStrOr(r['platform'], ''), candidates: jList(r['candidates'], OAuthCandidate.fromJson));
+  }
+
+  Future<List<SocialAccount>> completeOAuthSelection(String selectionId, List<String> candidateIds) async {
+    final r = await _api.post('$base/accounts/oauth/selections/$selectionId', body: {'candidateIds': candidateIds});
+    return jList(r['accounts'], SocialAccount.fromJson);
+  }
+
   Future<void> disconnectAccount(String id) => _api.delete('$base/accounts/$id');
 
   // ── AI content calendars ──────────────────────────────────────────────────
@@ -249,6 +261,66 @@ class SocialApi {
     );
     return CalendarPiece.fromJson(jMap(r['piece']));
   }
+
+  /// Starts the multi-agent autopilot calendar (brand consciousness + research). 409 = one already running.
+  Future<({String jobId, String calendarId})> startAutopilot(
+    String projectId, {
+    required int days,
+    required DateTime startDate,
+    List<String>? platforms,
+    List<String> goals = const [],
+    String? name,
+  }) async {
+    final d = startDate;
+    final ymd = '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final r = await _api.post('$base/projects/$projectId/autopilot/calendar', body: {
+      'days': days,
+      'startDate': ymd,
+      'platforms': ?platforms,
+      'goals': goals,
+      'name': ?name,
+    }, idempotencyKey: _uuid.v4());
+    final jobId = jStr(r['jobId']);
+    final calendarId = jStr(r['calendarId']);
+    if (jobId == null || calendarId == null) {
+      throw const ApiException(kind: ApiErrorKind.server, message: 'The server did not return an autopilot job.');
+    }
+    return (jobId: jobId, calendarId: calendarId);
+  }
+
+  Future<AutopilotJob> getAutopilotJob(String projectId, String jobId) async =>
+      AutopilotJob.fromJson(await _api.get('$base/projects/$projectId/autopilot/jobs/$jobId'));
+
+  /// Renders a carousel (or a single static post) for a calendar piece or post. The finished slides are
+  /// attached to the piece/post by the server.
+  Future<CreativeJob> startCreative(
+    String projectId, {
+    bool carousel = true,
+    String? pieceId,
+    String? postId,
+    String format = 'portrait',
+    bool useImageModel = true,
+  }) async {
+    final r = await _api.post('$base/projects/$projectId/creative/${carousel ? 'carousels' : 'static-posts'}',
+        body: {'pieceId': ?pieceId, 'postId': ?postId, 'format': format, 'useImageModel': useImageModel},
+        idempotencyKey: _uuid.v4());
+    return CreativeJob.fromJson(jMap(r['job']));
+  }
+
+  Future<CreativeJob> getCreativeJob(String projectId, String jobId) async =>
+      CreativeJob.fromJson(jMap((await _api.get('$base/projects/$projectId/creative/jobs/$jobId'))['job']));
+
+  Future<CreativeJob> regenerateSlide(String projectId, String jobId, int index) async {
+    final r = await _api.post('$base/projects/$projectId/creative/jobs/$jobId/slides/$index/regenerate');
+    return CreativeJob.fromJson(jMap(r['job']));
+  }
+
+  Future<BrandConsciousness> getBrandConsciousness(String projectId) async =>
+      BrandConsciousness.fromJson(jMap((await _api.get('$base/projects/$projectId/brand-consciousness'))['brand']));
+
+  Future<BrandConsciousness> putBrandConsciousness(String projectId, Json patch) async =>
+      BrandConsciousness.fromJson(
+          jMap((await _api.put('$base/projects/$projectId/brand-consciousness', body: patch))['brand']));
 
   // ── Posts ──────────────────────────────────────────────────────────────────
 
@@ -324,6 +396,25 @@ class SocialApi {
 
   /// Attaches a rendered video to a calendar piece (`POST /calendar-pieces/:id/final-video`,
   /// device-gated). Creates the piece's post if it has none and moves it to review.
+  /// Raw footage for a calendar piece (for an editor on the desktop app). Returns the stored URL.
+  Future<String> uploadPieceRawFootage(String pieceId, String videoPath, {void Function(int sent, int total)? onProgress}) async {
+    final lower = videoPath.toLowerCase();
+    final form = FormData.fromMap({
+      'video': await MultipartFile.fromFile(videoPath,
+          contentType: lower.endsWith('.mov')
+              ? DioMediaType('video', 'quicktime')
+              : lower.endsWith('.webm')
+                  ? DioMediaType('video', 'webm')
+                  : DioMediaType('video', 'mp4')),
+    });
+    final r = await _api.postForm('$base/calendar-pieces/$pieceId/raw-footage', form, onProgress: onProgress);
+    final url = jStr(jMap(r['data'])['url']);
+    if (url == null || url.isEmpty) {
+      throw const ApiException(kind: ApiErrorKind.server, message: 'Footage uploaded but the server returned no URL.');
+    }
+    return url;
+  }
+
   Future<SocialPost> uploadPieceFinalVideo(
     String pieceId, {
     required String videoPath,

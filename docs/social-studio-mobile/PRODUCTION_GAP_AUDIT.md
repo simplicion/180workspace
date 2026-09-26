@@ -22,7 +22,7 @@ Legend: ✅ done · 🟡 partial · ❌ missing · 🔴 broken
 | 9 | Conversation → proposal → consent → apply → undo; custom follow-ups | ✅ | 🟡 LLM plans auto-apply without confirmation; no history sent; a 15 s timeout silently falls back to keyword edits | ✅ |
 | 10 | Tools: silence/filler cuts, captions, zooms, B-roll (Pexels/Pixabay), music with attribution, SFX, transitions, reframe, speed, ducking | 🟡 SFX suggested only, never placed on the timeline | 🟡 no music/SFX resolution | 🟡 transitions approximated; SFX missing |
 | 11 | Manual editing on the same timeline as the AI (crop, filters, music, text, trim/split, etc.) | ✅ | ✅ | ✅ (watermark lost on manual edits) |
-| 12 | One-click connect for IG/FB/YouTube/LinkedIn/X/TikTok, encrypted tokens | ✅ PKCE, AES-GCM vault, migration | 🔴 the Connect button stores a fake `live_token_*` and says "Connected" | 🟡 authorize works; no page/org selection step (`status=select`) |
+| 12 | One-click connect for IG/FB/YouTube/LinkedIn/X/TikTok, encrypted tokens | ✅ PKCE, AES-GCM vault, migration | ✅ real OAuth redirect + picker + Reconnect (Phase 3) | ✅ picker sheet for `status=select` (Phase 3) |
 | 13 | Real publishing, per-platform status, scheduler that respects approval | ✅ real publishers, lease claims, approval gate (16+ tests) | 🔴 fake-success publish in ContentPieceDrawer | ✅ uses the real endpoint |
 | 14 | Each project/client isolated | 🔴 legacy calendar CRUD, `syncVideoFromStudio`, engagement rules and video-studio `companyId` are all spoofable | n/a | n/a |
 | 15 | Production quality (no hardcoded secrets, tests green, design system) | 🔴 hardcoded Meta webhook token (`8852feb`) | 🟡 2 TS errors in MediaStudioWorkspace | 🔴 analyze: 3 issues, tests: 7 failing; the new light theme breaks 27 screens |
@@ -294,3 +294,107 @@ Open: web parity screens (engagement rules / inbox Reply All), Flutter tests for
   - `DESKTOP_DOWNLOAD_URL_MAC_INTEL` was added to the env example.
 - **To verify:** run the "Desktop App Release" workflow (workflow_dispatch). It compiles the Rust code and runs
   the tests on Windows and macOS, then publishes a draft release.
+
+### Phase 2: web clients (done 2026-09-26, uncommitted)
+- **Service.** `apps/frontend/lib/services/social-autopilot.service.ts` holds the autopilot, creative, raw-footage and
+  publish-via-post calls, plus `apiError()`, which normalises both error shapes (`{code,error}` and
+  `{error:CODE,message}`). `social-engagement.service.ts` is fixed to match the real routes:
+  - toggle is PATCH;
+  - Reply All suggestions are POST, and dispatch sends `{conversationId, replyText}` and gets back per-item `results`;
+  - the `stats*` counters are mapped to `total*`, and `totalLeadsGenerated` to `totalLeadsConverted`;
+  - test-match sends an inbound event.
+- **Autopilot create.** `content-calendar/create/AutopilotCreate.tsx` has a project picker, 7/14/30 days, start date,
+  platforms and goals, then a polled progress view that opens the calendar when the job is done.
+  - A 409 CONFLICT follows the job that is already running.
+  - AI_NOT_CONFIGURED links to /settings/ai.
+  - The legacy wizard is kept as a fallback, used only when the route returns a 404 with no code.
+- **Content piece drawer.**
+  - `piece/AutopilotScriptPanel.tsx` shows the spoken and on-screen hooks, hook type, the beats with retention
+    devices, the retention loop, CTA, shot notes, carousel brief, per-platform captions and hashtags, posting time,
+    sources and critic flags. Each has a copy button, and there is Regenerate with an instruction.
+  - `piece/RawFootageUpload.tsx` is a multipart `video` upload with progress and cancel. It replaces the URL field.
+  - `piece/PiecePublishPanel.tsx` finds the linked post and calls `/posts/:id/publish`. It shows the result for each
+    platform and variant, and never fakes success.
+  - `creative/CarouselMaker.tsx` handles carousel and static pieces, and the project post drawer: start, poll,
+    slide grid, redo one slide, and IMAGE_MODEL_NOT_CONFIGURED with "Use stock photos" (`useImageModel:false`).
+    It reopens the last job from `renderedCarousel.jobId` or `metadata.creative.jobId`.
+  - The calendar page now passes `projectId` to the drawer.
+- **Engagement.** The project Engagement tab gains edit, trigger type, and the auto-like and send-DM toggles. It also
+  gets a real test matcher against saved rules, an error state with retry, and no placeholder deliverable URLs.
+- **Inbox.** The `/inbox` page and the project Inbox tab were full of mock conversations and fake success. They now
+  share `_components/inbox/InboxWorkspace.tsx`, which uses real data: send reply, smart suggestions, AI agent on/off,
+  take over, and convert to lead. `AiReplyAllSheet.tsx` drafts replies, lets the user review and edit them, then
+  dispatches and shows sent, failed or rate-limited for each item; rate-limited items can be re-sent.
+- **Docs.** `AUTOPILOT_API.md` and `CREATIVE_ENGINE.md` describe the request and response JSON of the real routes, for
+  the mobile client.
+- **Check.** `npx tsc --noEmit -p apps/frontend` shows no errors in the touched files. No browser run has been done yet.
+
+### Phase 2: mobile clients (done 2026-09-26, uncommitted)
+- **Autopilot calendar**:
+  - `lib/features/planner/autopilot_generator.dart` is now the default "Generate calendar" screen for the active project.
+  - Inputs: 7/14/30 days, start date, platforms and up to 5 goals. It polls the job every 2 s and shows the stage label and %, then opens the calendar.
+  - A 409 resumes the running job (`details.jobId`).
+  - A failed job shows the server's reason, with Try again and "Use the classic generator". The classic stepper is still used to extend a calendar.
+- **Structured scripts**: `PieceBrief.parse` (`lib/data/models/autopilot.dart`) reads the autopilot JSON in `videoScriptOrHooks`.
+  - The piece sheet shows the spoken and on-screen hook, numbered beats, loop, CTA, shot notes, carousel brief and visual idea as copyable blocks.
+  - The raw JSON is never shown or editable. Rewrite goes through "AI Autopilot Rewrite".
+  - The teleprompter, camera and Studio get `teleprompterText` (hook, beats, loop, CTA with no labels) and the opening hook.
+- **Carousels**: `lib/features/planner/carousel_sheet.dart` ("Design carousel slides" on carousel pieces).
+  - Choose portrait or square, then it polls the creative job and shows a slide grid with a per-slide redo.
+  - On `IMAGE_MODEL_NOT_CONFIGURED` it offers "Use stock photos", which retries with `useImageModel:false`.
+  - The server attaches the slides to the piece/post.
+- **Brand consciousness**: `lib/features/workspace/brand_identity_card.dart` sits on the Brand tab under the voice form.
+  - GET/PUT `/projects/:id/brand-consciousness` for name, type, positioning, tagline, description, big idea, beliefs, background/text colours, target platforms, watermark (not chosen/yes/no) and guidelines.
+  - It shows completeness % and "The AI still needs: …". Nothing is prefilled.
+- **Raw footage**: `SocialApi.uploadPieceRawFootage` plus "Send raw footage to my editor" in the Edit-in-Studio sheet (`raw_footage_upload.dart`, progress dialog).
+- **Tests**:
+  - `test/sections/phase2_test.dart` has 8 tests.
+  - The brand-consciousness PUT test is in `workspace_test.dart`.
+  - Full suite: **141 passing**, `flutter analyze` clean. This includes lint fixes in the other tool's `finish_publishing_sheet.dart`, `platform_post_preview.dart` and `user_assisted_publishers.dart`.
+- **Not done**:
+  - Carousel design from a *post* (only pieces for now; the API supports `postId`).
+  - Per-platform captions from the brief are not yet copied into the composer prefill.
+  - Nothing has been device-tested yet.
+
+### Phase 3: publishing completion (done 2026-09-26, uncommitted)
+- **Web OAuth is real.** `ConnectedAccountsManager.tsx` no longer posts a fake `live_token_*`.
+  - Connect calls `/accounts/oauth/:platform/authorize` and redirects the browser; the provider returns to the same page.
+  - `status=connected` gives a toast and reloads the list. `status=error` shows the provider's reason. `status=select` opens `AccountSelectionDialog`, which has skeletons, a retry path and 44px targets.
+  - A "Reconnect" button appears for accounts with `reauthRequired`. A missing server credential shows as "not set up on this server".
+- **Mobile page/org picker.** `account_selection_sheet.dart` opens on the `status=select` deep link. Before this, that link was reported as "Connection failed".
+  - Adds `SocialApi.getOAuthSelection`/`completeOAuthSelection` and the `OAuthCandidate` model.
+  - Test: `test/sections/oauth_selection_test.dart`. Suite: **142 passing**.
+- **Token refresh fixed** (audit item 14).
+  - `getAccessToken(account, {forceRefresh})`: the proactive 7-day job now actually refreshes, and skips credentials whose company doesn't match.
+  - The old no-op test was replaced with one that checks the provider refresh endpoint is called and the new token is stored.
+  - Publishing tests: 29/29. Package rebuilt.
+- **`PUBLISHING.md`** covers the flow, tokens, publish states, env per platform and tests.
+- **Already done in Phase 0:** `/accounts/connect` restricted to admins (item 15), and honest metrics (engagement hardening).
+- **Not verified live:** needs real app credentials and the callback URL registered in each developer console (see §4).
+
+### Phase 4: mobile polish (done 2026-09-26, uncommitted)
+- **Theme:** dark-only (`main.dart` forces `ThemeMode.dark`; the toggle was removed in Phase 1). The unused light theme code is left in place until it is tokenised.
+- **Engagement tab:**
+  - stats show a skeleton while loading, and an ErrorView with retry instead of hiding the error silently;
+  - the refresh button has a tooltip;
+  - the rule action row wraps on small screens.
+- **Spinners replaced by skeletons:**
+  - Inbox AI Reply All sheet: skeleton, ErrorView with retry and Home (it used to show a raw "Error: …" line), and an empty state with a Close action.
+  - Settings device list.
+  - Studio stock search, in two places.
+  - Remaining spinners are only inside buttons and during camera start-up.
+- **Clear cache and settings retry:** done in Phase 1.
+- **Release build:**
+  - `build.gradle.kts` no longer crashes debug/CI builds when `android/key.properties` is missing. Release assemble/bundle tasks now fail loudly without it. The key files are git-ignored and untracked (verified).
+  - Sizes: the universal release APK is 62.8 MB. With `flutter build apk --release --split-per-abi`: arm64 35.1 MB, armeabi-v7a 29.9 MB, x86_64 37.7 MB.
+  - **Play Store: upload `flutter build appbundle --release`**; Play serves per-ABI splits.
+  - R8 resource shrinking was not enabled, because Media3 and ML Kit use reflection. Only try it together with a device test.
+- 142 tests passing, analyze clean, `compileDebugKotlin` OK.
+
+**Next: Phase 5.** A device test on a real Android phone, then live keys per platform (§4), then deploy (production still runs `ed40b0d`).
+
+### Manual editor parity (2026-09-26, uncommitted)
+- See `EDITOR_PARITY_PLAN.md`.
+- M1 (mobile multi-track timeline, Library with music/SFX/video/photos/text templates/effects, item inspector) is done.
+- M2 (effects and photo contract, director `addEffect`, Android renderer) is done.
+- M3 (desktop editor and FFmpeg) is in progress.

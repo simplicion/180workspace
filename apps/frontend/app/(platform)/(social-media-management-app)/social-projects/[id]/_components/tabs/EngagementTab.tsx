@@ -16,6 +16,8 @@ import {
 } from '@/lib/services/social-engagement.service';
 import { SocialProject } from '@/lib/services/social-project.service';
 import { UniversalSkeleton, Button } from '@workspace/ui';
+import { apiError, ApiErrorInfo } from '@/lib/services/social-autopilot.service';
+import { ErrorPanel } from '../../../../_components/shared/StatePanels';
 
 interface EngagementTabProps {
     project: SocialProject;
@@ -32,9 +34,12 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     // Test match state
-    const [testInputText, setTestInputText] = useState('Hey love this video, send me the BLUEPRINT!');
-    const [testKeywords, setTestKeywords] = useState('BLUEPRINT, GUIDE, LINK');
-    const [testMatchResult, setTestMatchResult] = useState<any>(null);
+    const [testInputText, setTestInputText] = useState('');
+    const [testEventType, setTestEventType] = useState<'comment' | 'dm' | 'mention'>('comment');
+    const [testMatchResult, setTestMatchResult] = useState<{ matched: boolean; rule: EngagementRule | null } | null>(null);
+    const [testError, setTestError] = useState<ApiErrorInfo | null>(null);
+    const [loadError, setLoadError] = useState<ApiErrorInfo | null>(null);
+    const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
     const [testingMatch, setTestingMatch] = useState(false);
 
     // Form state for rule creation
@@ -52,10 +57,53 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
         ],
         actionSendDm: true,
         actionDmTemplate: 'Hey {name}! Here is your VIP access link: {link} 🚀 What is your current monthly goal?',
-        actionDmDeliverableUrl: 'https://180workspace.com/blueprint',
+        actionDmDeliverableUrl: '',
         actionEnableAiAgent: true,
         aiAgentGoal: 'qualify_lead'
     });
+    const emptyForm = (): CreateEngagementRuleDTO => ({
+        name: '',
+        projectId: project.id,
+        triggerType: 'comment_keyword',
+        triggerKeywords: [],
+        matchMode: 'contains',
+        actionAutoLike: true,
+        actionPublicReplies: [],
+        actionSendDm: true,
+        actionDmTemplate: '',
+        actionDmDeliverableUrl: '',
+        actionEnableAiAgent: false,
+        aiAgentGoal: 'qualify_lead',
+    });
+
+    const openCreate = () => {
+        setEditingRuleId(null);
+        setFormState(emptyForm());
+        setKeywordsInput('');
+        setPublicRepliesInput('');
+        setIsCreateModalOpen(true);
+    };
+
+    const openEdit = (rule: EngagementRule) => {
+        setEditingRuleId(rule.id);
+        setFormState({
+            name: rule.name,
+            projectId: project.id,
+            triggerType: rule.triggerType,
+            triggerKeywords: rule.triggerKeywords,
+            matchMode: rule.matchMode,
+            actionAutoLike: rule.actionAutoLike,
+            actionPublicReplies: rule.actionPublicReplies,
+            actionSendDm: rule.actionSendDm,
+            actionDmTemplate: rule.actionDmTemplate,
+            actionDmDeliverableUrl: rule.actionDmDeliverableUrl || '',
+            actionEnableAiAgent: rule.actionEnableAiAgent,
+            aiAgentGoal: rule.aiAgentGoal,
+        });
+        setKeywordsInput(rule.triggerKeywords.join(', '));
+        setPublicRepliesInput(rule.actionPublicReplies.join('\n'));
+        setIsCreateModalOpen(true);
+    };
     const [keywordsInput, setKeywordsInput] = useState('BLUEPRINT, WORKFLOW');
     const [publicRepliesInput, setPublicRepliesInput] = useState(
         'Sent straight to your DM, {handle}! 🚀\nCheck your DMs @{handle}, just sent the link! 🙌\nAll yours {handle}! Sent to your inbox ✨'
@@ -65,6 +113,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
     const loadData = async () => {
         try {
             setLoading(true);
+            setLoadError(null);
             const [fetchedRules, fetchedStats] = await Promise.all([
                 socialEngagementService.getRules({ projectId: project.id }),
                 socialEngagementService.getStats(project.id)
@@ -72,8 +121,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
             setRules(fetchedRules);
             setStats(fetchedStats);
         } catch (err: any) {
-            console.error('Error loading engagement rules:', err);
-            toast.error('Failed to load engagement rules');
+            setLoadError(apiError(err, 'Could not load engagement rules.'));
         } finally {
             setLoading(false);
         }
@@ -92,7 +140,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
             // Refresh stats
             socialEngagementService.getStats(project.id).then(setStats).catch(() => null);
         } catch (err: any) {
-            toast.error('Failed to toggle rule');
+            toast.error(apiError(err, 'Failed to toggle rule').message);
         } finally {
             setTogglingId(null);
         }
@@ -107,7 +155,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
             toast.success('Engagement rule deleted');
             socialEngagementService.getStats(project.id).then(setStats).catch(() => null);
         } catch (err: any) {
-            toast.error('Failed to delete rule');
+            toast.error(apiError(err, 'Failed to delete rule').message);
         } finally {
             setDeletingId(null);
         }
@@ -134,13 +182,20 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                 actionPublicReplies: splitReplies
             };
 
-            const created = await socialEngagementService.createRule(payload);
-            setRules(prev => [created, ...prev]);
-            toast.success('Engagement automation created successfully!');
+            if (editingRuleId) {
+                const updated = await socialEngagementService.updateRule(editingRuleId, payload);
+                setRules(prev => prev.map(r => r.id === editingRuleId ? { ...r, ...updated } : r));
+                toast.success('Automation updated');
+            } else {
+                const created = await socialEngagementService.createRule(payload);
+                setRules(prev => [created, ...prev]);
+                toast.success('Automation created');
+            }
             setIsCreateModalOpen(false);
+            setEditingRuleId(null);
             loadData();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to create engagement rule');
+            toast.error(apiError(err, 'Failed to save the engagement rule').message);
         } finally {
             setSubmittingRule(false);
         }
@@ -149,15 +204,16 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
     const handleRunTestMatch = async () => {
         try {
             setTestingMatch(true);
-            const kws = testKeywords.split(',').map(k => k.trim()).filter(Boolean);
+            setTestError(null);
             const res = await socialEngagementService.testMatch({
                 text: testInputText,
-                keywords: kws,
-                matchMode: 'contains'
+                eventType: testEventType,
+                projectId: project.id,
             });
             setTestMatchResult(res);
         } catch (err: any) {
-            toast.error('Test match request failed');
+            setTestMatchResult(null);
+            setTestError(apiError(err, 'The test could not run.'));
         } finally {
             setTestingMatch(false);
         }
@@ -171,7 +227,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                 triggerKeywords: ['BLUEPRINT', 'WORKFLOW'],
                 actionAutoLike: true,
                 actionDmTemplate: 'Hey {name}! Here is your free blueprint link: {link} 🚀 What is your target monthly revenue?',
-                actionDmDeliverableUrl: 'https://180workspace.com/blueprint',
+                actionDmDeliverableUrl: '',
                 actionEnableAiAgent: true,
                 aiAgentGoal: 'qualify_lead'
             }));
@@ -195,7 +251,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                 triggerKeywords: ['DISCOUNT', 'DEAL', 'VIP'],
                 actionAutoLike: true,
                 actionDmTemplate: 'Awesome {name}! Here is your exclusive 20% off code: {link} 🎉 Valid for the next 24 hours!',
-                actionDmDeliverableUrl: 'https://180workspace.com/vip-offer',
+                actionDmDeliverableUrl: '',
                 actionEnableAiAgent: false,
                 aiAgentGoal: 'qualify_lead'
             }));
@@ -218,6 +274,18 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                 <UniversalSkeleton type="metrics" />
                 <UniversalSkeleton type="table" />
             </div>
+        );
+    }
+
+    if (loadError) {
+        return (
+            <ErrorPanel
+                title="Could not load engagement automations"
+                message={loadError.message}
+                code={loadError.code}
+                onRetry={loadData}
+                secondary={{ label: 'Open inbox', href: `/social-projects/${project.id}?tab=inbox` }}
+            />
         );
     }
 
@@ -249,7 +317,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                     </button>
 
                     <button
-                        onClick={() => setIsCreateModalOpen(true)}
+                        onClick={openCreate}
                         className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 rounded-xl transition shadow-lg shadow-amber-500/20"
                     >
                         <Plus className="w-4 h-4" />
@@ -354,7 +422,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                         Create an automation to instantly reply to comments, send private DMs with resource links, and qualify leads with AI.
                     </p>
                     <button
-                        onClick={() => setIsCreateModalOpen(true)}
+                        onClick={openCreate}
                         className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl transition"
                     >
                         <Plus className="w-4 h-4" />
@@ -407,6 +475,15 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                                             title={isActive ? 'Pause automation' : 'Activate automation'}
                                         >
                                             {isActive ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
+                                        </button>
+
+                                        <button
+                                            onClick={() => openEdit(rule)}
+                                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/10 transition min-w-[36px] min-h-[36px]"
+                                            title="Edit rule"
+                                            aria-label="Edit rule"
+                                        >
+                                            <Edit3 className="w-4 h-4" />
                                         </button>
 
                                         <button
@@ -499,7 +576,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                         <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-4">
                             <div>
                                 <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">
-                                    Create 180 Engagement Automation
+                                    {editingRuleId ? 'Edit automation' : 'Create 180 Engagement Automation'}
                                 </h3>
                                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                                     Configure autonomous trigger keywords, rotating replies, and AI lead qualification.
@@ -591,6 +668,31 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                                 </div>
                             </div>
 
+                            {/* Trigger type + actions */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">Trigger</label>
+                                    <select
+                                        value={formState.triggerType}
+                                        onChange={(e) => setFormState(prev => ({ ...prev, triggerType: e.target.value as any }))}
+                                        className="w-full min-h-[44px] px-3.5 text-xs rounded-xl bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100"
+                                    >
+                                        <option value="comment_keyword">Comment with keyword</option>
+                                        <option value="comment_any">Any comment</option>
+                                        <option value="dm_inbound">Inbound DM</option>
+                                        <option value="mention">Mention</option>
+                                    </select>
+                                </div>
+                                <label className="flex items-center gap-2 min-h-[44px] text-xs font-semibold text-slate-700 dark:text-zinc-300 sm:mt-5">
+                                    <input type="checkbox" checked={!!formState.actionAutoLike} onChange={(e) => setFormState(prev => ({ ...prev, actionAutoLike: e.target.checked }))} />
+                                    Auto-like the comment
+                                </label>
+                                <label className="flex items-center gap-2 min-h-[44px] text-xs font-semibold text-slate-700 dark:text-zinc-300 sm:mt-5">
+                                    <input type="checkbox" checked={!!formState.actionSendDm} onChange={(e) => setFormState(prev => ({ ...prev, actionSendDm: e.target.checked }))} />
+                                    Send a DM
+                                </label>
+                            </div>
+
                             {/* Public Comment Replies Rotation */}
                             <div>
                                 <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
@@ -632,7 +734,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                                 </label>
                                 <input
                                     type="url"
-                                    placeholder="https://180workspace.com/blueprint"
+                                    placeholder="https://example.com/your-guide"
                                     value={formState.actionDmDeliverableUrl || ''}
                                     onChange={(e) => setFormState(prev => ({ ...prev, actionDmDeliverableUrl: e.target.value }))}
                                     className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100"
@@ -689,7 +791,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                                     disabled={submittingRule}
                                     className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 rounded-xl transition shadow-lg shadow-amber-500/20 disabled:opacity-50"
                                 >
-                                    {submittingRule ? 'Creating...' : 'Deploy Automation'}
+                                    {submittingRule ? 'Saving…' : editingRuleId ? 'Save changes' : 'Deploy Automation'}
                                 </button>
                             </div>
                         </form>
@@ -718,7 +820,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
 
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
-                                Simulated Comment Text
+                                Sample message
                             </label>
                             <textarea
                                 rows={2}
@@ -730,24 +832,32 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
 
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
-                                Test Trigger Keywords
+                                Event type
                             </label>
-                            <input
-                                type="text"
-                                value={testKeywords}
-                                onChange={(e) => setTestKeywords(e.target.value)}
-                                className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 font-mono"
-                            />
+                            <select
+                                value={testEventType}
+                                onChange={(e) => setTestEventType(e.target.value as any)}
+                                className="w-full min-h-[44px] px-3.5 text-xs rounded-xl bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100"
+                            >
+                                <option value="comment">Comment</option>
+                                <option value="dm">Direct message</option>
+                                <option value="mention">Mention</option>
+                            </select>
+                            <span className="text-[10px] text-slate-400 mt-0.5 block">Checked against your saved active rules. Nothing is sent.</span>
                         </div>
 
                         <button
                             type="button"
                             onClick={handleRunTestMatch}
-                            disabled={testingMatch}
+                            disabled={testingMatch || !testInputText.trim()}
                             className="w-full py-2.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl transition"
                         >
                             {testingMatch ? 'Evaluating...' : 'Evaluate Match'}
                         </button>
+
+                        {testError && (
+                            <ErrorPanel compact title="Test failed" message={testError.message} code={testError.code} onRetry={handleRunTestMatch} secondary={{ label: 'Close', onClick: () => setIsTestModalOpen(false) }} />
+                        )}
 
                         {testMatchResult && (
                             <div className={`p-4 rounded-xl border text-xs ${
@@ -757,7 +867,7 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ project }) => {
                             }`}>
                                 <div className="flex items-center gap-2 font-bold">
                                     {testMatchResult.matched ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                                    <span>{testMatchResult.matched ? 'MATCH CONFIRMED! Auto-DM will dispatch.' : 'NO MATCH FOUND. User comment ignored.'}</span>
+                                    <span>{testMatchResult.matched ? `Matches "${testMatchResult.rule?.name || 'a rule'}"` : 'No active rule matches this message.'}</span>
                                 </div>
                             </div>
                         )}

@@ -2,10 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/social_api_client.dart';
 import '../../core/providers.dart';
 import '../../core/services/clipboard_assist_service.dart';
-import '../../core/services/platform_capability_registry.dart';
 import '../../core/services/user_assisted_publishers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
@@ -159,6 +157,7 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
       setState(() => _isPublishing = false);
       if (result.success) {
         await _updateStatus('x', 'handed_off');
+        if (!mounted) return;
         showInfo(
           context,
           preferWeb
@@ -205,6 +204,7 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
       setState(() => _isPublishing = false);
       if (result.success) {
         await _updateStatus('reddit', 'handed_off');
+        if (!mounted) return;
         showInfo(
           context,
           preferWeb

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:social_studio_mobile/core/native_engine/edit_ir.dart';
 import 'package:social_studio_mobile/core/native_engine/media_engine_exception.dart';
 import 'package:social_studio_mobile/core/network/audio_transcription_service.dart';
+import 'package:social_studio_mobile/features/studio/text_templates.dart';
 import 'package:social_studio_mobile/features/studio/timeline_ops.dart';
 
 /// 10 s landscape source with speech in [1s, 4s) and [6s, 9s).
@@ -255,5 +256,92 @@ void main() {
     expect((base().toJson()['audio'] as Map).containsKey('sfx'), isFalse, reason: 'omitted when empty');
     // Manual audio edits keep them.
     expect(TimelineOps.setOriginalVolume(ir, -6).audio.sfx, hasLength(2));
+  });
+
+  group('manual library + timeline items', () {
+    test('sound effects: add at playhead, volume, move, trim, delete; JSON round-trip', () {
+      var ir = TimelineOps.addSfx(base(), url: 'https://cdn.test/whoosh.mp3', startMs: 2000, durationMs: 800, credit: 'CC0');
+      final id = ir.audio.sfx.single.id;
+      expect(ir.audio.sfx.single.timelineStartMs, 2000);
+      ir = TimelineOps.setSfxVolume(ir, id, -3);
+      expect(ir.audio.sfx.single.volumeDb, -3);
+      ir = TimelineOps.moveItem(ir, TrackKind.sfx, id, 9900);
+      expect(ir.audio.sfx.single.timelineStartMs, 9200, reason: 'clamped so the effect ends inside the video');
+      ir = TimelineOps.setItemRange(ir, TrackKind.sfx, id, 1000, 1500);
+      expect((ir.audio.sfx.single.timelineStartMs, ir.audio.sfx.single.durationMs), (1000, 500));
+      final back = MobileEditIr.fromJson(ir.toJson());
+      expect(back.audio.sfx.single.credit, 'CC0');
+      expect(TimelineOps.deleteItem(ir, TrackKind.sfx, id).audio.sfx, isEmpty);
+      expect(() => TimelineOps.addSfx(base(), url: '/local/file.mp3', startMs: 0), throwsA(isA<MediaEngineException>()));
+    });
+
+    test('text template: style applied with brand font, text and style editable, move keeps length', () {
+      final t = TextTemplate.byId('lower_third')!;
+      var ir = TimelineOps.addText(base(), 'Jane · Founder', startMs: 1000, durationMs: 3000, positionY: t.positionY,
+          style: t.style(const BrandLook(font: 'Poppins', primaryColor: '#1F3A2E')));
+      final cap = ir.captions.single;
+      expect(cap.style['fontFamily'], 'Poppins');
+      expect((cap.style['background'] as Map)['color'], '#1F3A2EE6');
+      ir = TimelineOps.editText(ir, cap.id, text: 'New words', style: TextTemplate.byId('bold_title')!.style());
+      expect(ir.captions.single.text, 'New words');
+      expect(ir.captions.single.style['preset'], 'TPL_BOLD_TITLE');
+      ir = TimelineOps.moveItem(ir, TrackKind.text, cap.id, 5000);
+      expect((ir.captions.single.startMs, ir.captions.single.endMs), (5000, 8000));
+    });
+
+    test('items() lists what the AI or the user placed, per track', () {
+      var ir = TimelineOps.addBroll(base(), {'kind': 'url', 'url': 'https://cdn.test/b.mp4', 'query': 'coffee'}, startMs: 1000);
+      ir = TimelineOps.addZoom(ir, startMs: 5000);
+      ir = TimelineOps.setMusic(ir, url: 'https://cdn.test/m.mp3', title: 'Lo-fi');
+      final kinds = TimelineOps.items(ir).map((i) => i.kind).toSet();
+      expect(kinds, containsAll([TrackKind.video, TrackKind.broll, TrackKind.zoom, TrackKind.music]));
+      final broll = TimelineOps.items(ir).firstWhere((i) => i.kind == TrackKind.broll);
+      final trimmed = TimelineOps.setItemRange(ir, TrackKind.broll, broll.id, 1500, 2500);
+      expect((trimmed.overlays.single.timelineStartMs, trimmed.overlays.single.sourceStartMs), (1500, 500));
+      final music = TimelineOps.setItemRange(ir, TrackKind.music, ir.audio.music.single.id, 0, 6000);
+      expect(music.audio.music.single.timelineEndMs, 6000);
+    });
+
+    test('zooms cannot be moved onto another zoom', () {
+      var ir = TimelineOps.addZoom(base(), startMs: 1000);
+      ir = TimelineOps.addZoom(ir, startMs: 5000);
+      expect(() => TimelineOps.moveItem(ir, TrackKind.zoom, ir.zooms.last.id, 1200), throwsA(isA<MediaEngineException>()));
+    });
+  });
+
+  group('effects and photos', () {
+    test('effects: default length per type, round-trip, follow cuts, omitted when empty', () {
+      var ir = TimelineOps.addEffect(base(), 'flash', startMs: 6000, intensity: 0.8);
+      expect((ir.effects.single.startMs, ir.effects.single.endMs, ir.effects.single.intensity), (6000, 6300, 0.8));
+      expect((ir.toJson()['effects'] as List).single['type'], 'flash');
+      expect(MobileEditIr.fromJson(ir.toJson()).effects.single.type, 'flash');
+      ir = TimelineOps.removeRange(ir, 1000, 3000);
+      expect(ir.effects.single.startMs, 4000, reason: 'moved 2 s earlier with the footage');
+      ir = TimelineOps.setEffectIntensity(ir, ir.effects.single.id, 0.3);
+      expect(ir.effects.single.intensity, 0.3);
+      expect(TimelineOps.items(ir).where((i) => i.kind == TrackKind.effect), hasLength(1));
+      expect(TimelineOps.deleteItem(ir, TrackKind.effect, ir.effects.single.id).toJson().containsKey('effects'), isFalse);
+      expect(() => TimelineOps.addEffect(base(), 'glitter', startMs: 0), throwsA(isA<MediaEngineException>()));
+    });
+
+    test('effects survive unrelated edits (watermark, audio, captions)', () {
+      var ir = TimelineOps.addEffect(base(), 'vignette', startMs: 0);
+      ir = TimelineOps.setOriginalVolume(ir, -3);
+      ir = TimelineOps.addText(ir, 'Hi', startMs: 0, durationMs: 1000);
+      ir = ir.withWatermark(const EditIrWatermark(imageUrl: 'https://cdn.test/logo.png'));
+      expect(ir.effects.single.type, 'vignette');
+    });
+
+    test('photo overlays keep mediaType through moves, trims and JSON', () {
+      var ir = TimelineOps.addBroll(base(), {'kind': 'url', 'url': 'https://cdn.test/p.jpg'}, startMs: 2000, durationMs: 3000, image: true);
+      final id = ir.overlays.single.id;
+      ir = TimelineOps.moveItem(ir, TrackKind.broll, id, 4000);
+      ir = TimelineOps.setItemRange(ir, TrackKind.broll, id, 4500, 6000);
+      final o = MobileEditIr.fromJson(ir.toJson()).overlays.single;
+      expect((o.isImage, o.timelineStartMs, o.sourceStartMs), (true, 4500, 0));
+      expect(ir.toJson()['overlays'][0]['mediaType'], 'image');
+      final video = TimelineOps.addBroll(base(), {'kind': 'url', 'url': 'https://cdn.test/v.mp4'}, startMs: 0);
+      expect((video.toJson()['overlays'] as List).single.containsKey('mediaType'), isFalse);
+    });
   });
 }

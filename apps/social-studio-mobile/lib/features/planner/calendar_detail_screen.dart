@@ -8,10 +8,13 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/universal_skeleton.dart';
+import '../../data/models/autopilot.dart';
 import '../../data/models/content_calendar.dart';
 import '../posts/platform_post_preview.dart';
 import '../projects/project_provider.dart';
+import 'carousel_sheet.dart';
 import 'planner_providers.dart';
+import 'raw_footage_upload.dart';
 
 /// Calendar detail (web `content-calendar/[id]`): stats, goal, pillars, pieces by week.
 class CalendarDetailScreen extends ConsumerWidget {
@@ -160,6 +163,35 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
   late final _hashtags = TextEditingController(text: _currentPiece.hashtags.join(' '));
   late final _visualBrief = TextEditingController(text: _currentPiece.visualAssetsBrief);
 
+  /// Autopilot pieces store a structured brief (JSON) in `videoScriptOrHooks`; older ones are plain text.
+  PieceBrief? get _brief => PieceBrief.parse(_script.text);
+  String? get _hookLine => _brief?.openingHook ?? _script.text.split('\n').firstOrNull;
+  String get _prompterScript {
+    final b = _brief;
+    if (b == null) return _script.text;
+    return b.hasScript ? b.teleprompterText : '';
+  }
+
+  bool get _isCarousel =>
+      _currentPiece.contentType.toLowerCase().contains('carousel') || _brief?.format?.toLowerCase().contains('carousel') == true;
+
+  List<Widget> _briefBlocks(PieceBrief b) => [
+        _block('Hook (say this)', b.spokenHook ?? b.hook ?? ''),
+        _block('On-screen hook', b.onScreenHook ?? ''),
+        _block('Script${b.durationSec == null ? '' : ' · ~${b.durationSec}s'}',
+            [for (var i = 0; i < b.body.length; i++) '${i + 1}. ${b.body[i].beat}'].join('\n')),
+        _block('Loop back', b.retentionLoop ?? ''),
+        _block('Spoken CTA', b.cta ?? ''),
+        _block('Shot notes', b.shotNotes.map((n) => '• $n').join('\n')),
+        _block(
+            'Carousel${b.carouselTitle == null ? '' : ': ${b.carouselTitle}'}',
+            [
+              for (var i = 0; i < b.carouselSlides.length; i++)
+                '${i + 1}. ${b.carouselSlides[i].headline}${b.carouselSlides[i].body == null ? '' : '\n   ${b.carouselSlides[i].body}'}',
+            ].join('\n')),
+        _block('Visual idea', b.visualBrief ?? ''),
+      ];
+
   @override
   void dispose() {
     _headline.dispose();
@@ -283,7 +315,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
               PlatformPostPreview(
                 caption: '${_adCopy.text}\n\n${_cta.text}\n\n${_hashtags.text}'.trim(),
                 title: _headline.text.isNotEmpty ? _headline.text : null,
-                hook: _script.text.split('\n').firstOrNull,
+                hook: _hookLine,
                 mediaType: _currentPiece.contentType.toLowerCase().contains('carousel')
                     ? 'carousel'
                     : _currentPiece.contentType.toLowerCase().contains('reel') || _currentPiece.contentType.toLowerCase().contains('video')
@@ -326,7 +358,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
         '${p.dateScheduled == null ? '' : '&date=${Uri.encodeQueryComponent(p.dateScheduled!.toIso8601String())}'}';
     final prefill = {
       'title': _headline.text,
-      'hook': _script.text.split('\n').firstOrNull,
+      'hook': _hookLine,
       'content': [_adCopy.text, if (_cta.text.isNotEmpty) _cta.text, if (_hashtags.text.isNotEmpty) _hashtags.text].join('\n\n'),
       'platforms': [p.platform],
       'mediaType': p.contentType.toLowerCase().contains('carousel')
@@ -388,7 +420,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
             child: OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                context.push('/camera', extra: {'hook': prefill['hook'] ?? p.headline, 'script': _script.text, 'projectId': projectId});
+                context.push('/camera', extra: {'hook': prefill['hook'] ?? p.headline, 'script': _prompterScript, 'projectId': projectId});
               },
               icon: const Icon(Icons.videocam_rounded, size: 16),
               label: const Text('Shoot'),
@@ -430,6 +462,12 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
                       title: const Text('Record with Teleprompter Camera'),
                       onTap: () => Navigator.pop(ctx, 'camera'),
                     ),
+                    ListTile(
+                      leading: const Icon(Icons.cloud_upload_rounded),
+                      title: const Text('Send raw footage to my editor'),
+                      subtitle: const Text('Uploads it to this piece for editing on the desktop app'),
+                      onTap: () => Navigator.pop(ctx, 'upload'),
+                    ),
                   ]),
                 ),
               );
@@ -437,10 +475,13 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
               if (choice == 'camera' && context.mounted) {
                 context.push('/camera', extra: {
                   'hook': prefill['hook'] ?? p.headline,
-                  'script': _script.text,
+                  'script': _prompterScript,
                   'projectId': projectId,
                   'pieceId': p.id,
                 });
+              } else if (choice == 'upload') {
+                final vid = await picker.pickVideo(source: ImageSource.gallery);
+                if (vid != null && context.mounted) await uploadRawFootage(context, ref, p.id, vid.path);
               } else if (choice == 'gallery') {
                 final vid = await picker.pickVideo(source: ImageSource.gallery);
                 if (vid != null && context.mounted) {
@@ -449,13 +490,21 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
                     'projectId': projectId,
                     'pieceId': p.id,
                     'hook': prefill['hook'] ?? p.headline,
-                    'script': _script.text,
+                    'script': _prompterScript,
                   });
                 }
               }
             },
             icon: const Icon(Icons.movie_creation_rounded, size: 18),
             label: const Text('🎬 Edit in 180 Media Studio'),
+          ),
+        ],
+        if (_isCarousel && projectId != null) ...[
+          const SizedBox(height: 10),
+          FilledButton.tonalIcon(
+            onPressed: () => showCarouselSheet(context, projectId: projectId, pieceId: p.id, title: p.headline),
+            icon: const Icon(Icons.view_carousel_rounded, size: 18),
+            label: const Text('Design carousel slides'),
           ),
         ],
         const SizedBox(height: 10),
@@ -474,7 +523,10 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
           const SizedBox(height: 16),
           TextField(controller: _headline, decoration: fieldDecoration('Headline')),
           const SizedBox(height: 12),
-          TextField(controller: _script, minLines: 2, maxLines: 6, decoration: fieldDecoration('Script / Hooks')),
+          if (_brief == null)
+            TextField(controller: _script, minLines: 2, maxLines: 6, decoration: fieldDecoration('Script / Hooks'))
+          else
+            const Text('The hook and script were written by Autopilot. Use "AI Autopilot Rewrite" with an instruction to change them.'),
           const SizedBox(height: 12),
           TextField(controller: _adCopy, minLines: 4, maxLines: 10, decoration: fieldDecoration('Full Caption / Ad Copy')),
           const SizedBox(height: 12),
@@ -491,7 +543,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
                 : const Text('Save Changes'),
           ),
         ] else ...[
-          _block('Script / hooks', _script.text),
+          if (_brief case final b?) ..._briefBlocks(b) else _block('Script / hooks', _script.text),
           _block('Caption', _adCopy.text),
           _block('Call to action', _cta.text),
           _block('Hashtags', _hashtags.text),

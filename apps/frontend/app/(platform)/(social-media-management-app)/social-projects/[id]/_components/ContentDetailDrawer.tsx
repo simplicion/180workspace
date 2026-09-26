@@ -16,6 +16,7 @@ import { LinkedInPreview } from '@/app/(platform)/(social-media-management-app)/
 import { TikTokPreview } from '@/app/(platform)/(social-media-management-app)/_components/previews/TikTokPreview';
 import { YouTubeShortsPreview } from '@/app/(platform)/(social-media-management-app)/_components/previews/YouTubeShortsPreview';
 import toast from 'react-hot-toast';
+import CarouselMaker from '@/app/(platform)/(social-media-management-app)/_components/creative/CarouselMaker';
 
 interface ContentDetailDrawerProps {
     post: any;
@@ -416,6 +417,14 @@ export const ContentDetailDrawer: React.FC<ContentDetailDrawerProps> = ({
                     {/* TAB 2: Footage & Media */}
                     {activeTab === 'media' && (
                         <div className="space-y-5">
+                            {(mediaType === 'carousel' || mediaType === 'image') && !['publishing', 'published'].includes(post.status) && (
+                                <CarouselMaker
+                                    projectId={project.id}
+                                    postId={post.id}
+                                    kind={mediaType === 'carousel' ? 'carousel' : 'static'}
+                                    initialJobId={post.metadata?.creative?.jobId || null}
+                                />
+                            )}
                             {/* Scratch Storage Retention Status */}
                             <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-900/40 flex items-center justify-between">
                                 <div className="flex items-center gap-3">

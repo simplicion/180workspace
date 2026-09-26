@@ -180,6 +180,11 @@ export class EditIRCompiler {
             appliedOperations.push(`Changed canvas to ${op.targetAspect} (${res.width}x${res.height}), ${fit ? `whole frame fitted on ${updated.meta.background || "#000000"}` : "footage cropped to fill"}`);
             break;
           }
+          case "addEffect": {
+            this.applyAddEffect(updated, op);
+            appliedOperations.push(`Added ${op.effect.replace("_", " ")} effect at ${op.startSec.toFixed(1)}s`);
+            break;
+          }
           case "addZoom": {
             this.applyAddZoom(updated, op);
             appliedOperations.push(`Added ${op.scale}x zoom at ${op.startSec.toFixed(1)}s for ${op.durationSec.toFixed(1)}s`);
@@ -248,6 +253,11 @@ export class EditIRCompiler {
           case "autoSoundDesign": {
             this.applySoundDesign(updated, op);
             appliedOperations.push(`Synthesized sound effects (whooshes, pops)`);
+            break;
+          }
+          case "addSoundEffect": {
+            this.applyAddSoundEffect(updated, op);
+            appliedOperations.push(`Placed ${op.sfxType || "sound"} effect at ${op.timelineStartSec.toFixed(2)}s`);
             break;
           }
           case "asynchronousSplit": {
@@ -419,6 +429,14 @@ export class EditIRCompiler {
       if (d < 0.2) return [];
       return [{ ...c, timeRange: { start: RationalTimeMath.fromSeconds(s), duration: RationalTimeMath.fromSeconds(d) } }];
     });
+
+    if (editIR.tracks.effectTrack) {
+      editIR.tracks.effectTrack = editIR.tracks.effectTrack.flatMap((e) => {
+        const { s, d } = mapRange(RationalTimeMath.toSeconds(e.timeRange.start), RationalTimeMath.toSeconds(e.timeRange.duration));
+        if (d < 0.1) return [];
+        return [{ ...e, timeRange: { start: RationalTimeMath.fromSeconds(s), duration: RationalTimeMath.fromSeconds(d) } }];
+      });
+    }
 
     editIR.tracks.captionTrack = editIR.tracks.captionTrack.flatMap((cap) => {
       const { s, d } = mapRange(RationalTimeMath.toSeconds(cap.timeRange.start), RationalTimeMath.toSeconds(cap.timeRange.duration));
@@ -764,6 +782,14 @@ export class EditIRCompiler {
       return d < 0.2 ? [] : [{ ...c, timeRange: { start: R(s), duration: R(d) } }];
     });
 
+    if (editIR.tracks.effectTrack) {
+      editIR.tracks.effectTrack = editIR.tracks.effectTrack.flatMap((e) => {
+        const st = S(e.timeRange.start);
+        const { s, d } = clampRange(st + delta(pieceAt(st)), S(e.timeRange.duration));
+        return d < 0.1 ? [] : [{ ...e, timeRange: { start: R(s), duration: R(d) } }];
+      });
+    }
+
     editIR.tracks.captionTrack = editIR.tracks.captionTrack.flatMap((cap) => {
       const cs = S(cap.timeRange.start);
       const ce = cs + S(cap.timeRange.duration);
@@ -855,6 +881,18 @@ export class EditIRCompiler {
       if (cap.role === "title") continue;
       cap.style.position = { x: 0.5, y: vertical ? 0.72 : 0.8 };
     }
+  }
+
+  private static applyAddEffect(editIR: EditIR, op: any) {
+    const totalSec = RationalTimeMath.toSeconds(editIR.meta.totalDuration);
+    const startSec = Math.min(Math.max(0, op.startSec), Math.max(0, totalSec - 0.1));
+    const durSec = Math.max(0.1, Math.min(op.durationSec, totalSec - startSec));
+    (editIR.tracks.effectTrack ??= []).push({
+      id: generateUUID(),
+      type: op.effect,
+      timeRange: { start: RationalTimeMath.fromSeconds(startSec), duration: RationalTimeMath.fromSeconds(durSec) },
+      intensity: op.intensity ?? 0.6,
+    });
   }
 
   private static applyAddZoom(editIR: EditIR, op: any) {
@@ -962,7 +1000,7 @@ export class EditIRCompiler {
       assetId = asset.id;
       sourcePath = asset.filePath;
       label = `asset ${asset.name || asset.id}`;
-    } else if (op.stockQuery) {
+    } else if (op.stockQuery && op.mediaType !== "image") {
       assetId = `stock:${op.stockQuery}`;
       sourcePath = `stock-query://${encodeURIComponent(op.stockQuery)}`;
       label = `"${op.stockQuery}" (stock, unresolved)`;
@@ -996,8 +1034,9 @@ export class EditIRCompiler {
       speedMultiplier: 1.0,
       volumeDb: -60,
       effects: [],
+      ...(op.mediaType === "image" ? { mediaType: "image" as const } : {}),
     });
-    return label;
+    return op.mediaType === "image" ? `photo ${label}` : label;
   }
 
   private static applyDuckAudio(editIR: EditIR, duckDb = -18.0, attackMs = 120, releaseMs = 350): number {
@@ -1142,6 +1181,35 @@ export class EditIRCompiler {
         volumeDb: -10.0,
       });
     }
+  }
+
+  private static applyAddSoundEffect(editIR: EditIR, op: any) {
+    let sfxTrack = editIR.tracks.audioTracks.find((t) => t.type === "SFX");
+    if (!sfxTrack) {
+      sfxTrack = {
+        id: generateUUID(),
+        type: "SFX",
+        volumeDb: 0.0,
+        duckWithSpeech: false,
+        clips: [],
+      };
+      editIR.tracks.audioTracks.push(sfxTrack);
+    }
+    const sourcePath = op.sourceUrl || `synthetic://${op.sfxType || "whoosh"}.wav`;
+    const durSec = op.sfxType === "sub_drop" ? 1.2 : op.sfxType === "riser" ? 2.0 : 0.6;
+    sfxTrack.clips.push({
+      id: generateUUID(),
+      sourcePath,
+      sourceRange: {
+        start: RationalTimeMath.fromSeconds(0),
+        duration: RationalTimeMath.fromSeconds(durSec),
+      },
+      timelineRange: {
+        start: RationalTimeMath.fromSeconds(Math.max(0, op.timelineStartSec)),
+        duration: RationalTimeMath.fromSeconds(durSec),
+      },
+      volumeDb: op.volumeDb ?? -8.0,
+    });
   }
 
   private static applyAsynchronousSplit(editIR: EditIR, clipId: string, splitType: "J_CUT" | "L_CUT", offsetSec: number) {

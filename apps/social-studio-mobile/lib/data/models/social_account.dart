@@ -58,3 +58,32 @@ class SocialAccount {
     );
   }
 }
+
+/// One account the provider offered after OAuth (a Facebook Page, an Instagram business account,
+/// the LinkedIn member or one of their organisations).
+class OAuthCandidate {
+  const OAuthCandidate({required this.candidateId, required this.kind, required this.accountName, this.username, this.profileImageUrl});
+  final String candidateId;
+  final String kind;
+  final String accountName;
+  final String? username;
+  final String? profileImageUrl;
+
+  factory OAuthCandidate.fromJson(Json j) => OAuthCandidate(
+        candidateId: jStrOr(j['candidateId'], ''),
+        kind: jStrOr(j['kind'], ''),
+        accountName: jStrOr(j['accountName'], jStrOr(j['username'], 'Account')),
+        username: jStr(j['username']),
+        profileImageUrl: jStr(j['profileImageUrl']),
+      );
+
+  String get kindLabel => switch (kind) {
+        'facebook_page' || 'page' => 'Facebook Page',
+        'instagram_business' || 'instagram' => 'Instagram account',
+        'linkedin_member' || 'member' || 'person' => 'Personal profile',
+        'linkedin_organization' || 'organization' || 'organisation' => 'Company page',
+        'channel' => 'YouTube channel',
+        'user' => 'Profile',
+        _ => kind.replaceAll('_', ' '),
+      };
+}

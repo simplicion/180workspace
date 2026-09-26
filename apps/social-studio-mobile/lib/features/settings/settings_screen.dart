@@ -10,6 +10,7 @@ import '../../core/config/app_config.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/universal_skeleton.dart';
 import '../auth/auth_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -163,10 +164,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               border: Border.all(color: Theme.of(context).dividerColor),
             ),
             child: _loadingDevices
-                ? const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
+                ? const SizedBox(height: 120, child: UniversalSkeleton(type: SkeletonType.activity))
                 : _devicesError != null
                     ? ErrorView(error: _devicesError!, compact: true, onRetry: _loadDevices)
                 : _devices.isEmpty

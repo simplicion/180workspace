@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../data/models/platform.dart';
 import '../../data/models/user_assisted_publish_package.dart';
 import 'clipboard_assist_service.dart';
 import 'platform_capability_registry.dart';

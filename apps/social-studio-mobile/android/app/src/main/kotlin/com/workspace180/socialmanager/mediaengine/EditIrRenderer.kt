@@ -37,6 +37,7 @@ import androidx.media3.transformer.Transformer
 import java.io.File
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 /** Local files for everything the IR references. The IR itself carries no device paths. */
@@ -241,6 +242,12 @@ class EditIrRenderer(
         return ir.overlays.sortedBy { it.timelineStartMs }.mapNotNull { ov ->
             val path = media.overlayPaths[ov.id]
                 ?: throw EditIrException("MISSING_MEDIA", "No local file supplied for overlay '${ov.id}' (download/resolve it before rendering, or remove it)")
+            if (ov.isImage) {
+                if (!File(path).isFile) throw EditIrException("MISSING_MEDIA", "Photo for overlay '${ov.id}' is missing")
+                val s = snap(ov.timelineStartMs)
+                val e = snap(min(ov.timelineEndMs, ir.durationMs))
+                return@mapNotNull if (e - s < 1) null else ov to longArrayOf(s, e)
+            }
             val p = probe(path)
             if (!p.hasVideo) throw EditIrException("MISSING_MEDIA", "Overlay '${ov.id}' file has no video track")
             if (!ov.muted) warnings.add("overlay ${ov.id}: muted=false not supported; B-roll audio is dropped")
@@ -327,6 +334,20 @@ class EditIrRenderer(
                     mainItem(clip, piece.clipIndex, piece.startMs, piece.endMs, removeAudio = true, removeVideo = false)
                 } else {
                     val path = media.overlayPaths.getValue(ov.id)
+                    if (ov.isImage) {
+                        val lenMs = (piece.endMs - piece.startMs).roundToLong().coerceAtLeast(1L)
+                        return@map EditedMediaItem.Builder(
+                            MediaItem.Builder().setUri(Uri.fromFile(File(path))).setImageDurationMs(lenMs).build(),
+                        )
+                            .setFrameRate(ir.canvas.fps.roundToInt().coerceIn(1, 120))
+                            .setEffects(
+                                Effects(
+                                    emptyList(),
+                                    listOf(Presentation.createForWidthAndHeight(ir.canvas.width, ir.canvas.height, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)),
+                                ),
+                            )
+                            .build()
+                    }
                     val srcStartUs = ((ov.sourceStartMs + (piece.startMs - ov.timelineStartMs)) * 1000).roundToLong()
                     val srcEndUs = ((ov.sourceStartMs + (piece.endMs - ov.timelineStartMs)) * 1000).roundToLong()
                     EditedMediaItem.Builder(clippedItem(path, srcStartUs, srcEndUs))
@@ -359,7 +380,8 @@ class EditIrRenderer(
         val compositionFx = mutableListOf<Effect>()
         // Cap the output at canvas.fps. Phone footage is often 60 fps or variable frame rate;
         // Media3 can drop frames but never duplicates them, so slower sources keep their rate.
-        val videoPaths = ir.clips.map { assetPath(it.assetId) } + overlays.map { media.overlayPaths.getValue(it.first.id) }
+        val videoPaths = ir.clips.map { assetPath(it.assetId) } +
+            overlays.filter { !it.first.isImage }.map { media.overlayPaths.getValue(it.first.id) }
         val videoProbes = videoPaths.distinct().map { probe(it) }
         if (videoProbes.any { it.frameRate == null || it.frameRate > ir.canvas.fps * 1.05 }) {
             compositionFx.add(FrameDropEffect.createDefaultFrameDropEffect(ir.canvas.fps.toFloat()))
@@ -377,6 +399,11 @@ class EditIrRenderer(
             compositionFx.add(TransitionFade(transitionBoundaries))
             warnings.add("transitions rendered as a centred dip-through-black (no overlapping crossfade)")
         }
+        val fx = ir.effects.filter { it.endMs > it.startMs && it.type in SUPPORTED_EFFECTS }
+        ir.effects.map { it.type }.filter { it !in SUPPORTED_EFFECTS }.toSet().forEach { warnings.add("effect '$it' is not supported on this device and was skipped") }
+        if (fx.any { it.type == "shake" || it.type == "zoom_pulse" }) compositionFx.add(EffectsTransformation(fx))
+        if (fx.any { it.type == "flash" || it.type == "fade_black" || it.type == "black_white" }) compositionFx.add(EffectsColor(fx))
+        if (fx.any { it.type == "vignette" }) compositionFx.add(OverlayEffect(listOf(VignetteOverlay(fx))))
         if (ir.captions.isNotEmpty()) compositionFx.add(OverlayEffect(listOf(CaptionOverlay(ir.captions, ::typefaceFor))))
         watermarkOverlay()?.let { compositionFx.add(OverlayEffect(listOf(it))) }
 
