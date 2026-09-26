@@ -54,6 +54,15 @@ export interface NativeRenderSpec {
   durationSec: number;
   quality: RenderQuality;
   hasAudio: boolean;
+  /** Caption overlay list from `writeCaptionOverlays`; the last input of the graph (`[inputs.length:v]`). */
+  overlaySequence?: string | null;
+}
+
+export interface RemoteMediaProgress {
+  received: number;
+  total: number | null;
+  done: boolean;
+  error: string | null;
 }
 
 export interface RenderStatus {
@@ -116,7 +125,42 @@ export const desktopMedia = {
   startRender: (spec: NativeRenderSpec, outputPath: string) => getInvoke()<string>('render_timeline', { spec, outputPath }),
   renderStatus: (jobId: string) => getInvoke()<RenderStatus>('render_status', { jobId }),
   cancelRender: (jobId: string) => getInvoke()<void>('cancel_render', { jobId }),
+
+  /**
+   * Writes caption/title overlay PNGs (base64, no data: prefix) and the sequence that holds each for its duration into
+   * the app cache; resolves to the list path for `NativeRenderSpec.overlaySequence`. Remove it with `clearCaptionOverlays`.
+   */
+  writeCaptionOverlays: (images: string[], sequence: Array<{ image: number; durationSec: number }>) =>
+    getInvoke()<string>('write_caption_overlays', { images, sequence }),
+  clearCaptionOverlays: (listPath: string) => getInvoke()<void>('clear_caption_overlays', { listPath }),
+
+  /** Downloads an allow-listed https media link into the app cache (cached by URL); resolves to the local path. */
+  fetchRemoteMedia: (url: string) => getInvoke()<string>('fetch_remote_media', { url }),
+  remoteMediaStatus: (url: string) => getInvoke()<RemoteMediaProgress | null>('remote_media_status', { url }),
 };
+
+/** `fetchRemoteMedia` with progress (0..1, or null when the size is unknown) polled while it runs. */
+export async function fetchRemoteMediaWithProgress(
+  url: string,
+  onProgress?: (fraction: number | null, receivedBytes: number) => void,
+  pollMs = 300
+): Promise<string> {
+  let finished = false;
+  const poll = async () => {
+    while (!finished) {
+      await new Promise((r) => setTimeout(r, pollMs));
+      if (finished) break;
+      const st = await desktopMedia.remoteMediaStatus(url).catch(() => null);
+      if (st && onProgress) onProgress(st.total ? Math.min(1, st.received / st.total) : null, st.received);
+    }
+  };
+  void poll();
+  try {
+    return await desktopMedia.fetchRemoteMedia(url);
+  } finally {
+    finished = true;
+  }
+}
 
 export class RenderCancelledError extends Error {
   constructor() {

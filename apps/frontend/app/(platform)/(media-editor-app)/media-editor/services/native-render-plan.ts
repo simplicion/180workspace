@@ -41,6 +41,8 @@ export interface NativeRenderSpec {
   durationSec: number;
   quality: RenderQuality;
   hasAudio: boolean;
+  /** Caption overlay list (ffconcat) written by the desktop app; when set it is the LAST graph input. */
+  overlaySequence?: string | null;
 }
 
 export type RenderPlanResult =
