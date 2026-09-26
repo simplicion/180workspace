@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../core/native_engine/media_engine_service.dart';
 import '../../core/network/audio_transcription_service.dart';
 import '../director/ai_director_service.dart';
+import 'caption_fonts.dart';
 import 'timeline_ops.dart';
 
 enum TranscriptState { idle, running, ready, failed }
@@ -638,6 +639,14 @@ class StudioController extends ChangeNotifier {
           working = working.withWatermark(null);
         }
       }
+      var fontPaths = const <String, String>{};
+      if (working.captions.isNotEmpty) {
+        export = ExportState(stage: 'Preparing caption fonts…', warnings: warnings);
+        _notify();
+        final (paths, fontWarnings) = await CaptionFonts.resolveForExport(working);
+        fontPaths = paths;
+        warnings.addAll(fontWarnings);
+      }
       final out = await MediaEngineService.getOutputVideoPath(
         'export_${DateTime.now().millisecondsSinceEpoch}.mp4',
       );
@@ -653,6 +662,7 @@ class StudioController extends ChangeNotifier {
             musicPaths: musicPaths,
             watermarkPath: watermarkPath,
             sfxPaths: sfxPaths,
+            fontPaths: fontPaths,
           ).listen(
             (p) {
               export = ExportState(

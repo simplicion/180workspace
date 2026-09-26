@@ -344,4 +344,94 @@ void main() {
       expect((video.toJson()['overlays'] as List).single.containsKey('mediaType'), isFalse);
     });
   });
+
+  group('caption presets (desktop Caption Studio parity)', () {
+    test('all 8 viral presets + the 4 classic ones produce complete styles; classic ids unchanged', () {
+      const required = ['preset', 'animation', 'fontFamily', 'fontWeight', 'fontSizePx', 'textColor', 'highlightColor',
+          'strokeColor', 'strokeWidthPx', 'shadow', 'background', 'uppercase', 'positionX', 'positionY', 'maxWidthFraction'];
+      expect(TimelineOps.captionPresets.keys, containsAll(['CLEAN', 'BOLD_POP', 'KARAOKE', 'BOXED', 'HORMOZI_BOUNCE',
+          'MRBEAST_HYPE', 'ALI_ABDAAL_CLEAN', 'DAN_KOE_MINIMAL', 'CYBER_NEON', 'KARAOKE_FROSTED', 'VOX_EXPLAINER', 'CINEMATIC_SUBTITLE']));
+      for (final id in TimelineOps.captionPresets.keys) {
+        final st = TimelineOps.captionStyle(id);
+        expect(st.keys, containsAll(required), reason: id);
+        expect(st['preset'], id);
+        expect(['word_pop', 'karaoke', 'none'], contains(st['animation']));
+      }
+      expect(TimelineOps.captionStyle('BOLD_POP')['fontSizePx'], 72);
+      expect(TimelineOps.captionStyle('BOLD_POP')['highlightColor'], '#FFE600');
+    });
+
+    test('viral presets carry the desktop values; highlight override and glow are optional', () {
+      final h = TimelineOps.captionStyle('HORMOZI_BOUNCE');
+      expect((h['fontFamily'], h['fontSizePx'], h['textColor'], h['highlightColor'], h['strokeWidthPx']),
+          ('Anton', 52, '#FACC15', '#22C55E', 3));
+      expect((TimelineOps.captionStyle('VOX_EXPLAINER')['background'] as Map)['color'], '#FACC15');
+      expect(TimelineOps.captionStyle('CINEMATIC_SUBTITLE')['fontFamily'], 'Bebas Neue');
+      expect(TimelineOps.captionStyle('CYBER_NEON')['glow'], isTrue);
+      expect(TimelineOps.captionStyle('CLEAN').containsKey('glow'), isFalse);
+      expect(TimelineOps.captionStyle('MRBEAST_HYPE', highlightColor: '#22D3EE')['highlightColor'], '#22D3EE');
+    });
+
+    test('apply to all: styleCaptions restyles speech captions only and survives JSON', () {
+      var ir = TimelineOps.autoCaptions(base(), words);
+      ir = TimelineOps.addText(ir, 'Title', startMs: 0, durationMs: 1000);
+      ir = TimelineOps.styleCaptions(ir, 'ALI_ABDAAL_CLEAN');
+      final back = MobileEditIr.fromJson(ir.toJson());
+      expect(back.captions.where((c) => c.kind == 'caption').every((c) => c.style['fontFamily'] == 'Poppins'), isTrue);
+      expect(back.captions.firstWhere((c) => c.kind == 'text').style['fontFamily'], isNot('Poppins'));
+    });
+  });
+
+  group('track mute', () {
+    test('voice mute sets original audio to -60 dB and unmute restores the previous level', () {
+      var ir = TimelineOps.setOriginalVolume(base(), -4);
+      final before = TimelineOps.trackVolumes(ir, TrackKind.voice);
+      ir = TimelineOps.setTrackMuted(ir, TrackKind.voice, true);
+      expect(ir.audio.originalVolumeDb, TimelineOps.mutedDb);
+      expect(TimelineOps.isTrackMuted(ir, TrackKind.voice), isTrue);
+      ir = TimelineOps.setTrackMuted(ir, TrackKind.voice, false, restoreDb: before);
+      expect(ir.audio.originalVolumeDb, -4);
+      expect(TimelineOps.setTrackMuted(TimelineOps.setTrackMuted(base(), TrackKind.voice, true), TrackKind.voice, false)
+          .audio.originalVolumeDb, 0, reason: 'default when the previous level is unknown');
+    });
+
+    test('music and SFX mute every item and restore each one; other tracks are untouched', () {
+      var ir = TimelineOps.setMusic(base(), url: 'https://cdn.test/m.mp3', volumeDb: -12);
+      ir = TimelineOps.addSfx(ir, url: 'https://cdn.test/a.mp3', startMs: 1000, volumeDb: -3);
+      ir = TimelineOps.addSfx(ir, url: 'https://cdn.test/b.mp3', startMs: 3000, volumeDb: -9);
+      final sfxBefore = TimelineOps.trackVolumes(ir, TrackKind.sfx);
+      final musicBefore = TimelineOps.trackVolumes(ir, TrackKind.music);
+      ir = TimelineOps.setTrackMuted(ir, TrackKind.sfx, true);
+      ir = TimelineOps.setTrackMuted(ir, TrackKind.music, true);
+      expect(ir.audio.sfx.map((e) => e.volumeDb), everyElement(TimelineOps.mutedDb));
+      expect(ir.audio.music.single.volumeDb, TimelineOps.mutedDb);
+      expect(ir.audio.originalVolumeDb, 0);
+      expect(TimelineOps.isTrackMuted(ir, TrackKind.voice), isFalse);
+      ir = TimelineOps.setTrackMuted(ir, TrackKind.sfx, false, restoreDb: sfxBefore);
+      ir = TimelineOps.setTrackMuted(ir, TrackKind.music, false, restoreDb: musicBefore);
+      expect(ir.audio.sfx.map((e) => e.volumeDb).toList(), [-3, -9]);
+      expect(ir.audio.music.single.volumeDb, -12);
+      expect(TimelineOps.isTrackMuted(base(), TrackKind.music), isFalse, reason: 'an empty track is not muted');
+    });
+
+    test('voice track lists speech ranges and cannot be moved or deleted', () {
+      final voice = TimelineOps.items(base()).where((i) => i.kind == TrackKind.voice).toList();
+      expect(voice.map((v) => (v.startMs, v.endMs)), [(1000, 3900), (6000, 8900)]);
+      expect(() => TimelineOps.moveItem(base(), TrackKind.voice, voice.first.id, 0), throwsA(isA<MediaEngineException>()));
+      expect(() => TimelineOps.deleteItem(base(), TrackKind.voice, voice.first.id), throwsA(isA<MediaEngineException>()));
+    });
+  });
+
+  group('transitions', () {
+    test('mobile transition types round-trip; unknown types are kept', () {
+      for (final type in EditIrTransition.types.keys.where((t) => t != 'CUT')) {
+        var ir = TimelineOps.split(base(), 5000);
+        ir = TimelineOps.setTransition(ir, EditIrTransition(type: type, durationMs: 400));
+        expect(MobileEditIr.fromJson(ir.toJson()).clips[1].transitionIn!.type, type);
+      }
+      const odd = EditIrTransition(type: 'WIPE_LEFT', durationMs: 300);
+      expect(odd.isKnown, isFalse);
+      expect(EditIrTransition.fromJson(odd.toJson()).type, 'WIPE_LEFT');
+    });
+  });
 }

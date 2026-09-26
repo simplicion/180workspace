@@ -91,6 +91,8 @@ data class IrCaptionStyle(
     val positionX: Double,
     val positionY: Double,
     val maxWidthFraction: Double,
+    /** Optional (not in the contract schema): neon glow in the highlight colour. */
+    val glow: Boolean = false,
 )
 
 data class IrCaption(
@@ -284,6 +286,7 @@ data class MobileEditIr(
                         positionX = s.optDouble("positionX", 0.5),
                         positionY = s.optDouble("positionY", 0.72),
                         maxWidthFraction = s.optDouble("maxWidthFraction", 0.86),
+                        glow = s.optBoolean("glow", false),
                     ),
                 )
             }

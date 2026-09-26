@@ -16,6 +16,7 @@ import {
   type EditIR,
   type EffectEvent,
   type VideoEffectType,
+  type TransitionType,
 } from "@workspace/video-contracts";
 import { EFFECT_CONSTANTS } from "./effect-constants";
 
@@ -354,3 +355,21 @@ export function newTimelineItemIds(before: EditIR, after: EditIR): string[] {
   const old = new Set(ids(before));
   return ids(after).filter((id) => !old.has(id));
 }
+
+// ── transitions (names for the pickers; ids = TRANSITION_TYPES in the contract) ──
+
+export const TRANSITION_OPTIONS: ReadonlyArray<{ id: TransitionType; name: string }> = [
+  { id: "CUT", name: "None (Cut)" },
+  { id: "CROSSFADE", name: "Crossfade" },
+  { id: "DISSOLVE", name: "Dissolve" },
+  { id: "ZOOM_SWOOSH", name: "Zoom Swoosh" },
+  { id: "ZOOM_OUT", name: "Zoom Out" },
+  { id: "SLIDE_LEFT", name: "Whip Pan (Left)" },
+  { id: "SLIDE_UP", name: "Slide Up" },
+  { id: "WIPE", name: "Wipe Left" },
+  { id: "WIPE_RIGHT", name: "Wipe Right" },
+  { id: "BLUR_PUNCH", name: "Blur Punch" },
+  { id: "GLITCH", name: "Glitch" },
+  { id: "DIP_BLACK", name: "Dip to Black" },
+  { id: "DIP_WHITE", name: "Dip to White" },
+];

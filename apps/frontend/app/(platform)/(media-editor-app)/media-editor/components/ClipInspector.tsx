@@ -25,6 +25,7 @@ import {
   Zap,
 } from "lucide-react";
 import { VideoClip, Transform, ClipKeyframe, RationalTimeMath, Transition } from "@workspace/video-contracts";
+import { TRANSITION_OPTIONS } from "../services/editor-library";
 import { ColorWheelsPanel } from "./ColorWheelsPanel";
 import { RgbCurvesPanel } from "./RgbCurvesPanel";
 import { SpeedCurveEditor } from "./SpeedCurveEditor";
@@ -964,14 +965,11 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
                 }}
                 className="w-full bg-[#1C1C24] border border-[#2A2A38] text-xs rounded-lg px-2 py-1 text-zinc-200 outline-none cursor-pointer"
               >
-                <option value="CUT">None (Cut)</option>
-                <option value="CROSSFADE">Crossfade</option>
-                <option value="DISSOLVE">Dissolve</option>
-                <option value="ZOOM_SWOOSH">Zoom Swoosh</option>
-                <option value="SLIDE_LEFT">Whip Pan (Left)</option>
-                <option value="SLIDE_UP">Slide Up</option>
-                <option value="WIPE">Wipe</option>
-                <option value="BLUR_PUNCH">Blur Punch</option>
+                {TRANSITION_OPTIONS.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
               </select>
               {selectedClip.transitionIn && (
                 <div className="pt-1">
@@ -1022,14 +1020,11 @@ export const ClipInspector: React.FC<ClipInspectorProps> = ({
                 }}
                 className="w-full bg-[#1C1C24] border border-[#2A2A38] text-xs rounded-lg px-2 py-1 text-zinc-200 outline-none cursor-pointer"
               >
-                <option value="CUT">None (Cut)</option>
-                <option value="CROSSFADE">Crossfade</option>
-                <option value="DISSOLVE">Dissolve</option>
-                <option value="ZOOM_SWOOSH">Zoom Swoosh</option>
-                <option value="SLIDE_LEFT">Whip Pan (Left)</option>
-                <option value="SLIDE_UP">Slide Up</option>
-                <option value="WIPE">Wipe</option>
-                <option value="BLUR_PUNCH">Blur Punch</option>
+                {TRANSITION_OPTIONS.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
               </select>
               {selectedClip.transitionOut && (
                 <div className="pt-1">

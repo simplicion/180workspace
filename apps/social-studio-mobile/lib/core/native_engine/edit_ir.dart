@@ -231,6 +231,21 @@ class EditIrTransition {
   final String type;
   final int durationMs;
 
+  /// Mobile transition types (contract `MOBILE_TRANSITION_TYPES`) with user-facing names. Any other
+  /// type is kept as-is for the round trip; the renderer draws it as a crossfade and warns.
+  static const types = {
+    'CUT': 'Hard cut',
+    'CROSSFADE': 'Crossfade',
+    'DISSOLVE': 'Dissolve',
+    'DIP_BLACK': 'Fade through black',
+    'DIP_WHITE': 'Fade through white',
+    'ZOOM_SWOOSH': 'Zoom swoosh',
+    'ZOOM_OUT': 'Zoom out',
+    'GLITCH': 'Glitch',
+  };
+
+  bool get isKnown => types.containsKey(type);
+
   factory EditIrTransition.fromJson(Map<String, dynamic> j) =>
       EditIrTransition(type: j['type'] as String? ?? 'CROSSFADE', durationMs: _int(j, 'durationMs'));
 

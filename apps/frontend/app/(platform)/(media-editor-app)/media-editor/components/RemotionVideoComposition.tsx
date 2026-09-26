@@ -12,6 +12,7 @@ import {
 } from "remotion";
 import { EditIR, RationalTimeMath, MediaAssetDescriptor } from "@workspace/video-contracts";
 import { MediaCacheService } from "../services/media-cache";
+import { effectVisualsAt, isTitleSegment } from "../services/editor-library";
 
 export interface RemotionVideoCompositionProps extends Record<string, unknown> {
   editIR: EditIR;
@@ -93,11 +94,15 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
   }
 
   // Active Captions Segment
-  const activeCaption = editIR.tracks.captionTrack?.find((c) => {
+  const isActiveAt = (c: { timeRange: { start: any; duration: any } }) => {
     const start = RationalTimeMath.toSeconds(c.timeRange.start);
     const dur = RationalTimeMath.toSeconds(c.timeRange.duration);
     return currentTimeSec >= start && currentTimeSec <= start + dur;
-  });
+  };
+  // Speech captions use the kinetic caption box; titles (text templates / addText) are drawn with their own style.
+  const activeCaption = editIR.tracks.captionTrack?.find((c) => !isTitleSegment(c) && isActiveAt(c));
+  const activeTitles = (editIR.tracks.captionTrack ?? []).filter((c) => isTitleSegment(c) && isActiveAt(c));
+  const fxv = effectVisualsAt(editIR.tracks.effectTrack, currentTimeSec);
 
   const sortedVideoTracks = [...(editIR.tracks.videoTracks || [])].sort(
     (a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0)
@@ -108,6 +113,7 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
       style={{
         backgroundColor: "#000000",
         overflow: "hidden",
+        containerType: "size",
       }}
     >
       {/* 1. Video and Overlay Visual Tracks */}
@@ -117,7 +123,8 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
           height: "100%",
           position: "relative",
           transformOrigin: `${zoomOriginX}% ${zoomOriginY}%`,
-          transform: `scale(${zoomScale})`,
+          transform: `translate(${(-fxv.shakeX * 100).toFixed(3)}%, ${(-fxv.shakeY * 100).toFixed(3)}%) scale(${zoomScale * fxv.zoom})`,
+          filter: fxv.grayscale > 0 ? `grayscale(${fxv.grayscale})` : undefined,
           transition: "transform 0.05s linear",
         }}
       >
@@ -147,6 +154,7 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
             );
 
             const isImage = Boolean(
+              clip.mediaType === "image" ||
               matchedAsset?.mimeType?.startsWith("image/") ||
                 matchedAsset?.filePath?.startsWith("data:image/") ||
                 matchedAsset?.filePath?.match(/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i) ||
@@ -154,7 +162,8 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
                 clip.sourcePath?.match(/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i)
             );
 
-            const isMainTrack = track.type === "MAIN_VIDEO";
+            // Full-frame layout: main-track clips and photos (mediaType "image"), which cover the canvas like the export.
+            const isMainTrack = track.type === "MAIN_VIDEO" || clip.mediaType === "image";
             const clipOffsetSec = Math.max(0, currentTimeSec - startSec);
             const keyframes = clip.transform?.keyframes || [];
 
@@ -244,6 +253,8 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
             let inTranslateY = 0;
             let inBlur = 0;
             let inWipeClip: string | null = null;
+            let inGlitch = false;
+            let inDip: "black" | "white" | null = null;
 
             if (tInSec > 0 && clipOffsetSec < tInSec && clip.transitionIn) {
               const p = Math.max(0, Math.min(1, clipOffsetSec / tInSec)); // 0 -> 1
@@ -257,10 +268,21 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
                 inTranslateX = (1 - p) * 100;
               } else if (tType === "SLIDE_UP") {
                 inTranslateY = (1 - p) * 100;
+              } else if (tType === "ZOOM_OUT") {
+                inExtraScale = 1.0 + (1 - p) * (1 - p) * 0.3;
               } else if (tType === "BLUR_PUNCH") {
                 inBlur = (1 - p) * 20;
               } else if (tType === "WIPE") {
+                // wipe left: the new clip is revealed from the right edge (same as the native export)
+                inWipeClip = `inset(0 0 0 ${(1 - p) * 100}%)`;
+              } else if (tType === "WIPE_RIGHT") {
                 inWipeClip = `inset(0 ${(1 - p) * 100}% 0 0)`;
+              } else if (tType === "GLITCH") {
+                inTranslateX = p < 1 ? Math.sin(clipOffsetSec * 90) * 14 * (1 - p) : 0;
+                inGlitch = true;
+              } else if (tType === "DIP_BLACK" || tType === "DIP_WHITE") {
+                inFactor = Math.min(1, p * 2);
+                inDip = tType === "DIP_WHITE" ? "white" : "black";
               }
             }
 
@@ -272,6 +294,8 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
             let outTranslateY = 0;
             let outBlur = 0;
             let outWipeClip: string | null = null;
+            let outGlitch = false;
+            let outDip: "black" | "white" | null = null;
 
             if (tOutSec > 0 && timeLeft < tOutSec && clip.transitionOut) {
               const p = Math.max(0, Math.min(1, timeLeft / tOutSec)); // 1 -> 0
@@ -285,19 +309,38 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
                 outTranslateX = -(1 - p) * 100;
               } else if (tType === "SLIDE_UP") {
                 outTranslateY = -(1 - p) * 100;
+              } else if (tType === "ZOOM_OUT") {
+                outExtraScale = 1.0 - (1 - p) * 0.15;
               } else if (tType === "BLUR_PUNCH") {
                 outBlur = (1 - p) * 20;
               } else if (tType === "WIPE") {
+                outWipeClip = `inset(0 ${(1 - p) * 100}% 0 0)`;
+              } else if (tType === "WIPE_RIGHT") {
                 outWipeClip = `inset(0 0 0 ${(1 - p) * 100}%)`;
+              } else if (tType === "GLITCH") {
+                outGlitch = true;
+              } else if (tType === "DIP_BLACK" || tType === "DIP_WHITE") {
+                outFactor = Math.min(1, p * 2);
+                outDip = tType === "DIP_WHITE" ? "white" : "black";
               }
             }
 
-            const finalOpacity = Math.max(0, Math.min(1, opacity * inFactor * outFactor));
+            // Dip to white brightens instead of fading over the black canvas.
+            const whiteDip = (inDip === "white" ? 1 - inFactor : 0) + (outDip === "white" ? 1 - outFactor : 0);
+            const fadeIn = inDip === "white" ? 1 : inFactor;
+            const fadeOut = outDip === "white" ? 1 : outFactor;
+            const finalOpacity = Math.max(0, Math.min(1, opacity * fadeIn * fadeOut));
             const finalScale = scale * inExtraScale * outExtraScale;
             const finalPosX = posX + inTranslateX + outTranslateX;
             const finalPosY = posY + inTranslateY + outTranslateY;
             const totalBlur = inBlur + outBlur;
-            const transitionBlur = totalBlur > 0 ? `blur(${totalBlur.toFixed(1)}px)` : "";
+            const transitionBlur = [
+              totalBlur > 0 ? `blur(${totalBlur.toFixed(1)}px)` : "",
+              whiteDip > 0 ? `brightness(${(1 + whiteDip * 4).toFixed(2)})` : "",
+              inGlitch || outGlitch ? `hue-rotate(${frame % 2 ? 90 : -90}deg) saturate(2)` : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
             const transitionClipPath = inWipeClip || outWipeClip || clipPathStyle;
             const finalFilterCss = [filterCss === "none" ? "" : filterCss, transitionBlur].filter(Boolean).join(" ") || "none";
 
@@ -509,6 +552,63 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
           );
         })
       )}
+
+      {/* 2b. Effect track overlays (vignette, flash, dip to black) */}
+      {fxv.vignette > 0 && (
+        <AbsoluteFill
+          style={{
+            pointerEvents: "none",
+            zIndex: 20,
+            background: `radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,${(0.85 * fxv.vignette).toFixed(3)}) 100%)`,
+          }}
+        />
+      )}
+      {fxv.white > 0 && <AbsoluteFill style={{ pointerEvents: "none", zIndex: 21, backgroundColor: "#FFFFFF", opacity: fxv.white }} />}
+      {fxv.black > 0 && <AbsoluteFill style={{ pointerEvents: "none", zIndex: 21, backgroundColor: "#000000", opacity: fxv.black }} />}
+
+      {/* 2c. Titles (text templates), positioned and styled from the segment */}
+      {activeTitles.map((t) => {
+        const st = t.style;
+        const pad = st.pillPadding ?? 12;
+        return (
+          <div
+            key={t.id}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: `${(st.position?.y ?? 0.5) * 100}%`,
+              transform: "translateY(-50%)",
+              display: "flex",
+              justifyContent: "center",
+              pointerEvents: "none",
+              zIndex: 31,
+            }}
+          >
+            <span
+              style={{
+                maxWidth: `${(st.maxWidthFraction ?? 0.86) * 100}%`,
+                textAlign: "center",
+                fontFamily: `'${st.fontFamily || "Inter"}', sans-serif`,
+                fontWeight: st.fontWeight ?? 800,
+                // px values are authored for a 1080-px short side (as on mobile)
+                fontSize: `${((st.fontSize || 64) / 1080) * 100}cqmin`,
+                lineHeight: 1.15,
+                color: st.textColor || "#FFFFFF",
+                textTransform: st.uppercase ? "uppercase" : "none",
+                WebkitTextStroke: st.strokeWidth ? `${st.strokeWidth / 2}px ${st.strokeColor || "#000000"}` : undefined,
+                paintOrder: "stroke fill",
+                textShadow: st.shadow ? "0 4px 14px rgba(0,0,0,0.85)" : "none",
+                backgroundColor: st.pillBackground || "transparent",
+                padding: st.pillBackground ? `${pad}px ${pad * 1.4}px` : 0,
+                borderRadius: st.pillBackground ? st.pillRadius ?? 12 : 0,
+              }}
+            >
+              {t.text}
+            </span>
+          </div>
+        );
+      })}
 
       {/* 3. Kinetic Word-by-Word Bouncing Captions with Rich Google Fonts Typography */}
       {activeCaption && (

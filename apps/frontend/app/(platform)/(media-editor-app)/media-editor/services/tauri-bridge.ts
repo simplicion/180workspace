@@ -16,6 +16,7 @@ import { DEVICE_HEADER, currentDeviceToken } from "@/lib/native/device-token";
 import { MediaCacheService } from "./media-cache";
 import { desktopMedia, hasNativeMedia, fromAssetUrl, toAssetUrl, runNativeRender, RenderCancelledError } from "@/lib/native/desktop-media";
 import { buildNativeRenderPlan, describeUnsupported } from "./native-render-plan";
+import { effectVisualsAt, isTitleSegment } from "./editor-library";
 import { validateRenderSpec } from "./native-render-validate";
 import { descriptorFromFfprobe, baseName } from "./native-probe";
 
@@ -1147,7 +1148,7 @@ class DesktopEngineBridge implements EngineBridge {
     for (const vTrack of editIR.tracks.videoTracks) {
       for (const clip of vTrack.clips) {
         if (!clip.sourcePath || mediaCache.has(clip.sourcePath)) continue;
-        const isImg = Boolean(clip.sourcePath.match(/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i));
+        const isImg = clip.mediaType === "image" || Boolean(clip.sourcePath.match(/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i));
         if (isImg) {
           const img = new Image();
           img.crossOrigin = "anonymous";
@@ -1227,7 +1228,16 @@ class DesktopEngineBridge implements EngineBridge {
         const zoomOriginX = (activeCamera?.targetCoords?.x ?? 0.5) * canvas.width;
         const zoomOriginY = (activeCamera?.targetCoords?.y ?? 0.5) * canvas.height;
 
+        // Effect track (same formulas as the preview and the native FFmpeg export)
+        const fxv = effectVisualsAt(editIR.tracks.effectTrack, curTime);
+
         ctx.save();
+        if (fxv.zoom !== 1 || fxv.shakeX !== 0 || fxv.shakeY !== 0) {
+          ctx.translate(canvas.width / 2 - fxv.shakeX * canvas.width, canvas.height / 2 - fxv.shakeY * canvas.height);
+          ctx.scale(fxv.zoom, fxv.zoom);
+          ctx.translate(-canvas.width / 2, -canvas.height / 2);
+        }
+        if (fxv.grayscale > 0) ctx.filter = `grayscale(${fxv.grayscale})`;
         if (zoomScale !== 1.0) {
           ctx.translate(zoomOriginX, zoomOriginY);
           ctx.scale(zoomScale, zoomScale);
@@ -1264,7 +1274,12 @@ class DesktopEngineBridge implements EngineBridge {
             const aspect = img.naturalWidth / (img.naturalHeight || 1);
             let drawW = canvas.width;
             let drawH = canvas.width / aspect;
-            if (track.type !== "MAIN_VIDEO") {
+            if (activeClip.mediaType === "image") {
+              // photos cover the canvas (scaled up and centre-cropped by the canvas bounds)
+              const cover = Math.max(canvas.width / (img.naturalWidth || 1), canvas.height / (img.naturalHeight || 1));
+              drawW = (img.naturalWidth || canvas.width) * cover;
+              drawH = (img.naturalHeight || canvas.height) * cover;
+            } else if (track.type !== "MAIN_VIDEO") {
               drawW = canvas.width * 0.4;
               drawH = drawW / aspect;
             }
@@ -1296,10 +1311,69 @@ class DesktopEngineBridge implements EngineBridge {
           ctx.restore();
         }
 
-        ctx.restore(); // Restore camera zoom
+        ctx.restore(); // Restore camera zoom + effect transform/filter
+
+        if (fxv.vignette > 0) {
+          const r = Math.hypot(canvas.width, canvas.height) / 2;
+          const g = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, r * 0.45, canvas.width / 2, canvas.height / 2, r);
+          g.addColorStop(0, "rgba(0,0,0,0)");
+          g.addColorStop(1, `rgba(0,0,0,${0.85 * fxv.vignette})`);
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        for (const [alpha, color] of [[fxv.white, "#FFFFFF"], [fxv.black, "#000000"]] as const) {
+          if (alpha <= 0) continue;
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = color;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.restore();
+        }
+
+        // Titles (text templates): the segment's own font, colours, box and position
+        for (const title of editIR.tracks.captionTrack ?? []) {
+          if (!isTitleSegment(title)) continue;
+          const ts = RationalTimeMath.toSeconds(title.timeRange.start);
+          if (curTime < ts || curTime > ts + RationalTimeMath.toSeconds(title.timeRange.duration)) continue;
+          const st = title.style;
+          const unit = Math.min(canvas.width, canvas.height) / 1080;
+          const size = Math.round((st.fontSize || 64) * unit);
+          const text = st.uppercase ? title.text.toUpperCase() : title.text;
+          const cx = (st.position?.x ?? 0.5) * canvas.width;
+          const cy = (st.position?.y ?? 0.5) * canvas.height;
+          ctx.save();
+          ctx.font = `${st.fontWeight ?? 800} ${size}px '${st.fontFamily || "Inter"}', Inter, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const w = ctx.measureText(text).width;
+          if (st.pillBackground) {
+            const pad = (st.pillPadding ?? 12) * unit;
+            ctx.fillStyle = st.pillBackground;
+            ctx.beginPath();
+            (ctx as any).roundRect
+              ? (ctx as any).roundRect(cx - w / 2 - pad * 1.4, cy - size / 2 - pad, w + pad * 2.8, size + pad * 2, (st.pillRadius ?? 12) * unit)
+              : ctx.rect(cx - w / 2 - pad * 1.4, cy - size / 2 - pad, w + pad * 2.8, size + pad * 2);
+            ctx.fill();
+          }
+          if (st.shadow) {
+            ctx.shadowColor = "rgba(0,0,0,0.85)";
+            ctx.shadowBlur = 14 * unit;
+            ctx.shadowOffsetY = 4 * unit;
+          }
+          if (st.strokeWidth) {
+            ctx.lineWidth = st.strokeWidth * unit;
+            ctx.strokeStyle = st.strokeColor || "#000000";
+            ctx.lineJoin = "round";
+            ctx.strokeText(text, cx, cy);
+          }
+          ctx.fillStyle = st.textColor || "#FFFFFF";
+          ctx.fillText(text, cx, cy);
+          ctx.restore();
+        }
 
         // 4. Kinetic Subtitles / Captions Overlay
         const activeCaption = editIR.tracks.captionTrack?.find((cap) => {
+          if (isTitleSegment(cap)) return false;
           const s = RationalTimeMath.toSeconds(cap.timeRange.start);
           const e = s + RationalTimeMath.toSeconds(cap.timeRange.duration);
           return curTime >= s && curTime <= e;

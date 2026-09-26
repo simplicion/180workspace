@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/native_engine/edit_ir.dart';
 import '../../core/theme/app_theme.dart';
@@ -32,13 +33,25 @@ class StudioTimeline extends StatefulWidget {
 }
 
 class _StudioTimelineState extends State<StudioTimeline> {
-  static const _labelW = 36.0;
+  static const _labelW = 40.0;
   static const _videoH = 44.0;
   static const _trackH = 30.0;
+
+  /// Transparent hit padding around each trim handle (the visible grip is 6 px).
+  static const _handleHit = 22.0;
 
   /// 1 = whole video fits the width; up to 8x for fine edits.
   double _zoom = 1;
   double _zoomStart = 1;
+
+  /// Non-video item whose trim handles are shown (set by tapping it).
+  String? _selectedId;
+
+  /// Live preview while an item is being dragged or trimmed; committed as one edit on release.
+  _Drag? _drag;
+
+  /// Volumes captured before muting a track, so unmuting restores them.
+  final _restoreDb = <TrackKind, Map<String, double>>{};
 
   static const _colors = {
     TrackKind.video: AppTheme.accentBlue,
@@ -47,6 +60,7 @@ class _StudioTimelineState extends State<StudioTimeline> {
     TrackKind.captions: AppTheme.accentCyan,
     TrackKind.zoom: AppTheme.warning,
     TrackKind.effect: AppTheme.accent,
+    TrackKind.voice: AppTheme.accentBlue,
     TrackKind.music: AppTheme.success,
     TrackKind.sfx: AppTheme.accentCyan,
   };
@@ -58,9 +72,13 @@ class _StudioTimelineState extends State<StudioTimeline> {
     TrackKind.captions: Icons.closed_caption_rounded,
     TrackKind.zoom: Icons.zoom_in_rounded,
     TrackKind.effect: Icons.auto_fix_high_rounded,
+    TrackKind.voice: Icons.record_voice_over_rounded,
     TrackKind.music: Icons.music_note_rounded,
     TrackKind.sfx: Icons.graphic_eq_rounded,
   };
+
+  static bool _movable(TrackKind k) => k != TrackKind.video && k != TrackKind.music && k != TrackKind.voice;
+  static bool _trimmable(TrackKind k) => k != TrackKind.video && k != TrackKind.voice;
 
   @override
   Widget build(BuildContext context) {
@@ -69,9 +87,13 @@ class _StudioTimelineState extends State<StudioTimeline> {
     final items = TimelineOps.items(ir);
     final tracks = [
       for (final k in TrackKind.values)
-        if (k == TrackKind.video || items.any((i) => i.kind == k)) k,
+        if (k == TrackKind.video ||
+            items.any((i) => i.kind == k) ||
+            (k == TrackKind.voice && TimelineOps.isTrackMuted(ir, k)))
+          k,
     ];
     final total = math.max(1, ir.durationMs).toDouble();
+    if (_selectedId != null && !items.any((i) => i.id == _selectedId)) _selectedId = null;
 
     return Container(
       color: AppTheme.surfaceSubtle,
@@ -103,13 +125,15 @@ class _StudioTimelineState extends State<StudioTimeline> {
                   SizedBox(
                     width: _labelW,
                     height: k == TrackKind.video ? _videoH : _trackH,
-                    child: Tooltip(message: k.label, child: Icon(_icons[k], size: 16, color: _colors[k])),
+                    child: _header(ir, k),
                   ),
               ]),
               Expanded(
                 child: LayoutBuilder(builder: (context, box) {
                   final width = box.maxWidth * _zoom;
                   double x(int ms) => ms / total * width;
+                  int msPerPx(double dx) => (dx / width * total).round();
+                  final drag = _drag;
                   return GestureDetector(
                     onScaleStart: (_) => _zoomStart = _zoom,
                     onScaleUpdate: (d) {
@@ -119,7 +143,7 @@ class _StudioTimelineState extends State<StudioTimeline> {
                       scrollDirection: Axis.horizontal,
                       child: SizedBox(
                         width: width,
-                        child: Stack(children: [
+                        child: Stack(clipBehavior: Clip.none, children: [
                           Column(children: [
                             for (final k in tracks)
                               SizedBox(
@@ -127,19 +151,18 @@ class _StudioTimelineState extends State<StudioTimeline> {
                                 child: GestureDetector(
                                   behavior: HitTestBehavior.opaque,
                                   onTapDown: (d) => widget.onScrub((d.localPosition.dx / width * total).round()),
-                                  child: Stack(children: [
+                                  child: Stack(clipBehavior: Clip.none, children: [
                                     for (final (i, it) in items.where((i) => i.kind == k).indexed)
-                                      Positioned(
-                                        left: x(it.startMs),
-                                        width: math.max(14, x(it.endMs) - x(it.startMs)),
-                                        top: 3,
-                                        bottom: 3,
-                                        child: _Block(
-                                          item: it,
-                                          color: _colors[k]!,
-                                          selected: k == TrackKind.video && c.selectedClip == i,
-                                          onTap: () => _onItem(it, i),
-                                        ),
+                                      ..._placed(
+                                        it: drag != null && drag.item.id == it.id && drag.item.kind == it.kind
+                                            ? drag.preview
+                                            : it,
+                                        original: it,
+                                        index: i,
+                                        x: x,
+                                        msPerPx: msPerPx,
+                                        total: total.toInt(),
+                                        muted: TimelineOps.mutableTracks.contains(k) && TimelineOps.isTrackMuted(ir, k),
                                       ),
                                   ]),
                                 ),
@@ -151,6 +174,30 @@ class _StudioTimelineState extends State<StudioTimeline> {
                             bottom: 0,
                             child: IgnorePointer(child: Container(width: 2, color: AppTheme.textPrimary)),
                           ),
+                          if (drag != null)
+                            Positioned(
+                              left: (x(drag.mode == _DragMode.trimEnd ? drag.preview.endMs : drag.preview.startMs) - 30)
+                                  .clamp(0, math.max(0, width - 60))
+                                  .toDouble(),
+                              top: 0,
+                              child: IgnorePointer(
+                                child: Container(
+                                  key: const Key('timeline-drag-tooltip'),
+                                  width: 60,
+                                  padding: const EdgeInsets.symmetric(vertical: 2),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.surfaceElevated,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: AppTheme.borderActive),
+                                  ),
+                                  child: Text(
+                                    timecode(drag.mode == _DragMode.trimEnd ? drag.preview.endMs : drag.preview.startMs),
+                                    style: const TextStyle(fontSize: 10, color: AppTheme.textPrimary),
+                                  ),
+                                ),
+                              ),
+                            ),
                         ]),
                       ),
                     ),
@@ -164,6 +211,145 @@ class _StudioTimelineState extends State<StudioTimeline> {
     );
   }
 
+  /// Track header: the track icon; for Voice, Music and Sound FX it is also the mute toggle.
+  Widget _header(MobileEditIr ir, TrackKind k) {
+    if (!TimelineOps.mutableTracks.contains(k)) {
+      return Tooltip(message: k.label, child: Icon(_icons[k], size: 16, color: _colors[k]));
+    }
+    final muted = TimelineOps.isTrackMuted(ir, k);
+    return Semantics(
+      button: true,
+      toggled: muted,
+      label: muted ? 'Unmute ${k.label}' : 'Mute ${k.label}',
+      excludeSemantics: true,
+      child: Tooltip(
+        message: k.label,
+        child: InkWell(
+          onTap: () => _toggleMute(k, muted),
+          child: Center(
+            child: Icon(
+              muted ? Icons.volume_off_rounded : _icons[k],
+              size: 16,
+              color: muted ? AppTheme.textMuted : _colors[k],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggleMute(TrackKind k, bool muted) {
+    final ir = widget.controller.ir!;
+    if (!muted) _restoreDb[k] = TimelineOps.trackVolumes(ir, k);
+    final restore = _restoreDb[k] ?? const <String, double>{};
+    widget.onEdit(
+      (ir) => TimelineOps.setTrackMuted(ir, k, !muted, restoreDb: restore),
+      done: '${k.label} ${muted ? 'unmuted' : 'muted'}',
+    );
+  }
+
+  /// The block for [it] plus, when it is the selected item, its two trim handles.
+  List<Widget> _placed({
+    required TimelineItem it,
+    required TimelineItem original,
+    required int index,
+    required double Function(int) x,
+    required int Function(double) msPerPx,
+    required int total,
+    required bool muted,
+  }) {
+    final c = widget.controller;
+    final k = it.kind;
+    final left = x(it.startMs);
+    final w = math.max(14.0, x(it.endMs) - x(it.startMs));
+    final selected = k == TrackKind.video ? c.selectedClip == index : _selectedId == it.id;
+    Widget handle(_DragMode mode) => Positioned(
+          left: (mode == _DragMode.trimStart ? left : left + w) - _handleHit,
+          width: _handleHit * 2,
+          top: 0,
+          bottom: 0,
+          child: Semantics(
+            label: mode == _DragMode.trimStart ? 'Trim start of ${k.label}' : 'Trim end of ${k.label}',
+            child: GestureDetector(
+              key: Key('trim-${mode == _DragMode.trimStart ? 'start' : 'end'}-${it.id}'),
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragStart: (_) => _begin(original, mode),
+              onHorizontalDragUpdate: (d) => _update(d.primaryDelta ?? 0, msPerPx, total),
+              onHorizontalDragEnd: (_) => _commit(),
+              onHorizontalDragCancel: _cancel,
+              child: Center(
+                child: Container(
+                  width: 6,
+                  height: 18,
+                  decoration: BoxDecoration(color: AppTheme.textPrimary, borderRadius: BorderRadius.circular(3)),
+                ),
+              ),
+            ),
+          ),
+        );
+    return [
+      Positioned(
+        left: left,
+        width: w,
+        top: 3,
+        bottom: 3,
+        child: _Block(
+          item: it,
+          color: _colors[k]!,
+          selected: selected,
+          muted: muted,
+          onTap: () => _onItem(original, index),
+          onLongPressStart: _movable(k) ? () => _begin(original, _DragMode.move) : null,
+          onLongPressMove: _movable(k) ? (dx) => _moveTo(dx, msPerPx, total) : null,
+          onLongPressEnd: _movable(k) ? _commit : null,
+        ),
+      ),
+      if (selected && _trimmable(k)) ...[handle(_DragMode.trimStart), handle(_DragMode.trimEnd)],
+    ];
+  }
+
+  void _begin(TimelineItem it, _DragMode mode) {
+    HapticFeedback.selectionClick();
+    setState(() => _drag = _Drag(it, mode, it));
+  }
+
+  /// Long-press move: [dx] is the total offset from where the press started.
+  void _moveTo(double dx, int Function(double) msPerPx, int total) {
+    final d = _drag;
+    if (d == null) return;
+    final len = d.item.endMs - d.item.startMs;
+    final s = (d.item.startMs + msPerPx(dx)).clamp(0, math.max(0, total - len)).toInt();
+    setState(() => _drag = d.withPreview(s, s + len));
+  }
+
+  /// Trim: [delta] is the incremental drag in pixels. Keeps at least 300 ms.
+  void _update(double delta, int Function(double) msPerPx, int total) {
+    final d = _drag;
+    if (d == null) return;
+    d.accumPx += delta;
+    final shift = msPerPx(d.accumPx);
+    final p = d.mode == _DragMode.trimStart
+        ? d.withPreview((d.item.startMs + shift).clamp(0, d.item.endMs - 300).toInt(), d.item.endMs)
+        : d.withPreview(d.item.startMs, (d.item.endMs + shift).clamp(d.item.startMs + 300, total).toInt());
+    setState(() => _drag = p);
+  }
+
+  void _cancel() => setState(() => _drag = null);
+
+  void _commit() {
+    final d = _drag;
+    setState(() => _drag = null);
+    if (d == null) return;
+    final it = d.item;
+    final p = d.preview;
+    if (p.startMs == it.startMs && p.endMs == it.endMs) return;
+    if (d.mode == _DragMode.move) {
+      widget.onEdit((ir) => TimelineOps.moveItem(ir, it.kind, it.id, p.startMs), done: 'Moved to ${timecode(p.startMs)}');
+    } else {
+      widget.onEdit((ir) => TimelineOps.setItemRange(ir, it.kind, it.id, p.startMs, p.endMs), done: 'Trimmed ${it.kind.label.toLowerCase()}');
+    }
+  }
+
   void _onItem(TimelineItem it, int index) {
     final c = widget.controller;
     if (it.kind == TrackKind.video) {
@@ -172,34 +358,69 @@ class _StudioTimelineState extends State<StudioTimeline> {
       return;
     }
     widget.onScrub(it.startMs);
+    if (it.kind == TrackKind.voice) return; // speech follows the clips; the header mutes it
+    setState(() => _selectedId = it.id);
     showTimelineItemSheet(context, c, it, onEdit: widget.onEdit, onOpenTool: widget.onOpenTool);
   }
 }
 
+enum _DragMode { move, trimStart, trimEnd }
+
+class _Drag {
+  _Drag(this.item, this.mode, this.preview);
+  final TimelineItem item;
+  final _DragMode mode;
+  final TimelineItem preview;
+  double accumPx = 0;
+
+  _Drag withPreview(int start, int end) =>
+      _Drag(item, mode, TimelineItem(item.kind, item.id, start, end, item.label))..accumPx = accumPx;
+}
+
 class _Block extends StatelessWidget {
-  const _Block({required this.item, required this.color, required this.selected, required this.onTap});
+  const _Block({
+    required this.item,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+    this.muted = false,
+    this.onLongPressStart,
+    this.onLongPressMove,
+    this.onLongPressEnd,
+  });
   final TimelineItem item;
   final Color color;
   final bool selected;
+  final bool muted;
   final VoidCallback onTap;
+  final VoidCallback? onLongPressStart;
+  final ValueChanged<double>? onLongPressMove;
+  final VoidCallback? onLongPressEnd;
 
   @override
   Widget build(BuildContext context) => Semantics(
         button: true,
-        label: '${item.kind.label}: ${item.label}, ${timecode(item.startMs)} to ${timecode(item.endMs)}',
+        label: '${item.kind.label}: ${item.label}, ${timecode(item.startMs)} to ${timecode(item.endMs)}'
+            '${muted ? ', muted' : ''}',
         child: GestureDetector(
           onTap: onTap,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 0.5),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            alignment: Alignment.centerLeft,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: selected ? 0.6 : 0.3),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: selected ? color : color.withValues(alpha: 0.6)),
+          onLongPressStart: onLongPressStart == null ? null : (_) => onLongPressStart!(),
+          onLongPressMoveUpdate: onLongPressMove == null ? null : (d) => onLongPressMove!(d.offsetFromOrigin.dx),
+          onLongPressEnd: onLongPressEnd == null ? null : (_) => onLongPressEnd!(),
+          child: Opacity(
+            opacity: muted ? 0.45 : 1,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 0.5),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              alignment: Alignment.centerLeft,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: selected ? 0.6 : 0.3),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: selected ? color : color.withValues(alpha: 0.6)),
+              ),
+              child: Text(item.label,
+                  maxLines: 1, overflow: TextOverflow.clip, style: const TextStyle(fontSize: 10, color: AppTheme.textPrimary)),
             ),
-            child: Text(item.label,
-                maxLines: 1, overflow: TextOverflow.clip, style: const TextStyle(fontSize: 10, color: AppTheme.textPrimary)),
           ),
         ),
       );

@@ -42,6 +42,7 @@ import {
   Transition,
 } from "@workspace/video-contracts";
 import { VisibleWaveformCanvas } from "./VisibleWaveformCanvas";
+import { TRANSITION_OPTIONS, effectInfo, isTitleSegment } from "../services/editor-library";
 
 interface TimelineProps {
   editIR: EditIR;
@@ -256,6 +257,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   const videoTrack = editIR.tracks.videoTracks[0];
   const cameraTrack = editIR.tracks.cameraTrack;
   const captionTrack = editIR.tracks.captionTrack;
+  const effectTrack = editIR.tracks.effectTrack ?? [];
 
   const toggleTrackMute = (trackId: string) => {
     setMutedTracks((prev) => ({ ...prev, [trackId]: !prev[trackId] }));
@@ -662,6 +664,23 @@ export const Timeline: React.FC<TimelineProps> = ({
             </div>
           </div>
 
+          {/* 2b. Effects Track Header */}
+          <div className="h-12 border-b border-surface-border px-3 flex items-center justify-between text-xs font-semibold text-violet-300 bg-surface/60">
+            <div className="flex items-center space-x-1.5 truncate">
+              <Zap className="w-3.5 h-3.5 text-violet-300 shrink-0" />
+              <span className="truncate">Effects (FX)</span>
+            </div>
+            <div className="flex items-center space-x-1 text-gray-400">
+              <button
+                onClick={() => toggleTrackLock("fx")}
+                className="p-1 hover:text-white transition"
+                title={lockedTracks["fx"] ? "Unlock effects" : "Lock effects"}
+              >
+                {lockedTracks["fx"] ? <Lock className="w-3 h-3 text-violet-300" /> : <Unlock className="w-3 h-3" />}
+              </button>
+            </div>
+          </div>
+
           {/* 3. Dynamic Video & Overlay Track Headers */}
           {editIR.tracks.videoTracks.map((vTrack, vIdx) => {
             const trackKey = `v_${vTrack.id || vIdx}`;
@@ -862,9 +881,27 @@ export const Timeline: React.FC<TimelineProps> = ({
                   key={cap.id}
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (isTitleSegment(cap)) onSelectClip(cap.id);
+                    else onOpenCaptions?.();
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
                     onOpenCaptions?.();
                   }}
-                  className="timeline-clip absolute top-1.5 bottom-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/40 hover:border-cyan-300 hover:bg-cyan-500/25 px-2.5 flex items-center space-x-1.5 text-cyan-300 text-[10px] font-semibold truncate shadow-sm cursor-pointer transition"
+                  onMouseDown={(e) => {
+                    // Titles (text templates / AI addText) move like clips; speech captions stay synced to the words.
+                    if (!isTitleSegment(cap)) return;
+                    e.stopPropagation();
+                    onSelectClip(cap.id);
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    const mode = e.clientX > rect.right - 8 ? "trim-end" : e.clientX < rect.left + 8 ? "trim-start" : "move";
+                    setDraggingClip({ id: cap.id, mode, startX: e.clientX, initialStart: startSec, initialDuration: durationSec });
+                  }}
+                  className={`timeline-clip absolute top-1.5 bottom-1.5 rounded-lg bg-cyan-500/15 border ${
+                    selectedClipId === cap.id ? "border-cyan-200 ring-1 ring-white/20" : "border-cyan-500/40"
+                  } hover:border-cyan-300 hover:bg-cyan-500/25 px-2.5 flex items-center space-x-1.5 text-cyan-300 text-[10px] font-semibold truncate shadow-sm ${
+                    isTitleSegment(cap) ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+                  } transition`}
                   style={{
                     left: `${startSec * pixelsPerSecond}px`,
                     width: `${durationSec * pixelsPerSecond}px`,
@@ -873,6 +910,54 @@ export const Timeline: React.FC<TimelineProps> = ({
                 >
                   <Subtitles className="w-3 h-3 text-cyan-400 shrink-0" />
                   <span className="truncate">"{cap.text}"</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 2b. Effects Track Lane: select, drag to move, drag the edges to trim, Delete to remove */}
+          <div className="h-12 border-b border-surface-border/40 relative bg-[#09090B]/80 flex items-center">
+            {effectTrack.length === 0 && (
+              <div className="text-[10px] text-zinc-600 font-mono italic px-4 select-none pointer-events-none">
+                No effects on FX — add one from the Effects tab
+              </div>
+            )}
+            {effectTrack.map((fx) => {
+              const startSec = RationalTimeMath.toSeconds(fx.timeRange.start);
+              const durationSec = RationalTimeMath.toSeconds(fx.timeRange.duration);
+              const isSelected = selectedClipId === fx.id;
+              const locked = Boolean(lockedTracks["fx"]);
+              const startDrag = (e: React.MouseEvent, mode: "move" | "trim-start" | "trim-end") => {
+                e.stopPropagation();
+                onSelectClip(fx.id);
+                if (!locked) setDraggingClip({ id: fx.id, mode, startX: e.clientX, initialStart: startSec, initialDuration: durationSec });
+              };
+              return (
+                <div
+                  key={fx.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectClip(fx.id);
+                  }}
+                  onMouseDown={(e) => startDrag(e, "move")}
+                  className={`timeline-clip group absolute top-1.5 bottom-1.5 rounded-lg border px-2 flex items-center space-x-1.5 text-[10px] font-semibold overflow-hidden transition cursor-grab active:cursor-grabbing ${
+                    isSelected
+                      ? "bg-violet-500/30 border-violet-300 ring-1 ring-white/20 text-white"
+                      : "bg-violet-500/15 border-violet-500/40 hover:border-violet-300 text-violet-200"
+                  }`}
+                  style={{ left: `${startSec * pixelsPerSecond}px`, width: `${Math.max(14, durationSec * pixelsPerSecond)}px` }}
+                  title={`${effectInfo(fx.type).name} · ${startSec.toFixed(2)}s–${(startSec + durationSec).toFixed(2)}s · intensity ${Math.round((fx.intensity ?? 0.6) * 100)}%`}
+                >
+                  <div
+                    onMouseDown={(e) => startDrag(e, "trim-start")}
+                    className="absolute left-0 top-0 bottom-0 w-2 group-hover:bg-white/20 hover:!bg-white cursor-ew-resize z-10"
+                  />
+                  <Zap className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{effectInfo(fx.type).name}</span>
+                  <div
+                    onMouseDown={(e) => startDrag(e, "trim-end")}
+                    className="absolute right-0 top-0 bottom-0 w-2 group-hover:bg-white/20 hover:!bg-white cursor-ew-resize z-10"
+                  />
                 </div>
               );
             })}
@@ -1222,16 +1307,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             </div>
 
             <div className="grid grid-cols-2 gap-1.5">
-              {[
-                { id: "CUT", name: "None (Cut)" },
-                { id: "CROSSFADE", name: "Crossfade" },
-                { id: "DISSOLVE", name: "Dissolve" },
-                { id: "ZOOM_SWOOSH", name: "Zoom Swoosh" },
-                { id: "SLIDE_LEFT", name: "Whip Pan (Slide)" },
-                { id: "SLIDE_UP", name: "Push Up" },
-                { id: "WIPE", name: "Wipe" },
-                { id: "BLUR_PUNCH", name: "Blur Punch" },
-              ].map((t) => (
+              {TRANSITION_OPTIONS.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => {

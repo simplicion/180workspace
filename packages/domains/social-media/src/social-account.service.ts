@@ -2,6 +2,10 @@ import { prisma, requestContext } from '@workspace/db';
 import { SocialTokenVault } from './publishing/token-vault';
 import { normalizePlatform } from './publishing/config';
 import { SocialDomainError, notFound } from './tenant-scope';
+import { getDb } from './publishing/http';
+
+/** Post states that would still publish on their own; these are paused when their account goes away. */
+const PENDING_PUBLISH_STATUSES = ['scheduled', 'approved', 'in_review', 'failed', 'partially_published'];
 
 export interface ConnectAccountDTO {
     platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube' | 'x' | 'twitter';
@@ -101,16 +105,65 @@ export class SocialAccountService {
 
     static async disconnectAccount(id: string) {
         const companyId = requestContext.getStore()?.companyId as string;
-        const account = await (prisma as any).socialAccount.findFirst({ where: { id, companyId } });
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
+        const db = getDb();
+        const account = await db.socialAccount.findFirst({ where: { id, companyId } });
         if (!account) throw notFound('Social account');
 
-        await (prisma as any).socialAccount.update({
-            where: { id },
+        await db.socialAccount.updateMany({
+            where: { id, companyId },
             data: { isActive: false, accessToken: null, refreshToken: null },
         });
         // Tokens are destroyed on disconnect; reconnecting runs OAuth again.
         await SocialTokenVault.revoke(id);
 
-        return { success: true, message: 'Account disconnected successfully' };
+        const pausedPostIds = await this.pausePostsForAccount(account, companyId);
+        return {
+            success: true,
+            pausedPosts: pausedPostIds.length,
+            pausedPostIds,
+            message: pausedPostIds.length
+                ? `Account disconnected. ${pausedPostIds.length} scheduled post${pausedPostIds.length === 1 ? '' : 's'} using it were paused and moved to drafts.`
+                : 'Account disconnected successfully',
+        };
+    }
+
+    /**
+     * Scheduled posts that publish through this account would fail silently at their time, so they are moved to
+     * draft with a clear reason (kept on the calendar; the time is preserved for rescheduling). Variants already
+     * published are untouched.
+     */
+    static async pausePostsForAccount(account: { id: string; accountName?: string | null; platform: string }, companyId: string): Promise<string[]> {
+        const db = getDb();
+        const viaVariant = await db.socialPostVariant.findMany({
+            where: { socialAccountId: account.id, publishStatus: { in: ['pending', 'failed'] } },
+            select: { postId: true },
+            take: 500,
+        });
+        const candidateIds = Array.from(new Set(viaVariant.map((v: any) => v.postId)));
+        const posts = await db.socialPost.findMany({
+            where: {
+                companyId,
+                status: { in: PENDING_PUBLISH_STATUSES },
+                OR: [{ socialAccountId: account.id }, ...(candidateIds.length ? [{ id: { in: candidateIds } }] : [])],
+            },
+            take: 500,
+        });
+        const reason = `Paused: the ${account.platform} account "${account.accountName || account.id}" was disconnected. Reconnect it or choose another account, then schedule again.`;
+        const paused: string[] = [];
+        for (const p of posts) {
+            const history = Array.isArray(p.history) ? p.history : [];
+            const r = await db.socialPost.updateMany({
+                where: { id: p.id, companyId, status: { in: PENDING_PUBLISH_STATUSES } },
+                data: {
+                    status: 'draft',
+                    nextPublishAttemptAt: null,
+                    errorMessage: reason,
+                    history: [...history, { version: p.versionNumber, action: 'paused_account_disconnected', accountId: account.id, previousStatus: p.status, timestamp: new Date().toISOString() }],
+                },
+            });
+            if (r.count) paused.push(p.id);
+        }
+        return paused;
     }
 }

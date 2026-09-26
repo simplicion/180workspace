@@ -759,9 +759,10 @@ class TimelineOps {
   // ── Text & captions ────────────────────────────────────────────────────────
 
   /// Complete caption style objects (contract §3.4). The server rejects partial styles.
+  /// [highlightColor] null keeps the preset's own highlight colour.
   static Map<String, dynamic> captionStyle(
     String preset, {
-    String highlightColor = '#FFE600',
+    String? highlightColor,
     double positionY = 0.72,
   }) {
     final base = <String, dynamic>{
@@ -771,7 +772,7 @@ class TimelineOps {
       'fontWeight': 800,
       'fontSizePx': 64,
       'textColor': '#FFFFFF',
-      'highlightColor': highlightColor,
+      'highlightColor': '#FFE600',
       'strokeColor': '#000000',
       'strokeWidthPx': 6,
       'shadow': true,
@@ -781,7 +782,7 @@ class TimelineOps {
       'positionY': positionY,
       'maxWidthFraction': 0.86,
     };
-    return switch (preset) {
+    final style = switch (preset) {
       'BOLD_POP' => {
         ...base,
         'animation': 'word_pop',
@@ -797,15 +798,100 @@ class TimelineOps {
         'background': {'color': '#000000B3', 'paddingPx': 16, 'radiusPx': 16},
       },
       'TITLE' => {...base, 'fontSizePx': 88, 'positionY': positionY},
+      _ when viralCaptionPresets.containsKey(preset) => {
+        ...base,
+        ...viralCaptionPresets[preset]!.style,
+        'preset': preset,
+      },
       _ => {...base, 'preset': 'CLEAN', 'fontWeight': 600, 'strokeWidthPx': 4},
     };
+    return {...style, 'highlightColor': ?highlightColor};
   }
 
-  static const captionPresets = {
+  /// The desktop Caption Studio's viral presets (same ids and values as `CAPTION_STYLE_PRESETS` in
+  /// CaptionStudioModal.tsx; font sizes and stroke widths are canvas pixels on both). `glow` is an
+  /// optional style key: renderers that do not know it ignore it.
+  static const viralCaptionPresets = <String, ({String name, String subtitle, Map<String, dynamic> style})>{
+    'HORMOZI_BOUNCE': (
+      name: 'Hormozi Viral',
+      subtitle: 'Yellow / green bold',
+      style: {
+        'animation': 'word_pop', 'fontFamily': 'Anton', 'fontWeight': 400, 'fontSizePx': 52,
+        'textColor': '#FACC15', 'highlightColor': '#22C55E', 'strokeWidthPx': 3, 'strokeColor': '#000000',
+        'shadow': true, 'uppercase': true,
+      },
+    ),
+    'MRBEAST_HYPE': (
+      name: 'MrBeast Punch',
+      subtitle: 'Red / white impact',
+      style: {
+        'animation': 'word_pop', 'fontFamily': 'Montserrat', 'fontWeight': 900, 'fontSizePx': 54,
+        'textColor': '#FFFFFF', 'highlightColor': '#EF4444', 'strokeWidthPx': 4, 'strokeColor': '#000000',
+        'shadow': true, 'uppercase': true,
+      },
+    ),
+    'ALI_ABDAAL_CLEAN': (
+      name: 'Abdaal Aesthetic',
+      subtitle: 'Clean teal & white',
+      style: {
+        'animation': 'karaoke', 'fontFamily': 'Poppins', 'fontWeight': 600, 'fontSizePx': 44,
+        'textColor': '#FFFFFF', 'highlightColor': '#14B8A6', 'strokeWidthPx': 0, 'shadow': true,
+        'background': {'color': '#00000073', 'paddingPx': 6, 'radiusPx': 14},
+      },
+    ),
+    'DAN_KOE_MINIMAL': (
+      name: 'Dan Koe Clean',
+      subtitle: 'Minimalist grotesque',
+      style: {
+        'animation': 'none', 'fontFamily': 'Syne', 'fontWeight': 700, 'fontSizePx': 40,
+        'textColor': '#FFFFFF', 'highlightColor': '#94A3B8', 'strokeWidthPx': 0, 'shadow': false,
+      },
+    ),
+    'CYBER_NEON': (
+      name: 'Cyber Neon',
+      subtitle: 'Cyan & magenta glow',
+      style: {
+        'animation': 'word_pop', 'fontFamily': 'Outfit', 'fontWeight': 800, 'fontSizePx': 48,
+        'textColor': '#38BDF8', 'highlightColor': '#EC4899', 'strokeWidthPx': 1, 'strokeColor': '#0284C7',
+        'shadow': false, 'glow': true,
+      },
+    ),
+    'KARAOKE_FROSTED': (
+      name: 'Frosted Pill',
+      subtitle: 'Dark pill backdrop',
+      style: {
+        'animation': 'karaoke', 'fontFamily': 'Inter', 'fontWeight': 800, 'fontSizePx': 46,
+        'textColor': '#FFFFFF', 'highlightColor': '#FBBF24', 'strokeWidthPx': 0, 'shadow': true,
+        'background': {'color': '#0F172AD9', 'paddingPx': 10, 'radiusPx': 20},
+      },
+    ),
+    'VOX_EXPLAINER': (
+      name: 'Vox Explainer',
+      subtitle: 'Yellow highlighter',
+      style: {
+        'animation': 'none', 'fontFamily': 'Roboto', 'fontWeight': 700, 'fontSizePx': 42,
+        'textColor': '#0F172A', 'highlightColor': '#000000', 'strokeWidthPx': 0, 'shadow': false,
+        'background': {'color': '#FACC15', 'paddingPx': 6, 'radiusPx': 6},
+      },
+    ),
+    'CINEMATIC_SUBTITLE': (
+      name: 'Cinema Subtitle',
+      subtitle: 'Bebas Neue sans',
+      style: {
+        'animation': 'none', 'fontFamily': 'Bebas Neue', 'fontWeight': 400, 'fontSizePx': 48,
+        'textColor': '#F8FAFC', 'highlightColor': '#F59E0B', 'strokeWidthPx': 1, 'strokeColor': '#0F172A',
+        'shadow': true, 'uppercase': true,
+      },
+    ),
+  };
+
+  /// Every caption preset offered in the Captions sheet: the 4 classic ones, then the viral ones.
+  static final captionPresets = <String, String>{
     'CLEAN': 'Clean',
     'BOLD_POP': 'Bold pop',
     'KARAOKE': 'Karaoke',
     'BOXED': 'Boxed',
+    for (final e in viralCaptionPresets.entries) e.key: e.value.name,
   };
 
   /// Word-synced captions from a source-time transcript, [wordsPerCaption] words each, breaking
@@ -815,7 +901,7 @@ class TimelineOps {
     List<TranscriptWord> words, {
     String preset = 'BOLD_POP',
     int wordsPerCaption = 3,
-    String highlightColor = '#FFE600',
+    String? highlightColor,
     double positionY = 0.72,
   }) {
     if (words.isEmpty) {
@@ -894,7 +980,7 @@ class TimelineOps {
   static MobileEditIr styleCaptions(
     MobileEditIr ir,
     String preset, {
-    String highlightColor = '#FFE600',
+    String? highlightColor,
     double? positionY,
   }) {
     final style = captionStyle(
@@ -1138,6 +1224,64 @@ class TimelineOps {
         ),
       );
 
+  // ── Track mute (Voice = original audio, Music, Sound FX) ───────────────────
+
+  /// Volume that counts as muted (the contract's minimum gain).
+  static const mutedDb = -60.0;
+
+  /// Tracks that have a mute toggle on the timeline.
+  static const mutableTracks = {TrackKind.voice, TrackKind.music, TrackKind.sfx};
+
+  /// Current gain of every item on an audio track, keyed by item id (`original` for the voice track).
+  static Map<String, double> trackVolumes(MobileEditIr ir, TrackKind kind) => switch (kind) {
+        TrackKind.voice => {'original': ir.audio.originalVolumeDb},
+        TrackKind.music => {for (final m in ir.audio.music) m.id: m.volumeDb},
+        TrackKind.sfx => {for (final e in ir.audio.sfx) e.id: e.volumeDb},
+        _ => const {},
+      };
+
+  /// True when every item on the track is at [mutedDb] (and the track has items).
+  static bool isTrackMuted(MobileEditIr ir, TrackKind kind) {
+    final v = trackVolumes(ir, kind).values;
+    return v.isNotEmpty && v.every((db) => db <= mutedDb);
+  }
+
+  /// Mutes a track (every item to [mutedDb]) or unmutes it, restoring each item to [restoreDb] (the
+  /// volumes captured with [trackVolumes] before muting) or, when unknown, to a sensible default.
+  static MobileEditIr setTrackMuted(
+    MobileEditIr ir,
+    TrackKind kind,
+    bool muted, {
+    Map<String, double> restoreDb = const {},
+  }) {
+    double target(String id, double fallback) {
+      if (muted) return mutedDb;
+      final r = restoreDb[id];
+      return r != null && r > mutedDb ? r : fallback;
+    }
+
+    switch (kind) {
+      case TrackKind.voice:
+        return setOriginalVolume(ir, target('original', 0));
+      case TrackKind.music:
+        return _withAudio(ir, music: [for (final m in ir.audio.music) _music(m, volumeDb: target(m.id, -16))]);
+      case TrackKind.sfx:
+        return _withSfx(ir, [
+          for (final e in ir.audio.sfx)
+            EditIrSfx(
+              id: e.id,
+              timelineStartMs: e.timelineStartMs,
+              durationMs: e.durationMs,
+              source: e.source,
+              volumeDb: target(e.id, -8),
+              credit: e.credit,
+            ),
+        ]);
+      default:
+        throw MediaEngineException('INVALID_EDIT', '${kind.label} has no audio to mute.');
+    }
+  }
+
   // ── Timeline items (what the multi-track timeline shows) ───────────────────
 
   /// Every placed item, per track, in timeline order. Clips are the video track.
@@ -1150,6 +1294,8 @@ class TimelineOps {
         for (final c in ir.captions)
           TimelineItem(c.kind == 'text' ? TrackKind.text : TrackKind.captions, c.id, c.startMs, c.endMs, c.text),
         for (final z in ir.zooms) TimelineItem(TrackKind.zoom, z.id, z.startMs, z.endMs, '${z.scale.toStringAsFixed(1)}x'),
+        for (final (i, r) in ir.audio.speechRangesMs.indexed)
+          if (r.length == 2) TimelineItem(TrackKind.voice, 'speech_$i', r[0], r[1], 'Speech'),
         for (final m in ir.audio.music)
           TimelineItem(TrackKind.music, m.id, m.timelineStartMs, m.timelineEndMs, '${m.source['title'] ?? m.source['query'] ?? 'Music'}'),
         for (final e in ir.audio.sfx)
@@ -1201,6 +1347,7 @@ class TimelineOps {
         ]..sort((a, b) => a.startMs.compareTo(b.startMs)));
       case TrackKind.music:
       case TrackKind.video:
+      case TrackKind.voice:
         throw MediaEngineException('INVALID_EDIT', 'Use Trim for ${kind.label.toLowerCase()}.');
     }
   }
@@ -1260,6 +1407,7 @@ class TimelineOps {
         ]);
       case TrackKind.effect:
       case TrackKind.video:
+      case TrackKind.voice:
         throw MediaEngineException('INVALID_EDIT', 'Use Trim on the clip.');
     }
   }
@@ -1273,6 +1421,7 @@ class TimelineOps {
         TrackKind.sfx => removeSfx(ir, id),
         TrackKind.effect => removeEffect(ir, id),
         TrackKind.video => deleteClip(ir, ir.clips.indexWhere((c) => c.id == id)),
+        TrackKind.voice => throw MediaEngineException('INVALID_EDIT', 'Mute the voice track instead.'),
       };
 
   /// Replaces a text item's words and/or style (text templates, font, colours).
@@ -1336,6 +1485,7 @@ enum TrackKind {
   captions('Captions'),
   zoom('Zoom'),
   effect('Effects'),
+  voice('Voice'),
   music('Music'),
   sfx('Sound FX');
 

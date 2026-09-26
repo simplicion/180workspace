@@ -6,6 +6,7 @@ import { BrandSafetyAuditor, BrandSafetyAuditResult } from './brand-safety-audit
 import { SmartTimezoneScheduler, ScheduleCollisionCheckResult } from './smart-timezone-scheduler';
 import { PlatformMediaGuard, MediaValidationResult } from './media-platform-guard';
 import { getProjectBrandConsciousness } from './brand-consciousness';
+import { findDuplicateCaptions, hasSubstantiveChange, parseScheduledFor, sanitizePostUpdate } from './post-guards';
 
 export interface PostVariantInput {
     platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube' | 'twitter' | 'x' | 'threads' | 'pinterest' | 'reddit' | string;
@@ -37,10 +38,13 @@ export interface CreateSocialPostDTO {
     isEvergreen?: boolean;
 }
 
+const APPROVAL_PENDING_ISSUE = 'Project workflow requires client/editorial approval before publishing.';
+
 export class SocialPostService {
     static async createPost(data: CreateSocialPostDTO, userId?: string) {
         const companyId = requestContext.getStore()?.companyId as string;
         if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
+        const scheduledFor = parseScheduledFor(data.scheduledFor);
 
         const post = await (prisma as any).socialPost.create({
             data: {
@@ -59,8 +63,8 @@ export class SocialPostService {
                 finalVideoUrl: data.finalVideoUrl,
                 thumbnailUrl: data.thumbnailUrl,
                 mediaType: data.mediaType || 'video',
-                status: data.scheduledFor ? 'scheduled' : 'draft',
-                scheduledFor: data.scheduledFor ? new Date(data.scheduledFor) : null,
+                status: scheduledFor ? 'scheduled' : 'draft',
+                scheduledFor: scheduledFor ?? null,
                 isEvergreen: data.isEvergreen || false,
                 versionNumber: 1,
                 metadata: data.metadata || {},
@@ -161,30 +165,49 @@ export class SocialPostService {
     }
 
     static async updatePost(id: string, data: Partial<CreateSocialPostDTO> & { status?: string }, userId?: string) {
-        const companyId = requestContext.getStore()?.companyId as string;
-        const existing = await (prisma as any).socialPost.findUnique({ where: { id } });
-        if (!existing || existing.companyId !== companyId) throw notFound('Post');
-
-        const updatePayload: any = { ...data };
-        delete updatePayload.variants;
-        delete updatePayload.id;
-        delete updatePayload.companyId; // a post can never be moved to another tenant
-
-        if (data.scheduledFor) {
-            updatePayload.scheduledFor = new Date(data.scheduledFor);
+        const companyId = requireCompanyId(requestContext.getStore()?.companyId as string);
+        const db = getDb();
+        const existing = await db.socialPost.findFirst({ where: { id, companyId } });
+        if (!existing) throw notFound('Post');
+        if (['publishing', 'published'].includes(existing.status)) {
+            throw new SocialDomainError('POST_ALREADY_PUBLISHED', 409, 'This post is published (or publishing) and can no longer be edited. Repurpose it to make a new version.');
         }
 
-        // Versioning check: if post was approved and substantive copy or video changed, bump version
+        // Whitelist: companyId, versionNumber, approvedVersion and publish state are server-owned (mass assignment).
+        const updatePayload: any = sanitizePostUpdate(data as any);
+        if (data.scheduledFor !== undefined) {
+            const unchanged = existing.scheduledFor && data.scheduledFor && new Date(data.scheduledFor as any).getTime() === new Date(existing.scheduledFor).getTime();
+            // Re-saving an unchanged (possibly already passed) time is not a new scheduling decision.
+            updatePayload.scheduledFor = unchanged ? existing.scheduledFor : parseScheduledFor(data.scheduledFor);
+        }
+        if (updatePayload.socialAccountId) {
+            const acc = await db.socialAccount.findFirst({ where: { id: updatePayload.socialAccountId, companyId } });
+            if (!acc) throw notFound('Social account');
+        }
+
+        const existingVariants: any[] = await db.socialPostVariant.findMany({ where: { postId: id }, take: 50 });
+        const incomingVariants = Array.isArray(data.variants) ? data.variants : undefined;
+
+        // Re-approval: a substantive change to an approved version (status approved, or approvedVersion current, e.g.
+        // approved and then scheduled) bumps the version, so the old approval no longer covers the new content.
         let versionBumped = false;
         let newVersion = existing.versionNumber || 1;
-        if (existing.status === 'approved' && (data.content !== undefined || data.finalVideoUrl !== undefined)) {
-            if ((data.content && data.content !== existing.content) || (data.finalVideoUrl && data.finalVideoUrl !== existing.finalVideoUrl)) {
-                newVersion += 1;
-                updatePayload.versionNumber = newVersion;
-                updatePayload.status = 'in_review'; // Reset status for re-review
-                versionBumped = true;
+        if (isPostApproved(existing) && hasSubstantiveChange(existing, updatePayload, existingVariants, incomingVariants)) {
+            newVersion += 1;
+            updatePayload.versionNumber = newVersion;
+            versionBumped = true;
+            const project = existing.projectId ? await db.project.findFirst({ where: { id: existing.projectId, companyId } }) : null;
+            if (projectRequiresApproval(project)) updatePayload.status = 'in_review';
+            else if (existing.status === 'approved') {
+                // No approval needed here: drop the stale "approved" label without unscheduling the post.
+                updatePayload.status = (updatePayload.scheduledFor ?? existing.scheduledFor) ? 'scheduled' : 'draft';
             }
+        } else if (isPostApproved(existing) && existing.approvedVersion == null) {
+            // Pin the approval to this version so a status change (e.g. approved → scheduled) keeps it.
+            updatePayload.approvedVersion = existing.versionNumber || 1;
         }
+
+        if (incomingVariants) await this.syncVariants(id, { ...existing, ...updatePayload }, existingVariants, incomingVariants, companyId);
 
         // Append to history
         const currentHistory = Array.isArray(existing.history) ? existing.history : [];
@@ -193,17 +216,45 @@ export class SocialPostService {
             action: versionBumped ? 'version_bumped' : 'updated',
             userId,
             status: updatePayload.status || existing.status,
+            ...(versionBumped ? { note: 'Approved content changed; it needs approval again.' } : {}),
             timestamp: new Date().toISOString()
         };
         updatePayload.history = [...currentHistory, newHistoryEntry];
 
-        const updated = await (prisma as any).socialPost.update({
-            where: { id },
-            data: updatePayload,
-            include: { variants: true }
-        });
+        await db.socialPost.updateMany({ where: { id, companyId }, data: updatePayload });
+        const updated = await db.socialPost.findFirst({ where: { id, companyId } });
+        const variants = await db.socialPostVariant.findMany({ where: { postId: id }, take: 50 });
+        return { ...updated, variants, reapprovalRequired: versionBumped && updatePayload.status === 'in_review' };
+    }
 
-        return updated;
+    /**
+     * Applies a client's variant list to a post: pending/failed variants are updated or removed, new platforms are
+     * added, and variants that already went out (published/processing/assisted) are never touched.
+     */
+    private static async syncVariants(postId: string, post: any, existing: any[], incoming: PostVariantInput[], companyId: string) {
+        const db = getDb();
+        const key = (p: string) => String(p).toLowerCase();
+        const editable = (v: any) => ['pending', 'failed'].includes(v.publishStatus || 'pending');
+        const byPlatform = new Map(existing.map((v) => [key(v.platform), v]));
+        for (const v of incoming) {
+            if (v.socialAccountId) {
+                const acc = await db.socialAccount.findFirst({ where: { id: v.socialAccountId, companyId } });
+                if (!acc) throw notFound('Social account');
+            }
+            const data = {
+                customContent: v.customContent || post.content,
+                customMediaUrls: v.customMediaUrls || post.mediaUrls || [],
+                firstComment: v.firstComment ?? null,
+                platformMeta: v.platformMeta || {},
+                socialAccountId: v.socialAccountId || null,
+            };
+            const old = byPlatform.get(key(v.platform));
+            if (!old) await db.socialPostVariant.create({ data: { postId, platform: v.platform, ...data } });
+            else if (editable(old)) await db.socialPostVariant.updateMany({ where: { id: old.id, postId }, data });
+        }
+        const keep = new Set(incoming.map((v) => key(v.platform)));
+        const removable = existing.filter((v) => !keep.has(key(v.platform)) && editable(v)).map((v) => v.id);
+        if (removable.length) await db.socialPostVariant.deleteMany({ where: { id: { in: removable }, postId } });
     }
 
     /**
@@ -229,13 +280,14 @@ export class SocialPostService {
      * Validates if a post is completely ready for live or scheduled publishing
      */
     static async validatePublishingReadiness(postId: string) {
-        const companyId = requestContext.getStore()?.companyId as string;
-        const post = await (prisma as any).socialPost.findUnique({
-            where: { id: postId },
+        const companyId = requireCompanyId(requestContext.getStore()?.companyId as string);
+        const post = await (prisma as any).socialPost.findFirst({
+            where: { id: postId, companyId },
             include: { variants: true, socialAccount: { select: SAFE_ACCOUNT_SELECT }, project: true }
         });
 
-        if (!post || (companyId && post.companyId !== companyId)) throw notFound('Post');
+        if (!post) throw notFound('Post');
+        const warnings: string[] = [];
 
         const issues: string[] = [];
         let platformChecks: Array<{ platform: string; publishStatus: string; issues: string[] }> = [];
@@ -252,7 +304,7 @@ export class SocialPostService {
 
         // 3. Approval requirement check
         if (projectRequiresApproval(post.project) && !isPostApproved(post)) {
-            issues.push('Project workflow requires client/editorial approval before publishing.');
+            issues.push(APPROVAL_PENDING_ISSUE);
         }
 
         // 4. Social account check
@@ -329,6 +381,40 @@ export class SocialPostService {
             }
         }
 
+        // 7b. Duplicate content: same caption to the same account/platform within 7 days (warning, not a blocker).
+        if (post.content) {
+            try {
+                const when = new Date(post.scheduledFor || Date.now());
+                const windowMs = 7 * 24 * 3600 * 1000;
+                const range = { gte: new Date(when.getTime() - windowMs), lte: new Date(when.getTime() + windowMs) };
+                const recent = await (prisma as any).socialPost.findMany({
+                    where: {
+                        companyId: post.companyId,
+                        id: { not: post.id },
+                        status: { in: ['scheduled', 'approved', 'publishing', 'published', 'partially_published'] },
+                        OR: [{ scheduledFor: range }, { publishedAt: range }],
+                    },
+                    select: { id: true, content: true, scheduledFor: true, publishedAt: true, socialAccountId: true, variants: { select: { platform: true } } },
+                    take: 300,
+                });
+                const dups = findDuplicateCaptions(
+                    {
+                        id: post.id,
+                        content: post.content,
+                        when,
+                        socialAccountId: post.socialAccountId,
+                        platforms: (post.variants || []).map((v: any) => v.platform).concat(post.socialAccount?.platform ? [post.socialAccount.platform] : []),
+                    },
+                    recent.map((r: any) => ({ ...r, platforms: (r.variants || []).map((v: any) => v.platform) })),
+                );
+                if (dups.length) {
+                    warnings.push(`The same caption is already scheduled or published on this channel within 7 days (${dups.length} post${dups.length > 1 ? 's' : ''}). Platforms may limit reach of repeated posts.`);
+                }
+            } catch {
+                // Advisory only: a failed lookup never blocks publishing.
+            }
+        }
+
         // 8. Production-Grade Business Planner Violations: Platform Media Guard
         const mediaGuardResults: MediaValidationResult[] = [];
         const targetPlatforms: string[] = [];
@@ -359,6 +445,10 @@ export class SocialPostService {
 
         return {
             isReady: issues.length === 0,
+            /** Problems that make scheduling pointless (it would fail at publish time). Approval and collisions are not among them. */
+            schedulingBlockers: issues.filter((i) => i !== APPROVAL_PENDING_ISSUE && !i.startsWith('Schedule Collision:')),
+            approvalPending: issues.includes(APPROVAL_PENDING_ISSUE),
+            warnings,
             issues,
             violations: {
                 brandSafety: brandSafetyResult,

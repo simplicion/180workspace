@@ -11,6 +11,7 @@ import {
   Transform,
   CaptionSegment,
   VideoClip,
+  VideoEffectType,
 } from "@workspace/video-contracts";
 import { HeaderBar } from "./HeaderBar";
 import { AIDirectorPanel, DirectorChatMessage, DirectorPromptOptions } from "./AIDirectorPanel";
@@ -43,6 +44,17 @@ import {
   directorContextFromUrl,
 } from "../services/tauri-bridge";
 import toast from "react-hot-toast";
+import {
+  addEffect,
+  addTitleFromTemplate,
+  effectInfo,
+  newTimelineItemIds,
+  removeOverlayItem,
+  retimeOverlayItem,
+  setEffectIntensity,
+  textTemplateById,
+  type BrandLook,
+} from "../services/editor-library";
 import { hasNativeMedia } from "@/lib/native/desktop-media";
 
 /** A short reply that confirms the pending proposal ("yes", "proceed", "apply it", ...). */
@@ -86,6 +98,8 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const [timelineHeight, setTimelineHeight] = useState<number>(280);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [leftSidebarTab, setLeftSidebarTab] = useState<LeftSidebarTab>("director");
+  // Brand look for text templates, only from the brand the server returned (never invented).
+  const [brandLook, setBrandLook] = useState<BrandLook>({});
 
   const [project, setProject] = useState<ProjectPackageManifest | null>(null);
   const [currentTimeSeconds, setCurrentTimeSeconds] = useState(0);
@@ -260,6 +274,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       try {
         const g = await engineBridge.getDirectorGreeting(directorCtx);
         if (g) {
+          if (g.brand) setBrandLook({ font: g.brand.font || null, accentColor: g.brand.highlightColor || null });
           const parts: string[] = [];
           if (g.brand?.name) parts.push(`Brand: ${g.brand.name}`);
           if (g.piece?.headline) parts.push(`Piece: ${g.piece.headline}${g.piece.platform ? ` (${g.piece.platform})` : ""}`);
@@ -434,6 +449,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
         if (result && result.editIR) {
           pushHistory(result.editIR);
+          selectFirstNewItem(project.editIR, result.editIR);
           const replyMsg: DirectorChatMessage = {
             id: safeUUID(),
             sender: "director",
@@ -495,6 +511,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           setAiMessages((prev) => [...prev, confirmMsg]);
         } else {
           pushHistory(result.editIR);
+          selectFirstNewItem(project.editIR, result.editIR);
           const replyMsg: DirectorChatMessage = {
             id: safeUUID(),
             sender: "director",
@@ -539,6 +556,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       return;
     }
     if (!message.pendingConfirmation?.targetEditIR) return;
+    if (project) selectFirstNewItem(project.editIR, message.pendingConfirmation.targetEditIR);
     pushHistory(message.pendingConfirmation.targetEditIR);
     setAiMessages((prev) =>
       prev.map((m) =>
@@ -773,6 +791,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           },
           speedMultiplier: 1.0,
           effects: [],
+          ...(isImage ? { mediaType: "image" as const } : {}),
         };
 
         if (!mainTrack) {
@@ -805,7 +824,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         }
 
         const durSec = isImage
-          ? 4.0
+          ? 3.0
           : Math.min(15, Math.max(1.5, asset.durationSeconds || 4.0));
         const startSec = currentTimeSeconds;
 
@@ -831,6 +850,8 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           },
           speedMultiplier: 1.0,
           effects: [],
+          // a still photo, held for its slot and drawn to cover the canvas (all renderers)
+          ...(isImage ? { mediaType: "image" as const } : {}),
         };
 
         brollTrack.clips.push(newClip);
@@ -941,6 +962,15 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
   const handleDeleteSelectedClip = () => {
     if (!project || !selectedClipId) return;
+
+    // Effects and titles live outside the video/audio tracks.
+    const withoutOverlay = removeOverlayItem(project.editIR, selectedClipId);
+    if (withoutOverlay !== project.editIR) {
+      pushHistory(withoutOverlay);
+      setSelectedClipId(null);
+      toast.success("Removed from timeline");
+      return;
+    }
 
     // Check video tracks
     let foundInVideo = false;
@@ -1102,6 +1132,28 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     });
     setIsCaptionsModalOpen(true);
     toast.success("Added kinetic text overlay! Customize typography and preset in Studio.");
+  };
+
+  /** After the AI Director edits, select what it placed so the user can adjust it straight away. */
+  const selectFirstNewItem = (before: EditIR, after: EditIR) => {
+    const added = newTimelineItemIds(before, after);
+    if (added.length > 0) setSelectedClipId(added[0]);
+  };
+
+  const handleAddTemplateTitle = (templateId: string, text: string) => {
+    if (!project) return;
+    const { editIR, segment } = addTitleFromTemplate(project.editIR, templateId, text, currentTimeSeconds, brandLook);
+    pushHistory(editIR);
+    setSelectedClipId(segment.id);
+    toast.success(`Added "${textTemplateById(templateId)?.name ?? "title"}" at ${currentTimeSeconds.toFixed(1)}s`);
+  };
+
+  const handleAddEffect = (type: VideoEffectType, intensity: number) => {
+    if (!project) return;
+    const { editIR, effect } = addEffect(project.editIR, type, currentTimeSeconds, intensity);
+    pushHistory(editIR);
+    setSelectedClipId(effect.id);
+    toast.success(`Added ${effectInfo(type).name} at ${currentTimeSeconds.toFixed(1)}s`);
   };
 
   const handleAddMusicTrack = () => {
@@ -1492,6 +1544,15 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           onAddAssetToTimeline={(asset: MediaAssetDescriptor) => {
             handleAddClipToTimeline(asset);
           }}
+          brandLook={brandLook}
+          onAddTitle={handleAddTemplateTitle}
+          selectedEffect={project.editIR.tracks.effectTrack?.find((e) => e.id === selectedClipId) ?? null}
+          onAddEffect={handleAddEffect}
+          onUpdateEffectIntensity={(id, intensity) => pushHistory(setEffectIntensity(project.editIR, id, intensity))}
+          onDeleteEffect={(id) => {
+            pushHistory(removeOverlayItem(project.editIR, id));
+            if (selectedClipId === id) setSelectedClipId(null);
+          }}
         />
 
         {isLeftPanelOpen && (
@@ -1591,14 +1652,21 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
                   ),
                 }));
 
-                pushHistory({
-                  ...project.editIR,
-                  tracks: {
-                    ...project.editIR.tracks,
-                    videoTracks: updatedVideoTracks,
-                    audioTracks: updatedAudioTracks,
-                  },
-                });
+                pushHistory(
+                  retimeOverlayItem(
+                    {
+                      ...project.editIR,
+                      tracks: {
+                        ...project.editIR.tracks,
+                        videoTracks: updatedVideoTracks,
+                        audioTracks: updatedAudioTracks,
+                      },
+                    },
+                    clipId,
+                    newStart,
+                    newDur
+                  )
+                );
               }}
               onDuplicateClip={() => {
                 if (!selectedClipId) return;

@@ -11,12 +11,14 @@
 export class SocialDomainError extends Error {
     readonly code: string;
     readonly statusCode: number;
+    readonly details?: Record<string, any>;
 
-    constructor(code: string, statusCode: number, message: string) {
+    constructor(code: string, statusCode: number, message: string, details?: Record<string, any>) {
         super(message);
         this.name = 'SocialDomainError';
         this.code = code;
         this.statusCode = statusCode;
+        this.details = details;
     }
 }
 
