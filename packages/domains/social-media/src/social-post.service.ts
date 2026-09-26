@@ -2,6 +2,10 @@ import { prisma, requestContext } from '@workspace/db';
 import { PublishDispatcher, isPostApproved, projectRequiresApproval } from './publishing/publish-dispatcher';
 import { getDb } from './publishing/http';
 import { SAFE_ACCOUNT_SELECT, SocialDomainError, notFound, pieceScope, requireCompanyId } from './tenant-scope';
+import { BrandSafetyAuditor, BrandSafetyAuditResult } from './brand-safety-auditor';
+import { SmartTimezoneScheduler, ScheduleCollisionCheckResult } from './smart-timezone-scheduler';
+import { PlatformMediaGuard, MediaValidationResult } from './media-platform-guard';
+import { getProjectBrandConsciousness } from './brand-consciousness';
 
 export interface PostVariantInput {
     platform: 'instagram' | 'facebook' | 'linkedin' | 'tiktok' | 'youtube' | 'twitter' | 'x' | 'threads' | 'pinterest' | 'reddit' | string;
@@ -273,9 +277,94 @@ export class SocialPostService {
             }
         }
 
+        // 6. Production-Grade Business Planner Violations: Brand Safety & Tone
+        let brandSafetyResult: BrandSafetyAuditResult | undefined = undefined;
+        if (post.projectId && post.content) {
+            try {
+                const brandProfile = await getProjectBrandConsciousness(post.projectId, post.companyId);
+                const rawMeta = (brandProfile as any)?.metadata?.brand || {};
+                const brandConfig = {
+                    forbiddenWords: brandProfile?.forbiddenWords || [],
+                    competitors: rawMeta.competitors || [],
+                    tone: brandProfile?.tone || undefined,
+                    preferredVocabulary: rawMeta.preferredVocabulary || [],
+                };
+                brandSafetyResult = BrandSafetyAuditor.auditContent(post.content, brandConfig);
+                for (const v of brandSafetyResult.violations) {
+                    if (v.severity === 'high') {
+                        issues.push(`Brand Safety: ${v.contextSnippet} (${v.suggestion || 'Resolve before scheduling'})`);
+                    }
+                }
+            } catch {
+                // If brand profile does not exist or fails, do not block readiness
+            }
+        }
+
+        // 7. Production-Grade Business Planner Violations: Schedule Collisions
+        let scheduleCollisionResult: ScheduleCollisionCheckResult | undefined = undefined;
+        if (post.scheduledFor) {
+            try {
+                const db = getDb();
+                const otherPosts = await db.socialPost.findMany({
+                    where: {
+                        companyId: post.companyId,
+                        id: { not: post.id },
+                        status: { in: ['scheduled', 'approved'] },
+                        scheduledFor: { not: null },
+                    },
+                    select: { id: true, scheduledFor: true, socialAccountId: true },
+                    take: 200,
+                });
+                scheduleCollisionResult = SmartTimezoneScheduler.checkScheduleCollision(
+                    new Date(post.scheduledFor),
+                    otherPosts,
+                    post.socialAccountId || undefined,
+                    15
+                );
+                if (scheduleCollisionResult.hasCollision && scheduleCollisionResult.warningMessage) {
+                    issues.push(`Schedule Collision: ${scheduleCollisionResult.warningMessage}`);
+                }
+            } catch {
+                // Non-blocking fallback
+            }
+        }
+
+        // 8. Production-Grade Business Planner Violations: Platform Media Guard
+        const mediaGuardResults: MediaValidationResult[] = [];
+        const targetPlatforms: string[] = [];
+        if (post.variants && post.variants.length > 0) {
+            for (const v of post.variants) {
+                if (v.platform && !targetPlatforms.includes(v.platform)) targetPlatforms.push(v.platform);
+            }
+        } else if (post.socialAccount?.platform) {
+            targetPlatforms.push(post.socialAccount.platform);
+        }
+
+        for (const p of targetPlatforms) {
+            const guard = PlatformMediaGuard.validateForPlatform(p, {
+                caption: post.content,
+                title: post.title || undefined,
+                mediaUrls: post.mediaUrls || undefined,
+                aspectRatio: (post.metadata as any)?.aspectRatio,
+                durationSeconds: (post.metadata as any)?.durationSeconds,
+                fileSizeMB: (post.metadata as any)?.fileSizeMB,
+            });
+            mediaGuardResults.push(guard);
+            if (!guard.valid) {
+                for (const err of guard.errors) {
+                    issues.push(`${p} Media Constraint: ${err}`);
+                }
+            }
+        }
+
         return {
             isReady: issues.length === 0,
             issues,
+            violations: {
+                brandSafety: brandSafetyResult,
+                scheduleCollision: scheduleCollisionResult,
+                mediaGuard: mediaGuardResults,
+            },
             platformChecks,
             post
         };
