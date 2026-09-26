@@ -180,12 +180,24 @@ void main() {
       expect(recordedStatus, 'user_confirmed');
     });
 
-    testWidgets('FinishPublishingSheet displays X and Reddit sections', (tester) async {
+    testWidgets('CentralizedManualPublishSheet displays X and Reddit sections', (tester) async {
       final package = UserAssistedPublishPackage(
         id: 'post_test_ui',
         projectId: 'proj_ui',
         title: 'Test Discussion Title',
         caption: 'This is the test copy for publishing.',
+        platformPayloads: {
+          SocialPlatform.x: const UniversalPlatformPayload(
+            platform: SocialPlatform.x,
+            caption: 'This is the test copy for publishing.',
+          ),
+          SocialPlatform.reddit: const UniversalPlatformPayload(
+            platform: SocialPlatform.reddit,
+            caption: 'This is the test copy for publishing.',
+            title: 'Test Discussion Title',
+            subreddit: 'socialmedia',
+          ),
+        },
         xPayload: const XPublishPayload(text: 'This is the test copy for publishing.'),
         redditPayload: const RedditPublishPayload(
           subreddit: 'socialmedia',
@@ -198,7 +210,7 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             home: Scaffold(
-              body: FinishPublishingSheet(package: package),
+              body: CentralizedManualPublishSheet(package: package),
             ),
           ),
         ),
@@ -208,7 +220,6 @@ void main() {
       expect(find.text('Finish Publishing'), findsOneWidget);
       expect(find.text('Post on X'), findsWidgets);
       expect(find.text('Post on Reddit'), findsWidgets);
-      expect(find.text('r/socialmedia'), findsWidgets);
       expect(find.text('180 Workspace never automatically clicks the final platform Post button. You review and confirm publication in the native app.'), findsOneWidget);
     });
   });

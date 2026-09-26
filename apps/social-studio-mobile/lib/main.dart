@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/providers.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart';
 import 'features/auth/auth_provider.dart';
 
 void main() {
@@ -58,14 +59,14 @@ class _SocialStudioAppState extends ConsumerState<SocialStudioApp> with WidgetsB
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
+    
     return MaterialApp.router(
       title: '180 Manager',
       debugShowCheckedModeBanner: false,
-      // The Media Studio design system is dark-only, and screens use its dark tokens directly.
-      // Light/system modes stay off until every screen reads colours from Theme.of(context).
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
+      themeMode: themeMode,
       routerConfig: ref.watch(routerProvider),
     );
   }

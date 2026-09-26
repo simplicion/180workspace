@@ -36,6 +36,7 @@ export class ContextResolver {
       useUploadedBrollOnly: userConstraints?.useUploadedBrollOnly ?? true,
       lockedTrackIds: userConstraints?.lockedTrackIds ?? [],
       preserveVoiceAudio: userConstraints?.preserveVoiceAudio ?? true,
+      lockedTracks: userConstraints?.lockedTracks ?? [],
     };
 
     return {
@@ -86,6 +87,7 @@ export class ContextResolver {
         useUploadedBrollOnly: true,
         lockedTrackIds: [],
         preserveVoiceAudio: true,
+        lockedTracks: [],
       },
       priorDecisions: [],
       currentStyle: "CUSTOM",

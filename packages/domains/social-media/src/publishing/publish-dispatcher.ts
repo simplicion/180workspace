@@ -18,6 +18,7 @@ import { PublishPlatform, intEnv, isPlatformConfigured, isSimulationMode, normal
 import { PublishError, isPublishError, toPublishError } from './errors';
 import { getDb, guessMime, isPdfUrl, isVideoUrl, timing } from './http';
 import { SocialTokenVault } from './token-vault';
+import { PrismaAgentEventStore, createAgentRunEmitter } from '@workspace/ai/dist/agent-runs';
 
 export type PublishTrigger = 'manual' | 'retry' | 'scheduler';
 
@@ -74,8 +75,8 @@ export function isAssistedPlatform(platform: string, variant?: any): boolean {
     const meta = asObj(variant?.platformMeta);
     if (meta.publishingMode === 'user_assisted') return true;
     if (meta.publishingMode === 'api') return false;
-    // Default X and Reddit to user-assisted mode if server API credentials are not configured
-    if ((p === 'x' || p === 'reddit') && !isPlatformConfigured(p)) return true;
+    // All unconfigured platforms (X, TikTok, Pinterest, Reddit) default to assisted mode!
+    if (!isPlatformConfigured(p)) return true;
     return false;
 }
 
@@ -271,8 +272,25 @@ export class PublishDispatcher {
         }
 
         const fresh = { ...post, ...(await db.socialPost.findFirst({ where: { id: post.id, companyId: opts.companyId } })) };
-        await Promise.all(targets.map((v: any) => this.publishVariant(fresh, v, opts)));
-        return this.summarize(post.id, opts);
+        // Agent run log (run inspector): persisted with the same database client when it has the AgentRunEvent model.
+        const events = createAgentRunEmitter({
+            store: db?.agentRunEvent ? new PrismaAgentEventStore(db) : null,
+            agent: 'publisher',
+            scope: post.projectId ? { companyId: opts.companyId, projectId: post.projectId } : null,
+        });
+        events.emit('AgentStarted', { agent: 'publisher', postId: post.id, trigger: opts.trigger || 'manual' });
+        events.emit('PublishStarted', { postId: post.id, platforms: targets.map((v: any) => normalizePlatform(v.platform) || v.platform) });
+        try {
+            await Promise.all(targets.map((v: any) => this.publishVariant(fresh, v, opts)));
+            const result = await this.summarize(post.id, opts);
+            events.emit('PublishCompleted', { final: true, postId: post.id, status: (result as any)?.status ?? null, variants: ((result as any)?.variants || []).map((v: any) => ({ platform: v.platform, status: v.status ?? v.publishStatus ?? null })) });
+            await events.flush();
+            return result;
+        } catch (err: any) {
+            events.emit('AgentFailed', { agent: 'publisher', postId: post.id, code: err?.code || 'PUBLISH_FAILED' });
+            await events.flush();
+            throw err;
+        }
     }
 
     /**
@@ -307,7 +325,9 @@ export class PublishDispatcher {
     /** variant.socialAccountId → post.socialAccountId (same platform) → the project's only active account of that platform. */
     static async resolveAccount(post: any, variant: any, platform: PublishPlatform) {
         const db = getDb();
-        const matches = (a: any) => a && a.companyId === post.companyId && a.isActive !== false && normalizePlatform(a.platform) === platform;
+        // Project isolation: an account bound to another project of the same company is never used (brand bleed).
+        const sameProject = (a: any) => !a.projectId || !post.projectId || a.projectId === post.projectId;
+        const matches = (a: any) => a && a.companyId === post.companyId && sameProject(a) && a.isActive !== false && normalizePlatform(a.platform) === platform;
         const explicit = variant.socialAccountId || asObj(variant.platformMeta).socialAccountId;
         if (explicit) {
             const a = await db.socialAccount.findFirst({ where: { id: explicit, companyId: post.companyId } });

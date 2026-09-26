@@ -108,7 +108,7 @@ test('create: an empty brand stores nothing invented and reports every required 
     assert.deepEqual(columns.standardCtas, []);
     assert.equal(metadata.brand.positioning, null);
     assert.equal(metadata.brand.brandType, null);
-    assert.deepEqual(metadata.brand.colors, { primary: null, accent: null, background: null, text: null });
+    assert.deepEqual(metadata.brand.colors, { primary: null, secondary: null, accent: null, background: null, text: null });
     assert.deepEqual(metadata.brand.targetPlatforms, []);
     assert.equal(metadata.brand.font, null);
     assert.equal(metadata.brand.captionStylePreset, null);
@@ -161,7 +161,7 @@ test('read: legacy rows drop the old fabricated defaults instead of presenting t
     assert.equal(b.positioning, null);
     assert.equal(b.brandType, null);
     assert.equal(b.tagline, 'Real tagline');
-    assert.deepEqual(b.colors, { primary: null, accent: '#123456', background: null, text: null });
+    assert.deepEqual(b.colors, { primary: null, secondary: null, accent: '#123456', background: null, text: null });
     assert.equal(b.font, null);
     assert.equal(b.captionStylePreset, null);
     assert.equal(b.watermarkEnabled, null);
@@ -182,7 +182,7 @@ test('update: partial PUT changes only given fields, clears with null, keeps oth
     assert.ok(b.completeness.missingRecommended.includes('logoUrl'));
 
     b = await updateProjectBrandConsciousness('p1', 'co-1', { colors: { accent: null }, tagline: null, targetPlatforms: [] }, f.db);
-    assert.deepEqual(b.colors, { primary: '#112233', accent: null, background: null, text: null });
+    assert.deepEqual(b.colors, { primary: '#112233', secondary: null, accent: null, background: null, text: null });
     assert.equal(b.tagline, null);
     assert.deepEqual(b.targetPlatforms, []);
     assert.deepEqual(b.completeness.missingRequired, ['targetPlatforms']);

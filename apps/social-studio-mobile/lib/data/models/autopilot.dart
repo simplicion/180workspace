@@ -244,6 +244,10 @@ class BrandConsciousness {
   const BrandConsciousness({
     this.brandName,
     this.brandType,
+    this.website,
+    this.industry,
+    this.country,
+    this.language,
     this.positioning,
     this.tagline,
     this.description,
@@ -251,15 +255,25 @@ class BrandConsciousness {
     this.ideology,
     this.backgroundColor,
     this.textColor,
+    this.secondaryColor,
     this.targetPlatforms = const [],
     this.watermarkEnabled,
     this.customGuidelines,
+    this.postsPerWeek,
+    this.claimsToAvoid = const [],
+    this.primaryObjective,
+    this.editingAutonomy,
+    this.publishingAutonomy,
     this.percent = 0,
     this.missingRequired = const [],
   });
 
   final String? brandName;
   final String? brandType;
+  final String? website;
+  final String? industry;
+  final String? country;
+  final String? language;
   final String? positioning;
   final String? tagline;
   final String? description;
@@ -267,9 +281,15 @@ class BrandConsciousness {
   final String? ideology;
   final String? backgroundColor;
   final String? textColor;
+  final String? secondaryColor;
   final List<String> targetPlatforms;
   final bool? watermarkEnabled;
   final String? customGuidelines;
+  final int? postsPerWeek;
+  final List<String> claimsToAvoid;
+  final String? primaryObjective;
+  final String? editingAutonomy;
+  final String? publishingAutonomy;
   final int percent;
   final List<String> missingRequired;
 
@@ -296,9 +316,17 @@ class BrandConsciousness {
   factory BrandConsciousness.fromJson(Json j) {
     final colors = jMap(j['colors']);
     final c = jMap(j['completeness']);
+    final freq = jMap(j['postingFrequency']);
+    final restr = jMap(j['restrictions']);
+    final obj = jMap(j['objectives']);
+    final aut = jMap(j['autonomy']);
     return BrandConsciousness(
       brandName: jStr(j['brandName']),
       brandType: jStr(j['brandType']),
+      website: jStr(j['website']),
+      industry: jStr(j['industry']),
+      country: jStr(j['country']),
+      language: jStr(j['language']),
       positioning: jStr(j['positioning']),
       tagline: jStr(j['tagline']),
       description: jStr(j['description']),
@@ -306,9 +334,15 @@ class BrandConsciousness {
       ideology: jStr(j['ideology']),
       backgroundColor: jStr(colors['background']),
       textColor: jStr(colors['text']),
+      secondaryColor: jStr(colors['secondary']),
       targetPlatforms: jStrList(j['targetPlatforms']),
       watermarkEnabled: j['watermarkEnabled'] is bool ? j['watermarkEnabled'] as bool : null,
       customGuidelines: jStr(j['customGuidelines']),
+      postsPerWeek: jInt(freq['perWeek']),
+      claimsToAvoid: jStrList(restr['claimsToAvoid']),
+      primaryObjective: jStr(obj['primary']),
+      editingAutonomy: jStr(aut['editing']),
+      publishingAutonomy: jStr(aut['publishing']),
       percent: jInt(c['percent']) ?? 0,
       missingRequired: jStrList(c['missingRequired']),
     );
@@ -318,14 +352,30 @@ class BrandConsciousness {
   Json toIdentityJson() => {
         'brandName': brandName ?? '',
         'brandType': brandType,
+        if (website != null) 'website': website,
+        if (industry != null) 'industry': industry,
+        if (country != null) 'country': country,
+        if (language != null) 'language': language,
         'positioning': positioning ?? '',
         'tagline': tagline ?? '',
         'description': description ?? '',
         'ideation': ideation ?? '',
         'ideology': ideology ?? '',
-        'colors': {'background': backgroundColor, 'text': textColor},
+        'colors': {
+          'background': backgroundColor,
+          'text': textColor,
+          if (secondaryColor != null) 'secondary': secondaryColor,
+        },
         'targetPlatforms': targetPlatforms,
         'watermarkEnabled': watermarkEnabled,
         'customGuidelines': customGuidelines ?? '',
+        if (postsPerWeek != null) 'postingFrequency': {'perWeek': postsPerWeek},
+        if (claimsToAvoid.isNotEmpty) 'restrictions': {'claimsToAvoid': claimsToAvoid},
+        if (primaryObjective != null) 'objectives': {'primary': primaryObjective},
+        if (editingAutonomy != null || publishingAutonomy != null)
+          'autonomy': {
+            if (editingAutonomy != null) 'editing': editingAutonomy,
+            if (publishingAutonomy != null) 'publishing': publishingAutonomy,
+          },
       };
 }

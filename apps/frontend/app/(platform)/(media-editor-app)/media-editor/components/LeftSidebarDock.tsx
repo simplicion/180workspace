@@ -54,6 +54,9 @@ interface LeftSidebarDockProps {
   } | null;
   onConfirmAutonomousEdit?: (msg: DirectorChatMessage) => void;
   onCancelAutonomousEdit?: (msg: DirectorChatMessage) => void;
+  onCancelDirectorRun?: () => void;
+  onSeekMs?: (ms: number) => void;
+  directorLockCount?: number;
   // Inspector Props
   selectedClip: VideoClip | null;
   selectedClipId: string | null;
@@ -107,6 +110,9 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
   userProfile,
   onConfirmAutonomousEdit,
   onCancelAutonomousEdit,
+  onCancelDirectorRun,
+  onSeekMs,
+  directorLockCount,
   selectedClip,
   selectedClipId,
   currentTimeSeconds = 0,
@@ -426,6 +432,9 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
             onToggleCollapse={onToggleOpen}
             onConfirmAutonomousEdit={onConfirmAutonomousEdit}
             onCancelAutonomousEdit={onCancelAutonomousEdit}
+            onCancelRun={onCancelDirectorRun}
+            onSeekMs={onSeekMs}
+            lockCount={directorLockCount}
           />
         )}
 

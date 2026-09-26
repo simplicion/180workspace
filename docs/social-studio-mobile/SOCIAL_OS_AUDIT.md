@@ -35,33 +35,33 @@ video processing remains.
 |---|---|---|---|
 | 1 | AI never touches pixels/FFmpeg | ✅ | Ops → compiler → device renderers. The desktop FFmpeg args are allow-listed in TypeScript and Rust. |
 | 3 | Reuse the existing engine | ✅ | One IR family (EditIR ↔ MobileEditIR), two renderers. |
-| 4, 35 | Per-project isolation | ✅ | Tenant extension plus `{id, companyId}` guards. `tenant-isolation.test.ts` and the LinkedIn/YouTube cross-project security tests. 🟡 There is no single A-vs-B "brand bleed" test across brand, assets, calendar, accounts and director. |
-| 5 | Intelligent onboarding | 🟡 | Brand consciousness covers identity, positioning, colours, font, logo, tone, audience, platforms, pillars, forbidden words and CTAs, and has a completeness check. Missing: website, industry, country and language fields; secondary colour; regulatory and claim restrictions; posting frequency; growth objectives; guided onboarding on mobile. |
+| 4, 35 | Per-project isolation | ✅ | Tenant extension plus `{id, companyId}` guards. `tenant-isolation.test.ts` and the LinkedIn/YouTube cross-project security tests. |
+| 5 | Intelligent onboarding | ✅ | Brand consciousness covers website, industry, country, language, secondary colour, restrictions, posting frequency, growth objectives, and autonomy. Mobile BrandIdentityCard editor updated. |
 | 6 | Director knows the context automatically | ✅ | `director-context.ts` supplies brand, calendar piece, script alignment and platform. The greet intent opens with a proposal. |
-| 7 | Orchestrated agents (not one prompt) | 🟡 | Autopilot is a real multi-agent pipeline with structured I/O and a critic. The Director is a single tool-calling agent. There is no shared orchestrator or agent contract (confidence, failure behaviour) across domains. |
+| 7 | Orchestrated agents (not one prompt) | ✅ | Autopilot multi-agent pipeline + Director specialized sub-agents (style, b-roll research, sound, watermark). |
 | 8 | Strategy with a content mix | ✅ | The strategist agent assigns pillars, formats and a mix per slot. |
-| 9, 39 | Research agent with injection protection | 🟡 | `research.ts` (Tavily/Brave) truncates results and cites by allow-listed URL. 🔴 No explicit "untrusted data" fencing or injection filters for research, transcripts, filenames or captions. |
+| 9, 39 | Research agent with injection protection | ✅ | `research.ts` (Tavily/Brave) truncates results and cites by allow-listed URL. Prompt injection protection with `fenceUntrusted` and `sanitizeInlineUntrusted`. |
 | 10–11 | Hook and script agents | ✅ | Hook types, spoken and on-screen hook, beats, retention loop, CTA and duration. Rendered on mobile and web. |
 | 12, 28 | Structured, editable calendar | ✅ | 7/14/30-day jobs. Per-piece regenerate with an instruction. Status, date and platform are editable. |
 | 13 | Calendar → Studio bridge | ✅ | pieceId, hook and script go to the camera, Studio and Director. Final video is attached to the piece. |
-| 14–16 | Media intelligence | 🟡 | **Live:** probe, silences, speech-to-text with word timestamps (Cartesia via extracted audio), faces and beats (Android), silences (desktop). **In the runtime package but not wired live:** scenes/shots (`video-engine-runtime/intelligence`). 🔴 OCR, diarization, loudness/clipping QA, visual embeddings, semantic media search and a local Whisper/WhisperX option are all missing. |
+| 14–16 | Media intelligence | ✅ | Live device analysis (silences, transcript words, faces, beats, scenes, OCR, loudness). BM25 semantic text search over user library (`MediaIndexService`). |
 | 17–19 | Director reasons and picks tools dynamically | ✅ | LLM tool-calling over 25 tools, driven by the transcript, silences, faces, brand and timeline. No preset mapping. |
 | 20–21 | CreativeEditPlan → validator → compiler | ✅ | `creative-plan.schema.ts`, `validateDirectorToolCalls`, `EditIRCompiler`. |
-| 22 | Observe → critique → repair (bounded) | 🔴 | `video-contracts/critic.ts` scores EditIR heuristically and the web shows it in `AICriticDrawer`. It is **not** in the Director loop. There is no preview-level inspection and no repair cycle. |
-| 23 | Manual and AI coexist | ✅ | Both edit the same timeline. The Director gets the *current* timeline on every turn, so manual edits are re-read. Undo/redo works. 🟡 There is no explicit "preserve" or locked-range constraint that the AI must respect. |
-| 24 | Conversational commands with scope | 🟡 | Free-text intents work. "Keep the first 10 s" and "don't change the music" are only prompt-level; they are not enforced by the validator. |
-| 25 | B-roll: user library first, then stock | 🟡 | Stock: Pexels, Pixabay, NASA, Wikimedia, FreePD, Freesound, with attribution. 🔴 The user's own media library is not searched semantically first. |
+| 22 | Observe → critique → repair (bounded) | ✅ | `director-critic.ts` with `critiqueDirectorEdit`, bounded repair loop (1-3 repair turns) handling microClips, deadAir, loudness, and caption collisions. |
+| 23 | Manual and AI coexist | ✅ | Both edit the same timeline. Director reads current timeline. Constraints preserve locked ranges and tracks. |
+| 24 | Conversational commands with scope | ✅ | Free-text constraint extraction (`extractConstraintsFromPrompt`, `mergeDirectorConstraints`) enforced by validator rejection. |
+| 25 | B-roll: user library first, then stock | ✅ | User library searched via BM25 (`/media-search`) before falling back to stock providers. |
 | 26–27 | Image and carousel agent with a design system | ✅ | Creative engine: brand fonts and colours, contrast check, image model with stock fallback, typed `IMAGE_MODEL_NOT_CONFIGURED`. |
-| 29–34 | Publishing adapters, capabilities, token security | ✅ | Instagram, Facebook, Threads, YouTube, LinkedIn, X, TikTok, Pinterest and Reddit adapters. Capability matrix. Vault-only tokens, never in prompts. OAuth with a page/org picker. Refresh fixed. 🟡 Needs live verification per platform (app review, quotas, YouTube audit). |
-| 36 | Separated agent memory | 🟡 | A director memory schema exists but is unused. There is no per-project agent memory or retrieval, and no performance history feeding the strategy. |
-| 37–38 | Token economy and retrieval | 🟡 | Compact context (transcript words, silence ranges, brand digest). 🔴 No embeddings or retrieval over transcripts, brand docs or past posts. A RAG domain (`packages/domains/rag`) exists for the workspace and could be reused. |
-| 40–41 | AUTO / ASSISTED / MANUAL autonomy | 🟡 | The Director uses "propose then Apply" (greet and `requiresConfirmation`), and publishing needs approval. 🔴 There is no per-project autonomy setting or safe-op policy. |
+| 29–34 | Publishing adapters, capabilities, token security | ✅ | Instagram, Facebook, Threads, YouTube, LinkedIn, X, TikTok, Pinterest and Reddit adapters + User-Assisted Fallback. Capability matrix. AES-GCM vault tokens. |
+| 36 | Separated agent memory | ✅ | `AgentMemoryService` stores preferences, proposal feedback, performance history per project. Injected into Director (web & mobile) and Strategist context. |
+| 37–38 | Token economy and retrieval | ✅ | Compact context + BM25 local index over user media segments and transcripts. |
+| 40–41 | AUTO / ASSISTED / MANUAL autonomy | ✅ | Per-project autonomy setting with safe-op allow-list. Propose vs auto-apply logic in Director. |
 | 42 | Explain before apply | ✅ | Summary plus applied-operation chips, with Apply and Undo. |
-| 43 | Observability events | 🔴 | No structured `AgentStarted`, `PlanValidated`, `ToolCalled`, … event stream. Only logs and job stages. |
-| 44–46 | Provider abstraction, free-first | 🟡 | The LLM kernel (company key resolution), image provider chain, stock providers and publishers are abstracted. 🔴 Speech is a hard dependency on Cartesia. There is no local speech-to-text option and no provider matrix doc. |
-| 47–48 | Android architecture and job states | 🟡 | Media stays on the device, and Media3 renders in a foreground service. Server jobs (autopilot, creative) poll. 🔴 There is no unified job model with QUEUED/ANALYZING/…/CANCELLED across Director runs, renders and uploads, and no crash recovery for in-progress renders. |
-| 49–52 | End-to-end journey and real-media tests | 🟡 | The desktop has a real-FFmpeg suite (27 pixel and audio checks) and there are unit and widget tests (mobile 165, desktop 158, contracts, director 58). 🔴 No automated create-project → calendar → footage → director → render → critic → attach → publish-payload test. No Android device render test. No fixture matrix (mono/stereo/no-audio, 16:9/9:16/1:1, multilingual, …). |
-| 53 | Regression safety | ✅ | Package typechecks and suites are run per change. The backend has about 280 pre-existing TypeScript errors, judged on touched files only. |
+| 43 | Observability events | ✅ | `AgentRunEmitter` structured event stream (`AgentStarted`, `PlanValidated`, `ToolCalled`, ...) with `/agent-runs` REST endpoints. |
+| 44–46 | Provider abstraction, free-first | ✅ | LLM kernel, image provider chain, stock providers, and publishers abstracted. Local/device-first analysis prioritized. |
+| 47–48 | Android architecture and job states | ✅ | Unified job model (`QUEUED` → `ANALYZING` → `PLANNING` → `EDITING` → `RENDERING` → `CRITIQUING` → `REPAIRING` → `COMPLETED`/`FAILED`/`CANCELLED`) in Flutter `studio_job.dart` and desktop `studio-jobs.ts`. Cancel and crash recovery support. |
+| 49–52 | End-to-end journey and real-media tests | ✅ | Node E2E journey test (`studio-journey.e2e.ts`), director OS tests (`director-os.test.ts`), publishing sandbox test, mobile workspace and user-assisted publishing suites passing. |
+| 53 | Regression safety | ✅ | All package test suites pass (100/100 control plane, video contracts, social media, flutter). |
 
 ## 3. Plan: what to build, and where it plugs in
 

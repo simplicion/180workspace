@@ -13,6 +13,7 @@ import calendarPieceRoutes from './calendar-pieces/calendar-piece.routes';
 import autopilotRoutes from './autopilot/autopilot.routes';
 import creativeRoutes from './creative/creative.routes';
 import engagementRoutes from './engagement/engagement.routes';
+import agentOsRoutes from './projects/agent-os.routes';
 
 const router = Router();
 
@@ -20,6 +21,8 @@ const router = Router();
 router.use('/projects/:id/autopilot', autopilotRoutes);
 // Creative engine (WS3): carousels / static posts, also before the generic project routes.
 router.use('/projects/:id/creative', creativeRoutes);
+// Social OS: run inspector, media index/search, agent memory (/projects/:id/agent-runs, /media-*, /agent-memory).
+router.use('/projects/:id', agentOsRoutes);
 router.use('/projects', socialProjectRoutes);
 router.use('/saved-banks', savedBanksRoutes);
 router.use('/assets', socialAssetsRoutes);

@@ -44,6 +44,9 @@ import {
   DirectorHistoryTurn,
   directorContextFromUrl,
 } from "../services/tauri-bridge";
+import { studioJobs, StudioJob } from "../services/studio-jobs";
+import { buildDirectorConstraints, enforceLocksOnResult, locksFromTimelineKeys, normalizeRanges } from "../services/director-locks";
+import { JobsTray } from "./JobsTray";
 import toast from "react-hot-toast";
 import {
   addEffect,
@@ -133,6 +136,15 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const [exportedPath, setExportedPath] = useState<string | null>(null);
   const [exportedResult, setExportedResult] = useState<ExportResult | null>(null);
   const [attachState, setAttachState] = useState<ExportAttachState | null>(null);
+
+  // Timeline locks: not editable by drag, and sent to the AI Director as constraints (re-checked on every result).
+  const [trackLocks, setTrackLocks] = useState<Record<string, boolean>>({});
+  const [lockedRangesMs, setLockedRangesMs] = useState<Array<[number, number]>>([]);
+  const directorJobRef = useRef<string | null>(null);
+  const exportJobRef = useRef<string | null>(null);
+  useEffect(() => {
+    studioJobs.restore();
+  }, []);
   const [companyAIStatus, setCompanyAIStatus] = useState<CompanyAIStatus | null>(null);
 
   // History stack for Undo/Redo
@@ -479,21 +491,78 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           playheadSec: currentTimeSeconds,
           onProgress: (event: any) => setAiProgress(event),
         };
-        const result = options.offline
-          ? await engineBridge.executeOfflineDirector(project.editIR.directorStyle.preset, prompt, project.editIR, pipelineOptions)
-          : await engineBridge.executeAutonomousPipeline(
-              project.assets[0]?.filePath || "input.mp4",
-              project.editIR.directorStyle.preset,
-              prompt,
-              authSession.companyId,
-              project.editIR,
-              { ...pipelineOptions, context: directorContextFromUrl(), history }
-            );
+        const repairing = !!options.lastExportQa;
+        const { job, signal } = studioJobs.create("director", repairing ? "AI Director: fixing the export" : "AI Director");
+        directorJobRef.current = job.id;
+        studioJobs.transition(job.id, repairing ? "REPAIRING" : "PLANNING");
+        const before = project.editIR;
+        const locks = locksFromTimelineKeys(before, trackLocks);
+        const durationMs = Math.round(RationalTimeMath.toSeconds(before.meta.totalDuration) * 1000);
+        const rangesToKeep = normalizeRanges([...lockedRangesMs, ...(locks.mainLocked ? [[0, durationMs] as [number, number]] : [])], durationMs);
+        let result;
+        try {
+          result = options.offline
+            ? await engineBridge.executeOfflineDirector(before.directorStyle.preset, prompt, before, pipelineOptions)
+            : await engineBridge.executeAutonomousPipeline(project.assets[0]?.filePath || "input.mp4", before.directorStyle.preset, prompt, authSession.companyId, before, {
+                ...pipelineOptions,
+                context: directorContextFromUrl(),
+                history,
+                signal,
+                constraints: buildDirectorConstraints(before, trackLocks, lockedRangesMs),
+                lastExportQa: options.lastExportQa,
+                onStage: (stage) => {
+                  if (!repairing) studioJobs.transition(job.id, stage);
+                },
+              });
+        } catch (err: any) {
+          if (signal.aborted || studioJobs.isCancelled(job.id)) {
+            studioJobs.transition(job.id, "CANCELLED");
+            setAiMessages((prev) => [
+              ...prev,
+              { id: safeUUID(), sender: "director", text: "Stopped. Nothing was changed.", timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+            ]);
+            return;
+          }
+          studioJobs.fail(job.id, String(err?.message || err));
+          throw err;
+        } finally {
+          directorJobRef.current = null;
+        }
+        if (studioJobs.isCancelled(job.id)) return;
+
+        // Defense in depth: the server enforces the locks; re-check the result before it can touch the timeline.
+        const lockCheck = enforceLocksOnResult(before, result.editIR, { tracks: locks.tracks, rangesMs: rangesToKeep });
+        if (lockCheck.blocked) {
+          studioJobs.fail(job.id, "The result would change footage you locked.");
+          setAiMessages((prev) => [
+            ...prev,
+            {
+              id: safeUUID(),
+              sender: "director",
+              text: "I did not apply this edit: it would change footage you locked. Ask for a change outside the locked range, or remove the lock on the timeline ruler.",
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              violations: lockCheck.rangeProblems,
+              retryPrompt: prompt,
+            },
+          ]);
+          return;
+        }
+        result = { ...result, editIR: lockCheck.editIR };
+        const violations = [...(result.violations || []), ...lockCheck.restoredTracks.map((t) => `kept the locked ${t} (the result had changed it)`)];
         const provenance = {
           plannerSource: result.plannerSource,
           plannerReason: result.plannerReason,
           warnings: result.warnings.length ? result.warnings : undefined,
+          autoApplied: result.autoApplied,
+          critique: result.critique,
+          violations: violations.length ? violations : undefined,
         };
+        if (result.requiresConfirmation && !options.preconfirmed) {
+          studioJobs.complete(job.id, "Waiting for your review");
+        } else {
+          studioJobs.transition(job.id, "EDITING");
+          studioJobs.complete(job.id);
+        }
 
         if (result.requiresConfirmation && !options.preconfirmed) {
           const confirmMsg: DirectorChatMessage = {
@@ -572,6 +641,40 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           : m
       )
     );
+  };
+
+  const handleCancelDirectorRun = () => {
+    if (directorJobRef.current) studioJobs.cancel(directorJobRef.current);
+  };
+
+  /** Sends the last export's QA to the director as a repair turn. */
+  const handleAskDirectorFix = () => {
+    const qa = exportedResult?.qa;
+    if (!qa || !qa.issues.length) return;
+    setIsExportModalOpen(false);
+    setLeftSidebarTab("director");
+    setIsLeftPanelOpen(true);
+    const list = qa.issues.map((i) => `- ${i.title}${i.timeRangeMs ? ` (at ${(i.timeRangeMs[0] / 1000).toFixed(1)} s)` : ""}`).join("\n");
+    void handleApplyAiPrompt(`Fix the problems the quality check found in the last export:\n${list}`, { lastExportQa: qa.report });
+  };
+
+  /** Locks the selected item's timeline range for the AI Director. */
+  const handleLockSelectedRange = () => {
+    if (!project || !selectedClipId) return;
+    const t = project.editIR.tracks;
+    const ranges = [
+      ...t.videoTracks.flatMap((v) => v.clips.map((c) => ({ id: c.id, r: c.timelineRange }))),
+      ...t.audioTracks.flatMap((a) => a.clips.map((c) => ({ id: c.id, r: c.timelineRange }))),
+      ...(t.captionTrack ?? []).map((c) => ({ id: c.id, r: c.timeRange })),
+      ...(t.effectTrack ?? []).map((e) => ({ id: e.id, r: e.timeRange })),
+      ...(t.cameraTrack ?? []).map((e) => ({ id: e.id, r: e.timeRange })),
+    ];
+    const hit = ranges.find((x) => x.id === selectedClipId);
+    if (!hit) return;
+    const s0 = Math.round(RationalTimeMath.toSeconds(hit.r.start) * 1000);
+    const e0 = s0 + Math.round(RationalTimeMath.toSeconds(hit.r.duration) * 1000);
+    setLockedRangesMs((prev) => normalizeRanges([...prev, [s0, e0]], Math.round(RationalTimeMath.toSeconds(project.editIR.meta.totalDuration) * 1000)));
+    toast.success(`Locked ${(s0 / 1000).toFixed(1)}–${(e0 / 1000).toFixed(1)} s for the AI Director`);
   };
 
   const handleCancelAutonomousEdit = (message: DirectorChatMessage) => {
@@ -1276,6 +1379,9 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     setExportProgress(0);
     const controller = new AbortController();
     exportAbortRef.current = controller;
+    const { job, signal: jobSignal } = studioJobs.create("export", `Export ${settings.resolution}`, { settings });
+    exportJobRef.current = job.id;
+    jobSignal.addEventListener("abort", () => controller.abort(), { once: true });
 
     try {
       const result = await engineBridge.renderExport(
@@ -1283,9 +1389,18 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         settings,
         (pct) => {
           setExportProgress(pct);
+          studioJobs.update(job.id, { progress: pct });
         },
-        { signal: controller.signal, onNotice: (message) => toast(message, { icon: "ℹ️", duration: 9000 }) }
+        {
+          signal: controller.signal,
+          onNotice: (message) => toast(message, { icon: "ℹ️", duration: 9000 }),
+          onStage: (stage, detail) =>
+            stage === "DOWNLOADING"
+              ? studioJobs.update(job.id, { detail: detail ? `Downloading ${detail}` : "Downloading stock media" })
+              : studioJobs.transition(job.id, stage, { detail: detail ?? "" }),
+        }
       );
+      studioJobs.complete(job.id, result.qa ? `${result.qa.issues.length} issue(s) found by the quality check` : undefined);
       setExportedResult(result);
       setExportedPath(result.savedPath || result.downloadName);
 
@@ -1294,18 +1409,33 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       if (target.calendarPieceId || target.postId) void attachExport(result);
     } catch (err: any) {
       if (err?.name === "RenderCancelledError") {
+        studioJobs.transition(job.id, "CANCELLED");
         toast("Export cancelled.");
       } else {
+        studioJobs.fail(job.id, err?.message || "The export failed.");
         console.error("Export failed:", err);
         setExportFailure({ message: err?.message || "The export failed.", blocked: err?.name === "ExportBlockedError", settings });
       }
     } finally {
       exportAbortRef.current = null;
+      exportJobRef.current = null;
       setIsExporting(false);
     }
   };
 
-  const handleCancelExport = () => exportAbortRef.current?.abort();
+  const handleCancelExport = () => {
+    if (exportJobRef.current) studioJobs.cancel(exportJobRef.current);
+    exportAbortRef.current?.abort();
+  };
+
+  /** An export interrupted by closing the app: run it again with the same settings (FFmpeg cannot continue half-way). */
+  const handleResumeJob = (job: StudioJob) => {
+    const settings = (job.resume as any)?.settings;
+    if (job.kind === "export" && settings && typeof settings.resolution === "string") {
+      setIsExportModalOpen(true);
+      void handlePerformExport(settings);
+    }
+  };
 
   /** Uploads the rendered MP4 (or a file the user picked) to the calendar piece / post it was opened from. */
   const attachExport = async (source: ExportResult | File) => {
@@ -1313,15 +1443,28 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     if (!calendarPieceId && !postId) return;
     const label = calendarPieceId ? "calendar piece" : "post";
     setAttachState({ status: "uploading", progress: 0, label });
+    const { job, signal } = studioJobs.create("attach", `Upload to the ${label}`);
+    studioJobs.transition(job.id, "RENDERING", { detail: "Uploading" });
     try {
       await engineBridge.attachExportToSocial({
         target: { calendarPieceId, postId },
         source,
-        onProgress: (pct) => setAttachState({ status: "uploading", progress: pct, label }),
+        signal,
+        onProgress: (pct) => {
+          setAttachState({ status: "uploading", progress: pct, label });
+          studioJobs.update(job.id, { progress: pct });
+        },
       });
+      studioJobs.complete(job.id);
       setAttachState({ status: "done", progress: 100, label });
       toast.success(`Export attached to the ${label} and sent for review.`);
     } catch (err: any) {
+      if (err?.name === "AbortError") {
+        studioJobs.transition(job.id, "CANCELLED");
+        setAttachState(null);
+        return;
+      }
+      studioJobs.fail(job.id, err?.message || "The upload failed.");
       setAttachState({ status: "error", progress: 0, label, message: err?.message || "The upload failed." });
     }
   };
@@ -1423,6 +1566,9 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           }}
           onConfirmAutonomousEdit={handleConfirmAutonomousEdit}
           onCancelAutonomousEdit={handleCancelAutonomousEdit}
+          onCancelDirectorRun={handleCancelDirectorRun}
+          onSeekMs={(ms) => setCurrentTimeSeconds(ms / 1000)}
+          directorLockCount={Object.values(trackLocks).filter(Boolean).length + lockedRangesMs.length}
           selectedClip={selectedClip}
           selectedClipId={selectedClipId}
           currentTimeSeconds={currentTimeSeconds}
@@ -1615,6 +1761,11 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
               onAspectRatioChange={setAspectRatio}
               onOpenScopes={() => setIsScopesModalOpen(true)}
               onOpenSilenceTrimmer={() => setIsSilenceModalOpen(true)}
+              lockedTracks={trackLocks}
+              onToggleTrackLock={(key) => setTrackLocks((prev) => ({ ...prev, [key]: !prev[key] }))}
+              lockedRangesMs={lockedRangesMs}
+              onLockRange={handleLockSelectedRange}
+              onUnlockRange={(i) => setLockedRangesMs((prev) => prev.filter((_, j) => j !== i))}
               onSelectClip={(clipId) => {
                 setSelectedClipId(clipId);
                 if (clipId) {
@@ -1743,7 +1894,10 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         attachState={attachState}
         onRetryAttach={exportedResult ? () => void attachExport(exportedResult) : undefined}
         onAttachFile={(file) => void attachExport(file)}
+        onAskDirectorFix={handleAskDirectorFix}
+        onSeekMs={(ms) => setCurrentTimeSeconds(ms / 1000)}
       />
+      <JobsTray registry={studioJobs} onResume={handleResumeJob} />
 
       <CaptionStudioModal
         isOpen={isCaptionsModalOpen}

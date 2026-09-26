@@ -187,10 +187,17 @@ export class VideoStudioService {
   /**
    * Mobile AI Director (client-supplied media analysis). Returns MobileEditIR + planner provenance.
    */
-  static async executeMobileAIDirector(request: MobileAIDirectRequest, companyId: string | undefined, context?: DirectorContext) {
+  static async executeMobileAIDirector(
+    request: MobileAIDirectRequest,
+    companyId: string | undefined,
+    context?: DirectorContext,
+    agentOs: { events?: any; memoryContext?: string[] } = {}
+  ) {
     return await (videoAIDirectorService as any).directMobile(request, {
       companyId,
       context,
+      events: agentOs.events,
+      memoryContext: agentOs.memoryContext,
       resolveStockVideo: VideoStudioService.resolveStockVideo,
       resolveStockMusic: VideoStudioService.resolveStockMusic,
       // Freesound when FREESOUND_API_KEY is set, else Openverse sound effects (CC0 / CC BY only).

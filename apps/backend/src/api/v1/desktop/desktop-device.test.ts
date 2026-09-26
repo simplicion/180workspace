@@ -12,7 +12,7 @@ import type { AddressInfo } from 'net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import desktopRoutes from './desktop.routes';
-import { DEVICE_HEADER, NATIVE_DEVICE_HEADER, MAX_DEVICES_PER_USER, requireDesktopDevice, requireNativeDevice, verifyDeviceToken } from './desktop-device';
+import { DEVICE_HEADER, NATIVE_DEVICE_HEADER, MAX_DEVICES_PER_USER, __setDeviceLastSeenForTest, pickEvictionCandidate, requireDesktopDevice, requireNativeDevice, verifyDeviceToken } from './desktop-device';
 
 let server: http.Server;
 let base = '';
@@ -274,4 +274,63 @@ test('push tokens: owner can set and clear; token never echoed; other users cann
   const cleared = await call('PUT', path, { user: u, body: { token: null } });
   assert.equal(cleared.status, 200);
   assert.equal(cleared.json.device.push, null);
+});
+
+// ── LRU eviction at the device limit ─────────────────────────────────────────────────────────────────────────
+
+test('at the limit the least-recently-seen idle device is evicted (and reported); the requester and recent devices never are', async () => {
+  const u = freshUser();
+  const ids: string[] = [];
+  const tokens: string[] = [];
+  for (let i = 0; i < MAX_DEVICES_PER_USER; i++) {
+    const r = await register(u, `d${i}`);
+    ids.push(r.json.deviceId);
+    tokens.push(r.json.token);
+  }
+  const hour = 60 * 60_000;
+  const now = Date.now();
+  // d0 is the requester but the oldest; d1 is the next-oldest idle device; all others were seen just now.
+  await __setDeviceLastSeenForTest('co-1', u, ids[0], now - 10 * hour);
+  await __setDeviceLastSeenForTest('co-1', u, ids[1], now - 5 * hour);
+  await __setDeviceLastSeenForTest('co-1', u, ids[2], now - 2 * hour);
+
+  const res = await call('POST', '/api/desktop/devices/register', { user: u, token: tokens[0], body: { label: 'New phone', platform: 'android' } });
+  assert.equal(res.status, 201);
+  assert.equal(res.json.evicted.deviceId, ids[1], 'LRU idle device (excluding the requester) is evicted');
+  assert.equal(res.json.evicted.label, 'd1');
+
+  const list = await call('GET', '/api/desktop/devices', { user: u, token: tokens[0] });
+  const listed = list.json.devices.map((d: any) => d.deviceId);
+  assert.equal(listed.length, MAX_DEVICES_PER_USER);
+  assert.ok(!listed.includes(ids[1]));
+  assert.ok(listed.includes(ids[0]), 'the requesting device survives');
+  assert.deepEqual(list.json.devices.filter((d: any) => d.current).map((d: any) => d.deviceId), [ids[0]], 'current device is flagged');
+  assert.equal((await render(u, tokens[1])).status, 403, 'the evicted device token stops working');
+});
+
+test('eviction honours DESKTOP_DEVICE_EVICTION_MIN_IDLE_MINUTES; with no idle device the limit still answers 409', async () => {
+  const u = freshUser();
+  const ids: string[] = [];
+  for (let i = 0; i < MAX_DEVICES_PER_USER; i++) ids.push((await register(u, `d${i}`)).json.deviceId);
+  await __setDeviceLastSeenForTest('co-1', u, ids[5], Date.now() - 20 * 60_000); // idle 20 min
+
+  process.env.DESKTOP_DEVICE_EVICTION_MIN_IDLE_MINUTES = '30';
+  const blocked = await register(u, 'extra');
+  assert.equal(blocked.status, 409, '20 minutes idle is not enough with a 30 minute window');
+  assert.match(blocked.json.message, /Active devices/);
+
+  process.env.DESKTOP_DEVICE_EVICTION_MIN_IDLE_MINUTES = '15';
+  const ok = await register(u, 'extra');
+  assert.equal(ok.status, 201);
+  assert.equal(ok.json.evicted.deviceId, ids[5]);
+  delete process.env.DESKTOP_DEVICE_EVICTION_MIN_IDLE_MINUTES;
+});
+
+test('pickEvictionCandidate: pure LRU choice with protection and idle window', () => {
+  const now = 1_000_000_000;
+  const d = (id: string, ageMin: number) => ({ deviceId: id, label: id, createdAt: 0, lastSeenAt: now - ageMin * 60_000 });
+  const devices = [d('a', 90), d('b', 300), d('c', 5), d('me', 999)];
+  assert.equal(pickEvictionCandidate(devices, { now, minIdleMs: 30 * 60_000, protectDeviceIds: ['me'] })?.deviceId, 'b');
+  assert.equal(pickEvictionCandidate(devices, { now, minIdleMs: 400 * 60_000, protectDeviceIds: ['me'] }), null);
+  assert.equal(pickEvictionCandidate(devices, { now, minIdleMs: 0, protectDeviceIds: [undefined] })?.deviceId, 'me');
 });

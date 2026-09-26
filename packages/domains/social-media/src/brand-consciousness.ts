@@ -45,10 +45,39 @@ export const BRAND_FONTS = [
 export type BrandFont = (typeof BRAND_FONTS)[number];
 
 export const HEX_COLOR = /^#[0-9A-F]{6}$/;
-export const BRAND_COLOR_KEYS = ['primary', 'accent', 'background', 'text'] as const;
+export const BRAND_COLOR_KEYS = ['primary', 'secondary', 'accent', 'background', 'text'] as const;
+/** Colours a renderer always needs (neutral defaults exist for these; `secondary` never gets an invented default). */
+export const RENDER_COLOR_KEYS = ['primary', 'accent', 'background', 'text'] as const;
+
+export interface BrandRestrictions {
+    forbiddenTopics: string[];
+    claimsToAvoid: string[];
+    regulatoryNotes: string | null;
+}
+
+export interface BrandPostingFrequency {
+    perWeek: number | null;
+    /** Posts per week per platform (canonical platform names). */
+    platforms?: Record<string, number>;
+}
+
+export interface BrandObjectives {
+    primary: string | null;
+    secondary: string | null;
+}
+
+export const EDITING_AUTONOMY = ['AUTO', 'ASSISTED', 'MANUAL'] as const;
+export const PUBLISHING_AUTONOMY = ['ASSISTED', 'MANUAL'] as const;
+export interface BrandAutonomy {
+    editing: (typeof EDITING_AUTONOMY)[number];
+    publishing: (typeof PUBLISHING_AUTONOMY)[number];
+}
+/** Policy defaults (not brand data): the AI proposes edits and a person publishes. */
+export const DEFAULT_BRAND_AUTONOMY: Readonly<BrandAutonomy> = Object.freeze({ editing: 'ASSISTED', publishing: 'MANUAL' });
 
 export interface BrandColors {
     primary: string | null;
+    secondary: string | null;
     accent: string | null;
     background: string | null;
     text: string | null;
@@ -69,6 +98,13 @@ export interface BrandConsciousness {
     projectName: string | null;
     brandName: string | null;
     brandType: BrandType | null;
+    /** http(s) URL of the brand's website. */
+    website: string | null;
+    industry: string | null;
+    /** ISO-3166 alpha-2 (upper case). */
+    country: string | null;
+    /** BCP-47 language tag (canonical case, e.g. en-US). */
+    language: string | null;
     positioning: string | null;
     tagline: string | null;
     description: string | null;
@@ -88,6 +124,11 @@ export interface BrandConsciousness {
     captionStylePreset: CaptionStylePreset | null;
     watermarkEnabled: boolean | null;
     customGuidelines: string | null;
+    restrictions: BrandRestrictions;
+    postingFrequency: BrandPostingFrequency;
+    objectives: BrandObjectives;
+    /** Always present: the stored choice or the policy default (editing ASSISTED, publishing MANUAL). */
+    autonomy: BrandAutonomy;
     updatedAt: string | null;
     completeness: BrandCompleteness;
 }
@@ -185,18 +226,84 @@ const logoUrl = z
 const enumOrEmpty = <T extends readonly [string, ...string[]]>(values: T) =>
     z.union([z.literal('').transform(() => null), z.enum(values)]).nullable().optional();
 
+const httpUrl = (field: string) =>
+    z
+        .string()
+        .trim()
+        .max(2048)
+        .transform((s) => (s === '' ? null : s))
+        .refine((s) => {
+            if (s === null) return true;
+            if (/\s/.test(s)) return false;
+            try {
+                const u = new URL(s);
+                return (u.protocol === 'http:' || u.protocol === 'https:') && !!u.hostname;
+            } catch {
+                return false;
+            }
+        }, `${field} must be an http(s) URL`)
+        .nullable()
+        .optional();
+
+const countryCode = z
+    .string()
+    .trim()
+    .transform((s) => s.toUpperCase())
+    .refine((s) => s === '' || /^[A-Z]{2}$/.test(s), 'country must be an ISO-3166 alpha-2 code like US or IN')
+    .transform((s) => (s === '' ? null : s))
+    .nullable()
+    .optional();
+
+/** BCP-47 tag canonicalised by Intl (en-us -> en-US), or null when it is not a valid tag. */
+export function canonicalLanguageTag(tag: string): string | null {
+    const t = String(tag || '').trim();
+    if (!/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8})*$/.test(t)) return null;
+    try {
+        return Intl.getCanonicalLocales(t)[0] || null;
+    } catch {
+        return null;
+    }
+}
+
+const languageTag = z
+    .string()
+    .trim()
+    .refine((s) => s === '' || canonicalLanguageTag(s) !== null, 'language must be a BCP-47 tag like en, en-US or hi-IN')
+    .transform((s) => (s === '' ? null : canonicalLanguageTag(s)))
+    .nullable()
+    .optional();
+
+const perWeek = z.number().min(0, 'must be 0 or more').max(100, 'must be at most 100 posts a week');
+
+const platformFrequency = z.record(z.string(), perWeek).transform((rec, ctx) => {
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(rec)) {
+        const key = PLATFORM_ALIASES[k.trim().toLowerCase()] || k.trim().toLowerCase();
+        if (!(BRAND_PLATFORMS as readonly string[]).includes(key)) {
+            ctx.addIssue({ code: 'custom', message: `platform must be one of ${BRAND_PLATFORMS.join(', ')}`, path: [k] });
+            continue;
+        }
+        out[key] = v;
+    }
+    return out;
+});
+
 /** Partial update. Absent = unchanged; `null`/`""`/`[]` = clear. */
 export const brandPatchSchema = z
     .object({
         brandName: optText(120),
         brandType: enumOrEmpty(BRAND_TYPES),
+        website: httpUrl('website'),
+        industry: optText(120),
+        country: countryCode,
+        language: languageTag,
         positioning: optText(500),
         tagline: optText(160),
         description: optText(2000),
         ideation: optText(2000),
         ideology: optText(2000),
         colors: z
-            .object({ primary: hexColor, accent: hexColor, background: hexColor, text: hexColor })
+            .object({ primary: hexColor, secondary: hexColor, accent: hexColor, background: hexColor, text: hexColor })
             .strict()
             .nullable()
             .optional(),
@@ -213,6 +320,22 @@ export const brandPatchSchema = z
         captionStylePreset: enumOrEmpty(CAPTION_STYLE_PRESETS),
         watermarkEnabled: z.boolean().nullable().optional(),
         customGuidelines: optText(4000),
+        restrictions: z
+            .object({ forbiddenTopics: textList(50, 120), claimsToAvoid: textList(50, 200), regulatoryNotes: optText(2000) })
+            .strict()
+            .nullable()
+            .optional(),
+        postingFrequency: z
+            .object({ perWeek: perWeek.nullable().optional(), platforms: platformFrequency.nullable().optional() })
+            .strict()
+            .nullable()
+            .optional(),
+        objectives: z.object({ primary: optText(300), secondary: optText(300) }).strict().nullable().optional(),
+        autonomy: z
+            .object({ editing: z.enum(EDITING_AUTONOMY).optional(), publishing: z.enum(PUBLISHING_AUTONOMY).optional() })
+            .strict()
+            .nullable()
+            .optional(),
     })
     .strict();
 
@@ -362,13 +485,46 @@ function normalizePlatforms(v: unknown): BrandPlatform[] {
 
 export const REQUIRED_BRAND_FIELDS = ['brandType', 'positioning', 'description', 'tone', 'audience', 'colors.primary', 'targetPlatforms'] as const;
 export const RECOMMENDED_BRAND_FIELDS = [
-    'brandName', 'tagline', 'ideology', 'colors.accent', 'colors.background', 'colors.text', 'logoUrl', 'font', 'ctas',
-    'hashtags', 'contentPillars', 'captionStylePreset',
+    'brandName', 'tagline', 'ideology', 'colors.secondary', 'colors.accent', 'colors.background', 'colors.text', 'logoUrl', 'font', 'ctas',
+    'hashtags', 'contentPillars', 'captionStylePreset', 'website', 'industry', 'country', 'language', 'objectives.primary',
+    'postingFrequency.perWeek',
 ] as const;
 
 function isFilled(b: Omit<BrandConsciousness, 'completeness'>, path: string): boolean {
-    const v = path.startsWith('colors.') ? (b.colors as any)[path.slice(7)] : (b as any)[path];
+    const v = path.split('.').reduce<any>((o, k) => (o == null ? undefined : o[k]), b);
     return Array.isArray(v) ? v.length > 0 : v !== null && v !== undefined;
+}
+
+function readPlatformFrequency(v: unknown): Record<string, number> | undefined {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+    const out: Record<string, number> = {};
+    for (const [k, n] of Object.entries(v as Record<string, unknown>)) {
+        if ((BRAND_PLATFORMS as readonly string[]).includes(k) && typeof n === 'number' && Number.isFinite(n) && n >= 0) out[k] = n;
+    }
+    return Object.keys(out).length ? out : undefined;
+}
+
+function readAutonomy(v: any): BrandAutonomy {
+    return {
+        editing: oneOf(EDITING_AUTONOMY, v?.editing) ?? DEFAULT_BRAND_AUTONOMY.editing,
+        publishing: oneOf(PUBLISHING_AUTONOMY, v?.publishing) ?? DEFAULT_BRAND_AUTONOMY.publishing,
+    };
+}
+
+/** Reads the stored v2 objects (and tolerates the short-lived list/string shapes by ignoring them). */
+function readRestrictions(v: any): BrandRestrictions {
+    const o = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+    return { forbiddenTopics: strList(o.forbiddenTopics), claimsToAvoid: strList(o.claimsToAvoid), regulatoryNotes: str(o.regulatoryNotes) };
+}
+function readPostingFrequency(v: any): BrandPostingFrequency {
+    const o = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+    const n = typeof o.perWeek === 'number' && Number.isFinite(o.perWeek) && o.perWeek >= 0 ? o.perWeek : null;
+    const platforms = readPlatformFrequency(o.platforms);
+    return platforms ? { perWeek: n, platforms } : { perWeek: n };
+}
+function readObjectives(v: any): BrandObjectives {
+    const o = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+    return { primary: str(o.primary), secondary: str(o.secondary) };
 }
 
 export function computeBrandCompleteness(b: Omit<BrandConsciousness, 'completeness'>): BrandCompleteness {
@@ -396,6 +552,10 @@ export function readBrandConsciousness(project: { id: string; name?: string | nu
         projectName: str(project.name),
         brandName: str(brand.brandName),
         brandType: oneOf(BRAND_TYPES, brand.brandType),
+        website: str(brand.website),
+        industry: str(brand.industry),
+        country: typeof brand.country === 'string' && /^[A-Z]{2}$/.test(brand.country) ? brand.country : null,
+        language: typeof brand.language === 'string' ? canonicalLanguageTag(brand.language) : null,
         positioning: str(brand.positioning),
         tagline: str(brand.tagline),
         description: str(brand.description),
@@ -403,6 +563,7 @@ export function readBrandConsciousness(project: { id: string; name?: string | nu
         ideology: str(brand.ideology),
         colors: {
             primary: hexOrNull(brand.colors?.primary),
+            secondary: hexOrNull(brand.colors?.secondary),
             accent: hexOrNull(brand.colors?.accent),
             background: hexOrNull(brand.colors?.background),
             text: hexOrNull(brand.colors?.text),
@@ -420,6 +581,10 @@ export function readBrandConsciousness(project: { id: string; name?: string | nu
         captionStylePreset: oneOf(CAPTION_STYLE_PRESETS, brand.captionStylePreset),
         watermarkEnabled: typeof brand.watermarkEnabled === 'boolean' ? brand.watermarkEnabled : null,
         customGuidelines: str(brand.customGuidelines),
+        restrictions: readRestrictions(brand.restrictions),
+        postingFrequency: readPostingFrequency(brand.postingFrequency),
+        objectives: readObjectives(brand.objectives),
+        autonomy: readAutonomy(brand.autonomy),
         updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
     };
     return { ...base, completeness: computeBrandCompleteness(base) };
@@ -448,10 +613,60 @@ export function mergeBrandPatch(
         else for (const k of BRAND_COLOR_KEYS) if (patch.colors && patch.colors[k] !== undefined) colors[k] = patch.colors[k] ?? null;
     }
 
+    // Nested objects merge per key like `colors`; `null` clears the whole object.
+    const restrictions: BrandRestrictions = { ...current.restrictions };
+    if (has('restrictions')) {
+        const r = patch.restrictions;
+        if (r === null) Object.assign(restrictions, { forbiddenTopics: [], claimsToAvoid: [], regulatoryNotes: null });
+        else if (r) {
+            if (r.forbiddenTopics !== undefined) restrictions.forbiddenTopics = r.forbiddenTopics ?? [];
+            if (r.claimsToAvoid !== undefined) restrictions.claimsToAvoid = r.claimsToAvoid ?? [];
+            if (r.regulatoryNotes !== undefined) restrictions.regulatoryNotes = r.regulatoryNotes ?? null;
+        }
+    }
+    const postingFrequency: BrandPostingFrequency = { ...current.postingFrequency };
+    if (has('postingFrequency')) {
+        const f = patch.postingFrequency;
+        if (f === null) {
+            postingFrequency.perWeek = null;
+            delete postingFrequency.platforms;
+        } else if (f) {
+            if (f.perWeek !== undefined) postingFrequency.perWeek = f.perWeek ?? null;
+            if (f.platforms !== undefined) {
+                if (f.platforms && Object.keys(f.platforms).length) postingFrequency.platforms = f.platforms;
+                else delete postingFrequency.platforms;
+            }
+        }
+    }
+    const objectives: BrandObjectives = { ...current.objectives };
+    if (has('objectives')) {
+        const o = patch.objectives;
+        if (o === null) Object.assign(objectives, { primary: null, secondary: null });
+        else if (o) {
+            if (o.primary !== undefined) objectives.primary = o.primary ?? null;
+            if (o.secondary !== undefined) objectives.secondary = o.secondary ?? null;
+        }
+    }
+    // Autonomy is stored only once the user chooses it; `null` goes back to the policy default.
+    const prevAutonomy = row ? (storedBrand(row) as any).autonomy : undefined;
+    let autonomy: Partial<BrandAutonomy> | null = prevAutonomy && typeof prevAutonomy === 'object' ? { ...prevAutonomy } : null;
+    if (has('autonomy')) {
+        if (patch.autonomy === null) autonomy = null;
+        else if (patch.autonomy) {
+            autonomy = { ...(autonomy || {}) };
+            if (patch.autonomy.editing) autonomy.editing = patch.autonomy.editing;
+            if (patch.autonomy.publishing) autonomy.publishing = patch.autonomy.publishing;
+        }
+    }
+
     const brand = {
         v: 2,
         brandName: pick('brandName', current.brandName),
         brandType: pick('brandType', current.brandType),
+        website: pick('website', current.website),
+        industry: pick('industry', current.industry),
+        country: pick('country', current.country),
+        language: pick('language', current.language),
         positioning: pick('positioning', current.positioning),
         tagline: pick('tagline', current.tagline),
         description: pick('description', current.description),
@@ -464,6 +679,10 @@ export function mergeBrandPatch(
         captionStylePreset: pick('captionStylePreset', current.captionStylePreset),
         watermarkEnabled: pick('watermarkEnabled', current.watermarkEnabled),
         customGuidelines: pick('customGuidelines', current.customGuidelines),
+        restrictions,
+        postingFrequency,
+        objectives,
+        ...(autonomy ? { autonomy } : {}),
         updatedAt: new Date().toISOString(),
     };
 
@@ -505,6 +724,9 @@ export function toBrandPromptContext(b: BrandConsciousness, opts: PromptContextO
     const add = (label: string, v: string | null | undefined) => { if (v) lines.push(`${label}: ${clip(v, maxFieldChars)}`); };
     const name = b.brandName || b.projectName;
     add('Brand', name ? (b.brandType ? `${name} (${b.brandType})` : name) : b.brandType ? `(${b.brandType})` : null);
+    add('Website', b.website);
+    add('Industry', b.industry);
+    add('Market', [b.country ? `country ${b.country}` : '', b.language ? `language ${b.language}` : ''].filter(Boolean).join(', ') || null);
     add('Positioning', b.positioning);
     add('Tagline', b.tagline ? `"${b.tagline}"` : null);
     add('Description', b.description);
@@ -512,6 +734,14 @@ export function toBrandPromptContext(b: BrandConsciousness, opts: PromptContextO
     add('Ideology / values', b.ideology);
     add('Audience', b.audience);
     add('Tone', b.tone);
+    if (b.restrictions.forbiddenTopics.length) add('Never cover these topics', b.restrictions.forbiddenTopics.join('; '));
+    if (b.restrictions.claimsToAvoid.length) add('Never make these claims', b.restrictions.claimsToAvoid.join('; '));
+    add('Regulatory notes (must follow)', b.restrictions.regulatoryNotes);
+    if (b.postingFrequency.perWeek != null || b.postingFrequency.platforms) {
+        const per = b.postingFrequency.platforms ? Object.entries(b.postingFrequency.platforms).map(([p, n]) => `${p} ${n}/week`).join(', ') : '';
+        add('Posting frequency', [b.postingFrequency.perWeek != null ? `${b.postingFrequency.perWeek} posts/week` : '', per].filter(Boolean).join('; '));
+    }
+    add('Growth objectives', [b.objectives.primary ? `primary: ${b.objectives.primary}` : '', b.objectives.secondary ? `secondary: ${b.objectives.secondary}` : ''].filter(Boolean).join('; ') || null);
     if (b.targetPlatforms.length) add('Target platforms', b.targetPlatforms.join(', '));
     if (b.contentPillars.length) add('Content pillars', b.contentPillars.join('; '));
     if (b.ctas.length) add('Preferred CTAs', b.ctas.map((c) => `"${c}"`).join('; '));
@@ -543,8 +773,8 @@ export const BRAND_RENDER_DEFAULTS = {
 /** Fills visual gaps with neutral defaults for a renderer, and says which ones were filled. */
 export function resolveBrandRendering(b: BrandConsciousness) {
     const usedDefaults: string[] = [];
-    const colors = {} as Record<(typeof BRAND_COLOR_KEYS)[number], string>;
-    for (const k of BRAND_COLOR_KEYS) {
+    const colors = {} as Record<(typeof RENDER_COLOR_KEYS)[number], string>;
+    for (const k of RENDER_COLOR_KEYS) {
         colors[k] = b.colors[k] ?? BRAND_RENDER_DEFAULTS.colors[k];
         if (!b.colors[k]) usedDefaults.push(`colors.${k}`);
     }
@@ -553,6 +783,8 @@ export function resolveBrandRendering(b: BrandConsciousness) {
     if (b.watermarkEnabled === null) usedDefaults.push('watermarkEnabled');
     return {
         colors,
+        /** The brand's own secondary colour, or null (no default is invented for it). */
+        secondaryColor: b.colors.secondary ?? null,
         font: b.font ?? BRAND_RENDER_DEFAULTS.font,
         captionStylePreset: b.captionStylePreset ?? BRAND_RENDER_DEFAULTS.captionStylePreset,
         watermarkEnabled: b.watermarkEnabled ?? BRAND_RENDER_DEFAULTS.watermarkEnabled,

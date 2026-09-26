@@ -3,17 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
-import '../../core/services/clipboard_assist_service.dart';
-import '../../core/services/user_assisted_publishers.dart';
+import '../../core/services/centralized_manual_publisher.dart';
+import '../../core/services/platform_capability_registry.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/platform.dart';
 import '../../data/models/user_assisted_publish_package.dart';
 
 /// Modal bottom sheet allowing users to review prepared copy & media and launch
-/// native/web publishing flows for X and Reddit.
-class FinishPublishingSheet extends ConsumerStatefulWidget {
-  const FinishPublishingSheet({
+/// native/web publishing flows for all 9 platforms.
+class CentralizedManualPublishSheet extends ConsumerStatefulWidget {
+  const CentralizedManualPublishSheet({
     super.key,
     required this.package,
     this.onStatusUpdated,
@@ -25,27 +25,18 @@ class FinishPublishingSheet extends ConsumerStatefulWidget {
   final Set<SocialPlatform>? targetPlatforms;
 
   @override
-  ConsumerState<FinishPublishingSheet> createState() => _FinishPublishingSheetState();
+  ConsumerState<CentralizedManualPublishSheet> createState() => _CentralizedManualPublishSheetState();
 }
 
-class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> with WidgetsBindingObserver {
-  late final TextEditingController _xCaptionController;
-  late final TextEditingController _redditTitleController;
-  late final TextEditingController _redditBodyController;
-  late final TextEditingController _redditSubredditController;
+class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManualPublishSheet> with WidgetsBindingObserver {
+  late final Map<SocialPlatform, UniversalPlatformPayload> _payloads = {};
+  late final Map<SocialPlatform, TextEditingController> _controllers = {};
+  late final Map<SocialPlatform, TextEditingController> _titleControllers = {};
+  late final Map<SocialPlatform, TextEditingController> _metaControllers = {};
 
-  bool _showX = true;
-  bool _showReddit = true;
+  final Map<SocialPlatform, String> _statuses = {};
   String? _pendingPlatformHandoff;
   bool _isPublishing = false;
-
-  static const List<String> _suggestedSubreddits = [
-    'technology',
-    'socialmedia',
-    'startups',
-    'growth',
-    'marketing',
-  ];
 
   @override
   void initState() {
@@ -53,37 +44,70 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
     WidgetsBinding.instance.addObserver(this);
 
     final p = widget.package;
-    final targets = widget.targetPlatforms;
+    final targets = widget.targetPlatforms ?? _getAvailablePlatforms(p);
 
-    if (targets != null && targets.isNotEmpty) {
-      _showX = targets.contains(SocialPlatform.x);
-      _showReddit = targets.contains(SocialPlatform.reddit);
-    } else {
-      _showX = p.xPayload != null || p.caption != null;
-      _showReddit = p.redditPayload != null || p.title != null;
+    for (final platform in targets) {
+      UniversalPlatformPayload? payload = p.platformPayloads[platform];
+
+      // Backwards compatibility for X & Reddit
+      if (payload == null && platform == SocialPlatform.x && p.xPayload != null) {
+        payload = UniversalPlatformPayload(
+          platform: SocialPlatform.x,
+          caption: p.xPayload!.text,
+          mediaPath: p.xPayload!.mediaPath,
+          mimeType: p.xPayload!.mimeType,
+        );
+      } else if (payload == null && platform == SocialPlatform.reddit && p.redditPayload != null) {
+        payload = UniversalPlatformPayload(
+          platform: SocialPlatform.reddit,
+          caption: p.redditPayload!.body ?? '',
+          title: p.redditPayload!.title,
+          subreddit: p.redditPayload!.subreddit,
+          mediaPath: p.redditPayload!.mediaPath,
+          mimeType: p.redditPayload!.mimeType,
+        );
+      }
+      payload ??= UniversalPlatformPayload(
+        platform: platform,
+        caption: p.caption ?? '',
+        title: p.title,
+        mediaPath: p.mediaPath,
+        mimeType: p.mimeType,
+      );
+
+      _payloads[platform] = payload;
+      _controllers[platform] = TextEditingController(text: payload.caption);
+      if (PlatformCapabilityRegistry.getCapabilities(platform).requiresTitle) {
+        _titleControllers[platform] = TextEditingController(text: payload.title ?? '');
+      }
+      if (platform == SocialPlatform.reddit) {
+        _metaControllers[platform] = TextEditingController(text: payload.subreddit ?? 'socialmedia');
+      }
+      _statuses[platform] = 'ready';
     }
+  }
 
-    _xCaptionController = TextEditingController(
-      text: p.xPayload?.text ?? p.caption ?? '',
-    );
-    _redditTitleController = TextEditingController(
-      text: p.redditPayload?.title ?? p.title ?? p.caption ?? '',
-    );
-    _redditBodyController = TextEditingController(
-      text: p.redditPayload?.body ?? p.caption ?? '',
-    );
-    _redditSubredditController = TextEditingController(
-      text: p.redditPayload?.normalizedSubreddit ?? 'socialmedia',
-    );
+  Set<SocialPlatform> _getAvailablePlatforms(UserAssistedPublishPackage p) {
+    final s = <SocialPlatform>{};
+    if (p.xPayload != null) s.add(SocialPlatform.x);
+    if (p.redditPayload != null) s.add(SocialPlatform.reddit);
+    s.addAll(p.platformPayloads.keys);
+    if (s.isEmpty) s.add(SocialPlatform.x); // fallback
+    return s;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _xCaptionController.dispose();
-    _redditTitleController.dispose();
-    _redditBodyController.dispose();
-    _redditSubredditController.dispose();
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    for (final c in _titleControllers.values) {
+      c.dispose();
+    }
+    for (final c in _metaControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -98,6 +122,12 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
 
   Future<void> _updateStatus(String platform, String status, {String? externalUrl}) async {
     widget.onStatusUpdated?.call(platform, status);
+    setState(() {
+      final plat = SocialPlatform.parse(platform);
+      if (plat != SocialPlatform.unknown) {
+        _statuses[plat] = status;
+      }
+    });
     try {
       await ref.read(socialApiProvider).updateAssistedPublishStatus(
             widget.package.id,
@@ -105,7 +135,8 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
             status: status,
             externalUrl: externalUrl,
             platformMeta: {
-              if (platform == 'reddit') 'subreddit': _redditSubredditController.text.trim(),
+              if (platform == 'reddit' && _metaControllers[SocialPlatform.reddit] != null)
+                'subreddit': _metaControllers[SocialPlatform.reddit]!.text.trim(),
             },
           );
     } catch (_) {
@@ -127,74 +158,40 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
     );
   }
 
-  Future<void> _postOnX({bool preferWeb = false}) async {
-    final text = _xCaptionController.text.trim();
-    if (text.isEmpty) {
-      showError(context, 'Post caption cannot be empty.');
+  Future<void> _postOnPlatform(SocialPlatform platform, {bool preferWeb = false}) async {
+    final cap = PlatformCapabilityRegistry.getCapabilities(platform);
+    final text = _controllers[platform]?.text.trim() ?? '';
+    final title = _titleControllers[platform]?.text.trim();
+    final subreddit = _metaControllers[platform]?.text.trim();
+
+    if (cap.requiresTitle && (title == null || title.isEmpty)) {
+      showError(context, 'Post title is required for ${platform.label}.');
       return;
     }
 
-    final payload = XPublishPayload(
-      text: text,
-      mediaPath: widget.package.mediaPath,
-      mimeType: widget.package.mimeType,
-      sourceContentId: widget.package.id,
-      projectId: widget.package.projectId,
-    );
-
-    setState(() {
-      _isPublishing = true;
-      _pendingPlatformHandoff = 'x';
-    });
-
-    final result = await XUserAssistedPublisher.publish(
-      context: context,
-      payload: payload,
-      preferWeb: preferWeb,
-    );
-
-    if (mounted) {
-      setState(() => _isPublishing = false);
-      if (result.success) {
-        await _updateStatus('x', 'handed_off');
-        if (!mounted) return;
-        showInfo(
-          context,
-          preferWeb
-              ? 'Opening X in browser… Caption copied!'
-              : 'Opening X… Video attached & caption copied!',
-          color: AppTheme.success,
-        );
-      } else {
-        showError(context, result.message);
-      }
-    }
-  }
-
-  Future<void> _postOnReddit({bool preferWeb = false}) async {
-    final title = _redditTitleController.text.trim();
-    if (title.isEmpty) {
-      showError(context, 'Post title is required for Reddit.');
+    if (!cap.requiresTitle && text.isEmpty) {
+      showError(context, 'Post caption cannot be empty for ${platform.label}.');
       return;
     }
 
-    final sub = _redditSubredditController.text.trim().replaceFirst(RegExp(r'^/?r/'), '');
-    final payload = RedditPublishPayload(
-      subreddit: sub,
+    final origPayload = _payloads[platform]!;
+    final payload = UniversalPlatformPayload(
+      platform: platform,
+      caption: text,
       title: title,
-      body: _redditBodyController.text.trim(),
-      mediaPath: widget.package.mediaPath,
-      mimeType: widget.package.mimeType,
+      mediaPath: origPayload.mediaPath,
+      mimeType: origPayload.mimeType,
+      subreddit: platform == SocialPlatform.reddit ? subreddit : null,
       sourceContentId: widget.package.id,
       projectId: widget.package.projectId,
     );
 
     setState(() {
       _isPublishing = true;
-      _pendingPlatformHandoff = 'reddit';
+      _pendingPlatformHandoff = platform.id;
     });
 
-    final result = await RedditUserAssistedPublisher.publish(
+    final result = await CentralizedManualPublisher.publish(
       context: context,
       payload: payload,
       preferWeb: preferWeb,
@@ -203,13 +200,13 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
     if (mounted) {
       setState(() => _isPublishing = false);
       if (result.success) {
-        await _updateStatus('reddit', 'handed_off');
+        await _updateStatus(platform.id, 'handed_off');
         if (!mounted) return;
         showInfo(
           context,
           preferWeb
-              ? 'Opening Reddit in browser… Title & body copied!'
-              : 'Opening Reddit… Video attached & title copied!',
+              ? 'Opening ${platform.label} in browser…'
+              : 'Opening ${platform.label}… Media & text handed off!',
           color: AppTheme.success,
         );
       } else {
@@ -223,7 +220,7 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
     final mediaExists = widget.package.mediaPath != null &&
         widget.package.mediaPath!.isNotEmpty &&
         File(widget.package.mediaPath!).existsSync();
-    final fileName = widget.package.mediaPath?.split(RegExp(r'[\\/]')).lastOrNull ?? 'Attached video';
+    final fileName = widget.package.mediaPath?.split(RegExp(r'[\\/]')).lastOrNull ?? 'Attached media';
 
     return Container(
       constraints: BoxConstraints(
@@ -270,7 +267,7 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'User-assisted publishing for X & Reddit',
+                          'User-assisted publishing hub',
                           style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                         ),
                       ],
@@ -324,15 +321,9 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
                       const SizedBox(height: 16),
                     ],
 
-                    // X Publishing Card
-                    if (_showX) ...[
-                      _buildXCard(),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Reddit Publishing Card
-                    if (_showReddit) ...[
-                      _buildRedditCard(),
+                    // Dynamic Platforms List
+                    for (final platform in _payloads.keys) ...[
+                      _buildPlatformCard(platform),
                       const SizedBox(height: 20),
                     ],
 
@@ -369,9 +360,15 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
     );
   }
 
-  Widget _buildXCard() {
-    final charCount = _xCaptionController.text.runes.length;
-    final isOverLimit = charCount > XUserAssistedPublisher.maxStandardChars;
+  Widget _buildPlatformCard(SocialPlatform platform) {
+    final cap = PlatformCapabilityRegistry.getCapabilities(platform);
+    final controller = _controllers[platform];
+    final titleController = _titleControllers[platform];
+    final metaController = _metaControllers[platform];
+    
+    final charCount = controller?.text.runes.length ?? 0;
+    final isOverLimit = charCount > cap.maxChars;
+    final status = _statuses[platform] ?? 'ready';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -390,101 +387,150 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: AppTheme.surfaceSubtle,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppTheme.borderActive),
                 ),
-                child: const Icon(Icons.tag_rounded, size: 18, color: Colors.white),
+                child: const Icon(Icons.share_rounded, size: 18, color: AppTheme.textPrimary),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Post on X',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
+                  'Post on ${platform.label}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isOverLimit ? AppTheme.warning.withValues(alpha: 0.2) : AppTheme.surfaceSubtle,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '$charCount / 280',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isOverLimit ? AppTheme.warning : AppTheme.textSecondary,
+              if (status != 'ready')
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: status == 'user_confirmed' ? AppTheme.success.withValues(alpha: 0.2) : AppTheme.accentBlue.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    status == 'user_confirmed' ? 'Confirmed' : 'Handed Off',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: status == 'user_confirmed' ? AppTheme.success : AppTheme.accentBlue,
+                    ),
                   ),
                 ),
-              ),
+              if (status == 'ready' && !cap.requiresTitle)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isOverLimit ? AppTheme.warning.withValues(alpha: 0.2) : AppTheme.surfaceSubtle,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$charCount / ${cap.maxChars}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isOverLimit ? AppTheme.warning : AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
             ],
           ),
           if (isOverLimit) ...[
             const SizedBox(height: 8),
-            const Text(
-              'Caption exceeds 280 characters. Standard accounts will require trimming.',
-              style: TextStyle(fontSize: 11, color: AppTheme.warning),
+            Text(
+              'Caption exceeds ${cap.maxChars} characters.',
+              style: const TextStyle(fontSize: 11, color: AppTheme.warning),
             ),
           ],
           const SizedBox(height: 12),
-          TextField(
-            controller: _xCaptionController,
-            maxLines: 4,
-            minLines: 2,
-            style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
-            decoration: InputDecoration(
-              hintText: 'X caption…',
-              hintStyle: const TextStyle(color: AppTheme.textMuted),
-              filled: true,
-              fillColor: AppTheme.surfaceSubtle,
-              contentPadding: const EdgeInsets.all(12),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.borderSubtle),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.borderSubtle),
+          
+          if (platform == SocialPlatform.reddit && metaController != null) ...[
+            TextField(
+              controller: metaController,
+              style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+              decoration: InputDecoration(
+                prefixText: 'r/ ',
+                prefixStyle: const TextStyle(color: Color(0xFFFF4500), fontWeight: FontWeight.bold),
+                labelText: 'Target Subreddit',
+                labelStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                filled: true,
+                fillColor: AppTheme.surfaceSubtle,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppTheme.borderSubtle),
+                ),
               ),
             ),
-            onChanged: (_) => setState(() {}),
-          ),
+            const SizedBox(height: 10),
+          ],
+
+          if (cap.requiresTitle && titleController != null) ...[
+            TextField(
+              controller: titleController,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+              decoration: InputDecoration(
+                labelText: 'Title (Required)',
+                labelStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                filled: true,
+                fillColor: AppTheme.surfaceSubtle,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppTheme.borderSubtle),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          if (controller != null) ...[
+            TextField(
+              controller: controller,
+              maxLines: 4,
+              minLines: 2,
+              style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Caption…',
+                labelText: cap.requiresTitle ? 'Description / Body' : 'Caption',
+                labelStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                hintStyle: const TextStyle(color: AppTheme.textMuted),
+                filled: true,
+                fillColor: AppTheme.surfaceSubtle,
+                contentPadding: const EdgeInsets.all(12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppTheme.borderSubtle),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppTheme.borderSubtle),
+                ),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+          
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
+                    backgroundColor: AppTheme.textPrimary,
+                    foregroundColor: AppTheme.surface,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  onPressed: _isPublishing ? null : () => _postOnX(preferWeb: false),
+                  onPressed: _isPublishing ? null : () => _postOnPlatform(platform, preferWeb: false),
                   icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                  label: const Text('Post on X', style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: Text('Post on ${platform.label}', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(width: 8),
               IconButton(
-                tooltip: 'Copy caption',
-                icon: const Icon(Icons.copy_rounded, size: 18),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.surfaceSubtle,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: AppTheme.border),
-                  ),
-                ),
-                onPressed: () => ClipboardAssistService.copyCaption(
-                  _xCaptionController.text,
-                  context: context,
-                ),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: 'Open in X Web',
+                tooltip: 'Open Web Composer',
                 icon: const Icon(Icons.language_rounded, size: 18),
                 style: IconButton.styleFrom(
                   backgroundColor: AppTheme.surfaceSubtle,
@@ -493,175 +539,7 @@ class _FinishPublishingSheetState extends ConsumerState<FinishPublishingSheet> w
                     side: const BorderSide(color: AppTheme.border),
                   ),
                 ),
-                onPressed: _isPublishing ? null : () => _postOnX(preferWeb: true),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRedditCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF4500),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.forum_rounded, size: 18, color: Colors.white),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Post on Reddit',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Subreddit field
-          TextField(
-            controller: _redditSubredditController,
-            style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
-            decoration: InputDecoration(
-              prefixText: 'r/ ',
-              prefixStyle: const TextStyle(color: Color(0xFFFF4500), fontWeight: FontWeight.bold),
-              labelText: 'Target Subreddit',
-              labelStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-              filled: true,
-              fillColor: AppTheme.surfaceSubtle,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.borderSubtle),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Suggestion Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final sub in _suggestedSubreddits)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ActionChip(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      label: Text('r/$sub', style: const TextStyle(fontSize: 11)),
-                      backgroundColor: AppTheme.surfaceSubtle,
-                      side: const BorderSide(color: AppTheme.borderSubtle),
-                      onPressed: () => setState(() => _redditSubredditController.text = sub),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Title field
-          TextField(
-            controller: _redditTitleController,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
-            decoration: InputDecoration(
-              labelText: 'Reddit Title (Required)',
-              labelStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-              filled: true,
-              fillColor: AppTheme.surfaceSubtle,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.borderSubtle),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Body field
-          TextField(
-            controller: _redditBodyController,
-            maxLines: 3,
-            minLines: 2,
-            style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
-            decoration: InputDecoration(
-              labelText: 'Reddit Body (Optional)',
-              labelStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-              filled: true,
-              fillColor: AppTheme.surfaceSubtle,
-              contentPadding: const EdgeInsets.all(12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.borderSubtle),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Action row
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF4500),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: _isPublishing ? null : () => _postOnReddit(preferWeb: false),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                  label: const Text('Post on Reddit', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Copy title & body',
-                icon: const Icon(Icons.copy_rounded, size: 18),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.surfaceSubtle,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: AppTheme.border),
-                  ),
-                ),
-                onPressed: () => ClipboardAssistService.copyRedditTitleAndBody(
-                  title: _redditTitleController.text,
-                  body: _redditBodyController.text,
-                  context: context,
-                ),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: 'Open in Reddit Web',
-                icon: const Icon(Icons.language_rounded, size: 18),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.surfaceSubtle,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: AppTheme.border),
-                  ),
-                ),
-                onPressed: _isPublishing ? null : () => _postOnReddit(preferWeb: true),
+                onPressed: _isPublishing ? null : () => _postOnPlatform(platform, preferWeb: true),
               ),
             ],
           ),
@@ -703,9 +581,9 @@ class PostPublishReturnDialog extends StatelessWidget {
       backgroundColor: AppTheme.surfaceElevated,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       title: Text('Did you publish on $platform?'),
-      content: Text(
+      content: const Text(
         '180 Workspace cannot independently verify posts published through external apps. Please let us know if your post went live.',
-        style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.4),
+        style: TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.4),
       ),
       actions: [
         TextButton(

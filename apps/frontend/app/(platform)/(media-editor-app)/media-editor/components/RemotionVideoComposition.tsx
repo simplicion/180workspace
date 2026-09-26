@@ -196,7 +196,9 @@ export const RemotionVideoComposition: React.FC<RemotionVideoCompositionProps> =
             const posY = getKeyframedVal("posY", clip.transform?.position?.y ?? 0);
             const rot = getKeyframedVal("rotation", clip.transform?.rotationDeg ?? 0);
             const opacity = getKeyframedVal("opacity", clip.transform?.opacity ?? 1.0);
-            const dynamicVolumeDb = getKeyframedVal("volume", clip.volumeDb ?? 0.0);
+            // The compiler's adjustVolume("original") sets the PRIMARY_VOICE track level: it applies to the main video's own sound.
+            const voiceTrackDb = track.type === "MAIN_VIDEO" ? editIR.tracks.audioTracks?.find((t) => t.type === "PRIMARY_VOICE")?.volumeDb ?? 0 : 0;
+            const dynamicVolumeDb = getKeyframedVal("volume", clip.volumeDb ?? 0.0) + voiceTrackDb;
             const isSelected = selectedClipId === clip.id;
 
             // Compute Color & Visual Filters (Exposure, Temperature, Tint, Brightness, Contrast, Saturation)

@@ -333,7 +333,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
-                    builder: (ctx) => FinishPublishingSheet(
+                    builder: (ctx) => CentralizedManualPublishSheet(
                       package: UserAssistedPublishPackage(
                         id: c.postId ?? 'studio_${DateTime.now().millisecondsSinceEpoch}',
                         projectId: c.projectId ?? '',
@@ -361,7 +361,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                   );
                 },
                 icon: const Icon(Icons.send_rounded),
-                label: const Text('Publish to X / Reddit'),
+                label: const Text('Manual publish hub'),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(

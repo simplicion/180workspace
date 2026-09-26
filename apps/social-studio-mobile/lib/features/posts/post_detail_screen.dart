@@ -45,7 +45,7 @@ void _showPostPreview(BuildContext context, SocialPost post) {
                   const Icon(Icons.devices_rounded, color: AppTheme.primary),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text('Channel Mockup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    child: Text('Platform Preview', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                   IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
                 ],
@@ -131,12 +131,24 @@ class _PostBodyState extends ConsumerState<_PostBody> {
     if (mounted) setState(() => _busy = null);
   }
 
-  Future<void> _openFinishPublishingSheet() async {
+  Future<void> _openCentralizedManualPublishSheet() async {
     final xVariant = p.variants.where((v) => v.platform == SocialPlatform.x).firstOrNull;
     final redditVariant = p.variants.where((v) => v.platform == SocialPlatform.reddit).firstOrNull;
     final videoUrl = p.finalVideoUrl ?? p.mediaUrls.where((u) => u.endsWith('.mp4')).firstOrNull ?? p.mediaUrls.firstOrNull;
 
     final redditMeta = redditVariant?.platformMeta ?? {};
+
+    final Map<SocialPlatform, UniversalPlatformPayload> payloads = {};
+    for (final v in p.variants) {
+      payloads[v.platform] = UniversalPlatformPayload(
+        platform: v.platform,
+        caption: v.customContent?.isNotEmpty == true ? v.customContent! : p.content,
+        title: v.platformMeta['title']?.toString() ?? p.title,
+        mediaPath: videoUrl,
+        projectId: p.projectId,
+        subreddit: v.platformMeta['subreddit']?.toString(),
+      );
+    }
 
     final package = UserAssistedPublishPackage(
       id: p.id,
@@ -145,6 +157,7 @@ class _PostBodyState extends ConsumerState<_PostBody> {
       mediaPath: videoUrl,
       title: p.title,
       caption: p.content,
+      platformPayloads: payloads,
       xPayload: XPublishPayload(
         text: xVariant?.customContent?.isNotEmpty == true ? xVariant!.customContent! : p.content,
         mediaPath: videoUrl,
@@ -163,9 +176,9 @@ class _PostBodyState extends ConsumerState<_PostBody> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => FinishPublishingSheet(
+      builder: (_) => CentralizedManualPublishSheet(
         package: package,
-        targetPlatforms: p.platforms.where((pl) => pl.isUserAssisted).toSet(),
+        targetPlatforms: p.platforms.toSet(), // Show all platforms if they open the hub!
         onStatusUpdated: (platform, status) => _refresh(),
       ),
     );
@@ -177,9 +190,44 @@ class _PostBodyState extends ConsumerState<_PostBody> {
         final assistedPlatforms = p.platforms.where((pl) => pl.isUserAssisted).toList();
         final apiPlatforms = p.platforms.where((pl) => !pl.isUserAssisted).toList();
 
-        // If ONLY assisted platforms are selected (e.g. X and/or Reddit only), open FinishPublishingSheet directly
         if (apiPlatforms.isEmpty && assistedPlatforms.isNotEmpty) {
-          await _openFinishPublishingSheet();
+          await _openCentralizedManualPublishSheet();
+          return;
+        }
+
+        // Action Sheet for Dual-Mode Choice
+        final mode = await showModalBottomSheet<String>(
+          context: context,
+          backgroundColor: AppTheme.surfaceElevated,
+          builder: (ctx) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('Publishing Mode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.flash_on_rounded, color: AppTheme.primary),
+                  title: const Text('Auto-Publish (1-Click)'),
+                  subtitle: const Text('Post automatically via API to connected platforms.'),
+                  onTap: () => Navigator.pop(ctx, 'auto'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.pan_tool_alt_rounded, color: AppTheme.accentBlue),
+                  title: const Text('Manual Pre-filled Post'),
+                  subtitle: const Text('Open centralized manual hub to post manually.'),
+                  onTap: () => Navigator.pop(ctx, 'manual'),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+
+        if (mode == null) return;
+        if (mode == 'manual') {
+          await _openCentralizedManualPublishSheet();
           return;
         }
 
@@ -223,9 +271,9 @@ class _PostBodyState extends ConsumerState<_PostBody> {
           ),
         );
 
-        // If user also selected X or Reddit in a hybrid post, open the sheet after API publishing
+        // If user also selected assisted-only platforms in a hybrid post, open the sheet after API publishing
         if (assistedPlatforms.isNotEmpty && mounted) {
-          await _openFinishPublishingSheet();
+          await _openCentralizedManualPublishSheet();
         }
       });
 
@@ -345,9 +393,9 @@ class _PostBodyState extends ConsumerState<_PostBody> {
         ),
         if (p.platforms.any((pl) => pl.isUserAssisted))
           OutlinedButton.icon(
-            onPressed: busy ? null : _openFinishPublishingSheet,
+            onPressed: busy ? null : _openCentralizedManualPublishSheet,
             icon: const Icon(Icons.open_in_new_rounded, size: 18),
-            label: const Text('Finish in X / Reddit'),
+            label: const Text('Manual publish hub'),
           ),
         OutlinedButton.icon(
           onPressed: busy ? null : () => context.push('/studio/session?postId=${p.id}${p.projectId == null ? '' : '&projectId=${p.projectId}'}'),

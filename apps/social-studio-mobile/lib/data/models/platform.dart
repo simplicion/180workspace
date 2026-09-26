@@ -21,8 +21,26 @@ enum SocialPlatform {
   final IconData icon;
   final Color color;
 
-  /// Whether this platform defaults to user-assisted publishing (X & Reddit)
-  bool get isUserAssisted => this == SocialPlatform.x || this == SocialPlatform.reddit;
+  /// Whether this platform supports automated 1-click publishing via live credentials
+  bool get isAutomated =>
+      this == SocialPlatform.instagram ||
+      this == SocialPlatform.facebook ||
+      this == SocialPlatform.threads ||
+      this == SocialPlatform.linkedin ||
+      this == SocialPlatform.youtube;
+
+  /// Whether this platform operates exclusively via manual pre-filled publishing (no server API credentials)
+  bool get isManualOnly =>
+      this == SocialPlatform.x ||
+      this == SocialPlatform.reddit ||
+      this == SocialPlatform.tiktok ||
+      this == SocialPlatform.pinterest;
+
+  /// Whether this platform defaults to user-assisted publishing (X, Reddit, TikTok, Pinterest)
+  bool get isUserAssisted => isManualOnly;
+
+  /// Whether this platform supports manual pre-filled posting (All known platforms support manual flow)
+  bool get supportsManualPublish => this != SocialPlatform.unknown;
 
   static const connectable = [
     instagram,

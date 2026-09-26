@@ -75,6 +75,14 @@ interface TimelineProps {
   onStepFrame?: (direction: -1 | 1) => void;
   onAspectRatioChange?: (aspect: "16:9" | "9:16" | "1:1") => void;
   onTakeSnapshot?: () => void;
+  /** Controlled track locks (keys: "c1", "t1", "fx", "v_<id>", "a_<id>"). Locked = not editable by drag or by the AI. */
+  lockedTracks?: Record<string, boolean>;
+  onToggleTrackLock?: (key: string) => void;
+  /** Timeline ranges (ms) the AI Director must keep. */
+  lockedRangesMs?: Array<[number, number]>;
+  /** Locks the selected item's time range (disabled when nothing is selected). */
+  onLockRange?: () => void;
+  onUnlockRange?: (index: number) => void;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -104,6 +112,11 @@ export const Timeline: React.FC<TimelineProps> = ({
   onStepFrame,
   onAspectRatioChange,
   onTakeSnapshot,
+  lockedTracks: controlledLocks,
+  onToggleTrackLock,
+  lockedRangesMs = [],
+  onLockRange,
+  onUnlockRange,
 }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const rulerRef = useRef<HTMLDivElement>(null);
@@ -116,7 +129,8 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   // Track control states
   const [mutedTracks, setMutedTracks] = useState<Record<string, boolean>>({});
-  const [lockedTracks, setLockedTracks] = useState<Record<string, boolean>>({});
+  const [localLocks, setLocalLocks] = useState<Record<string, boolean>>({});
+  const lockedTracks = controlledLocks ?? localLocks;
   const [hiddenTracks, setHiddenTracks] = useState<Record<string, boolean>>({});
 
   // Clip drag & trim state
@@ -264,7 +278,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   };
 
   const toggleTrackLock = (trackId: string) => {
-    setLockedTracks((prev) => ({ ...prev, [trackId]: !prev[trackId] }));
+    if (onToggleTrackLock) onToggleTrackLock(trackId);
+    else setLocalLocks((prev) => ({ ...prev, [trackId]: !prev[trackId] }));
   };
 
   const toggleTrackHide = (trackId: string) => {
@@ -546,6 +561,18 @@ export const Timeline: React.FC<TimelineProps> = ({
 
           <div className="h-4 w-px bg-[#1F1F24] mx-1" />
 
+          {onLockRange && (
+            <button
+              onClick={onLockRange}
+              disabled={!selectedClipId}
+              className="flex items-center space-x-1 px-2 py-1 rounded-md bg-[#141822] hover:bg-[#1C2230] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-amber-300 border border-amber-500/30 transition ml-1"
+              title={selectedClipId ? "Lock the selected item's time range: the AI Director will keep it" : "Select a clip to lock its time range"}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Lock range</span>
+            </button>
+          )}
+
           {onOpenSilenceTrimmer && (
             <button
               onClick={onOpenSilenceTrimmer}
@@ -655,6 +682,13 @@ export const Timeline: React.FC<TimelineProps> = ({
               <span className="truncate">Captions (T1)</span>
             </div>
             <div className="flex items-center space-x-1 text-gray-400">
+              <button
+                onClick={() => toggleTrackLock("t1")}
+                className="p-1 hover:text-white transition"
+                title={lockedTracks["t1"] ? "Unlock captions and titles" : "Lock captions and titles"}
+              >
+                {lockedTracks["t1"] ? <Lock className="w-3 h-3 text-cyan-300" /> : <Unlock className="w-3 h-3" />}
+              </button>
               <button
                 onClick={() => toggleTrackHide("t1")}
                 className="p-1 hover:text-white transition"
@@ -775,6 +809,13 @@ export const Timeline: React.FC<TimelineProps> = ({
                       </button>
                     )}
                     <button
+                      onClick={() => toggleTrackLock(trackKey)}
+                      className="p-1 hover:text-white transition"
+                      title={lockedTracks[trackKey] ? "Unlock track" : "Lock track"}
+                    >
+                      {lockedTracks[trackKey] ? <Lock className="w-3 h-3 text-amber-400" /> : <Unlock className="w-3 h-3" />}
+                    </button>
+                    <button
                       onClick={() => toggleTrackMute(trackKey)}
                       className="p-1 hover:text-white transition"
                       title={mutedTracks[trackKey] ? "Unmute track" : "Mute track"}
@@ -822,6 +863,29 @@ export const Timeline: React.FC<TimelineProps> = ({
                 style={{ left: `${t * pixelsPerSecond}px` }}
               >
                 {t}s
+              </div>
+            ))}
+            {lockedRangesMs.map(([s0, e0], i) => (
+              <div
+                key={`lock-${i}`}
+                className="absolute top-0 bottom-0 bg-amber-500/15 border-x border-amber-400/60 flex items-center justify-end"
+                style={{ left: `${(s0 / 1000) * pixelsPerSecond}px`, width: `${Math.max(4, ((e0 - s0) / 1000) * pixelsPerSecond)}px` }}
+                title={`Locked for the AI Director: ${(s0 / 1000).toFixed(1)}–${(e0 / 1000).toFixed(1)} s`}
+              >
+                {onUnlockRange && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUnlockRange(i);
+                    }}
+                    className="h-full px-1 text-amber-300 hover:text-white"
+                    aria-label="Remove this locked range"
+                  >
+                    <Lock className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -893,6 +957,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                     if (!isTitleSegment(cap)) return;
                     e.stopPropagation();
                     onSelectClip(cap.id);
+                    if (lockedTracks["t1"]) return;
                     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                     const mode = e.clientX > rect.right - 8 ? "trim-end" : e.clientX < rect.left + 8 ? "trim-start" : "move";
                     setDraggingClip({ id: cap.id, mode, startX: e.clientX, initialStart: startSec, initialDuration: durationSec });

@@ -18,7 +18,7 @@ class DeviceRegistration {
   static const _renewBefore = Duration(days: 2);
 
   String get platform {
-    if (_platformOverride != null) return _platformOverride!;
+    if (_platformOverride != null) return _platformOverride;
     if (Platform.isIOS) return 'ios';
     if (Platform.isAndroid) return 'android';
     if (Platform.isWindows) return 'windows';

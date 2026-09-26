@@ -7,10 +7,14 @@ test('1. isAssistedPlatform identifies X and Reddit as user-assisted platforms b
     delete process.env.X_CLIENT_ID;
     delete process.env.TWITTER_CLIENT_ID;
     delete process.env.REDDIT_CLIENT_ID;
+    delete process.env.TIKTOK_CLIENT_KEY;
+    delete process.env.PINTEREST_APP_ID;
 
     assert.strictEqual(isAssistedPlatform('x'), true, 'X defaults to user-assisted mode');
     assert.strictEqual(isAssistedPlatform('twitter'), true, 'Twitter alias defaults to user-assisted mode');
     assert.strictEqual(isAssistedPlatform('reddit'), true, 'Reddit defaults to user-assisted mode');
+    assert.strictEqual(isAssistedPlatform('tiktok'), true, 'TikTok defaults to user-assisted mode when unconfigured');
+    assert.strictEqual(isAssistedPlatform('pinterest'), true, 'Pinterest defaults to user-assisted mode when unconfigured');
     assert.strictEqual(isAssistedPlatform('instagram'), false, 'Instagram is an API platform, not assisted');
     assert.strictEqual(isAssistedPlatform('youtube'), false, 'YouTube is an API platform, not assisted');
     assert.strictEqual(isAssistedPlatform('linkedin'), false, 'LinkedIn is an API platform, not assisted');

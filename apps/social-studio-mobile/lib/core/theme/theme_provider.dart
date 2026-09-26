@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _kThemePrefKey = 'user_theme_mode';
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.dark) {
+  ThemeModeNotifier() : super(ThemeMode.system) {
     _load();
   }
 
@@ -14,10 +14,10 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     final saved = prefs.getString(_kThemePrefKey);
     if (saved == 'light') {
       state = ThemeMode.light;
-    } else if (saved == 'system') {
-      state = ThemeMode.system;
-    } else {
+    } else if (saved == 'dark') {
       state = ThemeMode.dark;
+    } else {
+      state = ThemeMode.system;
     }
   }
 

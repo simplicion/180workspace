@@ -100,6 +100,7 @@ test('Facebook video, Reel (3-phase) and multi-photo sequences', async () => {
         if (p.endsWith('/PAGE/videos')) return json(200, { id: 'VID1' });
         if (p.endsWith('/PAGE/video_reels')) return json(200, c.body.upload_phase === 'start' ? { video_id: 'R1', upload_url: 'x' } : { success: true });
         if (c.url.startsWith('https://rupload.facebook.com/')) return json(200, { success: true });
+        if (p.endsWith('/R1') && c.method === 'GET') return json(200, { status: { video_status: 'ready' } });
         if (p.endsWith('/PAGE/photos')) return json(200, { id: `PH${mock!.calls.length}` });
         if (p.endsWith('/PAGE/feed')) return json(200, { id: 'PAGE_POST1' });
     }).install();
@@ -184,6 +185,7 @@ test('LinkedIn multi-image carousel and PDF document carousel', async () => {
         if (c.url.includes('/rest/images?action=initializeUpload')) return json(200, { value: { uploadUrl: `https://up.li/img${++img}`, image: `urn:li:image:I${img}` } });
         if (c.url.includes('/rest/documents?action=initializeUpload')) return json(200, { value: { uploadUrl: 'https://up.li/doc', document: 'urn:li:document:D1' } });
         if (c.url.startsWith('https://up.li/')) return new Response('', { status: 201 });
+        if (c.url.includes('/rest/documents/') && c.method === 'GET') return json(200, { status: 'AVAILABLE' });
         if (c.url.endsWith('/rest/posts')) return new Response('', { status: 201, headers: { 'x-restli-id': 'urn:li:share:1' } });
     }).install();
     const li = new LinkedInPublisher();
@@ -339,6 +341,7 @@ test('Reddit publisher: validate title, submit link/self post', async () => {
 });
 
 test('Simulated platform publisher: realistic latency, genuine validation, instant permalinks', async () => {
+    process.env.SIMULATE_SOCIAL_PUBLISHING = 'true';
     const sim = new SimulatedPlatformPublisher('threads', new ThreadsPublisher());
     const valid = input({ platform: 'threads', format: 'video', caption: 'Valid simulated video post' });
     assert.deepEqual(sim.validate(valid), []);
@@ -347,4 +350,5 @@ test('Simulated platform publisher: realistic latency, genuine validation, insta
     assert.equal(out.state, 'published');
     assert.ok(out.url?.includes('threads.net'));
     assert.equal(out.meta?.simulated, true);
+    delete process.env.SIMULATE_SOCIAL_PUBLISHING;
 });

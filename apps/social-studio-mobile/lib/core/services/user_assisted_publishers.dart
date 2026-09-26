@@ -7,6 +7,8 @@ import '../../data/models/user_assisted_publish_package.dart';
 import 'clipboard_assist_service.dart';
 import 'platform_capability_registry.dart';
 
+export 'centralized_manual_publisher.dart';
+
 enum HandoffMode {
   nativeShare,
   webCompose,

@@ -236,6 +236,18 @@ export const MobileMediaDescriptorSchema = z.object({
     .optional(),
   /** On-device beat/onset times of the clip's own audio (source ms, ascending). */
   beatsMs: z.array(ms).max(20000).optional(),
+  /** On-device scene/shot cut times (source ms, ascending). */
+  scenesMs: z.array(ms).max(20000).optional(),
+  /** On-device OCR (on-screen text) per source range. Untrusted: fenced as data in prompts. */
+  ocr: z.array(z.object({ startMs: ms, endMs: ms, text: z.string().max(500) })).max(2000).optional(),
+  /** Loudness of the clip's own audio (EBU R128 integrated LUFS, true peak dBTP, % of clipped samples). */
+  loudness: z
+    .object({
+      integratedLufs: z.number().min(-100).max(10),
+      truePeakDb: z.number().min(-100).max(20).optional(),
+      clippingPct: z.number().min(0).max(100).optional(),
+    })
+    .optional(),
 });
 
 export type MobileMediaDescriptor = z.infer<typeof MobileMediaDescriptorSchema>;

@@ -143,6 +143,20 @@ export const FinishEditArgsSchema = z.object({
     .enum(["add", "remove", "keep"])
     .optional()
     .describe('Brand logo watermark: "add" when the creator wants the logo (only works when the brand has a logo), "remove" to take it off, "keep" (default) to leave it as is.'),
+  preserve: z
+    .object({
+      lockedRanges: z
+        .array(z.object({ startSec: z.number().nonnegative(), endSec: z.number().positive() }))
+        .max(20)
+        .optional()
+        .describe("Parts of the CURRENT timeline (seconds) the creator asked to keep untouched (no cuts, speed, reorder or overlays there)."),
+      lockedTracks: z
+        .array(z.enum(["music", "captions", "broll", "sfx", "effects", "text"]))
+        .optional()
+        .describe("Tracks the creator asked not to change (e.g. \"don't touch the music\" -> music)."),
+    })
+    .optional()
+    .describe("Only when the creator explicitly asks to keep/not change something. Locks are enforced by the server; operations that break them are dropped."),
 });
 
 /** Tools in the OpenAI function format (also accepted by the Claude/Gemini adapters in AIProviderService). */

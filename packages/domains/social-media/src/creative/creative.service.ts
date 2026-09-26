@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { AgentEventStore, createAgentRunEmitter, getDefaultAgentEventStore } from '@workspace/ai/dist/agent-runs';
 import { z } from 'zod';
 import type { CreativeBrand } from './brand';
 import { toCreativeBrand } from './brand';
@@ -110,6 +111,8 @@ export interface CreativeDeps {
     now?: () => Date;
     /** Runs the background pipeline. Defaults to setImmediate; tests can await the returned promise. */
     schedule?: (fn: () => Promise<void>) => void;
+    /** Agent run event store; absent/null = events are kept in memory only (the production factory passes Prisma). */
+    events?: AgentEventStore | null;
 }
 
 export interface CreativeContext {
@@ -406,6 +409,12 @@ export class CreativeService {
     }
 
     private async runCreate(job: CreativeJob, input: z.infer<typeof CreateCreativeSchema>, plan: ImagePlan, piece: any, post: any) {
+        const events = createAgentRunEmitter({
+            store: this.deps.events || null,
+            agent: 'creative',
+            scope: { companyId: job.companyId, projectId: job.projectId },
+        });
+        events.emit('AgentStarted', { agent: 'creative', jobId: job.id, kind: job.kind, format: job.format, imageMode: plan.mode });
         try {
             await this.update(job, { status: 'designing', step: 'Designing slides', progress: { done: 0, total: 4 } });
             const brand = await this.deps.loadBrand(job.projectId, job.companyId);
@@ -420,9 +429,12 @@ export class CreativeService {
                 slides = job.kind === 'static' ? await designStaticPost(llm, di) : await designCarousel(llm, di);
             }
             if (job.kind === 'static') slides = slides.slice(0, 1);
+            events.emit('PlanCreated', { slides: slides.length, fromClient: !!input.slides });
             await this.update(job, { slides, status: 'sourcing_images', step: 'Sourcing photos', progress: { done: 1, total: 4 } });
 
+            events.emit('ToolCalled', { tool: 'image_sourcing', mode: plan.mode });
             const images = await this.sourcePhotos(job, slides, brand, plan);
+            events.emit('ToolCompleted', { tool: 'image_sourcing', found: images.filter(Boolean).length, of: slides.length });
             const logo = brand.logoUrl ? await this.fetchBytes(brand.logoUrl) : null;
             if (brand.logoUrl && !logo) job.warnings.push('The brand logo could not be downloaded; the brand name was used instead.');
 
@@ -457,9 +469,12 @@ export class CreativeService {
             job.result = result;
             const attached = await this.attach(job, piece, post);
             await this.update(job, { ...attached, status: 'completed', step: 'Done', progress: { done: 4, total: 4 }, completedAt: this.now() });
+            events.emit('ToolCompleted', { tool: 'render_upload', final: true, slides: results.length, warnings: job.warnings.length });
         } catch (e) {
+            events.emit('AgentFailed', { agent: 'creative', code: e instanceof CreativeError ? e.code : 'RENDER_FAILED' });
             await this.fail(job, e);
         }
+        await events.flush();
     }
 
     private async put(key: string, body: Buffer, contentType: string) {
@@ -710,6 +725,7 @@ export function createDefaultCreativeService(opts: { store: AssetStore; jobs?: J
 
     return new CreativeService({
         db: prisma,
+        events: getDefaultAgentEventStore(),
         store: opts.store,
         jobs: opts.jobs,
         loadBrand: async (projectId, companyId) => {

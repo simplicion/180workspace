@@ -97,6 +97,8 @@ export function toBrandContext(b: any, projectId: string): DirectorBrandContext 
         forbiddenWords: Array.isArray(b.forbiddenWords) ? b.forbiddenWords : undefined,
         standardCtas: b.ctas ?? b.standardCtas ?? undefined,
         promptContext,
+        // Project autonomy policy (Social OS P1); the brand module always returns it (defaults ASSISTED / MANUAL).
+        ...(b.autonomy && typeof b.autonomy === 'object' ? { autonomy: { editing: b.autonomy.editing, publishing: b.autonomy.publishing } } : {}),
     };
 }
 

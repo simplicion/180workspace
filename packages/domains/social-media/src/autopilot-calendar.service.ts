@@ -33,6 +33,8 @@ import {
 // Deep import on purpose: the autopilot module only needs the AI kernel, not the whole @workspace/ai index
 // (which boots Redis-backed memory services on load).
 import * as SocialProjectModule from './social-project.service';
+import { AgentEventStore, createAgentRunEmitter, getDefaultAgentEventStore } from '@workspace/ai/dist/agent-runs';
+import { AgentMemoryService } from './agent-os/agent-memory';
 
 export type AutopilotJobStatus = 'queued' | 'running' | 'completed' | 'failed';
 
@@ -60,6 +62,17 @@ export interface AutopilotServiceDeps {
     schedule: (job: () => Promise<void>) => void;
     now: () => Date;
     log: (event: string, data: Record<string, unknown>) => void;
+    /** Agent run event store (null/absent = events are not persisted). */
+    events?: AgentEventStore | null;
+    /** Compact project memory lines for the strategist (preferences, feedback, performance). */
+    loadMemory?: (projectId: string, companyId: string) => Promise<string[]>;
+}
+
+/** Brand objectives (Social OS P1) used as plan goals when the request gives none. */
+function objectivesAsGoals(profile: any): string[] {
+    const o = profile?.objectives;
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return [];
+    return [o.primary, o.secondary].filter((g): g is string => typeof g === 'string' && g.trim().length > 0).map((g) => g.trim().slice(0, 200));
 }
 
 /** A processing job with no heartbeat for this long is treated as dead (server restart, crash). */
@@ -91,6 +104,8 @@ export function defaultAutopilotDeps(): AutopilotServiceDeps {
         schedule: (job) => { setImmediate(() => { job().catch((e) => console.error('[autopilot] job crashed', e)); }); },
         now: () => new Date(),
         log: (event, data) => console.info(`[autopilot] ${event}`, JSON.stringify(data)),
+        events: getDefaultAgentEventStore(),
+        loadMemory: (projectId, companyId) => new AgentMemoryService().buildMemoryContext(projectId, companyId, 'strategist'),
     };
 }
 
@@ -216,16 +231,26 @@ export class AutopilotCalendarService {
             await db.contentCalendar.updateMany({ where: { id: calendarId, companyId }, data: { metadata, ...extra } });
         };
         let lastWrite = { stage: '', progress: -10 };
+        const events = createAgentRunEmitter({ store: this.deps.events || null, agent: 'autopilot', scope: { companyId, projectId: ctx.projectId } });
+        auto.runId = events.runId;
+        events.emit('AgentStarted', { agent: 'autopilot', jobId: auto.jobId, calendarId, days: ctx.request.days, platforms: ctx.request.platforms });
 
         try {
             auto.status = 'running';
             await persist();
+            let memoryContext: string[] = [];
+            try {
+                memoryContext = this.deps.loadMemory ? await this.deps.loadMemory(ctx.projectId, companyId) : [];
+            } catch (e: any) {
+                this.deps.log('autopilot_memory_unavailable', { companyId, projectId: ctx.projectId, message: e?.message });
+            }
             const input: AutopilotRunInput = {
                 days: ctx.request.days as 7 | 14 | 30,
                 startDate: ctx.request.startDate,
                 timezone: ctx.request.timezone,
                 platforms: ctx.request.platforms,
-                goals: ctx.request.goals,
+                goals: ctx.request.goals.length ? ctx.request.goals : objectivesAsGoals(ctx.brand.profile),
+                memoryContext,
                 brand: buildBrandContext(ctx.brand.profile, {
                     brandName: ctx.project.name,
                     industry: ctx.brand.profile?.industry || ctx.project.description || undefined,
@@ -236,6 +261,7 @@ export class AutopilotCalendarService {
                 llm: ctx.llm,
                 search: this.deps.search,
                 log: this.deps.log,
+                emit: events.emit,
                 onProgress: async (stage, progress, detail) => {
                     auto.stage = stage; auto.progress = progress; auto.detail = detail;
                     if (stage !== lastWrite.stage || progress - lastWrite.progress >= 5) {
@@ -278,12 +304,16 @@ export class AutopilotCalendarService {
                 contentPillars: result.strategy.pillars.map((p) => p.name),
             });
             this.deps.log('autopilot_completed', { companyId, calendarId, jobId: auto.jobId, pieces: result.pieces.length, usage: result.usage });
+            events.emit('ToolCompleted', { tool: 'persist', final: true, pieces: result.pieces.length, draftsCreated });
+            await events.flush();
         } catch (err: any) {
             const code = err?.name === 'AutopilotError' && err?.code ? err.code : 'AI_PROVIDER_ERROR';
             auto.status = 'failed';
             auto.error = { code, message: err?.message || String(err) };
             auto.finishedAt = this.deps.now().toISOString();
             this.deps.log('autopilot_failed', { companyId, calendarId, jobId: auto.jobId, code, message: auto.error.message });
+            events.emit('AgentFailed', { agent: 'autopilot', code, message: String(auto.error.message).slice(0, 300) });
+            await events.flush();
             try { await persist({ status: 'failed' }); } catch (e: any) { console.error('[autopilot] could not persist failure', e?.message); }
         }
     }

@@ -10,12 +10,16 @@ export * from './kernel/ai-company-config.service';
 export * from './kernel/ai-credit-meter.service';
 export * from './kernel/platform-ai-vault.service';
 
+// Agent run event log (AgentStarted … AgentFailed) for every agent
+export * from './agent-runs';
+
 // Real (ffmpeg/STT-backed) Media Analysis for the Video AI Director
 export * from './media/media-analysis.service';
 
 // Memory & Real-Time Context Aggregator (Redis-Backed Mem0 + Vector Memory)
 export * from './memory/mem0-memory.service';
 export * from './memory/context-aggregator.service';
+export * from './memory/agent-memory.service';
 
 // LangChain Tool Calling & Deterministic Agent Execution
 export * from './tools/ai-tool-registry';

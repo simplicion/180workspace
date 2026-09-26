@@ -5,8 +5,13 @@
  * Documents (PDF carousel): /rest/documents?action=initializeUpload → PUT → content.media
  * Video: /rest/videos?action=initializeUpload → PUT each part (collect ETags) → finalizeUpload → wait AVAILABLE → post
  * Docs: learn.microsoft.com/linkedin/marketing/community-management/shares/posts-api
+ * Verified 2026-09-27 (docs version li-lms-2026-09): commentary ≤ 3,000 chars; multiImage 2–20 images (organic only,
+ * < 36,152,320 px, JPG/GIF/PNG); video 3s–30min, 75 KB–500 MB, MP4, 4 MB parts with ETags; documents PDF/PPT(X)/
+ * DOC(X) ≤ 100 MB and ≤ 300 pages; organic "carousel" (sponsored-only) is NOT available, so image carousels are
+ * published as multiImage and PDF carousels as documents. Post id comes back in the `x-restli-id` header (201).
  */
-import { LINKEDIN_API_VERSION, intEnv } from '../publishing/config';
+import { intEnv } from '../publishing/config';
+import { linkedInApiVersion } from '../publishing/linkedin-version';
 import { PublishError } from '../publishing/errors';
 import { isSandboxToken, requireToken } from "./engagement-token";
 import { asBody, downloadMedia, expectOk, pollUntil, providerFailure, providerFetch, readBody } from '../publishing/http';
@@ -16,13 +21,21 @@ const REST = 'https://api.linkedin.com/rest';
 
 const headers = (token: string, json = true) => ({
     Authorization: `Bearer ${token}`,
-    'LinkedIn-Version': LINKEDIN_API_VERSION(),
+    'LinkedIn-Version': linkedInApiVersion(),
     'X-Restli-Protocol-Version': '2.0.0',
     ...(json ? { 'Content-Type': 'application/json' } : {}),
 });
 
-/** LinkedIn "little text" format reserves these characters; escape them so captions post verbatim. */
-export const escapeLinkedInCommentary = (s: string) => s.replace(/[\\|{}@\[\]()<>#*_~]/g, (c) => `\\${c}`);
+/**
+ * LinkedIn "little text" format reserves these characters; escape them so captions post verbatim. A `#` that starts
+ * a hashtag (#word) is left alone so LinkedIn still links it (the Posts API turns plain `#coding` into a hashtag).
+ */
+export const escapeLinkedInCommentary = (s: string) =>
+    s.replace(/[\\|{}@\[\]()<>#*_~]/g, (c: string, i: number, all: string) => (c === '#' && /[\p{L}\p{N}_]/u.test(all[i + 1] || '') ? c : `\\${c}`));
+
+const LI_VIDEO_MAX_BYTES = 500 * 1024 * 1024;
+const LI_DOC_MAX_BYTES = 100 * 1024 * 1024;
+const LI_IMAGE_MAX_PIXELS = 36_152_320;
 
 export class LinkedInPublisher implements PlatformPublisher {
     readonly platform = 'linkedin' as const;
@@ -32,6 +45,7 @@ export class LinkedInPublisher implements PlatformPublisher {
         if (charLength(input.caption) > 3000) issues.push('LinkedIn posts are limited to 3,000 characters.');
         if (!/^urn:li:(person|organization):/.test(input.account.platformAccountId)) issues.push('LinkedIn account has no valid author URN; reconnect it.');
         checkUrls(input, issues);
+        if (input.media.some((m) => m.kind === 'image' && m.width && m.height && m.width * m.height >= LI_IMAGE_MAX_PIXELS)) issues.push('LinkedIn images must be under 36 megapixels.');
         switch (input.format) {
             case 'text':
                 if (!input.caption.trim()) issues.push('LinkedIn text posts need commentary.');
@@ -39,12 +53,15 @@ export class LinkedInPublisher implements PlatformPublisher {
             case 'video': {
                 const v = input.media.find((m) => m.kind === 'video');
                 if (!v) issues.push('LinkedIn video posts need a video.');
-                checkVideo(v, { minSec: 3, maxSec: 30 * 60, maxBytes: 5 * 1024 * 1024 * 1024 }, 'LinkedIn video', issues);
+                checkVideo(v, { minSec: 3, maxSec: 30 * 60, maxBytes: LI_VIDEO_MAX_BYTES }, 'LinkedIn video', issues);
+                if (v?.sizeBytes != null && v.sizeBytes < 75 * 1024) issues.push('LinkedIn videos must be at least 75 KB.');
                 break;
             }
             case 'image':
                 if (!input.media.some((m) => m.kind === 'image')) issues.push('LinkedIn image posts need an image.');
                 break;
+            default:
+                issues.push(`LinkedIn cannot publish ${input.format} posts.`);
             case 'carousel': {
                 const imgs = input.media.filter((m) => m.kind === 'image');
                 const doc = input.media.find((m) => m.kind === 'document');
@@ -55,7 +72,8 @@ export class LinkedInPublisher implements PlatformPublisher {
             case 'document': {
                 const doc = input.media.find((m) => m.kind === 'document');
                 if (!doc) issues.push('LinkedIn document posts need a PDF.');
-                if (doc?.sizeBytes && doc.sizeBytes > 100 * 1024 * 1024) issues.push('LinkedIn documents must be at most 100 MB.');
+                if (doc?.sizeBytes && doc.sizeBytes > LI_DOC_MAX_BYTES) issues.push('LinkedIn documents must be at most 100 MB.');
+                if (doc?.mimeType && !/pdf|powerpoint|presentation|msword|wordprocessing/.test(doc.mimeType)) issues.push('LinkedIn documents must be PDF, PPT(X) or DOC(X).');
                 break;
             }
         }
@@ -75,7 +93,27 @@ export class LinkedInPublisher implements PlatformPublisher {
         const media = await downloadMedia('linkedin', url);
         const put = await providerFetch('linkedin', uploadUrl, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': media.contentType }, body: asBody(media.bytes) });
         if (!put.ok) throw providerFailure('linkedin', put, await readBody(put), `LinkedIn ${kind} upload`);
+        if (kind === 'documents') await this.waitAvailable('documents', urn, token);
         return urn;
+    }
+
+    /** Documents and videos must be AVAILABLE before a post can reference them. */
+    private async waitAvailable(kind: 'documents' | 'videos', urn: string, token: string) {
+        const noun = kind === 'videos' ? 'video' : 'document';
+        await pollUntil(
+            async () => {
+                const r = await providerFetch('linkedin', `${REST}/${kind}/${encodeURIComponent(urn)}`, { method: 'GET', headers: headers(token, false) });
+                const s = await expectOk('linkedin', r, `LinkedIn ${noun} status`);
+                if (s.status === 'AVAILABLE') return true;
+                if (s.status === 'PROCESSING_FAILED') throw new PublishError('PROVIDER_ERROR', `LinkedIn could not process the ${noun} (${s.processingFailureReason || 'unknown reason'}).`, { platform: 'linkedin' });
+                return undefined;
+            },
+            {
+                attempts: intEnv('LINKEDIN_VIDEO_POLL_ATTEMPTS', 60),
+                intervalMs: intEnv('LINKEDIN_VIDEO_POLL_MS', 5000),
+                onTimeout: () => new PublishError('PROVIDER_TIMEOUT', `LinkedIn is still processing the ${noun}; try again shortly.`, { retryable: true, platform: 'linkedin' }),
+            },
+        );
     }
 
     private async uploadVideo(owner: string, url: string, token: string): Promise<string> {
@@ -110,20 +148,7 @@ export class LinkedInPublisher implements PlatformPublisher {
         });
         await expectOk('linkedin', fin, 'LinkedIn video finalize');
 
-        await pollUntil(
-            async () => {
-                const r = await providerFetch('linkedin', `${REST}/videos/${encodeURIComponent(videoUrn)}`, { method: 'GET', headers: headers(token, false) });
-                const s = await expectOk('linkedin', r, 'LinkedIn video status');
-                if (s.status === 'AVAILABLE') return true;
-                if (s.status === 'PROCESSING_FAILED') throw new PublishError('PROVIDER_ERROR', `LinkedIn could not process the video (${s.processingFailureReason || 'unknown reason'}).`, { platform: 'linkedin' });
-                return undefined;
-            },
-            {
-                attempts: intEnv('LINKEDIN_VIDEO_POLL_ATTEMPTS', 60),
-                intervalMs: intEnv('LINKEDIN_VIDEO_POLL_MS', 5000),
-                onTimeout: () => new PublishError('PROVIDER_TIMEOUT', 'LinkedIn is still processing the video; try again shortly.', { retryable: true, platform: 'linkedin' }),
-            },
-        );
+        await this.waitAvailable('videos', videoUrn, token);
         return videoUrn;
     }
 

@@ -4,6 +4,10 @@
  * 2. PUT the bytes in chunks with Content-Range; 308 = keep going, 200/201 = done (body is the video resource)
  * Shorts: vertical/square video up to 3 minutes; `#shorts` is added to the title/description when isShort.
  * Docs: developers.google.com/youtube/v3/guides/using_resumable_upload_protocol
+ * Verified 2026-09-27 against developers.google.com/youtube/v3/docs/videos/insert: 1 unit in the "Video Uploads"
+ * quota bucket (≈100 uploads/day by default), ≤ 256 GB, video/* or application/octet-stream; videos uploaded by an
+ * UNVERIFIED API project created after 2020-07-28 are forced to private (surfaced as a warning below).
+ * Shorts (support.google.com/youtube/answer/15424877): square or vertical, ≤ 3 minutes.
  */
 import { intEnv } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
@@ -12,6 +16,25 @@ import { asBody, downloadMedia, expectOk, providerFailure, providerFetch, readBo
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkUrls, checkVideo, isVertical } from './types';
 
 const UPLOAD_BASE = 'https://www.googleapis.com/upload/youtube/v3/videos';
+
+/** Google error reasons → typed errors with an actionable message (quota vs. rate limit vs. account problems). */
+export function youtubeFailure(res: { status: number }, body: any, what: string): PublishError {
+    const reasons: string[] = (body?.error?.errors || []).map((e: any) => String(e?.reason || ''));
+    const has = (r: string) => reasons.includes(r);
+    if (has('quotaExceeded') || has('dailyLimitExceeded')) {
+        return new PublishError('PROVIDER_ERROR', `${what}: the YouTube Data API daily quota is used up (resets at midnight Pacific). Request a quota increase in Google Cloud Console.`, { platform: 'youtube', retryable: false, details: { httpStatus: res.status, reasons } });
+    }
+    if (has('uploadLimitExceeded')) {
+        return new PublishError('PROVIDER_ERROR', `${what}: this channel reached YouTube's upload limit for now; try again later.`, { platform: 'youtube', retryable: false, details: { httpStatus: res.status, reasons } });
+    }
+    if (has('rateLimitExceeded') || has('userRateLimitExceeded')) {
+        return new PublishError('PROVIDER_ERROR', `${what}: YouTube rate limit; retrying.`, { platform: 'youtube', retryable: true, details: { httpStatus: res.status, reasons } });
+    }
+    if (has('youtubeSignupRequired')) {
+        return new PublishError('REAUTH_REQUIRED', `${what}: the Google account has no YouTube channel yet; create one and reconnect.`, { platform: 'youtube' });
+    }
+    return providerFailure('youtube', res, body, what);
+}
 
 export class YouTubePublisher implements PlatformPublisher {
     readonly platform = 'youtube' as const;
@@ -38,9 +61,12 @@ export class YouTubePublisher implements PlatformPublisher {
                 categoryId: String(input.platformMeta.categoryId || '22'),
             },
             status: {
-                privacyStatus: input.platformMeta.privacyStatus || 'public',
+                // A scheduled publish (publishAt) requires privacyStatus=private; YouTube flips it public at that time.
+                privacyStatus: input.platformMeta.publishAt ? 'private' : input.platformMeta.privacyStatus || 'public',
                 selfDeclaredMadeForKids: Boolean(input.platformMeta.madeForKids),
                 embeddable: true,
+                ...(input.platformMeta.publishAt ? { publishAt: new Date(input.platformMeta.publishAt).toISOString() } : {}),
+                ...(input.platformMeta.containsSyntheticMedia != null ? { containsSyntheticMedia: Boolean(input.platformMeta.containsSyntheticMedia) } : {}),
             },
         };
     }
@@ -61,6 +87,12 @@ export class YouTubePublisher implements PlatformPublisher {
         if (tagChars > 500) issues.push('YouTube tags are limited to 500 characters in total.');
         if (!['public', 'unlisted', 'private'].includes(meta.status.privacyStatus)) issues.push('YouTube privacyStatus must be public, unlisted or private.');
         if (input.platformMeta.isShort === true) checkVideo(v, { maxSec: 180, maxAspect: 1 }, 'YouTube Short', issues);
+        if (input.platformMeta.publishAt != null) {
+            const t = new Date(input.platformMeta.publishAt).getTime();
+            if (!Number.isFinite(t)) issues.push('YouTube publishAt must be an ISO date-time.');
+            else if (t <= Date.now()) issues.push('YouTube publishAt must be in the future.');
+        }
+        if (input.media.length > 1) issues.push('YouTube uploads one video per post.');
         return issues;
     }
 
@@ -79,7 +111,7 @@ export class YouTubePublisher implements PlatformPublisher {
             },
             body: JSON.stringify(metadata),
         });
-        if (!init.ok) throw providerFailure('youtube', init, await readBody(init), 'YouTube upload session');
+        if (!init.ok) throw youtubeFailure(init, await readBody(init), 'YouTube upload session');
         const sessionUrl = init.headers.get('location');
         if (!sessionUrl) throw new PublishError('PROVIDER_ERROR', 'YouTube did not return an upload session URL.', { retryable: true, platform: 'youtube' });
 
@@ -108,12 +140,18 @@ export class YouTubePublisher implements PlatformPublisher {
                 video = await readBody(res);
                 break;
             }
-            throw providerFailure('youtube', res, await readBody(res), 'YouTube upload');
+            throw youtubeFailure(res, await readBody(res), 'YouTube upload');
         }
         if (!video?.id) throw new PublishError('PROVIDER_ERROR', 'YouTube upload finished without a video id.', { platform: 'youtube' });
 
         const short = this.isShort(input);
         let warning: string | undefined;
+        const requested = metadata.status.privacyStatus;
+        const actual = video.status?.privacyStatus;
+        if (actual && actual !== requested && !metadata.status.publishAt) {
+            // Unverified Google Cloud projects (created after 2020-07-28) have every API upload locked to private.
+            warning = `YouTube saved the video as "${actual}" instead of "${requested}". The Google Cloud project is probably not verified for the YouTube Data API (complete the API audit to publish publicly).`;
+        }
         if (input.thumbnailUrl && input.platformMeta.uploadThumbnail !== false) {
             try {
                 const thumb = await downloadMedia('youtube', input.thumbnailUrl, 2 * 1024 * 1024);
@@ -124,14 +162,15 @@ export class YouTubePublisher implements PlatformPublisher {
                 });
                 await expectOk('youtube', tr, 'YouTube thumbnail');
             } catch (e: any) {
-                warning = `Uploaded, but the custom thumbnail failed: ${e.message}`;
+                const t = `Uploaded, but the custom thumbnail failed: ${e.message}`;
+                warning = warning ? `${warning} ${t}` : t;
             }
         }
         return {
             externalId: String(video.id),
             url: short ? `https://www.youtube.com/shorts/${video.id}` : `https://www.youtube.com/watch?v=${video.id}`,
             state: 'published',
-            meta: { isShort: short, privacyStatus: video.status?.privacyStatus },
+            meta: { isShort: short, privacyStatus: actual, requestedPrivacyStatus: requested, publishAt: metadata.status.publishAt },
             warning,
         };
     }
