@@ -161,3 +161,42 @@ Server:
 | X | Client ID/secret on a paid tier that allows posting and media upload |
 | TikTok | Client key/secret, Content Posting API audit, domain verification |
 | URLs | `SOCIAL_OAUTH_CALLBACK_BASE_URL`, `CLIENT_URL`/`SOCIAL_OAUTH_WEB_ORIGINS`; register `…/api/v1/social-media/accounts/oauth/<platform>/callback` in every developer console |
+
+## 5. Additions (2026-09-26)
+
+### Phase 6: Free media sources and on-device AI tools for the AI Director (in progress)
+| Source / tool | Status before | Plan |
+|---|---|---|
+| Pexels (video, photos) | ✅ integrated | keep; use in ranking |
+| Pixabay (video, photos, music, SFX) | ✅ integrated | keep |
+| Freesound (SFX, CC0/CC-BY) | ✅ integrated | keep; licence filter |
+| Wikimedia Commons | 🟡 music catalogue only | add video, images and audio search (no key) |
+| Openverse | 🟡 referenced only | add images and audio (no key, commercial filter) |
+| Internet Archive | ❌ | add public-domain archival video and audio (no key) |
+| Jamendo | ❌ | add, behind `JAMENDO_CLIENT_ID`; commercial-licence caveat |
+| Unsplash | 🟡 referenced only | add photos, behind `UNSPLASH_ACCESS_KEY`, following the API guidelines |
+| Free Music Archive | ❌ | skip: the public API is discontinued |
+| Face tracking (Google ML Kit, on device) | ❌ | smart 9:16 reframe and zoom centre follow the speaker |
+| Beat detection (on device) | ❌ | music beats sent to the director; option to snap cuts to beats |
+
+Attribution flows into the director warnings and the export credit.
+
+### Phase 7: Meta (Instagram / Facebook / Threads) go-live checklist
+1. **Deploy.** Production (api.180workspace.com) runs `ed40b0d`, so the OAuth callback and webhook routes
+   return 401. Deploy the current `main` after Phase 0 lands.
+2. **Rotate the webhook verify token.** The old value is in git history and in a pasted audit. Set a new
+   `META_WEBHOOK_VERIFY_TOKEN` in the server `.env`, then enter the same value in the Meta Webhooks
+   product. The code no longer has a fallback.
+3. **Verify the handshake** with `GET /api/v1/social-media/webhooks/meta?hub.mode=subscribe&hub.verify_token=<new>&hub.challenge=x`.
+   It must return `x`.
+4. **Enter the Meta dashboard URLs:** privacy, terms, data deletion, deauthorize, and the three OAuth
+   callbacks. They are listed in the Meta readiness audit (unchanged).
+5. **Smoke test with a tester account:**
+   - OAuth login writes a `social_account_credentials` row.
+   - A live Reel publish succeeds with `ALLOW_SIMULATED_PUBLISHING=false`.
+   - A comment triggers the engagement rule, the reply and the DM, under the rate limit.
+   - Deauthorizing sets `reauthRequired`.
+6. **App Review.** Record the screencast (connect, schedule a Reel and a carousel, post goes live, inbox
+   comment, disconnect/deletion). Request `instagram_business_content_publish`,
+   `instagram_business_manage_messages`, `instagram_business_manage_comments`, `pages_manage_posts`,
+   `pages_manage_engagement` and `pages_read_engagement`.
