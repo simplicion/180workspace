@@ -196,7 +196,6 @@ GRAPH: ${(plan as any).spec.filterComplex}`);
       ["animated scale", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3], { transform: { scale: { start: 1, end: 1.3 }, position: { x: 0, y: 0 }, rotationDeg: 0, opacity: 1 } })] }] }), /animated scale/],
       ["rotation", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3], { transform: { scale: { start: 1, end: 1 }, position: { x: 0, y: 0 }, rotationDeg: 15, opacity: 1 } })] }] }), /rotation/],
       ["effects", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3], { effects: ["glitch"] })] }] }), /effects/],
-      ["transition", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3], { transitionIn: { type: "CROSSFADE", duration: T(0.5) } })] }] }), /transition CROSSFADE/],
       ["speed out of range", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("c", A, [0, 3], [0, 3], { speedMultiplier: 8 })] }] }), /speed/],
       ["empty timeline", project({ total: 3, tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [] }] }), /no video clips/],
     ];
@@ -308,6 +307,40 @@ GRAPH: ${(plan as any).spec.filterComplex}`);
     assert.ok(inShake.some(Boolean), `shake moves the bar over x=1025 at some frame: ${inShake}`);
     assert.ok(pixel(out, 3.8, 1025, 540)[0] < 60, "after the shake it is still");
   });
+
+  // Every transition type at a red (A) -> blue (B) cut at t=2 (1 s long): renders, and the cut looks as intended.
+  const isRed = ([r, , b]: number[]) => r > 150 && b < 90;
+  const isBlue = ([r, , b]: number[]) => b > 150 && r < 90;
+  const TRANSITION_CHECKS: Record<string, (out: string) => void> = {
+    CROSSFADE: (o) => { const [r, , b] = pixel(o, 2.5, 960, 540); assert.ok(r > 50 && b > 50, `mix, got ${[r, b]}`); },
+    DISSOLVE: (o) => { const [r, , b] = pixel(o, 2.5, 960, 540); assert.ok(r > 50 && b > 50, `mix, got ${[r, b]}`); },
+    SLIDE_LEFT: (o) => { assert.ok(isRed(pixel(o, 2.5, 300, 540)), "left: frozen A"); assert.ok(isBlue(pixel(o, 2.5, 1600, 540)), "right: B sliding in"); },
+    SLIDE_UP: (o) => { assert.ok(isRed(pixel(o, 2.5, 960, 150)), "top: frozen A"); assert.ok(isBlue(pixel(o, 2.5, 960, 950)), "bottom: B sliding up"); },
+    WIPE: (o) => { assert.ok(isRed(pixel(o, 2.5, 300, 540)), "left: A"); assert.ok(isBlue(pixel(o, 2.5, 1600, 540)), "right: B revealed first"); },
+    WIPE_RIGHT: (o) => { assert.ok(isBlue(pixel(o, 2.5, 300, 540)), "left: B revealed first"); assert.ok(isRed(pixel(o, 2.5, 1600, 540)), "right: A"); },
+    DIP_BLACK: (o) => { const p = pixel(o, 2.03, 960, 540); assert.ok(Math.max(...p) < 70, `dark at the cut, got ${p}`); },
+    DIP_WHITE: (o) => { const p = pixel(o, 2.03, 960, 540); assert.ok(Math.min(...p) > 150, `bright at the cut, got ${p}`); },
+    ZOOM_SWOOSH: () => {},
+    ZOOM_OUT: () => {},
+    BLUR_PUNCH: () => {},
+    GLITCH: () => {},
+  };
+  for (const [type, check] of Object.entries(TRANSITION_CHECKS)) {
+    await t(`transition ${type} renders at the cut`, () => {
+      const ir = project({
+        total: 4,
+        tracks: [{ id: "main", type: "MAIN_VIDEO", zIndex: 0, clips: [clip("a", A, [0, 2], [0, 2]), clip("b", B, [0, 2], [2, 2], { transitionIn: { type, duration: T(1) } })] }],
+      });
+      const plan = buildNativeRenderPlan(ir, opts());
+      assert.ok(plan.supported, JSON.stringify(plan));
+      const out = f(`tr-${type}.mp4`);
+      const r = renderSpec((plan as any).spec, out);
+      assert.ok(r.ok, `${r.err}\nGRAPH: ${(plan as any).spec.filterComplex}`);
+      assert.ok(isRed(pixel(out, 1.0, 960, 540)), "before the cut: A");
+      assert.ok(isBlue(pixel(out, 3.7, 960, 540)), "after the transition: B");
+      check(out);
+    });
+  }
 
   rmSync(work, { recursive: true, force: true });
   console.log(`\n${passed}/${passed + failed} passed`);

@@ -14,6 +14,8 @@ export const ALLOWED_FILTERS = [
   "colorchannelmixer", "fps", "atempo", "volume", "adelay", "afade", "amix", "anullsrc", "aresample", "null", "anull",
   // photos + effect track (none of these read files)
   "crop", "split", "zoompan", "hue", "vignette", "fade",
+  // transitions
+  "geq", "gblur", "rgbashift", "noise",
 ] as const;
 
 export const MAX_GRAPH_LEN = 100_000;

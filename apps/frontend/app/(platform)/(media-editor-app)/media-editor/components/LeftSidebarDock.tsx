@@ -11,8 +11,13 @@ import {
   Wand2,
   FolderOpen,
   Search,
+  Type,
+  Zap,
 } from "lucide-react";
-import { EditIR, DirectorStylePreset, MediaAssetDescriptor, VideoClip, Transition } from "@workspace/video-contracts";
+import { EditIR, DirectorStylePreset, MediaAssetDescriptor, VideoClip, Transition, EffectEvent, VideoEffectType } from "@workspace/video-contracts";
+import { TextTemplatesPanel } from "./TextTemplatesPanel";
+import { EffectsPanel } from "./EffectsPanel";
+import type { BrandLook } from "../services/editor-library";
 import { AIDirectorPanel, DirectorChatMessage, DirectorPromptOptions } from "./AIDirectorPanel";
 import { ClipInspector } from "./ClipInspector";
 import { AICriticDrawer } from "./AICriticDrawer";
@@ -20,7 +25,7 @@ import { StockMediaPanel } from "./StockMediaPanel";
 import { AssetBin } from "./AssetBin";
 import { CompanyAIStatus, AIDirectorProgressEvent } from "../services/tauri-bridge";
 
-export type LeftSidebarTab = "director" | "inspector" | "critic" | "assets" | "stock";
+export type LeftSidebarTab = "director" | "inspector" | "critic" | "assets" | "stock" | "text" | "effects";
 
 interface LeftSidebarDockProps {
   activeTab: LeftSidebarTab;
@@ -71,6 +76,13 @@ interface LeftSidebarDockProps {
   onAddClipToTimeline?: (asset: MediaAssetDescriptor) => void;
   onDeleteAsset?: (assetId: string) => void;
   onAddAssetToTimeline?: (asset: MediaAssetDescriptor) => void;
+  // Text templates & effects
+  brandLook?: BrandLook;
+  onAddTitle?: (templateId: string, text: string) => void;
+  selectedEffect?: EffectEvent | null;
+  onAddEffect?: (type: VideoEffectType, intensity: number) => void;
+  onUpdateEffectIntensity?: (id: string, intensity: number) => void;
+  onDeleteEffect?: (id: string) => void;
 }
 
 export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
@@ -114,6 +126,12 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
   onAddClipToTimeline,
   onDeleteAsset,
   onAddAssetToTimeline,
+  brandLook = {},
+  onAddTitle,
+  selectedEffect = null,
+  onAddEffect,
+  onUpdateEffectIntensity,
+  onDeleteEffect,
 }) => {
   if (!isOpen) {
     return (
@@ -222,6 +240,32 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
         >
           <Search className="w-4 h-4" />
         </button>
+
+        <button
+          onClick={() => {
+            onTabChange("text");
+            onToggleOpen();
+          }}
+          className={`p-2 rounded-lg transition ${
+            activeTab === "text" ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30" : "text-zinc-500 hover:text-zinc-300 hover:bg-[#15151C]"
+          }`}
+          title="Text templates"
+        >
+          <Type className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={() => {
+            onTabChange("effects");
+            onToggleOpen();
+          }}
+          className={`p-2 rounded-lg transition ${
+            activeTab === "effects" ? "bg-violet-500/20 text-violet-300 border border-violet-500/30" : "text-zinc-500 hover:text-zinc-300 hover:bg-[#15151C]"
+          }`}
+          title="Video effects"
+        >
+          <Zap className="w-4 h-4" />
+        </button>
       </div>
     );
   }
@@ -234,7 +278,7 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
       {/* 1. Universal Top Navigation Bar with 3 Tabs + Collapse Toggle */}
       <div className="h-11 border-b border-[#1C1C22] bg-[#0C0D14] flex items-center justify-between px-2 shrink-0">
         {/* Tab Pills */}
-        <div className="flex items-center space-x-1 bg-[#12131C] p-0.5 rounded-lg border border-[#1F202B]">
+        <div className="flex items-center space-x-1 bg-[#12131C] p-0.5 rounded-lg border border-[#1F202B] min-w-0 overflow-x-auto">
           {/* Tab 1: Creative Director */}
           <button
             onClick={() => onTabChange("director")}
@@ -321,6 +365,32 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
           >
             <Search className="w-3.5 h-3.5 text-cyan-400" />
             <span>Stock</span>
+          </button>
+
+          <button
+            onClick={() => onTabChange("text")}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition ${
+              activeTab === "text"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-[#181926]"
+            }`}
+            title="Text templates"
+          >
+            <Type className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Text</span>
+          </button>
+
+          <button
+            onClick={() => onTabChange("effects")}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition ${
+              activeTab === "effects"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-[#181926]"
+            }`}
+            title="Video effects"
+          >
+            <Zap className="w-3.5 h-3.5 text-violet-300" />
+            <span>FX</span>
           </button>
         </div>
 
@@ -419,6 +489,20 @@ export const LeftSidebarDock: React.FC<LeftSidebarDockProps> = ({
               aspectRatio={currentAspect}
             />
           </div>
+        )}
+
+        {activeTab === "text" && (
+          <TextTemplatesPanel brand={brandLook} currentTimeSeconds={currentTimeSeconds} onAddTitle={onAddTitle || (() => {})} />
+        )}
+
+        {activeTab === "effects" && (
+          <EffectsPanel
+            currentTimeSeconds={currentTimeSeconds}
+            selectedEffect={selectedEffect}
+            onAddEffect={onAddEffect || (() => {})}
+            onUpdateIntensity={onUpdateEffectIntensity || (() => {})}
+            onDeleteEffect={onDeleteEffect || (() => {})}
+          />
         )}
       </div>
     </div>

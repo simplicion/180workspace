@@ -55,32 +55,89 @@ class ZoomTransformation(
     override fun isNoOp(inputWidth: Int, inputHeight: Int): Boolean = zooms.isEmpty()
 }
 
+/** One transition on the output timeline: the cut at [atMs], [durMs] long, centred on the cut. */
+data class TransitionSpan(val atMs: Long, val durMs: Long, val type: String) {
+    /** 1 at the cut, falling to 0 at the window edges; null outside the window. */
+    fun closeness(t: Double): Double? {
+        val half = durMs / 2.0
+        if (half <= 0) return null
+        val d = kotlin.math.abs(t - atMs)
+        return if (d < half) 1.0 - d / half else null
+    }
+}
+
+/** Types drawn by [TransitionFade] + [TransitionMotion]; anything else falls back to a crossfade (warned). */
+val SUPPORTED_TRANSITIONS = setOf("CUT", "CROSSFADE", "DISSOLVE", "DIP_BLACK", "DIP_WHITE", "ZOOM_SWOOSH", "ZOOM_OUT", "GLITCH")
+
 /**
- * Transition envelope: dips luminance to black around each cut boundary with a transition.
- * Media3 sequences cannot overlap two items, so CROSSFADE/DISSOLVE are rendered as a
- * centred dip-through-black of the same duration (durations are unchanged, as required).
+ * Colour side of transitions. Media3 sequences cannot overlap two items, so CROSSFADE/DISSOLVE/DIP_BLACK
+ * (and unknown types) are a centred dip-through-black of the same duration; DIP_WHITE dips through white;
+ * GLITCH is a brief white flash right at the cut. Zooms have no colour change (see [TransitionMotion]).
  */
 @UnstableApi
-class TransitionFade(private val boundaries: List<Pair<Long, Long>>) : RgbMatrix {
+class TransitionFade(private val spans: List<TransitionSpan>) : RgbMatrix {
     override fun getMatrix(presentationTimeUs: Long, useHdr: Boolean): FloatArray {
         val t = presentationTimeUs / 1000.0
-        var f = 1.0
-        for ((boundaryMs, durMs) in boundaries) {
-            val half = durMs / 2.0
-            if (half <= 0) continue
-            val d = kotlin.math.abs(t - boundaryMs)
-            if (d < half) f = min(f, d / half)
+        var black = 0.0
+        var white = 0.0
+        for (s in spans) {
+            val k = s.closeness(t) ?: continue
+            when (s.type) {
+                "ZOOM_SWOOSH", "ZOOM_OUT" -> {}
+                "DIP_WHITE" -> white = max(white, k)
+                // Flash only in the middle 40% of the window, peaking at the cut.
+                "GLITCH" -> white = max(white, 0.7 * ((k - 0.6) / 0.4).coerceIn(0.0, 1.0))
+                else -> black = max(black, k)
+            }
         }
-        val v = f.toFloat()
-        return floatArrayOf(
-            v, 0f, 0f, 0f,
-            0f, v, 0f, 0f,
-            0f, 0f, v, 0f,
-            0f, 0f, 0f, 1f,
-        )
+        if (black <= 0.0 && white <= 0.0) return EffectsColor.identity()
+        return EffectsColor.multiply(EffectsColor.towardsWhite(white), EffectsColor.darken(black))
     }
 
-    override fun isNoOp(inputWidth: Int, inputHeight: Int): Boolean = boundaries.isEmpty()
+    override fun isNoOp(inputWidth: Int, inputHeight: Int): Boolean =
+        spans.none { it.type != "ZOOM_SWOOSH" && it.type != "ZOOM_OUT" }
+}
+
+/**
+ * Motion side of transitions, as a scale/offset ramp around the cut. Scale never drops below 1, so no
+ * background is revealed. ZOOM_SWOOSH punches in towards the cut and back out after it; ZOOM_OUT starts
+ * the incoming clip zoomed in and eases out; GLITCH jitters the frame sideways around the cut.
+ */
+@UnstableApi
+class TransitionMotion(private val spans: List<TransitionSpan>) : MatrixTransformation {
+    private val active = spans.filter { it.type == "ZOOM_SWOOSH" || it.type == "ZOOM_OUT" || it.type == "GLITCH" }
+
+    override fun getMatrix(presentationTimeUs: Long): Matrix {
+        val m = Matrix()
+        val t = presentationTimeUs / 1000.0
+        for (s in active) {
+            val k = s.closeness(t) ?: continue
+            when (s.type) {
+                "ZOOM_SWOOSH" -> {
+                    val sc = (1.0 + 0.35 * easeIn(k)).toFloat()
+                    m.setScale(sc, sc)
+                }
+                "ZOOM_OUT" -> if (t >= s.atMs) {
+                    val sc = (1.0 + 0.3 * easeIn(k)).toFloat()
+                    m.setScale(sc, sc)
+                }
+                "GLITCH" -> {
+                    // Stepped jitter (changes every ~33 ms), scaled up slightly so edges stay hidden.
+                    val step = kotlin.math.floor(t / 33.0)
+                    val amp = 0.06 * k
+                    val dx = (amp * kotlin.math.sin(step * 12.9898)).toFloat()
+                    val dy = (amp * 0.3 * kotlin.math.sin(step * 78.233)).toFloat()
+                    val sc = (1.0 + 0.08 * k).toFloat()
+                    m.setScale(sc, sc)
+                    m.postTranslate(dx, dy)
+                }
+            }
+            return m
+        }
+        return m
+    }
+
+    override fun isNoOp(inputWidth: Int, inputHeight: Int): Boolean = active.isEmpty()
 }
 
 /**
@@ -167,7 +224,11 @@ class CaptionOverlay(
 
         stroke.strokeWidth = (st.strokeWidthPx * 2).toFloat() // stroke is centred on the glyph edge
         stroke.color = st.strokeColor
-        if (st.shadow) fill.setShadowLayer(6f, 0f, 4f, 0xA0000000.toInt()) else fill.clearShadowLayer()
+        when {
+            st.glow -> fill.setShadowLayer(size * 0.25f, 0f, 0f, st.highlightColor)
+            st.shadow -> fill.setShadowLayer(6f, 0f, 4f, 0xA0000000.toInt())
+            else -> fill.clearShadowLayer()
+        }
 
         lines.forEachIndexed { li, line ->
             var x = cx - lineWidths[li] / 2f

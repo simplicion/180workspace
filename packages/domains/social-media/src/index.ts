@@ -21,5 +21,6 @@ export * from './creative';
 export * from './publishing';
 export * from './engagement';
 export * from './tenant-scope';
+export * from './post-guards';
 export * from './linkedin';
 export * from './youtube';

@@ -11,6 +11,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/universal_skeleton.dart';
 import '../director/ai_director_service.dart';
 import '../projects/project_provider.dart';
+import 'caption_fonts.dart';
 import 'studio_controller.dart';
 import 'studio_session_screen.dart' show timecode;
 import 'text_templates.dart';
@@ -580,9 +581,15 @@ class _CaptionsSheet extends StatefulWidget {
 }
 
 class _CaptionsSheetState extends State<_CaptionsSheet> {
-  String preset = 'BOLD_POP';
+  /// Starts on the style the captions already use, so "Apply to all" is a no-op until changed.
+  late String preset = () {
+    final current = widget.c.ir!.captions.where((x) => x.kind == 'caption').firstOrNull?.style['preset'];
+    return current is String && TimelineOps.captionPresets.containsKey(current) ? current : 'BOLD_POP';
+  }();
   int words = 3;
-  String color = '#FFE600';
+
+  /// Null keeps the preset's own highlight colour.
+  String? color;
   double y = 0.72;
 
   @override
@@ -597,29 +604,47 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
               : c.transcriptState == TranscriptState.running
                   ? 'Waiting for the transcript…'
                   : 'Captions need a transcript. ${errorText(c.transcriptError ?? '')}'),
-      Wrap(spacing: 8, children: [
-        for (final e in TimelineOps.captionPresets.entries)
-          ChoiceChip(label: Text(e.value), selected: preset == e.key, onSelected: (_) => setState(() => preset = e.key)),
-      ]),
+      SizedBox(
+        height: 84,
+        child: ListView(scrollDirection: Axis.horizontal, children: [
+          for (final e in TimelineOps.captionPresets.entries)
+            CaptionPresetCard(
+              name: e.value,
+              style: TimelineOps.captionStyle(e.key),
+              selected: preset == e.key,
+              onTap: () => setState(() => preset = e.key),
+            ),
+        ]),
+      ),
       const SizedBox(height: 8),
-      Row(children: [
-        const Text('Highlight'),
-        const SizedBox(width: 8),
-        for (final hex in const ['#FFE600', '#22D3EE', '#4ADE80', '#F472B6', '#FFFFFF'])
-          GestureDetector(
-            onTap: () => setState(() => color = hex),
-            child: Container(
-              width: 32,
-              height: 32,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                color: Color(int.parse('FF${hex.substring(1)}', radix: 16)),
-                shape: BoxShape.circle,
-                border: Border.all(color: color == hex ? AppTheme.primary : AppTheme.border, width: color == hex ? 3 : 1),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          const Text('Highlight'),
+          const SizedBox(width: 8),
+          ChoiceChip(label: const Text('Preset'), selected: color == null, onSelected: (_) => setState(() => color = null)),
+          const SizedBox(width: 8),
+          for (final hex in const ['#FFE600', '#22D3EE', '#4ADE80', '#F472B6', '#FFFFFF'])
+            Semantics(
+              button: true,
+              selected: color == hex,
+              label: 'Highlight $hex',
+              child: GestureDetector(
+                onTap: () => setState(() => color = hex),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: Color(int.parse('FF${hex.substring(1)}', radix: 16)),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: color == hex ? AppTheme.primary : AppTheme.border, width: color == hex ? 3 : 1),
+                  ),
+                ),
               ),
             ),
-          ),
-      ]),
+        ]),
+      ),
       Text('Words per caption: $words'),
       Slider(value: words.toDouble(), min: 1, max: 6, divisions: 5, onChanged: (v) => setState(() => words = v.round())),
       SegmentedButton<double>(
@@ -628,7 +653,17 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
         onSelectionChanged: (v) => setState(() => y = v.first),
       ),
       const SizedBox(height: 12),
-      Row(children: [
+      if (has)
+        FilledButton.icon(
+          onPressed: () {
+            _close(context);
+            widget.onEdit((ir) => TimelineOps.styleCaptions(ir, preset, highlightColor: color, positionY: y),
+                done: 'Caption style applied to all captions');
+          },
+          icon: const Icon(Icons.format_paint_rounded),
+          label: const Text('Apply to all captions'),
+        ),
+      Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, children: [
         if (has)
           TextButton(
             onPressed: () {
@@ -639,17 +674,7 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
           ),
         if (!ready && c.transcriptState == TranscriptState.failed)
           TextButton(onPressed: c.transcribe, child: const Text('Retry transcript')),
-        const Spacer(),
-        if (has)
-          OutlinedButton(
-            onPressed: () {
-              _close(context);
-              widget.onEdit((ir) => TimelineOps.styleCaptions(ir, preset, highlightColor: color, positionY: y));
-            },
-            child: const Text('Restyle'),
-          ),
-        const SizedBox(width: 8),
-        FilledButton(
+        (has ? OutlinedButton.new : FilledButton.new)(
           onPressed: !ready
               ? null
               : () {
@@ -657,7 +682,7 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
                   widget.onEdit((ir) => TimelineOps.autoCaptions(ir, c.words, preset: preset, wordsPerCaption: words, highlightColor: color, positionY: y),
                       done: 'Captions added');
                 },
-          child: Text(has ? 'Regenerate' : 'Add captions'),
+          child: Text(has ? 'Regenerate from transcript' : 'Add captions'),
         ),
       ]),
     ]);
@@ -1241,22 +1266,106 @@ class _TransitionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = c.ir!.clips.length;
+    final current = {for (final clip in c.ir!.clips.skip(1)) clip.transitionIn?.type ?? 'CUT'};
+    final unknown = current.where((t) => !EditIrTransition.types.containsKey(t)).toList();
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (unknown.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            'This edit uses ${unknown.join(', ')}, which this phone renders as a crossfade. Pick one below to replace it.',
+            style: const TextStyle(color: AppTheme.warning, fontSize: 12),
+          ),
+        ),
       _Title('Transitions', subtitle: n < 2 ? 'Split the video first: transitions go between clips.' : 'Applied at every cut.'),
       for (final (label, t) in const [
         ('Hard cut', null),
         ('Crossfade', EditIrTransition(type: 'CROSSFADE', durationMs: 300)),
         ('Dissolve', EditIrTransition(type: 'DISSOLVE', durationMs: 500)),
+        ('Fade through black', EditIrTransition(type: 'DIP_BLACK', durationMs: 500)),
+        ('Fade through white', EditIrTransition(type: 'DIP_WHITE', durationMs: 400)),
+        ('Zoom swoosh', EditIrTransition(type: 'ZOOM_SWOOSH', durationMs: 400)),
+        ('Zoom out', EditIrTransition(type: 'ZOOM_OUT', durationMs: 500)),
+        ('Glitch', EditIrTransition(type: 'GLITCH', durationMs: 300)),
       ])
         ListTile(
           enabled: n > 1,
           title: Text(label),
+          trailing: current.contains(t?.type ?? 'CUT') ? const Icon(Icons.check_rounded, color: AppTheme.primary) : null,
           onTap: () {
             _close(context);
             onEdit((ir) => TimelineOps.setTransition(ir, t));
           },
         ),
     ]);
+  }
+}
+
+/// A caption preset rendered as a live sample in its own font, colours, stroke, glow and pill.
+class CaptionPresetCard extends StatelessWidget {
+  const CaptionPresetCard({super.key, required this.name, required this.style, required this.selected, required this.onTap});
+  final String name;
+  final Map<String, dynamic> style;
+  final bool selected;
+  final VoidCallback onTap;
+
+  static Color _hex(Object? v, Color d) {
+    if (v is! String) return d;
+    final h = v.replaceFirst('#', '');
+    if (h.length != 6 && h.length != 8) return d;
+    final n = int.tryParse(h.length == 6 ? 'FF$h' : h.substring(6) + h.substring(0, 6), radix: 16);
+    return n == null ? d : Color(n);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = _hex(style['textColor'], Colors.white);
+    final hi = _hex(style['highlightColor'], const Color(0xFFFFE600));
+    final bg = style['background'] is Map ? _hex((style['background'] as Map)['color'], Colors.black54) : null;
+    final stroke = (style['strokeWidthPx'] as num? ?? 0) > 0;
+    final shadows = [
+      if (style['glow'] == true) Shadow(blurRadius: 10, color: hi),
+      if (style['shadow'] == true || stroke) Shadow(blurRadius: stroke ? 1.5 : 4, color: _hex(style['strokeColor'], Colors.black)),
+    ];
+    String up(String s) => style['uppercase'] == true ? s.toUpperCase() : s;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Caption style $name',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 112,
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppTheme.background,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: selected ? AppTheme.primary : AppTheme.border, width: selected ? 2 : 1),
+          ),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Expanded(
+              child: Center(
+                child: Container(
+                  padding: bg == null ? null : const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: bg == null ? null : BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+                  child: FittedBox(
+                    child: Text.rich(
+                      TextSpan(children: [
+                        TextSpan(text: '${up('Go')} '),
+                        TextSpan(text: up('viral'), style: TextStyle(color: hi)),
+                      ]),
+                      style: CaptionFonts.textStyle(style, fontSize: 18, color: text, shadows: shadows),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.labelSmall),
+          ]),
+        ),
+      ),
+    );
   }
 }
 

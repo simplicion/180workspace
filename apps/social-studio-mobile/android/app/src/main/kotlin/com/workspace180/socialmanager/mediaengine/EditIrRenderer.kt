@@ -391,13 +391,16 @@ class EditIrRenderer(
             if (Build.VERSION.SDK_INT < 29) warnings.add("HDR tone-mapping needs Android 10+; colours may be washed out")
         }
         if (ir.zooms.isNotEmpty()) compositionFx.add(ZoomTransformation(ir.zooms, overlays.map { it.second }))
-        val transitionBoundaries = ir.clips.filter { it.transitionIn != null && it.transitionIn.type != "CUT" }
-            .map { it.timelineStartMs to it.transitionIn!!.durationMs }
-        ir.clips.mapNotNull { it.transitionIn?.type }.filter { it !in setOf("CUT", "CROSSFADE", "DISSOLVE") }
+        val transitionSpans = ir.clips.filter { it.transitionIn != null && it.transitionIn.type != "CUT" }
+            .map { TransitionSpan(it.timelineStartMs, it.transitionIn!!.durationMs, it.transitionIn.type) }
+        transitionSpans.map { it.type }.filter { it !in SUPPORTED_TRANSITIONS }
             .toSet().forEach { warnings.add("transition '$it' rendered as CROSSFADE") }
-        if (transitionBoundaries.isNotEmpty()) {
-            compositionFx.add(TransitionFade(transitionBoundaries))
-            warnings.add("transitions rendered as a centred dip-through-black (no overlapping crossfade)")
+        if (transitionSpans.isNotEmpty()) {
+            compositionFx.add(TransitionMotion(transitionSpans))
+            compositionFx.add(TransitionFade(transitionSpans))
+            if (transitionSpans.any { it.type == "CROSSFADE" || it.type == "DISSOLVE" || it.type !in SUPPORTED_TRANSITIONS }) {
+                warnings.add("crossfades rendered as a centred dip-through-black (no overlapping crossfade)")
+            }
         }
         val fx = ir.effects.filter { it.endMs > it.startMs && it.type in SUPPORTED_EFFECTS }
         ir.effects.map { it.type }.filter { it !in SUPPORTED_EFFECTS }.toSet().forEach { warnings.add("effect '$it' is not supported on this device and was skipped") }
@@ -504,19 +507,16 @@ class EditIrRenderer(
             } else {
                 Typeface.createFromFile(path)
             }
-        } else if (family.equals("Inter", ignoreCase = true)) {
-            // Inter ships in the APK (assets/fonts, SIL OFL 1.1). Other scripts use system fallback.
-            // Nearest bundled weight; ties go to the heavier one.
-            val bundled = BUNDLED_INTER_WEIGHTS.minBy { abs(it - weight) * 2 - (if (it > weight) 1 else 0) }
-            if (bundled != weight) synchronized(warnings) { warnings.add("font Inter $weight rendered with bundled Inter $bundled") }
-            Typeface.createFromAsset(context.assets, "fonts/Inter-$bundled.ttf")
         } else {
-            synchronized(warnings) { warnings.add("font '$family' $weight not supplied; system sans-serif used") }
-            if (Build.VERSION.SDK_INT >= 28) {
-                Typeface.create(Typeface.SANS_SERIF, weight.coerceIn(1, 1000), false)
-            } else {
-                Typeface.create(Typeface.SANS_SERIF, if (weight >= 600) Typeface.BOLD else Typeface.NORMAL)
+            // Inter ships in the APK (assets/fonts, SIL OFL 1.1) and is also the fallback for any family
+            // the app could not supply. Nearest bundled weight; ties go to the heavier one.
+            val bundled = BUNDLED_INTER_WEIGHTS.minBy { abs(it - weight) * 2 - (if (it > weight) 1 else 0) }
+            if (!family.equals("Inter", ignoreCase = true)) {
+                synchronized(warnings) { warnings.add("font '$family' $weight not supplied; bundled Inter used") }
+            } else if (bundled != weight) {
+                synchronized(warnings) { warnings.add("font Inter $weight rendered with bundled Inter $bundled") }
             }
+            Typeface.createFromAsset(context.assets, "fonts/Inter-$bundled.ttf")
         }
     }
 

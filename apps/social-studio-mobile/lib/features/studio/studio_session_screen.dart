@@ -12,6 +12,7 @@ import '../../core/native_engine/edit_ir.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
+import 'caption_fonts.dart';
 import 'director_panel.dart';
 import 'export_sheet.dart';
 import 'studio_controller.dart';
@@ -441,13 +442,17 @@ class _CaptionPreview extends StatelessWidget {
       child: Text.rich(
         TextSpan(children: spans),
         textAlign: TextAlign.center,
-        style: GoogleFonts.inter(
+        style: CaptionFonts.textStyle(
+          st,
           color: text,
           fontSize: caption.kind == 'text' ? 22 : 18,
-          fontWeight: FontWeight.w800,
-          shadows: st['shadow'] == true || (st['strokeWidthPx'] as num? ?? 0) > 0
-              ? const [Shadow(blurRadius: 4, color: Colors.black), Shadow(blurRadius: 1, color: Colors.black)]
-              : null,
+          shadows: [
+            if (st['glow'] == true) Shadow(blurRadius: 12, color: hi),
+            if (st['shadow'] == true || (st['strokeWidthPx'] as num? ?? 0) > 0) ...const [
+              Shadow(blurRadius: 4, color: Colors.black),
+              Shadow(blurRadius: 1, color: Colors.black),
+            ],
+          ],
         ),
       ),
     );
