@@ -93,5 +93,8 @@ export function validateRenderSpec(spec: NativeRenderSpec): void {
   if (!["draft", "balanced", "high"].includes(spec.quality)) throw new Error("invalid quality");
   const expectedMaps = spec.hasAudio ? ["[vout]", "[aout]"] : ["[vout]"];
   if (spec.maps.length !== expectedMaps.length || spec.maps.some((m, i) => m !== expectedMaps[i])) throw new Error("invalid output maps");
-  validateFilterGraph(spec.filterComplex, spec.inputs.length);
+  if (spec.overlaySequence != null && (!spec.overlaySequence.endsWith("list.ffconcat") || spec.overlaySequence.length > 4096)) {
+    throw new Error("invalid overlay sequence");
+  }
+  validateFilterGraph(spec.filterComplex, spec.inputs.length + (spec.overlaySequence ? 1 : 0));
 }
