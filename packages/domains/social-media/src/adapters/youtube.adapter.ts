@@ -199,5 +199,44 @@ export class YouTubeAdapter {
         });
         return res.ok;
     }
+
+    static async fetchComments(videoId: string, accessToken: string, maxResults = 50): Promise<any[]> {
+        if (!accessToken || accessToken.startsWith('mock_')) {
+            return [{ id: 'yt_comm_mock', snippet: { topLevelComment: { snippet: { textDisplay: 'Mock comment' } } } }];
+        }
+        const res = await providerFetch('youtube', `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${encodeURIComponent(videoId)}&maxResults=${maxResults}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const data = await expectOk('youtube', res, 'YouTube comment fetch');
+        return data.items || [];
+    }
+
+    static async getAnalytics(channelId: string, startDate: string, endDate: string, accessToken: string): Promise<any> {
+        if (!accessToken || accessToken.startsWith('mock_')) {
+            return { views: 1250, likes: 340, comments: 42, estimatedMinutesWatched: 4500 };
+        }
+        const url = `https://youtubeanalytics.googleapis.com/v1/reports?ids=channel==${encodeURIComponent(channelId)}&startDate=${startDate}&endDate=${endDate}&metrics=views,likes,comments,estimatedMinutesWatched`;
+        const res = await providerFetch('youtube', url, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        return await expectOk('youtube', res, 'YouTube analytics report');
+    }
+
+    static async uploadCaption(videoId: string, language: string, name: string, captionBytes: Uint8Array, accessToken: string): Promise<any> {
+        if (!accessToken || accessToken.startsWith('mock_')) {
+            return { id: 'mock_caption_id' };
+        }
+        const meta = { snippet: { videoId, language, name } };
+        const res = await providerFetch('youtube', `https://www.googleapis.com/upload/youtube/v3/captions?part=snippet`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(meta),
+        });
+        return await expectOk('youtube', res, 'YouTube caption upload');
+    }
 }
+
 

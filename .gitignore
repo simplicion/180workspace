@@ -16,6 +16,8 @@ build/
 .next/
 .open-next/
 out/
+*.apk
+*.aab
 
 # turborepo
 .turbo/
