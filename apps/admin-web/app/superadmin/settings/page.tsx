@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { 
     Settings, AlertTriangle, User, Shield, Lock, 
-    Eye, EyeOff, Save, KeyRound, CheckCircle2, ShieldAlert
+    Eye, EyeOff, Save, KeyRound, CheckCircle2, ShieldAlert,
+    Sparkles, ArrowRight, Cpu
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import saApi from '../../../lib/superadmin-api';
@@ -192,7 +194,35 @@ export default function SettingsPage() {
                 </div>
             </div>
 
-            {/* 2. Super Admin Profile & Security Grid */}
+            {/* 2. Platform AI Key Vault & LLM Engine Banner Card */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 shadow-2xs">
+                        <Sparkles className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-3 mb-1 flex-wrap">
+                            <h2 className="text-lg font-black text-slate-900">Platform AI Engine & Key Vault</h2>
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border bg-indigo-50 text-indigo-700 border-indigo-200 shadow-2xs">
+                                AES-256-GCM Encrypted
+                            </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-2xl">
+                            Configure platform-wide OpenAI, Google Gemini, Anthropic Claude, and Groq credentials. Stored securely in database instead of static environment variables.
+                        </p>
+                    </div>
+                </div>
+
+                <Link
+                    href="/superadmin/ai"
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shrink-0 flex items-center gap-2 shadow-sm shadow-indigo-600/20 cursor-pointer active:scale-95"
+                >
+                    <span>Manage AI Keys</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+            </div>
+
+            {/* 3. Super Admin Profile & Security Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Card 1: Super Admin Profile */}
                 <form onSubmit={handleSaveProfile} className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-2xs space-y-6 flex flex-col justify-between">

@@ -73,11 +73,9 @@ class EngagementTab extends ConsumerWidget {
             _buildLiveMetricsCard(context, ref),
             const SizedBox(height: 20),
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const SectionHeader('Active Funnels & Triggers'),
-                Row(
+            SectionHeader(
+              'Active Funnels & Triggers',
+              trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextButton.icon(
@@ -95,7 +93,6 @@ class EngagementTab extends ConsumerWidget {
                     ),
                   ],
                 ),
-              ],
             ),
             const SizedBox(height: 8),
 

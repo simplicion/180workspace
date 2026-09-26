@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { prisma } from '@workspace/db';
 import { aiProviderService, AISettings } from './ai-provider.service';
+import { PlatformAiVaultService } from './platform-ai-vault.service';
 
 export interface CompanyAIStatus {
     isConfigured: boolean;
@@ -45,17 +46,19 @@ export class AICompanyConfigService {
 
         const companyName = companyRecord?.name || '180 Workspace Enterprise';
 
-        const geminiKey = metadata.geminiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-        const openaiKey = metadata.openaiKey || metadata.apiKey || process.env.OPENAI_API_KEY || '';
-        const claudeKey = metadata.claudeKey || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || '';
-        const customAiKey = metadata.customAiKey || process.env.CUSTOM_AI_KEY || '';
-        const customAiUrl = metadata.customAiUrl || process.env.CUSTOM_AI_URL || '';
-        const customAiModel = metadata.customAiModel || process.env.CUSTOM_AI_MODEL || '';
+        // Load decrypted database-backed platform keys (AES-256-GCM encrypted in DB)
+        const platformVault = await PlatformAiVaultService.getDecryptedPlatformAiSettings();
 
-        const groqKey = metadata.groqKey || process.env.GROQ_API_KEY || '';
+        const geminiKey = metadata.geminiKey || platformVault.geminiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+        const openaiKey = metadata.openaiKey || metadata.apiKey || platformVault.openaiKey || process.env.OPENAI_API_KEY || '';
+        const claudeKey = metadata.claudeKey || platformVault.claudeKey || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || '';
+        const groqKey = metadata.groqKey || platformVault.groqKey || process.env.GROQ_API_KEY || '';
+        const customAiKey = metadata.customAiKey || platformVault.customAiKey || process.env.CUSTOM_AI_KEY || '';
+        const customAiUrl = metadata.customAiUrl || platformVault.customAiUrl || process.env.CUSTOM_AI_URL || '';
+        const customAiModel = metadata.customAiModel || platformVault.customAiModel || process.env.CUSTOM_AI_MODEL || '';
 
-        // Priority: Custom tenant key -> Platform environment master keys -> Platform default
-        const aiProvider = metadata.aiProvider || metadata.provider || (
+        // Priority: Custom tenant key -> Database Platform Default -> Platform environment master keys -> Platform default
+        const aiProvider = metadata.aiProvider || metadata.provider || platformVault.defaultProvider || (
             openaiKey ? 'openai' :
             geminiKey ? 'gemini' :
             claudeKey ? 'claude' :
@@ -66,9 +69,9 @@ export class AICompanyConfigService {
 
         const settings: AISettings = {
             aiProvider,
-            geminiKey: geminiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '',
-            openaiKey: openaiKey || process.env.OPENAI_API_KEY || '',
-            claudeKey: claudeKey || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || '',
+            geminiKey,
+            openaiKey,
+            claudeKey,
             customAiKey,
             customAiUrl,
             customAiModel

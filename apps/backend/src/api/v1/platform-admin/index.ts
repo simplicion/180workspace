@@ -12,6 +12,7 @@ import releaseNoteRoutes from './routes/release-note.routes';
 import blogRoutes from './routes/blog.routes';
 import logRoutes from './routes/log.routes';
 import ticketRoutes from './routes/ticket.routes';
+import aiRoutes from './routes/ai.routes';
 
 import { VoiceforceController } from '../voiceforce/voiceforce.controller';
 
@@ -36,6 +37,7 @@ router.use('/release-notes', releaseNoteRoutes);
 router.use('/blogs', blogRoutes);
 router.use('/logs', logRoutes);
 router.use('/tickets', ticketRoutes);
+router.use('/ai', aiRoutes);
 router.get('/voiceforce', VoiceforceController.getSuperadminOverview);
 router.post('/voiceforce/killswitch', VoiceforceController.superadminKillswitch);
 

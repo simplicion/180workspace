@@ -57,6 +57,7 @@ const NAV_SECTIONS: NavSection[] = [
     {
         title: 'Infrastructure & Ops',
         items: [
+            { href: '/superadmin/ai', label: 'Platform AI Vault', icon: Sparkles, badge: 'Vault' },
             { href: '/superadmin/voiceforce', label: '180 Voiceforce SFU', icon: PhoneCall, badge: 'Live' },
             { href: '/superadmin/logs', label: 'Audit Logs', icon: FileText },
             { href: '/superadmin/settings', label: 'Platform Settings', icon: Settings },
