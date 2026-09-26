@@ -77,7 +77,7 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
       final brand = activeProj?.brandVoice;
       c.initBrandGreeting(
         brandName: activeProj?.name,
-        primaryColor: brand?.colors?.primary,
+        primaryColor: brand?.primaryColor,
         font: brand?.font,
       );
     });
