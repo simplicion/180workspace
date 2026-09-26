@@ -165,23 +165,76 @@ Built:
 - Native allowlist (TS `native-render-validate.ts` + Rust `render.rs`): these filters were added:
   crop, split, zoompan, hue, vignette, fade, geq, gblur, rgbashift, noise. None of them read files.
 
+- Native allowlist: `rotate` was also added.
+
+### M3.1: native export parity (AI Director timelines no longer fall back)
+- **Captions and titles**:
+  - `services/caption-raster.ts` is now the only caption drawing code. It reproduces the preview layout: the kinetic
+    box with word highlight and pop, and titles at their own position and style. The compatibility renderer calls it
+    for every frame.
+  - For the native export, `captionStateTimeline` splits the timeline into the distinct caption pictures (which
+    caption, which highlighted word, which titles). Each picture is drawn once to a transparent PNG at output size.
+  - Before drawing, the export loads the preview's Google Fonts stylesheet (`STUDIO_FONTS_URL`, now shared) and
+    waits for each family and weight it uses.
+  - The new Tauri command `write_caption_overlays` (`src-tauri/src/overlays.rs`) writes the PNGs and an `ffconcat`
+    list to `<app cache>/render-overlays/<set>/`. It is capped at 3000 images, 8 MB each and 512 MB in total, and
+    accepts PNG data only. Sets older than a day are pruned, and `clear_caption_overlays` runs after each export.
+  - `render_timeline` accepts only a list from that folder. It adds the list as the last input
+    (`-f concat -safe 1`, with a forward-slash path) and the graph overlays it last. No libass or drawtext is used.
+- **Camera zoom**:
+  - `buildCameraChains` uses one zoompan branch on the composite, before effects and captions. It follows the
+    preview's rules:
+    - the first active event wins;
+    - zoom = 1 + (scale−1)·min(1, spring) about `targetCoords`;
+    - the spring is the closed form of Remotion's `spring()`, which uses the critically damped motion when ζ ≥ 1.
+      It is checked against Remotion frame by frame.
+  - The preview zooms every video track (B-roll included), so the export does too.
+- **Rotation and crop**: rotation uses `rotate` about the centre with transparent corners. Crop (percent insets) keeps
+  the clip where the preview draws it. `scale.end` is ignored, as it is in the preview.
+- **Remote media**:
+  - The new `fetch_remote_media` and `remote_media_status` commands (`src-tauri/src/remote.rs`, reqwest with rustls)
+    download stock, music, SFX and photo links into `<app cache>/remote-media`. The render then uses the local path.
+  - Rules:
+    - https only, on the default port, with no credentials in the URL; every redirect is re-checked;
+    - allowed hosts: Pexels (+ vimeo), Pixabay, NASA, FreePD, Freesound, Wikimedia, Jamendo, Unsplash, Flickr and
+      archive.org. The platform's own hosts come from `STUDIO_MEDIA_HOSTS`, read at build time and at run time (host
+      names only, no secrets);
+    - Content-Type must be video, audio or image;
+    - size caps are 1 GB for video, 200 MB for audio and 50 MB for images, with a 15 s connect timeout and 10 min
+      overall;
+    - results are cached by URL hash with a `.url` sidecar that is checked on a hit;
+    - the web app polls for progress (`fetchRemoteMediaWithProgress`);
+    - downloaded files are allowed for the current session only.
+  - The commands are registered in `build.rs` and `capabilities/main.json`.
+- **The compatibility renderer is now only a fallback**:
+  - `renderExport` uses it only when the native plan reports something unsupported: keyframed motion, clip effect
+    strings, speed outside 0.25x–4x, or media that is not a file.
+  - If the timeline has any audio, the export is **blocked** with the reason and what to do (`ExportBlockedError`).
+    The audio is never dropped silently.
+  - A failed download is an error that suggests retrying or replacing the clip.
+  - WebAudio mixing in the fallback was not built: it seeks frame by frame and is not real-time, so the audio could
+    not be kept in sync.
+
 Verified:
 - `npx tsc --noEmit -p apps/frontend`: 0 errors.
-- jest `tests/unit/offline/{editor-library,native-render-plan}.test.ts`: 49/49 pass.
-- `npx tsx tests/integration/native-render-plan.integration.ts` renders through the real bundled FFmpeg: 24/24 pass.
+- jest `tests/unit/offline`: 158/158 pass. This includes `native-export-parity.test.ts` (caption state timeline, the
+  spring against Remotion, camera, rotation, crop and the overlay input) and the updated
+  `editor-bridge-export.test.ts` (native captions, the download path, blocked exports and the silent fallback).
+- `npx tsx tests/integration/native-render-plan.integration.ts` renders through the real bundled FFmpeg: 27/27 pass.
   Pixel checks cover:
   - photo cover;
-  - black_white, vignette, flash and fade_black;
-  - zoom_pulse and shake;
-  - all 12 non-CUT transitions.
+  - all effects;
+  - all 12 non-CUT transitions;
+  - the caption PNG sequence at the right times, with the AAC audio stream present and audible;
+  - camera zoom inside its event only;
+  - 90° rotation.
 
 Not verified:
-- **Rust not compiled here** (no cargo on this machine). The new test `a_plan_with_photos_effects_and_transitions_is_accepted`
-  in `render.rs` and its fixture `tests/fixtures/effects-spec.json` will run in CI. The TS validator, which mirrors it,
-  accepts that fixture.
-
-Gaps:
-- Stock photos and videos are remote URLs, so the native exporter falls back to the compatibility renderer until they
-  are downloaded locally. That needs a new Tauri download command.
-- Timelines with captions or titles still use the compatibility renderer (video only). It now draws effects, photos
-  and titles.
+- **Rust not compiled here** (no cargo on this machine). These need CI (`cargo test --lib`):
+  - `overlays.rs`: base64, PNG check, ffconcat and path-confinement tests;
+  - `remote.rs`: host allowlist, URL rules, content type and cache-key tests;
+  - `render.rs`: overlay input, concat path and effects fixture tests;
+  - the new `reqwest` dependency.
+- The canvas rasteriser has not been compared pixel for pixel with the DOM preview; jsdom has no canvas, so no
+  automated check was possible. The fonts, sizes, positions and colours follow the same style fields.
+- The real download of a live Pexels URL has not been tested.

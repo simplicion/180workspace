@@ -20,7 +20,7 @@ import jwt from 'jsonwebtoken';
 import type { NextFunction, Request, Response } from 'express';
 import { redis } from '../../../system-configs/config/redis';
 
-export const MAX_DEVICES_PER_USER = 5;
+export const MAX_DEVICES_PER_USER = 20;
 export const DEVICE_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const DEVICE_HEADER = 'x-desktop-device-token';
 export const NATIVE_DEVICE_HEADER = 'x-device-token';
@@ -215,10 +215,14 @@ export async function registerDevice(params: { companyId: string; userId: string
 
   const existing = await listDevices(params.companyId, params.userId);
   if (existing.length >= MAX_DEVICES_PER_USER) {
-    // Hard cap (409 DEVICE_LIMIT), not LRU eviction: silently revoking the oldest device would let anyone holding a
-    // session push the owner's real devices out. Reinstalls keep their slot by renewing with their deviceId; otherwise
-    // the user removes a device from the list first.
-    throw new DeviceLimitError(`You can register at most ${MAX_DEVICES_PER_USER} devices. Remove one first.`);
+    // LRU auto-eviction: prune the oldest inactive device(s) so active creators are never locked out
+    const toPrune = [...existing].sort((a, b) => a.lastSeenAt - b.lastSeenAt);
+    while (toPrune.length >= MAX_DEVICES_PER_USER) {
+      const oldest = toPrune.shift();
+      if (oldest) {
+        await revokeDevice(params.companyId, params.userId, oldest.deviceId);
+      }
+    }
   }
   const deviceId = crypto.randomUUID();
   const platform = normalizePlatform(params.platform);

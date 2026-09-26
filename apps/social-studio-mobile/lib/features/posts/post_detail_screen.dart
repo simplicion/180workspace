@@ -190,15 +190,20 @@ class _PostBodyState extends ConsumerState<_PostBody> {
             context: context,
             builder: (ctx) => AlertDialog(
               backgroundColor: AppTheme.surfaceElevated,
-              title: const Text('Not ready to publish'),
-              content: Text(readiness.issues.isEmpty ? 'The server reported the post is not ready.' : '• ${readiness.issues.join('\n• ')}'),
+              title: Text(readiness.schedulingBlockers.isEmpty && readiness.approvalPending ? 'Waiting for approval' : 'Not ready to publish'),
+              content: Text(readiness.schedulingBlockers.isEmpty && readiness.approvalPending
+                  ? 'This project requires approval before publishing. Send it for review, or ask an approver to approve it.'
+                  : readiness.issues.isEmpty
+                      ? 'The server reported the post is not ready.'
+                      : '• ${readiness.issues.join('\n• ')}'),
               actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
             ),
           );
           return;
         }
+        final warn = readiness.warnings.isEmpty ? '' : '\n\nHeads up:\n• ${readiness.warnings.join('\n• ')}';
         final ok = await confirm(context,
-            title: 'Publish now?', message: 'This posts to ${p.platforms.map((x) => x.label).join(', ')} immediately.', action: 'Publish');
+            title: 'Publish now?', message: 'This posts to ${p.platforms.map((x) => x.label).join(', ')} immediately.$warn', action: 'Publish');
         if (!ok) return;
         final result = await api.publish(p.id);
         _refresh();

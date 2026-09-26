@@ -287,12 +287,38 @@ class SocialPost {
 
 /// Result of `GET /posts/:id/validate-publish`.
 class PublishReadiness {
-  const PublishReadiness({required this.isReady, required this.issues});
+  const PublishReadiness({
+    required this.isReady,
+    required this.issues,
+    this.schedulingBlockers = const [],
+    this.approvalPending = false,
+    this.warnings = const [],
+  });
   final bool isReady;
   final List<String> issues;
 
-  factory PublishReadiness.fromJson(Json j) =>
-      PublishReadiness(isReady: jBool(j['isReady']), issues: jStrList(j['issues']));
+  /// Problems that would make the publish fail (fix before scheduling). Excludes approval and collisions.
+  final List<String> schedulingBlockers;
+
+  /// Only the client/team approval is missing.
+  final bool approvalPending;
+
+  /// Non-blocking: duplicate caption, flagged brand words, near-limit captions…
+  final List<String> warnings;
+
+  factory PublishReadiness.fromJson(Json j) {
+    final issues = jStrList(j['issues']);
+    return PublishReadiness(
+      isReady: jBool(j['isReady']),
+      issues: issues,
+      schedulingBlockers: j['schedulingBlockers'] is List ? jStrList(j['schedulingBlockers']) : issues,
+      approvalPending: jBool(j['approvalPending']),
+      warnings: [
+        for (final w in (j['warnings'] is List ? j['warnings'] as List : const []))
+          if (w is String) w else if (w is Map && w['message'] is String) w['message'] as String,
+      ],
+    );
+  }
 }
 
 /// Result of `POST /posts/:id/publish`, shown verbatim (including per-platform errors).

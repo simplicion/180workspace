@@ -273,13 +273,13 @@ class SocialApi {
   }) async {
     final d = startDate;
     final ymd = '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-    final r = await _api.post('$base/projects/$projectId/autopilot/calendar', body: {
+    final r = await _api.post('$base/projects/$projectId/autopilot/calendar', body: compact({
       'days': days,
       'startDate': ymd,
-      'platforms': ?platforms,
-      'goals': goals,
-      'name': ?name,
-    }, idempotencyKey: _uuid.v4());
+      if (platforms != null && platforms.isNotEmpty) 'platforms': platforms,
+      if (goals.isNotEmpty) 'goals': goals,
+      if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+    }), idempotencyKey: _uuid.v4());
     final jobId = jStr(r['jobId']);
     final calendarId = jStr(r['calendarId']);
     if (jobId == null || calendarId == null) {
@@ -560,8 +560,11 @@ class SocialApi {
     return ReviewComment.fromJson(jMap(r['comment']));
   }
 
-  Future<Json> approveBatch(String token, {String? clientNotes}) =>
-      _api.post('$base/reviews/public/$token/approve-batch', auth: false, body: compact({'clientNotes': clientNotes}));
+  /// [seenVersions] ({postId: versionNumber}) lets the server refuse with REVIEW_STALE if a post changed after the
+  /// client opened the page, so nobody approves content they haven't seen.
+  Future<Json> approveBatch(String token, {String? clientNotes, Map<String, int>? seenVersions}) =>
+      _api.post('$base/reviews/public/$token/approve-batch',
+          auth: false, body: compact({'clientNotes': clientNotes, 'seenVersions': seenVersions}));
 
   // ── Inbox ──────────────────────────────────────────────────────────────────
 

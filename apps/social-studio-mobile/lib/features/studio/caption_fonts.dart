@@ -60,6 +60,14 @@ class CaptionFonts {
       } catch (_) {
         path = null;
       }
+      // Independent of google_fonts' private cache naming: fetch the TTF ourselves.
+      if (path == null && dir != null) {
+        try {
+          path = await downloadTtf(dir, family, weight).timeout(timeout);
+        } catch (_) {
+          path = null;
+        }
+      }
       if (path == null) {
         warnings.add('The "$family" caption font could not be downloaded, so captions use Inter instead.');
         continue;
@@ -71,6 +79,48 @@ class CaptionFonts {
   }
 
   /// google_fonts writes the file without awaiting it, so poll briefly for it to appear.
+  /// Test hook: returns the body for a GET (CSS or font bytes). Null = real network.
+  @visibleForTesting
+  static Future<List<int>> Function(Uri uri)? fetchOverride;
+
+  static Future<List<int>> _get(Uri uri) async {
+    final f = fetchOverride;
+    if (f != null) return f(uri);
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+    try {
+      final req = await client.getUrl(uri);
+      // A plain user agent makes the Google Fonts CSS API answer with TTF urls (renderers need TTF, not WOFF2).
+      req.headers.set(HttpHeaders.userAgentHeader, 'Mozilla/5.0');
+      final res = await req.close();
+      if (res.statusCode != 200) throw HttpException('HTTP ${res.statusCode}', uri: uri);
+      final bytes = <int>[];
+      await for (final chunk in res) {
+        bytes.addAll(chunk);
+        if (bytes.length > 5 * 1024 * 1024) throw const HttpException('font too large');
+      }
+      return bytes;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  /// Downloads [family] at [weight] from the public Google Fonts CSS API into `<dir>/caption_fonts/`, cached.
+  @visibleForTesting
+  static Future<String?> downloadTtf(Directory dir, String family, int weight) async {
+    final out = File('${dir.path}/caption_fonts/${family.replaceAll(' ', '')}_$weight.ttf');
+    if (out.existsSync() && out.lengthSync() > 0) return out.path;
+    final css = String.fromCharCodes(await _get(
+      Uri.https('fonts.googleapis.com', '/css2', {'family': '$family:wght@$weight'}),
+    ));
+    final m = RegExp(r"src:\s*url\((https://[^)]+\.ttf)\)").firstMatch(css);
+    if (m == null) return null;
+    final bytes = await _get(Uri.parse(m.group(1)!));
+    if (bytes.length < 1000) return null;
+    out.parent.createSync(recursive: true);
+    await out.writeAsBytes(bytes, flush: true);
+    return out.path;
+  }
+
   static Future<String?> _cachedFile(Directory dir, String family, int weight) async {
     final prefix = '${family.replaceAll(' ', '')}_';
     for (var attempt = 0; attempt < 15; attempt++) {

@@ -27,17 +27,23 @@ export default function PublicClientReviewPage() {
     const [reviewerName, setReviewerName] = useState('');
     const [approving, setApproving] = useState(false);
     const [activePlatformPerPost, setActivePlatformPerPost] = useState<Record<string, string>>({});
+    // Load failure: code from the API (REVIEW_LINK_EXPIRED / REVIEW_LINK_REVOKED / REVIEW_LINK_INVALID) or NETWORK.
+    const [loadError, setLoadError] = useState<{ code: string; message: string } | null>(null);
+    const apiError = (err: any, fallback: string) => ({ code: err?.response?.data?.code || (err?.response ? 'ERROR' : 'NETWORK'), message: err?.response?.data?.error || fallback });
+    const isLinkDead = (code: string) => code === 'REVIEW_LINK_EXPIRED' || code === 'REVIEW_LINK_REVOKED' || code === 'REVIEW_LINK_INVALID';
 
     const loadSessionData = async () => {
         try {
             setLoading(true);
+            setLoadError(null);
             const { data } = await api.get(`/api/social-media/reviews/public/${token}`);
             if (data.success) {
                 setSession(data.session);
                 setPosts(data.posts || []);
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to load review session');
+            setSession(null);
+            setLoadError(apiError(err, 'We could not load this review. Check your connection and try again.'));
         } finally {
             setLoading(false);
         }
@@ -53,14 +59,15 @@ export default function PublicClientReviewPage() {
             await api.post(`/api/social-media/reviews/public/${token}/comments`, {
                 postId,
                 commentText,
-                authorName: reviewerName || session?.client?.name || 'Client Reviewer',
-                authorType: 'client'
+                authorName: reviewerName || session?.client?.name || 'Client Reviewer'
             });
             toast.success('Feedback submitted to the agency team!');
             setCommentText('');
             loadSessionData();
         } catch (err: any) {
-            toast.error('Failed to submit comment');
+            const e = apiError(err, 'Your feedback was not sent. Try again.');
+            if (isLinkDead(e.code)) { setSession(null); setLoadError(e); return; }
+            toast.error(e.message);
         }
     };
 
@@ -69,14 +76,19 @@ export default function PublicClientReviewPage() {
         setApproving(true);
         try {
             const { data } = await api.post(`/api/social-media/reviews/public/${token}/approve-batch`, {
-                clientNotes: `Approved by ${reviewerName || session?.client?.name || 'Client'}`
+                clientNotes: `Approved by ${reviewerName || session?.client?.name || 'Client'}`,
+                // The versions on screen: the server refuses if the agency changed a post after this page loaded.
+                seenVersions: Object.fromEntries(posts.map((p: any) => [p.id, p.versionNumber || 1]))
             });
             if (data.success) {
-                toast.success('All posts approved successfully! Scheduled for publishing.', { duration: 5000 });
+                toast.success(data.message || 'Posts approved.', { duration: 5000 });
                 loadSessionData();
             }
         } catch (err: any) {
-            toast.error('Failed to approve calendar');
+            const e = apiError(err, 'Approval was not saved. Try again.');
+            if (isLinkDead(e.code)) { setSession(null); setLoadError(e); return; }
+            toast.error(e.message, { duration: 6000 });
+            if (e.code === 'REVIEW_STALE') loadSessionData();
         } finally {
             setApproving(false);
         }
@@ -100,10 +112,26 @@ export default function PublicClientReviewPage() {
                 <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-4">
                     <ShieldCheck className="w-8 h-8 text-rose-500" />
                 </div>
-                <h2 className="text-xl font-bold">Invalid or Expired Link</h2>
+                <h2 className="text-xl font-bold">
+                    {loadError?.code === 'REVIEW_LINK_REVOKED' ? 'This link was withdrawn'
+                        : loadError?.code === 'REVIEW_LINK_EXPIRED' ? 'This link has expired'
+                        : loadError && !isLinkDead(loadError.code) ? 'Could not load the review'
+                        : 'Invalid review link'}
+                </h2>
                 <p className="text-slate-400 text-sm max-w-md mt-2">
-                    This review portal link is invalid or has expired. Please reach out to your agency account manager for a fresh link.
+                    {loadError?.message || 'This review link is not valid.'}
+                    {(!loadError || isLinkDead(loadError.code)) && ' Ask your agency account manager for a fresh link.'}
                 </p>
+                {loadError && !isLinkDead(loadError.code) && (
+                    <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                        <button onClick={loadSessionData} className="min-h-[44px] px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold">
+                            Try again
+                        </button>
+                        <button onClick={() => window.location.reload()} className="min-h-[44px] px-5 rounded-xl border border-slate-700 text-sm font-semibold text-slate-300 hover:bg-slate-900">
+                            Reload page
+                        </button>
+                    </div>
+                )}
             </div>
         );
     }

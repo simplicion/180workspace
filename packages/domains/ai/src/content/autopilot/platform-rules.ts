@@ -27,6 +27,7 @@ const ALIASES: Record<string, AutopilotPlatform> = {
     youtube: 'youtube', youtube_shorts: 'youtube', shorts: 'youtube', yt: 'youtube',
     linkedin: 'linkedin',
     x: 'x', twitter: 'x',
+    threads: 'facebook',
 };
 
 /** Maps free-form platform names ("YouTube Shorts", "Twitter") to autopilot platform ids. Unknown names are dropped. */

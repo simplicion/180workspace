@@ -93,7 +93,7 @@ void main() {
       final post = b.last('POST', '$sm/reviews/public/tok123/approve-batch')!;
       expect(get.authorization, isNull);
       expect(post.authorization, isNull);
-      expect(post.json, {'clientNotes': 'Looks great'});
+      expect(post.json, {'clientNotes': 'Looks great', 'seenVersions': {'post1': 1}});
       expect(find.text('Approved. Thank you!'), findsOneWidget);
     });
 

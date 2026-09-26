@@ -147,12 +147,12 @@ class _AccountTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a = account;
-    final status = a.reauthRequired
+    final status = a.reauthRequired || a.tokenHealth == 'reauth_required'
         ? 'Re-authorization required'
         : a.tokenExpired
             ? 'Access expired'
             : a.expiresSoon
-                ? 'Access expires ${fmtDate(a.tokenExpiresAt)}'
+                ? (a.tokenExpiresAt == null ? 'Access expires within 7 days' : 'Access expires ${fmtDate(a.tokenExpiresAt)}')
                 : null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

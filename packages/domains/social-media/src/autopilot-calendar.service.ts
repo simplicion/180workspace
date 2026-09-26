@@ -138,9 +138,11 @@ export class AutopilotCalendarService {
         const project = await loadProject(db, projectId, companyId);
         const settings = asObject(project.socialSettings);
         const timezone = typeof settings.defaultTimezone === 'string' && isValidTimeZone(settings.defaultTimezone) ? settings.defaultTimezone : 'UTC';
-        const startDate = body.startDate === undefined || body.startDate === null || body.startDate === ''
+        const rawDate = body.startDate === undefined || body.startDate === null || body.startDate === ''
             ? todayIn(timezone, this.deps.now())
-            : String(body.startDate);
+            : String(body.startDate).trim();
+        const dateMatch = rawDate.match(/^(\d{4}-\d{2}-\d{2})/);
+        const startDate = dateMatch ? dateMatch[1] : rawDate;
         if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || Number.isNaN(Date.parse(`${startDate}T00:00:00Z`))) {
             throw new AutopilotError('INVALID_INPUT', 'startDate must be YYYY-MM-DD');
         }

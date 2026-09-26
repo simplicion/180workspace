@@ -42,14 +42,22 @@ class _PublicReviewScreenState extends ConsumerState<PublicReviewScreen> {
     }
   }
 
-  Future<void> _approveAll(int count) async {
+  Future<void> _approveAll(List<SocialPost> posts) async {
+    final count = posts.length;
     final notes = await promptText(context, title: 'Approve all $count posts?', label: 'Notes for the team (optional)', action: 'Approve', maxLines: 3);
     if (notes == null || !mounted) return;
     setState(() => _approving = true);
-    final r = await guarded(context, () => ref.read(socialApiProvider).approveBatch(widget.token, clientNotes: notes.isEmpty ? null : notes));
+    final r = await guarded(context, () => ref.read(socialApiProvider).approveBatch(
+          widget.token,
+          clientNotes: notes.isEmpty ? null : notes,
+          seenVersions: {for (final p in posts) p.id: p.versionNumber},
+        ));
     if (!mounted) return;
     setState(() => _approving = false);
-    if (r != null) {
+    if (r == null) {
+      // A stale page (REVIEW_STALE) or any failure: reload so the client sees the latest versions.
+      ref.invalidate(publicReviewProvider(widget.token));
+    } else {
       showInfo(context, 'Approved. Thank you!', color: AppTheme.success);
       ref.invalidate(publicReviewProvider(widget.token));
     }
@@ -122,7 +130,7 @@ class _PublicReviewScreenState extends ConsumerState<PublicReviewScreen> {
             if (!done && !s.isExpired && r.posts.isNotEmpty) ...[
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: _approving ? null : () => _approveAll(r.posts.length),
+                onPressed: _approving ? null : () => _approveAll(r.posts),
                 icon: const Icon(Icons.verified_rounded),
                 label: const Text('Approve all'),
               ),

@@ -19,6 +19,7 @@ import { AssetBin } from "./AssetBin";
 import { CanvasViewport } from "./CanvasViewport";
 import { Timeline } from "./Timeline";
 import { ExportModal, ExportAttachState } from "./ExportModal";
+import { ExportErrorDialog, ExportFailure } from "./ExportErrorDialog";
 import { ClipInspector } from "./ClipInspector";
 import { CaptionStudioModal } from "./CaptionStudioModal";
 import { AudioMixerPanel } from "./AudioMixerPanel";
@@ -128,6 +129,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportFailure, setExportFailure] = useState<ExportFailure | null>(null);
   const [exportedPath, setExportedPath] = useState<string | null>(null);
   const [exportedResult, setExportedResult] = useState<ExportResult | null>(null);
   const [attachState, setAttachState] = useState<ExportAttachState | null>(null);
@@ -1269,6 +1271,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
 
   const handlePerformExport = async (settings: { format: string; resolution: string; fps: number }) => {
     if (!project) return;
+    setExportFailure(null);
     setIsExporting(true);
     setExportProgress(0);
     const controller = new AbortController();
@@ -1294,7 +1297,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         toast("Export cancelled.");
       } else {
         console.error("Export failed:", err);
-        toast.error(err?.message || "The export failed.", { duration: 9000 });
+        setExportFailure({ message: err?.message || "The export failed.", blocked: err?.name === "ExportBlockedError", settings });
       }
     } finally {
       exportAbortRef.current = null;
@@ -1720,6 +1723,13 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       </div>
 
       {/* Modals */}
+      {exportFailure && (
+        <ExportErrorDialog
+          failure={exportFailure}
+          onClose={() => setExportFailure(null)}
+          onRetry={() => void handlePerformExport(exportFailure.settings)}
+        />
+      )}
       <ExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}

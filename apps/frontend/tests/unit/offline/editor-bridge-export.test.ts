@@ -12,12 +12,22 @@ jest.mock('../../../lib/native/desktop-media', () => {
     ...actual,
     hasNativeMedia: jest.fn(() => true),
     runNativeRender: jest.fn(),
-    desktopMedia: { pickMediaFiles: jest.fn(), probeMedia: jest.fn(), pickExportPath: jest.fn(), startRender: jest.fn(), renderStatus: jest.fn(), cancelRender: jest.fn() },
+    fetchRemoteMediaWithProgress: jest.fn(async () => 'C:\cache\remote-media\stock.mp4'),
+    desktopMedia: {
+      pickMediaFiles: jest.fn(), probeMedia: jest.fn(), pickExportPath: jest.fn(), startRender: jest.fn(), renderStatus: jest.fn(), cancelRender: jest.fn(),
+      writeCaptionOverlays: jest.fn(async () => 'C:\cache\render-overlays\o1\list.ffconcat'), clearCaptionOverlays: jest.fn(async () => undefined),
+    },
   };
 });
+// jsdom has no 2D canvas: the PNG rasteriser is replaced, the state timeline and plan are real.
+jest.mock('../../../app/(platform)/(media-editor-app)/media-editor/services/caption-raster', () => {
+  const actual = jest.requireActual('../../../app/(platform)/(media-editor-app)/media-editor/services/caption-raster');
+  return { ...actual, rasterizeCaptionStates: jest.fn(async () => ({ images: ['iVBORw0KGgo='], sequence: [{ image: 0, durationSec: 4 }], missingFonts: [] })) };
+});
 
-import { engineBridge } from '../../../app/(platform)/(media-editor-app)/media-editor/services/tauri-bridge';
-import { desktopMedia, runNativeRender, RenderCancelledError, toAssetUrl } from '../../../lib/native/desktop-media';
+import { engineBridge, ExportBlockedError } from '../../../app/(platform)/(media-editor-app)/media-editor/services/tauri-bridge';
+import { desktopMedia, fetchRemoteMediaWithProgress, runNativeRender, RenderCancelledError, toAssetUrl } from '../../../lib/native/desktop-media';
+import { rasterizeCaptionStates } from '../../../app/(platform)/(media-editor-app)/media-editor/services/caption-raster';
 
 const T = (s: number) => ({ value: Math.round(s * 48000), timescale: 48000 });
 const range = (a: number, d: number) => ({ start: T(a), duration: T(d) });
@@ -73,34 +83,72 @@ it('a silent source produces a video-only render (never references a missing aud
   expect(spec.maps).toEqual(['[vout]']);
 });
 
-it('falls back to the compatibility renderer WITH the reason when the timeline uses unsupported features', async () => {
+it('captions and titles render natively: rasterised states become the overlay input, cleaned up afterwards', async () => {
   const canvas = canvasSpy();
-  const notices: string[] = [];
   const captions = [{ id: 'cap', timeRange: range(0, 1), text: 'hi', words: [], style: {} }];
-  await engineBridge.renderExport(ir({ captionTrack: captions }), settings, jest.fn(), { onNotice: (m) => notices.push(m) });
-  expect(runNativeRender).not.toHaveBeenCalled();
-  expect(canvas).toHaveBeenCalledTimes(1);
-  expect(notices.some((n) => /captions/.test(n))).toBe(true);
-  expect(notices.some((n) => /no audio/.test(n))).toBe(true); // and says plainly that the fallback has no audio
+  await engineBridge.renderExport(ir({ captionTrack: captions }), settings, jest.fn());
+  expect(canvas).not.toHaveBeenCalled();
+  expect(rasterizeCaptionStates).toHaveBeenCalledWith(expect.anything(), 1920, 1080, 4);
+  expect(desktopMedia.writeCaptionOverlays).toHaveBeenCalledWith(['iVBORw0KGgo='], [{ image: 0, durationSec: 4 }]);
+  const spec = (runNativeRender as jest.Mock).mock.calls[0][0];
+  expect(spec.overlaySequence).toBe('C:\cache\render-overlays\o1\list.ffconcat');
+  expect(spec.filterComplex).toContain('[1:v]overlay=x=0:y=0:eof_action=repeat');
+  expect(spec.hasAudio).toBe(true);
+  expect(desktopMedia.clearCaptionOverlays).toHaveBeenCalledWith('C:\cache\render-overlays\o1\list.ffconcat');
 });
 
-it('falls back with a relink hint when a source is no longer available to the app', async () => {
+it('remote stock media is downloaded into the cache and rendered from the local copy', async () => {
+  const stockIr = ir();
+  stockIr.tracks.videoTracks[0].clips[0].sourcePath = 'https://videos.pexels.com/video-files/1/clip.mp4';
+  await engineBridge.renderExport(stockIr, settings, jest.fn());
+  expect(fetchRemoteMediaWithProgress).toHaveBeenCalledWith('https://videos.pexels.com/video-files/1/clip.mp4');
+  expect((runNativeRender as jest.Mock).mock.calls[0][0].inputs).toEqual(['C:\cache\remote-media\stock.mp4']);
+});
+
+it('a failed download is an error with a way forward, not a silent downgrade', async () => {
+  const canvas = canvasSpy();
+  (fetchRemoteMediaWithProgress as jest.Mock).mockRejectedValueOnce(new Error('evil.example is not an allowed media source.'));
+  const stockIr = ir();
+  stockIr.tracks.videoTracks[0].clips[0].sourcePath = 'https://evil.example/clip.mp4';
+  await expect(engineBridge.renderExport(stockIr, settings, jest.fn())).rejects.toThrow(/Could not download clip\.mp4.*export again/);
+  expect(canvas).not.toHaveBeenCalled();
+});
+
+it('an unsupported timeline WITH audio is blocked with the reason (the fallback would drop the sound)', async () => {
+  const canvas = canvasSpy();
+  const kf = ir();
+  kf.tracks.videoTracks[0].clips[0].transform.keyframes = [{ id: 'k', timeOffsetSec: 1, property: 'posX', value: 40 }];
+  const err = await engineBridge.renderExport(kf, settings, jest.fn()).catch((e) => e);
+  expect(err).toBeInstanceOf(ExportBlockedError);
+  expect(err.message).toMatch(/keyframe/);
+  expect(err.message).toMatch(/drop the audio/);
+  expect(canvas).not.toHaveBeenCalled();
+});
+
+it('an unsupported timeline WITHOUT audio falls back to the compatibility renderer and says so', async () => {
+  const canvas = canvasSpy();
+  (desktopMedia.probeMedia as jest.Mock).mockResolvedValue({ format: { duration: '4' }, streams: [{ codec_type: 'video', width: 1280, height: 720, r_frame_rate: '25/1' }] });
+  const kf = ir();
+  kf.tracks.videoTracks[0].clips[0].transform.keyframes = [{ id: 'k', timeOffsetSec: 1, property: 'posX', value: 40 }];
+  const notices: string[] = [];
+  await engineBridge.renderExport(kf, settings, jest.fn(), { onNotice: (m) => notices.push(m) });
+  expect(canvas).toHaveBeenCalledTimes(1);
+  expect(notices.some((n) => /no audio/.test(n))).toBe(true);
+});
+
+it('a source that is no longer available blocks the export with a relink hint', async () => {
   const canvas = canvasSpy();
   (desktopMedia.probeMedia as jest.Mock).mockRejectedValue(new Error('That file was not selected through the file picker.'));
-  const notices: string[] = [];
-  await engineBridge.renderExport(ir(), settings, jest.fn(), { onNotice: (m) => notices.push(m) });
-  expect(canvas).toHaveBeenCalled();
-  expect(notices.some((n) => /Re-import/.test(n))).toBe(true);
+  await expect(engineBridge.renderExport(ir(), settings, jest.fn())).rejects.toThrow(/re-import it/);
+  expect(canvas).not.toHaveBeenCalled();
 });
 
-it('falls back for media that is not a local file (for example a dropped browser blob)', async () => {
+it('media that is not a local file (a dropped browser blob) blocks the export with the reason', async () => {
   const canvas = canvasSpy();
   const blobIr = ir();
   blobIr.tracks.videoTracks[0].clips[0].sourcePath = 'blob:http://localhost/abc';
-  const notices: string[] = [];
-  await engineBridge.renderExport(blobIr, settings, jest.fn(), { onNotice: (m) => notices.push(m) });
-  expect(canvas).toHaveBeenCalled();
-  expect(notices.some((n) => /not a file on this computer/.test(n))).toBe(true);
+  await expect(engineBridge.renderExport(blobIr, settings, jest.fn())).rejects.toThrow(/not a file on this computer/);
+  expect(canvas).not.toHaveBeenCalled();
 });
 
 it('treats a cancelled save dialog as a cancellation and starts nothing', async () => {
