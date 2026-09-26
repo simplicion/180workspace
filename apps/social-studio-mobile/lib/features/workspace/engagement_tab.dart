@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/universal_skeleton.dart';
 import '../../data/models/engagement_rule.dart';
 import '../../data/models/project.dart';
 
@@ -115,8 +116,12 @@ class EngagementTab extends ConsumerWidget {
                   itemBuilder: (_, i) => _RuleCard(rule: rules[i], projectId: project.id),
                 );
               },
-              loading: () => const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator())),
-              error: (err, _) => StatusChip(label: 'Failed to load rules: $err', color: AppTheme.error),
+              loading: () => const UniversalSkeleton(type: SkeletonType.table),
+              error: (err, _) => ErrorView(
+                error: err,
+                compact: true,
+                onRetry: () => ref.invalidate(engagementRulesProvider(project.id)),
+              ),
             ),
           ],
         ),

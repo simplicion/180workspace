@@ -79,13 +79,19 @@ List<RouteBase> extraRoutes() => [
       ),
       GoRoute(
         path: '/studio/session',
-        builder: (_, s) => studioSupported
-            ? StudioSessionScreen(
-                sourcePath: jStr(_extra(s)['sourcePath']),
-                postId: _q(s, 'postId'),
-                projectId: _q(s, 'projectId'),
-              )
-            : const StudioScreen(),
+        builder: (_, s) {
+          final x = _extra(s);
+          return studioSupported
+              ? StudioSessionScreen(
+                  sourcePath: jStr(x['sourcePath']),
+                  postId: _q(s, 'postId') ?? jStr(x['postId']),
+                  projectId: _q(s, 'projectId') ?? jStr(x['projectId']),
+                  pieceId: _q(s, 'pieceId') ?? jStr(x['pieceId']),
+                  hook: jStr(x['hook']),
+                  script: jStr(x['script']),
+                )
+              : const StudioScreen();
+        },
       ),
       GoRoute(path: '/review/:token', builder: (_, s) => PublicReviewScreen(token: s.pathParameters['token']!)),
     ];

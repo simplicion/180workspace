@@ -12,6 +12,7 @@ import '../../core/native_engine/edit_ir.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
+import '../projects/project_provider.dart';
 import 'director_panel.dart';
 import 'export_sheet.dart';
 import 'studio_controller.dart';
@@ -28,10 +29,21 @@ String timecode(int ms) {
 
 /// The editor: preview, timeline, manual tools and the AI Director on one timeline.
 class StudioSessionScreen extends ConsumerStatefulWidget {
-  const StudioSessionScreen({super.key, this.sourcePath, this.postId, this.projectId});
+  const StudioSessionScreen({
+    super.key,
+    this.sourcePath,
+    this.postId,
+    this.projectId,
+    this.pieceId,
+    this.hook,
+    this.script,
+  });
   final String? sourcePath;
   final String? postId;
   final String? projectId;
+  final String? pieceId;
+  final String? hook;
+  final String? script;
 
   @override
   ConsumerState<StudioSessionScreen> createState() => _StudioSessionScreenState();
@@ -43,6 +55,9 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     transcriber: ref.read(transcriptionServiceProvider),
     projectId: widget.projectId,
     postId: widget.postId,
+    pieceId: widget.pieceId,
+    hook: widget.hook,
+    script: widget.script,
   );
   VideoPlayerController? _player;
   Object? _loadError;
@@ -55,6 +70,17 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     super.initState();
     c.addListener(_onChange);
     if (widget.sourcePath != null) _load(widget.sourcePath!);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final activeProj = ref.read(activeProjectProvider).valueOrNull;
+      final brand = activeProj?.brandVoice;
+      c.initBrandGreeting(
+        brandName: activeProj?.name,
+        primaryColor: brand?.colors?.primary,
+        font: brand?.font,
+      );
+    });
   }
 
   @override

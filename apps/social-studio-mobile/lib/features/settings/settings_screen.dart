@@ -9,7 +9,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/app_config.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/theme/theme_provider.dart';
 import '../../core/widgets/common.dart';
 import '../auth/auth_provider.dart';
 
@@ -22,6 +21,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _loadingDevices = true;
+  Object? _devicesError;
   List<Map<String, dynamic>> _devices = [];
   String? _currentDeviceId;
   String? _cacheSizeStr = 'Calculating...';
@@ -35,7 +35,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _loadDevices() async {
-    setState(() => _loadingDevices = true);
+    setState(() {
+      _loadingDevices = true;
+      _devicesError = null;
+    });
     try {
       final reg = ref.read(deviceRegistrationProvider);
       final currentId = await reg.currentDeviceId;
@@ -46,8 +49,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _devices = list;
         _loadingDevices = false;
       });
-    } catch (_) {
-      if (mounted) setState(() => _loadingDevices = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingDevices = false;
+          _devicesError = e;
+        });
+      }
     }
   }
 
@@ -70,47 +78,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// Re-downloadable media only: B-roll/music fetched for exports and audio extracted for
+  /// transcription. Rendered videos, recordings and upload staging files are never touched.
+  Future<List<Directory>> _cacheDirs() async {
+    final tmp = await getTemporaryDirectory();
+    final docs = await getApplicationDocumentsDirectory();
+    return [Directory('${tmp.path}/studio_media'), Directory('${docs.path}/extracted_audio')];
+  }
+
+  /// Files touched in the last few minutes may belong to an export or upload in progress.
+  static const _inUseWindow = Duration(minutes: 10);
+
+  Future<List<File>> _cacheFiles() async {
+    final out = <File>[];
+    for (final d in await _cacheDirs()) {
+      if (!await d.exists()) continue;
+      await for (final e in d.list(recursive: true, followLinks: false)) {
+        if (e is File) out.add(e);
+      }
+    }
+    return out;
+  }
+
   Future<void> _calcCacheSize() async {
     try {
-      final tempDir = await getTemporaryDirectory();
-      int totalBytes = 0;
-      if (tempDir.existsSync()) {
-        final files = tempDir.listSync(recursive: true, followLinks: false);
-        for (final f in files) {
-          if (f is File) {
-            totalBytes += await f.length();
-          }
-        }
+      var totalBytes = 0;
+      for (final f in await _cacheFiles()) {
+        totalBytes += await f.length();
       }
       if (!mounted) return;
-      if (totalBytes < 1024 * 1024) {
-        setState(() => _cacheSizeStr = '${(totalBytes / 1024).toStringAsFixed(1)} KB');
-      } else {
-        setState(() => _cacheSizeStr = '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB');
-      }
+      setState(() => _cacheSizeStr = totalBytes < 1024 * 1024
+          ? '${(totalBytes / 1024).toStringAsFixed(1)} KB'
+          : '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB');
     } catch (_) {
-      if (mounted) setState(() => _cacheSizeStr = '0 KB');
+      if (mounted) setState(() => _cacheSizeStr = 'Unknown');
     }
   }
 
   Future<void> _clearCache() async {
     setState(() => _clearingCache = true);
     try {
-      final tempDir = await getTemporaryDirectory();
-      if (tempDir.existsSync()) {
-        final files = tempDir.listSync(recursive: true, followLinks: false);
-        for (final f in files) {
-          try {
-            f.deleteSync(recursive: true);
-          } catch (_) {}
-        }
+      final cutoff = DateTime.now().subtract(_inUseWindow);
+      for (final f in await _cacheFiles()) {
+        try {
+          if ((await f.lastModified()).isBefore(cutoff)) await f.delete();
+        } catch (_) {}
       }
       if (!mounted) return;
-      setState(() {
-        _clearingCache = false;
-        _cacheSizeStr = '0 KB';
-      });
-      showSuccess(context, 'Temporary cache cleared.');
+      setState(() => _clearingCache = false);
+      await _calcCacheSize();
+      if (mounted) showSuccess(context, 'Downloaded media cache cleared.');
     } catch (e) {
       if (mounted) {
         setState(() => _clearingCache = false);
@@ -121,7 +138,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentThemeMode = ref.watch(themeModeProvider);
     final session = ref.watch(sessionProvider).valueOrNull;
 
     return Scaffold(
@@ -131,48 +147,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: [
-          // Section: Appearance
-          _sectionHeader(context, 'Appearance & Theme', Icons.palette_outlined),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).dividerColor),
-            ),
-            child: RadioGroup<ThemeMode>(
-              groupValue: currentThemeMode,
-              onChanged: (v) {
-                if (v != null) ref.read(themeModeProvider.notifier).setThemeMode(v);
-              },
-              child: const Column(
-                children: [
-                  RadioListTile<ThemeMode>(
-                    title: Text('Dark Mode (Obsidian)'),
-                    subtitle: Text('OLED true black optimized for video editing'),
-                    value: ThemeMode.dark,
-                    activeColor: AppTheme.primary,
-                  ),
-                  RadioListTile<ThemeMode>(
-                    title: Text('Light Mode'),
-                    subtitle: Text('Clean slate aesthetic with sharp contrast'),
-                    value: ThemeMode.light,
-                    activeColor: AppTheme.primary,
-                  ),
-                  RadioListTile<ThemeMode>(
-                    title: Text('System Default'),
-                    subtitle: Text('Matches device OS settings'),
-                    value: ThemeMode.system,
-                    activeColor: AppTheme.primary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
           // Section: Device Management
           _sectionHeader(context, 'Active Devices & Slots', Icons.devices_rounded),
           const SizedBox(height: 4),
@@ -193,6 +167,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     padding: EdgeInsets.all(20),
                     child: Center(child: CircularProgressIndicator()),
                   )
+                : _devicesError != null
+                    ? ErrorView(error: _devicesError!, compact: true, onRetry: _loadDevices)
                 : _devices.isEmpty
                     ? const Padding(
                         padding: EdgeInsets.all(16),

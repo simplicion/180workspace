@@ -145,9 +145,12 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Centralized AI Reply All', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const Text('AI Reply All',
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     Text(
-                      'Scan inquiries & auto-reply in Brand Voice',
+                      'Reply to open messages in your brand voice',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary, fontSize: 11),
                     ),
                   ],

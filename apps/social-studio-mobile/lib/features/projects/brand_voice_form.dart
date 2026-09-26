@@ -32,10 +32,11 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
   late final _hookStyle = TextEditingController(text: widget.initial.hookStyle);
   late final _hooks = TextEditingController(text: widget.initial.hooks.join('\n'));
   late final _samples = TextEditingController(text: widget.initial.sampleViralPosts.join('\n---\n'));
-  late final _primaryColor = TextEditingController(text: widget.initial.primaryColor ?? '#6366F1');
-  late final _accentColor = TextEditingController(text: widget.initial.accentColor ?? '#EC4899');
-  late String _font = widget.initial.font ?? 'Inter';
-  late String _captionStyle = widget.initial.captionStylePreset ?? 'MINIMAL_SUBTITLE';
+  // Start empty: only what the user chooses is saved (the server drops invented defaults).
+  late final _primaryColor = TextEditingController(text: widget.initial.primaryColor ?? '');
+  late final _accentColor = TextEditingController(text: widget.initial.accentColor ?? '');
+  late String? _font = widget.initial.font;
+  late String? _captionStyle = widget.initial.captionStylePreset;
 
   @override
   void dispose() {
@@ -78,8 +79,8 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
           .where((s) => s.isNotEmpty)
           .take(5)
           .toList(),
-      primaryColor: _primaryColor.text.trim(),
-      accentColor: _accentColor.text.trim(),
+      primaryColor: _primaryColor.text.trim().isEmpty ? null : _primaryColor.text.trim(),
+      accentColor: _accentColor.text.trim().isEmpty ? null : _accentColor.text.trim(),
       font: _font,
       captionStylePreset: _captionStyle,
     ));
@@ -192,36 +193,32 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
         ],
       ),
       const SizedBox(height: 12),
-      DropdownButtonFormField<String>(
+      DropdownButtonFormField<String?>(
         isExpanded: true,
-        initialValue: BrandVoice.fontPresets.contains(_font) ? _font : BrandVoice.fontPresets.first,
+        initialValue: BrandVoice.fontPresets.contains(_font) ? _font : null,
         decoration: fieldDecoration('Typography Font'),
         items: [
+          const DropdownMenuItem<String?>(value: null, child: Text('Not chosen')),
           for (final f in BrandVoice.fontPresets) DropdownMenuItem(value: f, child: Text(f, overflow: TextOverflow.ellipsis)),
         ],
         onChanged: (v) {
-          if (v != null) {
-            setState(() => _font = v);
-            _emit();
-          }
+          setState(() => _font = v);
+          _emit();
         },
       ),
       const SizedBox(height: 12),
-      DropdownButtonFormField<String>(
+      DropdownButtonFormField<String?>(
         isExpanded: true,
-        initialValue: BrandVoice.captionStylePresets.contains(_captionStyle)
-            ? _captionStyle
-            : BrandVoice.captionStylePresets.first,
+        initialValue: BrandVoice.captionStylePresets.contains(_captionStyle) ? _captionStyle : null,
         decoration: fieldDecoration('Caption Styling Preset'),
         items: [
+          const DropdownMenuItem<String?>(value: null, child: Text('Not chosen')),
           for (final s in BrandVoice.captionStylePresets)
             DropdownMenuItem(value: s, child: Text(s.replaceAll('_', ' '), overflow: TextOverflow.ellipsis)),
         ],
         onChanged: (v) {
-          if (v != null) {
-            setState(() => _captionStyle = v);
-            _emit();
-          }
+          setState(() => _captionStyle = v);
+          _emit();
         },
       ),
       const SizedBox(height: 18),
