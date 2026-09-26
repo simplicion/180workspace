@@ -1,5 +1,14 @@
 import { Router, Request, Response } from 'express';
-import { SocialAccountService, SocialOAuthService, MetaWebhooksService, isPublishError, toPublicAccount } from '@workspace/social-media';
+import {
+    SocialAccountService,
+    SocialOAuthService,
+    MetaWebhooksService,
+    isPublishError,
+    toPublicAccount,
+    LinkedInDiagnosticsService,
+    LinkedInPublishingTools,
+    LinkedInProviderFactory,
+} from '@workspace/social-media';
 import { prisma } from '@workspace/db';
 import { requireRole } from '../../../../system-configs/middleware/auth/rbac';
 import { sendRouteError } from '../route-errors';
@@ -95,6 +104,200 @@ router.delete('/:id', async (req: Request, res: Response) => {
     try {
         const result = await SocialAccountService.disconnectAccount(String(req.params.id));
         res.json(result);
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// LinkedIn diagnostic report (Safe for admins: zero secret leakage)
+router.get('/linkedin/diagnose', async (req: Request, res: Response) => {
+    try {
+        const companyId = (req as any).user?.companyId;
+        const diagnostics = await LinkedInDiagnosticsService.runDiagnostics(companyId);
+        res.json({ success: true, diagnostics });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// LinkedIn capabilities for a given account or generic platform capabilities
+router.get('/linkedin/capabilities', async (req: Request, res: Response) => {
+    try {
+        const { accountId } = req.query;
+        const provider = LinkedInProviderFactory.getProvider();
+        if (accountId) {
+            const companyId = (req as any).user?.companyId;
+            const account = await (prisma as any).socialAccount.findFirst({
+                where: { id: String(accountId), companyId, platform: 'linkedin' },
+            });
+            if (!account) return res.status(404).json({ success: false, error: 'LinkedIn account not found' });
+            const capabilities = provider.getCapabilities({
+                accountKind: account.metadata?.kind || (account.platformAccountId.startsWith('urn:li:organization:') ? 'organization' : 'member'),
+                scopes: account.scopes || [],
+                orgRole: account.metadata?.role,
+            });
+            return res.json({ success: true, capabilities });
+        }
+        const defaultCaps = provider.getCapabilities({ accountKind: 'organization', scopes: [] });
+        res.json({ success: true, capabilities: defaultCaps });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// Discover organizations for connected LinkedIn account
+router.get('/linkedin/organizations', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId } = req.query;
+        if (!accountId || !projectId) {
+            return res.status(400).json({ success: false, error: 'accountId and projectId are required' });
+        }
+        const orgs = await LinkedInPublishingTools.getOrganizations({
+            companyId: user?.companyId,
+            projectId: String(projectId),
+            userId: user?.id,
+            socialAccountId: String(accountId),
+        });
+        res.json({ success: true, organizations: orgs });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// LinkedIn Comments (List / Create / Delete)
+router.get('/linkedin/comments', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId, postUrn, limit } = req.query;
+        if (!accountId || !projectId || !postUrn) {
+            return res.status(400).json({ success: false, error: 'accountId, projectId, and postUrn are required' });
+        }
+        const comments = await LinkedInPublishingTools.getComments(
+            {
+                companyId: user?.companyId,
+                projectId: String(projectId),
+                userId: user?.id,
+                socialAccountId: String(accountId),
+            },
+            String(postUrn),
+            limit ? Number(limit) : 20,
+        );
+        res.json({ success: true, comments });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+router.post('/linkedin/comments', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId, postUrn, text } = req.body || {};
+        if (!accountId || !projectId || !postUrn || !text) {
+            return res.status(400).json({ success: false, error: 'accountId, projectId, postUrn, and text are required' });
+        }
+        const comment = await LinkedInPublishingTools.createComment(
+            {
+                companyId: user?.companyId,
+                projectId: String(projectId),
+                userId: user?.id,
+                socialAccountId: String(accountId),
+            },
+            String(postUrn),
+            String(text),
+        );
+        res.status(201).json({ success: true, comment });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+router.delete('/linkedin/comments/:commentUrn', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId } = req.query;
+        if (!accountId || !projectId) {
+            return res.status(400).json({ success: false, error: 'accountId and projectId query params required' });
+        }
+        await LinkedInPublishingTools.deleteComment(
+            {
+                companyId: user?.companyId,
+                projectId: String(projectId),
+                userId: user?.id,
+                socialAccountId: String(accountId),
+            },
+            String(req.params.commentUrn),
+        );
+        res.json({ success: true, message: 'Comment deleted' });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// LinkedIn Reactions (List / Create / Delete)
+router.get('/linkedin/reactions', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId, postUrn } = req.query;
+        if (!accountId || !projectId || !postUrn) {
+            return res.status(400).json({ success: false, error: 'accountId, projectId, and postUrn are required' });
+        }
+        const reactions = await LinkedInPublishingTools.getReactions(
+            {
+                companyId: user?.companyId,
+                projectId: String(projectId),
+                userId: user?.id,
+                socialAccountId: String(accountId),
+            },
+            String(postUrn),
+        );
+        res.json({ success: true, reactions });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+router.post('/linkedin/reactions', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId, postUrn, reactionType } = req.body || {};
+        if (!accountId || !projectId || !postUrn) {
+            return res.status(400).json({ success: false, error: 'accountId, projectId, and postUrn are required' });
+        }
+        await LinkedInPublishingTools.createReaction(
+            {
+                companyId: user?.companyId,
+                projectId: String(projectId),
+                userId: user?.id,
+                socialAccountId: String(accountId),
+            },
+            String(postUrn),
+            reactionType || 'LIKE',
+        );
+        res.json({ success: true, message: 'Reaction recorded' });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// LinkedIn Analytics
+router.get('/linkedin/analytics', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId, period } = req.query;
+        if (!accountId || !projectId) {
+            return res.status(400).json({ success: false, error: 'accountId and projectId are required' });
+        }
+        const analytics = await LinkedInPublishingTools.getAnalytics(
+            {
+                companyId: user?.companyId,
+                projectId: String(projectId),
+                userId: user?.id,
+                socialAccountId: String(accountId),
+            },
+            String(period || '30d'),
+        );
+        res.json({ success: true, analytics });
     } catch (error: any) {
         sendError(res, error);
     }

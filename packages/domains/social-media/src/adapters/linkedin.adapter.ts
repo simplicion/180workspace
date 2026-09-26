@@ -8,6 +8,7 @@
  */
 import { LINKEDIN_API_VERSION, intEnv } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
+import { requireToken } from "./engagement-token";
 import { asBody, downloadMedia, expectOk, pollUntil, providerFailure, providerFetch, readBody } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkUrls, checkVideo } from './types';
 
@@ -212,7 +213,7 @@ export class LinkedInAdapter {
 
     static async replyToComment(targetUrn: string, actorUrn: string, text: string, accessToken: string): Promise<{ commentUrn: string }> {
         if (!accessToken || accessToken.startsWith('mock_')) {
-            return { commentUrn: `urn:li:comment:${Math.random().toString(36).substring(2, 10)}` };
+            return { commentUrn: `urn:li:comment:sim_${Date.now()}` };
         }
         const res = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(targetUrn)}/comments`, {
             method: 'POST',
@@ -241,7 +242,29 @@ export class LinkedInAdapter {
                 reactionType: 'LIKE',
             }),
         });
-        return res.ok;
+        await expectOk('linkedin', res, 'linkedin like');
+        return true;
+    }
+
+    static async fetchComments(targetUrn: string, accessToken: string, limit = 20): Promise<any[]> {
+        if (!accessToken || accessToken.startsWith('mock_')) {
+            return [{ id: 'sim_comm_1', message: { text: 'Great update!' }, actor: 'urn:li:person:sim1' }];
+        }
+        const res = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(targetUrn)}/comments?count=${limit}`, {
+            headers: headers(accessToken),
+        });
+        const data = await expectOk('linkedin', res, 'LinkedIn fetch comments');
+        return data.elements || [];
+    }
+
+    static async getAnalytics(accountUrn: string, accessToken: string): Promise<any> {
+        if (!accessToken || accessToken.startsWith('mock_')) {
+            return { impressions: 14820, clicks: 680, likes: 412, comments: 89, shares: 47 };
+        }
+        const res = await providerFetch('linkedin', `${REST}/organizationalEntityShareStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(accountUrn)}`, {
+            headers: headers(accessToken),
+        });
+        return await expectOk('linkedin', res, 'LinkedIn analytics');
     }
 }
 

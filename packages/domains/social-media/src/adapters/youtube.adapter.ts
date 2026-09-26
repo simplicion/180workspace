@@ -7,6 +7,7 @@
  */
 import { intEnv } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
+import { requireToken } from "./engagement-token";
 import { asBody, downloadMedia, expectOk, providerFailure, providerFetch, readBody } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkUrls, checkVideo, isVertical } from './types';
 
@@ -170,8 +171,9 @@ export class YouTubeAdapter {
 
     static async replyToComment(commentId: string, text: string, accessToken: string): Promise<{ commentId: string }> {
         if (!accessToken || accessToken.startsWith('mock_')) {
-            return { commentId: `yt_reply_${Math.random().toString(36).substring(2, 10)}` };
+            return { commentId: `yt_reply_${Date.now()}` };
         }
+        requireToken(accessToken, "youtube");
         const res = await providerFetch('youtube', 'https://www.googleapis.com/youtube/v3/comments?part=snippet', {
             method: 'POST',
             headers: {
@@ -193,17 +195,20 @@ export class YouTubeAdapter {
         if (!accessToken || accessToken.startsWith('mock_')) {
             return true;
         }
+        requireToken(accessToken, "youtube");
         const res = await providerFetch('youtube', `https://www.googleapis.com/youtube/v3/videos/rate?id=${encodeURIComponent(videoId)}&rating=like`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${accessToken}` },
         });
-        return res.ok;
+        await expectOk('youtube', res, 'youtube like');
+        return true;
     }
 
     static async fetchComments(videoId: string, accessToken: string, maxResults = 50): Promise<any[]> {
         if (!accessToken || accessToken.startsWith('mock_')) {
             return [{ id: 'yt_comm_mock', snippet: { topLevelComment: { snippet: { textDisplay: 'Mock comment' } } } }];
         }
+        requireToken(accessToken, "youtube");
         const res = await providerFetch('youtube', `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${encodeURIComponent(videoId)}&maxResults=${maxResults}`, {
             headers: { Authorization: `Bearer ${accessToken}` },
         });
@@ -215,6 +220,7 @@ export class YouTubeAdapter {
         if (!accessToken || accessToken.startsWith('mock_')) {
             return { views: 1250, likes: 340, comments: 42, estimatedMinutesWatched: 4500 };
         }
+        requireToken(accessToken, "youtube");
         const url = `https://youtubeanalytics.googleapis.com/v1/reports?ids=channel==${encodeURIComponent(channelId)}&startDate=${startDate}&endDate=${endDate}&metrics=views,likes,comments,estimatedMinutesWatched`;
         const res = await providerFetch('youtube', url, {
             headers: { Authorization: `Bearer ${accessToken}` },
