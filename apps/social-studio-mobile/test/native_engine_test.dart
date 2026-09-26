@@ -230,6 +230,44 @@ void main() {
       expect(ranges, isEmpty);
     });
 
+    test('detectFaces sends the sample interval and returns typed face samples', () async {
+      MethodCall? seen;
+      messenger.setMockMethodCallHandler(_method, (call) async {
+        seen = call;
+        return [
+          {'tMs': 0, 'x': 0.7, 'y': 0.35, 'w': 0.12, 'h': 0.2},
+          {'tMs': 500, 'x': 0.71, 'y': 0.36, 'w': 0.12, 'h': 0.21},
+        ];
+      });
+      final faces = await MediaEngineService.detectFaces(sourcePath: 'v.mp4');
+      expect(seen!.method, 'detectFaces');
+      expect(seen!.arguments, {'sourcePath': 'v.mp4', 'sampleEveryMs': 500});
+      expect(faces, hasLength(2));
+      expect(faces.last.tMs, 500);
+      expect(faces.first.toJson(), {'tMs': 0, 'x': 0.7, 'y': 0.35, 'w': 0.12, 'h': 0.2});
+    });
+
+    test('detectBeats returns beat times and bpm; errors keep their code', () async {
+      MethodCall? seen;
+      messenger.setMockMethodCallHandler(_method, (call) async {
+        seen = call;
+        return {'beatsMs': [480, 980, 1480], 'bpm': 120.0};
+      });
+      final r = await MediaEngineService.detectBeats(audioPath: 'song.m4a');
+      expect(seen!.method, 'detectBeats');
+      expect(seen!.arguments, {'audioPath': 'song.m4a'});
+      expect(r.beatsMs, [480, 980, 1480]);
+      expect(r.bpm, 120.0);
+
+      messenger.setMockMethodCallHandler(_method, (call) async => {'beatsMs': <int>[], 'bpm': null});
+      final none = await MediaEngineService.detectBeats(audioPath: 'silent.mp4');
+      expect(none.beatsMs, isEmpty);
+      expect(none.bpm, isNull);
+
+      messenger.setMockMethodCallHandler(_method, (call) async => throw PlatformException(code: 'DECODE_FAILED', message: 'bad'));
+      await expectLater(MediaEngineService.detectBeats(audioPath: 'x'), throwsA(isA<MediaEngineException>().having((e) => e.code, 'code', 'DECODE_FAILED')));
+    });
+
     test('detectSilences surfaces native errors with their code', () async {
       messenger.setMockMethodCallHandler(_method, (call) async {
         throw PlatformException(code: 'FILE_NOT_FOUND', message: 'File not found: gone.mp4');

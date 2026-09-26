@@ -131,6 +131,9 @@ class BatchAiReplySuggestion {
     required this.suggestedReply,
     required this.tone,
     this.selected = true,
+    this.intent,
+    this.canSend = true,
+    this.blockedReason,
   });
 
   final String conversationId;
@@ -140,6 +143,13 @@ class BatchAiReplySuggestion {
   String suggestedReply;
   final String tone;
   bool selected;
+  /// Classified intent (lead, question, support, praise, complaint, spam, other).
+  final String? intent;
+  /// False when the platform / messaging window does not allow this reply now.
+  final bool canSend;
+  final String? blockedReason;
+  /// Set after a dispatch attempt that did not send this item (failure or rate limit).
+  String? dispatchError;
 
   factory BatchAiReplySuggestion.fromJson(Json j) => BatchAiReplySuggestion(
         conversationId: jStrOr(j['conversationId'], ''),
@@ -147,7 +157,10 @@ class BatchAiReplySuggestion {
         participantHandle: jStrOr(j['participantHandle'], 'user'),
         lastCustomerMessage: jStrOr(j['lastCustomerMessage'], ''),
         suggestedReply: jStrOr(j['suggestedReply'], ''),
-        tone: jStrOr(j['tone'], 'Helpful & Professional'),
+        tone: jStrOr(j['intent'] ?? j['tone'], ''),
         selected: jBool(j['selected'], true),
+        intent: jStr(j['intent']),
+        canSend: jBool(j['canSend'], true),
+        blockedReason: jStr(j['blockedReason']),
       );
 }

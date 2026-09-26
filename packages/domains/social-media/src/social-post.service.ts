@@ -480,4 +480,106 @@ export class SocialPostService {
 
         return derivative;
     }
+
+    /**
+     * Updates user-assisted publishing status for a platform variant (e.g. X or Reddit).
+     * Supported truthful states: 'ready_to_publish' | 'handed_off' | 'user_confirmed' | 'user_cancelled'.
+     * Updates variant.publishStatus, platformMeta, and synchronously manages parent post status.
+     */
+    static async updateAssistedPublishStatus(
+        postId: string,
+        data: {
+            platform: string;
+            status: string;
+            platformMeta?: Record<string, any>;
+            externalUrl?: string;
+            userId?: string;
+        },
+        companyIdOverride?: string
+    ) {
+        const companyId = companyIdOverride || (requestContext.getStore()?.companyId as string);
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
+
+        const post = await (prisma as any).socialPost.findFirst({
+            where: { id: postId, companyId },
+            include: { variants: true }
+        });
+        if (!post) throw notFound('Post');
+
+        const platform = data.platform.toLowerCase();
+        let variant = post.variants?.find((v: any) => v.platform.toLowerCase() === platform);
+
+        if (!variant) {
+            variant = await (prisma as any).socialPostVariant.create({
+                data: {
+                    postId: post.id,
+                    platform: data.platform,
+                    customContent: post.content,
+                    customMediaUrls: post.mediaUrls || [],
+                    publishStatus: data.status === 'user_confirmed' ? 'published' : data.status,
+                    publishedAt: data.status === 'user_confirmed' ? new Date() : null,
+                    externalUrl: data.externalUrl || null,
+                    platformMeta: {
+                        publishingMode: 'user_assisted',
+                        ...(data.platformMeta || {}),
+                        lastAssistedStatus: data.status,
+                        lastStatusChange: new Date().toISOString()
+                    }
+                }
+            });
+        } else {
+            const existingMeta = typeof variant.platformMeta === 'object' && variant.platformMeta ? variant.platformMeta : {};
+            variant = await (prisma as any).socialPostVariant.update({
+                where: { id: variant.id },
+                data: {
+                    publishStatus: data.status === 'user_confirmed' ? 'published' : data.status,
+                    publishedAt: data.status === 'user_confirmed' ? new Date() : variant.publishedAt,
+                    externalUrl: data.externalUrl || variant.externalUrl,
+                    platformMeta: {
+                        ...existingMeta,
+                        publishingMode: 'user_assisted',
+                        ...(data.platformMeta || {}),
+                        lastAssistedStatus: data.status,
+                        lastStatusChange: new Date().toISOString()
+                    }
+                }
+            });
+        }
+
+        // Record attempt entry
+        await (prisma as any).socialPublishAttempt.create({
+            data: {
+                companyId,
+                postId: post.id,
+                variantId: variant.id,
+                platform: data.platform,
+                trigger: 'manual',
+                attemptNumber: (variant.attemptCount || 0) + 1,
+                status: data.status === 'user_confirmed' ? 'succeeded' : data.status === 'user_cancelled' ? 'failed' : 'processing',
+                externalUrl: data.externalUrl || null,
+                triggeredById: data.userId || null,
+                finishedAt: ['user_confirmed', 'user_cancelled'].includes(data.status) ? new Date() : null,
+                errorMessage: data.status === 'user_cancelled' ? 'User cancelled in external app' : null
+            }
+        }).catch(() => null);
+
+        // Synchronize parent post status
+        const freshVariants = await (prisma as any).socialPostVariant.findMany({ where: { postId: post.id } });
+        const allPublished = freshVariants.length > 0 && freshVariants.every((v: any) => v.publishStatus === 'published');
+        const anyPublished = freshVariants.some((v: any) => v.publishStatus === 'published');
+
+        if (allPublished) {
+            await (prisma as any).socialPost.update({
+                where: { id: post.id },
+                data: { status: 'published' }
+            });
+        } else if (anyPublished && post.status !== 'publishing') {
+            await (prisma as any).socialPost.update({
+                where: { id: post.id },
+                data: { status: 'partially_published' }
+            });
+        }
+
+        return { success: true, variant };
+    }
 }

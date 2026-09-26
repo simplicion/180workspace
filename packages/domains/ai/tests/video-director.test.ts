@@ -994,3 +994,107 @@ test("budget: the director never makes more than llmCallBudget LLM calls in a tu
   assert.equal(res.plannerSource, "deterministic");
   assert.match(res.plannerReason, /budget/);
 });
+
+test("face track: reframe crop and FACE zoom follow the dominant face, not the frame centre", async () => {
+  // Speaker sits on the right third of a 16:9 frame; one outlier sample is ignored by the median.
+  const faces = Array.from({ length: 20 }, (_, i) => ({ tMs: i * 500, x: i === 3 ? 0.2 : 0.72, y: 0.35, w: 0.12, h: 0.2 }));
+  const { res } = await runLLM("reframe to vertical and zoom on me", [
+    tc("reframeSubject", { targetAspect: "9:16" }),
+    tc("addZoom", { startSec: 2, durationSec: 1.5, targetCoords: { x: 0.5, y: 0.38 }, scale: 1.3 }),
+  ], { media: { durationMs: FIX.durationMs, width: 1920, height: 1080, fps: 30, transcript: { words: FIX.words }, faces } } as any);
+  const ir = res.editIR;
+  assertInvariants(ir);
+  const crop = ir.clips[0].crop!;
+  const cropCentre = crop.x + crop.width / 2;
+  assert.ok(Math.abs(cropCentre - 0.72) < 0.01, `crop centred on the face (centre ${cropCentre})`);
+  // The face is at the crop centre, so the FACE zoom lands near canvas x = 0.5 (not the source 0.72).
+  const z = ir.zooms[0];
+  assert.ok(z && Math.abs(z.centerX - 0.5) < 0.02 && Math.abs(z.centerY - 0.35) < 0.02, `zoom on the face (${z?.centerX}, ${z?.centerY})`);
+
+  // Without faces the crop stays centred.
+  const plain = await runLLM("reframe to vertical", [tc("reframeSubject", { targetAspect: "9:16" })]);
+  const c2 = plain.res.editIR.clips[0].crop!;
+  assert.ok(Math.abs(c2.x + c2.width / 2 - 0.5) < 0.01);
+});
+
+test("stock credits: b-roll resolver credit flows into warnings and result.credits", async () => {
+  const { res } = await runLLM("add b-roll of the ocean at 2s", [tc("insertBroll", { stockQuery: "ocean waves", timelineStartSec: 2, durationSec: 2 })], {}, async () => ({
+    url: "https://upload.wikimedia.org/x/Ocean.webm", title: "Ocean", license: "CC-BY-4.0", creditRequired: true,
+    attribution: '"Ocean" by A (Wikimedia Commons), CC BY 4.0', sourcePage: "https://commons.wikimedia.org/wiki/File:Ocean.webm", provider: "wikimedia",
+  }));
+  assert.equal(res.editIR.overlays[0].source.url, "https://upload.wikimedia.org/x/Ocean.webm");
+  assert.ok(res.warnings.some((w) => /Credit required when publishing: "Ocean" by A/.test(w)));
+  assert.deepEqual(res.credits?.map((c) => [c.kind, c.url]), [["broll", "https://upload.wikimedia.org/x/Ocean.webm"]]);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Phase 1 (server): LLM timeout, brand rendering, SFX lane
+// ---------------------------------------------------------------------------------------------
+
+test("LLM timeout: a hung planner call becomes a labelled deterministic fallback", async () => {
+  const hung: AIClient = {
+    provider: "claude",
+    generate: async () => { throw new Error("unused"); },
+    generateStream: async () => { throw new Error("unused"); },
+    generateWithTools: () => new Promise<ToolCallResponse>(() => {}),
+  };
+  const t0 = Date.now();
+  const res = await director.directMobile(scriptRequest({ prompt: "remove the pauses" }), { llmClient: hung, llmTimeoutMs: 50 });
+  assert.ok(Date.now() - t0 < 2000, "does not wait for the hung call");
+  assert.equal(res.plannerSource, "deterministic");
+  assert.match(res.plannerReason, /^LLM_TIMEOUT: LLM call \(claude/);
+  assert.ok(res.warnings.some((w) => /AI planner timed out/.test(w)));
+  assert.match(res.reply, /offline rule-based director/);
+});
+
+test("brand rendering: the style agent uses resolveBrandRendering values and names the defaults", async () => {
+  const ctx: DirectorContext = {
+    warnings: [],
+    brand: {
+      projectId: "proj_2",
+      name: "Plain",
+      colors: { primary: "#22CCFF" },
+      logoUrl: "https://cdn.example.com/plain.png",
+      rendering: {
+        colors: { primary: "#22CCFF", accent: "#666666", background: "#FFFFFF", text: "#111111" },
+        font: "Inter",
+        captionStylePreset: "MINIMAL_SUBTITLE",
+        watermarkEnabled: false,
+        logoUrl: "https://cdn.example.com/plain.png",
+        usedDefaults: ["colors.accent", "colors.background", "colors.text", "font", "captionStylePreset", "watermarkEnabled"],
+      },
+    },
+  };
+  const s = brandStyleDefaults(ctx.brand);
+  assert.equal(s.highlightColor, "#22CCFF", "brand primary wins over the neutral accent default");
+  assert.equal(s.captionPreset, "MINIMAL_SUBTITLE");
+  assert.equal(s.watermark, false, "watermark default (off) comes from the rendering");
+  const res = await director.directMobile(scriptRequest({ intent: "greet" }), { llmClient: null, context: ctx });
+  assert.equal(res.editIR.watermark, undefined);
+  assert.doesNotMatch(res.reply, /logo watermark/);
+  assert.equal(res.context?.brand?.captionPreset, "MINIMAL_SUBTITLE");
+  assert.ok(res.warnings.some((w) => /neutral render defaults.*not saved/.test(w)), "defaults are explicit");
+  assert.equal(ctx.brand!.colors.accent, undefined, "the brand context is not modified");
+});
+
+test("sfx: the greet proposal places sound effects on an sfx lane with credits; omitted when none", async () => {
+  const resolveSfx = async (q: string) => [
+    { title: "Whoosh", url: "https://cdn.freesound.org/previews/1/whoosh.mp3", durationSec: 0.8, license: "CC BY 4.0", attribution: '"Whoosh" by A (CC BY 4.0)', query: q },
+  ];
+  const g = await director.directMobile(scriptRequest({ intent: "greet" }), { llmClient: null, context: BRAND_CTX, resolveSfx });
+  MobileEditIRSchema.parse(g.editIR);
+  const fx = g.editIR.audio.sfx!;
+  assert.ok(fx && fx.length >= 1, "at least one effect placed");
+  assert.equal(fx[0].source.url, "https://cdn.freesound.org/previews/1/whoosh.mp3");
+  assert.equal(fx[0].credit, '"Whoosh" by A (CC BY 4.0)');
+  assert.ok(fx.every((f) => f.timelineStartMs < g.editIR.durationMs && f.volumeDb === -12));
+  assert.ok(g.credits?.some((c) => c.kind === "sfx"));
+  assert.ok(g.proposal!.steps.some((s) => /sound effect/.test(s)));
+  // Carried (with credit) through the next edit turn.
+  const next = await director.directMobile(scriptRequest({ prompt: "make it black and white", currentEditIR: g.editIR }), { llmClient: null, context: BRAND_CTX });
+  assert.equal(next.editIR.audio.sfx?.length, fx.length);
+  assert.equal(next.editIR.audio.sfx![0].credit, fx[0].credit);
+  // No SFX resolver: the field is omitted, so older clients see the same shape as before.
+  const plain = await director.directMobile(scriptRequest({ intent: "greet" }), { llmClient: null, context: BRAND_CTX });
+  assert.equal("sfx" in plain.editIR.audio, false);
+});

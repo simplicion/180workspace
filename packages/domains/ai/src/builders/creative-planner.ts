@@ -12,6 +12,8 @@ import {
   validateDirectorToolCalls,
   PlannerSource,
   DirectorHistoryTurn,
+  DirectorTimeoutError,
+  withTimeout,
 } from "@workspace/video-contracts";
 import { AIProviderService, AIClient, AISettings } from "../kernel/ai-provider.service";
 
@@ -24,6 +26,8 @@ export interface PlanGenerationParams {
   companyId?: string;
   /** Earlier chat turns, oldest first. */
   history?: DirectorHistoryTurn[];
+  /** Per-call LLM timeout in ms (default `AI_DIRECTOR_LLM_TIMEOUT_MS` or 60000). */
+  llmTimeoutMs?: number;
   /** Current timeline, used to describe the edit state to the LLM. */
   currentEditIR?: EditIR;
   /**
@@ -61,6 +65,18 @@ function modelFor(provider: string, override?: string): string | undefined {
   return undefined;
 }
 
+/** Per-call LLM timeout: `AI_DIRECTOR_LLM_TIMEOUT_MS` (default 60 s). A timeout is a DirectorTimeoutError. */
+export function directorLlmTimeoutMs(override?: number): number {
+  if (override && override > 0) return override;
+  const env = Number(process.env.AI_DIRECTOR_LLM_TIMEOUT_MS);
+  return Number.isFinite(env) && env > 0 ? env : 60000;
+}
+
+function llmFailureReason(what: string, label: string, err: any): string {
+  if (err instanceof DirectorTimeoutError) return `LLM_TIMEOUT: ${what} (${label}) ${err.message}`;
+  return `${what} failed (${label}): ${truncate(err?.message || String(err), 240)}`;
+}
+
 export class CreativePlanner {
   /**
    * Backwards-compatible entry point: returns only the plan.
@@ -92,12 +108,13 @@ export class CreativePlanner {
     const options: any = { max_tokens: 16000, temperature: 0.2 };
     if (model) options.model = model;
     const label = `${client.provider}${model ? `/${model}` : ""}`;
+    const timeoutMs = directorLlmTimeoutMs(params.llmTimeoutMs);
 
     let first;
     try {
-      first = await client.generateWithTools(basePrompt, tools, options);
+      first = await withTimeout(client.generateWithTools(basePrompt, tools, options), timeoutMs, "LLM call");
     } catch (err: any) {
-      return this.deterministicOutcome(params, `LLM call failed (${label}): ${truncate(err?.message || String(err), 240)}`, 1);
+      return this.deterministicOutcome(params, llmFailureReason("LLM call", label, err), 1);
     }
 
     const firstCalls = first?.toolCalls || [];
@@ -123,9 +140,9 @@ export class CreativePlanner {
       const repairPrompt = this.buildRepairPrompt(basePrompt, firstCalls, validation.errors);
       let second;
       try {
-        second = await client.generateWithTools(repairPrompt, tools, options);
+        second = await withTimeout(client.generateWithTools(repairPrompt, tools, options), timeoutMs, "LLM repair call");
       } catch (err: any) {
-        return this.deterministicOutcome(params, `LLM repair call failed (${label}): ${truncate(err?.message || String(err), 240)}`, 2);
+        return this.deterministicOutcome(params, llmFailureReason("LLM repair call", label, err), 2);
       }
       const retry = validateDirectorToolCalls(second?.toolCalls || []);
       if (retry.errors.length > 0 || (retry.operations.length === 0 && !retry.finish)) {

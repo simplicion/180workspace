@@ -70,4 +70,7 @@ dependencies {
     implementation("androidx.media3:media3-transformer:$media3Version")
     implementation("androidx.media3:media3-effect:$media3Version")
     implementation("androidx.media3:media3-common:$media3Version")
+    // On-device face detection for smart reframe (bundled model, works offline; adds a few MB
+    // to the APK, see docs/social-studio-mobile/FREE_MEDIA_SOURCES.md).
+    implementation("com.google.mlkit:face-detection:16.1.7")
 }

@@ -61,6 +61,10 @@ void main() {
     for (var i = 0; i < 200 && (c.transcriptState == TranscriptState.running || c.silences == null); i++) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
+    // The automatic opening greeting (projectId is set) must settle before a test's own turn.
+    for (var i = 0; i < 200 && c.directorBusy; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
   });
 
   tearDown(() {
@@ -181,5 +185,46 @@ void main() {
     expect(backend.calls('POST', '/api/desktop/devices/register'), hasLength(1));
     expect(backend.last('POST', _direct)!.headers['x-device-token'], 'device-token-2');
     expect(c.ir!.durationMs, 5000);
+  });
+
+  test('opening from a calendar piece greets with a brand-aware proposal that waits for Apply', () async {
+    backend.json('POST', _direct, directorAnswer(confirm: true));
+    final api = ApiClient(tokens: TokenStore(InMemoryKeyValueStore(signedInStore())), baseUrl: 'https://api.test', adapter: backend);
+    final device = DeviceRegistration(api, platformOverride: 'android');
+    final g = StudioController(
+      director: AiDirectorService(api, device),
+      transcriber: AudioTranscriptionService(api, device),
+      projectId: 'p1',
+      pieceId: 'piece-9',
+    );
+    addTearDown(g.dispose);
+    await g.load(source.path);
+    for (var i = 0; i < 200 && g.messages.isEmpty; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final req = backend.last('POST', _direct)!;
+    expect(req.json['intent'], 'greet');
+    expect(req.json['calendarPieceId'], 'piece-9');
+    expect(req.json['projectId'], 'p1');
+    expect(req.json['prompt'], '');
+    expect(g.messages.single.fromUser, isFalse);
+    expect(g.messages.single.applied, isFalse, reason: 'a greeting proposal is never auto-applied');
+    expect(g.ir!.durationMs, 10000);
+    g.applyProposal(0);
+    expect(g.ir!.durationMs, 5000);
+  });
+
+  test('a brand watermark from the director survives manual edits and round-trips', () async {
+    final withLogo = TimelineOps.removeRange(c.ir!, 5000, 10000).toJson()
+      ..['watermark'] = {'imageUrl': 'https://cdn.test/logo.png', 'position': 'bottom_right', 'opacityPct': 80, 'widthFraction': 0.12};
+    backend.json('POST', _direct, directorAnswer(editIR: withLogo));
+    await c.askDirector('add my logo');
+    expect(c.ir!.watermark!.position, 'bottom_right');
+    c.apply((ir) => TimelineOps.split(ir, 2000));
+    c.apply((ir) => TimelineOps.setSpeed(ir, 2));
+    expect(c.ir!.watermark!.imageUrl, 'https://cdn.test/logo.png');
+    final json = c.ir!.toJson();
+    expect((json['watermark'] as Map)['opacityPct'], 80);
+    expect(c.ir!.withWatermark(null).toJson().containsKey('watermark'), isFalse);
   });
 }

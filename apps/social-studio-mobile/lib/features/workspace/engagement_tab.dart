@@ -153,7 +153,7 @@ class EngagementTab extends ConsumerWidget {
             children: [
               _metricTile('Triggers', '${stats.totalTriggered}', Icons.touch_app_rounded, AppTheme.primary),
               _metricTile('DMs Sent', '${stats.totalDmsSent}', Icons.send_rounded, AppTheme.accent),
-              _metricTile('Likes', '${stats.totalLiked}', Icons.favorite_rounded, Colors.pinkAccent),
+              _metricTile('Likes', '${stats.totalLiked}', Icons.favorite_rounded, AppTheme.accent),
               _metricTile('Leads', '${stats.totalLeadsGenerated}', Icons.person_pin_rounded, AppTheme.success),
             ],
           ),
@@ -195,7 +195,7 @@ class EngagementTab extends ConsumerWidget {
                     const Icon(Icons.sensors_rounded, color: AppTheme.success, size: 18),
                     const SizedBox(width: 8),
                     Text(
-                      'Live Connected Network Telemetry',
+                      'Network metrics',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -210,7 +210,7 @@ class EngagementTab extends ConsumerWidget {
                         style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                       Text(
-                        '${m['followersCount'] ?? 0} followers · ${m['engagementRate'] ?? 0}% eng rate',
+                        _metricLine(m),
                         style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                       ),
                     ],
@@ -299,7 +299,7 @@ class _RuleCard extends ConsumerWidget {
           Row(
             children: [
               if (rule.actionAutoLike) ...[
-                const Icon(Icons.favorite_rounded, size: 14, color: Colors.pinkAccent),
+                const Icon(Icons.favorite_rounded, size: 14, color: AppTheme.accent),
                 const SizedBox(width: 4),
                 const Text('Auto-Like', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                 const SizedBox(width: 12),
@@ -311,9 +311,9 @@ class _RuleCard extends ConsumerWidget {
                 const SizedBox(width: 12),
               ],
               if (rule.actionEnableAiAgent) ...[
-                const Icon(Icons.auto_awesome, size: 14, color: Colors.amber),
+                const Icon(Icons.auto_awesome, size: 14, color: AppTheme.warning),
                 const SizedBox(width: 4),
-                const Text('AI Multi-Turn', style: TextStyle(fontSize: 12, color: Colors.amber)),
+                const Text('AI Multi-Turn', style: TextStyle(fontSize: 12, color: AppTheme.warning)),
               ],
             ],
           ),
@@ -375,10 +375,10 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
   final _nameCtl = TextEditingController();
   final _keywordsCtl = TextEditingController();
   final _dmTemplateCtl = TextEditingController(
-    text: 'Hey {name}! Thanks for your comment. Here is your access link: {link} 🚀',
+    text: 'Hey {name}! Thanks for your comment. Here is your access link: {link}',
   );
   final _deliverableUrlCtl = TextEditingController();
-  final _publicReplyCtl = TextEditingController(text: 'Sent to your DMs! Check your messages 🙌');
+  final _publicReplyCtl = TextEditingController(text: 'Sent to your DMs! Check your messages');
 
   bool _autoLike = true;
   final bool _sendDm = true;
@@ -400,9 +400,9 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
     if (preset == 'blueprint') {
       _nameCtl.text = 'Free Blueprint Lead Magnet';
       _keywordsCtl.text = 'BLUEPRINT, GUIDE, LINK, SEND';
-      _dmTemplateCtl.text = 'Hey {name}! Here is your VIP Blueprint link: {link} 🚀 Let me know if you have any questions!';
+      _dmTemplateCtl.text = 'Hey {name}! Here is your VIP Blueprint link: {link} Let me know if you have any questions!';
       _deliverableUrlCtl.text = 'https://180workspace.com/blueprint';
-      _publicReplyCtl.text = 'Sent to your DMs, {handle}! Check your inbox 🚀';
+      _publicReplyCtl.text = 'Sent to your DMs, {handle}! Check your inbox';
       setState(() {
         _autoLike = true;
         _enableAiAgent = true;
@@ -412,7 +412,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       _keywordsCtl.text = 'HELP, SUPPORT, PRICING, COST';
       _dmTemplateCtl.text = 'Hi {name}! I am the 180 AI Assistant. How can I help you today? Check our options here: {link}';
       _deliverableUrlCtl.text = 'https://180workspace.com/pricing';
-      _publicReplyCtl.text = 'Just messaged you with details! 🙌';
+      _publicReplyCtl.text = 'Just messaged you with details!';
       setState(() {
         _autoLike = true;
         _enableAiAgent = true;
@@ -420,9 +420,9 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
     } else if (preset == 'promo') {
       _nameCtl.text = 'VIP Discount Promo Code';
       _keywordsCtl.text = 'DISCOUNT, PROMO, CODE, VIP';
-      _dmTemplateCtl.text = 'Hey {name}! Use code VIP20 for 20% off your next purchase: {link} 🎉';
+      _dmTemplateCtl.text = 'Hey {name}! Use code VIP20 for 20% off your next purchase: {link}';
       _deliverableUrlCtl.text = 'https://180workspace.com/store';
-      _publicReplyCtl.text = 'Code sent to your DM! Enjoy 🎉';
+      _publicReplyCtl.text = 'Code sent to your DM! Enjoy';
       setState(() {
         _autoLike = true;
         _enableAiAgent = false;
@@ -500,19 +500,19 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                 children: [
                   ActionChip(
                     avatar: const Icon(Icons.card_giftcard_rounded, size: 14, color: AppTheme.primary),
-                    label: const Text('🎁 Blueprint Giveaway', style: TextStyle(fontSize: 11)),
+                    label: const Text('Blueprint Giveaway', style: TextStyle(fontSize: 11)),
                     onPressed: () => _applyPreset('blueprint'),
                   ),
                   const SizedBox(width: 8),
                   ActionChip(
                     avatar: const Icon(Icons.smart_toy_rounded, size: 14, color: AppTheme.accent),
-                    label: const Text('💬 Support Bot', style: TextStyle(fontSize: 11)),
+                    label: const Text('Support Bot', style: TextStyle(fontSize: 11)),
                     onPressed: () => _applyPreset('support'),
                   ),
                   const SizedBox(width: 8),
                   ActionChip(
-                    avatar: const Icon(Icons.local_offer_rounded, size: 14, color: Colors.amber),
-                    label: const Text('🏷️ VIP Promo Code', style: TextStyle(fontSize: 11)),
+                    avatar: const Icon(Icons.local_offer_rounded, size: 14, color: AppTheme.warning),
+                    label: const Text('VIP Promo Code', style: TextStyle(fontSize: 11)),
                     onPressed: () => _applyPreset('promo'),
                   ),
                 ],
@@ -546,7 +546,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
 
             TextField(
               controller: _publicReplyCtl,
-              decoration: fieldDecoration('Public Comment Reply', hint: 'e.g. Sent to your DM! Check your inbox 🚀'),
+              decoration: fieldDecoration('Public Comment Reply', hint: 'e.g. Sent to your DM! Check your inbox'),
             ),
             const SizedBox(height: 12),
 
@@ -581,7 +581,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
               height: 48,
               child: FilledButton.icon(
                 onPressed: _saving ? null : _submit,
-                icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.check_rounded),
+                icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.textPrimary, strokeWidth: 2)) : const Icon(Icons.check_rounded),
                 label: Text(_saving ? 'Creating...' : 'Activate Automation Funnel'),
                 style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
               ),
@@ -696,7 +696,7 @@ class _DryRunTesterSheetState extends ConsumerState<_DryRunTesterSheet> {
               child: FilledButton.icon(
                 onPressed: _testing ? null : _runSimulation,
                 icon: _testing
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.textPrimary, strokeWidth: 2))
                     : const Icon(Icons.play_arrow_rounded),
                 label: Text(_testing ? 'Evaluating Rules...' : 'Run Simulation'),
                 style: FilledButton.styleFrom(backgroundColor: AppTheme.accent),
@@ -734,9 +734,9 @@ class _DryRunTesterSheetState extends ConsumerState<_DryRunTesterSheet> {
                       const SizedBox(height: 6),
                       if (rule['actionAutoLike'] == true)
                         const Row(children: [
-                          Icon(Icons.favorite, size: 14, color: Colors.pinkAccent),
+                          Icon(Icons.favorite, size: 14, color: AppTheme.accent),
                           SizedBox(width: 6),
-                          Text('Auto-Like: Executed immediately', style: TextStyle(fontSize: 12)),
+                          Text('Auto-like (where the platform allows it)', style: TextStyle(fontSize: 12)),
                         ]),
                       if (rule['actionPublicReplies'] != null && (rule['actionPublicReplies'] as List).isNotEmpty) ...[
                         const SizedBox(height: 4),
@@ -776,3 +776,17 @@ class _DryRunTesterSheetState extends ConsumerState<_DryRunTesterSheet> {
   }
 }
 
+/// One honest line per account: live numbers with their time, stored values labelled as such, or why they are unavailable.
+String _metricLine(Map<String, dynamic> m) {
+  String n(Object? v) => v is num ? v.toString() : '–';
+  final parts = <String>['${n(m['followersCount'])} followers'];
+  if (m['reach'] is num) parts.add('${n(m['reach'])} reach');
+  if (m['views'] is num) parts.add('${n(m['views'])} views');
+  if (m['engagements'] is num) parts.add('${n(m['engagements'])} engagements');
+  final source = m['source'] as String? ?? 'stored';
+  final at = DateTime.tryParse(m['fetchedAt'] as String? ?? '')?.toLocal();
+  final when = at == null ? '' : ' · ${at.day}/${at.month} ${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
+  final unavailable = m['unavailable'] is Map ? (m['unavailable'] as Map)['reason'] as String? : null;
+  final label = source == 'live' ? 'live' : unavailable != null && unavailable != 'unsupported' ? 'unavailable: ${unavailable.replaceAll('_', ' ')}' : 'stored';
+  return '${parts.join(' · ')} ($label$when)';
+}

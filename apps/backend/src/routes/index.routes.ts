@@ -380,7 +380,7 @@ router.get([
     windows: ["180Workspace-Setup-x64.exe", "DESKTOP_DOWNLOAD_URL_WINDOWS"],
     win: ["180Workspace-Setup-x64.exe", "DESKTOP_DOWNLOAD_URL_WINDOWS"],
     msi: ["180Workspace-Setup-x64.exe", "DESKTOP_DOWNLOAD_URL_WINDOWS"],
-    mac: ["180Workspace-Universal.dmg", "DESKTOP_DOWNLOAD_URL_MAC"],
+    mac: ["180Workspace-AppleSilicon.dmg", "DESKTOP_DOWNLOAD_URL_MAC"],
     mac_intel: ["180Workspace-x64.dmg", "DESKTOP_DOWNLOAD_URL_MAC_INTEL"],
     linux: ["180Workspace-x86_64.AppImage", "DESKTOP_DOWNLOAD_URL_LINUX"],
     linux_deb: ["180Workspace-amd64.deb", "DESKTOP_DOWNLOAD_URL_LINUX_DEB"],

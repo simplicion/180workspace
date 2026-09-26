@@ -33,6 +33,9 @@ jobs:
           # @ffmpeg-installer packages only provide when installed ON an Intel host.
           - platform: macos-latest
             args: ''
+          # Intel Macs: built on an Intel runner so the FFmpeg sidecars are native x86_64 (served as `mac_intel`).
+          - platform: macos-13
+            args: ''
           - platform: ubuntu-22.04
             args: ''
     runs-on: ${{ matrix.platform }}

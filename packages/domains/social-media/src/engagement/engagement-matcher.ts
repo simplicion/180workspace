@@ -13,6 +13,11 @@ export class EngagementMatcher {
         return `dedup:eng:${companyId}:${ruleId}:${senderId}:${mediaId || 'global'}`;
     }
 
+    /** Test hook: forget the in-process dedup hints (the database stays authoritative). */
+    static resetDedupCache(): void {
+        dedupMemoryCache.clear();
+    }
+
     /**
      * Checks if this interaction has already been triggered for the recipient on this post.
      */
@@ -28,8 +33,9 @@ export class EngagementMatcher {
                 companyId,
                 ruleId,
                 recipientId: senderId,
-                ...(mediaId ? { platformCommentId: mediaId } : {}),
-                status: 'success',
+                // One DM per user per post: any earlier successful/partial run of this rule for this post.
+                ...(mediaId ? { OR: [{ platformMediaId: mediaId }, { platformCommentId: mediaId }] } : {}),
+                status: { in: ['success', 'partial'] },
             },
             select: { id: true },
         });

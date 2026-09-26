@@ -11,6 +11,7 @@
  */
 import { intEnv } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
+import { requireToken } from "./engagement-token";
 import { asBody, downloadMedia, providerFailure, providerFetch, readBody, timing } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkUrls, checkVideo } from './types';
 
@@ -214,9 +215,7 @@ export class TikTokAdapter {
     }
 
     static async replyToComment(commentId: string, text: string, accessToken: string): Promise<{ replyId: string }> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
-            return { replyId: `tt_reply_${Math.random().toString(36).substring(2, 10)}` };
-        }
+        requireToken(accessToken, "tiktok");
         const data = await ttPost('/video/comment/reply/', accessToken, {
             comment_id: commentId,
             text,

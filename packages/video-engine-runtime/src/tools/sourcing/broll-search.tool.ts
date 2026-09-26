@@ -123,7 +123,7 @@ export class BrollSearchTool extends VideoDirectorTool<BrollSearchInput, BrollSe
               height: winner.height || (targetAspect === "9:16" ? 1920 : 1080),
               aspectRatio: winner.aspectRatio,
               photographer: winner.sourceAttribution,
-              license: "Royalty-Free Open Commercial",
+              license: winner.license || "Royalty-Free Open Commercial",
             });
             context.log?.(`[BrollSearchTool] Successfully cached ${winner.provider} B-roll: ${localVideoPath} (${(fs.statSync(localVideoPath).size / 1024 / 1024).toFixed(1)} MB)`);
           }

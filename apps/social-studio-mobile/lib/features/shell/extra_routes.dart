@@ -74,6 +74,7 @@ List<RouteBase> extraRoutes() => [
             script: jStr(x['script']),
             projectId: _q(s, 'projectId') ?? jStr(x['projectId']),
             postId: _q(s, 'postId'),
+            pieceId: _q(s, 'pieceId') ?? jStr(x['pieceId']),
           );
         },
       ),

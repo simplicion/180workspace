@@ -322,6 +322,36 @@ class SocialApi {
     return SocialPost.fromJson(jMap(r['post']));
   }
 
+  /// Attaches a rendered video to a calendar piece (`POST /calendar-pieces/:id/final-video`,
+  /// device-gated). Creates the piece's post if it has none and moves it to review.
+  Future<SocialPost> uploadPieceFinalVideo(
+    String pieceId, {
+    required String videoPath,
+    String? notes,
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    Future<Json> call() async {
+      final form = FormData.fromMap({
+        'video': await MultipartFile.fromFile(videoPath,
+            contentType: videoPath.toLowerCase().endsWith('.mov') ? DioMediaType('video', 'quicktime') : DioMediaType('video', 'mp4')),
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+        'source': 'social-studio-mobile',
+      });
+      return _api.postForm('$base/calendar-pieces/$pieceId/final-video', form, device: true, onProgress: onProgress);
+    }
+
+    await _device?.ensureToken();
+    Json r;
+    try {
+      r = await call();
+    } on ApiException catch (e) {
+      if (e.kind != ApiErrorKind.deviceRequired || _device == null) rethrow;
+      await _device.ensureToken(forceRenew: true);
+      r = await call();
+    }
+    return SocialPost.fromJson(jMap(jMap(r['data'])['post']));
+  }
+
   Future<SocialPost> submitFootage(String postId, {List<String>? rawMediaUrls, List<ExternalLink>? links}) async {
     final r = await _api.post('$base/posts/$postId/footage', body: compact({
       'rawMediaUrls': rawMediaUrls,
@@ -350,6 +380,26 @@ class SocialApi {
   /// Never queued: publishing must report the server's real outcome immediately.
   Future<PublishResult> publish(String postId) async =>
       PublishResult.fromJson(await _api.post('$base/posts/$postId/publish', timeout: AppConfig.aiReceiveTimeout));
+
+  /// Updates user-assisted publishing status for a platform variant (e.g. X or Reddit handoff/confirmation).
+  Future<Json> updateAssistedPublishStatus(
+    String postId, {
+    required String platform,
+    required String status,
+    Json? platformMeta,
+    String? externalUrl,
+  }) async {
+    final r = await _api.post(
+      '$base/posts/$postId/assisted-status',
+      body: compact({
+        'platform': platform,
+        'status': status,
+        'platformMeta': platformMeta,
+        'externalUrl': externalUrl,
+      }),
+    );
+    return jMap(r);
+  }
 
   Future<SocialPost> retryVariant(String postId, String platform) async {
     final r = await _api.post('$base/posts/$postId/retry-variant',

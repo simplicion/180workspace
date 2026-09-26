@@ -13,7 +13,7 @@ import {
   Search,
 } from "lucide-react";
 import { EditIR, DirectorStylePreset, MediaAssetDescriptor, VideoClip, Transition } from "@workspace/video-contracts";
-import { AIDirectorPanel, DirectorChatMessage } from "./AIDirectorPanel";
+import { AIDirectorPanel, DirectorChatMessage, DirectorPromptOptions } from "./AIDirectorPanel";
 import { ClipInspector } from "./ClipInspector";
 import { AICriticDrawer } from "./AICriticDrawer";
 import { StockMediaPanel } from "./StockMediaPanel";
@@ -31,7 +31,7 @@ interface LeftSidebarDockProps {
   // Director Props
   currentPreset?: DirectorStylePreset;
   onSelectPreset?: (preset: DirectorStylePreset) => void;
-  onApplyPrompt: (prompt: string) => Promise<void> | void;
+  onApplyPrompt: (prompt: string, options?: DirectorPromptOptions) => Promise<void> | void;
   isAiProcessing: boolean;
   aiProgress?: AIDirectorProgressEvent | null;
   companyAIStatus?: CompanyAIStatus | null;

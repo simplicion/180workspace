@@ -1,7 +1,7 @@
 import { prisma, requestContext } from '@workspace/db';
 import { BrandVoiceService } from './brand-voice.service';
 import { getDb } from './publishing/http';
-import { SAFE_ACCOUNT_SELECT } from './tenant-scope';
+import { SAFE_ACCOUNT_SELECT, SocialDomainError, notFound, requireCompanyId } from './tenant-scope';
 
 export interface IngestMessageDTO {
     socialAccountId: string;
@@ -52,7 +52,7 @@ export class SocialInboxService {
         });
 
         if (!conversation || conversation.companyId !== companyId) {
-            throw new Error('Conversation not found');
+            throw notFound('Conversation');
         }
 
         // Mark as read
@@ -66,110 +66,89 @@ export class SocialInboxService {
         return conversation;
     }
 
+    /**
+     * Sends a reply on the real platform (DM or public comment reply) and records it only once the provider accepted
+     * it. Rate-limited sends answer 429 RATE_LIMITED with `retryAfterMs`.
+     */
     static async sendMessage(conversationId: string, content: string, senderType: 'agent' | 'ai_bot' = 'agent') {
-        const companyId = requestContext.getStore()?.companyId as string;
-        const db = getDb();
-        const conversation = await db.socialConversation.findUnique({ where: { id: conversationId } });
-        if (!conversation || conversation.companyId !== companyId) throw new Error('Conversation not found');
-
-        const message = await db.socialMessage.create({
-            data: {
-                conversationId,
-                senderType,
-                content
-            }
-        });
-
-        await db.socialConversation.update({
-            where: { id: conversationId },
-            data: {
-                lastMessageSnippet: content.substring(0, 120),
-                lastMessageAt: new Date()
-            }
-        });
-
-        return message;
+        const companyId = requireCompanyId(requestContext.getStore()?.companyId as string);
+        const { sendToConversation } = require('./engagement/conversation-sender');
+        const r = await sendToConversation(companyId, conversationId, content, senderType === 'ai_bot' ? 'ai_bot' : 'agent');
+        if (r.status === 'rate_limited') {
+            const e: any = new SocialDomainError('RATE_LIMITED', 429, `Rate limit reached for this account; try again in ${Math.ceil(r.retryAfterMs / 1000)}s`);
+            e.details = { retryAfterMs: r.retryAfterMs };
+            throw e;
+        }
+        return getDb().socialMessage.findFirst({ where: { id: r.messageId, conversationId } });
     }
 
     /**
-     * AI Smart Reply Generator: Produces 3 tone-matched response options using the Project's Brand Voice
+     * AI smart replies: 3 options from the company's AI, grounded in the project's brand profile.
+     * No provider → 503 AI_NOT_CONFIGURED (never canned suggestions).
      */
     static async generateAiSmartReplies(conversationId: string) {
-        const companyId = requestContext.getStore()?.companyId as string;
+        const companyId = requireCompanyId(requestContext.getStore()?.companyId as string);
         const db = getDb();
-        const conversation = await db.socialConversation.findUnique({
-            where: { id: conversationId },
-            include: { messages: { take: 5, orderBy: { createdAt: 'desc' } } }
-        });
-
-        if (!conversation || conversation.companyId !== companyId) throw new Error('Conversation not found');
-
-        let brandVoice = null;
-        if (conversation.projectId) {
-            brandVoice = await BrandVoiceService.getBrandVoice(conversation.projectId);
-        }
-
-        const lastCustomerMsg = conversation.messages[0]?.content || conversation.lastMessageSnippet || '';
-
-        // Context-aware structured suggestions
-        return {
-            suggestions: [
-                {
-                    tone: 'Helpful & Direct',
-                    text: `Hey @${conversation.participantHandle}! Thanks for reaching out. We'd love to help you with that — check out our link or DM us your email so we can send full details!`
-                },
-                {
-                    tone: 'Friendly & Casual',
-                    text: `Appreciate the love, @${conversation.participantHandle}! 🙌 Feel free to drop any questions you have and our team will get right back to you.`
-                },
-                {
-                    tone: 'Consultative / Sales',
-                    text: `Great question! We specialize in exactly that. Would you like us to set up a quick 10-minute walkthrough for you this week?`
-                }
-            ],
-            brandToneApplied: brandVoice?.tone || 'Professional & Insightful'
-        };
+        const conversation = await db.socialConversation.findFirst({ where: { id: conversationId, companyId } });
+        if (!conversation) throw notFound('Conversation');
+        const ai = require('./engagement/engagement-ai');
+        const llm = await ai.requireEngagementLlm(companyId);
+        const brand = await ai.loadBrandForReplies(conversation.projectId, companyId);
+        const history = await db.socialMessage.findMany({ where: { conversationId }, orderBy: { createdAt: 'desc' }, take: 8 });
+        const transcript = history.reverse().map((m: any) => `${m.senderType === 'participant' ? 'USER' : 'BRAND'}: ${String(m.content).slice(0, 400)}`).join('\n');
+        const prompt = `Suggest 3 different replies a ${conversation.platform} brand could send to the user's last message.
+${brand.context ? `BRAND:\n${brand.context}\n` : ''}${brand.forbiddenWords.length ? `NEVER use: ${brand.forbiddenWords.join(', ')}\n` : ''}No invented prices, links or promises. Max 3 sentences each.
+CONVERSATION:
+${transcript || conversation.lastMessageSnippet || ''}
+Return ONLY JSON: [{"tone": "short tone label", "text": "reply"}]`;
+        const parsed = ai.parseLlmJson(await ai.generateWithTimeout(llm, prompt, 700));
+        const suggestions = (Array.isArray(parsed) ? parsed : [])
+            .map((s: any) => ({ tone: String(s?.tone || '').trim(), text: String(s?.text || '').trim() }))
+            .filter((s: any) => s.text && !ai.findForbiddenWords(s.text, brand.forbiddenWords).length)
+            .slice(0, 3);
+        if (!suggestions.length) throw new SocialDomainError('AI_BAD_RESPONSE', 502, 'The AI provider returned no usable suggestions. Try again.');
+        return { suggestions, brandToneApplied: brand.context ? 'project brand profile' : null };
     }
 
     /**
-     * 1-Click "Convert Comment / DM to CRM Lead"
-     * Populates CRM Leads in packages/domains/crm-and-sales
+     * Converts a conversation into a CRM lead exactly once (idempotent): a second call returns the existing lead.
      */
-    static async convertToCrmLead(conversationId: string) {
+    static async convertToCrmLead(conversationId: string, companyIdArg?: string, contact: { email?: string; phone?: string } = {}) {
         const db = getDb();
-        const contextCompanyId = requestContext.getStore()?.companyId as string | undefined;
-        const conversation = await db.socialConversation.findUnique({
-            where: { id: conversationId },
-            include: { messages: true }
-        });
+        const companyId = requireCompanyId(companyIdArg || (requestContext.getStore()?.companyId as string));
+        const conversation = await db.socialConversation.findFirst({ where: { id: conversationId, companyId } });
+        if (!conversation) throw notFound('Conversation');
 
-        if (!conversation) throw new Error('Conversation not found');
-        const companyId = contextCompanyId || conversation.companyId;
-        if (contextCompanyId && conversation.companyId !== contextCompanyId) throw new Error('Conversation not found');
+        if (conversation.convertedLeadId) {
+            const existing = await db.lead.findFirst({ where: { id: conversation.convertedLeadId, companyId } });
+            if (existing) return { success: true, created: false, message: 'Conversation is already a CRM lead', lead: existing };
+        }
 
-        // Create Lead in CRM
         const lead = await db.lead.create({
             data: {
                 companyId,
                 name: conversation.participantName || `@${conversation.participantHandle}`,
-                source: `Social (${conversation.platform.toUpperCase()})`,
+                email: contact.email ?? null,
+                phone: contact.phone ?? null,
+                source: `Social (${String(conversation.platform).toUpperCase()})`,
                 status: 'new',
-                notes: `Captured from Social Inbox (${conversation.platform}): @${conversation.participantHandle}\nLast snippet: "${conversation.lastMessageSnippet || ''}"`
-            }
+                notes: `Captured from Social Inbox (${conversation.platform}): @${conversation.participantHandle}\nLast snippet: "${conversation.lastMessageSnippet || ''}"`,
+            },
         });
-
-        // Link to conversation
-        await db.socialConversation.update({
-            where: { id: conversationId },
-            data: { convertedLeadId: lead.id }
+        // Only the first writer links its lead; a concurrent second lead is removed again.
+        const linked = await db.socialConversation.updateMany({
+            where: { id: conversationId, companyId, OR: [{ convertedLeadId: null }, { convertedLeadId: conversation.convertedLeadId ?? null }] },
+            data: { convertedLeadId: lead.id },
         });
-
-        return {
-            success: true,
-            message: 'Successfully converted conversation into a CRM Lead!',
-            lead
-        };
+        if (!linked.count) {
+            await db.lead.deleteMany({ where: { id: lead.id, companyId } }).catch(() => null);
+            const fresh = await db.socialConversation.findFirst({ where: { id: conversationId, companyId } });
+            const existing = fresh?.convertedLeadId ? await db.lead.findFirst({ where: { id: fresh.convertedLeadId, companyId } }) : null;
+            return { success: true, created: false, message: 'Conversation is already a CRM lead', lead: existing };
+        }
+        return { success: true, created: true, message: 'Converted conversation into a CRM lead', lead };
     }
+
 
     /**
      * Ingests an incoming message (or comment/mention) from a platform webhook into the database.
@@ -222,6 +201,12 @@ export class SocialInboxService {
             },
         });
 
+        // Idempotent on the provider message id (Meta re-delivers webhooks).
+        if (platformMessageId) {
+            const existing = await db.socialMessage.findFirst({ where: { conversationId: conversation.id, platformMessageId } });
+            if (existing) return { conversation, message: existing, duplicate: true };
+        }
+
         // Insert the incoming message
         const message = await db.socialMessage.create({
             data: {
@@ -232,7 +217,7 @@ export class SocialInboxService {
             },
         });
 
-        return { conversation, message };
+        return { conversation, message, duplicate: false };
     }
 }
 

@@ -137,6 +137,21 @@ export const MobileMusicSchema = z.object({
   }),
 });
 
+/**
+ * One-shot sound effect on the timeline (optional `audio.sfx`, added 2026-09). Older clients ignore
+ * the field. `durationMs` is how long the clip plays (absent = the whole file).
+ */
+export const MobileSfxSchema = z.object({
+  id: z.string().min(1),
+  timelineStartMs: ms,
+  durationMs: ms.optional(),
+  source: z.object({ kind: z.literal("url"), url: z.string().url() }),
+  volumeDb: z.number(),
+  /** Attribution to show on export (CC BY needs it). Absent = no credit required. */
+  credit: z.string().optional(),
+});
+export type MobileSfx = z.infer<typeof MobileSfxSchema>;
+
 export const MobileEditIRSchema = z.object({
   schemaVersion: z.literal("mobile-editir/1"),
   projectId: z.string().min(1),
@@ -159,6 +174,8 @@ export const MobileEditIRSchema = z.object({
     originalTrack: z.object({ volumeDb: z.number() }),
     music: z.array(MobileMusicSchema).max(1),
     speechRangesMs: z.array(z.tuple([ms, ms])),
+    /** Optional SFX lane; omitted when empty. */
+    sfx: z.array(MobileSfxSchema).max(40).optional(),
   }),
   /**
    * Optional brand logo drawn over the whole output (above B-roll and captions, not zoomed).
@@ -412,6 +429,8 @@ export interface MobileProjectionInput {
   primaryAssetId: string;
   /** Where fill crops of the primary asset centre (e.g. `dominantFaceCenter(media.faces)`). Default {0.5, 0.4}. */
   faceCenter?: { x: number; y: number } | null;
+  /** Credit line per SFX clip id (canonical clips have no credit field). */
+  sfxCredits?: Record<string, string>;
 }
 
 /**
@@ -580,6 +599,7 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
   }
 
   const music: MobileEditIR["audio"]["music"] = [];
+  const sfx: MobileSfx[] = [];
   for (const t of editIR.tracks.audioTracks) {
     if (t.type === "BGM") {
       const c = t.clips[0];
@@ -604,6 +624,22 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
           releaseMs: t.duckingConfig?.releaseMs ?? 350,
         },
       });
+    } else if (t.type === "SFX") {
+      // Only real HTTPS files reach mobile; synthetic desktop placeholders are dropped.
+      let dropped = 0;
+      for (const c of t.clips) {
+        const startMs = toMs(sec(c.timelineRange.start));
+        if (!/^https:\/\//i.test(c.sourcePath) || startMs >= durationMs) { dropped++; continue; }
+        sfx.push({
+          id: c.id,
+          timelineStartMs: clampT(startMs),
+          durationMs: toMs(sec(c.sourceRange.duration)),
+          source: { kind: "url", url: c.sourcePath },
+          volumeDb: (t.volumeDb ?? 0) + (c.volumeDb ?? 0),
+          ...(input.sfxCredits?.[c.id] ? { credit: input.sfxCredits[c.id] } : {}),
+        });
+      }
+      if (dropped) warnings.push(`${dropped} SFX clip(s) without an HTTPS file were dropped on mobile`);
     } else if (t.clips.length > 0) {
       warnings.push(`${t.type} audio track (${t.clips.length} clip(s)) is not supported on mobile and was dropped`);
     }
@@ -628,7 +664,7 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
     overlays,
     captions,
     zooms,
-    audio: { originalTrack: { volumeDb: originalVolumeDb }, music, speechRangesMs: speech },
+    audio: { originalTrack: { volumeDb: originalVolumeDb }, music, speechRangesMs: speech, ...(sfx.length ? { sfx: sfx.sort((a, b) => a.timelineStartMs - b.timelineStartMs) } : {}) },
   };
   return { editIR: MobileEditIRSchema.parse(mobile), warnings: Array.from(new Set(warnings)) };
 }
@@ -767,6 +803,22 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
           fadeOutDuration: S(mu.fadeOutMs),
         }],
       })),
+        // Optional SFX lane: one clip-per-effect track, so cuts move each effect with the timeline.
+        ...(m.audio.sfx?.length
+          ? [{
+            id: "sfx_lane",
+            type: "SFX" as const,
+            volumeDb: 0,
+            duckWithSpeech: false,
+            clips: m.audio.sfx.map((fx) => ({
+              id: fx.id,
+              sourcePath: fx.source.url,
+              sourceRange: { start: S(0), duration: S(fx.durationMs ?? 1000) },
+              timelineRange: { start: S(fx.timelineStartMs), duration: S(fx.durationMs ?? 1000) },
+              volumeDb: fx.volumeDb,
+            })),
+          }]
+          : []),
       ],
     },
   };

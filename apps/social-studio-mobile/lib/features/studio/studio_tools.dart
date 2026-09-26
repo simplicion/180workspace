@@ -365,7 +365,7 @@ class _CanvasSheetState extends State<_CanvasSheet> {
         FilledButton(
           onPressed: () {
             _close(context);
-            widget.onEdit((ir) => TimelineOps.setAspect(ir, aspect, fill: fill));
+            widget.onEdit((ir) => TimelineOps.setAspect(ir, aspect, fill: fill, focus: widget.c.faceFocus));
           },
           child: const Text('Apply'),
         ),
@@ -749,7 +749,7 @@ class _MusicSheetState extends ConsumerState<_MusicSheet> {
     await _previewPlayer?.dispose();
     _previewPlayer = null;
     if (credit != null && credit.isNotEmpty) {
-      widget.c.musicCredits[url] = credit;
+      widget.c.mediaCredits[url] = credit;
     }
     if (!mounted) return;
     _close(context);
@@ -1038,7 +1038,8 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
     }
   }
 
-  void _addClip(String url, String label) {
+  void _addClip(String url, String label, {String? credit}) {
+    if (credit != null && credit.isNotEmpty) widget.c.mediaCredits[url] = credit;
     _close(context);
     widget.onEdit(
       (ir) => TimelineOps.addBroll(
@@ -1145,7 +1146,7 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                     final v = _results![i];
                     return InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap: () => _addClip(v.downloadUrl, '${v.provider}: ${v.author ?? v.id}'),
+                      onTap: () => _addClip(v.downloadUrl, '${v.provider}: ${v.author ?? v.id}', credit: v.attribution),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: Stack(

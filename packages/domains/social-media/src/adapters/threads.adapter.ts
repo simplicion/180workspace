@@ -3,6 +3,7 @@
  * Docs: developers.facebook.com/docs/threads/overview
  */
 import { PublishError } from '../publishing/errors';
+import { requireToken } from "./engagement-token";
 import { expectOk, pollUntil, providerFetch } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkUrls, checkVideo } from './types';
 
@@ -152,9 +153,7 @@ export class ThreadsPublisher implements PlatformPublisher {
 
 export class ThreadsAdapter {
     static async replyToThread(userId: string, threadId: string, text: string, accessToken: string): Promise<{ replyId: string }> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
-            return { replyId: `th_reply_${Math.random().toString(36).substring(2, 10)}` };
-        }
+        requireToken(accessToken, "threads");
         const container = await threadsPost(`${userId}/threads`, accessToken, {
             media_type: 'TEXT',
             text,

@@ -39,7 +39,7 @@ class MediaEngineError(val code: String, message: String) : Exception(message)
 object MediaTools {
     const val STT_SAMPLE_RATE = 16_000
 
-    private fun requireFile(path: String) {
+    internal fun requireFile(path: String) {
         if (!File(path).isFile) throw MediaEngineError("FILE_NOT_FOUND", "File not found: $path")
     }
 
@@ -376,6 +376,44 @@ object MediaTools {
         val endUs = maxOf(endOfAudioUs, fileDurationUs)
         addRun(runStartUs ?: endOfAudioUs, endUs)
         return out
+    }
+
+    /**
+     * Beat/onset times of the audio in [audioPath] (video or audio file): mean-square energy in
+     * ~12 ms windows of decoded mono PCM, then [BeatDetector]. Returns `{beatsMs, bpm}`; a file
+     * without audio returns no beats. Blocking; call off the UI thread.
+     */
+    fun detectBeats(audioPath: String): Map<String, Any?> {
+        requireFile(audioPath)
+        val (ex, codec, format) = openAudioDecoder(audioPath) ?: return mapOf("beatsMs" to emptyList<Long>(), "bpm" to null)
+        var rate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        var windowFrames = (rate * 0.0116).toInt().coerceAtLeast(1)
+        val energies = ArrayList<Float>()
+        var sumSq = 0.0
+        var n = 0
+        try {
+            decodeMonoPcm(ex, codec, format, onFormat = { r, _ ->
+                rate = r
+                windowFrames = (r * 0.0116).toInt().coerceAtLeast(1)
+            }) { _, sample ->
+                sumSq += sample * sample
+                if (++n >= windowFrames) {
+                    energies.add((sumSq / n).toFloat())
+                    sumSq = 0.0
+                    n = 0
+                }
+            }
+        } catch (e: MediaEngineError) {
+            throw e
+        } catch (e: Exception) {
+            throw MediaEngineError("DECODE_FAILED", "Audio decode failed: ${e.message}")
+        } finally {
+            try { codec.stop() } catch (_: Exception) {}
+            codec.release()
+            ex.release()
+        }
+        val beats = BeatDetector.onsets(energies.toFloatArray(), windowFrames * 1000.0 / rate)
+        return mapOf("beatsMs" to beats, "bpm" to BeatDetector.bpm(beats))
     }
 
     private fun writeWavHeader(raf: RandomAccessFile, samples: Long) {

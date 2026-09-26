@@ -10,7 +10,9 @@ import '../../core/widgets/common.dart';
 import '../../data/models/platform.dart';
 import '../../data/models/social_post.dart';
 import '../../data/models/task.dart';
+import '../../data/models/user_assisted_publish_package.dart';
 import '../projects/project_provider.dart';
+import 'finish_publishing_sheet.dart';
 import 'platform_post_preview.dart';
 import 'post_providers.dart';
 
@@ -129,8 +131,58 @@ class _PostBodyState extends ConsumerState<_PostBody> {
     if (mounted) setState(() => _busy = null);
   }
 
+  Future<void> _openFinishPublishingSheet() async {
+    final xVariant = p.variants.where((v) => v.platform == SocialPlatform.x).firstOrNull;
+    final redditVariant = p.variants.where((v) => v.platform == SocialPlatform.reddit).firstOrNull;
+    final videoUrl = p.finalVideoUrl ?? p.mediaUrls.where((u) => u.endsWith('.mp4')).firstOrNull ?? p.mediaUrls.firstOrNull;
+
+    final redditMeta = redditVariant?.platformMeta ?? {};
+
+    final package = UserAssistedPublishPackage(
+      id: p.id,
+      projectId: p.projectId ?? '',
+      calendarItemId: p.calendarPieceId,
+      mediaPath: videoUrl,
+      title: p.title,
+      caption: p.content,
+      xPayload: XPublishPayload(
+        text: xVariant?.customContent?.isNotEmpty == true ? xVariant!.customContent! : p.content,
+        mediaPath: videoUrl,
+        projectId: p.projectId,
+      ),
+      redditPayload: RedditPublishPayload(
+        subreddit: redditMeta['subreddit']?.toString() ?? 'socialmedia',
+        title: redditMeta['title']?.toString() ?? ((p.title?.isNotEmpty ?? false) ? p.title! : p.content),
+        body: redditVariant?.customContent?.isNotEmpty == true ? redditVariant!.customContent! : p.content,
+        mediaPath: videoUrl,
+        projectId: p.projectId,
+      ),
+    );
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => FinishPublishingSheet(
+        package: package,
+        targetPlatforms: p.platforms.where((pl) => pl.isUserAssisted).toSet(),
+        onStatusUpdated: (platform, status) => _refresh(),
+      ),
+    );
+    _refresh();
+  }
+
   Future<void> _publish() => _run('publish', () async {
         final api = ref.read(socialApiProvider);
+        final assistedPlatforms = p.platforms.where((pl) => pl.isUserAssisted).toList();
+        final apiPlatforms = p.platforms.where((pl) => !pl.isUserAssisted).toList();
+
+        // If ONLY assisted platforms are selected (e.g. X and/or Reddit only), open FinishPublishingSheet directly
+        if (apiPlatforms.isEmpty && assistedPlatforms.isNotEmpty) {
+          await _openFinishPublishingSheet();
+          return;
+        }
+
         final readiness = await api.validatePublish(p.id);
         if (!mounted) return;
         if (!readiness.isReady) {
@@ -165,6 +217,11 @@ class _PostBodyState extends ConsumerState<_PostBody> {
             actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
           ),
         );
+
+        // If user also selected X or Reddit in a hybrid post, open the sheet after API publishing
+        if (assistedPlatforms.isNotEmpty && mounted) {
+          await _openFinishPublishingSheet();
+        }
       });
 
   Future<void> _uploadDeliverable() async {
@@ -281,6 +338,12 @@ class _PostBodyState extends ConsumerState<_PostBody> {
           icon: const Icon(Icons.send_rounded, size: 18),
           label: const Text('Publish'),
         ),
+        if (p.platforms.any((pl) => pl.isUserAssisted))
+          OutlinedButton.icon(
+            onPressed: busy ? null : _openFinishPublishingSheet,
+            icon: const Icon(Icons.open_in_new_rounded, size: 18),
+            label: const Text('Finish in X / Reddit'),
+          ),
         OutlinedButton.icon(
           onPressed: busy ? null : () => context.push('/studio/session?postId=${p.id}${p.projectId == null ? '' : '&projectId=${p.projectId}'}'),
           icon: const Icon(Icons.auto_awesome_rounded, size: 18),

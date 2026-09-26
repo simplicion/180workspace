@@ -158,7 +158,10 @@ The web editor's legacy form (`telemetry`, `currentEditIR` as rational-time Edit
 Errors: `400 INVALID_REQUEST` (with `issues` from Zod), `500` (`error` message). A failure never
 returns `success:true` with an unchanged timeline pretending to be an edit.
 
-Latency: an LLM turn is typically 4–20 s. Use a client timeout of at least **45 s**.
+Latency: an LLM turn is typically 4–20 s. Each LLM call has a server timeout of `AI_DIRECTOR_LLM_TIMEOUT_MS`
+(default 60000 ms). On timeout the turn falls back to the deterministic planner with
+`plannerReason` starting `LLM_TIMEOUT:` and a warning that the offline rule-based director made the edit.
+Use a client timeout of at least **90 s** (the web Studio uses 90 s).
 
 ---
 
@@ -320,6 +323,28 @@ Royalty-free music search for the phone. It returns metadata and HTTPS URLs only
 - The curated catalogue is always searched. When the server has `FREESOUND_API_KEY`, Freesound results are added after the catalogue, restricted to CC0 / CC BY, 30 s–15 min, with HTTPS MP3 previews, and `providers` includes `"freesound"`. Without the key, Freesound is skipped and `providers` shows it.
 - No match returns `tracks: []`, with the reason in `warnings`. `400 QUERY_REQUIRED` / `QUERY_TOO_LONG`. `500 MUSIC_SEARCH_FAILED`.
 - `GET /stock/unified?type=audio` (or `music`) now searches music too, and no longer queries the video/photo providers for audio-only types. `unifiedAudio` holds `{kind:"music", …track}` and `{kind:"sfx", title, url, durationSec}` entries.
+
+#### `audio.sfx[]` (optional, added 2026-09-26)
+One-shot sound effects on their own lane. **Optional**: the field is omitted when there are none, so older
+clients (which ignore unknown fields) keep working; a client that renders it must also send it back in
+`currentEditIR` so it round-trips.
+```json
+"sfx": [
+  { "id": "sfx_4120_0", "timelineStartMs": 4120, "durationMs": 800,
+    "source": { "kind": "url", "url": "https://cdn.freesound.org/previews/…/whoosh.mp3" },
+    "volumeDb": -12, "credit": "\"Whoosh\" by A (CC BY 4.0)" }
+]
+```
+- `timelineStartMs` is edited-timeline time; `durationMs` (optional) is how long to play from the start of the
+  file (absent = the whole file). `volumeDb` is the effect's gain; SFX are **not** ducked.
+- `credit` (optional) must be shown with the published video (CC BY). The same item is in `credits[]` with `kind:"sfx"`.
+- The director places SFX on the **greet** proposal when an SFX search is available (Freesound with
+  `FREESOUND_API_KEY`, else Openverse CC0/CC BY): up to 4 effects at the proposal's transitions (B-roll starts,
+  then joins between main clips), 80 ms early so the whoosh lands on the cut. Cuts in later turns move each effect
+  with the footage under it; an effect whose position is cut away is dropped.
+- Only HTTPS files are emitted. Synthetic desktop SFX (`synthetic://…`) are dropped with a warning.
+- Renderer: mix each effect into the output at `timelineStartMs` with `volumeDb`, on top of the original audio and
+  music. (Android support: pending in the mobile engine.)
 
 ### 3.7 Things v1 never emits
 Picture-in-picture, stickers, image overlays, J/L-cuts, freeze frames, synthetic SFX, colour

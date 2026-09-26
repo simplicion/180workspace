@@ -4,6 +4,29 @@ import { SAFE_ACCOUNT_SELECT, SocialDomainError, notFound, requireCompanyId } fr
 
 const invalid = (message: string) => new SocialDomainError('VALIDATION_FAILED', 400, message);
 
+const TRIGGERS = ['comment_keyword', 'comment_any', 'dm_inbound', 'mention'];
+const MODES = ['contains', 'exact', 'regex'];
+
+/** Shape checks shared by create/update: enums, keyword limits, regex that compiles and stays short, https deliverable. */
+function validateRuleShape(dto: Partial<CreateEngagementRuleDTO>) {
+    if (dto.triggerType !== undefined && !TRIGGERS.includes(dto.triggerType)) throw invalid(`triggerType must be one of ${TRIGGERS.join(', ')}`);
+    if (dto.matchMode !== undefined && !MODES.includes(dto.matchMode)) throw invalid(`matchMode must be one of ${MODES.join(', ')}`);
+    if (dto.triggerKeywords !== undefined) {
+        if (!Array.isArray(dto.triggerKeywords) || dto.triggerKeywords.length > 50) throw invalid('triggerKeywords must be an array of at most 50 entries');
+        for (const k of dto.triggerKeywords) {
+            if (typeof k !== 'string' || k.length > 200) throw invalid('each keyword must be a string of at most 200 characters');
+            if (dto.matchMode === 'regex') {
+                try { new RegExp(k, 'i'); } catch { throw invalid(`invalid regular expression: ${k}`); }
+            }
+        }
+    }
+    if (dto.actionPublicReplies !== undefined && (!Array.isArray(dto.actionPublicReplies) || dto.actionPublicReplies.length > 20 || dto.actionPublicReplies.some((r) => typeof r !== 'string' || r.length > 1000))) {
+        throw invalid('actionPublicReplies must be at most 20 strings of at most 1000 characters');
+    }
+    if (dto.actionDmTemplate !== undefined && String(dto.actionDmTemplate).length > 1000) throw invalid('actionDmTemplate is limited to 1000 characters');
+    if (dto.actionDmDeliverableUrl && !/^https:\/\/\S+$/i.test(String(dto.actionDmDeliverableUrl))) throw invalid('actionDmDeliverableUrl must be an https:// link');
+}
+
 export class EngagementRuleService {
     /**
      * A rule may only reference the caller's own project, social account and post: otherwise a tenant could make
@@ -30,6 +53,7 @@ export class EngagementRuleService {
         if (!dto || typeof dto.name !== 'string' || !dto.name.trim()) throw invalid('name is required');
         if (!dto.triggerType) throw invalid('triggerType is required');
         if (typeof dto.actionDmTemplate !== 'string') throw invalid('actionDmTemplate is required');
+        validateRuleShape(dto);
         await this.assertReferencesOwned(companyId, dto);
         const db = getDb();
 
@@ -112,6 +136,7 @@ export class EngagementRuleService {
     static async updateRule(companyId: string, ruleId: string, dto: UpdateEngagementRuleDTO): Promise<any> {
         const db = getDb();
         await this.getRule(companyId, ruleId); // asserts ownership
+        validateRuleShape(dto || {});
         await this.assertReferencesOwned(companyId, dto || {});
 
         return db.socialEngagementRule.update({
@@ -195,12 +220,8 @@ export class EngagementRuleService {
         const totalDmsSent = rules.reduce((acc: number, r: any) => acc + (r.statsDmsSentCount || 0), 0);
         const totalLiked = rules.reduce((acc: number, r: any) => acc + (r.statsCommentsLiked || 0), 0);
 
-        const logs = await db.socialInteractionLog.count({
-            where: {
-                companyId,
-                status: 'success',
-            },
-        });
+        // Leads are conversations actually converted into CRM leads (not automation runs).
+        const logs = await db.socialConversation.count({ where: { companyId, ...(projectId ? { projectId } : {}), convertedLeadId: { not: null } } });
 
         return {
             totalRules,

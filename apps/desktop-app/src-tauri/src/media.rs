@@ -305,3 +305,168 @@ pub async fn transcode_media(
     }
     Ok(output.to_string_lossy().into_owned())
 }
+
+// ---------------------------------------------------------------------------------------------
+// Speech analysis for the AI Director. Runs locally; only 16 kHz mono speech audio leaves the device,
+// to the platform's own /media-editor/transcribe endpoint.
+// ---------------------------------------------------------------------------------------------
+
+/// Max audio sent for transcription (matches the server's upload limit).
+const MAX_TRANSCRIPTION_AUDIO_BYTES: usize = 25 * 1024 * 1024;
+
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SilenceRange {
+    pub start_ms: u64,
+    pub end_ms: u64,
+}
+
+fn parse_secs_after(line: &str, key: &str) -> Option<f64> {
+    let rest = &line[line.find(key)? + key.len()..];
+    rest.trim_start().split(|c: char| c.is_whitespace() || c == '|').next()?.parse::<f64>().ok()
+}
+
+/// `Duration: HH:MM:SS.xx` from ffmpeg's input banner, in ms.
+pub(crate) fn parse_duration_ms(stderr: &str) -> Option<u64> {
+    let line = stderr.lines().find(|l| l.trim_start().starts_with("Duration:"))?;
+    let hms = line.trim_start().trim_start_matches("Duration:").trim().split(',').next()?.trim();
+    let mut parts = hms.split(':');
+    let h = parts.next()?.parse::<f64>().ok()?;
+    let m = parts.next()?.parse::<f64>().ok()?;
+    let s = parts.next()?.parse::<f64>().ok()?;
+    Some(((h * 3600.0 + m * 60.0 + s) * 1000.0).round() as u64)
+}
+
+/// Parses `silencedetect` output. A trailing `silence_start` with no end (silence running to EOF) is closed at
+/// the media duration so end-of-file dead air is not lost.
+pub(crate) fn parse_silences(stderr: &str, duration_ms: Option<u64>) -> Vec<SilenceRange> {
+    let mut out = Vec::new();
+    let mut open: Option<u64> = None;
+    for line in stderr.lines() {
+        if line.contains("silence_start:") {
+            open = parse_secs_after(line, "silence_start:").map(|s| (s.max(0.0) * 1000.0).round() as u64);
+        } else if line.contains("silence_end:") {
+            if let (Some(start), Some(end)) = (open.take(), parse_secs_after(line, "silence_end:")) {
+                let end_ms = (end * 1000.0).round() as u64;
+                if end_ms > start {
+                    out.push(SilenceRange { start_ms: start, end_ms });
+                }
+            }
+        }
+    }
+    if let (Some(start), Some(dur)) = (open, duration_ms) {
+        if dur > start {
+            out.push(SilenceRange { start_ms: start, end_ms: dur });
+        }
+    }
+    out
+}
+
+fn no_audio(stderr: &str) -> bool {
+    stderr.contains("does not contain any stream") || stderr.contains("matches no streams") || stderr.contains("Output file is empty")
+}
+
+/// Pauses in a picked file's audio (ffmpeg `silencedetect`). A file without audio returns an empty list.
+#[tauri::command]
+pub async fn detect_silences(
+    app: AppHandle,
+    allowed: State<'_, AllowedPaths>,
+    path: String,
+    min_silence_ms: Option<u32>,
+    threshold_db: Option<f32>,
+) -> Result<Vec<SilenceRange>, String> {
+    let file = allowed.check_existing(&path)?;
+    let min_ms = min_silence_ms.unwrap_or(500).clamp(100, 5000);
+    let noise = threshold_db.unwrap_or(-40.0).clamp(-80.0, -10.0);
+    let filter = format!("silencedetect=noise={noise}dB:d={:.3}", min_ms as f64 / 1000.0);
+    let result = app
+        .shell()
+        .sidecar("ffmpeg")
+        .map_err(|e| format!("ffmpeg is not available: {e}"))?
+        .args(["-hide_banner", "-nostats", "-i"])
+        .arg(&file)
+        .args(["-vn", "-af", filter.as_str(), "-f", "null", "-"])
+        .output()
+        .await
+        .map_err(|e| format!("ffmpeg failed to start: {e}"))?;
+    let stderr = String::from_utf8_lossy(&result.stderr).to_string();
+    if !result.status.success() {
+        if no_audio(&stderr) {
+            return Ok(Vec::new());
+        }
+        return Err(format!("Silence detection failed: {}", stderr.lines().last().unwrap_or("").trim()));
+    }
+    Ok(parse_silences(&stderr, parse_duration_ms(&stderr)))
+}
+
+/// Speech audio (16 kHz mono AAC in M4A) for transcription, returned as raw bytes; the temp file is deleted.
+#[tauri::command]
+pub async fn extract_audio_for_transcription(
+    app: AppHandle,
+    allowed: State<'_, AllowedPaths>,
+    path: String,
+) -> Result<tauri::ipc::Response, String> {
+    let file = allowed.check_existing(&path)?;
+    let dir = app.path().app_cache_dir().map_err(|e| format!("No cache directory: {e}"))?.join("stt");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Cannot create cache directory: {e}"))?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let out = dir.join(format!("stt_{stamp}.m4a"));
+    let result = app
+        .shell()
+        .sidecar("ffmpeg")
+        .map_err(|e| format!("ffmpeg is not available: {e}"))?
+        .args(["-y", "-hide_banner", "-loglevel", "error", "-i"])
+        .arg(&file)
+        .args(["-vn", "-ac", "1", "-ar", "16000", "-c:a", "aac", "-b:a", "48k"])
+        .arg(&out)
+        .output()
+        .await
+        .map_err(|e| format!("ffmpeg failed to start: {e}"))?;
+    let stderr = String::from_utf8_lossy(&result.stderr).to_string();
+    if !result.status.success() {
+        let _ = std::fs::remove_file(&out);
+        if no_audio(&stderr) {
+            return Err("NO_AUDIO_TRACK: This video has no audio to transcribe.".to_string());
+        }
+        return Err(format!("Audio extraction failed: {}", stderr.trim()));
+    }
+    let bytes = std::fs::read(&out).map_err(|e| format!("Cannot read extracted audio: {e}"));
+    let _ = std::fs::remove_file(&out);
+    let bytes = bytes?;
+    if bytes.len() > MAX_TRANSCRIPTION_AUDIO_BYTES {
+        return Err("AUDIO_TOO_LARGE: The audio is over 25 MB (about 70 minutes of speech). Trim the video first.".to_string());
+    }
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[cfg(test)]
+mod speech_tests {
+    use super::*;
+
+    const SAMPLE: &str = "Input #0, mov,mp4, from 'a.mp4':\n  Duration: 00:00:12.50, start: 0.000000, bitrate: 900 kb/s\n[silencedetect @ 0x1] silence_start: 1.2\n[silencedetect @ 0x1] silence_end: 2.05 | silence_duration: 0.85\n[silencedetect @ 0x1] silence_start: 11.1\n";
+
+    #[test]
+    fn parses_ranges_and_flushes_trailing_silence_at_eof() {
+        let d = parse_duration_ms(SAMPLE);
+        assert_eq!(d, Some(12_500));
+        assert_eq!(
+            parse_silences(SAMPLE, d),
+            vec![SilenceRange { start_ms: 1200, end_ms: 2050 }, SilenceRange { start_ms: 11_100, end_ms: 12_500 }]
+        );
+    }
+
+    #[test]
+    fn no_duration_drops_the_open_range_and_negative_start_clamps() {
+        let s = "silence_start: -0.01\nsilence_end: 0.6 | silence_duration: 0.61\nsilence_start: 3.0\n";
+        assert_eq!(parse_silences(s, None), vec![SilenceRange { start_ms: 0, end_ms: 600 }]);
+    }
+
+    #[test]
+    fn detects_missing_audio() {
+        assert!(no_audio("Output file #0 does not contain any stream"));
+        assert!(!no_audio("frame=  10"));
+    }
+}

@@ -33,6 +33,8 @@ class MediaAnalysis {
     this.fps,
     this.words = const [],
     this.silences,
+    this.faces,
+    this.beatsMs,
   });
 
   final String assetId;
@@ -42,6 +44,12 @@ class MediaAnalysis {
   final double? fps;
   final List<TranscriptWord> words;
   final List<SilenceRange>? silences;
+
+  /// On-device ML Kit face track (source ms); the director centres reframe crops and zooms on it.
+  final List<FaceSample>? faces;
+
+  /// On-device beat/onset times of the clip's audio (source ms).
+  final List<int>? beatsMs;
 
   bool get hasTranscript => words.isNotEmpty;
 
@@ -53,6 +61,8 @@ class MediaAnalysis {
         'fps': fps,
         'transcript': words.isEmpty ? null : {'words': words.map((w) => w.toJson()).toList()},
         'silences': silences?.map((s) => s.toJson()).toList(),
+        'faces': faces == null || faces!.isEmpty ? null : faces!.map((f) => f.toJson()).toList(),
+        'beatsMs': beatsMs == null || beatsMs!.isEmpty ? null : beatsMs,
       });
 }
 
@@ -69,6 +79,7 @@ class DirectorResponse {
     required this.requiresConfirmation,
     required this.editIrJson,
     required this.editIr,
+    this.credits = const {},
   });
 
   final String plannerSource;
@@ -84,6 +95,9 @@ class DirectorResponse {
   /// Raw `editIR`, sent back unchanged as `currentEditIR` on the next turn.
   final Json editIrJson;
   final MobileEditIr editIr;
+
+  /// Credit lines of the stock B-roll and music the director placed, by media URL.
+  final Map<String, String> credits;
 
   bool get isDeterministic => plannerSource == 'deterministic';
 
@@ -111,6 +125,10 @@ class DirectorResponse {
       requiresConfirmation: jBool(d['requiresConfirmation']),
       editIrJson: ir,
       editIr: parsed,
+      credits: {
+        for (final c in jList(d['credits'], (m) => m))
+          if (jStr(c['url']) != null && jStr(c['attribution']) != null) jStr(c['url'])!: jStr(c['attribution'])!,
+      },
     );
   }
 }
@@ -126,10 +144,14 @@ class StockVideoResult {
     this.height,
     required this.provider,
     this.author,
+    this.attribution,
   });
 
   final String id;
   final String downloadUrl;
+
+  /// Credit line (free providers: licence + author; always kept for the post caption).
+  final String? attribution;
   final String? previewUrl;
   final String? thumbnailUrl;
   final double? durationSec;
@@ -177,12 +199,18 @@ class AiDirectorService {
     required MediaAnalysis media,
     String? projectId,
     Json? currentEditIR,
+    String? calendarPieceId,
+    String? postId,
+    String? intent,
   }) {
     final trimmed = history.length > maxHistory ? history.sublist(history.length - maxHistory) : history;
     return {
       'prompt': prompt.length > 2000 ? prompt.substring(0, 2000) : prompt,
       'history': trimmed.map((t) => t.toJson()).toList(),
       'projectId': ?projectId,
+      'intent': ?intent,
+      'calendarPieceId': ?calendarPieceId,
+      'postId': ?postId,
       'media': media.toJson(),
       'currentEditIR': currentEditIR,
     };
@@ -193,10 +221,13 @@ class AiDirectorService {
     required List<DirectorTurn> history,
     required MediaAnalysis media,
     String? projectId,
+    String? calendarPieceId,
+    String? postId,
+    String? intent,
     Json? currentEditIR,
     CancelToken? cancelToken,
   }) async {
-    if (prompt.trim().isEmpty) {
+    if (prompt.trim().isEmpty && intent != 'greet') {
       throw const ApiException(kind: ApiErrorKind.validation, message: 'Tell the director what to change.');
     }
     await _device.ensureToken();
@@ -205,6 +236,9 @@ class AiDirectorService {
       history: history,
       media: media,
       projectId: projectId,
+      calendarPieceId: calendarPieceId,
+      postId: postId,
+      intent: intent,
       currentEditIR: currentEditIR,
     );
     Future<Json> call() => _api.post(path,
@@ -264,6 +298,7 @@ class AiDirectorService {
           height: h,
           provider: provider,
           author: author,
+          attribution: jStr(v['attribution']),
         ));
       }
       if (list.isNotEmpty) return list;
@@ -294,6 +329,7 @@ class AiDirectorService {
           height: (v['height'] as num?)?.toInt(),
           provider: 'pexels',
           author: jStr(v['photographer']) ?? 'Pexels Creator',
+          attribution: jStr(v['attribution']),
         ));
       }
       return list;
@@ -360,10 +396,11 @@ class AiDirectorService {
     }
   }
 
-  /// Resolves a `stock_query` B-roll overlay to a video URL (contract §3.3). Null if none found.
-  Future<String?> resolveStockVideo(String query) async {
-    final results = await searchStockVideos(query);
-    return results.firstOrNull?.downloadUrl;
+  /// Resolves a `stock_query` B-roll overlay to a video URL with its credit line (contract §3.3).
+  /// Null if none found.
+  Future<({String url, String? credit})?> resolveStockVideo(String query) async {
+    final hit = (await searchStockVideos(query)).firstOrNull;
+    return hit == null ? null : (url: hit.downloadUrl, credit: hit.attribution);
   }
 
   /// Resolves a `stock_query` music phrase through the unified stock search.

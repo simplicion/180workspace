@@ -1,9 +1,10 @@
 import { PexelsClient, PexelsVideoItem, PexelsPhotoItem } from "./pexels-client";
 import { PixabayClient, PixabayVideoItem, PixabayImageItem } from "./pixabay-client";
+import { FreeMediaItem, FreeMediaKind, FreeMediaProviderId, FreeMediaSearchResult, rankFreeMedia, searchFreeMedia } from "./free-media-providers";
 
 export interface UnifiedStockMediaItem {
   id: string;
-  provider: "pixabay" | "pexels" | "freesound";
+  provider: "pixabay" | "pexels" | "freesound" | FreeMediaProviderId;
   type: "video" | "photo" | "illustration" | "vector" | "audio";
   title: string;
   downloadUrl: string;
@@ -15,6 +16,10 @@ export interface UnifiedStockMediaItem {
   aspectRatio: "16:9" | "9:16" | "1:1";
   tags: string[];
   sourceAttribution: string;
+  /** Free providers: licence, its URL and the work's page (always kept for credits). */
+  license?: string;
+  licenseUrl?: string | null;
+  sourcePage?: string;
 }
 
 export interface StockBrokerRequest {
@@ -35,6 +40,48 @@ export interface StockBrokerDecision {
 }
 
 export class StockDecisionBroker {
+  /**
+   * Keyless / free-key providers (Openverse, Wikimedia Commons, Internet Archive, Jamendo, Unsplash),
+   * licence-filtered for commercial use and ranked (portrait for 9:16, duration fit, resolution,
+   * CC0 > PD > CC BY > CC BY-SA). Provider failures come back as warnings.
+   */
+  static searchFreeMedia(q: {
+    query: string;
+    kind: FreeMediaKind;
+    targetAspect?: "16:9" | "9:16" | "1:1" | "4:5";
+    targetDurationSec?: number;
+    minDurationSec?: number;
+    maxDurationSec?: number;
+    limit?: number;
+    timeoutMs?: number;
+    fetchImpl?: typeof fetch;
+  }): Promise<FreeMediaSearchResult> {
+    const orientation = q.targetAspect === "9:16" || q.targetAspect === "4:5" ? "portrait" : q.targetAspect === "1:1" ? "square" : q.targetAspect ? "landscape" : undefined;
+    return searchFreeMedia({ ...q, orientation });
+  }
+
+  static rankFreeMedia = rankFreeMedia;
+
+  static fromFreeMedia(i: FreeMediaItem): UnifiedStockMediaItem {
+    return {
+      id: i.id,
+      provider: i.provider,
+      type: i.kind === "image" ? "photo" : i.kind === "video" ? "video" : "audio",
+      title: i.title,
+      downloadUrl: i.url,
+      thumbnailUrl: i.previewUrl || "",
+      durationSec: i.durationSec,
+      width: i.width,
+      height: i.height,
+      aspectRatio: i.orientation === "portrait" ? "9:16" : i.orientation === "square" ? "1:1" : "16:9",
+      tags: [],
+      sourceAttribution: i.attribution,
+      license: i.license,
+      licenseUrl: i.licenseUrl,
+      sourcePage: i.sourcePage,
+    };
+  }
+
   /**
    * Evaluates the semantic prompt and video properties to make an intelligent sourcing decision
    */
@@ -153,7 +200,8 @@ export class StockDecisionBroker {
       sourceAttribution: `Pixabay / ${img.user}`,
     });
 
-    // Primary Provider Execution
+    // Primary Provider Execution (a provider without a key throws: log it and fall through)
+    try {
     if (decision.primaryProvider === "pixabay") {
       if (decision.imageType && decision.imageType !== "photo") {
         // Query Pixabay images/vectors
@@ -186,11 +234,15 @@ export class StockDecisionBroker {
       });
       unifiedItems.push(...res.videos.map(mapPexelsVideo));
     }
+    } catch (err: any) {
+      request.log?.(`[StockDecisionBroker] ${decision.primaryProvider} unavailable: ${err?.message || err}`);
+    }
 
     // Waterfall Fallback if primary returned fewer than needed items
     if (unifiedItems.length < max && decision.secondaryProvider) {
       request.log?.(`[StockDecisionBroker] Primary returned ${unifiedItems.length}/${max} items. Cascading to secondary provider (${decision.secondaryProvider})...`);
 
+      try {
       if (decision.secondaryProvider === "pixabay") {
         const res = await PixabayClient.searchVideos({
           query: decision.routedQuery,
@@ -208,6 +260,17 @@ export class StockDecisionBroker {
         });
         unifiedItems.push(...res.videos.map(mapPexelsVideo));
       }
+      } catch (err: any) {
+        request.log?.(`[StockDecisionBroker] ${decision.secondaryProvider} unavailable: ${err?.message || err}`);
+      }
+    }
+
+    // Free, licence-filtered providers fill whatever is still missing.
+    if (unifiedItems.length < max) {
+      const kind: FreeMediaKind = decision.imageType && decision.imageType !== "photo" ? "image" : "video";
+      const free = await this.searchFreeMedia({ query: decision.routedQuery, kind, targetAspect: request.targetAspect, limit: max - unifiedItems.length });
+      for (const w of free.warnings) request.log?.(`[StockDecisionBroker] ${w}`);
+      unifiedItems.push(...free.items.map((i) => this.fromFreeMedia(i)));
     }
 
     return {

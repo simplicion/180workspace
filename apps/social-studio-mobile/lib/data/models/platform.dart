@@ -21,6 +21,9 @@ enum SocialPlatform {
   final IconData icon;
   final Color color;
 
+  /// Whether this platform defaults to user-assisted publishing (X & Reddit)
+  bool get isUserAssisted => this == SocialPlatform.x || this == SocialPlatform.reddit;
+
   static const connectable = [
     instagram,
     threads,

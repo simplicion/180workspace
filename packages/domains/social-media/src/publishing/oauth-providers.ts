@@ -249,7 +249,12 @@ const youtubeProvider: OAuthProvider = {
             client_id: clientId,
             redirect_uri: redirectUri,
             response_type: 'code',
-            scope: envScopes('YOUTUBE_SCOPES', ['https://www.googleapis.com/auth/youtube.upload', 'https://www.googleapis.com/auth/youtube.readonly', 'https://www.googleapis.com/auth/youtube.force-ssl']).join(' '),
+            scope: envScopes('YOUTUBE_SCOPES', [
+                'https://www.googleapis.com/auth/youtube.upload',
+                'https://www.googleapis.com/auth/youtube.readonly',
+                'https://www.googleapis.com/auth/youtube.force-ssl',
+                'https://www.googleapis.com/auth/yt-analytics.readonly',
+            ]).join(' '),
             access_type: 'offline',
             prompt: 'consent',
             include_granted_scopes: 'true',

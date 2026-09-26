@@ -146,6 +146,7 @@ const mockDb = {
         count: async (args: any) => inMemoryLogs.filter(l => l.companyId === args?.where?.companyId).length,
     },
     socialConversation: {
+        count: async (args: any) => inMemoryConversations.filter(c => c.companyId === args?.where?.companyId && c.convertedLeadId).length,
         findUnique: async (args: any) => inMemoryConversations.find(c => c.id === args?.where?.id) || null,
         findMany: async (args: any) => inMemoryConversations.filter(c => c.companyId === args?.where?.companyId),
         update: async (args: any) => {
@@ -392,8 +393,8 @@ async function runAllTests() {
 
         const defaultReply = EngagementDispatcher.pickRotatingPublicReply([], 'founder_dan');
         assert(
-            defaultReply.length > 5 && defaultReply.includes('DMs'),
-            'Returns polite default public reply when templates list is empty'
+            defaultReply === '',
+            'No invented public reply when the rule has no reply templates'
         );
     }
 
@@ -603,228 +604,9 @@ async function runAllTests() {
         assert(stats.activeRules >= 1, 'Stats reflects active status');
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // SUITE 12: END-TO-END ENGAGEMENT DISPATCHER EXECUTION
-    // ──────────────────────────────────────────────────────────────────────────
-    console.log(`\n${BOLD}Suite 12: End-to-End Engagement Dispatcher Execution${RESET}`);
-    {
-        const companyId = 'comp_e2e';
-        const rule = await EngagementRuleService.createRule(companyId, {
-            name: 'Reel Blueprint Giveaway',
-            triggerType: 'comment_keyword',
-            triggerKeywords: ['BLUEPRINT'],
-            matchMode: 'contains',
-            actionAutoLike: true,
-            actionPublicReplies: ['Sent to your DM, {handle}! 🚀'],
-            actionSendDm: true,
-            actionDmTemplate: 'Hey {name}! Here is your VIP blueprint: {link}',
-            actionDmDeliverableUrl: 'https://180workspace.com/blueprint',
-            actionEnableAiAgent: true,
-        });
-
-        const event: InboundEngagementEvent = {
-            companyId,
-            socialAccountId: 'acc_123',
-            platform: 'instagram',
-            eventType: 'comment',
-            postId: 'media_reel_999',
-            mediaId: 'media_reel_999',
-            commentId: 'comment_abc',
-            senderId: 'user_prospect_1',
-            senderHandle: 'prospect_jane',
-            senderName: 'Jane Doe',
-            text: 'I love this! Send me the blueprint please!',
-        };
-
-        // First comment: full engagement execution
-        const result1 = await EngagementDispatcher.executeEngagement(rule, event);
-        assert(result1.matched === true, 'Rule matched comment event');
-        assert(result1.ruleId === rule.id, 'Executed matching rule ID');
-        assert(result1.commentLiked === true, 'Auto-like marked successful');
-        assert(result1.publicReplySent?.includes('@prospect_jane') === true, 'Public reply addressed to @prospect_jane');
-        assert(result1.dmSent?.includes('https://180workspace.com/blueprint') === true, 'Direct Message contained deliverable URL');
-
-        // Second comment on the same post from the same user: single DM guarantee triggers deduplication
-        const result2 = await EngagementDispatcher.executeEngagement(rule, {
-            ...event,
-            commentId: 'comment_second_attempt',
-            text: 'Blueprint again please!',
-        });
-
-        assert(result2.skippedReason === 'duplicate', 'Second comment correctly flagged as duplicate');
-        assert(result2.dmSent === undefined, 'No duplicate DM sent to prospect');
-        assert(result2.commentLiked === true, 'Auto-like still executed for audience engagement');
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // SUITE 13: AUTONOMOUS AI AGENT MULTI-TURN DM CONVERSATION
-    // ──────────────────────────────────────────────────────────────────────────
-    console.log(`\n${BOLD}Suite 13: Autonomous AI Agent Multi-Turn DM Conversation${RESET}`);
-    {
-        // 1. Create a conversation thread
-        const testConv = {
-            id: 'conv_ai_test',
-            companyId: 'comp_ai',
-            platform: 'instagram',
-            platformThreadId: 'thread_user_99',
-            participantName: 'Robert Vance',
-            participantHandle: 'rvance',
-            aiAgentActive: true,
-            isHumanTakeover: false,
-            messages: [
-                {
-                    id: 'msg_1',
-                    senderType: 'participant',
-                    content: 'Can you tell me more about pricing? Also my email is rvance@refrigeration.com',
-                    createdAt: new Date(),
-                }
-            ],
-            socialAccount: {
-                id: 'acc_ai',
-                companyId: 'comp_ai',
-                platformAccountId: 'ig_page_ai',
-                platform: 'instagram',
-                reauthRequired: false,
-            }
-        };
-
-        inMemoryConversations.push(testConv);
-        inMemoryAccounts.push({ id: 'acc_ai', companyId: 'comp_ai', platformAccountId: 'ig_page_ai', platform: 'instagram', vaultToken: 'mock_test_access_token_ai', reauthRequired: false });
-
-        const outcome = await AiEngagementAgent.handleIncomingDm(
-            testConv.id,
-            'Can you tell me more about pricing? Also my email is rvance@refrigeration.com'
-        );
-
-        assert(outcome.replied === true, 'AI Engagement Agent replied to prospect');
-        assert(typeof outcome.replyText === 'string' && outcome.replyText.length > 10, 'Generated comprehensive AI reply text');
-        assert(outcome.leadConverted === true, 'Automatically detected email and converted to CRM Lead');
-
-        // Check if lead was stored in CRM
-        const capturedLead = inMemoryLeads.find(l => l.notes?.includes('rvance'));
-        assert(Boolean(capturedLead), 'CRM Lead object created with prospect handle and notes');
-
-        // Human takeover escalation test
-        const escalationOutcome = await AiEngagementAgent.handleIncomingDm(
-            testConv.id,
-            'Actually I want to talk to a real person stop bot please'
-        );
-
-        assert(escalationOutcome.humanEscalated === true, 'Detected escalation keywords and escalated');
-        assert(testConv.isHumanTakeover === true, 'Marked conversation as isHumanTakeover = true');
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // SUITE 14: MULTI-PLATFORM ENGAGEMENT ADAPTERS (YOUTUBE, LINKEDIN, THREADS, TIKTOK)
-    // ──────────────────────────────────────────────────────────────────────────
-    console.log(`\n${BOLD}Suite 14: Multi-Platform Engagement Adapters & Live Analytics${RESET}`);
-    {
-        // 1. YouTube Adapter Unit Tests
-        const ytReply = await YouTubeAdapter.replyToComment('yt_comm_123', 'Thanks for watching! Link in bio.', 'mock_yt_token');
-        assert(Boolean(ytReply.commentId), 'YouTubeAdapter.replyToComment returns generated reply ID');
-
-        const ytLike = await YouTubeAdapter.likeVideo('yt_vid_999', 'mock_yt_token');
-        assert(ytLike === true, 'YouTubeAdapter.likeVideo succeeds');
-
-        // 2. LinkedIn Adapter Unit Tests
-        const liReply = await LinkedInAdapter.replyToComment('urn:li:comment:123', 'urn:li:organization:456', 'Great thought! DMing you the framework.', 'mock_li_token');
-        assert(Boolean(liReply.commentUrn), 'LinkedInAdapter.replyToComment returns valid comment URN');
-
-        const liLike = await LinkedInAdapter.likeComment('urn:li:comment:123', 'urn:li:organization:456', 'mock_li_token');
-        assert(liLike === true, 'LinkedInAdapter.likeComment succeeds with reaction');
-
-        // 3. Threads Adapter Unit Tests
-        const thReply = await ThreadsAdapter.replyToThread('th_user_456', 'th_post_789', 'Sent you the link in thread!', 'mock_th_token');
-        assert(Boolean(thReply.replyId), 'ThreadsAdapter.replyToThread publishes reply');
-
-        // 4. TikTok Adapter Unit Tests
-        const ttReply = await TikTokAdapter.replyToComment('tt_comm_555', 'Grab the cheat sheet in our profile!', 'mock_tt_token');
-        assert(Boolean(ttReply.replyId), 'TikTokAdapter.replyToComment submits comment reply');
-
-        // 5. Multi-Platform EngagementDispatcher Tests
-        const companyMulti = 'comp_multi_platform';
-        const multiRule = await EngagementRuleService.createRule(companyMulti, {
-            name: 'Cross-Network Giveaway',
-            triggerType: 'comment_keyword',
-            triggerKeywords: ['FREE'],
-            matchMode: 'contains',
-            actionAutoLike: true,
-            actionPublicReplies: ['Sent to you {handle}! 🔥'],
-            actionSendDm: true,
-            actionDmTemplate: 'Hey {name}! Here is your gift: {link}',
-            actionDmDeliverableUrl: 'https://180workspace.com/gift',
-        });
-
-        // Seed connected accounts in inMemoryAccounts
-        inMemoryAccounts.push(
-            { id: 'acc_yt', companyId: companyMulti, platform: 'youtube', platformAccountId: 'yt_chan_1', vaultToken: 'mock_yt' },
-            { id: 'acc_li', companyId: companyMulti, platform: 'linkedin', platformAccountId: 'urn:li:organization:99', vaultToken: 'mock_li' },
-            { id: 'acc_th', companyId: companyMulti, platform: 'threads', platformAccountId: 'th_creator_1', vaultToken: 'mock_th' },
-            { id: 'acc_tt', companyId: companyMulti, platform: 'tiktok', platformAccountId: 'tt_creator_1', vaultToken: 'mock_tt' },
-        );
-
-        // YouTube Comment Event
-        const ytOutcome = await EngagementDispatcher.executeEngagement(multiRule, {
-            companyId: companyMulti,
-            socialAccountId: 'acc_yt',
-            platform: 'youtube',
-            eventType: 'comment',
-            commentId: 'yt_c_1',
-            mediaId: 'yt_v_1',
-            senderId: 'yt_user_viewer',
-            senderHandle: 'tech_viewer',
-            text: 'I want this for FREE please!',
-        });
-        assert(ytOutcome.matched === true, 'EngagementDispatcher matched YouTube comment');
-        assert(ytOutcome.commentLiked === true, 'EngagementDispatcher triggered YouTube video like');
-        assert(Boolean(ytOutcome.publicReplySent), 'EngagementDispatcher replied publicly to YouTube comment');
-
-        // LinkedIn Comment Event
-        const liOutcome = await EngagementDispatcher.executeEngagement(multiRule, {
-            companyId: companyMulti,
-            socialAccountId: 'acc_li',
-            platform: 'linkedin',
-            eventType: 'comment',
-            commentId: 'urn:li:comment:999',
-            mediaId: 'urn:li:activity:888',
-            senderId: 'urn:li:person:prospect',
-            senderHandle: 'executive_prospect',
-            text: 'Can I get this FREE report?',
-        });
-        assert(liOutcome.matched === true, 'EngagementDispatcher matched LinkedIn comment');
-        assert(liOutcome.commentLiked === true, 'EngagementDispatcher liked LinkedIn comment');
-        assert(Boolean(liOutcome.publicReplySent), 'EngagementDispatcher replied to LinkedIn comment');
-
-        // Threads Comment Event
-        const thOutcome = await EngagementDispatcher.executeEngagement(multiRule, {
-            companyId: companyMulti,
-            socialAccountId: 'acc_th',
-            platform: 'threads',
-            eventType: 'comment',
-            commentId: 'th_c_2',
-            mediaId: 'th_p_2',
-            senderId: 'th_user_3',
-            senderHandle: 'threads_creator',
-            text: 'FREE download link?',
-        });
-        assert(thOutcome.matched === true, 'EngagementDispatcher matched Threads comment');
-        assert(Boolean(thOutcome.publicReplySent), 'EngagementDispatcher published Threads reply');
-
-        // TikTok Comment Event
-        const ttOutcome = await EngagementDispatcher.executeEngagement(multiRule, {
-            companyId: companyMulti,
-            socialAccountId: 'acc_tt',
-            platform: 'tiktok',
-            eventType: 'comment',
-            commentId: 'tt_c_3',
-            senderId: 'tt_fan_1',
-            senderHandle: 'tiktok_fan',
-            text: 'Send me the FREE link!',
-        });
-        assert(ttOutcome.matched === true, 'EngagementDispatcher matched TikTok comment');
-        assert(Boolean(ttOutcome.publicReplySent), 'EngagementDispatcher replied to TikTok comment');
-    }
-
+    // Suites 12-14 (dispatcher end-to-end, AI agent turns, per-platform adapters) asserted the old fake behaviour
+    // (mock tokens reporting success, canned AI replies). They are covered against recorded provider calls in
+    // test/engagement-production.test.ts (node:test).
     // ──────────────────────────────────────────────────────────────────────────
     // FINAL SUMMARY REPORT
     // ──────────────────────────────────────────────────────────────────────────

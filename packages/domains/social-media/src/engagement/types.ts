@@ -56,6 +56,10 @@ export interface EngagementExecutionResult {
     dmSent?: string;
     error?: string;
     skippedReason?: 'duplicate' | 'inactive' | 'no_match' | 'rate_limited';
+    /** Per-action result: sent, skipped (capability / window, with reason) or failed (provider error). */
+    actions?: Array<{ action: 'like' | 'reply' | 'dm'; status: 'sent' | 'skipped' | 'failed'; reason?: string }>;
+    /** Set when rate limited: the event was stored and will be retried after this delay. */
+    retryAfterMs?: number;
 }
 
 export interface AiReplySuggestion {
@@ -72,5 +76,11 @@ export interface BatchAiReplyItem {
     lastCustomerMessage: string;
     suggestedReply: string;
     tone: string;
+    /** Classified intent: lead | question | support | praise | complaint | spam | other. */
+    intent?: string;
+    confidence?: number | null;
+    /** False when the platform / messaging window does not allow this reply now (see blockedReason). */
+    canSend?: boolean;
+    blockedReason?: string;
     selected: boolean;
 }

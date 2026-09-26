@@ -79,7 +79,7 @@ export class VideoStudioController {
     const companyId = companyOf(req, res);
     if (!companyId) return;
     try {
-      const { prompt, stylePreset, telemetry, currentEditIR, availableAssets, selectedClipId, playheadSec, projectId, calendarPieceId, postId } = req.body;
+      const { prompt, stylePreset, telemetry, currentEditIR, availableAssets, selectedClipId, playheadSec, projectId, calendarPieceId, postId, history } = req.body;
 
       if (!prompt) {
         return res.status(400).json({ success: false, error: "Missing prompt parameter" });
@@ -100,6 +100,8 @@ export class VideoStudioController {
         availableAssets,
         selectedClipId,
         playheadSec,
+        // Earlier chat turns (role/content), capped; the director normalises and ignores anything else.
+        history: Array.isArray(history) ? history.slice(-12) : undefined,
       });
 
       return res.status(200).json({ success: true, data: result });

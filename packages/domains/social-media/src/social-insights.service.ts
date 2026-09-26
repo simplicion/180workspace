@@ -258,60 +258,126 @@ export async function generateContentIdeas(
     return ideas;
 }
 
+export type MetricsSource = 'live' | 'stored' | 'unavailable';
+
 export interface LivePlatformMetric {
+    socialAccountId: string;
     platform: string;
     platformAccountId: string;
     accountName: string;
-    followersCount: number;
-    impressions: number;
-    reach: number;
-    engagementRate: number;
-    syncStatus: 'live' | 'cached' | 'sandbox';
-    lastSyncedAt: string;
+    /** live = fetched from the network just now; stored = our last saved value (see fetchedAt); unavailable = see `unavailable`. */
+    source: MetricsSource;
+    /** When these numbers were fetched (live) or last saved (stored). */
+    fetchedAt: string | null;
+    /** null = not reported by the platform / not available. Never estimated. */
+    followersCount: number | null;
+    reach: number | null;
+    impressions: number | null;
+    engagements: number | null;
+    views: number | null;
+    periodDays: number | null;
+    unavailable?: { code: 'PLATFORM_METRICS_UNAVAILABLE'; reason: 'missing_token' | 'missing_scope' | 'app_review' | 'timeout' | 'provider_error' | 'unsupported'; message: string };
 }
+
+const METRICS_PERIOD_DAYS = 28;
+
+function unavailableFrom(err: any): LivePlatformMetric['unavailable'] {
+    const code = err?.code;
+    const msg = String(err?.message || err).slice(0, 300);
+    const http = err?.details?.httpStatus;
+    let reason: NonNullable<LivePlatformMetric['unavailable']>['reason'] = 'provider_error';
+    if (code === 'REAUTH_REQUIRED') reason = 'missing_token';
+    else if (code === 'PROVIDER_TIMEOUT') reason = 'timeout';
+    else if (http === 403 || /permission|scope|insufficient/i.test(msg)) reason = /review|advanced access/i.test(msg) ? 'app_review' : 'missing_scope';
+    return { code: 'PLATFORM_METRICS_UNAVAILABLE', reason, message: msg };
+}
+
+async function getJson(platform: string, url: string, token: string, what: string) {
+    const { providerFetch, expectOk } = require('./publishing/http');
+    const res = await providerFetch(platform, url, { headers: { Authorization: `Bearer ${token}` }, timeoutMs: 10_000 });
+    return expectOk(platform, res, what);
+}
+
+const sumInsight = (data: any[], name: string): number | null => {
+    const row = (data || []).find((d: any) => d?.name === name);
+    if (!row) return null;
+    if (row.total_value && typeof row.total_value.value === 'number') return row.total_value.value;
+    const vals = (row.values || []).map((v: any) => Number(v?.value)).filter((n: number) => Number.isFinite(n));
+    return vals.length ? vals[vals.length - 1] : null;
+};
 
 /**
- * Ingests live analytics metrics from connected platform accounts for a given project.
+ * Account metrics for a project's connected accounts, read from the networks with the vault token:
+ * Instagram (Graph /insights), Facebook Pages (Graph /insights), YouTube (Data API channel statistics).
+ * Other platforms return the stored follower count labelled `stored` with its timestamp. Nothing is estimated:
+ * a missing token / scope / app review is reported per account as PLATFORM_METRICS_UNAVAILABLE.
  */
-export async function fetchLivePlatformMetrics(params: {
-    projectId: string;
-    companyId: string;
-}): Promise<LivePlatformMetric[]> {
+export async function fetchLivePlatformMetrics(params: { projectId: string; companyId: string }): Promise<LivePlatformMetric[]> {
     const { projectId, companyId } = params;
-    const db = prisma;
+    if (!companyId) throw new SocialInsightsError(401, 'COMPANY_REQUIRED', 'Company context required');
+    const { getDb } = require('./publishing/http');
+    const { SocialTokenVault } = require('./publishing/token-vault');
+    const { META_GRAPH_VERSION } = require('./publishing/config');
+    const db = getDb();
+    const project = await db.project.findFirst({ where: { id: projectId, companyId }, select: { id: true } });
+    if (!project) throw new SocialInsightsError(404, 'PROJECT_NOT_FOUND', 'Project not found');
 
     const accounts = await db.socialAccount.findMany({
-        where: { companyId, projectId },
-        select: {
-            id: true,
-            platform: true,
-            platformAccountId: true,
-            accountName: true,
-            followersCount: true,
-            metadata: true,
-            updatedAt: true,
-        },
+        where: { companyId, projectId, isActive: true },
+        select: { id: true, companyId: true, platform: true, platformAccountId: true, accountName: true, followersCount: true, reauthRequired: true, updatedAt: true },
     });
+    const graph = (p: string) => `https://graph.facebook.com/${META_GRAPH_VERSION()}/${p}`;
+    const now = new Date();
+    const since = Math.floor((now.getTime() - METRICS_PERIOD_DAYS * 86_400_000) / 1000);
+    const until = Math.floor(now.getTime() / 1000);
 
-    const results: LivePlatformMetric[] = [];
-
-    for (const acc of accounts) {
-        const meta = (acc.metadata as Record<string, any>) || {};
-        const isSandbox = !acc.platformAccountId || acc.platformAccountId.startsWith('mock_');
-
-        results.push({
-            platform: acc.platform,
-            platformAccountId: acc.platformAccountId,
-            accountName: acc.accountName || acc.platform,
-            followersCount: acc.followersCount || meta.followersCount || 0,
-            impressions: meta.impressions || (isSandbox ? 1420 : 0),
-            reach: meta.reach || (isSandbox ? 980 : 0),
-            engagementRate: meta.engagementRate || (isSandbox ? 4.8 : 0),
-            syncStatus: isSandbox ? 'sandbox' : 'live',
-            lastSyncedAt: acc.updatedAt.toISOString(),
-        });
-    }
-
-    return results;
+    return Promise.all(
+        accounts.map(async (acc: any): Promise<LivePlatformMetric> => {
+            const base: LivePlatformMetric = {
+                socialAccountId: acc.id,
+                platform: acc.platform,
+                platformAccountId: acc.platformAccountId,
+                accountName: acc.accountName || acc.platform,
+                source: 'stored',
+                fetchedAt: acc.updatedAt ? new Date(acc.updatedAt).toISOString() : null,
+                followersCount: typeof acc.followersCount === 'number' ? acc.followersCount : null,
+                reach: null,
+                impressions: null,
+                engagements: null,
+                views: null,
+                periodDays: null,
+            };
+            const platform = String(acc.platform).toLowerCase();
+            if (!['instagram', 'facebook', 'youtube'].includes(platform)) {
+                return { ...base, unavailable: { code: 'PLATFORM_METRICS_UNAVAILABLE', reason: 'unsupported', message: `Live metrics are not available for ${acc.platform}; showing the stored follower count.` } };
+            }
+            try {
+                const token = await SocialTokenVault.getAccessToken(acc);
+                const id = encodeURIComponent(acc.platformAccountId);
+                if (platform === 'instagram') {
+                    const profile = await getJson('instagram', graph(`${id}?fields=followers_count`), token, 'Instagram profile');
+                    const ins = await getJson('instagram', graph(`${id}/insights?metric=reach,views,accounts_engaged,total_interactions&period=day&metric_type=total_value&since=${since}&until=${until}`), token, 'Instagram insights');
+                    return { ...base, source: 'live', fetchedAt: now.toISOString(), followersCount: profile.followers_count ?? null, reach: sumInsight(ins.data, 'reach'), views: sumInsight(ins.data, 'views'), engagements: sumInsight(ins.data, 'total_interactions'), periodDays: METRICS_PERIOD_DAYS };
+                }
+                if (platform === 'facebook') {
+                    const page = await getJson('facebook', graph(`${id}?fields=followers_count,fan_count`), token, 'Facebook page');
+                    const ins = await getJson('facebook', graph(`${id}/insights?metric=page_impressions_unique,page_post_engagements&period=days_28`), token, 'Facebook page insights');
+                    return { ...base, source: 'live', fetchedAt: now.toISOString(), followersCount: page.followers_count ?? page.fan_count ?? null, reach: sumInsight(ins.data, 'page_impressions_unique'), engagements: sumInsight(ins.data, 'page_post_engagements'), periodDays: METRICS_PERIOD_DAYS };
+                }
+                const ch = await getJson('youtube', 'https://www.googleapis.com/youtube/v3/channels?part=statistics&mine=true', token, 'YouTube channel statistics');
+                const stats = ch.items?.[0]?.statistics;
+                if (!stats) throw Object.assign(new Error('YouTube returned no channel for this token'), { code: 'PROVIDER_ERROR' });
+                return {
+                    ...base,
+                    source: 'live',
+                    fetchedAt: now.toISOString(),
+                    followersCount: stats.hiddenSubscriberCount ? null : Number(stats.subscriberCount ?? NaN) || (stats.subscriberCount === '0' ? 0 : null),
+                    views: stats.viewCount != null ? Number(stats.viewCount) : null,
+                    periodDays: null, // lifetime channel totals
+                };
+            } catch (err: any) {
+                return { ...base, unavailable: unavailableFrom(err) };
+            }
+        }),
+    );
 }
-

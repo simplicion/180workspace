@@ -12,13 +12,19 @@ export default function DownloadAutoDetectPage() {
     windows: {
       label: "Windows 10 / 11",
       file: "180Workspace-Setup-x64.exe",
-      url: "/downloads/180Workspace-Setup-x64.exe",
+      url: "/api/download/windows",
       ext: ".exe",
     },
     macos: {
-      label: "macOS (Apple Silicon & Intel)",
-      file: "180Workspace-Universal.dmg",
+      label: "macOS · Apple Silicon (M1–M4)",
+      file: "180Workspace-AppleSilicon.dmg",
       url: "/api/download/mac",
+      ext: ".dmg",
+    },
+    macos_intel: {
+      label: "macOS · Intel",
+      file: "180Workspace-x64.dmg",
+      url: "/api/download/mac_intel",
       ext: ".dmg",
     },
     linux: {

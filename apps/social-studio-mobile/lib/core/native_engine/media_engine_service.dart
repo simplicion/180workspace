@@ -234,6 +234,26 @@ class MediaEngineService {
     ];
   }
 
+  /// Detects faces on the device (Google ML Kit, bundled model; no network, no server tokens) in
+  /// one frame every [sampleEveryMs]. Returns one [FaceSample] per face: the box centre and size as
+  /// 0..1 fractions of the display-oriented frame. A frame without faces contributes nothing.
+  static Future<List<FaceSample>> detectFaces({required String sourcePath, int sampleEveryMs = 500}) async {
+    final r = await _invoke<List<Object?>>('detectFaces', {'sourcePath': sourcePath, 'sampleEveryMs': sampleEveryMs});
+    if (r == null) throw MediaEngineException('NATIVE_ERROR', 'detectFaces returned no result');
+    return [for (final e in r.cast<Map<Object?, Object?>>()) FaceSample.fromMap(e.cast<String, dynamic>())];
+  }
+
+  /// Beat/onset times (ms) of the audio in [audioPath] (a video or audio file), from energy flux
+  /// with an adaptive threshold over decoded PCM. [bpm] is null when there is no steady pulse.
+  /// A file without audio returns no beats.
+  static Future<({List<int> beatsMs, double? bpm})> detectBeats({required String audioPath}) async {
+    final m = await _invokeMap('detectBeats', {'audioPath': audioPath});
+    return (
+      beatsMs: ((m['beatsMs'] as List?) ?? const []).map((e) => (e as num).toInt()).toList(),
+      bpm: (m['bpm'] as num?)?.toDouble(),
+    );
+  }
+
   /// Writes one JPEG per timestamp into [outputDir] and returns their paths in order.
   static Future<List<String>> generateThumbnails({
     required String sourcePath,
@@ -277,6 +297,8 @@ class MediaEngineService {
     Map<String, String> overlayPaths = const {},
     Map<String, String> musicPaths = const {},
     Map<String, String> fontPaths = const {},
+    String? watermarkPath,
+    Map<String, String> sfxPaths = const {},
     String? jobId,
   }) {
     final id = jobId ?? 'render_${DateTime.now().microsecondsSinceEpoch}_${_jobCounter++}';
@@ -329,6 +351,8 @@ class MediaEngineService {
             'overlayPaths': overlayPaths,
             'musicPaths': musicPaths,
             'fontPaths': fontPaths,
+            'watermarkPath': ?watermarkPath,
+            'sfxPaths': sfxPaths,
           });
         } on MediaEngineException catch (e) {
           if (!done) {

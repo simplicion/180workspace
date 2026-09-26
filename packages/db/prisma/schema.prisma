@@ -3860,7 +3860,7 @@ model SocialConversation {
   lastMessageSnippet  String?              @db.Text
   lastMessageAt       DateTime             @default(now())
   isRead              Boolean              @default(false)
-  aiAgentActive       Boolean              @default(true)
+  aiAgentActive       Boolean              @default(false) // opt-in: a rule with actionEnableAiAgent or a manual toggle
   isHumanTakeover     Boolean              @default(false)
   convertedLeadId     String?
   createdAt           DateTime             @default(now())
@@ -3961,6 +3961,7 @@ model SocialInteractionLog {
   platform                String                  // "instagram", "facebook", "twitter", "threads", "youtube", "linkedin"
   platformCommentId       String?
   platformMessageId       String?
+  platformMediaId         String?                 // post / reel the comment belongs to (one DM per user per post)
   recipientId             String                  // platform user ID or IGSID
   recipientHandle         String
   status                  String                  // "success", "failed", "rate_limited", "duplicate_skipped"
@@ -3968,11 +3969,16 @@ model SocialInteractionLog {
   publicReplySent         String?                 @db.Text
   dmSent                  String?                 @db.Text
   errorMessage            String?                 @db.Text
+  payload                 Json?                   // deferred (rate-limited) event, replayed by retryDeferred()
+  attempts                Int                     @default(0)
+  nextAttemptAt           DateTime?
   createdAt               DateTime                @default(now())
 
   rule                    SocialEngagementRule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
   @@index([companyId, ruleId])
   @@index([platform, recipientId, platformCommentId])
+  @@index([companyId, ruleId, recipientId, platformMediaId])
+  @@index([status, nextAttemptAt])
 }
 

@@ -62,9 +62,34 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Package visibility for X and Reddit native apps -->
+        <package android:name="com.twitter.android" />
+        <package android:name="com.reddit.frontpage" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Generic and media sharing intents -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="video/mp4" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="image/*" />
+        </intent>
+        <!-- Web & deep-link scheme queries -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="twitter" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="reddit" />
         </intent>
     </queries>
 </manifest>

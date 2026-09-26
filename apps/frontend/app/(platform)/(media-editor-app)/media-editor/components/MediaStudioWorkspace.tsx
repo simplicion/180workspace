@@ -13,11 +13,11 @@ import {
   VideoClip,
 } from "@workspace/video-contracts";
 import { HeaderBar } from "./HeaderBar";
-import { AIDirectorPanel, DirectorChatMessage } from "./AIDirectorPanel";
+import { AIDirectorPanel, DirectorChatMessage, DirectorPromptOptions } from "./AIDirectorPanel";
 import { AssetBin } from "./AssetBin";
 import { CanvasViewport } from "./CanvasViewport";
 import { Timeline } from "./Timeline";
-import { ExportModal } from "./ExportModal";
+import { ExportModal, ExportAttachState } from "./ExportModal";
 import { ClipInspector } from "./ClipInspector";
 import { CaptionStudioModal } from "./CaptionStudioModal";
 import { AudioMixerPanel } from "./AudioMixerPanel";
@@ -34,10 +34,19 @@ import { ProjectStorageService } from "../services/project-storage";
 import { MediaCacheService } from "../services/media-cache";
 import { Folder, Sparkles, ArrowLeft, Maximize2, Minimize2, ChevronsRight } from "lucide-react";
 import { OtioService } from "../services/otio-service";
-import { engineBridge, CompanyAIStatus, ExportResult } from "../services/tauri-bridge";
+import {
+  engineBridge,
+  CompanyAIStatus,
+  ExportResult,
+  DirectorRequestError,
+  DirectorHistoryTurn,
+  directorContextFromUrl,
+} from "../services/tauri-bridge";
 import toast from "react-hot-toast";
 import { hasNativeMedia } from "@/lib/native/desktop-media";
-import api from "@/lib/api";
+
+/** A short reply that confirms the pending proposal ("yes", "proceed", "apply it", ...). */
+const CONFIRM_REPLY = /^(yes|yep|yeah|y|ok|okay|sure|proceed|go ahead|go|apply|apply it|do it|confirm|sounds good)[\s.!]*$/i;
 
 function safeUUID(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -107,6 +116,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [exportedPath, setExportedPath] = useState<string | null>(null);
   const [exportedResult, setExportedResult] = useState<ExportResult | null>(null);
+  const [attachState, setAttachState] = useState<ExportAttachState | null>(null);
   const [companyAIStatus, setCompanyAIStatus] = useState<CompanyAIStatus | null>(null);
 
   // History stack for Undo/Redo
@@ -181,8 +191,6 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   const applySocialMediaContext = async (manifest: ProjectPackageManifest, targetProjId?: string | null) => {
     let currentManifest = manifest;
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-    const resolvedProjId = targetProjId || params?.get("project") || params?.get("projectId");
-    const calendarPieceId = params?.get("calendarPieceId");
     const rawVideoUrl = params?.get("rawVideoUrl");
 
     // 1. If rawVideoUrl provided, auto-inject as asset and video track clip
@@ -246,35 +254,45 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       }
     }
 
-    // 2. Load Brand Consciousness if project ID exists
-    if (resolvedProjId) {
+    // 2. Brand + script greeting from the server (GET /media-editor/director-context). Its proposal waits for Apply.
+    const directorCtx = directorContextFromUrl();
+    if (directorCtx.projectId || directorCtx.calendarPieceId || directorCtx.postId) {
       try {
-        const res = await api.get(`/api/social-media/projects/${resolvedProjId}/brand-consciousness`);
-        const brand = res.data?.brand;
-        if (brand) {
-          setAspectRatio("9:16");
-          const visual = brand.visualIdentity || {};
-          const brandGreeting: DirectorChatMessage = {
+        const g = await engineBridge.getDirectorGreeting(directorCtx);
+        if (g) {
+          const parts: string[] = [];
+          if (g.brand?.name) parts.push(`Brand: ${g.brand.name}`);
+          if (g.piece?.headline) parts.push(`Piece: ${g.piece.headline}${g.piece.platform ? ` (${g.piece.platform})` : ""}`);
+          if (g.piece?.hook) parts.push(`Hook: "${g.piece.hook}"`);
+          const greetingMsg: DirectorChatMessage = {
             id: safeUUID(),
             sender: "director",
-            text: `🎬 **Creative Director Loaded**\n\nI have locked in brand consciousness for **${brand.brandName || "Your Brand"}** (${brand.brandType === "creator" ? "Personal Creator" : "Company / Organization"}).\n\n` +
-              `• **Positioning**: ${brand.positioning || "High-Impact Authority"}\n` +
-              `• **Visual DNA**: Primary \`${visual.primaryColor || "#3B82F6"}\`, Accent \`${visual.accentColor || "#F59E0B"}\`, Font: **${visual.typography || "Inter"}**\n` +
-              `• **Kinetic Captions**: \`${visual.captionPreset || "HORMOZI_BOUNCE"}\` in safe-zone margins\n` +
-              (calendarPieceId ? `• **Social Calendar Deliverable**: Linked to scheduled piece \`#${calendarPieceId.slice(-6)}\`\n\n` : `\n`) +
-              `I'm ready to direct this cut. What would you like to do? I can trim dead air, insert brand-colored kinetic captions, sidechain duck background music, or source HD B-roll.`,
+            text: g.greeting,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            actions: [
-              "Apply Brand Color Grade",
-              "Insert Safe-Zone Kinetic Captions",
-              "Trim Silence & Pauses",
-              "Ducked Background Audio",
-            ],
+            plannerSource: "deterministic",
+            plannerReason: "brand and script greeting (no LLM call)",
+            warnings: g.warnings,
+            ...(g.suggestedPrompt
+              ? {
+                  pendingConfirmation: {
+                    whatFound: parts.join(" \u00b7 "),
+                    whatWillChange: g.steps.map((st) => `\u2022 ${st}`).join("\n"),
+                    assumptions: "",
+                    suggestedPrompt: g.suggestedPrompt,
+                  },
+                }
+              : {}),
           };
-          setAiMessages((prev) => (prev.length === 0 ? [brandGreeting] : prev));
+          setAiMessages((prev) => (prev.length === 0 ? [greetingMsg] : prev));
         }
-      } catch (err) {
-        console.warn("Could not retrieve brand consciousness:", err);
+      } catch (err: any) {
+        const msg: DirectorChatMessage = {
+          id: safeUUID(),
+          sender: "director",
+          text: `I couldn't load the brand and script for this piece (${err?.message || "unknown error"}). You can still edit; reopen the Studio from the calendar to try again.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        setAiMessages((prev) => (prev.length === 0 ? [msg] : prev));
       }
     }
 
@@ -376,8 +394,18 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     });
   };
 
-  const handleApplyAiPrompt = async (prompt: string) => {
+  const handleApplyAiPrompt = async (prompt: string, options: DirectorPromptOptions = {}) => {
     if (!project) return;
+    // A short "yes / proceed" confirms the latest pending proposal instead of starting a new turn.
+    const pending = [...aiMessages].reverse().find((m) => m.pendingConfirmation);
+    if (pending && !options.offline && CONFIRM_REPLY.test(prompt.trim())) {
+      setAiMessages((prev) => [
+        ...prev,
+        { id: safeUUID(), sender: "user", text: prompt, timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+      ]);
+      handleConfirmAutonomousEdit(pending);
+      return;
+    }
     setIsAiProcessing(true);
     setAiProgress(null);
 
@@ -423,31 +451,44 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           setAiMessages((prev) => [...prev, replyMsg]);
         }
       } else {
-        const result = await engineBridge.executeAutonomousPipeline(
-          project.assets[0]?.filePath || "input.mp4",
-          project.editIR.directorStyle.preset,
-          prompt,
-          authSession.companyId,
-          project.editIR,
-          {
-            availableAssets: project.assets,
-            selectedClipId,
-            playheadSec: currentTimeSeconds,
-            onProgress: (event: any) => setAiProgress(event),
-          }
-        );
+        const history: DirectorHistoryTurn[] = aiMessages
+          .filter((m) => m.text && !m.retryPrompt)
+          .slice(-12)
+          .map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.text.slice(0, 2000) }));
+        const pipelineOptions = {
+          availableAssets: project.assets,
+          selectedClipId,
+          playheadSec: currentTimeSeconds,
+          onProgress: (event: any) => setAiProgress(event),
+        };
+        const result = options.offline
+          ? await engineBridge.executeOfflineDirector(project.editIR.directorStyle.preset, prompt, project.editIR, pipelineOptions)
+          : await engineBridge.executeAutonomousPipeline(
+              project.assets[0]?.filePath || "input.mp4",
+              project.editIR.directorStyle.preset,
+              prompt,
+              authSession.companyId,
+              project.editIR,
+              { ...pipelineOptions, context: directorContextFromUrl(), history }
+            );
+        const provenance = {
+          plannerSource: result.plannerSource,
+          plannerReason: result.plannerReason,
+          warnings: result.warnings.length ? result.warnings : undefined,
+        };
 
-        if (result.requiresConfirmation && result.confirmationDetails) {
+        if (result.requiresConfirmation && !options.preconfirmed) {
           const confirmMsg: DirectorChatMessage = {
             id: safeUUID(),
             sender: "director",
             text: result.reply || "I have prepared the autonomous edit based on your request. Please review the planned changes below:",
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             actions: result.actions,
+            ...provenance,
             pendingConfirmation: {
-              whatFound: result.confirmationDetails.whatFound,
-              whatWillChange: result.confirmationDetails.whatWillChange,
-              assumptions: result.confirmationDetails.assumptions,
+              whatFound: result.confirmationDetails?.whatFound || "",
+              whatWillChange: result.confirmationDetails?.whatWillChange || (result.actions || []).map((a) => `\u2022 ${a}`).join("\n") || "See the reply above.",
+              assumptions: result.confirmationDetails?.assumptions || "",
               targetEditIR: result.editIR,
             },
           };
@@ -460,6 +501,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
             text: result.reply || "I reviewed your project and updated the edit to match your direction.",
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             actions: result.actions,
+            ...provenance,
             snapshotEditIR: result.editIR,
           };
           setAiMessages((prev) => [...prev, replyMsg]);
@@ -473,8 +515,9 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         sender: "director",
         text: isCreditErr
           ? "⚠️ Insufficient AI Credits to generate this video. Please click 'Top Up' in the AI Credits widget above to recharge your balance."
-          : `I encountered an issue executing that command: ${err?.message || "Internal error"}. Let me know if you want to retry with a specific instruction.`,
+          : `The AI Director could not complete this: ${err?.message || "Internal error"}${err instanceof DirectorRequestError && err.code !== "NETWORK_ERROR" && err.code !== "DIRECTOR_TIMEOUT" ? ` (${err.code})` : ""}. Retry, or use the offline rules on this device.`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        ...(isCreditErr || isZeroFootage ? {} : { retryPrompt: prompt }),
       };
       setAiMessages((prev) => [...prev, errMsg]);
     } finally {
@@ -484,6 +527,17 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   };
 
   const handleConfirmAutonomousEdit = (message: DirectorChatMessage) => {
+    const suggested = message.pendingConfirmation?.suggestedPrompt;
+    if (!message.pendingConfirmation?.targetEditIR && suggested) {
+      const hasFootage = !!project && (project.assets.length > 0 || (project.editIR.tracks.videoTracks[0]?.clips.length || 0) > 0);
+      if (!hasFootage) {
+        toast("Import your footage first, then press Apply.");
+        return;
+      }
+      setAiMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, pendingConfirmation: undefined } : m)));
+      void handleApplyAiPrompt(suggested, { preconfirmed: true });
+      return;
+    }
     if (!message.pendingConfirmation?.targetEditIR) return;
     pushHistory(message.pendingConfirmation.targetEditIR);
     setAiMessages((prev) =>
@@ -956,21 +1010,9 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
       setExportedResult(result);
       setExportedPath(result.savedPath || result.downloadName);
 
-      const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-      const calendarPieceId = params?.get("calendarPieceId");
-      const finalUrl = (result as any).downloadUrl || result.savedPath || result.downloadName;
-      if (calendarPieceId && finalUrl) {
-        try {
-          await api.post('/api/social-media/posts/sync-studio-render', {
-            calendarPieceId,
-            finalVideoUrl: finalUrl,
-            thumbnailUrl: (result as any).thumbnailUrl || undefined,
-          });
-          toast.success("🎬 Master deliverable synced back to Social Calendar!", { duration: 7000 });
-        } catch (syncErr: any) {
-          console.error("Failed to sync studio render with social calendar:", syncErr);
-        }
-      }
+      setAttachState(null);
+      const target = directorContextFromUrl();
+      if (target.calendarPieceId || target.postId) void attachExport(result);
     } catch (err: any) {
       if (err?.name === "RenderCancelledError") {
         toast("Export cancelled.");
@@ -985,6 +1027,25 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   };
 
   const handleCancelExport = () => exportAbortRef.current?.abort();
+
+  /** Uploads the rendered MP4 (or a file the user picked) to the calendar piece / post it was opened from. */
+  const attachExport = async (source: ExportResult | File) => {
+    const { calendarPieceId, postId } = directorContextFromUrl();
+    if (!calendarPieceId && !postId) return;
+    const label = calendarPieceId ? "calendar piece" : "post";
+    setAttachState({ status: "uploading", progress: 0, label });
+    try {
+      await engineBridge.attachExportToSocial({
+        target: { calendarPieceId, postId },
+        source,
+        onProgress: (pct) => setAttachState({ status: "uploading", progress: pct, label }),
+      });
+      setAttachState({ status: "done", progress: 100, label });
+      toast.success(`Export attached to the ${label} and sent for review.`);
+    } catch (err: any) {
+      setAttachState({ status: "error", progress: 0, label, message: err?.message || "The upload failed." });
+    }
+  };
 
   const handleNavigateHome = () => {
     if (onExit) {
@@ -1336,6 +1397,9 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
         exportedPath={exportedPath}
         exportedResult={exportedResult}
         onCancelExport={handleCancelExport}
+        attachState={attachState}
+        onRetryAttach={exportedResult ? () => void attachExport(exportedResult) : undefined}
+        onAttachFile={(file) => void attachExport(file)}
       />
 
       <CaptionStudioModal

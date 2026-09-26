@@ -190,4 +190,31 @@ router.post('/:id/repurpose', async (req: Request, res: Response) => {
     }
 });
 
+// Update user-assisted publishing status for a platform variant (e.g. X or Reddit handoff/confirmation)
+router.post('/:id/assisted-status', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const companyId = user?.companyId || companyOfUser(req);
+        if (!companyId) return res.status(401).json({ success: false, error: 'Authentication required' });
+        const { platform, status, platformMeta, externalUrl } = req.body || {};
+        if (!platform || !status) {
+            return res.status(400).json({ success: false, error: 'platform and status are required' });
+        }
+        const result = await SocialPostService.updateAssistedPublishStatus(
+            String(req.params.id),
+            {
+                platform: String(platform),
+                status: String(status),
+                platformMeta: platformMeta || {},
+                externalUrl: externalUrl ? String(externalUrl) : undefined,
+                userId: user?.id,
+            },
+            companyId
+        );
+        res.json({ success: true, ...result });
+    } catch (error: any) {
+        sendRouteError(res, error, 'posts.assisted-status');
+    }
+});
+
 export default router;

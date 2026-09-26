@@ -46,6 +46,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
     SocialPlatform.linkedin,
     SocialPlatform.facebook,
     SocialPlatform.x,
+    SocialPlatform.reddit,
   ];
 
   @override
@@ -119,6 +120,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                 SocialPlatform.linkedin => _buildLinkedInPreview(),
                 SocialPlatform.facebook => _buildFacebookPreview(),
                 SocialPlatform.x => _buildTwitterPreview(),
+                SocialPlatform.reddit => _buildRedditPreview(),
                 _ => _buildInstagramPreview(),
               },
             ),
@@ -779,6 +781,175 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
         Icon(icon, size: 16, color: AppTheme.textSecondary),
         const SizedBox(width: 4),
         Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+      ],
+    );
+  }
+
+  // ── Reddit Post Preview ──────────────────────────────────────────────────
+  Widget _buildRedditPreview() {
+    final hasMedia = widget.mediaUrls.isNotEmpty;
+    final firstMedia = widget.mediaUrls.firstOrNull;
+    final titleText = widget.title ?? widget.hook ?? 'Discussion & Insights';
+    final author = widget.username != null && widget.username!.isNotEmpty
+        ? (widget.username!.startsWith('u/') ? widget.username! : 'u/${widget.username}')
+        : 'u/$_displayAuthor';
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Reddit Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFFF4500),
+                ),
+                child: const Icon(Icons.forum_rounded, size: 16, color: Colors.white),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'r/socialmedia',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimary),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text('• 2h', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                      ],
+                    ),
+                    Text(
+                      author,
+                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0045AC),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Text('Join', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+
+        // Post Title
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Text(
+            titleText,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary, height: 1.25),
+          ),
+        ),
+
+        // Body Text
+        if (widget.caption.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            child: Text(
+              widget.caption,
+              maxLines: _expandedCaption ? null : 4,
+              overflow: _expandedCaption ? null : TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary, height: 1.4),
+            ),
+          ),
+
+        // Media container
+        if (hasMedia)
+          Container(
+            height: 220,
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            decoration: const BoxDecoration(color: Colors.black),
+            child: firstMedia != null && firstMedia.startsWith('http')
+                ? Image.network(
+                    firstMedia,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _mediaPlaceholder(
+                      _mediaType == 'video' ? Icons.videocam_rounded : Icons.image_rounded,
+                      _mediaType == 'video' ? 'Reddit Video' : 'Reddit Image',
+                    ),
+                  )
+                : _mediaPlaceholder(
+                    _mediaType == 'video' ? Icons.videocam_rounded : Icons.image_rounded,
+                    _mediaType == 'video' ? 'Reddit Video (Tap to Play)' : 'Reddit Image',
+                  ),
+          ),
+
+        // Reddit Engagement Bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Row(
+            children: [
+              // Upvote / Score / Downvote capsule
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceSubtle,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.arrow_upward_rounded, size: 16, color: Color(0xFFFF4500)),
+                    SizedBox(width: 4),
+                    Text('142', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textPrimary)),
+                    SizedBox(width: 4),
+                    Icon(Icons.arrow_downward_rounded, size: 16, color: AppTheme.textSecondary),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Comments capsule
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceSubtle,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.chat_bubble_outline_rounded, size: 14, color: AppTheme.textSecondary),
+                    SizedBox(width: 4),
+                    Text('28', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              const Spacer(),
+
+              // Share button
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceSubtle,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.share_outlined, size: 14, color: AppTheme.textSecondary),
+                    SizedBox(width: 4),
+                    Text('Share', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

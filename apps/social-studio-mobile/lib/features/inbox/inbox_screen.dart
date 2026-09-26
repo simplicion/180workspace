@@ -315,10 +315,28 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
 
       final res = await ref.read(socialApiProvider).dispatchAiReplyAll(payload);
       if (!mounted) return;
-      final dispatched = res['dispatched'] ?? selected.length;
-      showInfo(context, '✨ Successfully dispatched $dispatched AI replies!', color: AppTheme.success);
+      final results = (res['results'] as List?)?.whereType<Map>().toList() ?? const [];
+      final notSent = <String, String>{};
+      for (final r in results) {
+        if (r['status'] == 'sent') continue;
+        final retry = r['retryAfterMs'] is num ? ' (retry in ${((r['retryAfterMs'] as num) / 1000).ceil()}s)' : '';
+        notSent['${r['conversationId']}'] = r['status'] == 'rate_limited' ? 'Rate limited$retry' : '${r['error'] ?? 'Not sent'}';
+      }
+      final sent = res['dispatched'] is num ? res['dispatched'] as num : 0;
       widget.onSuccess();
-      Navigator.of(context).pop();
+      if (notSent.isEmpty) {
+        showInfo(context, 'Sent $sent replies', color: AppTheme.success);
+        Navigator.of(context).pop();
+      } else {
+        // Keep what was not sent on screen with its reason so it can be edited and sent again.
+        setState(() {
+          _suggestions.removeWhere((s) => s.selected && !notSent.containsKey(s.conversationId));
+          for (final s in _suggestions) {
+            s.dispatchError = notSent[s.conversationId];
+          }
+        });
+        showError(context, 'Sent $sent, ${notSent.length} not sent. Review them below.');
+      }
     } catch (e) {
       if (mounted) showError(context, 'Failed to dispatch: $e');
     } finally {
@@ -431,6 +449,14 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
                                         decoration: fieldDecoration('Draft AI Reply'),
                                       ),
                                     ),
+                                    if ((item.dispatchError ?? item.blockedReason) != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 48, top: 4),
+                                        child: Text(
+                                          item.dispatchError ?? 'Cannot send: ${item.blockedReason}',
+                                          style: const TextStyle(fontSize: 11, color: AppTheme.error),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               );
@@ -447,7 +473,7 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
               icon: _dispatching
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.send_rounded),
-              label: Text(_dispatching ? 'Dispatching...' : '✨ Approve & Dispatch ($selectedCount Replies)'),
+              label: Text(_dispatching ? 'Sending...' : 'Approve & send ($selectedCount)'),
               style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
             ),
           ),

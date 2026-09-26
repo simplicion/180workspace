@@ -30,6 +30,7 @@ import {
   brandWatermark,
   describeDirectorContext,
   withTimeout,
+  dominantFaceCenter,
 } from "@workspace/video-contracts";
 import {
   styleAgent,
@@ -39,12 +40,12 @@ import {
   greetingReply,
   applyBrandDefaults,
   watermarkIntent,
+  placeSfxOnTimeline,
   SfxSuggestion,
 } from "./director-sub-agents";
 import type { AIClient } from "../kernel/ai-provider.service";
 import { ContextResolver } from "./context-resolver";
 import { CreativePlanner } from "./creative-planner";
-import { MediaAnalysisService } from "../media/media-analysis.service";
 import crypto from "crypto";
 
 export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
@@ -127,44 +128,16 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
       };
     });
 
-    // A real (non-placeholder) source path lets us run actual ffmpeg scene-cut/silence
-    // detection and transcription instead of falling back to MediaGraphBuilder's empty
-    // defaults for everything except whatever telemetry the caller happened to supply.
-    const primarySourcePath = baseIR.tracks.videoTracks[0]?.clips[0]?.sourcePath;
-    const hasRealSource = !!primarySourcePath && primarySourcePath !== "source.mp4";
-
-    let mediaGraph: MediaIntelligenceGraph;
-    if (params.meta?.mediaGraph) {
-      mediaGraph = params.meta.mediaGraph;
-    } else if (hasRealSource) {
-      try {
-        const analyzedGraph = await MediaAnalysisService.getOrBuildGraph({
-          assetId: timelineContext.assetIds[0] || "asset_01",
-          sourcePath: primarySourcePath!,
-          technicalMetadata,
-          // Don't pay for re-transcription if the caller already supplied a real transcript.
-          skipTranscription: telemetryTranscript.length > 0,
-        });
-        mediaGraph = telemetryTranscript.length > 0
-          ? { ...analyzedGraph, transcript: telemetryTranscript, words: telemetryTranscript }
-          : analyzedGraph;
-      } catch (err: any) {
-        console.warn("[VideoAIDirectorService] real media analysis failed, falling back to placeholder graph:", err?.message);
-        mediaGraph = MediaGraphBuilder.build({
+    // Media is analysed only on the user's device (desktop-only processing rule): the desktop app sends the
+    // transcript and pauses as telemetry. The server never runs ffmpeg or transcription on the source video.
+    const mediaGraph: MediaIntelligenceGraph = params.meta?.mediaGraph
+      ? params.meta.mediaGraph
+      : MediaGraphBuilder.build({
           assetId: timelineContext.assetIds[0] || "asset_01",
           technicalMetadata,
           transcript: telemetryTranscript,
           silences: telemetrySilences,
         });
-      }
-    } else {
-      mediaGraph = MediaGraphBuilder.build({
-        assetId: timelineContext.assetIds[0] || "asset_01",
-        technicalMetadata,
-        transcript: telemetryTranscript,
-        silences: telemetrySilences,
-      });
-    }
 
     // 3. Formulate Creative Edit Plan (LLM tool-calling first, labelled deterministic fallback)
     const outcome = await CreativePlanner.planWithSource({
@@ -221,8 +194,8 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
       companyId?: string;
       llmClient?: AIClient | null;
       llmModel?: string;
-      /** Resolve a stock b-roll query to an HTTPS video URL (null when unavailable). */
-      resolveStockVideo?: (query: string, aspect: string) => Promise<string | null>;
+      /** Resolve a stock b-roll query to an HTTPS video URL, or the URL with its licence/credit (null when unavailable). */
+      resolveStockVideo?: (query: string, aspect: string) => Promise<string | ResolvedStockMedia | null>;
       /**
        * Resolve a music mood query to an HTTPS audio track (null when nothing fits).
        * Defaults to the built-in royalty-free catalogue (`resolveMusicFromCatalog`).
@@ -236,6 +209,8 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
       stockTimeoutMs?: number;
       /** Max LLM calls in this turn. Default 3 (the planner uses at most 2). */
       llmCallBudget?: number;
+      /** Per-call LLM timeout (default `AI_DIRECTOR_LLM_TIMEOUT_MS` or 60000 ms). */
+      llmTimeoutMs?: number;
     } = {}
   ): Promise<MobileDirectResult> {
     const media = { ...request.media, assetId: request.media.assetId || "primary" };
@@ -325,13 +300,22 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
         currentEditIR: baseIR,
         llmClient: countedClient(opts.llmClient),
         llmModel: opts.llmModel,
+        llmTimeoutMs: opts.llmTimeoutMs,
         contextSections: contextSections.length ? contextSections : undefined,
       });
       outcome = planned;
+      if (planned.plannerReason.startsWith("LLM_TIMEOUT")) {
+        warnings.push("the AI planner timed out: this edit was made by the offline rule-based director");
+      }
       if (ctx.brand) brandApplied = applyBrandDefaults(planned.plan.operations, prompt, style);
     }
 
-    const expanded = PlanExpander.expand(outcome.plan, graph, warnings);
+    // FACE zooms centre on the on-device face track, in the canvas the plan renders at.
+    const aspectOp = [...outcome.plan.operations].reverse().find((o: any) => o.type === "reframeSubject" || o.type === "changeAspectRatio") as any;
+    const canvas = aspectOp
+      ? (aspectOp.width && aspectOp.height ? { width: aspectOp.width, height: aspectOp.height } : EditIRCompiler.resolutionFor(aspectOp.targetAspect))
+      : baseIR.meta.resolution;
+    const expanded = PlanExpander.expand(outcome.plan, graph, warnings, { canvas });
     const validation = CreativePlanValidator.validate(expanded, baseIR, []);
     let planToCompile = expanded;
     if (!validation.valid) {
@@ -348,26 +332,39 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
     const compilation = EditIRCompiler.compile(baseIR, planToCompile, []);
     const finalIR = compilation.updatedEditIR;
 
+    // Credits of every stock item placed this turn (by URL): shown on export, required for CC BY / BY-SA.
+    const credits: MediaCredit[] = [];
+    const addCredit = (kind: MediaCredit["kind"], query: string, m: ResolvedStockMedia) => {
+      if (!m.attribution || credits.some((c) => c.url === m.url)) return;
+      credits.push({ kind, url: m.url, query, attribution: m.attribution, ...(m.title ? { title: m.title } : {}), ...(m.license ? { license: m.license } : {}), ...(m.sourcePage ? { sourcePage: m.sourcePage } : {}), ...(m.provider ? { provider: m.provider } : {}) });
+    };
+
     // B-roll research: resolve stock queries (the server resolver tries Pexels, then Pixabay) under the turn deadline.
     for (const track of finalIR.tracks.videoTracks) {
       if (track.type !== "B_ROLL_OVERLAY") continue;
       for (const clip of track.clips) {
         if (!clip.sourcePath.startsWith("stock-query://")) continue;
         const query = decodeURIComponent(clip.sourcePath.slice("stock-query://".length));
-        let url: string | null = null;
+        let found: ResolvedStockMedia | null = null;
         if (opts.resolveStockVideo) {
           if (remaining() <= 0) {
             warnings.push(`b-roll "${query}": stock lookup skipped (the ${stockBudgetMs} ms stock budget for this turn is used up)`);
           } else {
             try {
-              url = await withTimeout(opts.resolveStockVideo(query, finalIR.meta.targetAspect), remaining(), `b-roll "${query}" stock lookup`);
+              const r = await withTimeout(opts.resolveStockVideo(query, finalIR.meta.targetAspect), remaining(), `b-roll "${query}" stock lookup`);
+              found = typeof r === "string" ? { url: r } : r;
             } catch (err: any) {
               warnings.push(`b-roll "${query}": stock lookup failed (${err?.message || err})`);
             }
           }
         }
-        if (url) clip.sourcePath = url;
-        else warnings.push(`b-roll "${query}" needs a stock URL: resolve it on the client via /stock/search`);
+        if (found && /^https:\/\//i.test(found.url)) {
+          clip.sourcePath = found.url;
+          addCredit("broll", query, found);
+          if (found.attribution && found.creditRequired !== false) {
+            warnings.push(`b-roll "${query}": using ${found.title ? `"${found.title}"` : found.url}. Credit required when publishing: ${found.attribution}.`);
+          }
+        } else warnings.push(`b-roll "${query}" needs a stock URL: resolve it on the client via /stock/search`);
       }
     }
 
@@ -390,12 +387,26 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
         }
         if (found && /^https:\/\//i.test(found.url)) {
           clip.sourcePath = found.url;
+          addCredit("music", query, found);
           const credit = found.attribution ? ` Credit required when publishing: ${found.attribution}.` : found.license ? ` Licence: ${found.license}.` : "";
           warnings.push(`music "${query}": using ${found.title ? `"${found.title}"` : found.url}.${credit}`);
         } else {
           warnings.push(`music "${query}" needs a track URL: no royalty-free track matched this mood; resolve it on the client via /stock/music`);
         }
       }
+    }
+
+    // SFX lane: the sound agent's effects placed at the proposal's transitions (greet turn only).
+    // Credits of effects the client already has are carried by clip id.
+    const sfxCredits: Record<string, string> = {};
+    for (const fx of request.currentEditIR?.audio?.sfx || []) if (fx.credit) sfxCredits[fx.id] = fx.credit;
+    if (sfx.length) {
+      const placed = placeSfxOnTimeline(finalIR, sfx);
+      Object.assign(sfxCredits, placed.credits);
+      for (const fx of placed.used) {
+        if (fx.attribution) addCredit("sfx", fx.query, { url: fx.url, attribution: fx.attribution, ...(fx.title ? { title: fx.title } : {}), ...(fx.license ? { license: fx.license } : {}) });
+      }
+      if (placed.placed && proposal) proposal.steps.push(`add ${placed.placed} sound effect${placed.placed === 1 ? "" : "s"} on the transitions`);
     }
 
     // Keep every source the client already knows about (manual editor), refreshed by `media`.
@@ -408,6 +419,8 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
       sources,
       sourceWords: words.map((w) => ({ startSec: w.startMs / 1000, endSec: w.endMs / 1000 })),
       primaryAssetId: media.assetId,
+      faceCenter: dominantFaceCenter(media.faces),
+      sfxCredits,
     });
     warnings.push(...projected.warnings);
 
@@ -468,6 +481,7 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
       ...(proposal ? { proposal: { steps: proposal.steps } } : {}),
       ...(alignment ? { scriptAlignment: alignment } : {}),
       ...(sfx.length ? { sfxSuggestions: sfx } : {}),
+      ...(credits.length ? { credits } : {}),
       ...(ctx.brand || ctx.piece ? { context: summarizeContext(ctx, style) } : {}),
     };
   }
@@ -615,6 +629,31 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
   }
 }
 
+export interface ResolvedStockMedia {
+  /** HTTPS media URL. */
+  url: string;
+  title?: string;
+  license?: string;
+  /** Credit line (kept for every free/stock item, even when the licence does not require it). */
+  attribution?: string;
+  /** false for licences without a credit requirement (CC0, PD, Pexels, Pixabay). */
+  creditRequired?: boolean;
+  sourcePage?: string;
+  provider?: string;
+}
+
+/** A stock item placed on the timeline this turn, with the credit line to publish with the post. */
+export interface MediaCredit {
+  kind: "broll" | "music" | "sfx";
+  url: string;
+  query: string;
+  attribution: string;
+  title?: string;
+  license?: string;
+  sourcePage?: string;
+  provider?: string;
+}
+
 export interface ResolvedMusicTrack {
   /** HTTPS audio URL. */
   url: string;
@@ -647,6 +686,8 @@ export interface MobileDirectResult {
   scriptAlignment?: ScriptAlignment;
   /** Informational SFX previews (not placed on the timeline in mobile-editir/1). */
   sfxSuggestions?: SfxSuggestion[];
+  /** Credit lines of the stock B-roll and music placed this turn (by URL). */
+  credits?: MediaCredit[];
   /** What the director knew about the brand and the piece. */
   context?: DirectorContextSummary;
 }

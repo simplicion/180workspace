@@ -114,6 +114,9 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
   bool _engagementAutoLike = true;
   bool _engagementAiAgent = true;
 
+  late final _redditTitle = TextEditingController(text: _p?.variants.where((v) => v.platform == SocialPlatform.reddit).firstOrNull?.platformMeta['title']?.toString() ?? '');
+  late final _redditSubreddit = TextEditingController(text: _p?.variants.where((v) => v.platform == SocialPlatform.reddit).firstOrNull?.platformMeta['subreddit']?.toString() ?? 'socialmedia');
+
   @override
   void dispose() {
     for (final c in [
@@ -125,6 +128,8 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
       _engagementKeyword,
       _engagementDeliverable,
       _engagementDmTemplate,
+      _redditTitle,
+      _redditSubreddit,
       ..._variantText.values
     ]) {
       c.dispose();
@@ -193,8 +198,20 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
       'metadata': metadata,
       'variants': [
         for (final p in _platforms)
-          PostVariant(platform: p, customContent: _variantText[p]?.text.trim() ?? '', firstComment: metadata['firstComment'] as String?)
-              .toCreateJson(),
+          PostVariant(
+            platform: p,
+            customContent: _variantText[p]?.text.trim() ?? '',
+            firstComment: metadata['firstComment'] as String?,
+            platformMeta: p == SocialPlatform.reddit
+                ? compact({
+                    'publishingMode': 'user_assisted',
+                    'subreddit': _redditSubreddit.text.trim().replaceFirst(RegExp(r'^/?r/'), ''),
+                    'title': _redditTitle.text.trim().isNotEmpty ? _redditTitle.text.trim() : null,
+                  })
+                : p == SocialPlatform.x
+                    ? {'publishingMode': 'user_assisted'}
+                    : {},
+          ).toCreateJson(),
       ],
       if (_p == null) ...{
         'projectId': project?.id,
@@ -336,7 +353,7 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         for (final p in SocialPlatform.connectable)
           FilterChip(
             avatar: Icon(p.icon, size: 16, color: p.color),
-            label: Text(p.label),
+            label: Text(p.label + (p.isUserAssisted ? ' (Assisted)' : '')),
             selected: _platforms.contains(p),
             onSelected: (on) => setState(() => on ? _platforms.add(p) : _platforms.remove(p)),
           ),
@@ -351,6 +368,22 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
             decoration: fieldDecoration('${p.label} caption override', helper: 'Leave empty to use the main caption'),
           ),
         ),
+      if (_platforms.contains(SocialPlatform.reddit)) ...[
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: TextField(
+            controller: _redditSubreddit,
+            decoration: fieldDecoration('Reddit Subreddit destination', hint: 'e.g. technology (without r/)'),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: TextField(
+            controller: _redditTitle,
+            decoration: fieldDecoration('Reddit Post Title', helper: 'Defaults to main post title if empty'),
+          ),
+        ),
+      ],
       const SectionHeader('Schedule'),
       SectionCard(
         onTap: _pickSchedule,

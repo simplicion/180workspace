@@ -30,6 +30,22 @@ export interface DirectorBrandContext {
   standardCtas?: string[];
   /** Free-text brand brief for the planner prompt (WS1 `toPromptContext()` when available). */
   promptContext?: string;
+  /**
+   * WS1 `resolveBrandRendering()` output, computed by the server. When present the style agent uses
+   * it for colours/font/caption preset/watermark, so neutral defaults are explicit (listed in
+   * `usedDefaults`, reported as warnings) and never saved to the brand.
+   */
+  rendering?: DirectorBrandRendering;
+}
+
+export interface DirectorBrandRendering {
+  colors: { primary: string; accent: string; background: string; text: string };
+  font: string;
+  captionStylePreset: string;
+  watermarkEnabled: boolean;
+  logoUrl?: string | null;
+  /** Fields filled with neutral render defaults, e.g. "colors.accent", "font". */
+  usedDefaults: string[];
 }
 
 export interface DirectorScriptSection {
@@ -98,6 +114,8 @@ export interface BrandStyleDefaults {
   /** Zoom scale that fits the pacing. */
   zoomScale: number;
   transition: "CUT" | "CROSSFADE";
+  /** Add the brand logo as a watermark (a logo exists and the brand did not turn it off). */
+  watermark: boolean;
   warnings: string[];
 }
 
@@ -119,8 +137,33 @@ export function pacingFromTone(tone?: string): BrandStyleDefaults["pacing"] {
   return "balanced";
 }
 
-export function brandStyleDefaults(brand?: DirectorBrandContext): BrandStyleDefaults {
+/**
+ * Applies the server-resolved rendering (WS1 `resolveBrandRendering`) to the brand: the brand's own
+ * values, and neutral defaults for the gaps. A default accent is only used when the brand has
+ * neither accent nor primary, so a brand primary is never replaced by a grey default.
+ */
+function withRendering(brand: DirectorBrandContext | undefined, warnings: string[]): DirectorBrandContext | undefined {
+  const r = brand?.rendering;
+  if (!brand || !r) return brand;
+  const set = (k: keyof DirectorBrandRendering["colors"]) => (r.usedDefaults.includes(`colors.${k}`) ? undefined : r.colors[k]);
+  const colors: DirectorBrandContext["colors"] = { primary: set("primary"), accent: set("accent"), background: set("background"), text: r.colors.text };
+  if (!colors.accent && !colors.primary) colors.accent = r.colors.accent;
+  if (r.usedDefaults.length) {
+    warnings.push(`brand profile does not set ${r.usedDefaults.join(", ")}: neutral render defaults are used for this edit (not saved to the brand)`);
+  }
+  return {
+    ...brand,
+    colors,
+    font: r.font,
+    captionStylePreset: r.captionStylePreset,
+    watermarkEnabled: r.watermarkEnabled,
+    logoUrl: r.logoUrl !== undefined ? r.logoUrl : brand.logoUrl,
+  };
+}
+
+export function brandStyleDefaults(inputBrand?: DirectorBrandContext): BrandStyleDefaults {
   const warnings: string[] = [];
+  const brand = withRendering(inputBrand, warnings);
   const colors = brand?.colors || {};
   // Highlight = the brand colour that stands out on video: accent first, then primary.
   let highlight = hexOk(colors.accent) ? colors.accent : hexOk(colors.primary) ? colors.primary : "#FFE600";
@@ -149,6 +192,7 @@ export function brandStyleDefaults(brand?: DirectorBrandContext): BrandStyleDefa
     pacing,
     zoomScale: pacing === "fast" ? 1.35 : pacing === "calm" ? 1.12 : 1.22,
     transition: pacing === "calm" ? "CROSSFADE" : "CUT",
+    watermark: !!brand?.logoUrl && brand.watermarkEnabled !== false,
     warnings,
   };
 }
@@ -540,7 +584,7 @@ export function buildContextGreeting(ctx: DirectorContext): { greeting: string; 
   steps.push("cut the pauses");
   if (ctx.brand) steps.push(`add captions in your brand colour ${style.highlightColor}`);
   else steps.push("add captions");
-  if (ctx.brand?.logoUrl && ctx.brand.watermarkEnabled !== false) steps.push("add your logo watermark");
+  if (style.watermark) steps.push("add your logo watermark");
   if (aspect) steps.push(`reframe to ${aspect} for ${label}`);
   if (target) steps.push(`keep it under ${target}s`);
   const name = piece
@@ -554,7 +598,7 @@ export function buildContextGreeting(ctx: DirectorContext): { greeting: string; 
     piece?.hook ? `Start the video where I begin saying the scripted hook ("${piece.hook.slice(0, 120)}")` : null,
     "remove the pauses",
     ctx.brand ? `add captions with highlight ${style.highlightColor} and text ${style.textColor}` : "add captions",
-    ctx.brand?.logoUrl && ctx.brand.watermarkEnabled !== false ? "add my logo watermark" : null,
+    style.watermark ? "add my logo watermark" : null,
     aspect ? `reframe to ${aspect}` : null,
     target ? `keep it under ${target} seconds` : null,
   ].filter(Boolean);
