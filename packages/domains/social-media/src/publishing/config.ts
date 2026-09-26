@@ -99,8 +99,12 @@ export function oauthCallbackUrl(platform: PublishPlatform): string {
 export const META_GRAPH_VERSION = () => process.env.META_GRAPH_VERSION?.trim() || 'v21.0';
 export const LINKEDIN_API_VERSION = () => process.env.LINKEDIN_API_VERSION?.trim() || '202507';
 
+/**
+ * Meta webhook hub.verify_token. Read from env only; there is deliberately no fallback (a literal default
+ * would be a publicly known secret). Empty means "not configured" and the verify endpoint answers 503.
+ */
 export function metaWebhookVerifyToken(): string {
-    return process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() || '180workspace_meta_webhook_verify_token_prod_2026';
+    return process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() || '';
 }
 
 export function metaWebhookAppSecret(): string {

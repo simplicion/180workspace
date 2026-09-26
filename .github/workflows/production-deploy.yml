@@ -115,11 +115,12 @@ jobs:
           REPO_LOWER: ${{ steps.repo-name.outputs.REPO_LOWER }}
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          META_WEBHOOK_VERIFY_TOKEN: ${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,NEXTAUTH_SECRET
+          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,NEXTAUTH_SECRET,META_WEBHOOK_VERIFY_TOKEN
           command_timeout: 30m
           script: |
             set -e
@@ -169,9 +170,15 @@ jobs:
               fi
             fi
 
+            # 4c. META_WEBHOOK_VERIFY_TOKEN — injected from dedicated repository secret if not already
+            #     present in PRODUCTION_ENV_FILE. Same pattern as NEXTAUTH_SECRET above.
             if ! grep -q '^META_WEBHOOK_VERIFY_TOKEN=.\+' .env; then
-              printf '\nMETA_WEBHOOK_VERIFY_TOKEN=180workspace_meta_webhook_verify_token_prod_2026\n' >> .env
-              echo "==> META_WEBHOOK_VERIFY_TOKEN injected."
+              if [ -n "$META_WEBHOOK_VERIFY_TOKEN" ]; then
+                printf '\nMETA_WEBHOOK_VERIFY_TOKEN=%s\n' "$META_WEBHOOK_VERIFY_TOKEN" >> .env
+                echo "==> META_WEBHOOK_VERIFY_TOKEN injected from repository secret."
+              else
+                echo "!! WARNING: META_WEBHOOK_VERIFY_TOKEN is not defined in PRODUCTION_ENV_FILE or repository secrets. Meta webhook verification will fail."
+              fi
             fi
 
             # 5. Synchronize codebase configuration (nginx.conf, docker-compose.yml)

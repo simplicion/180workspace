@@ -394,15 +394,10 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
       ),
       const SizedBox(height: 16),
       const SectionHeader('180 Engagement Automation'),
-      Container(
+      // SectionCard is a Material, so the SwitchListTile's ink renders correctly inside it.
+      SectionCard(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _enableEngagement ? AppTheme.primary.withValues(alpha: 0.4) : AppTheme.borderSubtle,
-          ),
-        ),
+        borderColor: _enableEngagement ? AppTheme.primary.withValues(alpha: 0.4) : AppTheme.borderSubtle,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

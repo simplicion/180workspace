@@ -38,6 +38,7 @@ export class MetaWebhooksService {
         const configuredToken = metaWebhookVerifyToken();
 
         if (!configuredToken) {
+            console.error('[MetaWebhooks] META_WEBHOOK_VERIFY_TOKEN is not set; rejecting webhook verification with 503. Set it in the server environment.');
             return {
                 success: false,
                 statusCode: 503,

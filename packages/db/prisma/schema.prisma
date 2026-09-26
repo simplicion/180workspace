@@ -1800,6 +1800,7 @@ model PlatformSettings {
   faviconUrl               String   @default("")
   currency                 String   @default("USD")
   paymentConfig            Json?    @default("{}")
+  aiConfig                 Json?    @default("{}")
   paymentsEnabled          Boolean  @default(false)
   platformApiUrl           String   @default("")
   smtpHost                 String?
