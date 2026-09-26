@@ -241,15 +241,12 @@ export const APPS_CONFIG: AppConfig[] = [
 
     {
         id: 'social-media',
-        name: 'Social Media Management',
+        name: '180 Social Media Manager',
         icon: Share2,
         tag: 'Marketing',
-        description: 'Content calendar, asset hub, unified inbox, AI brand voice, and social publishing suite',
+        description: 'Centralized social projects, AI video director, and native cross-platform studio',
         modules: [
             { id: 'social-projects', name: 'Social Media Projects' },
-            { id: 'content-calendar', name: 'Content Calendar' },
-            { id: 'social-media-assets', name: 'Social Media Assets' },
-            { id: 'social-inbox', name: 'Unified Social Inbox' }
         ]
     },
 
@@ -312,7 +309,7 @@ export const ALL_APPS = [
     { id: 'communications', name: 'Communications', description: 'Active, real-time internal and external communication.', icon: MessageSquare },
     { id: 'workspace-tools', name: 'Workspace Tools', description: 'Passive knowledge, resource management, and utilities.', icon: FolderOpen },
     { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
-    { id: 'social-media', name: 'Social Media Management', description: 'Content calendar, asset hub, and social post visualizer.', icon: Share2 },
+    { id: 'social-media', name: '180 Social Media Manager', description: 'Centralized social projects, AI video director, and cross-platform publishing studio.', icon: Share2 },
     { id: 'traffic-director', name: 'Traffic Director', description: 'Smart routing, dynamic landing pages, and differential analytics.', icon: GitFork },
     { id: 'voiceforce', name: '180 Voiceforce', description: 'Autonomous AI voice employees for outbound and inbound calling.', icon: PhoneCall },
     { id: 'media-editor', name: '180 Media Studio', description: 'Autonomous video production engine, AI creative director, and GPU smart timeline.', icon: Film },

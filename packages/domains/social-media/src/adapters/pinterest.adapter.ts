@@ -37,7 +37,7 @@ export class PinterestPublisher implements PlatformPublisher {
 
         const boardId = input.platformMeta?.boardId || input.account.metadata?.defaultBoardId;
         if (!boardId) {
-            // Non-fatal warning or required note
+            issues.push('Choose a Pinterest board for this Pin (platformMeta.boardId) or set a default board on the account.');
         }
 
         return issues;

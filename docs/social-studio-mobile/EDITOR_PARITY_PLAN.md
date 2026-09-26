@@ -102,3 +102,86 @@ Rules that still apply:
 **M3 (desktop editor + FFmpeg):** in progress in a separate workstream.
 
 **M4:** planned.
+
+## Mobile parity (agent 2) status
+
+- **Caption presets**: the 8 desktop Caption Studio presets (`HORMOZI_BOUNCE`, `MRBEAST_HYPE`, `ALI_ABDAAL_CLEAN`,
+  `DAN_KOE_MINIMAL`, `CYBER_NEON`, `KARAOKE_FROSTED`, `VOX_EXPLAINER`, `CINEMATIC_SUBTITLE`) are in
+  `TimelineOps.viralCaptionPresets` / `captionStyle` with the web values (sizes/strokes are canvas px on both). Classic
+  `CLEAN/BOLD_POP/KARAOKE/BOXED/TITLE` unchanged. Highlight override is now optional (null = preset colour). Optional
+  style key `glow` (Cyber Neon) lives only in the style map; Kotlin draws it as a highlight-coloured shadow, older
+  clients ignore it. Captions sheet: live sample cards (`CaptionPresetCard`) + "Apply to all captions".
+- **Fonts in export**: `caption_fonts.dart` — the preview loads the family via `google_fonts`; before rendering,
+  `CaptionFonts.resolveForExport` awaits the same fonts and passes the cached files (`<Family>_<variant>_<hash>.ttf` in
+  app support dir) as `fontPaths`. A failed download adds an export warning and the renderer uses bundled Inter
+  (Kotlin fallback changed from system sans-serif to bundled Inter, also warned). Relies on google_fonts' cache file
+  naming (6.x) — re-check on a google_fonts major upgrade.
+- **Timeline direct manipulation** (`studio_timeline.dart`): long-press-drag moves non-video items (not music/voice)
+  with a live time tooltip, committed once via `moveItem`; tapping an item selects it and shows trim handles
+  (44 px hit area) that commit via `setItemRange` (min 300 ms). Haptic tick on grab. Video clips unchanged.
+- **Track mute**: `TrackKind.voice` row (speech ranges) + header toggles for Voice/Music/Sound FX
+  (`TimelineOps.setTrackMuted/isTrackMuted/trackVolumes`, −60 dB, previous levels restored; undoable).
+- **Transitions**: sheet offers CROSSFADE, DISSOLVE, DIP_BLACK, DIP_WHITE, ZOOM_SWOOSH, ZOOM_OUT, GLITCH (+ hard cut);
+  `EditIrTransition.types`. Android: `TransitionFade` (black dip / white dip / glitch flash) + `TransitionMotion`
+  (zoom ramps, glitch jitter; scale ≥ 1). Unknown types still render as crossfade with a warning.
+- Verified: `flutter analyze` clean, `flutter test` 164 passing, `compileDebugKotlin` OK. **Not verified on a device**:
+  visual look of the new transitions, glow, and real Google Fonts download/export.
+
+## M3 status (desktop Media Studio, 2026-09-26)
+Built:
+- **Text templates**: new Text tab (`components/TextTemplatesPanel.tsx`). It has the same 8 ids and styles as mobile
+  (`services/editor-library.ts` `TEXT_TEMPLATES`, presetLabel `TPL_*`), a live preview, a text input and "Add at
+  playhead". The result is a `role: "title"` caption segment.
+  - The brand font and accent come from the director-context greeting (`brand.font`, `brand.highlightColor`). There is no
+    primary colour in that payload, so the lower third and highlight keep their defaults.
+  - Titles show in the caption lane: click to select, drag to move or trim, Delete to remove.
+  - The preview and the compatibility exporter draw titles with their own style and position.
+- **Photos**: images from Stock or the Asset Bin are added as B-roll with `mediaType: "image"` for 3 s. The preview,
+  the canvas exporter and the native FFmpeg export all cover the canvas with them (FFmpeg uses loop + scale-increase +
+  crop).
+- **Effects**: new FX tab (`components/EffectsPanel.tsx`). It lists the 6 `VIDEO_EFFECT_TYPES`, each with an intensity
+  slider and the default durations.
+  - When an effect is selected, the tab also shows its intensity and a delete button.
+  - The FX lane in `Timeline.tsx` supports select, move, trim both edges, Delete, and lock.
+  - Preview and canvas export use `effectVisualsAt`. Native export uses `buildEffectChains`, which follows the same
+    formulas (constants in `services/effect-constants.ts`).
+- **Transitions**: all 13 `TRANSITION_TYPES` are offered in the ClipInspector dropdowns and the Timeline cut picker
+  (`TRANSITION_OPTIONS`) and are drawn in the Remotion preview.
+  - WIPE now wipes left, per the contract; WIPE_RIGHT is the old look.
+  - Native export: the bundled FFmpeg is 4.1 and has **no xfade**, and timeline clips do not overlap. So the incoming
+    clip is drawn over a **freeze of the outgoing clip's last frame** (overlay `eof_action=repeat`).
+  - How each type is drawn:
+    - CROSSFADE and DISSOLVE: alpha fade.
+    - SLIDE_*: animated overlay position.
+    - WIPE and WIPE_RIGHT: `geq` alpha mask.
+    - DIP_BLACK and DIP_WHITE: `fade` through the colour.
+    - BLUR_PUNCH: `gblur` burst on a hard cut.
+    - GLITCH: `rgbashift` + seeded `noise` burst.
+    - ZOOM_SWOOSH and ZOOM_OUT: a zoom that settles on the composite (zoompan).
+  - Transitions no longer force the compatibility renderer.
+- **AI Director**: the editor applies the director's EditIR as returned, so its `effectTrack`, `mediaType` photos and
+  titles appear on the lanes above and can be edited the same way. After an apply, the first new item is selected
+  (`newTimelineItemIds`).
+- Native allowlist (TS `native-render-validate.ts` + Rust `render.rs`): these filters were added:
+  crop, split, zoompan, hue, vignette, fade, geq, gblur, rgbashift, noise. None of them read files.
+
+Verified:
+- `npx tsc --noEmit -p apps/frontend`: 0 errors.
+- jest `tests/unit/offline/{editor-library,native-render-plan}.test.ts`: 49/49 pass.
+- `npx tsx tests/integration/native-render-plan.integration.ts` renders through the real bundled FFmpeg: 24/24 pass.
+  Pixel checks cover:
+  - photo cover;
+  - black_white, vignette, flash and fade_black;
+  - zoom_pulse and shake;
+  - all 12 non-CUT transitions.
+
+Not verified:
+- **Rust not compiled here** (no cargo on this machine). The new test `a_plan_with_photos_effects_and_transitions_is_accepted`
+  in `render.rs` and its fixture `tests/fixtures/effects-spec.json` will run in CI. The TS validator, which mirrors it,
+  accepts that fixture.
+
+Gaps:
+- Stock photos and videos are remote URLs, so the native exporter falls back to the compatibility renderer until they
+  are downloaded locally. That needs a new Tauri download command.
+- Timelines with captions or titles still use the compatibility renderer (video only). It now draws effects, photos
+  and titles.

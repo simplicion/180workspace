@@ -106,6 +106,11 @@ export const socialProjectService = {
         return data.project as SocialProject;
     },
 
+    async deleteProject(id: string) {
+        const { data } = await api.delete(`/api/social-media/projects/${id}`);
+        return data;
+    },
+
     /** Brand profile exactly as the user gave it, plus `completeness`. See docs/social-studio-mobile/BRAND_CONSCIOUSNESS_API.md */
     async getBrandConsciousness(id: string) {
         const { data } = await api.get(`/api/social-media/projects/${id}/brand-consciousness`);

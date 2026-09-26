@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
-import { ChevronDown, ChevronLeft, ChevronRight, Menu, Star, Clock, LogOut, Wrench, Bot, FileSignature, BarChart3, MessageSquare, FolderOpen, CalendarDays, Video, Sparkles, X, ArrowRight, Activity, Eye, Laptop } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Menu, Star, Clock, LogOut, Wrench, Bot, FileSignature, BarChart3, MessageSquare, FolderOpen, CalendarDays, Video, Sparkles, X, ArrowRight, Activity, Eye, Laptop, Share2 } from 'lucide-react';
 import { navigation } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import PinnedItem from '@/app/(platform)/(dashboard)/_components/PinnedItem';
@@ -62,7 +62,7 @@ const TOOLS = [
     { name: 'Analytics', desc: 'Reports & insights', href: '/analytics', icon: BarChart3, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-700' },
     { name: 'Chat', desc: 'Team messaging', href: '/chat', icon: MessageSquare, color: 'from-sky-500 to-cyan-600', bg: 'bg-sky-50', text: 'text-sky-700' },
     { name: 'Documents', desc: 'Files & documents', href: '/documents', icon: FolderOpen, color: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-700' },
-    { name: 'Content Calendar', desc: 'Plan your content', href: '/content-calendar', icon: CalendarDays, color: 'from-rose-500 to-pink-600', bg: 'bg-rose-50', text: 'text-rose-700' },
+    { name: '180 Social Studio', desc: 'Social projects & native studio', href: '/social-projects', icon: Share2, color: 'from-rose-500 to-pink-600', bg: 'bg-rose-50', text: 'text-rose-700' },
     { name: 'Meetings', desc: 'Schedule & join calls', href: '/meeting', icon: Video, color: 'from-cyan-500 to-blue-500', bg: 'bg-cyan-50', text: 'text-cyan-700' },
     { name: 'Work Logs', desc: 'Track & submit your work', href: '/work-logs', icon: Clock, color: 'from-amber-600 to-orange-600', bg: 'bg-amber-50', text: 'text-amber-700' },
 ];

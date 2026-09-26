@@ -14,6 +14,7 @@ import { prisma } from '@workspace/db';
 import { SocialTokenVault } from '../publishing/token-vault';
 import { LinkedInIntegrationError } from './errors';
 import { LinkedInProviderFactory } from './factory';
+import { getLinkedInProviderMode } from './config';
 import {
     LinkedInAnalyticsData,
     LinkedInComment,
@@ -87,8 +88,10 @@ export class LinkedInPublishingTools {
                 platform: 'linkedin',
                 reauthRequired: account.reauthRequired,
             });
-        } catch {
-            // In mock/sandbox mode without vault records, use mock token
+        } catch (err) {
+            // Only the mock provider may run without a vault record; in live mode a missing/expired token (including
+            // REAUTH_REQUIRED) must reach the caller instead of being replaced by a placeholder.
+            if (getLinkedInProviderMode() !== 'mock') throw err;
             token = 'mock_token';
         }
 

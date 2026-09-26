@@ -8,7 +8,7 @@
  */
 import { LINKEDIN_API_VERSION, intEnv } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
-import { requireToken } from "./engagement-token";
+import { isSandboxToken, requireToken } from "./engagement-token";
 import { asBody, downloadMedia, expectOk, pollUntil, providerFailure, providerFetch, readBody } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkUrls, checkVideo } from './types';
 
@@ -189,7 +189,9 @@ export interface LinkedInPublishParams {
 export class LinkedInAdapter {
     static async publishPost(params: LinkedInPublishParams): Promise<{ activityUrn: string; liveUrl: string }> {
         const { accessToken, authorUrn, commentary, videoUrl, imageUrl, title } = params;
-        if (!accessToken || accessToken.startsWith('mock_') || !authorUrn) {
+        requireToken(accessToken, 'linkedin');
+        if (!authorUrn) throw new PublishError('ACCOUNT_NOT_CONNECTED', 'The linkedin account id is missing; reconnect the account.', { platform: 'linkedin' as any });
+        if (isSandboxToken(accessToken)) {
             const mockId = Math.floor(Math.random() * 10000000000);
             return {
                 activityUrn: `urn:li:activity:${mockId}`,
@@ -212,7 +214,8 @@ export class LinkedInAdapter {
     }
 
     static async replyToComment(targetUrn: string, actorUrn: string, text: string, accessToken: string): Promise<{ commentUrn: string }> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'linkedin');
+        if (isSandboxToken(accessToken)) {
             return { commentUrn: `urn:li:comment:sim_${Date.now()}` };
         }
         const res = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(targetUrn)}/comments`, {
@@ -230,7 +233,8 @@ export class LinkedInAdapter {
     }
 
     static async likeComment(targetUrn: string, actorUrn: string, accessToken: string): Promise<boolean> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'linkedin');
+        if (isSandboxToken(accessToken)) {
             return true;
         }
         const res = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(targetUrn)}/reactions`, {
@@ -247,7 +251,8 @@ export class LinkedInAdapter {
     }
 
     static async fetchComments(targetUrn: string, accessToken: string, limit = 20): Promise<any[]> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'linkedin');
+        if (isSandboxToken(accessToken)) {
             return [{ id: 'sim_comm_1', message: { text: 'Great update!' }, actor: 'urn:li:person:sim1' }];
         }
         const res = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(targetUrn)}/comments?count=${limit}`, {
@@ -258,7 +263,8 @@ export class LinkedInAdapter {
     }
 
     static async getAnalytics(accountUrn: string, accessToken: string): Promise<any> {
-        if (!accessToken || accessToken.startsWith('mock_')) {
+        requireToken(accessToken, 'linkedin');
+        if (isSandboxToken(accessToken)) {
             return { impressions: 14820, clicks: 680, likes: 412, comments: 89, shares: 47 };
         }
         const res = await providerFetch('linkedin', `${REST}/organizationalEntityShareStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(accountUrn)}`, {
