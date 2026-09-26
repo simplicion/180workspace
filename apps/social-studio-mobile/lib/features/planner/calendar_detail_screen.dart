@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -400,6 +401,63 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
             label: const Text('Preview'),
           ),
         ]),
+        if (p.contentType.toLowerCase().contains('video') ||
+            p.contentType.toLowerCase().contains('reel') ||
+            p.contentType.toLowerCase().contains('short') ||
+            p.contentType.toLowerCase().contains('tiktok')) ...[
+          const SizedBox(height: 10),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              final picker = ImagePicker();
+              final choice = await showModalBottomSheet<String>(
+                context: context,
+                backgroundColor: AppTheme.surfaceElevated,
+                builder: (ctx) => SafeArea(
+                  child: Wrap(children: [
+                    ListTile(
+                      leading: const Icon(Icons.video_library_rounded, color: AppTheme.primary),
+                      title: const Text('Pick Raw Footage from Gallery'),
+                      onTap: () => Navigator.pop(ctx, 'gallery'),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.videocam_rounded, color: AppTheme.accent),
+                      title: const Text('Record with Teleprompter Camera'),
+                      onTap: () => Navigator.pop(ctx, 'camera'),
+                    ),
+                  ]),
+                ),
+              );
+
+              if (choice == 'camera' && context.mounted) {
+                context.push('/camera', extra: {
+                  'hook': prefill['hook'] ?? p.headline,
+                  'script': _script.text,
+                  'projectId': projectId,
+                  'pieceId': p.id,
+                });
+              } else if (choice == 'gallery') {
+                final vid = await picker.pickVideo(source: ImageSource.gallery);
+                if (vid != null && context.mounted) {
+                  context.push('/studio/session', extra: {
+                    'sourcePath': vid.path,
+                    'projectId': projectId,
+                    'pieceId': p.id,
+                    'hook': prefill['hook'] ?? p.headline,
+                    'script': _script.text,
+                  });
+                }
+              }
+            },
+            icon: const Icon(Icons.movie_creation_rounded, size: 18),
+            label: const Text('🎬 Edit in 180 Media Studio'),
+          ),
+        ],
         const SizedBox(height: 10),
 
         // AI Autopilot Rewrite Button

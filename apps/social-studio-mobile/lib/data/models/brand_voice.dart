@@ -110,10 +110,11 @@ class BrandVoice {
     String? hookStyle,
     List<String>? hooks,
     String? logoUrl,
-    String? primaryColor,
-    String? accentColor,
-    String? font,
-    String? captionStylePreset,
+    // Object? + sentinel so callers can clear a visual choice by passing null explicitly.
+    Object? primaryColor = _keep,
+    Object? accentColor = _keep,
+    Object? font = _keep,
+    Object? captionStylePreset = _keep,
   }) =>
       BrandVoice(
         id: id,
@@ -128,10 +129,10 @@ class BrandVoice {
         hookStyle: hookStyle ?? this.hookStyle,
         hooks: hooks ?? this.hooks,
         logoUrl: logoUrl ?? this.logoUrl,
-        primaryColor: primaryColor ?? this.primaryColor,
-        accentColor: accentColor ?? this.accentColor,
-        font: font ?? this.font,
-        captionStylePreset: captionStylePreset ?? this.captionStylePreset,
+        primaryColor: identical(primaryColor, _keep) ? this.primaryColor : primaryColor as String?,
+        accentColor: identical(accentColor, _keep) ? this.accentColor : accentColor as String?,
+        font: identical(font, _keep) ? this.font : font as String?,
+        captionStylePreset: identical(captionStylePreset, _keep) ? this.captionStylePreset : captionStylePreset as String?,
         metadata: metadata,
       );
 
@@ -160,3 +161,6 @@ class BrandVoice {
     'Playfair Display',
   ];
 }
+
+/// Marks a copyWith argument as "not passed" (distinct from an explicit null).
+const Object _keep = Object();

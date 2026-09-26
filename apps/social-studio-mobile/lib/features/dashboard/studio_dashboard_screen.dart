@@ -166,7 +166,7 @@ class _Overview extends ConsumerWidget {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              childAspectRatio: 1.9,
+              childAspectRatio: 1.6,
               children: [
                 _Kpi('Scheduled this week', d.metric('postsScheduledThisWeek'), Icons.event_rounded, AppTheme.accentBlue),
                 _Kpi('Awaiting approval', d.metric('postsAwaitingApproval'), Icons.hourglass_top_rounded, AppTheme.warning),
@@ -329,7 +329,7 @@ class _Kpi extends StatelessWidget {
           Expanded(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('$value', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-              Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary), maxLines: 2),
+              Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
             ]),
           ),
         ]),

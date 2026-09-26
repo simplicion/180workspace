@@ -40,6 +40,9 @@ class StudioController extends ChangeNotifier {
     required this.transcriber,
     this.projectId,
     this.postId,
+    this.pieceId,
+    this.hook,
+    this.script,
     this.aspect = '9:16',
   });
 
@@ -47,7 +50,26 @@ class StudioController extends ChangeNotifier {
   final AudioTranscriptionService transcriber;
   final String? projectId;
   final String? postId;
+  final String? pieceId;
+  final String? hook;
+  final String? script;
   final String aspect;
+
+  void initBrandGreeting({String? brandName, String? primaryColor, String? font}) {
+    if (messages.isEmpty && (hook != null || script != null)) {
+      final name = brandName ?? 'Your Brand';
+      messages.add(
+        DirectorMessage(
+          fromUser: false,
+          text: "🎬 **AI Creative Director Ready**\n\n"
+              "I have loaded your raw footage for **'${hook ?? 'Your Video'}'**.\n\n"
+              "Following **$name**'s brand guidelines (using ${primaryColor ?? '#4F46E5'} accent and ${font ?? 'Inter'}), "
+              "I can edit this into a high-retention 9:16 Reel with jump cuts, kinetic captions, and ducked audio. Shall I proceed?",
+        ),
+      );
+      notifyListeners();
+    }
+  }
 
   static const _maxUndo = 50;
 
