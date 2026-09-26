@@ -21,3 +21,4 @@ export * from './creative';
 export * from './publishing';
 export * from './engagement';
 export * from './tenant-scope';
+export * from './linkedin';
