@@ -20,6 +20,7 @@ export * from "./sourcing/freesound-sfx.tool";
 export * from "./sourcing/asset-search.tool";
 export * from "./sourcing/sfx-search.tool";
 export * from "./sourcing/bgm-search.tool";
+export * from "./sourcing/free-media-providers";
 
 // Composition Tools
 export * from "./composition/take-curation.tool";
