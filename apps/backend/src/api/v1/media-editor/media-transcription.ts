@@ -42,30 +42,39 @@ export interface TranscriptionResponse {
   words: WordTimestamp[];
 }
 
+export interface SttCredentials {
+  groqKey?: string;
+  openaiKey?: string;
+  cartesiaKey?: string;
+}
+
 const GROQ_STT_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
+const OPENAI_STT_URL = "https://api.openai.com/v1/audio/transcriptions";
 
 /** Throws when no STT key is configured; never falls back to a literal. */
-function requireSttCredentials(): { groqKey?: string; cartesiaKey?: string } {
-  const groqKey = process.env.GROQ_API_KEY;
-  const cartesiaKey = process.env.CARTESIA_API_KEY;
-  if (!groqKey && !cartesiaKey) {
-    throw new TranscriptionUnavailableError("No STT key configured on server (set GROQ_API_KEY or CARTESIA_API_KEY).");
+export function requireSttCredentials(override?: SttCredentials): SttCredentials {
+  const groqKey = override?.groqKey || process.env.GROQ_API_KEY;
+  const openaiKey = override?.openaiKey || process.env.OPENAI_API_KEY;
+  const cartesiaKey = override?.cartesiaKey || process.env.CARTESIA_API_KEY;
+  if (!groqKey && !openaiKey && !cartesiaKey) {
+    throw new TranscriptionUnavailableError("No STT key configured on server (set OPENAI_API_KEY, GROQ_API_KEY, or CARTESIA_API_KEY).");
   }
-  return { groqKey, cartesiaKey };
+  return { groqKey, openaiKey, cartesiaKey };
 }
 
 /**
- * Sends audio to Groq Whisper or Cartesia batch STT with word timestamps. Throws TranscriptionFailedError when the
- * provider fails or returns no word timings (we never synthesize fake timings).
+ * Sends audio to Groq Whisper, OpenAI Whisper, or Cartesia batch STT with word timestamps.
+ * Throws TranscriptionFailedError when the provider fails or returns no word timings (we never synthesize fake timings).
  */
 export async function transcribeAudioBuffer(
   audio: Buffer,
   filename: string,
   mimeType: string,
   language = "en",
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  credentialsOverride?: SttCredentials
 ): Promise<TranscriptionResponse> {
-  const { groqKey, cartesiaKey } = requireSttCredentials();
+  const { groqKey, openaiKey, cartesiaKey } = requireSttCredentials(credentialsOverride);
 
   // Tier 1: Groq Whisper Cloud (ultra-fast ~0.5s, free tier: 7,200s/day)
   if (groqKey) {
@@ -112,9 +121,57 @@ export async function transcribeAudioBuffer(
     }
   }
 
-  // Tier 2: Cartesia STT (ink-whisper)
+  // Tier 2: OpenAI Whisper Cloud (whisper-1 with word timestamps)
+  if (openaiKey) {
+    try {
+      const openaiForm = new FormData();
+      openaiForm.append("file", new Blob([new Uint8Array(audio)], { type: mimeType }), filename || "audio.wav");
+      openaiForm.append("model", "whisper-1");
+      openaiForm.append("language", language);
+      openaiForm.append("response_format", "verbose_json");
+      openaiForm.append("timestamp_granularities[]", "word");
+
+      const openaiRes = await fetchImpl(OPENAI_STT_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${openaiKey}` },
+        body: openaiForm,
+        signal: AbortSignal.timeout(60_000),
+      });
+
+      if (openaiRes.ok) {
+        const data: any = await openaiRes.json();
+        const rawWords: any[] = Array.isArray(data?.words) ? data.words : [];
+        const words: WordTimestamp[] = rawWords
+          .filter((w) => typeof w?.word === "string" && typeof w?.start === "number" && typeof w?.end === "number")
+          .map((w) => ({
+            text: String(w.word).trim(),
+            startMs: Math.max(0, Math.round(w.start * 1000)),
+            endMs: Math.max(0, Math.round(w.end * 1000)),
+          }))
+          .filter((w) => w.text.length > 0 && w.endMs >= w.startMs);
+
+        const text: string = typeof data?.text === "string" ? data.text.trim() : "";
+        if (words.length > 0 || !text) {
+          const durationSec = typeof data?.duration === "number" ? data.duration : words.length ? words[words.length - 1].endMs / 1000 : 0;
+          return {
+            language: typeof data?.language === "string" ? data.language : language,
+            durationMs: Math.round(durationSec * 1000),
+            text,
+            words,
+          };
+        }
+      } else {
+        const errBody = await openaiRes.text().catch(() => "");
+        console.warn(`[Transcribe] OpenAI Whisper error status ${openaiRes.status}:`, errBody.slice(0, 200));
+      }
+    } catch (openaiErr: any) {
+      console.warn("[Transcribe] OpenAI Whisper fallback notice:", openaiErr?.message || openaiErr);
+    }
+  }
+
+  // Tier 3: Cartesia STT (ink-whisper)
   if (!cartesiaKey) {
-    throw new TranscriptionFailedError("Groq Whisper did not succeed and CARTESIA_API_KEY is not configured.");
+    throw new TranscriptionFailedError("Speech-to-text did not succeed and no alternate provider is configured.");
   }
 
   const form = new FormData();
@@ -197,8 +254,33 @@ export async function transcribeHandler(req: Request, res: Response) {
   }
   const rawLang = typeof req.body?.language === "string" ? req.body.language.trim().toLowerCase() : "en";
   const language = /^[a-z]{2}(-[a-z]{2})?$/.test(rawLang) ? rawLang : "en";
+
+  // Resolve STT keys (OpenAI from PlatformSettings / Company)
+  let resolvedOpenaiKey: string | undefined = process.env.OPENAI_API_KEY;
   try {
-    const data = await transcribeAudioBuffer(file.buffer, file.originalname, file.mimetype, language);
+    const { PlatformAiVaultService, AICompanyConfigService } = require("@workspace/ai");
+    const companyId = (req as any).user?.companyId || (req as any).companyId;
+    if (companyId) {
+      const { settings } = await AICompanyConfigService.getCompanyAISettings(companyId);
+      if (settings?.openaiKey) resolvedOpenaiKey = settings.openaiKey;
+    }
+    if (!resolvedOpenaiKey) {
+      const vault = await PlatformAiVaultService.getDecryptedPlatformAiSettings();
+      if (vault?.openaiKey) resolvedOpenaiKey = vault.openaiKey;
+    }
+  } catch (err: any) {
+    // Non-fatal, fallback to environment key
+  }
+
+  try {
+    const data = await transcribeAudioBuffer(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+      language,
+      fetch,
+      { openaiKey: resolvedOpenaiKey }
+    );
     return res.status(200).json({ success: true, data });
   } catch (err: any) {
     if (err instanceof TranscriptionUnavailableError) {

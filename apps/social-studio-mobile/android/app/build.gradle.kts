@@ -87,4 +87,9 @@ dependencies {
     // On-device face detection for smart reframe (bundled model, works offline; adds a few MB
     // to the APK, see docs/social-studio-mobile/FREE_MEDIA_SOURCES.md).
     implementation("com.google.mlkit:face-detection:16.1.7")
+    // On-device OCR for the AI Director (`media.ocr`): bundled Latin model, offline, no server
+    // tokens. Adds about 4 MB per ABI; see docs/social-studio-mobile/SOCIAL_OS_AUDIT.md.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+    // JVM unit tests of the pure analysis algorithms (AnalysisAlgorithms.kt).
+    testImplementation("junit:junit:4.12")
 }

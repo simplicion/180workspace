@@ -8,16 +8,20 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Flutter bridge for the on-device media engine.
  *
  * MethodChannel `com.workspace180.socialmanager/media_engine`:
  *   getVideoInfo, extractAudio, generateThumbnails, sliceVideo, detectSilences, detectFaces,
- *   detectBeats, renderEditIr, cancelRender
+ *   detectBeats, renderEditIr, cancelRender, renderJobStatus,
+ *   detectScenes, recognizeText, measureLoudness, probeExport, cancelAnalysis
  * EventChannel `com.workspace180.socialmanager/media_engine/render_events`:
  *   {jobId, state: started|progress|completed|failed|cancelled, progress, ...}
+ *   {jobId, kind: "analysis", state: "progress", progress} for analysis calls given a jobId.
  *
  * While any render runs, [RenderForegroundService] holds a foreground service with a progress
  * notification so the export survives the app being backgrounded.
@@ -40,6 +44,7 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
     private val io = Executors.newFixedThreadPool(2)
     private val jobs = HashMap<String, EditIrRenderer>()
     private val jobProgress = HashMap<String, Double>()
+    private val analysisCancel = ConcurrentHashMap<String, AtomicBoolean>()
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -48,6 +53,7 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        analysisCancel.values.forEach { it.set(true) }
         jobs.values.forEach { it.cancel() }
         jobs.clear()
         jobProgress.clear()
@@ -79,6 +85,29 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                 RenderForegroundService.update(jobs.size, overall)
             }
             eventSink?.success(event)
+        }
+    }
+
+    /** Cancellation flag + progress events for an analysis call; without a jobId it is neither. */
+    private fun analysisControl(jobId: String?): Pair<AnalysisControl, () -> Unit> {
+        if (jobId == null) return AnalysisControl() to {}
+        val flag = AtomicBoolean(false)
+        analysisCancel[jobId] = flag
+        val control = AnalysisControl({ flag.get() }) { p ->
+            main.post { eventSink?.success(mapOf("jobId" to jobId, "kind" to "analysis", "state" to "progress", "progress" to p)) }
+        }
+        return control to { analysisCancel.remove(jobId) }
+    }
+
+    /** Runs an analysis [block] in the background with its control, releasing the flag afterwards. */
+    private fun analysis(call: MethodCall, result: MethodChannel.Result, block: (AnalysisControl) -> Any?) {
+        val (control, done) = analysisControl(call.argument<String>("jobId"))
+        background(result) {
+            try {
+                block(control)
+            } finally {
+                done()
+            }
         }
     }
 
@@ -154,6 +183,32 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                 "detectBeats" -> {
                     val src = call.req<String>("audioPath")
                     background(result) { MediaTools.detectBeats(src) }
+                }
+                "detectScenes" -> {
+                    val src = call.req<String>("sourcePath")
+                    analysis(call, result) { MediaIntelligence.detectScenes(src, it) }
+                }
+                "recognizeText" -> {
+                    val src = call.req<String>("sourcePath")
+                    val every = call.argument<Number>("sampleEveryMs")?.toLong() ?: 1000L
+                    analysis(call, result) { MediaIntelligence.recognizeText(src, every, it) }
+                }
+                "measureLoudness" -> {
+                    val src = call.req<String>("sourcePath")
+                    analysis(call, result) { MediaIntelligence.measureLoudness(src, it) }
+                }
+                "probeExport" -> {
+                    val src = call.req<String>("path")
+                    analysis(call, result) { MediaIntelligence.probeExport(src, it) }
+                }
+                "cancelAnalysis" -> {
+                    val flag = analysisCancel[call.req<String>("jobId")]
+                    flag?.set(true)
+                    result.success(flag != null)
+                }
+                "renderJobStatus" -> {
+                    val jobId = call.req<String>("jobId")
+                    result.success(mapOf("running" to jobs.containsKey(jobId), "progress" to jobProgress[jobId]))
                 }
                 "renderEditIr" -> {
                     val jobId = call.req<String>("jobId")

@@ -137,15 +137,77 @@ export const desktopMedia = {
   /** Downloads an allow-listed https media link into the app cache (cached by URL); resolves to the local path. */
   fetchRemoteMedia: (url: string) => getInvoke()<string>('fetch_remote_media', { url }),
   remoteMediaStatus: (url: string) => getInvoke()<RemoteMediaProgress | null>('remote_media_status', { url }),
+  /** Stops a running download; `fetchRemoteMedia` then rejects with DOWNLOAD_CANCELLED. */
+  cancelRemoteMedia: (url: string) => getInvoke()<void>('cancel_remote_media', { url }),
+
+  /**
+   * Starts a fixed FFmpeg analysis (analysis.rs) of a picked file or a finished export; resolves to a job id for
+   * `mediaAnalysisStatus`. The report is parsed by services/media-analysis.ts.
+   */
+  startMediaAnalysis: (path: string, kind: MediaAnalysisKind, opts: { sceneThreshold?: number; durationSec?: number } = {}) =>
+    getInvoke()<string>('start_media_analysis', { path, kind, sceneThreshold: opts.sceneThreshold, durationSec: opts.durationSec }),
+  mediaAnalysisStatus: (jobId: string) => getInvoke()<MediaAnalysisStatus>('media_analysis_status', { jobId }),
+  cancelMediaAnalysis: (jobId: string) => getInvoke()<void>('cancel_media_analysis', { jobId }),
 };
+
+export type MediaAnalysisKind = 'scenes' | 'loudness' | 'qa' | 'qa_nofreeze';
+
+export interface MediaAnalysisStatus {
+  state: 'running' | 'done' | 'failed' | 'cancelled';
+  /** 0..1 (only when a duration was given) */
+  progress: number;
+  error: string | null;
+  /** The kept FFmpeg report lines, once done. */
+  output: string | null;
+}
+
+export class AnalysisCancelledError extends Error {
+  constructor() {
+    super('Analysis cancelled');
+    this.name = 'AnalysisCancelledError';
+  }
+}
+
+/** Runs one native analysis to completion and resolves to its FFmpeg report; the signal kills the FFmpeg process. */
+export async function runMediaAnalysis(
+  path: string,
+  kind: MediaAnalysisKind,
+  opts: { sceneThreshold?: number; durationSec?: number; signal?: AbortSignal; onProgress?: (fraction: number) => void; pollMs?: number } = {}
+): Promise<string> {
+  if (opts.signal?.aborted) throw new AnalysisCancelledError();
+  const jobId = await desktopMedia.startMediaAnalysis(path, kind, opts);
+  let aborted = false;
+  const onAbort = () => {
+    aborted = true;
+    desktopMedia.cancelMediaAnalysis(jobId).catch(() => {});
+  };
+  opts.signal?.addEventListener('abort', onAbort, { once: true });
+  try {
+    for (;;) {
+      const st = await desktopMedia.mediaAnalysisStatus(jobId);
+      opts.onProgress?.(st.progress);
+      if (st.state === 'done') return st.output ?? '';
+      if (st.state === 'failed') throw new Error(st.error || 'The analysis failed.');
+      if (st.state === 'cancelled' || aborted) throw new AnalysisCancelledError();
+      await new Promise((r) => setTimeout(r, opts.pollMs ?? 250));
+    }
+  } finally {
+    opts.signal?.removeEventListener('abort', onAbort);
+  }
+}
 
 /** `fetchRemoteMedia` with progress (0..1, or null when the size is unknown) polled while it runs. */
 export async function fetchRemoteMediaWithProgress(
   url: string,
   onProgress?: (fraction: number | null, receivedBytes: number) => void,
-  pollMs = 300
+  pollMs = 300,
+  signal?: AbortSignal
 ): Promise<string> {
   let finished = false;
+  const onAbort = () => {
+    desktopMedia.cancelRemoteMedia(url).catch(() => {});
+  };
+  signal?.addEventListener('abort', onAbort, { once: true });
   const poll = async () => {
     while (!finished) {
       await new Promise((r) => setTimeout(r, pollMs));
@@ -159,6 +221,7 @@ export async function fetchRemoteMediaWithProgress(
     return await desktopMedia.fetchRemoteMedia(url);
   } finally {
     finished = true;
+    signal?.removeEventListener('abort', onAbort);
   }
 }
 

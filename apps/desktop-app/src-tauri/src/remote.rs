@@ -72,6 +72,8 @@ pub struct DownloadProgress {
     pub total: Option<u64>,
     pub done: bool,
     pub error: Option<String>,
+    /// Set by `cancel_remote_media`; the download loop stops at the next chunk and removes the partial file.
+    pub cancelled: bool,
 }
 
 #[derive(Default)]
@@ -220,6 +222,12 @@ fn set_progress(downloads: &RemoteDownloads, url: &str, f: impl FnOnce(&mut Down
     }
 }
 
+pub const DOWNLOAD_CANCELLED: &str = "DOWNLOAD_CANCELLED: The download was cancelled.";
+
+fn is_cancelled(downloads: &RemoteDownloads, url: &str) -> bool {
+    downloads.0.lock().map(|m| m.get(url).map(|p| p.cancelled).unwrap_or(false)).unwrap_or(false)
+}
+
 async fn download(url: &reqwest::Url, dir: &PathBuf, key: &str, downloads: &RemoteDownloads, progress_key: &str) -> Result<PathBuf, String> {
     let extra = configured_hosts();
     let policy_hosts = extra.clone();
@@ -258,6 +266,9 @@ async fn download(url: &reqwest::Url, dir: &PathBuf, key: &str, downloads: &Remo
     let mut received: u64 = 0;
     let result: Result<(), String> = async {
         while let Some(chunk) = resp.chunk().await.map_err(|e| format!("Download interrupted: {e}"))? {
+            if is_cancelled(downloads, &key_url) {
+                return Err(DOWNLOAD_CANCELLED.to_string());
+            }
             received += chunk.len() as u64;
             if received > cap {
                 return Err(format!("The file is larger than the {} MB limit.", cap / (1024 * 1024)));
@@ -322,6 +333,18 @@ pub fn remote_media_status(downloads: State<'_, RemoteDownloads>, url: String) -
     Ok(map.get(&url).cloned())
 }
 
+/// Stops a running download (the partial file is removed). A finished or unknown download is left alone.
+#[tauri::command]
+pub fn cancel_remote_media(downloads: State<'_, RemoteDownloads>, url: String) -> Result<(), String> {
+    let mut map = downloads.0.lock().map_err(|_| "internal state error".to_string())?;
+    if let Some(p) = map.get_mut(&url) {
+        if !p.done {
+            p.cancelled = true;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,6 +389,16 @@ mod tests {
         assert!(media_type(Some("application/octet-stream"), "/a.exe").is_err());
         assert!(media_type(Some("application/x-msdownload"), "/a.mp4").is_err());
         assert!(MediaKind::Image.max_bytes() < MediaKind::Video.max_bytes());
+    }
+
+    #[test]
+    fn cancel_flag_only_applies_to_the_running_download() {
+        let d = RemoteDownloads::default();
+        set_progress(&d, "https://a/1.mp4", |p| p.received = 10);
+        assert!(!is_cancelled(&d, "https://a/1.mp4"));
+        d.0.lock().unwrap().get_mut("https://a/1.mp4").unwrap().cancelled = true;
+        assert!(is_cancelled(&d, "https://a/1.mp4"));
+        assert!(!is_cancelled(&d, "https://a/2.mp4"));
     }
 
     #[test]

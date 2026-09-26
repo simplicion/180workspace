@@ -50,7 +50,7 @@ export class AICompanyConfigService {
         const platformVault = await PlatformAiVaultService.getDecryptedPlatformAiSettings();
 
         const geminiKey = metadata.geminiKey || platformVault.geminiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-        const openaiKey = metadata.openaiKey || metadata.apiKey || platformVault.openaiKey || process.env.OPENAI_API_KEY || '';
+        const openaiKey = metadata.openaiKey || platformVault.openaiKey || metadata.apiKey || process.env.OPENAI_API_KEY || '';
         const claudeKey = metadata.claudeKey || platformVault.claudeKey || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || '';
         const groqKey = metadata.groqKey || platformVault.groqKey || process.env.GROQ_API_KEY || '';
         const customAiKey = metadata.customAiKey || platformVault.customAiKey || process.env.CUSTOM_AI_KEY || '';

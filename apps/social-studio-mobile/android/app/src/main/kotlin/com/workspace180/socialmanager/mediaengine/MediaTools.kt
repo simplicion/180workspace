@@ -200,7 +200,7 @@ object MediaTools {
      * Opens the first audio track of [path] with a started platform decoder.
      * Returns null when the file has no audio track. The caller releases both objects.
      */
-    private fun openAudioDecoder(path: String): Triple<MediaExtractor, MediaCodec, MediaFormat>? {
+    internal fun openAudioDecoder(path: String): Triple<MediaExtractor, MediaCodec, MediaFormat>? {
         val ex = MediaExtractor()
         try {
             ex.setDataSource(path)
@@ -238,14 +238,33 @@ object MediaTools {
         inFormat: MediaFormat,
         onFormat: (sampleRate: Int, channels: Int) -> Unit,
         onFrame: (timeUs: Long, sample: Double) -> Unit,
+    ) = decodePcm(ex, codec, inFormat, onFormat) { tUs, frame, channels ->
+        var sum = 0.0
+        for (c in 0 until channels) sum += frame[c]
+        onFrame(tUs, sum / channels)
+    }
+
+    /**
+     * Like [decodeMonoPcm] but keeps every channel: [onFrame] gets one frame of [channels] samples in
+     * -1..1 (the array is reused between calls). [isCancelled] is polled between buffers.
+     */
+    internal fun decodePcm(
+        ex: MediaExtractor,
+        codec: MediaCodec,
+        inFormat: MediaFormat,
+        onFormat: (sampleRate: Int, channels: Int) -> Unit,
+        isCancelled: () -> Boolean = { false },
+        onFrame: (timeUs: Long, frame: DoubleArray, channels: Int) -> Unit,
     ) {
         var rate = inFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
         var channels = inFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+        var frameBuf = DoubleArray(maxOf(channels, 1))
         var floatPcm = false
         val info = MediaCodec.BufferInfo()
         var inputDone = false
         var outputDone = false
         while (!outputDone) {
+            if (isCancelled()) throw MediaEngineError("CANCELLED", "Analysis was cancelled")
             if (!inputDone) {
                 val ii = codec.dequeueInputBuffer(10_000)
                 if (ii >= 0) {
@@ -266,6 +285,7 @@ object MediaTools {
                     val f = codec.outputFormat
                     rate = f.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                     channels = f.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                    frameBuf = DoubleArray(maxOf(channels, 1))
                     floatPcm = Build.VERSION.SDK_INT >= 24 && f.containsKey(MediaFormat.KEY_PCM_ENCODING) &&
                         f.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_FLOAT
                     onFormat(rate, channels)
@@ -279,16 +299,14 @@ object MediaTools {
                     if (floatPcm) {
                         val fb = buf.asFloatBuffer()
                         while (fb.remaining() >= channels) {
-                            var sum = 0.0
-                            repeat(channels) { sum += fb.get() }
-                            onFrame(baseUs + frame++ * 1_000_000L / rate, sum / channels)
+                            for (c in 0 until channels) frameBuf[c] = fb.get().toDouble()
+                            onFrame(baseUs + frame++ * 1_000_000L / rate, frameBuf, channels)
                         }
                     } else {
                         val sb = buf.asShortBuffer()
                         while (sb.remaining() >= channels) {
-                            var sum = 0.0
-                            repeat(channels) { sum += sb.get() / 32768.0 }
-                            onFrame(baseUs + frame++ * 1_000_000L / rate, sum / channels)
+                            for (c in 0 until channels) frameBuf[c] = sb.get() / 32768.0
+                            onFrame(baseUs + frame++ * 1_000_000L / rate, frameBuf, channels)
                         }
                     }
                     codec.releaseOutputBuffer(oi, false)
