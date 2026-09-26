@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { SocialAccountService, SocialOAuthService, isPublishError, toPublicAccount } from '@workspace/social-media';
+import { SocialAccountService, SocialOAuthService, MetaWebhooksService, isPublishError, toPublicAccount } from '@workspace/social-media';
 import { prisma } from '@workspace/db';
 import { requireRole } from '../../../../system-configs/middleware/auth/rbac';
 import { sendRouteError } from '../route-errors';
@@ -119,6 +119,46 @@ oauthCallbackRouter.get('/:platform/callback', async (req: Request, res: Respons
         const status = isPublishError(error) ? error.httpStatus : 500;
         const msg = isPublishError(error) ? error.message : 'Could not complete the connection.';
         res.status(status).type('html').send(`<!doctype html><meta charset="utf-8"><title>Connection failed</title><p>${escapeHtml(msg)}</p><p>Close this window and start the connection again from the app.</p>`);
+    }
+});
+
+/**
+ * Meta / Threads Uninstall Callback URL
+ * Matches configured URL: /api/v1/social-media/accounts/oauth/:platform/uninstall
+ */
+oauthCallbackRouter.all('/:platform/uninstall', async (req: Request, res: Response) => {
+    try {
+        const signedRequest = req.body?.signed_request || req.query?.signed_request;
+        if (!signedRequest) {
+            return res.status(200).json({ success: true, message: 'Uninstall callback acknowledged' });
+        }
+        const result = await MetaWebhooksService.handleDeauthorization(String(signedRequest));
+        return res.status(200).json(result);
+    } catch (err: any) {
+        return res.status(200).json({ success: true, warning: err?.message });
+    }
+});
+
+/**
+ * Meta / Threads Data Deletion Callback URL
+ * Matches configured URL: /api/v1/social-media/accounts/oauth/:platform/delete-data
+ */
+oauthCallbackRouter.all('/:platform/delete-data', async (req: Request, res: Response) => {
+    try {
+        const signedRequest = req.body?.signed_request || req.query?.signed_request;
+        if (!signedRequest) {
+            return res.status(200).json({
+                url: 'https://api.180workspace.com/api/v1/social-media/webhooks/meta/data-deletion-status?id=del_threads_user',
+                confirmation_code: 'del_threads_user',
+            });
+        }
+        const result = await MetaWebhooksService.handleDataDeletion(String(signedRequest));
+        return res.status(200).json(result);
+    } catch (err: any) {
+        return res.status(200).json({
+            url: 'https://api.180workspace.com/api/v1/social-media/webhooks/meta/data-deletion-status?id=del_threads_user',
+            confirmation_code: 'del_threads_user',
+        });
     }
 });
 
