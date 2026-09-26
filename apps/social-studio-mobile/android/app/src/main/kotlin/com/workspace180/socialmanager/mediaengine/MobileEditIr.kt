@@ -124,10 +124,20 @@ data class IrWatermark(
     val widthFraction: Double,
 )
 
+/** One-shot sound effect on the timeline (contract §3.6 `audio.sfx`). */
+data class IrSfx(
+    val id: String,
+    val timelineStartMs: Long,
+    /** Null = play the whole file (clipped at the timeline end). */
+    val durationMs: Long?,
+    val volumeDb: Double,
+)
+
 data class IrAudio(
     val originalVolumeDb: Double,
     val music: List<IrMusic>,
     val speechRangesMs: List<LongArray>,
+    val sfx: List<IrSfx> = emptyList(),
 )
 
 data class MobileEditIr(
@@ -266,6 +276,14 @@ data class MobileEditIr(
             }
             val a = o.optJSONObject("audio") ?: JSONObject()
             val audio = IrAudio(
+                sfx = (a.optJSONArray("sfx") ?: JSONArray()).objects().map { j ->
+                    IrSfx(
+                        id = j.req("id"),
+                        timelineStartMs = j.getLong("timelineStartMs"),
+                        durationMs = if (j.has("durationMs") && !j.isNull("durationMs")) j.getLong("durationMs") else null,
+                        volumeDb = j.optDouble("volumeDb", -12.0),
+                    )
+                },
                 originalVolumeDb = a.optJSONObject("originalTrack")?.optDouble("volumeDb", 0.0) ?: 0.0,
                 music = (a.optJSONArray("music") ?: JSONArray()).objects().map { j ->
                     IrMusic(

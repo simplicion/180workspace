@@ -213,4 +213,47 @@ void main() {
       expect(() => TimelineOps.addZoom(ir, startMs: 2000, durationMs: 1000), throwsA(isA<MediaEngineException>()));
     });
   });
+
+  group('face-centred reframe', () {
+    final faces = [
+      for (var i = 0; i < 10; i++) FaceSample(tMs: i * 500, x: i == 4 ? 0.1 : 0.75, y: 0.35, w: 0.1, h: 0.18),
+      const FaceSample(tMs: 0, x: 0.2, y: 0.5, w: 0.02, h: 0.03), // smaller face in the same frame: ignored
+    ];
+
+    test('faceFocus is the median of the largest face per sample, clamped', () {
+      expect(TimelineOps.faceFocus(faces), (x: 0.75, y: 0.35));
+      expect(TimelineOps.faceFocus(const []), isNull);
+      expect(TimelineOps.faceFocus(const [FaceSample(tMs: 0, x: 0.99, y: 0.01, w: 0.1, h: 0.1)]), (x: 0.9, y: 0.1));
+    });
+
+    test('initial and setAspect centre the crop on the face and keep it inside the frame', () {
+      final focus = TimelineOps.faceFocus(faces);
+      final ir = TimelineOps.initial(projectId: 'p', durationMs: 5000, width: 1920, height: 1080, focus: focus);
+      final c = ir.clips.single.crop!;
+      expect(c.x + c.width / 2, closeTo(0.75, 0.001));
+      final square = TimelineOps.setAspect(ir, '1:1', focus: focus).clips.single.crop!;
+      expect(square.x + square.width, lessThanOrEqualTo(1.0001)); // clamped at the right edge
+      expect(square.x, closeTo(1 - square.width, 0.001));
+      final centred = TimelineOps.setAspect(ir, '9:16').clips.single.crop!;
+      expect(centred.x, closeTo((1 - centred.width) / 2, 0.001));
+    });
+  });
+
+  test('director sound effects round-trip and follow the footage through cuts', () {
+    final json = base().toJson();
+    (json['audio'] as Map)['sfx'] = [
+      {'id': 's1', 'timelineStartMs': 2000, 'source': {'kind': 'url', 'url': 'https://x.test/whoosh.mp3'}, 'volumeDb': -12, 'credit': 'Whoosh by A (CC BY)'},
+      {'id': 's2', 'timelineStartMs': 7000, 'durationMs': 800, 'source': {'kind': 'url', 'url': 'https://x.test/pop.mp3'}, 'volumeDb': -10},
+    ];
+    final ir = MobileEditIr.fromJson(json);
+    expect(ir.audio.sfx, hasLength(2));
+    expect(((ir.toJson()['audio'] as Map)['sfx'] as List).first['credit'], 'Whoosh by A (CC BY)');
+    // Cut [1000, 3000): s1 (at 2000) is inside the cut and dropped; s2 moves 2 s earlier.
+    final cut = TimelineOps.removeRange(ir, 1000, 3000);
+    expect(cut.audio.sfx.map((e) => e.id), ['s2']);
+    expect(cut.audio.sfx.single.timelineStartMs, 5000);
+    expect((base().toJson()['audio'] as Map).containsKey('sfx'), isFalse, reason: 'omitted when empty');
+    // Manual audio edits keep them.
+    expect(TimelineOps.setOriginalVolume(ir, -6).audio.sfx, hasLength(2));
+  });
 }

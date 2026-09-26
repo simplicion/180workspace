@@ -4,6 +4,7 @@ import * as fs from "fs";
 import { VideoDirectorTool, DirectorExecutionContext } from "../base-tool";
 import ffmpeg from "../../ffmpeg-setup";
 import { MUSIC_CATALOG, MusicTrack, moodToMusicGenre, searchMusicCatalog } from "@workspace/video-contracts";
+import { FreeMediaProviderId, searchFreeMedia } from "./free-media-providers";
 
 export const BgmGenreSchema = z.enum([
   "AMBIENT_CALM",
@@ -49,8 +50,9 @@ export interface MusicSearchHit {
   attribution: string | null;
   artist: string | null;
   genre: BgmGenre | null;
-  provider: "catalog" | "freesound";
+  provider: "catalog" | "freesound" | FreeMediaProviderId;
   sourcePage: string | null;
+  licenseUrl?: string | null;
 }
 
 export interface MusicSearchResult {
@@ -59,8 +61,8 @@ export interface MusicSearchResult {
   /** false when the query names a mood the curated catalogue does not cover. */
   genreMatched: boolean;
   tracks: MusicSearchHit[];
-  /** Providers consulted: always "catalog"; "freesound" only when FREESOUND_API_KEY is set. */
-  providers: Array<"catalog" | "freesound">;
+  /** Providers consulted: always "catalog"; "freesound" only when FREESOUND_API_KEY is set; free providers (Openverse, Commons, Internet Archive, Jamendo when enabled). */
+  providers: Array<"catalog" | "freesound" | FreeMediaProviderId>;
   warnings: string[];
 }
 
@@ -121,6 +123,35 @@ export class BgmSearchTool extends VideoDirectorTool<BgmSearchInput, BgmSearchOu
         tracks.push(...(await BgmSearchTool.searchFreesoundMusic(query, apiKey, limit - tracks.length, options.fetchImpl || fetch)));
       } catch (err: any) {
         warnings.push(`freesound: ${err?.message || err}`);
+      }
+    }
+    if (tracks.length < limit) {
+      // Keyless, licence-filtered providers (CC0 / PD / CC BY / CC BY-SA only), ranked by licence and length fit.
+      const free = await searchFreeMedia({
+        query,
+        kind: "music",
+        limit: limit - tracks.length,
+        minDurationSec: options.minDurationSec ?? 20,
+        targetDurationSec: options.minDurationSec,
+        fetchImpl: options.fetchImpl,
+      });
+      warnings.push(...free.warnings);
+      providers.push(...free.providers.map((p) => p.id));
+      const seen = new Set(tracks.map((t) => t.url));
+      for (const i of free.items) {
+        if (seen.has(i.url)) continue;
+        tracks.push({
+          title: i.title,
+          url: i.url,
+          durationSec: Math.round(i.durationSec || 0),
+          license: i.license,
+          attribution: i.attribution,
+          artist: null,
+          genre: null,
+          provider: i.provider,
+          sourcePage: i.sourcePage,
+          licenseUrl: i.licenseUrl,
+        });
       }
     }
     if (tracks.length === 0) {

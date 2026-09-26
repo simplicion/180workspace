@@ -1,11 +1,8 @@
-import { getDb } from '../publishing/http';
+import { getDb, timing } from '../publishing/http';
+import { planEngagementActions } from './capabilities';
+import { likeComment, replyToComment, sendDirectMessage, sendPrivateReply } from './platform-actions';
+import { EngagementRateLimiter } from './rate-limiter';
 import { SocialTokenVault } from '../publishing/token-vault';
-import { InstagramPublisher } from '../adapters/meta.adapter';
-import { YouTubeAdapter } from '../adapters/youtube.adapter';
-import { LinkedInAdapter } from '../adapters/linkedin.adapter';
-import { ThreadsAdapter } from '../adapters/threads.adapter';
-import { TikTokAdapter } from '../adapters/tiktok.adapter';
-import { SocialInboxService } from '../social-inbox.service';
 import { InboundEngagementEvent, EngagementExecutionResult } from './types';
 import { EngagementMatcher } from './engagement-matcher';
 import { VAULT_ACCOUNT_SELECT } from '../tenant-scope';
@@ -55,7 +52,7 @@ export class EngagementDispatcher {
      */
     static pickRotatingPublicReply(templates: string[], recipientHandle: string): string {
         if (!templates.length) {
-            return `Sent to your DMs! Check your messages 🚀`;
+            return '';
         }
         // Rotate or randomly pick
         const template = templates[Math.floor(Math.random() * templates.length)];
@@ -63,196 +60,238 @@ export class EngagementDispatcher {
     }
 
     /**
-     * Executes the full automated engagement sequence for a matched rule:
-     * 1. Check deduplication (skip if user already received DM on this post)
-     * 2. Auto-Like comment
-     * 3. Public comment reply (rotated)
-     * 4. Private Comment-to-DM with deliverable link
-     * 5. Record audit log & update telemetry counters
+     * Runs a matched rule for one comment / DM:
+     * 1. one-DM-per-user-per-post guard (DB history + a short Redis claim against concurrent deliveries)
+     * 2. per-platform capability plan (unsupported actions are skipped with a logged reason; IG/FB 7-day private-reply
+     *    window and "one message until the user replies")
+     * 3. token from the encrypted vault only
+     * 4. per-account leaky-bucket rate limit: when full, the whole event is stored as `rate_limited` with its payload and
+     *    retried by `retryDeferred()` (scheduler tick); nothing is dropped
+     * 5. real provider calls; only confirmed actions are reported/counted
+     * 6. audit log + counters (tenant-scoped writes)
      */
-    static async executeEngagement(rule: any, event: InboundEngagementEvent): Promise<EngagementExecutionResult> {
+    static async executeEngagement(rule: any, event: InboundEngagementEvent, opts: { existingLogId?: string; attempts?: number } = {}): Promise<EngagementExecutionResult> {
         const db = getDb();
-        const outcome: EngagementExecutionResult = {
-            matched: true,
-            ruleId: rule.id,
-            ruleName: rule.name,
-            commentLiked: false,
+        const nowMs = timing.now();
+        const outcome: EngagementExecutionResult = { matched: true, ruleId: rule.id, ruleName: rule.name, commentLiked: false, actions: [] };
+        const mediaKey = event.mediaId || event.postId || null;
+        const dedupTarget = mediaKey || event.commentId;
+
+        const writeLog = async (status: string, extra: Record<string, any> = {}) => {
+            const notes = (outcome.actions || []).filter((a) => a.status !== 'sent').map((a) => `${a.action}: ${a.reason}`).join('; ');
+            const data = {
+                status,
+                commentLiked: outcome.commentLiked,
+                publicReplySent: outcome.publicReplySent || null,
+                dmSent: outcome.dmSent || null,
+                errorMessage: outcome.error || notes || null,
+                ...extra,
+            };
+            try {
+                if (opts.existingLogId) {
+                    await db.socialInteractionLog.updateMany({ where: { id: opts.existingLogId, companyId: event.companyId }, data });
+                } else {
+                    await db.socialInteractionLog.create({
+                        data: {
+                            companyId: event.companyId,
+                            ruleId: rule.id,
+                            socialAccountId: event.socialAccountId,
+                            platform: event.platform,
+                            platformCommentId: event.commentId || null,
+                            platformMediaId: mediaKey,
+                            recipientId: event.senderId,
+                            recipientHandle: event.senderHandle,
+                            ...data,
+                        },
+                    });
+                }
+            } catch (err: any) {
+                console.warn(`[EngagementDispatcher] audit log write failed: ${err.message}`);
+            }
         };
 
-        // 1. Fetch the event's account (same company only) and its token from the encrypted vault.
-        //    There is no plaintext fallback: an account without vault credentials must be reconnected.
-        const account = await db.socialAccount.findFirst({
-            where: { id: event.socialAccountId, companyId: event.companyId },
-            select: VAULT_ACCOUNT_SELECT,
-        });
-
+        // 1. Account of the event's company only; tokens only from the vault.
+        const account = await db.socialAccount.findFirst({ where: { id: event.socialAccountId, companyId: event.companyId }, select: VAULT_ACCOUNT_SELECT });
         if (!account) {
             outcome.error = `Social account ${event.socialAccountId} not found`;
             return outcome;
         }
 
-        let token: string | null = null;
-        try {
-            token = await SocialTokenVault.getAccessToken(account);
-        } catch (err: any) {
-            outcome.error = `No usable credentials for this account: ${err.message}`;
+        // 2. One DM per user per post (per rule): DB history, then a claim so parallel deliveries cannot both pass.
+        if (await EngagementMatcher.isDuplicate(event.companyId, rule.id, event.senderId, dedupTarget)) {
+            outcome.skippedReason = 'duplicate';
+            if (opts.existingLogId) await writeLog('duplicate_skipped', { nextAttemptAt: null });
+            return outcome;
         }
-
-        // 2. Auto-Like Comment (Always engage with incoming comments to maximize reach)
-        if (rule.actionAutoLike && token) {
-            try {
-                if (event.platform === 'instagram' && event.commentId) {
-                    await InstagramPublisher.likeComment(event.commentId, token);
-                    outcome.commentLiked = true;
-                } else if (event.platform === 'linkedin' && event.commentId) {
-                    await LinkedInAdapter.likeComment(event.commentId, account.platformAccountId, token);
-                    outcome.commentLiked = true;
-                } else if (event.platform === 'youtube' && event.mediaId) {
-                    await YouTubeAdapter.likeVideo(event.mediaId, token);
-                    outcome.commentLiked = true;
-                } else {
-                    // Mark as engaged/liked on platforms without direct comment like API
-                    outcome.commentLiked = true;
-                }
-            } catch (err: any) {
-                console.warn(`[EngagementDispatcher] Like comment warning on ${event.platform}: ${err.message}`);
-            }
-        }
-
-        // 3. Deduplication Guard for DM / Private Deliverables
-        const isDuplicate = await EngagementMatcher.isDuplicate(
-            event.companyId,
-            rule.id,
-            event.senderId,
-            event.commentId || event.mediaId
-        );
-
-        if (isDuplicate) {
+        const claimKey = EngagementMatcher.buildDedupKey(event.companyId, rule.id, event.senderId, dedupTarget);
+        if (!(await EngagementRateLimiter.claim(claimKey, 10 * 60_000))) {
             outcome.skippedReason = 'duplicate';
             return outcome;
         }
 
-        // 4. Public Comment Reply (Rotated)
-        if (token && rule.actionPublicReplies && rule.actionPublicReplies.length > 0) {
-            try {
-                const replyText = this.pickRotatingPublicReply(rule.actionPublicReplies, event.senderHandle);
-                if (event.platform === 'instagram' && event.commentId) {
-                    await InstagramPublisher.replyToComment(event.commentId, replyText, token);
-                    outcome.publicReplySent = replyText;
-                } else if (event.platform === 'youtube' && event.commentId) {
-                    await YouTubeAdapter.replyToComment(event.commentId, replyText, token);
-                    outcome.publicReplySent = replyText;
-                } else if (event.platform === 'linkedin' && event.commentId) {
-                    await LinkedInAdapter.replyToComment(event.commentId, account.platformAccountId, replyText, token);
-                    outcome.publicReplySent = replyText;
-                } else if (event.platform === 'threads') {
-                    const targetId = event.commentId || event.mediaId || account.platformAccountId;
-                    await ThreadsAdapter.replyToThread(account.platformAccountId, targetId, replyText, token);
-                    outcome.publicReplySent = replyText;
-                } else if (event.platform === 'tiktok' && event.commentId) {
-                    await TikTokAdapter.replyToComment(event.commentId, replyText, token);
-                    outcome.publicReplySent = replyText;
-                } else {
-                    outcome.publicReplySent = replyText;
-                }
-            } catch (err: any) {
-                console.warn(`[EngagementDispatcher] Public reply comment warning on ${event.platform}: ${err.message}`);
-            }
-        }
-
-        // 5. Send Private DM (Comment-to-DM or Direct DM)
-        if (rule.actionSendDm && rule.actionDmTemplate && token) {
-            const dmText = this.interpolateTemplate(rule.actionDmTemplate, event, rule.actionDmDeliverableUrl);
-            try {
-                if (event.platform === 'instagram') {
-                    const pageOrAccountId = account.platformAccountId;
-                    if (event.commentId) {
-                        // Instagram Private Reply to Comment
-                        await InstagramPublisher.sendPrivateReply(pageOrAccountId, event.commentId, dmText, token);
-                    } else {
-                        // Direct Message
-                        await InstagramPublisher.sendDirectMessage(pageOrAccountId, event.senderId, dmText, token);
-                    }
-                    outcome.dmSent = dmText;
-                } else {
-                    outcome.dmSent = dmText;
-                }
-            } catch (err: any) {
-                outcome.error = `DM dispatch failed: ${err.message}`;
-            }
-        }
-
-        // 6. Record Deduplication in Cache
-        EngagementMatcher.recordDeduplication(event.companyId, rule.id, event.senderId, event.commentId || event.mediaId);
-
-        // 7. Ingest into SocialConversation & Record Outbound DM
         try {
-            const { conversation } = await SocialInboxService.ingestMessage({
-                companyId: event.companyId,
-                projectId: rule.projectId || undefined,
-                socialAccountId: event.socialAccountId,
-                platform: event.platform as any,
-                platformThreadId: event.senderId,
-                participantName: event.senderName || event.senderHandle,
-                participantHandle: event.senderHandle,
-                messageContent: event.text,
-                platformMessageId: event.commentId,
+            // 3. Capability plan with the sender's messaging history.
+            const conv = await db.socialConversation.findFirst({
+                where: { companyId: event.companyId, platform: event.platform, platformThreadId: event.senderId },
+                select: { id: true },
             });
-
-            // Update AI agent active state on the conversation
-            if (rule.actionEnableAiAgent !== undefined) {
-                await db.socialConversation.update({
-                    where: { id: conversation.id },
-                    data: { aiAgentActive: rule.actionEnableAiAgent },
-                }).catch(() => null);
+            let lastUser: number | null = null;
+            let lastBusiness: number | null = null;
+            if (conv) {
+                const msgs = await db.socialMessage.findMany({ where: { conversationId: conv.id }, orderBy: { createdAt: 'desc' }, take: 20 });
+                for (const m of msgs) {
+                    const t = new Date(m.createdAt).getTime();
+                    if (m.senderType === 'participant') lastUser = Math.max(lastUser ?? 0, t);
+                    else lastBusiness = Math.max(lastBusiness ?? 0, t);
+                }
+            }
+            if (event.eventType === 'dm') lastUser = Math.max(lastUser ?? 0, event.timestamp || nowMs);
+            const plan = planEngagementActions(event.platform, rule, event, {
+                commentAtMs: event.timestamp,
+                lastUserMessageAtMs: lastUser,
+                lastBusinessMessageAtMs: lastBusiness,
+                nowMs,
+            });
+            for (const p of plan) {
+                if (!p.run && p.skipReason !== 'not_configured_on_rule') {
+                    outcome.actions!.push({ action: p.action, status: 'skipped', reason: p.detail ? `${p.skipReason} (${p.detail})` : String(p.skipReason) });
+                }
+            }
+            const toRun = plan.filter((p) => p.run);
+            if (!toRun.length) {
+                await writeLog('skipped', { nextAttemptAt: null });
+                return outcome;
             }
 
-            // Record the outbound bot response in conversation history
+            // 4. Token.
+            let token: string;
+            try {
+                token = await SocialTokenVault.getAccessToken(account);
+            } catch (err: any) {
+                outcome.error = `No usable credentials for this account: ${err.message}`;
+                await writeLog('failed', { nextAttemptAt: null });
+                return outcome;
+            }
+
+            // 5. Rate limit: all planned actions or none; otherwise defer the whole event.
+            const decision = await EngagementRateLimiter.take(account.id, toRun.length, nowMs);
+            if (!decision.allowed) {
+                const attempts = (opts.attempts ?? 0) + 1;
+                outcome.skippedReason = 'rate_limited';
+                outcome.retryAfterMs = decision.retryAfterMs;
+                await writeLog(attempts > MAX_DEFER_ATTEMPTS ? 'failed' : 'rate_limited', {
+                    attempts,
+                    nextAttemptAt: new Date(nowMs + decision.retryAfterMs),
+                    payload: { kind: 'rule', ruleId: rule.id, event },
+                    errorMessage: `rate limited (${EngagementRateLimiter.limitPerMinute()}/min per account); retry in ${Math.ceil(decision.retryAfterMs / 1000)}s`,
+                });
+                return outcome;
+            }
+
+            // 6. Execute.
+            const run = async (action: 'like' | 'reply' | 'dm', fn: () => Promise<void>) => {
+                try {
+                    await fn();
+                    outcome.actions!.push({ action, status: 'sent' });
+                    return true;
+                } catch (err: any) {
+                    outcome.actions!.push({ action, status: 'failed', reason: String(err?.message || err).slice(0, 300) });
+                    return false;
+                }
+            };
+            for (const p of toRun) {
+                if (p.action === 'like') {
+                    if (await run('like', () => likeComment(event.platform, account, event.commentId!, token))) outcome.commentLiked = true;
+                } else if (p.action === 'reply') {
+                    const text = this.pickRotatingPublicReply(rule.actionPublicReplies, event.senderHandle);
+                    if (await run('reply', () => replyToComment(event.platform, account, event.commentId!, text, token, event.mediaId))) outcome.publicReplySent = text;
+                } else {
+                    const text = this.interpolateTemplate(rule.actionDmTemplate, event, rule.actionDmDeliverableUrl);
+                    const ok = await run('dm', () =>
+                        event.eventType === 'dm'
+                            ? sendDirectMessage(event.platform, account, event.senderId, text, token)
+                            : sendPrivateReply(event.platform, account, event.commentId!, event.senderId, text, token),
+                    );
+                    if (ok) outcome.dmSent = text;
+                }
+            }
+
+            // 7. Record the DM in the sender's thread (so the inbox and the "one message until reply" rule see it).
             if (outcome.dmSent) {
-                await db.socialMessage.create({
-                    data: {
-                        conversationId: conversation.id,
-                        senderType: 'ai_bot',
-                        content: outcome.dmSent,
-                    },
-                }).catch(() => null);
+                try {
+                    const thread = await db.socialConversation.upsert({
+                        where: { companyId_platform_platformThreadId: { companyId: event.companyId, platform: event.platform, platformThreadId: event.senderId } },
+                        update: { lastMessageSnippet: outcome.dmSent.substring(0, 120), lastMessageAt: new Date(nowMs), aiAgentActive: Boolean(rule.actionEnableAiAgent) },
+                        create: {
+                            companyId: event.companyId,
+                            projectId: rule.projectId || event.projectId || null,
+                            socialAccountId: event.socialAccountId,
+                            platform: event.platform,
+                            platformThreadId: event.senderId,
+                            participantName: event.senderName || event.senderHandle,
+                            participantHandle: event.senderHandle,
+                            lastMessageSnippet: outcome.dmSent.substring(0, 120),
+                            lastMessageAt: new Date(nowMs),
+                            isRead: true,
+                            aiAgentActive: Boolean(rule.actionEnableAiAgent),
+                        },
+                    });
+                    await db.socialMessage.create({ data: { conversationId: thread.id, senderType: 'ai_bot', content: outcome.dmSent } });
+                } catch (err: any) {
+                    console.warn(`[EngagementDispatcher] conversation sync warning: ${err.message}`);
+                }
             }
-        } catch (err: any) {
-            console.warn(`[EngagementDispatcher] Conversation sync warning: ${err.message}`);
+
+            // 8. Audit + counters (only confirmed actions count).
+            const sent = outcome.actions!.filter((a) => a.status === 'sent').length;
+            const failures = outcome.actions!.filter((a) => a.status === 'failed');
+            const status = failures.length === 0 ? 'success' : sent > 0 ? 'partial' : 'failed';
+            if (status === 'failed') outcome.error = failures.map((a) => `${a.action}: ${a.reason}`).join('; ');
+            await writeLog(status, { nextAttemptAt: null });
+            await db.socialEngagementRule
+                .updateMany({
+                    where: { id: rule.id, companyId: event.companyId },
+                    data: {
+                        statsTriggeredCount: { increment: 1 },
+                        ...(outcome.dmSent ? { statsDmsSentCount: { increment: 1 } } : {}),
+                        ...(outcome.commentLiked ? { statsCommentsLiked: { increment: 1 } } : {}),
+                    },
+                })
+                .catch(() => null);
+            if (status !== 'failed') EngagementMatcher.recordDeduplication(event.companyId, rule.id, event.senderId, dedupTarget);
+            return outcome;
+        } finally {
+            await EngagementRateLimiter.release(claimKey);
         }
+    }
 
-        // 8. Write Audit Log & Increment Counters
-        try {
-            await db.socialInteractionLog.create({
-                data: {
-                    companyId: event.companyId,
-                    ruleId: rule.id,
-                    socialAccountId: event.socialAccountId,
-                    platform: event.platform,
-                    platformCommentId: event.commentId || null,
-                    recipientId: event.senderId,
-                    recipientHandle: event.senderHandle,
-                    status: outcome.error ? 'failed' : 'success',
-                    commentLiked: outcome.commentLiked,
-                    publicReplySent: outcome.publicReplySent || null,
-                    dmSent: outcome.dmSent || null,
-                    errorMessage: outcome.error || null,
-                },
-            });
-
-            // Increment live metrics
-            await db.socialEngagementRule.update({
-                where: { id: rule.id },
-                data: {
-                    statsTriggeredCount: { increment: 1 },
-                    ...(outcome.dmSent ? { statsDmsSentCount: { increment: 1 } } : {}),
-                    ...(outcome.commentLiked ? { statsCommentsLiked: { increment: 1 } } : {}),
-                },
-            }).catch(() => null);
-        } catch (err: any) {
-            console.warn(`[EngagementDispatcher] Stats increment warning: ${err.message}`);
+    /**
+     * Re-runs rate-limited events whose retry time has come (called from the publishing scheduler tick).
+     * Rows are claimed with a conditional update, so several workers never replay the same event.
+     */
+    static async retryDeferred(opts: { limit?: number } = {}): Promise<{ retried: number }> {
+        const db = getDb();
+        const now = new Date(timing.now());
+        const due = await db.socialInteractionLog.findMany({
+            where: { status: 'rate_limited', nextAttemptAt: { lte: now } },
+            orderBy: { nextAttemptAt: 'asc' },
+            take: opts.limit ?? 25,
+        });
+        let retried = 0;
+        for (const row of due) {
+            const claimed = await db.socialInteractionLog.updateMany({ where: { id: row.id, companyId: row.companyId, status: 'rate_limited' }, data: { status: 'retrying' } });
+            if (!claimed.count) continue;
+            const payload = row.payload as any;
+            const rule = payload?.ruleId ? await db.socialEngagementRule.findFirst({ where: { id: payload.ruleId, companyId: row.companyId } }) : null;
+            if (!rule || rule.status !== 'active' || !payload?.event || payload.event.companyId !== row.companyId) {
+                await db.socialInteractionLog.updateMany({ where: { id: row.id, companyId: row.companyId }, data: { status: 'failed', errorMessage: 'rule no longer active; deferred event discarded' } });
+                continue;
+            }
+            await this.executeEngagement(rule, payload.event, { existingLogId: row.id, attempts: row.attempts ?? 0 });
+            retried++;
         }
-
-        return outcome;
+        return { retried };
     }
 }
+
+const MAX_DEFER_ATTEMPTS = 20;

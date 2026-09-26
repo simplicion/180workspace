@@ -21,6 +21,16 @@ import {
 } from "@workspace/video-contracts";
 import { ExportResult } from "../services/tauri-bridge";
 
+/** Upload of the finished export to the calendar piece / post the Studio was opened from. */
+export interface ExportAttachState {
+  status: "uploading" | "done" | "error";
+  /** 0..100 */
+  progress: number;
+  /** "calendar piece" | "post" */
+  label: string;
+  message?: string;
+}
+
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,6 +41,10 @@ interface ExportModalProps {
   exportedResult?: ExportResult | null;
   exportedPath?: string | null;
   onCancelExport?: () => void;
+  attachState?: ExportAttachState | null;
+  onRetryAttach?: () => void;
+  /** Second recovery path: the user picks the exported MP4 from disk. */
+  onAttachFile?: (file: File) => void;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -43,7 +57,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   exportedResult,
   exportedPath,
   onCancelExport,
+  attachState,
+  onRetryAttach,
+  onAttachFile,
 }) => {
+  const attachFileRef = React.useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<"video" | "nle" | "bundle" | "subtitles">("video");
   const [resolution, setResolution] = useState("1080p");
   const [fps, setFps] = useState(30);
@@ -463,6 +481,56 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               ) : (
                 <div className="text-xs text-zinc-400 font-mono break-all bg-[#111114] p-2.5 rounded-xl border border-[#1C1C22]">
                   {exportedResult?.savedPath ? `Saved to ${exportedResult.savedPath}` : exportedPath}
+                </div>
+              )}
+
+              {attachState && (
+                <div className="p-3 rounded-xl bg-[#0E0E12] border border-[#1C1C22] space-y-2" aria-live="polite">
+                  {attachState.status === "uploading" && (
+                    <>
+                      <p className="text-[11px] text-zinc-300">Attaching to the {attachState.label}... {attachState.progress}%</p>
+                      <div className="h-1.5 rounded-full bg-[#1C1C22] overflow-hidden">
+                        <div className="h-full bg-indigo-500 transition-all" style={{ width: `${attachState.progress}%` }} />
+                      </div>
+                    </>
+                  )}
+                  {attachState.status === "done" && (
+                    <p className="text-[11px] text-emerald-300">Attached to the {attachState.label} and sent for review.</p>
+                  )}
+                  {attachState.status === "error" && (
+                    <>
+                      <p className="text-[11px] text-red-300">Could not attach the export: {attachState.message}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {onRetryAttach && (
+                          <button
+                            onClick={onRetryAttach}
+                            className="min-h-[44px] px-4 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-semibold transition"
+                          >
+                            Retry upload
+                          </button>
+                        )}
+                        {onAttachFile && (
+                          <button
+                            onClick={() => attachFileRef.current?.click()}
+                            className="min-h-[44px] px-4 rounded-xl border border-[#2A2A32] text-xs font-semibold text-zinc-300 hover:bg-[#16161C] transition"
+                          >
+                            Pick the MP4 file
+                          </button>
+                        )}
+                        <input
+                          ref={attachFileRef}
+                          type="file"
+                          accept="video/mp4,video/quicktime"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            e.target.value = "";
+                            if (f && onAttachFile) onAttachFile(f);
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

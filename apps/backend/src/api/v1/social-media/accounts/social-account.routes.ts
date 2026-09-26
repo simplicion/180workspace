@@ -8,6 +8,9 @@ import {
     LinkedInDiagnosticsService,
     LinkedInPublishingTools,
     LinkedInProviderFactory,
+    YouTubeDiagnosticsService,
+    YouTubePublishingTools,
+    YouTubeProviderFactory,
 } from '@workspace/social-media';
 import { prisma } from '@workspace/db';
 import { requireRole } from '../../../../system-configs/middleware/auth/rbac';
@@ -296,6 +299,157 @@ router.get('/linkedin/analytics', async (req: Request, res: Response) => {
                 socialAccountId: String(accountId),
             },
             String(period || '30d'),
+        );
+        res.json({ success: true, analytics });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// YouTube diagnostic report (Safe for admins: zero secret leakage)
+router.get('/youtube/diagnose', async (req: Request, res: Response) => {
+    try {
+        const companyId = (req as any).user?.companyId;
+        const diagnostics = await YouTubeDiagnosticsService.runDiagnostics(companyId);
+        res.json({ success: true, diagnostics });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// YouTube capabilities for a given account or generic platform capabilities
+router.get('/youtube/capabilities', async (req: Request, res: Response) => {
+    try {
+        const { accountId } = req.query;
+        const provider = YouTubeProviderFactory.getProvider();
+        if (accountId) {
+            const companyId = (req as any).user?.companyId;
+            const account = await (prisma as any).socialAccount.findFirst({
+                where: { id: String(accountId), companyId, platform: 'youtube' },
+            });
+            if (!account) return res.status(404).json({ success: false, error: 'YouTube account not found' });
+            const capabilities = provider.getCapabilities({
+                scopes: account.scopes || [],
+                isTokenExpired: account.reauthRequired,
+            });
+            return res.json({ success: true, capabilities });
+        }
+        const defaultCaps = provider.getCapabilities({ scopes: [] });
+        res.json({ success: true, capabilities: defaultCaps });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// YouTube Channel information
+router.get('/youtube/channel', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId } = req.query;
+        if (!accountId || !projectId) {
+            return res.status(400).json({ success: false, error: 'accountId and projectId are required' });
+        }
+        const channel = await YouTubePublishingTools.getChannel({
+            companyId: user?.companyId,
+            projectId: String(projectId),
+            userId: user?.id,
+            socialAccountId: String(accountId),
+        });
+        res.json({ success: true, channel });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// YouTube Comments (List & Reply)
+router.get('/youtube/comments', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId, videoId, limit } = req.query;
+        if (!accountId || !projectId || !videoId) {
+            return res.status(400).json({ success: false, error: 'accountId, projectId, and videoId are required' });
+        }
+        const comments = await YouTubePublishingTools.listComments(
+            {
+                companyId: user?.companyId,
+                projectId: String(projectId),
+                userId: user?.id,
+                socialAccountId: String(accountId),
+            },
+            String(videoId),
+            limit ? Number(limit) : 20,
+        );
+        res.json({ success: true, comments });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+router.post('/youtube/comments/:commentId/reply', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId, text } = req.body || {};
+        if (!accountId || !projectId || !text) {
+            return res.status(400).json({ success: false, error: 'accountId, projectId, and text are required' });
+        }
+        const reply = await YouTubePublishingTools.replyComment(
+            {
+                companyId: user?.companyId,
+                projectId: String(projectId),
+                userId: user?.id,
+                socialAccountId: String(accountId),
+            },
+            String(req.params.commentId),
+            String(text),
+        );
+        res.status(201).json({ success: true, reply });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// YouTube Video Like / Rating
+router.post('/youtube/videos/:videoId/like', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId } = req.body || {};
+        if (!accountId || !projectId) {
+            return res.status(400).json({ success: false, error: 'accountId and projectId are required' });
+        }
+        const result = await YouTubePublishingTools.likeVideo(
+            {
+                companyId: user?.companyId,
+                projectId: String(projectId),
+                userId: user?.id,
+                socialAccountId: String(accountId),
+            },
+            String(req.params.videoId),
+        );
+        res.json({ success: true, liked: result });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+// YouTube Analytics
+router.get('/youtube/analytics', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { accountId, projectId, startDate, endDate } = req.query;
+        if (!accountId || !projectId) {
+            return res.status(400).json({ success: false, error: 'accountId and projectId are required' });
+        }
+        const start = String(startDate || new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10));
+        const end = String(endDate || new Date().toISOString().slice(0, 10));
+        const analytics = await YouTubePublishingTools.getAnalytics(
+            {
+                companyId: user?.companyId,
+                projectId: String(projectId),
+                userId: user?.id,
+                socialAccountId: String(accountId),
+            },
+            start,
+            end,
         );
         res.json({ success: true, analytics });
     } catch (error: any) {

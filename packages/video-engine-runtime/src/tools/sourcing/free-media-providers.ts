@@ -92,8 +92,7 @@ export function normalizeLicense(raw: string | null | undefined, version?: strin
   const v = String(raw || "").trim().toLowerCase();
   if (!v) return null;
   // Anything non-commercial or no-derivatives is out, whatever else it says.
-  if (/(^|[^a-z])(nc|nd)([^a-z]|$)/.test(v.replace(/by-nc|by-nd|-nc-|-nd-|-nc$|-nd$/g, " nc "))) return null;
-  if (/non-?commercial|noderiv|no-?derivatives/.test(v)) return null;
+  if (/(^|[^a-z])(nc|nd)([^a-z]|$)/.test(v) || /non-?commercial|noderiv|no-?derivatives|gfdl|fair.?use|non-?free/.test(v)) return null;
   if (v === "cc0" || v.includes("publicdomain/zero") || /^cc0[- ]/.test(v) || v === "cc-zero") {
     return { license: "CC0-1.0", licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/", licenseClass: "cc0", creditRequired: false };
   }

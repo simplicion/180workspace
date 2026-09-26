@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { SocialInboxService, AiReplyAllService } from '@workspace/social-media';
 import { prisma, requestContext } from '@workspace/db';
+import { sendRouteError } from '../route-errors';
 
 const router = Router();
 
@@ -9,7 +10,7 @@ function getCompanyId(req: Request): string {
     if (fromContext) return String(fromContext);
     const fromUser = (req as any).user?.companyId;
     if (fromUser) return String(fromUser);
-    throw new Error('Authentication / Company context required');
+    throw Object.assign(new Error('Authentication / Company context required'), { code: 'UNAUTHENTICATED', statusCode: 401 });
 }
 
 // List conversations
@@ -24,7 +25,7 @@ router.get('/conversations', async (req: Request, res: Response) => {
         });
         res.json({ success: true, conversations });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'inbox');
     }
 });
 
@@ -34,7 +35,7 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
         const conversation = await SocialInboxService.getConversation(String(req.params.id));
         res.json({ success: true, conversation });
     } catch (error: any) {
-        res.status(404).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'inbox');
     }
 });
 
@@ -45,7 +46,7 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
         const message = await SocialInboxService.sendMessage(String(req.params.id), content, senderType);
         res.status(201).json({ success: true, message });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'inbox');
     }
 });
 
@@ -55,17 +56,17 @@ router.get('/conversations/:id/ai-suggestions', async (req: Request, res: Respon
         const suggestions = await SocialInboxService.generateAiSmartReplies(String(req.params.id));
         res.json({ success: true, ...suggestions });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'inbox');
     }
 });
 
 // 1-Click "Convert to CRM Lead"
 router.post('/conversations/:id/convert-to-lead', async (req: Request, res: Response) => {
     try {
-        const result = await SocialInboxService.convertToCrmLead(String(req.params.id));
+        const result = await SocialInboxService.convertToCrmLead(String(req.params.id), getCompanyId(req));
         res.json(result);
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'inbox');
     }
 });
 
@@ -84,7 +85,7 @@ router.post('/ai-reply-all/suggestions', async (req: Request, res: Response) => 
         });
         res.json({ success: true, count: suggestions.length, suggestions });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'inbox');
     }
 });
 
@@ -102,7 +103,7 @@ router.post('/ai-reply-all/dispatch', async (req: Request, res: Response) => {
         const result = await AiReplyAllService.executeBatchReply(companyId, replies);
         res.json({ success: true, ...result });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'inbox');
     }
 });
 
@@ -113,20 +114,19 @@ router.post('/ai-reply-all/dispatch', async (req: Request, res: Response) => {
 router.post('/conversations/:id/toggle-agent', async (req: Request, res: Response) => {
     try {
         const companyId = getCompanyId(req);
-        const conv = await (prisma as any).socialConversation.findUnique({ where: { id: req.params.id } });
-        if (!conv || conv.companyId !== companyId) {
+        const conv = await (prisma as any).socialConversation.findFirst({ where: { id: String(req.params.id), companyId } });
+        if (!conv) {
             return res.status(404).json({ success: false, error: 'Conversation not found' });
         }
-        const updated = await (prisma as any).socialConversation.update({
-            where: { id: req.params.id },
-            data: {
-                aiAgentActive: req.body.active !== undefined ? Boolean(req.body.active) : !conv.aiAgentActive,
-                isHumanTakeover: false, // Reset human takeover when agent is manually toggled
-            },
-        });
+        const data = {
+            aiAgentActive: req.body.active !== undefined ? Boolean(req.body.active) : !conv.aiAgentActive,
+            isHumanTakeover: false, // Reset human takeover when agent is manually toggled
+        };
+        await (prisma as any).socialConversation.updateMany({ where: { id: String(req.params.id), companyId }, data });
+        const updated = { ...conv, ...data };
         res.json({ success: true, aiAgentActive: updated.aiAgentActive, isHumanTakeover: updated.isHumanTakeover });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'inbox');
     }
 });
 
@@ -137,19 +137,18 @@ router.post('/conversations/:id/toggle-agent', async (req: Request, res: Respons
 router.post('/conversations/:id/takeover', async (req: Request, res: Response) => {
     try {
         const companyId = getCompanyId(req);
-        const conv = await (prisma as any).socialConversation.findUnique({ where: { id: req.params.id } });
-        if (!conv || conv.companyId !== companyId) {
+        const conv = await (prisma as any).socialConversation.findFirst({ where: { id: String(req.params.id), companyId } });
+        if (!conv) {
             return res.status(404).json({ success: false, error: 'Conversation not found' });
         }
-        const updated = await (prisma as any).socialConversation.update({
-            where: { id: req.params.id },
-            data: {
-                isHumanTakeover: true,
-            },
-        });
+        const data = {
+            isHumanTakeover: true,
+        };
+        await (prisma as any).socialConversation.updateMany({ where: { id: String(req.params.id), companyId }, data });
+        const updated = { ...conv, ...data };
         res.json({ success: true, isHumanTakeover: updated.isHumanTakeover });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        sendRouteError(res, error, 'inbox');
     }
 });
 

@@ -37,6 +37,8 @@ export class SocialPublishScheduler {
         result.recovered = await PublishDispatcher.recoverStale().catch(() => 0);
         result.reconciled = await PublishDispatcher.reconcileProcessing().catch(() => 0);
         await SocialTokenVault.proactiveRefreshExpiringTokens().catch(() => ({ refreshed: 0, failed: 0 }));
+        // 180 Engagement: replay comment/DM automations that were deferred by the per-account rate limit.
+        await require('../engagement/engagement-dispatcher').EngagementDispatcher.retryDeferred().catch((e: any) => result.errors.push({ postId: "engagement-retry", error: String(e?.message || e) }));
 
         const now = new Date(timing.now());
         const due = await db.socialPost.findMany({

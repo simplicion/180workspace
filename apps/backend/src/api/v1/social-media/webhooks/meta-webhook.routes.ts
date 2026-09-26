@@ -20,7 +20,13 @@ metaWebhookRouter.get('/', (req: Request, res: Response) => {
  * Meta webhook real-time event notifications (Page, Instagram, Threads, Messenger).
  */
 metaWebhookRouter.post('/', async (req: Request, res: Response) => {
-    const rawBody = (req as any).rawBody || Buffer.from(JSON.stringify(req.body || {}));
+    if (!MetaWebhooksService.isSignatureConfigured()) {
+        console.error('[MetaWebhook] META_WEBHOOK_APP_SECRET / META_APP_SECRET is not set; refusing unsigned-verifiable events.');
+        return res.status(503).json({ error: 'Webhook signature secret is not configured on this server' });
+    }
+    // The exact bytes Meta signed (server.js keeps them); a re-serialised body would not verify.
+    const rawBody = (req as any).rawBody;
+    if (!rawBody) return res.status(400).json({ error: 'Raw request body unavailable for signature verification' });
     const signature = req.headers['x-hub-signature-256'] as string | undefined;
 
     const isValid = MetaWebhooksService.verifySignature(rawBody, signature);

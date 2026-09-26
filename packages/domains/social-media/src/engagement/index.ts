@@ -4,3 +4,7 @@ export * from './engagement-dispatcher';
 export * from './ai-engagement-agent';
 export * from './ai-reply-all.service';
 export * from './engagement-rule.service';
+export * from './capabilities';
+export * from './rate-limiter';
+export * from './platform-actions';
+export * from './engagement-ai';

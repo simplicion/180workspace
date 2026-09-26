@@ -136,6 +136,8 @@ pub fn run() {
             media::probe_media,
             media::pick_export_path,
             media::transcode_media,
+            media::detect_silences,
+            media::extract_audio_for_transcription,
             render::render_timeline,
             render::render_status,
             render::cancel_render,

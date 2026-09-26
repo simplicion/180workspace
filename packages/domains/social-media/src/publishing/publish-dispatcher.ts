@@ -61,7 +61,23 @@ export interface DispatchResult {
 }
 
 const leaseMs = () => intEnv('SOCIAL_PUBLISH_LEASE_MS', 30 * 60 * 1000);
-const OK_STATES = ['published', 'processing'];
+const OK_STATES = ['published', 'processing', 'ready_to_publish', 'user_action_required'];
+
+/**
+ * Determines if a platform/variant operates in user-assisted publishing mode.
+ * For user-assisted platforms (X and Reddit by default unless explicit API credentials and token are configured),
+ * 180 Workspace prepares the payload for secure on-device handoff rather than dispatching via platform REST/Graph API.
+ */
+export function isAssistedPlatform(platform: string, variant?: any): boolean {
+    const p = normalizePlatform(platform);
+    if (!p) return false;
+    const meta = asObj(variant?.platformMeta);
+    if (meta.publishingMode === 'user_assisted') return true;
+    if (meta.publishingMode === 'api') return false;
+    // Default X and Reddit to user-assisted mode if server API credentials are not configured
+    if ((p === 'x' || p === 'reddit') && !isPlatformConfigured(p)) return true;
+    return false;
+}
 
 export const projectRequiresApproval = (project: any) => {
     const s = project?.socialSettings;
@@ -164,28 +180,38 @@ export class PublishDispatcher {
             if (!platform) issues.push(`Unsupported platform ${v.platform}.`);
             else {
                 const simulated = isSimulationMode();
-                if (!simulated && !isPlatformConfigured(platform)) issues.push(`${platform} publishing is not configured on this server (${credentialEnvNames(platform).join(', ')}).`);
-                try {
-                    let account: any;
-                    try {
-                        account = await this.resolveAccount(post, v, platform);
-                    } catch (accErr) {
-                        if (simulated) {
-                            account = {
-                                id: `sim_acc_${platform}`,
-                                platformAccountId: `sim_${platform}_account`,
-                                username: `sandbox_${platform}`,
-                                accountName: `${platform.toUpperCase()} Sandbox`,
-                                metadata: {},
-                            };
-                        } else {
-                            throw accErr;
-                        }
+                const assisted = isAssistedPlatform(platform, v);
+                if (!simulated && !assisted && !isPlatformConfigured(platform)) {
+                    issues.push(`${platform} publishing is not configured on this server (${credentialEnvNames(platform).join(', ')}).`);
+                }
+                if (assisted) {
+                    // In user-assisted mode, validate only content requirements (no OAuth credentials required)
+                    if (!v.customContent && !post.content) {
+                        issues.push(`A caption or text is required for ${platform}.`);
                     }
-                    if (account.reauthRequired) issues.push(`${account.accountName} must be reconnected.`);
-                    issues.push(...getPublisher(platform).validate(buildPublishInput(post, v, account, platform)));
-                } catch (e: any) {
-                    issues.push(e.message);
+                } else {
+                    try {
+                        let account: any;
+                        try {
+                            account = await this.resolveAccount(post, v, platform);
+                        } catch (accErr) {
+                            if (simulated) {
+                                account = {
+                                    id: `sim_acc_${platform}`,
+                                    platformAccountId: `sim_${platform}_account`,
+                                    username: `sandbox_${platform}`,
+                                    accountName: `${platform.toUpperCase()} Sandbox`,
+                                    metadata: {},
+                                };
+                            } else {
+                                throw accErr;
+                            }
+                        }
+                        if (account.reauthRequired) issues.push(`${account.accountName} must be reconnected.`);
+                        issues.push(...getPublisher(platform).validate(buildPublishInput(post, v, account, platform)));
+                    } catch (e: any) {
+                        issues.push(e.message);
+                    }
                 }
             }
             out.push({ platform: v.platform, publishStatus: v.publishStatus, issues });
@@ -221,8 +247,12 @@ export class PublishDispatcher {
             return this.summarize(post.id, opts, 'Nothing to publish: every selected platform is already published.');
         }
 
-        const unconfigured = targets.map((v: any) => normalizePlatform(v.platform)).filter((p: any) => p && !isPlatformConfigured(p));
-        if (!opts.claimed && unconfigured.length === targets.length && !isSimulationMode()) {
+        const unconfigured = targets
+            .map((v: any) => ({ platform: normalizePlatform(v.platform), variant: v }))
+            .filter(({ platform, variant }: any) => platform && !isPlatformConfigured(platform) && !isAssistedPlatform(platform, variant))
+            .map(({ platform }: any) => platform);
+
+        if (!opts.claimed && unconfigured.length === targets.length && targets.length > 0 && !isSimulationMode()) {
             // Nothing could succeed: answer 503 without touching the post.
             requireAppCredentials(unconfigured[0] as PublishPlatform);
         }
@@ -325,6 +355,37 @@ export class PublishDispatcher {
 
         try {
             if (!platform) throw new PublishError('UNSUPPORTED_PLATFORM', `Unsupported platform "${variant.platform}".`);
+            
+            if (isAssistedPlatform(platform, variant)) {
+                // User-assisted publishing: prepare for mobile handoff
+                const done = new Date(timing.now());
+                const existingMeta = asObj(variant.platformMeta);
+                await db.socialPostVariant.update({
+                    where: { id: variant.id },
+                    data: {
+                        publishStatus: 'ready_to_publish',
+                        lastError: 'Ready for user-assisted handoff via mobile app.',
+                        lastErrorCode: null,
+                        lastErrorRetryable: false,
+                        publishLeaseUntil: null,
+                        platformMeta: {
+                            ...existingMeta,
+                            publishingMode: 'user_assisted',
+                            preparedAt: done.toISOString(),
+                        },
+                    },
+                });
+                await db.socialPublishAttempt.update({
+                    where: { id: attempt.id },
+                    data: {
+                        status: 'processing',
+                        finishedAt: done,
+                        errorMessage: 'Handoff payload prepared for user review in mobile app.',
+                    },
+                });
+                return;
+            }
+
             const simulated = isSimulationMode();
             if (!simulated) {
                 requireAppCredentials(platform);
@@ -405,21 +466,27 @@ export class PublishDispatcher {
         for (const v of variants) {
             if (OK_STATES.includes(v.publishStatus)) {
                 if (v.externalUrl) publishedLinks[v.platform] = v.externalUrl;
-                if (v.lastError) warnings[v.platform] = v.lastError;
+                if (v.lastError && v.publishStatus !== 'ready_to_publish' && v.publishStatus !== 'user_action_required') {
+                    warnings[v.platform] = v.lastError;
+                }
             } else if (v.publishStatus === 'failed') {
                 errors[v.platform] = v.lastError || 'Publishing failed';
             } else if (v.publishStatus === 'pending') {
                 errors[v.platform] = 'Not published yet';
             }
         }
+        const publishedVariants = variants.filter((v) => v.publishStatus === 'published');
         const ok = variants.filter((v) => OK_STATES.includes(v.publishStatus));
         const processing = variants.filter((v) => v.publishStatus === 'processing');
+        const assistedAwaiting = variants.filter((v) => ['ready_to_publish', 'user_action_required'].includes(v.publishStatus));
         const failed = variants.filter((v) => v.publishStatus === 'failed');
         const inFlight = variants.filter((v) => v.publishStatus === 'publishing');
 
         let status: string;
         if (inFlight.length) status = 'publishing';
-        else if (ok.length === variants.length && variants.length) status = processing.length ? 'publishing' : 'published';
+        else if (publishedVariants.length === variants.length && variants.length) status = 'published';
+        else if (assistedAwaiting.length === variants.length) status = 'ready';
+        else if (ok.length === variants.length && variants.length) status = processing.length ? 'publishing' : 'ready';
         else if (ok.length) status = 'partially_published';
         else status = 'failed';
 

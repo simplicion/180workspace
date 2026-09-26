@@ -9,6 +9,8 @@ fn main() {
             "probe_media",
             "pick_export_path",
             "transcode_media",
+            "detect_silences",
+            "extract_audio_for_transcription",
             "render_timeline",
             "render_status",
             "cancel_render",

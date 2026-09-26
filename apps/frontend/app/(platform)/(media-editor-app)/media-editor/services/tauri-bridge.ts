@@ -80,6 +80,146 @@ export interface ExportOptions {
   onNotice?: (message: string) => void;
 }
 
+// ── AI Director (web) ────────────────────────────────────────────────────────
+
+/** Client-side limit for one AI Director turn (the server's own LLM timeout is shorter). */
+export const DIRECTOR_REQUEST_TIMEOUT_MS = 90_000;
+
+/** "offline" = on-device keyword rules the user chose after the AI Director failed. */
+export type DirectorPlannerSource = "llm" | "deterministic" | "offline";
+
+export interface DirectorTurnContext {
+  projectId?: string;
+  calendarPieceId?: string;
+  postId?: string;
+}
+
+export interface DirectorHistoryTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/** Speech telemetry in the shape the server's web director reads (`telemetry.transcript` / `telemetry.silenceGaps`). */
+export interface DirectorTelemetry {
+  transcript: Array<{ word: string; startSeconds: number; endSeconds: number; confidence?: number; isEmphasis?: boolean }>;
+  silenceGaps: Array<{ timeRange: { start: any; duration: any }; averageDecibels?: number }>;
+}
+
+export interface DirectorPipelineOptions {
+  availableAssets?: MediaAssetDescriptor[];
+  selectedClipId?: string | null;
+  playheadSec?: number;
+  mediaGraph?: MediaIntelligenceGraph;
+  telemetry?: DirectorTelemetry;
+  context?: DirectorTurnContext;
+  history?: DirectorHistoryTurn[];
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  onProgress?: (event: AIDirectorProgressEvent) => void;
+}
+
+export interface DirectorPipelineResult {
+  editIR: EditIR;
+  outputPath: string;
+  reply?: string;
+  actions?: string[];
+  isConfigured?: boolean;
+  requiresConfirmation?: boolean;
+  confirmationDetails?: { whatFound: string; whatWillChange: string; assumptions: string };
+  plannerSource: DirectorPlannerSource;
+  plannerReason?: string;
+  warnings: string[];
+  /** Whether local speech telemetry went with the request. */
+  sentTelemetry: boolean;
+}
+
+export interface DirectorGreeting {
+  greeting: string;
+  suggestedPrompt: string | null;
+  steps: string[];
+  warnings: string[];
+  brand: { projectId: string; name?: string; highlightColor: string; captionPreset: string; font: string; logoUrl: string | null } | null;
+  piece: { calendarPieceId?: string; postId?: string; headline?: string; platform?: string; hook?: string; targetDurationSec?: number } | null;
+}
+
+export class DirectorRequestError extends Error {
+  constructor(public code: string, message: string, public status?: number) {
+    super(message);
+    this.name = "DirectorRequestError";
+  }
+}
+
+/** projectId / calendarPieceId / postId from the Studio URL. `project` is the local editor project, not a social project. */
+export function directorContextFromUrl(search?: string): DirectorTurnContext {
+  const src = search ?? (typeof window !== "undefined" ? window.location.search : "");
+  const p = new URLSearchParams(src);
+  const v = (k: string) => {
+    const x = p.get(k);
+    return x && x.length <= 128 ? x : undefined;
+  };
+  return { projectId: v("projectId"), calendarPieceId: v("calendarPieceId"), postId: v("postId") };
+}
+
+const ms = (v: number) => ({ value: Math.max(0, Math.round(v)), timescale: 1000 });
+
+/** Transcript words (server STT) + pauses (local ffmpeg) for one picked file, as director telemetry. */
+async function analyzeSpeechNative(nativePath: string): Promise<{ telemetry?: DirectorTelemetry; warning?: string }> {
+  const silences = await desktopMedia.detectSilences(nativePath).catch(() => [] as Array<{ startMs: number; endMs: number }>);
+  let words: DirectorTelemetry["transcript"] = [];
+  let warning: string | undefined;
+  try {
+    const audio = await desktopMedia.extractAudioForTranscription(nativePath);
+    const form = new FormData();
+    form.append("audio", new Blob([audio], { type: "audio/mp4" }), "speech.m4a");
+    const res = await fetch("/api/v1/media-editor/transcribe", { method: "POST", headers: authHeaders(), credentials: "include", body: form });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success) throw new Error(data?.message || data?.error || `Transcription failed (${res.status})`);
+    words = (data.data?.words || []).map((w: any) => ({ word: String(w.text ?? ""), startSeconds: w.startMs / 1000, endSeconds: w.endMs / 1000 }));
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    warning = msg.startsWith("NO_AUDIO_TRACK")
+      ? "This video has no audio, so the director can't cut pauses or add captions."
+      : `No transcript: ${msg.replace(/^[A-Z_]+:\s*/, "")}. Speech-based edits (pauses, captions, hook) are unavailable this turn.`;
+  }
+  const silenceGaps = silences
+    .filter((s) => s.endMs > s.startMs)
+    .map((s) => ({ timeRange: { start: ms(s.startMs), duration: ms(s.endMs - s.startMs) } }));
+  if (!words.length && !silenceGaps.length) return { warning };
+  return { telemetry: { transcript: words, silenceGaps }, warning };
+}
+
+/** Transcript words and silences from an on-device analysis graph; undefined when there is none. */
+export function telemetryFromGraph(graph?: MediaIntelligenceGraph): DirectorTelemetry | undefined {
+  const words = graph?.words?.length ? graph.words : graph?.transcript || [];
+  const silences = graph?.silences || [];
+  if (!words.length && !silences.length) return undefined;
+  return {
+    transcript: words.map((w) => ({ word: w.word, startSeconds: w.startSeconds, endSeconds: w.endSeconds, confidence: w.confidence, isEmphasis: w.isEmphasis })),
+    silenceGaps: silences.map((s) => ({ timeRange: s.timeRange, averageDecibels: s.averageDecibels })),
+  };
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, outer?: AbortSignal): Promise<Response> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  const onOuter = () => controller.abort();
+  outer?.addEventListener("abort", onOuter, { once: true });
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err: any) {
+    if (timedOut) throw new DirectorRequestError("DIRECTOR_TIMEOUT", `The AI Director did not answer within ${Math.round(timeoutMs / 1000)} s.`);
+    if (outer?.aborted) throw err;
+    throw new DirectorRequestError("NETWORK_ERROR", "Could not reach the AI Director. Check your connection.");
+  } finally {
+    clearTimeout(timer);
+    outer?.removeEventListener("abort", onOuter);
+  }
+}
+
 export interface NativeImportResult {
   assets: MediaAssetDescriptor[];
   failures: Array<{ name: string; error: string }>;
@@ -117,22 +257,21 @@ export interface EngineBridge {
     prompt?: string,
     companyId?: string,
     currentEditIR?: EditIR,
-    options?: {
-      availableAssets?: MediaAssetDescriptor[];
-      selectedClipId?: string | null;
-      playheadSec?: number;
-      mediaGraph?: MediaIntelligenceGraph;
-      onProgress?: (event: AIDirectorProgressEvent) => void;
-    }
-  ) => Promise<{
-    editIR: EditIR;
-    outputPath: string;
-    reply?: string;
-    actions?: string[];
-    isConfigured?: boolean;
-    requiresConfirmation?: boolean;
-    confirmationDetails?: { whatFound: string; whatWillChange: string; assumptions: string };
-  }>;
+    options?: DirectorPipelineOptions
+  ) => Promise<DirectorPipelineResult>;
+  executeOfflineDirector: (
+    stylePreset: string,
+    prompt: string,
+    currentEditIR: EditIR,
+    options?: Pick<DirectorPipelineOptions, "availableAssets" | "selectedClipId" | "playheadSec" | "mediaGraph" | "onProgress">
+  ) => Promise<DirectorPipelineResult>;
+  getDirectorGreeting: (ctx: DirectorTurnContext, signal?: AbortSignal) => Promise<DirectorGreeting | null>;
+  attachExportToSocial: (params: {
+    target: { calendarPieceId?: string; postId?: string };
+    source: ExportResult | File;
+    onProgress?: (percent: number) => void;
+    signal?: AbortSignal;
+  }) => Promise<{ postId?: string; pieceStatus?: string }>;
   getAICredits: (companyId?: string) => Promise<AICreditAccountStatus>;
   rechargeAICredits: (amountUsd: number, companyId?: string) => Promise<any>;
   generateFromPrompt: (params: {
@@ -156,6 +295,8 @@ class DesktopEngineBridge implements EngineBridge {
   isTauri: boolean = false;
   /** playback URL -> whether the source has an audio stream (from real ffprobe results). */
   private nativeHasAudio = new Map<string, boolean>();
+  /** Speech analysis per source URL, so a file is only transcribed once per session. */
+  private speechCache = new Map<string, Promise<{ telemetry?: DirectorTelemetry; warning?: string }>>();
 
   constructor() {
     this.isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -704,82 +845,96 @@ class DesktopEngineBridge implements EngineBridge {
     prompt?: string,
     companyId?: string,
     currentEditIR?: EditIR,
-    options?: {
-      availableAssets?: MediaAssetDescriptor[];
-      selectedClipId?: string | null;
-      playheadSec?: number;
-      mediaGraph?: MediaIntelligenceGraph;
-      onProgress?: (event: AIDirectorProgressEvent) => void;
-    }
-  ): Promise<{
-    editIR: EditIR;
-    outputPath: string;
-    reply?: string;
-    actions?: string[];
-    isConfigured?: boolean;
-    requiresConfirmation?: boolean;
-    confirmationDetails?: { whatFound: string; whatWillChange: string; assumptions: string };
-  }> {
+    options?: DirectorPipelineOptions
+  ): Promise<DirectorPipelineResult> {
     options?.onProgress?.({
       phase: "INGESTION",
-      stageName: "Connecting to AI Director Runtime",
-      detail: "Initializing media studio control plane and telemetry...",
+      stageName: "Connecting to AI Director",
+      detail: "Sending the timeline, brand context and chat history...",
       percent: 5,
     });
 
-    const endpoints = [
-      "http://127.0.0.1:4002/api/media-editor/ai-direct",
-      "/api/media-editor/ai-direct",
-    ];
-
-    for (const url of endpoints) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
-        const res = await fetch(url, {
-          method: "POST",
-          headers: authHeaders({ "Content-Type": "application/json" }),
-          credentials: "include",
-          signal: controller.signal,
-          body: JSON.stringify({
-            prompt: prompt || `Apply ${stylePreset} editing style`,
-            stylePreset,
-            companyId,
-            currentEditIR,
-            availableAssets: options?.availableAssets,
-            selectedClipId: options?.selectedClipId,
-            playheadSec: options?.playheadSec,
-          }),
-        });
-        clearTimeout(timeout);
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.success && data.data?.ast) {
-            options?.onProgress?.({
-              phase: "COMPLETE",
-              stageName: "Director Response Ready",
-              detail: "Received verified AST from AI Director cloud service.",
-              percent: 100,
-            });
-            return {
-              editIR: data.data.ast,
-              outputPath: "rendered_master.mp4",
-              reply: data.data.reply || data.data.explanation,
-              actions: data.data.actions || [],
-              isConfigured: true,
-              requiresConfirmation: data.data.requiresConfirmation,
-              confirmationDetails: data.data.confirmationDetails,
-            };
-          }
-        }
-      } catch {}
+    // Speech telemetry: analysed on this device (only speech audio is sent for transcription; video never leaves it).
+    let telemetry = options?.telemetry ?? telemetryFromGraph(options?.mediaGraph);
+    let speechWarning: string | undefined;
+    const primarySrc = currentEditIR?.tracks?.videoTracks?.[0]?.clips?.[0]?.sourcePath;
+    const nativePath = primarySrc ? fromAssetUrl(primarySrc) : null;
+    if (!telemetry && nativePath && primarySrc) {
+      options?.onProgress?.({
+        phase: "INGESTION",
+        stageName: "Listening to your footage",
+        detail: "Finding pauses and transcribing speech on this computer...",
+        percent: 3,
+      });
+      let job = this.speechCache.get(primarySrc);
+      if (!job) {
+        job = analyzeSpeechNative(nativePath);
+        this.speechCache.set(primarySrc, job);
+      }
+      const r = await job;
+      telemetry = r.telemetry;
+      speechWarning = r.warning;
+      if (!r.telemetry) this.speechCache.delete(primarySrc); // retry next turn (e.g. after a network error)
     }
+    const ctx = options?.context || {};
+    const body = JSON.stringify({
+      prompt: prompt || `Apply ${stylePreset} editing style`,
+      stylePreset,
+      currentEditIR,
+      availableAssets: options?.availableAssets,
+      selectedClipId: options?.selectedClipId,
+      playheadSec: options?.playheadSec,
+      ...(telemetry ? { telemetry } : {}),
+      ...(ctx.projectId ? { projectId: ctx.projectId } : {}),
+      ...(ctx.calendarPieceId ? { calendarPieceId: ctx.calendarPieceId } : {}),
+      ...(ctx.postId ? { postId: ctx.postId } : {}),
+      ...(options?.history?.length ? { history: options.history.slice(-12) } : {}),
+    });
 
-    // Fallback immediately to Local Offline Deterministic Engine with live progression
-    const baseIR = currentEditIR || (await this.openProject()).editIR;
-    const localResult = await this.executeDeterministicDirector(
-      baseIR,
+    const timeoutMs = options?.timeoutMs ?? DIRECTOR_REQUEST_TIMEOUT_MS;
+    const res = await fetchWithTimeout(
+      "/api/v1/media-editor/ai-direct",
+      { method: "POST", headers: authHeaders({ "Content-Type": "application/json" }), credentials: "include", body },
+      timeoutMs,
+      options?.signal
+    );
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success || !data.data?.ast) {
+      throw new DirectorRequestError(
+        data?.error || `HTTP_${res.status}`,
+        data?.message || (typeof data?.error === "string" && data.error.length < 200 ? data.error : `The AI Director returned ${res.status}.`),
+        res.status
+      );
+    }
+    options?.onProgress?.({ phase: "COMPLETE", stageName: "Director response ready", detail: "Received the updated timeline.", percent: 100 });
+    const d = data.data;
+    return {
+      editIR: d.ast,
+      outputPath: "rendered_master.mp4",
+      reply: d.reply || d.explanation,
+      actions: d.actions || [],
+      isConfigured: true,
+      requiresConfirmation: !!d.requiresConfirmation,
+      confirmationDetails: d.confirmationDetails,
+      plannerSource: d.plannerSource === "llm" ? "llm" : "deterministic",
+      plannerReason: typeof d.plannerReason === "string" ? d.plannerReason : undefined,
+      warnings: [...(speechWarning ? [speechWarning] : []), ...(Array.isArray(d.warnings) ? d.warnings : [])],
+      sentTelemetry: !!telemetry,
+    };
+  }
+
+  /**
+   * On-device keyword rules, used only when the user chooses it after the AI Director failed.
+   * Labelled plannerSource "offline" so the UI never passes it off as the AI Director.
+   */
+  async executeOfflineDirector(
+    stylePreset: string,
+    prompt: string,
+    currentEditIR: EditIR,
+    options?: Pick<DirectorPipelineOptions, "availableAssets" | "selectedClipId" | "playheadSec" | "mediaGraph" | "onProgress">
+  ): Promise<DirectorPipelineResult> {
+    const local = await this.executeDeterministicDirector(
+      currentEditIR,
       stylePreset,
       prompt,
       options?.mediaGraph,
@@ -788,16 +943,108 @@ class DesktopEngineBridge implements EngineBridge {
       options?.playheadSec,
       options?.onProgress
     );
-
     return {
-      editIR: localResult.editIR,
+      editIR: local.editIR,
       outputPath: "rendered_master.mp4",
-      reply: localResult.reply,
-      actions: localResult.actions,
-      isConfigured: true,
-      requiresConfirmation: localResult.requiresConfirmation,
-      confirmationDetails: localResult.confirmationDetails,
+      reply: local.reply,
+      actions: local.actions,
+      isConfigured: false,
+      requiresConfirmation: local.requiresConfirmation,
+      confirmationDetails: local.confirmationDetails,
+      plannerSource: "offline",
+      plannerReason: "offline keyword rules on this device (the AI Director was not used)",
+      warnings: [],
+      sentTelemetry: false,
     };
+  }
+
+  /** Brand + script greeting for a Studio opened from a project, calendar piece or post (no media is sent). */
+  async getDirectorGreeting(ctx: DirectorTurnContext, signal?: AbortSignal): Promise<DirectorGreeting | null> {
+    const q = new URLSearchParams();
+    if (ctx.projectId) q.set("projectId", ctx.projectId);
+    if (ctx.calendarPieceId) q.set("calendarPieceId", ctx.calendarPieceId);
+    if (ctx.postId) q.set("postId", ctx.postId);
+    if (!q.toString()) return null;
+    const res = await fetchWithTimeout(`/api/v1/media-editor/director-context?${q}`, { headers: authHeaders(), credentials: "include" }, 20000, signal);
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success) {
+      throw new DirectorRequestError(data?.error || `HTTP_${res.status}`, data?.message || "Could not load the brand and script context.", res.status);
+    }
+    return data.data as DirectorGreeting;
+  }
+
+  /**
+   * Attaches a finished export to the social calendar: reads the rendered MP4 the desktop app wrote (through the
+   * asset protocol it scoped to that file) or a file the user picked, and uploads it as multipart "video" to the
+   * calendar piece's /final-video (or the post's /submit-for-approval). Nothing is processed in the browser.
+   */
+  async attachExportToSocial(params: {
+    target: { calendarPieceId?: string; postId?: string };
+    source: ExportResult | File;
+    onProgress?: (percent: number) => void;
+    signal?: AbortSignal;
+  }): Promise<{ postId?: string; pieceStatus?: string }> {
+    const { target } = params;
+    const url = target.calendarPieceId
+      ? `/api/v1/social-media/calendar-pieces/${encodeURIComponent(target.calendarPieceId)}/final-video`
+      : target.postId
+        ? `/api/v1/social-media/posts/${encodeURIComponent(target.postId)}/submit-for-approval`
+        : null;
+    if (!url) throw new DirectorRequestError("NO_ATTACH_TARGET", "Open the Studio from a calendar piece or post to attach the export.");
+
+    let file: File;
+    if (params.source instanceof File) {
+      file = params.source;
+    } else {
+      const exp = params.source;
+      if (!exp.savedPath || !/\.mp4$/i.test(exp.downloadName)) {
+        throw new DirectorRequestError("EXPORT_NOT_MP4", "Only MP4 exports from the desktop renderer can be attached. Export in the desktop app, or pick the MP4 file.");
+      }
+      let blob: Blob;
+      try {
+        const r = await fetch(exp.blobUrl, { signal: params.signal });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        blob = await r.blob();
+      } catch (err: any) {
+        if (err?.name === "AbortError") throw err;
+        throw new DirectorRequestError("EXPORT_READ_FAILED", "The desktop app did not hand over the exported file. Pick the MP4 from disk to attach it.");
+      }
+      file = new File([blob], exp.downloadName, { type: "video/mp4" });
+    }
+    if (!/^video\/(mp4|quicktime)$/.test(file.type)) {
+      throw new DirectorRequestError("EXPORT_NOT_MP4", "Attach an MP4 or MOV file.");
+    }
+
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      form.append("video", file, file.name);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.withCredentials = true;
+      for (const [k, v] of Object.entries(authHeaders())) xhr.setRequestHeader(k, v);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) params.onProgress?.(Math.round((e.loaded / e.total) * 100));
+      };
+      const onAbort = () => xhr.abort();
+      params.signal?.addEventListener("abort", onAbort, { once: true });
+      xhr.onload = () => {
+        params.signal?.removeEventListener("abort", onAbort);
+        let data: any = null;
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch {
+          data = null;
+        }
+        if (xhr.status >= 200 && xhr.status < 300 && data?.success !== false) {
+          resolve({ postId: data?.data?.post?.id, pieceStatus: data?.data?.pieceStatus });
+        } else {
+          reject(new DirectorRequestError(data?.error || `HTTP_${xhr.status}`, data?.message || `The upload failed (${xhr.status}).`, xhr.status));
+        }
+      };
+      xhr.onerror = () => reject(new DirectorRequestError("NETWORK_ERROR", "The upload could not reach the server. Check your connection and retry."));
+      xhr.onabort = () => reject(new DOMException("Upload cancelled", "AbortError"));
+      xhr.send(form);
+    });
   }
 
 

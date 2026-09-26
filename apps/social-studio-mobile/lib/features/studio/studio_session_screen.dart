@@ -12,7 +12,6 @@ import '../../core/native_engine/edit_ir.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
-import '../projects/project_provider.dart';
 import 'director_panel.dart';
 import 'export_sheet.dart';
 import 'studio_controller.dart';
@@ -71,16 +70,6 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     c.addListener(_onChange);
     if (widget.sourcePath != null) _load(widget.sourcePath!);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final activeProj = ref.read(activeProjectProvider).valueOrNull;
-      final brand = activeProj?.brandVoice;
-      c.initBrandGreeting(
-        brandName: activeProj?.name,
-        primaryColor: brand?.primaryColor,
-        font: brand?.font,
-      );
-    });
   }
 
   @override

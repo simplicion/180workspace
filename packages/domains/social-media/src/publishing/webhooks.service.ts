@@ -6,6 +6,8 @@ import { EngagementMatcher } from '../engagement/engagement-matcher';
 import { EngagementDispatcher } from '../engagement/engagement-dispatcher';
 import { AiEngagementAgent } from '../engagement/ai-engagement-agent';
 import { InboundEngagementEvent } from '../engagement/types';
+import { EngagementRateLimiter } from '../engagement/rate-limiter';
+import { commentThreadId } from '../engagement/platform-actions';
 
 export interface WebhookChallengeResult {
     success: boolean;
@@ -64,6 +66,11 @@ export class MetaWebhooksService {
     /**
      * Verifies the x-hub-signature-256 header sent with every POST event from Meta.
      */
+    /** True when META_WEBHOOK_APP_SECRET (or META_APP_SECRET) is set; without it every event is refused (fail closed). */
+    static isSignatureConfigured(): boolean {
+        return Boolean(metaWebhookAppSecret());
+    }
+
     static verifySignature(rawBody: Buffer | string, signatureHeader?: string): boolean {
         if (!signatureHeader || !signatureHeader.startsWith('sha256=')) {
             return false;
@@ -219,129 +226,154 @@ export class MetaWebhooksService {
 
     /**
      * Ingests real-time events sent by Meta (Page feed/messages, Instagram DMs/comments, Threads replies).
+     * Call only after `verifySignature` passed. Idempotent: every message / comment id is claimed once (Redis claim +
+     * the stored platformMessageId), so Meta's re-deliveries never trigger a second reply or DM. Our own messages
+     * (echoes) and our own comments are ignored so automations never answer themselves.
      */
-    static async handleWebhookEvent(payload: any): Promise<{ success: boolean; processedEntries: number; messagesIngested: number }> {
+    static async handleWebhookEvent(payload: any): Promise<{ success: boolean; processedEntries: number; messagesIngested: number; duplicates: number }> {
         if (!payload || typeof payload !== 'object') {
-            return { success: false, processedEntries: 0, messagesIngested: 0 };
+            return { success: false, processedEntries: 0, messagesIngested: 0, duplicates: 0 };
         }
 
         const db = getDb();
         const objectType = String(payload.object || '').toLowerCase();
         const entries = Array.isArray(payload.entry) ? payload.entry : [];
         let messagesIngested = 0;
-
-        const defaultPlatform = objectType === 'instagram' ? 'instagram' : objectType === 'threads' ? 'threads' : 'facebook';
+        let duplicates = 0;
+        const platforms = objectType === 'instagram' ? ['instagram'] : objectType === 'threads' ? ['threads'] : ['facebook'];
+        const toMs = (t: any) => {
+            const n = typeof t === 'string' && !/^\d+$/.test(t) ? Date.parse(t) : Number(t);
+            if (!Number.isFinite(n) || n <= 0) return undefined;
+            return n < 1e12 ? n * 1000 : n;
+        };
 
         for (const entry of entries) {
             const platformAccountId = String(entry.id || '');
             if (!platformAccountId) continue;
-
-            // Find matching social accounts in our database
-            const accounts = await db.socialAccount.findMany({
-                where: {
-                    platformAccountId,
-                    platform: { in: [defaultPlatform, 'instagram', 'facebook', 'threads'] },
-                    isActive: true,
-                },
-            });
-
-            if (!accounts.length) continue;
+            const accounts = await db.socialAccount.findMany({ where: { platformAccountId, platform: { in: platforms }, isActive: true } });
 
             for (const account of accounts) {
-                // 1. Process messaging events (Messenger / Instagram Direct Messages)
-                if (Array.isArray(entry.messaging)) {
-                    for (const m of entry.messaging) {
-                        if (m.message && (m.message.text || m.message.attachments)) {
-                            const senderId = m.sender?.id || 'unknown_sender';
-                            const text = m.message.text || (m.message.attachments ? '[Media Attachment]' : '');
-                            const ingestRes = await SocialInboxService.ingestMessage({
-                                companyId: account.companyId,
-                                projectId: account.projectId || undefined,
-                                socialAccountId: account.id,
-                                platform: account.platform as any,
-                                platformThreadId: senderId,
-                                participantName: `User ${senderId.slice(-4)}`,
-                                participantHandle: senderId,
-                                messageContent: text,
-                                platformMessageId: m.message.mid || undefined,
-                            }).catch(() => null);
-                            messagesIngested++;
+                const claim = (id: string) => EngagementRateLimiter.claim(`wh:${account.id}:${id}`, 24 * 3_600_000);
 
-                            // If AI Engagement Agent is enabled for this conversation and human hasn't intervened, auto-respond
-                            if (ingestRes && (ingestRes as any).conversation) {
-                                const conv = (ingestRes as any).conversation;
-                                if (conv.aiAgentActive && !conv.isHumanTakeover) {
-                                    AiEngagementAgent.handleIncomingDm(
-                                        conv.id,
-                                        text
-                                    ).catch((err: any) => console.error('[MetaWebhook] AiEngagementAgent error:', err.message));
-                                }
-                            }
+                // 1. Messaging (Messenger / Instagram Direct)
+                for (const m of Array.isArray(entry.messaging) ? entry.messaging : []) {
+                    if (!m?.message || m.message.is_echo) continue; // our own outbound message
+                    if (!m.message.text && !m.message.attachments) continue;
+                    const senderId = String(m.sender?.id || '');
+                    if (!senderId || senderId === platformAccountId) continue;
+                    const mid = m.message.mid ? String(m.message.mid) : undefined;
+                    if (mid && !(await claim(mid))) {
+                        duplicates++;
+                        continue;
+                    }
+                    const text = m.message.text || '[Media Attachment]';
+                    const ingest = await SocialInboxService.ingestMessage({
+                        companyId: account.companyId,
+                        projectId: account.projectId || undefined,
+                        socialAccountId: account.id,
+                        platform: account.platform as any,
+                        platformThreadId: senderId,
+                        participantName: `User ${senderId.slice(-4)}`,
+                        participantHandle: senderId,
+                        messageContent: text,
+                        platformMessageId: mid,
+                    }).catch((err: any) => {
+                        console.error('[MetaWebhook] DM ingest failed:', err?.message);
+                        return null;
+                    });
+                    if (!ingest) continue;
+                    if ((ingest as any).duplicate) {
+                        duplicates++;
+                        continue;
+                    }
+                    messagesIngested++;
+
+                    const event: InboundEngagementEvent = {
+                        companyId: account.companyId,
+                        projectId: account.projectId || undefined,
+                        socialAccountId: account.id,
+                        platform: account.platform,
+                        eventType: 'dm',
+                        senderId,
+                        senderHandle: senderId,
+                        text,
+                        timestamp: toMs(m.timestamp) ?? toMs(entry.time),
+                    };
+                    const rule = m.message.text ? await EngagementMatcher.findMatchingRule(event).catch(() => null) : null;
+                    if (rule) {
+                        await EngagementDispatcher.executeEngagement(rule, event).catch((err: any) => console.error('[MetaWebhook] DM rule failed:', err?.message));
+                    } else {
+                        const conv = (ingest as any).conversation;
+                        if (conv?.aiAgentActive && !conv.isHumanTakeover) {
+                            const r = await AiEngagementAgent.handleIncomingDm(conv.id, text, account.companyId).catch((err: any) => ({ error: err?.message } as any));
+                            if (r?.error) console.warn(`[MetaWebhook] AI agent did not reply (${r.errorCode || 'error'}): ${r.error}`);
                         }
                     }
                 }
 
-                // 2. Process changes (Feed comments, Instagram mentions, Threads replies)
-                if (Array.isArray(entry.changes)) {
-                    for (const ch of entry.changes) {
-                        const val = ch.value;
-                        if (!val) continue;
-
-                        if (ch.field === 'comments' || ch.field === 'feed' || ch.field === 'replies') {
-                            const commentText = val.text || val.message || '';
-                            const fromUser = val.from?.name || val.from?.username || `User ${String(val.from?.id || '').slice(-4)}`;
-                            const fromHandle = val.from?.username || val.from?.id || 'anonymous';
-                            const threadId = val.id || val.comment_id || val.reply_id || `thread_${Date.now()}`;
-
-                            if (commentText) {
-                                await SocialInboxService.ingestMessage({
-                                    companyId: account.companyId,
-                                    projectId: account.projectId || undefined,
-                                    socialAccountId: account.id,
-                                    platform: account.platform as any,
-                                    platformThreadId: threadId,
-                                    participantName: fromUser,
-                                    participantHandle: fromHandle,
-                                    messageContent: commentText,
-                                    platformMessageId: val.id || val.comment_id || undefined,
-                                }).catch(() => null);
-                                messagesIngested++;
-
-                                // Evaluate 180 Engagement Automation Rules (Keyword Match -> Like -> Public Reply -> DM Deliverable)
-                                const postId = val.media?.id || val.post_id || undefined;
-                                const inboundEvent: InboundEngagementEvent = {
-                                    companyId: account.companyId,
-                                    projectId: account.projectId || undefined,
-                                    socialAccountId: account.id,
-                                    platform: account.platform as any,
-                                    eventType: 'comment',
-                                    postId,
-                                    mediaId: postId,
-                                    commentId: val.id || val.comment_id || undefined,
-                                    senderId: val.from?.id || 'unknown_author',
-                                    senderHandle: fromHandle,
-                                    senderName: fromUser,
-                                    text: commentText,
-                                };
-
-                                EngagementMatcher.findMatchingRule(inboundEvent).then((matchingRule) => {
-                                    if (matchingRule) {
-                                        return EngagementDispatcher.executeEngagement(matchingRule, inboundEvent);
-                                    }
-                                }).catch((err: any) => {
-                                    console.error('[MetaWebhook] EngagementDispatcher error:', err.message);
-                                });
-                            }
-                        }
+                // 2. Changes (IG comments, FB feed comments, Threads replies)
+                for (const ch of Array.isArray(entry.changes) ? entry.changes : []) {
+                    const val = ch?.value;
+                    if (!val || !['comments', 'feed', 'replies'].includes(ch.field)) continue;
+                    if (ch.field === 'feed' && (val.item !== 'comment' || (val.verb && val.verb !== 'add'))) continue;
+                    const commentText = val.text || val.message || '';
+                    const commentId = String(val.comment_id || val.id || '');
+                    const fromId = String(val.from?.id || '');
+                    if (!commentText || !commentId || !fromId || fromId === platformAccountId) continue; // our own replies never trigger rules
+                    if (!(await claim(commentId))) {
+                        duplicates++;
+                        continue;
                     }
+                    const fromUser = val.from?.name || val.from?.username || `User ${fromId.slice(-4)}`;
+                    const fromHandle = val.from?.username || fromId;
+                    const mediaId = val.media?.id || val.post_id || val.root_id || undefined;
+
+                    const ingest = await SocialInboxService.ingestMessage({
+                        companyId: account.companyId,
+                        projectId: account.projectId || undefined,
+                        socialAccountId: account.id,
+                        platform: account.platform as any,
+                        platformThreadId: commentThreadId(commentId),
+                        participantName: fromUser,
+                        participantHandle: fromHandle,
+                        messageContent: commentText,
+                        platformMessageId: commentId,
+                    }).catch((err: any) => {
+                        console.error('[MetaWebhook] comment ingest failed:', err?.message);
+                        return null;
+                    });
+                    if ((ingest as any)?.duplicate) {
+                        duplicates++;
+                        continue;
+                    }
+                    if (ingest) messagesIngested++;
+
+                    // The platform media id → our post (same company), so post-scoped rules match.
+                    const variant = mediaId
+                        ? await db.socialPostVariant.findFirst({ where: { externalId: String(mediaId), post: { companyId: account.companyId } }, select: { postId: true } }).catch(() => null)
+                        : null;
+                    const event: InboundEngagementEvent = {
+                        companyId: account.companyId,
+                        projectId: account.projectId || undefined,
+                        socialAccountId: account.id,
+                        platform: account.platform,
+                        eventType: 'comment',
+                        postId: variant?.postId,
+                        mediaId,
+                        commentId,
+                        parentCommentId: val.parent_id || undefined,
+                        senderId: fromId,
+                        senderHandle: fromHandle,
+                        senderName: fromUser,
+                        text: commentText,
+                        timestamp: toMs(val.created_time) ?? toMs(entry.time),
+                    };
+                    const rule = await EngagementMatcher.findMatchingRule(event).catch(() => null);
+                    if (rule) await EngagementDispatcher.executeEngagement(rule, event).catch((err: any) => console.error('[MetaWebhook] rule failed:', err?.message));
                 }
             }
         }
 
-        return {
-            success: true,
-            processedEntries: entries.length,
-            messagesIngested,
-        };
+        return { success: true, processedEntries: entries.length, messagesIngested, duplicates };
     }
 }

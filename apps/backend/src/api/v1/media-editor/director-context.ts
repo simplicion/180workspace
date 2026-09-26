@@ -8,6 +8,7 @@
 import {
   DirectorContext,
   DirectorBrandContext,
+  DirectorBrandRendering,
   DirectorPieceContext,
   parsePieceScript,
 } from '@workspace/video-contracts';
@@ -25,6 +26,8 @@ export interface DirectorContextDeps {
     findPiece(id: string, companyId: string): Promise<any | null>;
     /** WS1 `getProjectBrandConsciousness(projectId, companyId)`; throws when missing / other tenant. */
     getBrand(projectId: string, companyId: string): Promise<any>;
+    /** WS1 `resolveBrandRendering(brand)`: render values with explicit neutral defaults (never saved). */
+    resolveRendering?(brand: any): DirectorBrandRendering | null;
 }
 
 export function defaultDirectorContextDeps(): DirectorContextDeps {
@@ -41,6 +44,11 @@ export function defaultDirectorContextDeps(): DirectorContextDeps {
             const sm = require('@workspace/social-media');
             const fn = sm.getProjectBrandConsciousness || ((p: string, c: string) => sm.SocialProjectService.getProjectBrandConsciousness(p, c));
             return fn(projectId, companyId);
+        },
+        resolveRendering: (brand) => {
+            const { resolveBrandRendering } = require('@workspace/social-media');
+            if (typeof resolveBrandRendering !== 'function' || !brand?.colors || !Array.isArray(brand?.completeness?.missingRequired)) return null;
+            return resolveBrandRendering(brand);
         },
     };
 }
@@ -137,7 +145,15 @@ export async function loadDirectorContext(req: DirectorContextRequest, deps: Dir
     if (projectId) {
         try {
             const brand = await deps.getBrand(projectId, companyId);
-            if (brand) ctx.brand = toBrandContext(brand, projectId);
+            if (brand) {
+                ctx.brand = toBrandContext(brand, projectId);
+                try {
+                    const rendering = deps.resolveRendering?.(brand);
+                    if (rendering) ctx.brand.rendering = rendering;
+                } catch {
+                    // Rendering values are optional: the style agent falls back to its own neutral defaults.
+                }
+            }
         } catch {
             // Unknown id, another tenant's project, or a client-side editor id: no brand, no leak.
             if (req.projectId === projectId && !req.calendarPieceId && !req.postId) {

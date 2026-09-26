@@ -24,7 +24,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { DirectorStylePreset, EditIR } from "@workspace/video-contracts";
-import { CompanyAIStatus, AIDirectorProgressEvent } from "../services/tauri-bridge";
+import { CompanyAIStatus, AIDirectorProgressEvent, DirectorPlannerSource } from "../services/tauri-bridge";
 import { AICreditProgressWidget } from "@workspace/ui";
 
 export interface DirectorChatMessage {
@@ -34,18 +34,40 @@ export interface DirectorChatMessage {
   timestamp: string;
   actions?: string[];
   snapshotEditIR?: EditIR;
+  /** Who planned this turn: the LLM, the server's rule-based fallback, or offline rules on this device. */
+  plannerSource?: DirectorPlannerSource;
+  plannerReason?: string;
+  warnings?: string[];
+  /** Set on a failed turn: the prompt to retry (or run with the offline rules). */
+  retryPrompt?: string;
   pendingConfirmation?: {
     whatFound: string;
     whatWillChange: string;
     assumptions: string;
-    targetEditIR: EditIR;
+    /** A compiled timeline to apply, or ... */
+    targetEditIR?: EditIR;
+    /** ... a prompt to run through the director once the user confirms (greeting proposal). */
+    suggestedPrompt?: string;
   };
 }
+
+export interface DirectorPromptOptions {
+  /** The user already approved this (greeting Apply): apply the result without asking again. */
+  preconfirmed?: boolean;
+  /** Use the offline keyword rules on this device instead of the AI Director. */
+  offline?: boolean;
+}
+
+const PLANNER_LABEL: Record<DirectorPlannerSource, string> = {
+  llm: "AI planner",
+  deterministic: "Rule-based fallback",
+  offline: "Offline rules (this device)",
+};
 
 interface AIDirectorPanelProps {
   currentPreset?: DirectorStylePreset;
   onSelectPreset?: (preset: DirectorStylePreset) => void;
-  onApplyPrompt: (prompt: string) => Promise<void> | void;
+  onApplyPrompt: (prompt: string, options?: DirectorPromptOptions) => Promise<void> | void;
   isProcessing: boolean;
   currentProgress?: AIDirectorProgressEvent | null;
   companyAIStatus?: CompanyAIStatus | null;
@@ -374,6 +396,42 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
 
                 <div className="whitespace-pre-wrap font-sans text-[12px]">{msg.text}</div>
 
+                {!isUser && msg.plannerSource && (
+                  <div
+                    className={`mt-1.5 text-[10px] ${msg.plannerSource === "llm" ? "text-gray-500" : "text-amber-300/80"}`}
+                    title={msg.plannerReason || undefined}
+                  >
+                    {PLANNER_LABEL[msg.plannerSource]}
+                    {msg.plannerReason && msg.plannerSource !== "llm" ? ` · ${msg.plannerReason}` : ""}
+                  </div>
+                )}
+
+                {!isUser && msg.warnings && msg.warnings.length > 0 && (
+                  <ul className="mt-1.5 space-y-0.5 text-[10px] text-gray-500 list-disc pl-4">
+                    {msg.warnings.slice(0, 4).map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                )}
+
+                {!isUser && msg.retryPrompt && !isProcessing && (
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => onApplyPrompt(msg.retryPrompt!)}
+                      className="min-h-[44px] px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition"
+                    >
+                      Retry
+                    </button>
+                    <button
+                      onClick={() => onApplyPrompt(msg.retryPrompt!, { offline: true })}
+                      className="min-h-[44px] px-3 rounded-lg bg-[#202434] hover:bg-[#282D42] text-gray-300 text-xs transition"
+                      title="Keyword rules that run on this device. Less capable than the AI Director."
+                    >
+                      Use offline rules
+                    </button>
+                  </div>
+                )}
+
                 {/* Structured Confirmation Card */}
                 {msg.pendingConfirmation && onConfirmAutonomousEdit && (
                   <div className="mt-3 p-3 rounded-xl bg-[#161926] border border-indigo-500/40 text-xs space-y-2.5 shadow-md">
@@ -383,12 +441,14 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
                     </div>
 
                     <div className="space-y-1.5 text-[11px] text-gray-300">
+                      {msg.pendingConfirmation.whatFound && (
                       <div>
                         <span className="font-semibold text-gray-400 block text-[10px] uppercase">
                           Findings:
                         </span>
                         <p className="text-gray-300">{msg.pendingConfirmation.whatFound}</p>
                       </div>
+                      )}
 
                       <div>
                         <span className="font-semibold text-gray-400 block text-[10px] uppercase">
@@ -399,6 +459,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
                         </div>
                       </div>
 
+                      {msg.pendingConfirmation.assumptions && (
                       <div>
                         <span className="font-semibold text-gray-400 block text-[10px] uppercase">
                           Creative Rationale:
@@ -407,6 +468,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
                           {msg.pendingConfirmation.assumptions}
                         </p>
                       </div>
+                      )}
                     </div>
 
                     <div className="flex items-center space-x-2 pt-1 border-t border-white/5">
@@ -415,7 +477,7 @@ export const AIDirectorPanel: React.FC<AIDirectorPanelProps> = ({
                         className="flex-1 py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center justify-center space-x-1.5 transition shadow-sm active:scale-95"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Apply Plan to Timeline</span>
+                        <span>{msg.pendingConfirmation.suggestedPrompt ? "Apply" : "Apply Plan to Timeline"}</span>
                       </button>
 
                       {onCancelAutonomousEdit && (

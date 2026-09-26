@@ -164,9 +164,12 @@ export class VideoStudioService {
     playheadSec?: number;
     /** Brand + calendar piece prompt sections (web Media Studio opened from a calendar piece). */
     contextSections?: string[];
+    /** Earlier chat turns, oldest first ({role, content}). */
+    history?: Array<{ role?: string; content?: string }>;
   }) {
     return await (videoAIDirectorService as any).compileAST({
       prompt: params.prompt,
+      history: params.history,
       companyId: params.companyId,
       userId: "user_api",
       existingAST: params.currentEditIR,
@@ -189,16 +192,20 @@ export class VideoStudioService {
       companyId,
       context,
       resolveStockVideo: VideoStudioService.resolveStockVideo,
-      resolveSfx: process.env.FREESOUND_API_KEY ? VideoStudioService.searchFreesoundSfx : undefined,
+      resolveStockMusic: VideoStudioService.resolveStockMusic,
+      // Freesound when FREESOUND_API_KEY is set, else Openverse sound effects (CC0 / CC BY only).
+      resolveSfx: process.env.FREESOUND_API_KEY ? VideoStudioService.searchFreesoundSfx : VideoStudioService.searchFreeSfx,
       stockTimeoutMs: Number(process.env.AI_DIRECTOR_STOCK_TIMEOUT_MS) > 0 ? Number(process.env.AI_DIRECTOR_STOCK_TIMEOUT_MS) : 8000,
     });
   }
 
   /**
-   * B-roll research resolver: first HTTPS Pexels video, then Pixabay as the fallback. Keys come from env only
-   * (PEXELS_API_KEY / PIXABAY_API_KEY); a provider without a key is skipped. Null when nothing matched.
+   * B-roll research resolver: first HTTPS Pexels video, then Pixabay, then the free licence-filtered providers
+   * (Wikimedia Commons, Internet Archive; ranked portrait-first for 9:16, CC0 > PD > CC BY > CC BY-SA).
+   * Keys come from env only (PEXELS_API_KEY / PIXABAY_API_KEY); a provider without a key is skipped.
+   * Returns the URL with its licence and credit line, or null when nothing matched.
    */
-  static async resolveStockVideo(query: string, aspect: string): Promise<string | null> {
+  static async resolveStockVideo(query: string, aspect: string): Promise<{ url: string; title?: string; license?: string; attribution?: string; creditRequired?: boolean; sourcePage?: string; provider?: string } | null> {
     const runtime = require("@workspace/video-engine-runtime");
     const errors: string[] = [];
     const portrait = aspect === "9:16" || aspect === "4:5";
@@ -207,7 +214,7 @@ export class VideoStudioService {
       const orientation = portrait ? "portrait" : aspect === "1:1" ? "square" : "landscape";
       const { videos } = await runtime.PexelsClient.searchVideos({ query, orientation, perPage: 5 });
       const hit = (videos || []).find((v: any) => typeof v?.downloadUrl === "string" && v.downloadUrl.startsWith("https://"));
-      if (hit) return hit.downloadUrl;
+      if (hit) return { url: hit.downloadUrl, title: hit.title, license: "Pexels License", attribution: `Video by ${hit.photographer || "a Pexels creator"} on Pexels`, creditRequired: false, sourcePage: hit.url, provider: "pexels" };
     } catch (err: any) {
       if (!/not (set|configured)/i.test(err?.message || "")) errors.push(`Pexels: ${err?.message || err}`);
     }
@@ -215,12 +222,34 @@ export class VideoStudioService {
       runtime.PixabayClient.getApiKey();
       const { videos } = await runtime.PixabayClient.searchVideos({ query, orientation: portrait ? "vertical" : "horizontal", perPage: 5 });
       const hit = (videos || []).find((v: any) => typeof v?.downloadUrl === "string" && v.downloadUrl.startsWith("https://"));
-      if (hit) return hit.downloadUrl;
+      if (hit) return { url: hit.downloadUrl, title: hit.title, license: "Pixabay Content License", attribution: `Video by ${hit.user || "a Pixabay creator"} on Pixabay`, creditRequired: false, provider: "pixabay" };
     } catch (err: any) {
       if (!/not (set|configured)/i.test(err?.message || "")) errors.push(`Pixabay: ${err?.message || err}`);
     }
+    try {
+      const free = await runtime.searchFreeMedia({ query, kind: "video", targetAspect: aspect, minDurationSec: 2, limit: 3, timeoutMs: 5000 });
+      const hit = free.items[0];
+      if (hit) return { url: hit.url, title: hit.title, license: hit.license, attribution: hit.attribution, creditRequired: hit.creditRequired, sourcePage: hit.sourcePage, provider: hit.provider };
+    } catch (err: any) {
+      errors.push(`free providers: ${err?.message || err}`);
+    }
     if (errors.length) throw new Error(errors.join("; "));
     return null;
+  }
+
+  /** Music: curated catalogue first, then the free licence-filtered providers (credit line kept). */
+  static async resolveStockMusic(query: string, durationSec: number) {
+    const { BgmSearchTool } = require("@workspace/video-engine-runtime");
+    const r = await BgmSearchTool.searchTracks({ query, limit: 5, minDurationSec: Math.min(Math.max(durationSec, 20), 120) });
+    const t = r.tracks[0];
+    return t ? { url: t.url, title: t.title, license: t.license, attribution: t.attribution || undefined, durationSec: t.durationSec } : null;
+  }
+
+  /** Keyless SFX search (Openverse sound effects, CC0 / CC BY only; HTTPS previews, nothing downloaded). */
+  static async searchFreeSfx(query: string): Promise<Array<{ title: string; url: string; durationSec?: number; license?: string | null; attribution?: string; query: string }>> {
+    const { searchFreeMedia } = require("@workspace/video-engine-runtime");
+    const r = await searchFreeMedia({ query, kind: "sfx", maxDurationSec: 5, limit: 3, timeoutMs: 3000 });
+    return r.items.map((i: any) => ({ title: i.title, url: i.url, durationSec: i.durationSec, license: i.license, attribution: i.attribution, query }));
   }
 
   /** Freesound SFX search: metadata + HTTPS MP3 previews only (nothing is downloaded). Needs FREESOUND_API_KEY. */

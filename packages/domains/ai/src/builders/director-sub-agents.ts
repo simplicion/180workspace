@@ -26,7 +26,11 @@ type Word = { text: string; startMs: number; endMs: number };
 
 const op = (o: Record<string, any>): CreativeOperation => CreativeOperationSchema.parse(o);
 
-/** Style agent: brand → caption/zoom/transition choices. */
+/**
+ * Style agent: brand → caption colours/font/preset, zoom, transition and watermark choices.
+ * When the server resolved WS1 `resolveBrandRendering()` (`ctx.brand.rendering`), its values are
+ * used and every neutral default is named in the warnings (never saved to the brand).
+ */
 export function styleAgent(ctx: DirectorContext): BrandStyleDefaults {
   return brandStyleDefaults(ctx.brand);
 }
@@ -46,7 +50,7 @@ export function brollResearchAgent(args: { words: Word[]; baseIR: EditIR; assetI
   return out;
 }
 
-export interface SfxSuggestion { title: string; url: string; durationSec?: number; license?: string | null; query: string }
+export interface SfxSuggestion { title: string; url: string; durationSec?: number; license?: string | null; attribution?: string; query: string }
 
 /** Sound agent: brand mood → music bed from the catalogue; optional Freesound SFX suggestions. */
 export async function soundAgent(args: {
@@ -66,6 +70,57 @@ export async function soundAgent(args: {
     }
   }
   return { music, sfx };
+}
+
+/**
+ * SFX placement: puts the sound agent's HTTPS effects on an SFX audio lane at the timeline's
+ * transitions (B-roll cutaway starts, then joins between main clips), slightly early so the
+ * whoosh lands on the cut. Returns credit lines per placed clip id. Mutates `ir`.
+ */
+export function placeSfxOnTimeline(ir: EditIR, sfx: SfxSuggestion[], opts: { max?: number; volumeDb?: number } = {}): { placed: number; credits: Record<string, string>; used: SfxSuggestion[] } {
+  const usable = sfx.filter((s) => /^https:\/\//i.test(s.url));
+  const credits: Record<string, string> = {};
+  if (!usable.length) return { placed: 0, credits, used: [] };
+  const total = RationalTimeMath.toSeconds(ir.meta.totalDuration);
+  const sec = (t: any) => RationalTimeMath.toSeconds(t);
+  const points: number[] = [];
+  for (const t of ir.tracks.videoTracks) {
+    if (t.type === "B_ROLL_OVERLAY") for (const c of t.clips) points.push(sec(c.timelineRange.start));
+  }
+  const main = ir.tracks.videoTracks.find((t) => t.type === "MAIN_VIDEO") || ir.tracks.videoTracks[0];
+  const mainStarts = (main?.clips || []).map((c) => sec(c.timelineRange.start)).sort((a, b) => a - b).slice(1);
+  points.push(...mainStarts);
+  const chosen: number[] = [];
+  for (const p of points) {
+    if (p <= 0.3 || p >= total - 0.3) continue;
+    if (chosen.some((c) => Math.abs(c - p) < 1.5)) continue;
+    chosen.push(p);
+    if (chosen.length >= (opts.max ?? 4)) break;
+  }
+  if (!chosen.length) return { placed: 0, credits, used: [] };
+  let lane = ir.tracks.audioTracks.find((t) => t.type === "SFX");
+  if (!lane) {
+    lane = { id: "sfx_lane", type: "SFX", volumeDb: 0, duckWithSpeech: false, clips: [] };
+    ir.tracks.audioTracks.push(lane);
+  }
+  const used = new Set<SfxSuggestion>();
+  chosen.sort((a, b) => a - b).forEach((p, i) => {
+    const fx = usable[i % usable.length];
+    used.add(fx);
+    const start = Math.max(0, p - 0.08);
+    const dur = Math.max(0.1, Math.min(fx.durationSec || 1, 2, total - start));
+    const id = `sfx_${Math.round(start * 1000)}_${i}`;
+    lane!.clips.push({
+      id,
+      sourcePath: fx.url,
+      sourceQuery: fx.query,
+      sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: RationalTimeMath.fromSeconds(round2(dur)) },
+      timelineRange: { start: RationalTimeMath.fromSeconds(round2(start)), duration: RationalTimeMath.fromSeconds(round2(dur)) },
+      volumeDb: opts.volumeDb ?? -12,
+    } as any);
+    if (fx.attribution) credits[id] = fx.attribution;
+  });
+  return { placed: chosen.length, credits, used: [...used] };
 }
 
 export interface GreetingProposal {
@@ -175,7 +230,8 @@ export function buildGreetingProposal(args: {
     steps.push(`add ${(args.music as any).query} music, ducked under your voice`);
   }
   // 8. Watermark.
-  const watermark = !!ctx.brand?.logoUrl && /^https:\/\//i.test(ctx.brand.logoUrl) && ctx.brand.watermarkEnabled !== false;
+  // The style agent decides (brand rendering: logo present and watermark not turned off).
+  const watermark = style.watermark && !!ctx.brand?.logoUrl && /^https:\/\//i.test(ctx.brand.logoUrl);
   if (watermark) steps.push("add your logo watermark");
 
   const target = piece?.targetDurationSec || platformMaxDurationSec(piece?.platform, piece?.contentType) || null;

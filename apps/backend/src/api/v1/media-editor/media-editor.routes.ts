@@ -18,7 +18,19 @@ router.get("/director-context", directorContextHandler());
 router.post("/generate-from-prompt", requireDesktopDevice, VideoStudioController.generateFromPrompt);
 // No POST /render: server-side rendering was removed (media is processed on the device only).
 
-// Autonomous Stock Media Sourcing (Pexels API Integration for B-Roll & Visual Assets)
+// Unsplash API guidelines: a client that uses an Unsplash photo reports its `downloadLocation` here.
+router.post("/stock/unsplash/track-download", async (req, res) => {
+  try {
+    const downloadLocation = req.body?.downloadLocation;
+    if (typeof downloadLocation !== "string") return res.status(400).json({ success: false, error: "DOWNLOAD_LOCATION_REQUIRED" });
+    const { trackUnsplashDownload } = require("@workspace/video-engine-runtime");
+    return res.status(200).json({ success: await trackUnsplashDownload(downloadLocation) });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: "UNSPLASH_TRACK_FAILED", message: err?.message || String(err) });
+  }
+});
+
+// Autonomous Stock Media Sourcing (Pexels + free licence-filtered providers, see FREE_MEDIA_SOURCES.md)
 router.get("/stock/search", async (req, res) => {
   try {
     const { query, type = "all", orientation = "landscape", perPage = "12", page = "1" } = req.query;
@@ -26,16 +38,42 @@ router.get("/stock/search", async (req, res) => {
       return res.status(400).json({ success: false, error: "Query parameter is required" });
     }
 
-    const { PexelsClient } = require("@workspace/video-engine-runtime");
-    const results = await PexelsClient.searchStock({
+    const { PexelsClient, searchFreeMedia } = require("@workspace/video-engine-runtime");
+    const n = parseInt(perPage as string, 10) || 12;
+    const warnings: string[] = [];
+    // Pexels needs PEXELS_API_KEY; without it (or on error) the free, licence-filtered providers still answer.
+    const pexelsP = PexelsClient.searchStock({
       query,
       type: type as any,
       orientation: orientation as any,
-      perPage: parseInt(perPage as string, 10) || 12,
+      perPage: n,
       page: parseInt(page as string, 10) || 1,
+    }).catch((err: any) => {
+      warnings.push(`pexels: ${err?.message || err}`);
+      return { videos: [], photos: [], totalResults: 0 };
     });
-
-    return res.status(200).json({ success: true, ...results });
+    const t = String(type);
+    const targetAspect = orientation === "portrait" ? "9:16" : orientation === "square" ? "1:1" : "16:9";
+    const none = { items: [], warnings: [] };
+    const [results, fv, fp] = await Promise.all([
+      pexelsP,
+      t === "all" || t.startsWith("video") ? searchFreeMedia({ query, kind: "video", limit: n, orientation: orientation as any, targetAspect }).catch(() => none) : none,
+      t === "all" || t.startsWith("photo") || t.startsWith("image") ? searchFreeMedia({ query, kind: "image", limit: n, orientation: orientation as any, targetAspect }).catch(() => none) : none,
+    ]);
+    const asStock = (i: any) => ({
+      id: i.id, provider: i.provider, title: i.title, url: i.sourcePage, downloadUrl: i.url,
+      previewVideoUrl: i.kind === "video" ? i.url : undefined, thumbnailUrl: i.previewUrl,
+      duration: i.durationSec, width: i.width, height: i.height, photographer: i.attribution,
+      license: i.license, licenseUrl: i.licenseUrl, attribution: i.attribution, sourcePage: i.sourcePage,
+      ...(i.downloadLocation ? { downloadLocation: i.downloadLocation } : {}),
+    });
+    return res.status(200).json({
+      success: true,
+      ...results,
+      videos: [...(results.videos || []), ...fv.items.map(asStock)],
+      photos: [...(results.photos || []), ...fp.items.map(asStock)],
+      warnings: Array.from(new Set([...warnings, ...fv.warnings, ...fp.warnings])),
+    });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -109,15 +147,16 @@ router.get("/stock/unified", async (req, res) => {
 
     // Zero-cost free media providers (Openverse, Wikimedia Commons, Internet Archive, Jamendo)
     const freeVideoPromise = (!audioOnly && (type === "all" || type === "video") && typeof searchFreeMedia === "function")
-      ? searchFreeMedia({ query, kind: "video", limit: 6, orientation: orientation as any }).catch(() => ({ items: [] }))
+      ? searchFreeMedia({ query, kind: "video", limit: 6, orientation: orientation as any, targetAspect: orientation === "portrait" ? "9:16" : orientation === "square" ? "1:1" : "16:9" }).catch(() => ({ items: [] }))
       : Promise.resolve({ items: [] });
 
     const freePhotoPromise = (!audioOnly && (type === "all" || type === "photo" || type === "image") && typeof searchFreeMedia === "function")
-      ? searchFreeMedia({ query, kind: "image", limit: 6, orientation: orientation as any }).catch(() => ({ items: [] }))
+      ? searchFreeMedia({ query, kind: "image", limit: 6, orientation: orientation as any, targetAspect: orientation === "portrait" ? "9:16" : orientation === "square" ? "1:1" : "16:9" }).catch(() => ({ items: [] }))
       : Promise.resolve({ items: [] });
 
-    const freeAudioPromise = ((wantsMusic || wantsSfx) && typeof searchFreeMedia === "function")
-      ? searchFreeMedia({ query, kind: wantsMusic ? "music" : "sfx", limit: 6 }).catch(() => ({ items: [] }))
+    // Free music already comes back through BgmSearchTool.searchTracks (musicPromise); only SFX here.
+    const freeAudioPromise = (wantsSfx && typeof searchFreeMedia === "function")
+      ? searchFreeMedia({ query, kind: "sfx", limit: 6, maxDurationSec: 10 }).catch(() => ({ items: [] }))
       : Promise.resolve({ items: [] });
 
     const [pexels, pixabay, freesound, music, freeVideos, freePhotos, freeAudio] = await Promise.all([
@@ -141,7 +180,15 @@ router.get("/stock/unified", async (req, res) => {
       id: item.id,
       title: item.title,
       duration: item.durationSec || 0,
+      durationSec: item.durationSec,
       url: item.url,
+      // Same keys as the Pexels/Pixabay entries so existing clients (mobile, web) can use them.
+      downloadUrl: item.url,
+      thumbnailUrl: item.previewUrl,
+      width: item.width,
+      height: item.height,
+      provider: item.provider,
+      licenseUrl: item.licenseUrl,
       previewUrl: item.previewUrl || item.url,
       source: item.provider,
       license: item.license,
@@ -156,6 +203,11 @@ router.get("/stock/unified", async (req, res) => {
       previewUrl: item.previewUrl || item.url,
       width: item.width,
       height: item.height,
+      downloadUrl: item.url,
+      thumbnailUrl: item.previewUrl,
+      provider: item.provider,
+      licenseUrl: item.licenseUrl,
+      ...(item.downloadLocation ? { downloadLocation: item.downloadLocation } : {}),
       source: item.provider,
       license: item.license,
       attribution: item.attribution,

@@ -14,6 +14,7 @@ import { CandidateAccount, getOAuthProvider } from './oauth-providers';
 import { decryptSecret, encryptSecret, stateSigningKey } from './token-crypto';
 import { SocialTokenVault } from './token-vault';
 import { getLinkedInProviderMode } from '../linkedin/config';
+import { getYouTubeProviderMode } from '../youtube/config';
 
 export const MOBILE_OAUTH_REDIRECT = 'workspace180://oauth/callback';
 const SESSION_TTL_MS = 15 * 60 * 1000;
@@ -145,34 +146,65 @@ export class SocialOAuthService {
         }
 
         const isMockLinkedIn = platform === 'linkedin' && getLinkedInProviderMode() === 'mock';
-        if ((!isPlatformConfigured(platform) && isSimulationMode()) || isMockLinkedIn) {
-            const candidate: CandidateAccount = platform === 'linkedin' ? {
-                candidateId: 'member:mock_member_180',
-                platform: 'linkedin',
-                kind: 'member',
-                platformAccountId: 'urn:li:person:mock_member_180',
-                accountName: 'Alex Rivera (Demo)',
-                username: 'alex.rivera',
-                profileImageUrl: 'https://api.dicebear.com/7.x/identicon/png?seed=linkedin-demo',
-                metadata: { memberId: 'mock_member_180', simulated: true, connectedAt: new Date().toISOString() },
-                tokens: {
-                    accessToken: 'simulated_linkedin_token',
-                    scopes: ['openid', 'profile', 'w_member_social'],
-                },
-            } : {
-                candidateId: `sandbox:${platform}`,
-                platform,
-                kind: 'user',
-                platformAccountId: `sandbox_${platform}_${input.companyId.slice(0, 8)}`,
-                accountName: `${platform.charAt(0).toUpperCase() + platform.slice(1)} (Sandbox)`,
-                username: `sandbox_${platform}`,
-                profileImageUrl: `https://api.dicebear.com/7.x/identicon/png?seed=${platform}`,
-                metadata: { simulated: true, connectedAt: new Date().toISOString() },
-                tokens: {
-                    accessToken: 'simulated_sandbox_token',
-                    scopes: ['publish', 'read'],
-                },
-            };
+        const isMockYouTube = platform === 'youtube' && getYouTubeProviderMode() === 'mock';
+        if ((!isPlatformConfigured(platform) && isSimulationMode()) || isMockLinkedIn || isMockYouTube) {
+            let candidate: CandidateAccount;
+            if (platform === 'linkedin') {
+                candidate = {
+                    candidateId: 'member:mock_member_180',
+                    platform: 'linkedin',
+                    kind: 'member',
+                    platformAccountId: 'urn:li:person:mock_member_180',
+                    accountName: 'Alex Rivera (Demo)',
+                    username: 'alex.rivera',
+                    profileImageUrl: 'https://api.dicebear.com/7.x/identicon/png?seed=linkedin-demo',
+                    metadata: { memberId: 'mock_member_180', simulated: true, connectedAt: new Date().toISOString() },
+                    tokens: {
+                        accessToken: 'simulated_linkedin_token',
+                        scopes: ['openid', 'profile', 'w_member_social'],
+                    },
+                };
+            } else if (platform === 'youtube') {
+                candidate = {
+                    candidateId: 'channel:UC_mock_180_channel',
+                    platform: 'youtube',
+                    kind: 'channel',
+                    platformAccountId: 'UC_mock_180_channel',
+                    accountName: '180 Workspace Channel (Demo)',
+                    username: '@180workspace',
+                    profileImageUrl: 'https://api.dicebear.com/7.x/identicon/png?seed=youtube-demo',
+                    metadata: {
+                        channelId: 'UC_mock_180_channel',
+                        customUrl: '@180workspace',
+                        simulated: true,
+                        connectedAt: new Date().toISOString(),
+                    },
+                    tokens: {
+                        accessToken: 'simulated_youtube_token',
+                        scopes: [
+                            'https://www.googleapis.com/auth/youtube.upload',
+                            'https://www.googleapis.com/auth/youtube.readonly',
+                            'https://www.googleapis.com/auth/youtube.force-ssl',
+                            'https://www.googleapis.com/auth/yt-analytics.readonly',
+                        ],
+                    },
+                };
+            } else {
+                candidate = {
+                    candidateId: `sandbox:${platform}`,
+                    platform,
+                    kind: 'user',
+                    platformAccountId: `sandbox_${platform}_${input.companyId.slice(0, 8)}`,
+                    accountName: `${platform.charAt(0).toUpperCase() + platform.slice(1)} (Sandbox)`,
+                    username: `sandbox_${platform}`,
+                    profileImageUrl: `https://api.dicebear.com/7.x/identicon/png?seed=${platform}`,
+                    metadata: { simulated: true, connectedAt: new Date().toISOString() },
+                    tokens: {
+                        accessToken: 'simulated_sandbox_token',
+                        scopes: ['publish', 'read'],
+                    },
+                };
+            }
             const account = await this.connectCandidate(input.companyId, projectId, candidate);
             const targetUrl = withParams(redirectUri, {
                 status: 'connected',

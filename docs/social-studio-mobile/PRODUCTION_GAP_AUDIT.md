@@ -200,3 +200,97 @@ Attribution flows into the director warnings and the export credit.
    comment, disconnect/deletion). Request `instagram_business_content_publish`,
    `instagram_business_manage_messages`, `instagram_business_manage_comments`, `pages_manage_posts`,
    `pages_manage_engagement` and `pages_read_engagement`.
+
+## Status: Phase 0 backend (2026-09-26, uncommitted)
+Done: items 1 (no verify-token default, deploy fails if missing; **rotate the old value**), 2, 3, 6 (typed 404 via
+`SocialDomainError`, `tenant-scope.ts`), 7 (engagement rule refs), 8 (no arbitrary account), 12 (SAFE_ACCOUNT_SELECT,
+vault-only tokens), 13 (migration `20260926090000_social_engagement` + `prisma migrate deploy` in the deploy),
+15 (`/accounts/connect` admin-only), 19 (`/render` removed), 23 (409 cap restored), 28 for the touched routes
+(`social-media/route-errors.ts`). Tests: `packages/domains/social-media/test/tenant-isolation.test.ts`,
+`apps/backend/src/api/v1/social-media/tenant-routes.test.ts`.
+
+## 180 Engagement hardening (2026-09-26)
+Done: per-account Redis GCRA limiter (`engagement/rate-limiter.ts`, 30/min default, `SOCIAL_ENGAGEMENT_RATE_LIMIT_PER_MIN`, in-memory only outside production) with rate-limited events stored and replayed by the scheduler tick (`EngagementDispatcher.retryDeferred`); capability matrix (`engagement/capabilities.ts`) incl. IG/FB 7-day private reply and one-message-until-reply; real per-platform calls (`platform-actions.ts`, FB + X added), no mock-token fake success in engagement adapter methods; webhook fails closed without secret (503), raw-body only, idempotent on message/comment ids, ignores echoes/self comments; AI agent + Reply All + smart replies use the company AI with brand profile (AI_NOT_CONFIGURED / AI_TIMEOUT, forbidden words, lead once); inbox manual replies now really send; honest platform metrics (live IG/FB/YouTube or labelled stored/unavailable). Migration `20260926160000_social_engagement_hardening`. Tests: `test/engagement-production.test.ts`.
+Open: web parity screens (engagement rules / inbox Reply All), Flutter tests for the new sheet states, YouTube Analytics API (uses Data API channel stats), X ingestion (no webhook), legacy `MetaAdapter/LinkedInAdapter/TikTokAdapter/YouTubeAdapter.publish*`/`uploadCaption` still short-circuit on `mock_` tokens.
+
+### Phase 1: mobile AI Director (done 2026-09-26)
+- **Greeting.** When Studio opens from a calendar piece or post, it now asks the server for its greeting
+  (`intent:"greet"` with projectId, calendarPieceId and postId). The reply is a brand- and script-aware proposal
+  that waits for Apply. The old hardcoded local greeting, which used invented colour and font defaults, is removed.
+- **Director context on every turn.** Each turn now sends `calendarPieceId` and `postId`.
+- **Watermark.** The brand logo watermark now works end to end:
+  - the Dart model (`EditIrWatermark`) keeps it through every director turn and manual edit;
+  - the logo is downloaded at export and passed to the renderer as `watermarkPath`;
+  - if the download fails, the export continues without the logo and shows a warning.
+- **Export attach.** A video exported from a calendar piece is attached through
+  `POST /calendar-pieces/:id/final-video`, which creates the post if needed. The camera now passes pieceId,
+  hook and script through to Studio.
+- **Tests.** Greeting and watermark tests added; `flutter test` passes 122/122, analyze is clean.
+- **Still open on mobile:** placing SFX on Android (needs the contract `sfx` lane from the web/server agent);
+  optional raw-footage upload from the piece sheet.
+
+### Phase 1: web + server AI Director (done 2026-09-26, uncommitted)
+- **Server.** Each planner LLM call has a timeout (`AI_DIRECTOR_LLM_TIMEOUT_MS`, default 60000). A timeout raises
+  `DirectorTimeoutError` and falls back to the deterministic planner, with `plannerReason` starting `LLM_TIMEOUT:`
+  and a warning (item 17). The style agent uses WS1 `resolveBrandRendering()`: `director-context.ts` puts it on
+  `DirectorBrandContext.rendering`, and `brandStyleDefaults` uses it for colours, font, caption preset and watermark.
+  Every neutral default is named in the warnings and never saved. On a greet turn, SFX suggestions are placed on an
+  optional `audio.sfx[]` lane (`MobileSfxSchema`, documented in AI_DIRECTOR_CONTRACT.md §3.6), with credits.
+  The web `/ai-direct` now forwards `history`. Tests: 4 new in `video-director.test.ts` (58/58 pass).
+- **Web** (`media-editor/services/tauri-bridge.ts`, `components/MediaStudioWorkspace.tsx`, `AIDirectorPanel.tsx`,
+  `ExportModal.tsx`):
+  - Every turn sends projectId, calendarPieceId, postId and the last 12 chat turns, with a 90 s timeout
+    (items 10 and 18).
+  - Errors are shown in the chat with Retry and "Use offline rules". The offline rules are labelled
+    `plannerSource:"offline"`, and the planner source and reason appear under every reply.
+  - The static greeting is replaced by `GET /director-context`, whose Apply runs the suggested prompt.
+  - Proposals are gated on `requiresConfirmation`, and a "yes/proceed" reply confirms them.
+  - The export is uploaded as a multipart MP4 (with progress) to `/calendar-pieces/:id/final-video`, or to
+    `/posts/:id/submit-for-approval`. The file is read from the desktop's asset-protocol URL. If that fails, the
+    user can retry or pick the MP4 from disk. `sync-studio-render` is no longer called (item 9).
+- **Still open:**
+  - Local transcript and silence telemetry. The plumbing is ready (`telemetryFromGraph`), but the desktop app has
+    no command for transcription, silences or audio extraction. It needs an `extract_speech_audio` preset (then
+    `POST /transcribe`) and `detect_silences`. Until then, no telemetry is sent.
+  - The web `compileAST` still runs server-side ffmpeg analysis when `currentEditIR` has a non-placeholder
+    `sourcePath` (`video-ai-director.service.ts` ~L136). This breaks the desktop-only rule.
+  - The `rawVideoUrl` asset in `MediaStudioWorkspace.tsx` still uses assumed metadata (15 s, 1080x1920).
+  - The Android renderer for `audio.sfx`.
+- **SFX on mobile (done).** The Dart model keeps `audio.sfx`. Effects follow the footage through cuts, and any
+  effect inside a cut is dropped. Export downloads each effect with its credit, and any effect that fails to
+  download is left out with a warning. The Android renderer plays each effect as a gapped audio sequence at its
+  volume. Tests: 123/123; the Kotlin compiles.
+
+### Phase 1: remaining items (next session)
+1. **Desktop transcript for the web director.** The Tauri app has no audio-extract or silence command, so the
+   web director still plans without a transcript. Add Rust commands in `apps/desktop-app/src-tauri`: an
+   audio-extract preset, then `POST /transcribe`, plus `detect_silences`. `telemetryFromGraph` is already
+   wired. Needs cargo (not installed on this machine).
+2. **Server-side ffmpeg.** The web `compileAST` still runs ffmpeg on the server when the timeline has a real
+   `sourcePath` (`video-ai-director.service.ts` ~136). This breaks the desktop-only rule and should be removed
+   once item 1 lands.
+3. **Assumed metadata.** `MediaStudioWorkspace.tsx`'s `rawVideoUrl` asset assumes 15 s at 1080x1920. Probe the
+   file on the desktop instead.
+4. **Export upload unverified.** Upload of desktop exports through `asset.localhost` has not been tested in the
+   real Tauri app.
+
+### Phase 1: web director speech analysis + desktop downloads (done 2026-09-26, not yet compiled locally)
+- **New desktop commands** (`apps/desktop-app/src-tauri/src/media.rs`), both limited to files the user picked:
+  - `detect_silences` runs the bundled ffmpeg `silencedetect` and flushes a trailing silence that runs to the
+    end of the file.
+  - `extract_audio_for_transcription` returns 16 kHz mono M4A bytes (25 MB cap) and deletes its temp file.
+  - Both are registered in `lib.rs`, `build.rs` and `capabilities/main.json`, with Rust unit tests for the
+    parser (CI runs `cargo test --lib`).
+- **Web director.** `tauri-bridge.ts` now analyses the primary clip before planning: pauses are found locally,
+  and the speech audio is sent to `/media-editor/transcribe`. The result is cached per file and sent as telemetry.
+  Failures show as a chat warning.
+- **Server-side ffmpeg removed.** `video-ai-director.service.ts` no longer runs ffmpeg or transcription on the
+  server (desktop-only rule).
+- **Downloads.**
+  - The release workflow now builds macOS Intel (`macos-13`) in addition to Apple Silicon, Windows and Linux.
+  - The download page offers separate Apple Silicon and Intel Mac buttons.
+  - The Windows button now uses `/api/download/windows`. It used to point at
+    `public/downloads/180Workspace-Setup-x64.exe`, which is a 29 KB placeholder, not the app.
+  - `DESKTOP_DOWNLOAD_URL_MAC_INTEL` was added to the env example.
+- **To verify:** run the "Desktop App Release" workflow (workflow_dispatch). It compiles the Rust code and runs
+  the tests on Windows and macOS, then publishes a draft release.

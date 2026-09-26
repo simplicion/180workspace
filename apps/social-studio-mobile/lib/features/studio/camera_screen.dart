@@ -11,11 +11,12 @@ import '../../core/widgets/common.dart';
 /// Teleprompter camera. On stop it opens the recording in the Studio editor. A failed or
 /// denied recording is reported; no placeholder file is ever handed on.
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key, this.hook, this.script, this.projectId, this.postId});
+  const CameraScreen({super.key, this.hook, this.script, this.projectId, this.postId, this.pieceId});
   final String? hook;
   final String? script;
   final String? projectId;
   final String? postId;
+  final String? pieceId;
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -146,7 +147,12 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         if (widget.postId?.isNotEmpty ?? false) 'postId=${widget.postId}',
         if (widget.projectId?.isNotEmpty ?? false) 'projectId=${widget.projectId}',
       ].join('&');
-      context.pushReplacement('/studio/session${q.isEmpty ? '' : '?$q'}', extra: {'sourcePath': file.path});
+      context.pushReplacement('/studio/session${q.isEmpty ? '' : '?$q'}', extra: {
+        'sourcePath': file.path,
+        'pieceId': ?widget.pieceId,
+        'hook': ?widget.hook,
+        'script': ?widget.script,
+      });
     } catch (e) {
       if (mounted) showError(context, 'The recording could not be saved: $e');
     } finally {

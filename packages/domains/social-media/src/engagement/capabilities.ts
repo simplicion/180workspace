@@ -144,7 +144,7 @@ export function conversationReplyCapability(
     kind: 'dm' | 'comment',
     lastUserMessageAtMs: number | null,
     nowMs: number,
-): { ok: true } | { ok: false; reason: SkipReason; detail?: string } {
+): { ok: boolean; reason?: SkipReason; detail?: string } {
     const caps = platformCapabilities(platform);
     if (kind === 'comment') return caps.reply ? { ok: true } : { ok: false, reason: 'unsupported_on_platform', detail: caps.note };
     if (!caps.dm) return { ok: false, reason: 'unsupported_on_platform', detail: caps.note };

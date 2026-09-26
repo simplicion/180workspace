@@ -1,157 +1,131 @@
-import { getDb } from '../publishing/http';
-import { SocialTokenVault } from '../publishing/token-vault';
-import { VAULT_ACCOUNT_SELECT } from '../tenant-scope';
-import { InstagramPublisher } from '../adapters/meta.adapter';
-import { BrandVoiceService } from '../brand-voice.service';
+import { getDb, timing } from '../publishing/http';
+import { SocialDomainError, requireCompanyId } from '../tenant-scope';
 import { BatchAiReplyItem } from './types';
+import { conversationReplyCapability } from './capabilities';
+import { parseThread } from './platform-actions';
+import { sendToConversation } from './conversation-sender';
+import { findForbiddenWords, generateWithTimeout, loadBrandForReplies, parseLlmJson, requireEngagementLlm } from './engagement-ai';
+
+export const REPLY_INTENTS = ['lead', 'question', 'support', 'praise', 'complaint', 'spam', 'other'] as const;
+const MAX_BATCH = 50;
+
+export interface BatchDispatchItemResult {
+    conversationId: string;
+    status: 'sent' | 'rate_limited' | 'failed';
+    code?: string;
+    error?: string;
+    retryAfterMs?: number;
+}
 
 export class AiReplyAllService {
     /**
-     * Scans pending unread / unanswered conversations and prepares drafted AI replies.
+     * Drafts one reply per unanswered conversation (last message from the user) with the company's AI and the
+     * project's brand profile, classified by intent. Tenant-scoped. No AI provider → 503 AI_NOT_CONFIGURED.
+     * Items that cannot be sent right now (platform has no DMs, 24 h window closed) come back with `canSend: false`.
      */
-    static async previewBatchReplies(companyId: string, projectId?: string): Promise<{ items: BatchAiReplyItem[]; count: number }> {
+    static async generateBatchSuggestions(companyId: string, options: { projectId?: string; platform?: string; limit?: number } = {}): Promise<BatchAiReplyItem[]> {
+        requireCompanyId(companyId);
         const db = getDb();
-        const whereClause: any = { companyId, isRead: false };
-        if (projectId) whereClause.projectId = projectId;
-
-        const conversations = await db.socialConversation.findMany({
-            where: whereClause,
-            take: 20,
-            orderBy: { lastMessageAt: 'desc' },
-            include: {
-                messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-            },
-        });
-
-        let brandVoice = null;
-        if (projectId) {
-            brandVoice = await BrandVoiceService.getBrandVoice(projectId).catch(() => null);
+        const limit = Math.min(Math.max(1, Number(options.limit) || 20), MAX_BATCH);
+        if (options.projectId && !(await db.project.findFirst({ where: { id: options.projectId, companyId }, select: { id: true } }))) {
+            throw new SocialDomainError('NOT_FOUND', 404, 'Project not found');
         }
+        const where: any = { companyId, isRead: false };
+        if (options.projectId) where.projectId = options.projectId;
+        if (options.platform) where.platform = options.platform;
+        const conversations = await db.socialConversation.findMany({ where, take: limit * 2, orderBy: { lastMessageAt: 'desc' } });
 
-        const items: BatchAiReplyItem[] = [];
-
+        const pending: Array<{ c: any; last: any }> = [];
         for (const c of conversations) {
-            const lastMsg = c.messages[0]?.content || c.lastMessageSnippet || 'Hello!';
-            const handle = c.participantHandle ? `@${c.participantHandle}` : 'there';
-            const tone = brandVoice?.tone || 'Helpful & Professional';
+            const last = await db.socialMessage.findFirst({ where: { conversationId: c.id }, orderBy: { createdAt: 'desc' } });
+            if (last && last.senderType === 'participant') pending.push({ c, last });
+            if (pending.length >= limit) break;
+        }
+        if (!pending.length) return [];
 
-            // Generate smart reply preview
-            let suggestedReply = `Hey ${handle}! Thanks for reaching out. We've got your message and will provide full details shortly! 🙌`;
-            const lower = lastMsg.toLowerCase();
-            if (lower.includes('link') || lower.includes('blueprint') || lower.includes('guide')) {
-                suggestedReply = `Hey ${handle}! Sent you the link — check your direct messages or visit 180workspace.com to access it directly! 🚀`;
-            } else if (lower.includes('price') || lower.includes('cost')) {
-                suggestedReply = `Hi ${handle}! We have tiers starting from our free creator plan up to agency scale. What size is your team?`;
-            } else if (lower.includes('awesome') || lower.includes('love this') || lower.includes('great')) {
-                suggestedReply = `Thank you so much ${handle}! Really appreciate the feedback. More updates coming this week! 🔥`;
-            }
-
-            items.push({
-                conversationId: c.id,
-                platform: c.platform,
-                participantHandle: c.participantHandle,
-                lastCustomerMessage: lastMsg,
-                suggestedReply,
-                tone,
-                selected: true,
+        const llm = await requireEngagementLlm(companyId);
+        const brandCache = new Map();
+        const nowMs = timing.now();
+        const items: BatchAiReplyItem[] = [];
+        // One call per project so each batch is written in that project's brand voice.
+        const byProject = new Map<string, typeof pending>();
+        for (const p of pending) {
+            const k = p.c.projectId || '';
+            byProject.set(k, [...(byProject.get(k) || []), p]);
+        }
+        for (const [projectId, group] of byProject) {
+            const brand = await loadBrandForReplies(projectId || null, companyId, brandCache);
+            const list = group.map((p, i) => `#${i} [${p.c.platform} ${parseThread(p.c.platformThreadId).kind}] @${p.c.participantHandle}: ${String(p.last.content).slice(0, 500)}`).join('\n');
+            const prompt = `You draft replies for a brand's social inbox. For each numbered message, classify the intent and write one reply.
+${brand.context ? `BRAND:\n${brand.context}\n` : ''}${brand.forbiddenWords.length ? `NEVER use: ${brand.forbiddenWords.join(', ')}\n` : ''}Intents: ${REPLY_INTENTS.join(', ')}. Replies: at most 3 short sentences, no invented prices, links or promises; for spam use an empty reply.
+MESSAGES:
+${list}
+Return ONLY JSON: [{"index": 0, "intent": "question", "reply": "...", "confidence": 0.0-1.0}]`;
+            const parsed = parseLlmJson(await generateWithTimeout(llm, prompt, 300 + group.length * 150));
+            const rows = Array.isArray(parsed) ? parsed : [];
+            group.forEach((p, i) => {
+                const row = rows.find((r: any) => Number(r?.index) === i) || {};
+                const reply = typeof row.reply === 'string' ? row.reply.trim() : '';
+                const intent = (REPLY_INTENTS as readonly string[]).includes(row.intent) ? row.intent : 'other';
+                const thread = parseThread(p.c.platformThreadId);
+                const cap = conversationReplyCapability(p.c.platform, thread.kind, new Date(p.last.createdAt).getTime(), nowMs);
+                const forbidden = findForbiddenWords(reply, brand.forbiddenWords);
+                items.push({
+                    conversationId: p.c.id,
+                    platform: p.c.platform,
+                    participantHandle: p.c.participantHandle,
+                    lastCustomerMessage: p.last.content,
+                    suggestedReply: reply,
+                    tone: intent,
+                    intent,
+                    confidence: typeof row.confidence === 'number' ? Math.max(0, Math.min(1, row.confidence)) : null,
+                    canSend: cap.ok && !!reply && !forbidden.length,
+                    blockedReason: !cap.ok ? cap.detail || cap.reason : !reply ? 'AI returned no reply' : forbidden.length ? `uses forbidden words: ${forbidden.join(', ')}` : undefined,
+                    selected: cap.ok && !!reply && !forbidden.length && intent !== 'spam',
+                });
             });
-        }
-
-        return { items, count: items.length };
-    }
-
-    /**
-     * Generates brand-voice aligned draft responses with filters
-     */
-    static async generateBatchSuggestions(
-        companyId: string,
-        options?: { projectId?: string; platform?: string; limit?: number }
-    ): Promise<BatchAiReplyItem[]> {
-        const preview = await this.previewBatchReplies(companyId, options?.projectId);
-        let items = preview.items;
-        if (options?.platform) {
-            items = items.filter(i => i.platform === options.platform);
-        }
-        if (options?.limit && options.limit > 0) {
-            items = items.slice(0, options.limit);
         }
         return items;
     }
 
-    /**
-     * Alias for executeBatchReplies
-     */
-    static async executeBatchReply(
-        companyId: string,
-        approvedItems: Array<{ conversationId: string; replyText: string }>
-    ): Promise<{ dispatched: number; failed: number; errors: string[] }> {
+    /** Backwards-compatible preview (same data as generateBatchSuggestions). */
+    static async previewBatchReplies(companyId: string, projectId?: string): Promise<{ items: BatchAiReplyItem[]; count: number }> {
+        const items = await this.generateBatchSuggestions(companyId, { projectId });
+        return { items, count: items.length };
+    }
+
+    static async executeBatchReply(companyId: string, approvedItems: Array<{ conversationId: string; replyText: string }>) {
         return this.executeBatchReplies(companyId, approvedItems);
     }
 
     /**
-     * Executes approved batch replies with rate-limiting pauses to prevent platform spam flags.
+     * Sends approved (optionally edited) replies. Each item is tenant-checked, capability-checked and rate-limited per
+     * account; a limited item is NOT sent and comes back `rate_limited` with `retryAfterMs` so the client can re-send it.
      */
     static async executeBatchReplies(
         companyId: string,
-        approvedItems: Array<{ conversationId: string; replyText: string }>
-    ): Promise<{ dispatched: number; failed: number; errors: string[] }> {
-        const db = getDb();
-        let dispatched = 0;
-        let failed = 0;
-        const errors: string[] = [];
-
+        approvedItems: Array<{ conversationId: string; replyText: string }>,
+    ): Promise<{ dispatched: number; failed: number; rateLimited: number; errors: string[]; results: BatchDispatchItemResult[] }> {
+        requireCompanyId(companyId);
+        if (!Array.isArray(approvedItems) || !approvedItems.length) throw new SocialDomainError('VALIDATION_FAILED', 400, 'replies must be a non-empty array');
+        if (approvedItems.length > MAX_BATCH) throw new SocialDomainError('VALIDATION_FAILED', 400, `At most ${MAX_BATCH} replies per batch`);
+        const results: BatchDispatchItemResult[] = [];
         for (const item of approvedItems) {
+            const conversationId = String(item?.conversationId || '');
             try {
-                const conversation = await db.socialConversation.findUnique({
-                    where: { id: item.conversationId },
-                    include: { socialAccount: { select: VAULT_ACCOUNT_SELECT } },
-                });
-
-                if (!conversation || conversation.companyId !== companyId) {
-                    continue;
-                }
-
-                // If Instagram and account has token, dispatch to platform
-                if (conversation.socialAccount && conversation.platform === 'instagram') {
-                    try {
-                        const token = await SocialTokenVault.getAccessToken(conversation.socialAccount);
-                        await InstagramPublisher.sendDirectMessage(
-                            conversation.socialAccount.platformAccountId,
-                            conversation.platformThreadId,
-                            item.replyText,
-                            token
-                        );
-                    } catch (err: any) {
-                        console.warn(`[AiReplyAll] Platform dispatch warning: ${err.message}`);
-                    }
-                }
-
-                // Record in database
-                await db.socialMessage.create({
-                    data: {
-                        conversationId: item.conversationId,
-                        senderType: 'ai_bot',
-                        content: item.replyText,
-                    },
-                });
-
-                // Mark conversation read and update snippet
-                await db.socialConversation.update({
-                    where: { id: item.conversationId },
-                    data: {
-                        isRead: true,
-                        lastMessageSnippet: item.replyText.substring(0, 120),
-                        lastMessageAt: new Date(),
-                    },
-                });
-
-                dispatched++;
+                const r = await sendToConversation(companyId, conversationId, String(item?.replyText || ''), 'agent');
+                results.push(r.status === 'sent' ? { conversationId, status: 'sent' } : { conversationId, status: 'rate_limited', code: 'RATE_LIMITED', retryAfterMs: r.retryAfterMs });
             } catch (err: any) {
-                failed++;
-                errors.push(`Conversation ${item.conversationId}: ${err.message}`);
+                results.push({ conversationId, status: 'failed', code: err?.code || 'SEND_FAILED', error: String(err?.message || err).slice(0, 300) });
             }
         }
-
-        return { dispatched, failed, errors };
+        const failedRows = results.filter((r) => r.status === 'failed');
+        return {
+            dispatched: results.filter((r) => r.status === 'sent').length,
+            failed: failedRows.length,
+            rateLimited: results.filter((r) => r.status === 'rate_limited').length,
+            errors: failedRows.map((r) => `Conversation ${r.conversationId}: ${r.error}`),
+            results,
+        };
     }
 }

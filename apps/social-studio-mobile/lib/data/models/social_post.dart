@@ -40,6 +40,7 @@ class PostVariant {
     this.status,
     this.publishedUrl,
     this.errorMessage,
+    this.platformMeta = const {},
   });
 
   final String? id;
@@ -49,6 +50,7 @@ class PostVariant {
   final String? status;
   final String? publishedUrl;
   final String? errorMessage;
+  final Json platformMeta;
 
   factory PostVariant.fromJson(Json j) => PostVariant(
         id: jStr(j['id']),
@@ -58,12 +60,14 @@ class PostVariant {
         status: jStr(j['publishStatus']) ?? jStr(j['status']),
         publishedUrl: jStr(j['externalUrl']) ?? jStr(j['publishedUrl']),
         errorMessage: jStr(j['lastError']) ?? jStr(j['errorMessage']),
+        platformMeta: jMap(j['platformMeta']),
       );
 
   Json toCreateJson() => compact({
         'platform': platform.id,
         'customContent': customContent ?? '',
         'firstComment': firstComment,
+        'platformMeta': platformMeta.isNotEmpty ? platformMeta : null,
       });
 }
 

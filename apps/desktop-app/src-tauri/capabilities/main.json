@@ -12,6 +12,8 @@
     "allow-probe-media",
     "allow-pick-export-path",
     "allow-transcode-media",
+    "allow-detect-silences",
+    "allow-extract-audio-for-transcription",
     "allow-render-timeline",
     "allow-render-status",
     "allow-cancel-render"

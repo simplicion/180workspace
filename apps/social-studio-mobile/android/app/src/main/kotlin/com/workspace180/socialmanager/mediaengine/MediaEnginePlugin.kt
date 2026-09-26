@@ -14,8 +14,8 @@ import java.util.concurrent.Executors
  * Flutter bridge for the on-device media engine.
  *
  * MethodChannel `com.workspace180.socialmanager/media_engine`:
- *   getVideoInfo, extractAudio, generateThumbnails, sliceVideo, detectSilences, renderEditIr,
- *   cancelRender
+ *   getVideoInfo, extractAudio, generateThumbnails, sliceVideo, detectSilences, detectFaces,
+ *   detectBeats, renderEditIr, cancelRender
  * EventChannel `com.workspace180.socialmanager/media_engine/render_events`:
  *   {jobId, state: started|progress|completed|failed|cancelled, progress, ...}
  *
@@ -146,6 +146,15 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                     val thresholdDb = call.argument<Number>("thresholdDb")?.toDouble() ?: -40.0
                     background(result) { MediaTools.detectSilences(src, minSilenceMs, thresholdDb) }
                 }
+                "detectFaces" -> {
+                    val src = call.req<String>("sourcePath")
+                    val every = call.argument<Number>("sampleEveryMs")?.toLong() ?: 500L
+                    background(result) { OnDeviceAnalysis.detectFaces(src, every) }
+                }
+                "detectBeats" -> {
+                    val src = call.req<String>("audioPath")
+                    background(result) { MediaTools.detectBeats(src) }
+                }
                 "renderEditIr" -> {
                     val jobId = call.req<String>("jobId")
                     if (jobs.containsKey(jobId)) throw MediaEngineError("JOB_EXISTS", "Render job '$jobId' is already running")
@@ -156,6 +165,7 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                         musicPaths = call.argument<Map<String, String>>("musicPaths") ?: emptyMap(),
                         fontPaths = call.argument<Map<String, String>>("fontPaths") ?: emptyMap(),
                         watermarkPath = call.argument<String>("watermarkPath"),
+                        sfxPaths = call.argument<Map<String, String>>("sfxPaths") ?: emptyMap(),
                     )
                     val renderer = EditIrRenderer(context, jobId, ir, media, call.req("outputPath"), ::emit)
                     jobs[jobId] = renderer

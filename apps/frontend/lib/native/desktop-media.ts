@@ -98,6 +98,13 @@ export const desktopMedia = {
   /** Raw ffprobe report (`format` + `streams`) for a file returned by `pickMediaFiles`. */
   probeMedia: (path: string) => getInvoke()<{ format?: Record<string, any>; streams?: Record<string, any>[] }>('probe_media', { path }),
 
+  /** Pauses in a picked file's audio (bundled ffmpeg `silencedetect`); [] when the file has no audio. */
+  detectSilences: (path: string, minSilenceMs = 500, thresholdDb = -40) =>
+    getInvoke()<Array<{ startMs: number; endMs: number }>>('detect_silences', { path, minSilenceMs, thresholdDb }),
+
+  /** 16 kHz mono speech audio (M4A bytes) for transcription. Rejects with NO_AUDIO_TRACK / AUDIO_TOO_LARGE. */
+  extractAudioForTranscription: (path: string) => getInvoke()<ArrayBuffer>('extract_audio_for_transcription', { path }),
+
   /** Opens the native "save as" dialog. Resolves to the chosen path, or null if cancelled. */
   pickExportPath: (suggestedName?: string) => getInvoke()<string | null>('pick_export_path', { suggestedName }),
 

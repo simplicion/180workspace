@@ -16,6 +16,7 @@ class MobileEditIr {
     this.captions = const [],
     this.zooms = const [],
     this.audio = const EditIrAudio(),
+    this.watermark,
   });
 
   static const schemaVersion = 'mobile-editir/1';
@@ -33,6 +34,23 @@ class MobileEditIr {
   final List<EditIrZoom> zooms;
   final EditIrAudio audio;
 
+  /// Brand logo drawn over the whole output (contract §3.9); null = none.
+  final EditIrWatermark? watermark;
+
+  /// Same timeline with a different (or no) watermark.
+  MobileEditIr withWatermark(EditIrWatermark? w) => MobileEditIr(
+        projectId: projectId,
+        canvas: canvas,
+        durationMs: durationMs,
+        clips: clips,
+        sources: sources,
+        overlays: overlays,
+        captions: captions,
+        zooms: zooms,
+        audio: audio,
+        watermark: w,
+      );
+
   factory MobileEditIr.fromJson(Map<String, dynamic> json) {
     final version = json['schemaVersion'];
     if (version != schemaVersion) {
@@ -48,6 +66,7 @@ class MobileEditIr {
       captions: _list(json, 'captions', EditIrCaption.fromJson),
       zooms: _list(json, 'zooms', EditIrZoom.fromJson),
       audio: json['audio'] == null ? const EditIrAudio() : EditIrAudio.fromJson(_obj(json, 'audio')),
+      watermark: json['watermark'] == null ? null : EditIrWatermark.fromJson(_obj(json, 'watermark')),
     );
   }
 
@@ -62,6 +81,7 @@ class MobileEditIr {
         'captions': captions.map((c) => c.toJson()).toList(),
         'zooms': zooms.map((z) => z.toJson()).toList(),
         'audio': audio.toJson(),
+        if (watermark != null) 'watermark': watermark!.toJson(),
       };
 
   /// Checks the contract invariants the renderer relies on. Throws `INVALID_EDIT_IR`.
@@ -87,6 +107,27 @@ class MobileEditIr {
 
   /// Every local file id the renderer will ask for, so callers can resolve downloads first.
   Set<String> get assetIds => clips.map((c) => c.assetId).toSet();
+}
+
+class EditIrWatermark {
+  const EditIrWatermark({required this.imageUrl, this.position = 'top_right', this.opacityPct = 100, this.widthFraction = 0.14});
+  final String imageUrl;
+
+  /// top_left | top_right | bottom_left | bottom_right
+  final String position;
+  final double opacityPct;
+  final double widthFraction;
+
+  static const positions = ['top_left', 'top_right', 'bottom_left', 'bottom_right'];
+
+  factory EditIrWatermark.fromJson(Map<String, dynamic> j) => EditIrWatermark(
+        imageUrl: _str(j, 'imageUrl'),
+        position: j['position'] as String? ?? 'top_right',
+        opacityPct: (j['opacityPct'] as num?)?.toDouble() ?? 100,
+        widthFraction: (j['widthFraction'] as num?)?.toDouble() ?? 0.14,
+      );
+
+  Map<String, dynamic> toJson() => {'imageUrl': imageUrl, 'position': position, 'opacityPct': opacityPct, 'widthFraction': widthFraction};
 }
 
 class EditIrSource {
@@ -408,10 +449,55 @@ class EditIrMusic {
       };
 }
 
+/// One-shot sound effect placed by the director (contract §3.6 `audio.sfx`).
+class EditIrSfx {
+  const EditIrSfx({
+    required this.id,
+    required this.timelineStartMs,
+    this.durationMs,
+    this.source = const {},
+    this.volumeDb = -12,
+    this.credit,
+  });
+
+  final String id;
+  final int timelineStartMs;
+  final int? durationMs;
+
+  /// `{kind:"url", url}` — downloaded before rendering.
+  final Map<String, dynamic> source;
+  final double volumeDb;
+
+  /// Licence attribution to show in the post credits, if the source requires it.
+  final String? credit;
+
+  EditIrSfx moved(int start) =>
+      EditIrSfx(id: id, timelineStartMs: start, durationMs: durationMs, source: source, volumeDb: volumeDb, credit: credit);
+
+  factory EditIrSfx.fromJson(Map<String, dynamic> j) => EditIrSfx(
+        id: _str(j, 'id'),
+        timelineStartMs: _int(j, 'timelineStartMs'),
+        durationMs: (j['durationMs'] as num?)?.toInt(),
+        source: (j['source'] as Map?)?.cast<String, dynamic>() ?? const {},
+        volumeDb: (j['volumeDb'] as num?)?.toDouble() ?? -12,
+        credit: j['credit'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'timelineStartMs': timelineStartMs,
+        if (durationMs != null) 'durationMs': durationMs,
+        'source': source,
+        'volumeDb': volumeDb,
+        if (credit != null) 'credit': credit,
+      };
+}
+
 class EditIrAudio {
-  const EditIrAudio({this.originalVolumeDb = 0, this.music = const [], this.speechRangesMs = const []});
+  const EditIrAudio({this.originalVolumeDb = 0, this.music = const [], this.speechRangesMs = const [], this.sfx = const []});
   final double originalVolumeDb;
   final List<EditIrMusic> music;
+  final List<EditIrSfx> sfx;
 
   /// Sorted, non-overlapping `[startMs, endMs]` pairs on the timeline.
   final List<List<int>> speechRangesMs;
@@ -419,6 +505,7 @@ class EditIrAudio {
   factory EditIrAudio.fromJson(Map<String, dynamic> j) => EditIrAudio(
         originalVolumeDb: ((j['originalTrack'] as Map?)?['volumeDb'] as num?)?.toDouble() ?? 0,
         music: _list(j, 'music', EditIrMusic.fromJson),
+        sfx: _list(j, 'sfx', EditIrSfx.fromJson),
         speechRangesMs: ((j['speechRangesMs'] as List?) ?? const [])
             .map((r) => (r as List).map((v) => (v as num).toInt()).toList())
             .toList(),
@@ -428,6 +515,7 @@ class EditIrAudio {
         'originalTrack': {'volumeDb': originalVolumeDb},
         'music': music.map((m) => m.toJson()).toList(),
         'speechRangesMs': speechRangesMs,
+        if (sfx.isNotEmpty) 'sfx': sfx.map((e) => e.toJson()).toList(),
       };
 }
 
@@ -467,4 +555,25 @@ List<T> _list<T>(Map<String, dynamic> j, String k, T Function(Map<String, dynami
   }
   if (v is! List) _bad(k, 'must be an array');
   return v.map((e) => parse((e as Map).cast<String, dynamic>())).toList();
+}
+
+/// One detected face at source time [tMs]: box centre ([x], [y]) and size ([w], [h]) as 0..1
+/// fractions of the display-oriented frame (the `/ai-direct` `media.faces` format).
+class FaceSample {
+  const FaceSample({required this.tMs, required this.x, required this.y, required this.w, required this.h});
+  final int tMs;
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+
+  factory FaceSample.fromMap(Map<String, dynamic> m) => FaceSample(
+        tMs: (m['tMs'] as num).toInt(),
+        x: (m['x'] as num).toDouble(),
+        y: (m['y'] as num).toDouble(),
+        w: (m['w'] as num).toDouble(),
+        h: (m['h'] as num).toDouble(),
+      );
+
+  Map<String, dynamic> toJson() => {'tMs': tMs, 'x': x, 'y': y, 'w': w, 'h': h};
 }

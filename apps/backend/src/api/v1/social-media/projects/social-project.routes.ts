@@ -134,14 +134,18 @@ router.get('/:id/analytics', async (req: Request, res: Response) => {
     }
 });
 
-// Live platform metrics (real-time followers, impressions, reach from connected networks)
+// Account metrics per connected network: `source` live | stored | unavailable (never estimated)
 router.get('/:id/platform-metrics', async (req: Request, res: Response) => {
     try {
-        const companyId = (req as any).user?.companyId || (req as any).companyId;
+        const companyId = (req as any).user?.companyId;
         const metrics = await fetchLivePlatformMetrics({ projectId: String(req.params.id), companyId });
         res.json({ success: true, metrics });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        if (error instanceof SocialInsightsError) {
+            return res.status(error.status).json({ success: false, error: error.code, message: error.message });
+        }
+        console.error('[SocialProjects] platform metrics failed:', error?.message);
+        res.status(500).json({ success: false, error: 'METRICS_FAILED', message: 'Could not load platform metrics.' });
     }
 });
 

@@ -51,6 +51,8 @@ data class RenderMedia(
     val fontPaths: Map<String, String>,
     /** Local image file (PNG/JPEG/WebP) for `watermark`, downloaded by the Dart side. Null = none supplied. */
     val watermarkPath: String? = null,
+    /** sfx id -> local audio path for `audio.sfx`. */
+    val sfxPaths: Map<String, String> = emptyMap(),
 )
 
 /** Events are plain maps so they can go straight over the EventChannel. */
@@ -352,6 +354,7 @@ class EditIrRenderer(
         }
 
         ir.audio.music.forEach { m -> sequences.add(musicSequence(m)) }
+        ir.audio.sfx.forEach { s -> sfxSequence(s)?.let(sequences::add) }
 
         val compositionFx = mutableListOf<Effect>()
         // Cap the output at canvas.fps. Phone footage is often 60 fps or variable frame rate;
@@ -406,6 +409,32 @@ class EditIrRenderer(
         val bitmap = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
             ?: throw EditIrException("MISSING_MEDIA", "Watermark file could not be decoded: $path")
         return WatermarkOverlay(bitmap, wm.position, wm.opacityPct, wm.widthFraction)
+    }
+
+    /** A sound effect as its own audio sequence: gap until its start, the clip at a fixed gain, then silence. */
+    private fun sfxSequence(s: IrSfx): EditedMediaItemSequence? {
+        val path = media.sfxPaths[s.id]
+            ?: throw EditIrException("MISSING_MEDIA", "No local file supplied for sfx '${s.id}' (download it before rendering, or remove it)")
+        val p = probe(path)
+        if (!p.hasAudio) throw EditIrException("MISSING_MEDIA", "Sound effect '${s.id}' file has no audio track")
+        if (s.timelineStartMs >= ir.durationMs) {
+            synchronized(warnings) { warnings.add("sfx ${s.id} starts after the video ends and was skipped") }
+            return null
+        }
+        val len = minOf(s.durationMs ?: p.durationMs, p.durationMs, ir.durationMs - s.timelineStartMs)
+        if (len <= 0) return null
+        val gain = Math.pow(10.0, s.volumeDb / 20.0).toFloat()
+        val b = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
+        if (s.timelineStartMs > 0) b.addGap(s.timelineStartMs * 1000)
+        b.addItem(
+            EditedMediaItem.Builder(clippedItem(path, 0, len * 1000))
+                .setRemoveVideo(true)
+                .setEffects(Effects(listOf(EnvelopeGainProcessor { _ -> gain }), emptyList()))
+                .build(),
+        )
+        val tail = ir.durationMs - s.timelineStartMs - len
+        if (tail > 0) b.addGap(tail * 1000)
+        return b.build()
     }
 
     private fun musicSequence(m: IrMusic): EditedMediaItemSequence {
@@ -499,7 +528,7 @@ class EditIrRenderer(
             fail("IO_ERROR", "Cannot overwrite $outputPath", null)
             return
         }
-        val hasAudio = ir.clips.any { probe(assetPath(it.assetId)).hasAudio } || ir.audio.music.isNotEmpty()
+        val hasAudio = ir.clips.any { probe(assetPath(it.assetId)).hasAudio } || ir.audio.music.isNotEmpty() || ir.audio.sfx.isNotEmpty()
         val builder = Transformer.Builder(context)
             .setVideoMimeType(MimeTypes.VIDEO_H264)
         if (hasAudio) {

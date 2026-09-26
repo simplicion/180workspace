@@ -6,6 +6,7 @@
  */
 import { META_GRAPH_VERSION, intEnv } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
+import { requireToken } from "./engagement-token";
 import { expectOk, pollUntil, providerFetch } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkAspect, checkUrls, checkVideo } from './types';
 
@@ -142,17 +143,13 @@ export class InstagramPublisher implements PlatformPublisher {
 
     /** Replies publicly to an Instagram comment */
     static async replyToComment(commentId: string, message: string, token: string): Promise<{ id: string }> {
-        if (!token || token.startsWith('mock_')) {
-            return { id: `mock_reply_${Date.now()}` };
-        }
+        requireToken(token, "instagram");
         return graphPost('instagram', `${commentId}/replies`, token, { message }, 'Instagram reply to comment');
     }
 
     /** Likes an Instagram comment */
     static async likeComment(commentId: string, token: string): Promise<{ success: boolean }> {
-        if (!token || token.startsWith('mock_')) {
-            return { success: true };
-        }
+        requireToken(token, "instagram");
         return graphPost('instagram', `${commentId}/likes`, token, {}, 'Instagram like comment');
     }
 
@@ -161,9 +158,7 @@ export class InstagramPublisher implements PlatformPublisher {
      * Note: Must be executed within 7 days of the comment.
      */
     static async sendPrivateReply(pageOrAccountId: string, commentId: string, messageText: string, token: string): Promise<{ recipient_id: string; message_id: string }> {
-        if (!token || token.startsWith('mock_')) {
-            return { recipient_id: 'mock_recipient', message_id: `mock_msg_${Date.now()}` };
-        }
+        requireToken(token, "instagram");
         return graphPost(
             'instagram',
             `${pageOrAccountId}/messages`,
@@ -180,9 +175,7 @@ export class InstagramPublisher implements PlatformPublisher {
      * Sends a direct message to an Instagram user (within active 24-hr messaging window).
      */
     static async sendDirectMessage(pageOrAccountId: string, recipientId: string, messageText: string, token: string): Promise<{ recipient_id: string; message_id: string }> {
-        if (!token || token.startsWith('mock_')) {
-            return { recipient_id: recipientId, message_id: `mock_msg_${Date.now()}` };
-        }
+        requireToken(token, "instagram");
         return graphPost(
             'instagram',
             `${pageOrAccountId}/messages`,
