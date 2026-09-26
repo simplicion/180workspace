@@ -26,6 +26,7 @@ out/
 .env
 .env.*
 !.env.example
+!**/.env.example
 *service-account*.json
 google-services.json
 *test-key*.json

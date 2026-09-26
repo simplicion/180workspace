@@ -116,11 +116,13 @@ jobs:
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
           META_WEBHOOK_VERIFY_TOKEN: ${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}
+          LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
+          LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,NEXTAUTH_SECRET,META_WEBHOOK_VERIFY_TOKEN
+          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,NEXTAUTH_SECRET,META_WEBHOOK_VERIFY_TOKEN,LINKEDIN_CLIENT_ID,LINKEDIN_CLIENT_SECRET
           command_timeout: 30m
           script: |
             set -e
@@ -181,6 +183,27 @@ jobs:
               fi
             fi
 
+            # 4d. LinkedIn Credentials & Provider Mode fallback
+            if ! grep -q '^LINKEDIN_CLIENT_ID=.\+' .env; then
+              if [ -n "$LINKEDIN_CLIENT_ID" ]; then
+                printf '\nLINKEDIN_CLIENT_ID=%s\n' "$LINKEDIN_CLIENT_ID" >> .env
+                echo "==> LINKEDIN_CLIENT_ID injected from repository secret."
+              fi
+            fi
+            if ! grep -q '^LINKEDIN_CLIENT_SECRET=.\+' .env; then
+              if [ -n "$LINKEDIN_CLIENT_SECRET" ]; then
+                printf '\nLINKEDIN_CLIENT_SECRET=%s\n' "$LINKEDIN_CLIENT_SECRET" >> .env
+                echo "==> LINKEDIN_CLIENT_SECRET injected from repository secret."
+              fi
+            fi
+            if ! grep -q '^LINKEDIN_PROVIDER_MODE=.\+' .env; then
+              printf '\nLINKEDIN_PROVIDER_MODE=mock\n' >> .env
+              echo "==> LINKEDIN_PROVIDER_MODE defaulted to mock."
+            fi
+            if ! grep -q '^LINKEDIN_API_VERSION=.\+' .env; then
+              printf '\nLINKEDIN_API_VERSION=202507\n' >> .env
+            fi
+
             # 5. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
             sudo chown -R $(whoami):$(whoami) /home/ubuntu/app
             if [ ! -d ".git" ]; then
@@ -209,7 +232,7 @@ jobs:
             #     `prisma migrate resolve --applied <migration>` for every migration already reflected in the schema,
             #     otherwise this step fails with P3005.
             echo "==> Applying database migrations (prisma migrate deploy)..."
-            docker compose run --rm --no-deps -T -w /app/packages/db backend ./node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+            docker compose run --rm --no-deps -T -w /app backend sh -c "npx prisma migrate deploy --schema packages/db/prisma/schema.prisma || ./node_modules/.bin/prisma migrate deploy --schema packages/db/prisma/schema.prisma"
 
             # 9. Stop host-level services / processes binding to port 80 or 443
             sudo systemctl stop nginx apache2 2>/dev/null || true
