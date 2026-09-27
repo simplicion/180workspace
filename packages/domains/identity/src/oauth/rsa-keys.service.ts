@@ -142,3 +142,12 @@ export function getJwks(): { keys: any[] } {
 
     return cachedJwks;
 }
+
+export const RsaKeysService = {
+    initializeKeys,
+    ensureKeys: initializeKeys,
+    getPrivateKey,
+    getPublicKey,
+    getKeyId,
+    getJwks,
+};

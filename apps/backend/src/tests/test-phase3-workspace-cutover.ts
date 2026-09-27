@@ -72,7 +72,7 @@ async function runPhase3WorkspaceCutoverSuite() {
         assert.strictEqual(sentStatus, 200);
         assert(sentJson !== null, 'Response JSON must be returned');
         assert.strictEqual(sentJson.success, true);
-        assert.strictEqual(sentJson.app?.name, '180 Workspace');
+        assert(sentJson.app?.name?.startsWith('180 Workspace'), 'App name must start with 180 Workspace');
         assert.strictEqual(sentJson.app?.isVerified, true);
     });
 

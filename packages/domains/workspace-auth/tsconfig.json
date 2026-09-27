@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "moduleResolution": "Node",
+    "module": "CommonJS",
+    "target": "ES2022",
+    "skipLibCheck": true,
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/db": ["../../db/dist/index.d.ts", "../../db/src/index.ts"],
+      "@workspace/db/*": ["../../db/*"],
+      "@workspace/identity-client": ["../identity-client/dist/index.d.ts", "../identity-client/src/index.ts"],
+      "@workspace/identity-client/*": ["../identity-client/*"]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

@@ -15,6 +15,7 @@ router.post('/register-user', protect, validateRequest(AuthValidation.registerUs
 router.post('/onboarding', protect, AuthController.onboarding);
 router.post('/login', validateRequest(AuthValidation.login), AuthController.login);
 router.post('/google', AuthController.googleLogin);
+router.post('/180-identity/callback', AuthController.handle180IdentityCallback);
 router.post('/forgot-password', validateRequest(AuthValidation.forgotPassword), AuthController.forgotPassword);
 router.get('/check-forgot-eligibility', AuthController.checkForgotEligibility);
 router.get('/find-workspaces', AuthController.findWorkspaces);
