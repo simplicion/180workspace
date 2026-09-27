@@ -9,6 +9,8 @@ import {
     RefreshClaims, RefreshConfigError, RevocationUnavailable, REFRESH_REUSED, REFRESH_REVOKED,
 } from './refresh-revocation';
 import { clearDevicePushOnLogout, DEVICE_HEADER, NATIVE_DEVICE_HEADER, verifyDeviceToken } from '../../desktop/desktop-device';
+import { prisma } from '@workspace/db';
+import { OidcConsumer, CompanyResolver, WorkspaceSessionService } from '@workspace/workspace-auth';
 
 /** Access-token lifetime in seconds, so native clients can refresh proactively. Mirrors signAccessToken. */
 const accessTokenTtlSeconds = () => Number(process.env.ACCESS_TOKEN_EXPIRE_MINUTES || 15) * 60;
@@ -407,5 +409,80 @@ export class AuthController {
             const isAvailable = await AuthService.checkUsername(username as string);
             res.json({ success: true, available: isAvailable });
         } catch (err) { next(err); }
+    }
+
+    /**
+     * Relying Party OIDC Handshake Callback for 180 Identity Provider
+     */
+    static async handle180IdentityCallback(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { code, codeVerifier, redirectUri } = req.body;
+            if (!code) {
+                return res.status(400).json({ error: 'Missing authorization code' });
+            }
+
+            const identityServerUrl = process.env.IDENTITY_SERVER_URL || 'http://localhost:4002';
+            const clientId = process.env.WORKSPACE_CLIENT_ID || process.env.ONE_EIGHTY_IDENTITY_CLIENT_ID || '180-workspace-platform';
+            const clientSecret = process.env.WORKSPACE_CLIENT_SECRET || process.env.ONE_EIGHTY_IDENTITY_CLIENT_SECRET;
+
+            const oidcConsumer = new OidcConsumer({
+                identityServerUrl,
+                clientId,
+                clientSecret,
+                redirectUri: redirectUri || 'http://localhost:3000/callback',
+            });
+
+            // Perform back-channel exchange and verification
+            const { tokens, profile } = await oidcConsumer.handleCallback(code, codeVerifier);
+
+            // Upsert / locate user in local database
+            let user = await prisma.user.findFirst({
+                where: {
+                    OR: [
+                        { email: profile.email.toLowerCase() },
+                        { id: profile.id || profile.sub },
+                    ],
+                },
+                include: { company: true },
+            });
+
+            if (!user) {
+                user = await prisma.user.create({
+                    data: {
+                        id: profile.id || profile.sub,
+                        email: profile.email.toLowerCase(),
+                        name: profile.name || '180 Founder',
+                        username: profile.username || null,
+                        phone: profile.phone || null,
+                        avatar: profile.avatar || null,
+                        role: 'USER',
+                        passwordHash: '180_sso_oauth_managed',
+                    },
+                    include: { company: true },
+                });
+            }
+
+            // Resolve company tenancy
+            const tenantResolution = await CompanyResolver.resolveTenant(user as any);
+
+            // Sign platform access session token
+            const platformSession = WorkspaceSessionService.mintSessionToken({
+                userId: user.id,
+                companyId: user.companyId,
+                email: user.email,
+                role: user.role,
+            });
+
+            return res.json({
+                success: true,
+                accessToken: platformSession,
+                user: sanitizeUser(user),
+                tenant: tenantResolution,
+                redirectUrl: tenantResolution.nextRoute,
+            });
+        } catch (err: any) {
+            console.error('[180 Identity Callback Error]:', err);
+            return res.status(500).json({ error: err.message || '180 Identity authentication failed' });
+        }
     }
 }

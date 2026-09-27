@@ -1,0 +1,20 @@
+{
+  "name": "@workspace/workspace-auth",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "@workspace/identity-client": "workspace:*",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -7,12 +7,13 @@ class PitchCountdownRing extends StatelessWidget {
   final double maxSeconds;
   final double size;
 
-  const PitchCountdownRing({
+  PitchCountdownRing({
     super.key,
     required this.currentSeconds,
-    this.maxSeconds = 180.0,
+    double? maxSeconds,
+    double? totalDurationSeconds,
     this.size = 54.0,
-  });
+  }) : maxSeconds = totalDurationSeconds ?? maxSeconds ?? 180.0;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +24,7 @@ class PitchCountdownRing extends StatelessWidget {
     if (progress > 0.85) {
       ringColor = PitchTheme.accent; // Hot Pink alert
     } else if (progress > 0.65) {
-      ringColor = const Color(0xFFFBBF24); // Amber
+      ringColor = PitchTheme.accentAmber; // Amber
     } else {
       ringColor = PitchTheme.primary; // Electric Indigo
     }
@@ -101,14 +102,13 @@ class _CountdownPainter extends CustomPainter {
     final activePaint = Paint()
       ..color = activeColor
       ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = strokeWidth;
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
 
-    const startAngle = -math.pi / 2;
     final sweepAngle = 2 * math.pi * progress;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
-      startAngle,
+      -math.pi / 2,
       sweepAngle,
       false,
       activePaint,
@@ -117,6 +117,7 @@ class _CountdownPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _CountdownPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.activeColor != activeColor;
+    return oldDelegate.progress != progress ||
+        oldDelegate.activeColor != activeColor;
   }
 }

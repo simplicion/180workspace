@@ -260,8 +260,16 @@ async function bootstrap() {
         }
 
         console.log('[Bootstrap] Connecting to database & initializing services...');
-        prisma.$connect().then(() => {
+        prisma.$connect().then(async () => {
             console.log('[Bootstrap] Database connected.');
+            try {
+                const { RsaKeysService, seedFirstPartyOAuthApps } = require('@workspace/identity');
+                await RsaKeysService.ensureKeys();
+                await seedFirstPartyOAuthApps();
+                console.log('[Bootstrap] 180 Identity RSA keys and first-party apps verified.');
+            } catch (idErr) {
+                console.warn('[Bootstrap] 180 Identity initialization notice:', idErr.message);
+            }
         }).catch(err => {
             console.error('[Bootstrap] Database connect error:', err.message);
         });

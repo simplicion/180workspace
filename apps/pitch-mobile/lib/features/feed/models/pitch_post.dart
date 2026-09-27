@@ -19,13 +19,13 @@ class PitchAuthor {
 
   factory PitchAuthor.fromJson(Map<String, dynamic> json) {
     return PitchAuthor(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-      username: json['username'] ?? '',
-      headline: json['headline'],
-      photoUrl: json['photoUrl'],
-      city: json['city'],
-      country: json['country'],
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? 'Founder',
+      username: json['username'] as String? ?? 'founder',
+      headline: json['headline'] as String?,
+      photoUrl: json['photoUrl'] as String?,
+      city: json['city'] as String?,
+      country: json['country'] as String?,
     );
   }
 }
@@ -44,7 +44,7 @@ class PitchPost {
   int upvotesCount;
   bool isUpvoted;
   final PitchAuthor user;
-  final int commentsCount;
+  int commentsCount;
   final DateTime createdAt;
 
   PitchPost({
@@ -54,34 +54,62 @@ class PitchPost {
     required this.videoUrl,
     this.hlsMasterUrl,
     this.thumbnailUrl,
-    required this.duration,
+    double? duration,
+    double? durationSeconds,
     required this.category,
     required this.tags,
-    required this.views,
+    int? views,
     required this.upvotesCount,
     this.isUpvoted = false,
-    required this.user,
+    PitchAuthor? user,
+    String? authorName,
+    String? authorUsername,
+    String? authorAvatar,
+    String? authorCompany,
     required this.commentsCount,
     required this.createdAt,
-  });
+  })  : duration = durationSeconds ?? duration ?? 180.0,
+        views = views ?? 0,
+        user = user ??
+            PitchAuthor(
+              id: 'author_${authorUsername ?? "founder"}',
+              name: authorName ?? 'Founder',
+              username: authorUsername ?? 'founder',
+              headline: authorCompany,
+              photoUrl: authorAvatar,
+            );
+
+  double get durationSeconds => duration;
+  String get authorName => user.name;
+  String get authorUsername => user.username;
+  String get authorAvatar => user.photoUrl ?? '';
+  String? get authorCompany => user.headline;
 
   factory PitchPost.fromJson(Map<String, dynamic> json) {
     return PitchPost(
-      id: json['id'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      videoUrl: json['videoUrl'] ?? '',
-      hlsMasterUrl: json['hlsMasterUrl'],
-      thumbnailUrl: json['thumbnailUrl'],
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? 'Untitled Pitch',
+      description: json['description'] as String? ?? '',
+      videoUrl: json['videoUrl'] as String? ?? '',
+      hlsMasterUrl: json['hlsMasterUrl'] as String?,
+      thumbnailUrl: json['thumbnailUrl'] as String?,
       duration: (json['duration'] as num?)?.toDouble() ?? 180.0,
-      category: json['category'] ?? 'startups',
-      tags: (json['tags'] as List?)?.map((e) => e.toString()).toList() ?? [],
-      views: json['views'] ?? 0,
-      upvotesCount: json['upvotesCount'] ?? 0,
-      isUpvoted: json['isUpvotedByMe'] ?? false,
-      user: PitchAuthor.fromJson(json['user'] ?? {}),
-      commentsCount: json['_count']?['comments'] ?? 0,
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+      category: json['category'] as String? ?? 'startups',
+      tags: (json['tags'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      views: (json['views'] as num?)?.toInt() ?? 0,
+      upvotesCount: (json['upvotesCount'] as num?)?.toInt() ?? 0,
+      isUpvoted: json['isUpvotedByMe'] as bool? ?? false,
+      user: PitchAuthor.fromJson(
+          json['user'] is Map<String, dynamic> ? json['user'] : {}),
+      commentsCount: (json['_count']?['comments'] as num?)?.toInt() ??
+          (json['commentsCount'] as num?)?.toInt() ??
+          0,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 }

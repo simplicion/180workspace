@@ -7,6 +7,9 @@ class PitchTheme {
   static const Color primary = Color(0xFF6366F1);
   static const Color secondary = Color(0xFFA855F7);
   static const Color accent = Color(0xFFEC4899);
+  static const Color accentPink = Color(0xFFEC4899);
+  static const Color accentAmber = Color(0xFFF59E0B);
+  static const Color accentEmerald = Color(0xFF10B981);
   static const Color background = Color(0xFF0B0F19);
   static const Color surface = Color(0xFF161F30);
   static const Color surfaceElevated = Color(0xFF1E293B);
