@@ -154,6 +154,7 @@ model Company {
   evergreenQueueSlots_CompanyEvergreenQueueSlots EvergreenQueueSlot[] @relation("CompanyEvergreenQueueSlots")
   socialEngagementRules_CompanySocialEngagementRules SocialEngagementRule[] @relation("CompanySocialEngagementRules")
   aiCreditAccount                          CompanyAICreditAccount?
+  oauthApps                                OAuthApp[]            @relation("CompanyOAuthApps")
 
 }
 
@@ -407,6 +408,8 @@ model User {
   city                                  String?
   country                               String?
   address                               String?
+  latitude                              Float?
+  longitude                             Float?
   socialLinks                           Json?
   highlights                            Json?                 @default("[]")
   interests                             String[]              @default([])
@@ -518,6 +521,17 @@ model User {
   knowledgeVersions KnowledgeArticleVersion[] @relation("KnowledgeVersionCreator")
   teamActivityLogs  TeamActivityLog[]         @relation("UserTeamActivityLogs")
   employeeDocuments Document[]                @relation("EmployeeDocuments")
+  oauthApps         OAuthApp[]                @relation("UserOAuthApps")
+  oauthCodes        OAuthAuthorizationCode[]  @relation("UserOAuthCodes")
+  oauthTokens       OAuthToken[]              @relation("UserOAuthTokens")
+  oauthConsents     OAuthConsent[]            @relation("UserOAuthConsents")
+  pitchinGigs       PitchinGig[]              @relation("UserPitchinGigs")
+  pitchinPosts      PitchinPost[]             @relation("UserPitchinPosts")
+  pitchinUpvotes    PitchinUpvote[]           @relation("UserPitchinUpvotes")
+  pitchinComments   PitchinComment[]          @relation("UserPitchinComments")
+  pitchinResources  PitchinResource[]         @relation("UserPitchinResources")
+  pitchinEvents     PitchinEvent[]            @relation("UserPitchinEvents")
+  pitchinEventRsvps PitchinEventRsvp[]        @relation("UserPitchinEventRsvps")
 
   @@unique([companyId, employeeId])
   @@index([companyId])
@@ -4041,3 +4055,225 @@ model MediaIndexEntry {
   @@index([companyId, projectId])
   @@index([companyId, projectId, assetId, kind])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 180 IDENTITY & OAUTH 2.0 / OIDC IDENTITY PROVIDER (IDP)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model OAuthApp {
+  id               String                   @id @default(uuid())
+  name             String
+  description      String?                  @default("")
+  clientId         String                   @unique
+  clientSecretHash String
+  clientSecretHint String
+  redirectUris     String[]                 @default([])
+  allowedOrigins   String[]                 @default([])
+  logoUrl          String?                  @default("")
+  homepageUrl      String?                  @default("")
+  isVerified       Boolean                  @default(false)
+  isActive         Boolean                  @default(true)
+  allowedScopes    String[]                 @default(["identity:read"])
+  userId           String
+  companyId        String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  user             User                     @relation("UserOAuthApps", fields: [userId], references: [id], onDelete: Cascade)
+  company          Company?                 @relation("CompanyOAuthApps", fields: [companyId], references: [id], onDelete: SetNull)
+  codes            OAuthAuthorizationCode[] @relation("AppOAuthCodes")
+  tokens           OAuthToken[]             @relation("AppOAuthTokens")
+  consents         OAuthConsent[]           @relation("AppOAuthConsents")
+
+  @@index([userId])
+  @@index([clientId])
+}
+
+model OAuthAuthorizationCode {
+  id                  String    @id @default(uuid())
+  code                String    @unique
+  appId               String
+  userId              String
+  redirectUri         String
+  scopes              String[]
+  codeChallenge       String?
+  codeChallengeMethod String?   @default("S256")
+  expiresAt           DateTime
+  usedAt              DateTime?
+  createdAt           DateTime  @default(now())
+
+  app                 OAuthApp  @relation("AppOAuthCodes", fields: [appId], references: [id], onDelete: Cascade)
+  user                User      @relation("UserOAuthCodes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([code])
+}
+
+model OAuthToken {
+  id           String    @id @default(uuid())
+  accessToken  String    @unique
+  refreshToken String?   @unique
+  tokenType    String    @default("Bearer")
+  scopes       String[]
+  appId        String
+  userId       String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  app          OAuthApp  @relation("AppOAuthTokens", fields: [appId], references: [id], onDelete: Cascade)
+  user         User      @relation("UserOAuthTokens", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([accessToken])
+  @@index([refreshToken])
+}
+
+model OAuthConsent {
+  id        String   @id @default(uuid())
+  appId     String
+  userId    String
+  scopes    String[]
+  grantedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  app       OAuthApp @relation("AppOAuthConsents", fields: [appId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserOAuthConsents", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PITCH IN 180 NETWORK: OPPORTUNITIES & GIGS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PitchinGig {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  category    String   @default("tech")
+  budget      Float?
+  currency    String   @default("USD")
+  location    String?
+  status      String   @default("open")
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation("UserPitchinGigs", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PITCH IN 180 NETWORK: POSTS, UPVOTES, COMMENTS, RESOURCES, EVENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PitchinPost {
+  id           String           @id @default(uuid())
+  title        String
+  description  String?          @default("")
+  videoUrl     String
+  hlsMasterUrl String?          @default("")
+  thumbnailUrl String?          @default("")
+  duration     Float            // Duration in seconds (strictly enforced <= 180s)
+  category     String           @default("startups")
+  tags         String[]         @default([])
+  views        Int              @default(0)
+  upvotesCount Int              @default(0)
+  status       String           @default("ready") // "processing" | "ready" | "failed"
+  userId       String
+  companyId    String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  user         User             @relation("UserPitchinPosts", fields: [userId], references: [id], onDelete: Cascade)
+  upvotes      PitchinUpvote[]  @relation("PostPitchinUpvotes")
+  comments     PitchinComment[] @relation("PostPitchinComments")
+
+  @@index([userId])
+  @@index([category])
+  @@index([createdAt])
+  @@index([upvotesCount])
+}
+
+model PitchinUpvote {
+  id        String      @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime    @default(now())
+
+  post      PitchinPost @relation("PostPitchinUpvotes", fields: [postId], references: [id], onDelete: Cascade)
+  user      User        @relation("UserPitchinUpvotes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model PitchinComment {
+  id        String      @id @default(uuid())
+  postId    String
+  userId    String
+  content   String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  post      PitchinPost @relation("PostPitchinComments", fields: [postId], references: [id], onDelete: Cascade)
+  user      User        @relation("UserPitchinComments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+}
+
+model PitchinResource {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  url         String
+  category    String   @default("ai") // "ai" | "dev_tools" | "funding" | "marketing" | "design"
+  tags        String[] @default([])
+  upvotes     Int      @default(0)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation("UserPitchinResources", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([category])
+  @@index([userId])
+  @@index([upvotes])
+}
+
+model PitchinEvent {
+  id          String            @id @default(uuid())
+  title       String
+  description String
+  eventDate   DateTime
+  location    String            @default("Virtual")
+  meetingUrl  String?           @default("")
+  category    String            @default("pitch_day") // "pitch_day" | "ama" | "demo_day" | "webinar"
+  rsvpsCount  Int               @default(0)
+  userId      String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user        User              @relation("UserPitchinEvents", fields: [userId], references: [id], onDelete: Cascade)
+  rsvps       PitchinEventRsvp[] @relation("EventPitchinRsvps")
+
+  @@index([eventDate])
+  @@index([userId])
+}
+
+model PitchinEventRsvp {
+  id        String       @id @default(uuid())
+  eventId   String
+  userId    String
+  createdAt DateTime     @default(now())
+
+  event     PitchinEvent @relation("EventPitchinRsvps", fields: [eventId], references: [id], onDelete: Cascade)
+  user      User         @relation("UserPitchinEventRsvps", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+

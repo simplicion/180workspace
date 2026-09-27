@@ -164,7 +164,7 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
       currentEditIR: baseIR,
       history: normalizeHistory(params.history),
       llmClient: params.meta?.llmClient,
-      contextSections: Array.isArray(params.meta?.contextSections) ? params.meta.contextSections : undefined,
+      contextSections: webContextSections(params.meta?.contextSections, params.meta?.telemetry),
     });
     const expansionWarnings: string[] = [];
     const creativePlan = PlanExpander.expand(outcome.plan, mediaGraph, expansionWarnings);
@@ -893,6 +893,28 @@ function deterministicRepairOps(issues: DirectorCritiqueIssue[]): CreativeOperat
   const ops: CreativeOperation[] = [];
   if (issues.some((i) => i.id.startsWith("music_over_speech:"))) ops.push({ type: "duckAudio", duckDb: -18, attackMs: 120, releaseMs: 350 } as CreativeOperation);
   return ops;
+}
+
+/**
+ * Web/desktop path: the desktop app sends its on-device scene cuts and loudness as `telemetry.scenesMs` /
+ * `telemetry.loudness` (a top-level `media` key would select the mobile director). Validated loosely here and added
+ * to the planner prompt the same way as the mobile path.
+ */
+function webContextSections(sections: unknown, telemetry: any): string[] | undefined {
+  const base = Array.isArray(sections) ? sections.filter((x) => typeof x === "string") : [];
+  const ms = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 4 * 3600 * 1000;
+  const scenesMs = Array.isArray(telemetry?.scenesMs) ? telemetry.scenesMs.filter(ms).slice(0, 2000) : undefined;
+  const l = telemetry?.loudness;
+  const num = (v: unknown, lo: number, hi: number) => typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi;
+  const loudness = l && num(l.integratedLufs, -100, 10)
+    ? { integratedLufs: l.integratedLufs, ...(num(l.truePeakDb, -100, 20) ? { truePeakDb: l.truePeakDb } : {}), ...(num(l.clippingPct, 0, 100) ? { clippingPct: l.clippingPct } : {}) }
+    : undefined;
+  const ocr = Array.isArray(telemetry?.ocr)
+    ? telemetry.ocr.filter((o: any) => o && ms(o.startMs) && ms(o.endMs) && typeof o.text === "string").slice(0, 200).map((o: any) => ({ startMs: o.startMs, endMs: o.endMs, text: o.text.slice(0, 500) }))
+    : undefined;
+  const extra = mediaContextSections({ scenesMs, loudness, ocr } as any);
+  const out = [...base, ...extra];
+  return out.length ? out : undefined;
 }
 
 /** Scene cuts and on-screen text (OCR, fenced as untrusted data) for the planner prompt. */

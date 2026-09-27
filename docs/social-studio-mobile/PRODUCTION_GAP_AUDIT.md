@@ -535,3 +535,151 @@ All social web screens except the hub (`social-projects/page.tsx`) and the publi
   - Showing times in the project timezone.
   - Reconnect notifications (accounts have no owner user).
   - Device tests: real phone export, live stock downloads, Rust build.
+
+### Publishing verification, sandbox, devices, push, settings and export (2026-09-27)
+
+**Adapters.** All 8 adapters were checked against the current official docs. The per-platform table and sources are in
+PUBLISHING.md §6.
+
+- Fixed in `packages/domains/social-media/src/adapters/*`:
+  - **Instagram.**
+    - Reel size limit corrected from 1 GB to 300 MB.
+    - Stories added.
+    - `alt_text` and JPEG checks added.
+    - Meta rate-limit and "not ready" error codes are now retryable.
+    - Slow containers now end as `processing` and are published by `checkStatus`, instead of timing out and
+      re-uploading.
+  - **Facebook.**
+    - Link posts added.
+    - Reel processing is now tracked with `status.video_status` and `checkStatus`.
+  - **Threads.**
+    - Carousels allow 2–20 items (the limit was 10).
+    - An `ERROR` container used to be published anyway; it now fails with `error_message`.
+    - The permalink is read from the API.
+    - The first comment is posted as a reply.
+  - **YouTube.**
+    - Quota and rate-limit errors are mapped.
+    - A warning appears when YouTube forces the video private because the project is unverified.
+    - `publishAt` and `containsSyntheticMedia` are supported.
+  - **LinkedIn.**
+    - The `LinkedIn-Version` default `202507` was sunset; it is now `202609`, via the new
+      `publishing/linkedin-version.ts`.
+    - Hashtags are no longer escaped.
+    - Video limit corrected to 500 MB.
+    - Documents wait for `AVAILABLE`.
+    - Invalid formats are rejected.
+  - **Pinterest.**
+    - Video Pins used to send the video URL as an image; they now use the real media-upload flow.
+    - Carousel Pins added (2–5 images).
+    - Description limit raised to 800 characters.
+  - **Reddit.**
+    - Uses a compliant User-Agent.
+    - Supports nsfw, spoiler and flair.
+    - `json.errors` are mapped to validation or retryable errors.
+    - A missing id gives `OUTCOME_UNKNOWN` instead of a fabricated `t3_<timestamp>`.
+  - **X.**
+    - Missing pay-per-use credits (402) give `PUBLISH_NOT_CONFIGURED`.
+    - Duplicate text gives a validation error.
+    - GIFs use `tweet_gif`.
+    - Video limit raised to 20 minutes.
+- New capability matrix: `adapters/capabilities.ts`. A test keeps it consistent with each validator.
+
+**Sandbox.**
+
+- `isAssistedPlatform` no longer sends keyless platforms to the assisted handoff when the sandbox is on.
+- `SimulatedPlatformPublisher` re-validates, refuses to run when the sandbox is off, and labels its results.
+- Mobile shows SANDBOX, SIMULATED and "Simulated publish" labels.
+- `sandbox-e2e.test.ts` runs the full flow for all 8 platforms keyless and proves the sandbox is refused in production.
+
+**Autonomy.** The scheduler holds unapproved AI-authored posts under `autonomy.publishing = MANUAL`.
+
+**Devices.**
+
+- At the device limit, the least-recently-seen device is evicted, provided it has been idle for at least
+  `DESKTOP_DEVICE_EVICTION_MIN_IDLE_MINUTES` (default 30). The requesting device is never evicted. The evicted device
+  is logged and returned in `evicted`. If no device qualifies, the request gets 409.
+- `lastSeenAt` is refreshed on use (at most every 5 minutes).
+- `GET /devices` marks the current device with `current`.
+- After a reinstall, the device slot is reused via `installKey`: Android `ANDROID_ID`, hashed per company and user, sent
+  over the Kotlin `…/device` channel.
+- Settings copy corrected. It used to say "5 devices"; the limit is 20.
+
+**Push.**
+
+- Backend: `apps/backend/src/services/push/*` (FCM from env, typed `PUSH_NOT_CONFIGURED`), with routes at
+  `/api/desktop/push/{status,test}`.
+- Mobile: `firebase_core`/`firebase_messaging` and the `google-services` Gradle plugin. `android/app/google-services.json`
+  exists and matches `com.workspace180.social_studio_mobile`.
+- Mobile flow: permission request (Android 13+) → token registration and refresh → tapping a notification opens the
+  post. Settings shows the real push status and has a test-send button.
+
+**Settings.**
+
+- **Appearance.**
+  - The selector offers Dark and System, persisted.
+  - Light mode is withheld on purpose. About 40 screens use the dark `AppTheme.*` constants directly, so light mode
+    would put near-white text on white. The earlier change that enabled light mode without tokens was made safe.
+  - A stored "light" choice falls back to dark.
+  - To enable light mode: tokenise the screens through `Theme.of(context)`, then set
+    `ThemeModeNotifier.lightModeAvailable = true`.
+- **Removed fake status.** The hard-coded "ONLINE" and "PRODUCTION READY" labels and the wrong version string are gone.
+- **Account deletion.** Uses the real URL `https://180workspace.com/account-delete` (in the Play metadata).
+- **Sign out.** Revokes the device slot and posts `/api/auth/logout` with the refresh token (already implemented).
+
+**Export (verified on the Pixel_7_API_34 emulator).**
+
+- **Bug found and fixed.** `experimentalSetForceAudioTrack(...)` on sequences declared with explicit track types threw
+  `IllegalStateException`. This made every video-only export fail, and exports with B-roll failed too. The calls are
+  removed; declared `TRACK_TYPE_AUDIO` pads silence.
+- **Error messages.** `RENDER_SETUP_FAILED` and `EXPORT_FAILED` now carry the root cause and where it was thrown,
+  instead of a bare class name.
+- **HDR.**
+  - The OpenGL tone-map runs only for HDR sources.
+  - If the GPU lacks `GL_EXT_YUV_target`, the export retries once with MediaCodec tone-mapping, then fails with a typed
+    `HDR_NOT_SUPPORTED` and an actionable message.
+  - A real HDR phone is still needed to see a successful tone-map.
+- **AAC.** Requested only when audio exists. A video-only export has no audio track and no AAC encoder.
+- **New test.** `integration_test/export_formats_render_test.dart` (3/3) covers silent, mixed-audio and HDR.
+  `media_engine_render_test.dart` passes 6/6. Both ran on the emulator; fixtures are in the gitignored `test_assets/`.
+
+**Tests.**
+
+- Social domain: publishers 16, adapters-verified 16, sandbox-e2e 11, oauth-meta 7, webhooks 6, post-edge-cases 15,
+  tenant-isolation 16, social-os 7.
+- Backend: desktop devices and push-token ownership 21, push 5.
+- Mobile: `flutter analyze` is clean for this work. `flutter test`, Kotlin compile and the debug APK build are green;
+  exceptions are listed under Open.
+
+**Open.**
+
+- `user-assisted-publishing.test.ts`: case 1 expects unconfigured Instagram not to be assisted, which contradicts the
+  dispatcher's "all unconfigured platforms are assisted" rule committed earlier. Case 3 needs a database.
+- The concurrent SSO work (`lib/core/auth/*`, `login_screen.dart`) breaks two review-portal widget tests (a login-screen
+  row overflow) and adds 2 analyzer infos. That work belongs to whoever is editing it.
+- Real-device HDR tone-map check.
+- TikTok was not re-verified.
+
+### Production gate: verified 2026-09-27 (re-run by the lead, not only the agents' claims)
+- **Mobile:** `flutter analyze` clean, `flutter test` 170/170.
+  - Fixed the new 180 Identity login button: it overflowed by 144 px on phone width. Also fixed the undeclared `crypto` dependency.
+  - The agent ran on-device export tests on a Pixel 7 API 34 emulator (3/3 + 6/6).
+- **Desktop/web:** `tsc` 0 errors, jest 181/181, E2E studio journey 16/16 (10 steps fully real; the LLM, STT and caption raster are stubbed).
+  - Desktop Apply/Undo now sends agent-memory feedback.
+  - The canned "video created" message was replaced with a real summary.
+- **Backend/contracts:**
+  - Director 58/58.
+  - video-contracts director-os 13/13 and effects-photos 3/3.
+  - ai director-os 12/12, social-os 7/7, brand-bleed 2/2.
+  - Publishing: adapters-verified 16, sandbox-e2e 11, publishers 16.
+- **Blocking before public launch:**
+  1. Apply migration `20260927100000_agent_os` (plus earlier ones) with `prisma migrate deploy`; restart the servers.
+  2. CI `cargo test --lib` for the desktop Rust (analysis.rs, overlays.rs, remote.rs, render.rs); it was never compiled locally.
+  3. Live keys and app reviews per platform (see PUBLISHING.md §6 and the key list), plus Firebase service-account env.
+  4. A real-phone run of the full journey and a desktop install run; the new desktop UI has only been typechecked.
+  5. Rotate the old Meta webhook verify token; deploy (prod was on `ed40b0d`).
+- **Not blocking, but open:**
+  - Light theme withheld: about 40 screens hard-code dark colours.
+  - No local STT sidecar (whisper.cpp recommended).
+  - No desktop OCR.
+  - Performance memory needs a live insights sync.
+  - `user-assisted-publishing.test.ts` case 1 conflicts with the committed manual-handoff rule; case 3 needs a DB.

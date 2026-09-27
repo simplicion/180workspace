@@ -15,12 +15,14 @@ import AuthChoice from '@/app/(auth)/_components/AuthChoice';
 import OtpVerification from '@/app/(auth)/_components/OtpVerification';
 import PasswordSetup from '@/app/(auth)/_components/PasswordSetup';
 import BasicProfile from '@/app/(auth)/_components/BasicProfile';
-import { Rocket, Shield, Clock, Users, Bot, FolderKanban, MessageSquare, Cloud, BarChart3, ArrowLeft } from 'lucide-react';
+import { Rocket, Shield, Clock, Users, Bot, FolderKanban, MessageSquare, Cloud, BarChart3, ArrowLeft, Sparkles, ArrowRight } from 'lucide-react';
+import { use180Identity } from '@/lib/use180Identity';
 
 export default function SignupFlow() {
     const router = useRouter();
     const { platform } = useSettings();
     const { data: session, status, update: updateSession } = useSession();
+    const { launch180Identity, isOpeningIdentity } = use180Identity();
 
     const [step, setStep] = useState(1);
     
@@ -312,6 +314,48 @@ export default function SignupFlow() {
 
                 {/* Render Current Step */}
                 <div className="w-full max-w-md relative z-10">
+                    {step === 1 && (
+                        <div className="mb-6">
+                            <button
+                                type="button"
+                                disabled={isOpeningIdentity}
+                                onClick={launch180Identity}
+                                className="w-full relative group overflow-hidden rounded-2xl p-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-600 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer"
+                            >
+                                <div className="w-full bg-slate-950/95 group-hover:bg-slate-950/90 rounded-[14px] px-5 py-3.5 flex items-center justify-between transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-xs shadow-md">
+                                            180
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                                                Sign up with 180 Identity
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                                            </div>
+                                            <div className="text-[11px] text-slate-400 font-medium">
+                                                Fast 1-tap onboarding with WhatsApp / Email
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="w-8 h-8 rounded-full bg-white/10 group-hover:bg-white/20 flex items-center justify-center text-white transition-colors">
+                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                                    </div>
+                                </div>
+                            </button>
+
+                            <div className="relative my-6 flex items-center justify-center">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-gray-200"></div>
+                                </div>
+                                <div className="relative flex justify-center text-xs">
+                                    <span className="px-3 bg-white text-gray-400 font-semibold uppercase tracking-wider text-[10px]">
+                                        Or create workspace account manually
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <AnimatePresence mode="wait">
                         {step === 1 && <AuthChoice key="step1" onGoogleSuccess={handleGoogleSuccess} onEmailSubmit={handleEmailSubmit} googleLoading={loading} />}
                         {step === 2 && <OtpVerification key="step2" email={email} onVerify={handleVerifyOtp} isVerifying={loading} onBack={() => setStep(1)} onResend={() => handleEmailSubmit(email)} isResending={loading} />}

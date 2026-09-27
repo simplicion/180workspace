@@ -61,6 +61,8 @@ export interface DeviceRecord {
   createdAt: number;
   lastSeenAt: number;
   platform?: string;
+  /** sha256 of the client's stable install key (e.g. Android ID) scoped to company + user; lets a reinstall reuse its slot. */
+  installKeyHash?: string;
   /** Push notification registration (native mobile). Never returned to other users; per company + user registry. */
   push?: { provider: PushProvider; token: string; updatedAt: number };
 }
@@ -202,6 +204,12 @@ async function releasePushOwner(token: string, owner: PushOwner) {
 
 export class DeviceLimitError extends Error {}
 
+/** Install keys are client-reported: only accepted as a bounded opaque string and stored hashed per company + user. */
+export function installKeyHashOf(companyId: string, userId: string, installKey?: string): string | undefined {
+  if (typeof installKey !== 'string' || installKey.length < 8 || installKey.length > 200) return undefined;
+  return crypto.createHash('sha256').update(`${companyId}:${userId}:${installKey}`).digest('hex');
+}
+
 export interface EvictedDevice {
   deviceId: string;
   label: string;
@@ -237,15 +245,18 @@ function signToken(companyId: string, userId: string, deviceId: string, platform
  * same device that does not use up another slot. Tokens last 30 days, so without this every renewal would consume one of
  * the MAX_DEVICES_PER_USER slots. A revoked device cannot be renewed (it must be registered again, as a new device).
  */
-export async function registerDevice(params: { companyId: string; userId: string; label?: string; platform?: string; deviceId?: string; currentDeviceId?: string }) {
+export async function registerDevice(params: { companyId: string; userId: string; label?: string; platform?: string; deviceId?: string; currentDeviceId?: string; installKey?: string }) {
   const now = Date.now();
-  if (params.deviceId) {
-    const current = await findDevice(params.companyId, params.userId, params.deviceId);
+  const installKeyHash = installKeyHashOf(params.companyId, params.userId, params.installKey);
+  if (params.deviceId || installKeyHash) {
+    let current = params.deviceId ? await findDevice(params.companyId, params.userId, params.deviceId) : null;
+    // Reinstall: the app lost its stored deviceId, but the stable install key matches an existing device of THIS user.
+    if (!current && installKeyHash) current = (await listDevices(params.companyId, params.userId)).find((d) => d.installKeyHash === installKeyHash) ?? null;
     if (current) {
       await saveDevice(params.companyId, params.userId, { ...current, lastSeenAt: now });
       return { deviceId: current.deviceId, token: signToken(params.companyId, params.userId, current.deviceId, current.platform), label: current.label, platform: current.platform ?? null, kind: isMobilePlatform(current.platform) ? 'native-device' : 'desktop-device', expiresAt: now + DEVICE_TOKEN_TTL_SECONDS * 1000, renewed: true, evicted: null as EvictedDevice | null };
     }
-    // unknown / revoked device id: fall through and register a brand new device
+    // unknown / revoked device id and no matching install key: fall through and register a brand new device
   }
 
   let evicted: EvictedDevice | null = null;
@@ -270,7 +281,7 @@ export async function registerDevice(params: { companyId: string; userId: string
   const platform = normalizePlatform(params.platform);
   const fallbackLabel = defaultLabel(platform);
   const label = (params.label || fallbackLabel).replace(/[^\w .\-()]/g, '').slice(0, 60) || fallbackLabel;
-  await saveDevice(params.companyId, params.userId, { deviceId, label, createdAt: now, lastSeenAt: now, platform });
+  await saveDevice(params.companyId, params.userId, { deviceId, label, createdAt: now, lastSeenAt: now, platform, ...(installKeyHash ? { installKeyHash } : {}) });
 
   const token = signToken(params.companyId, params.userId, deviceId, platform);
   return { deviceId, token, label, platform: platform ?? null, kind: isMobilePlatform(platform) ? 'native-device' : 'desktop-device', expiresAt: now + DEVICE_TOKEN_TTL_SECONDS * 1000, renewed: false, evicted };

@@ -41,6 +41,7 @@ class PostVariant {
     this.publishedUrl,
     this.errorMessage,
     this.platformMeta = const {},
+    this.externalId,
   });
 
   final String? id;
@@ -51,6 +52,14 @@ class PostVariant {
   final String? publishedUrl;
   final String? errorMessage;
   final Json platformMeta;
+  final String? externalId;
+
+  /// Produced by the server's sandbox (SIMULATE_SOCIAL_PUBLISHING, never in production): nothing reached the
+  /// platform and [publishedUrl] is a placeholder. The UI must label it and must not offer "View live post".
+  bool get isSimulated => (externalId?.startsWith('sim_') ?? false) || (errorMessage?.startsWith('Simulated publish') ?? false);
+
+  /// A published / processing variant can carry a non-fatal note (e.g. first comment failed); it is not an error.
+  bool get isFailed => status == 'failed';
 
   factory PostVariant.fromJson(Json j) => PostVariant(
         id: jStr(j['id']),
@@ -61,6 +70,7 @@ class PostVariant {
         publishedUrl: jStr(j['externalUrl']) ?? jStr(j['publishedUrl']),
         errorMessage: jStr(j['lastError']) ?? jStr(j['errorMessage']),
         platformMeta: jMap(j['platformMeta']),
+        externalId: jStr(j['externalId']),
       );
 
   Json toCreateJson() => compact({
@@ -329,7 +339,11 @@ class PublishResult {
     required this.publishedLinks,
     required this.errors,
     this.post,
+    this.simulated = false,
   });
+
+  /// The server ran in sandbox mode: nothing was posted; links are placeholders.
+  final bool simulated;
 
   final String status;
   final String message;
@@ -343,5 +357,6 @@ class PublishResult {
         publishedLinks: jMap(j['publishedLinks']).map((k, v) => MapEntry(k, '$v')),
         errors: jMap(j['errors']).map((k, v) => MapEntry(k, '$v')),
         post: j['post'] is Map ? SocialPost.fromJson(jMap(j['post'])) : null,
+        simulated: jBool(j['simulated']),
       );
 }

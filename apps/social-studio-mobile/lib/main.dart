@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/providers.dart';
 import 'core/routing/app_router.dart';
+import 'core/services/push_notifications.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'features/auth/auth_provider.dart';
@@ -39,6 +40,14 @@ class _SocialStudioAppState extends ConsumerState<SocialStudioApp> with WidgetsB
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(deepLinksProvider).start((location) => ref.read(routerProvider).push(location));
+      // Push: gated on Firebase config; a tapped notification opens the post.
+      unawaited(ref.read(pushServiceProvider.notifier).init(navigate: (location) => ref.read(routerProvider).push(location)).then((_) {
+        if (ref.read(sessionProvider).valueOrNull != null) unawaited(ref.read(pushServiceProvider.notifier).enable());
+      }));
+    });
+    // After each sign-in, ask for the notification permission (Android 13+) and register this device's token.
+    ref.listenManual(sessionProvider, (prev, next) {
+      if (prev?.valueOrNull == null && next.valueOrNull != null) unawaited(ref.read(pushServiceProvider.notifier).enable());
     });
   }
 
@@ -64,7 +73,9 @@ class _SocialStudioAppState extends ConsumerState<SocialStudioApp> with WidgetsB
     return MaterialApp.router(
       title: '180 Manager',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
+      // Screens still use the dark studio tokens directly, so light is not safe yet (see ThemeModeNotifier):
+      // System resolves to the dark palette until ThemeModeNotifier.lightModeAvailable is true.
+      theme: ThemeModeNotifier.lightModeAvailable ? AppTheme.lightTheme : AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
       routerConfig: ref.watch(routerProvider),

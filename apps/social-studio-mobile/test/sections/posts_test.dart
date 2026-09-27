@@ -135,6 +135,8 @@ void main() {
     await pumpApp(tester, b, location: '/posts/post1');
     await tester.tap(find.widgetWithText(ElevatedButton, 'Publish'));
     await settle(tester);
+    await tester.tap(find.text('Auto-Publish (1-Click)'));
+    await settle(tester);
     expect(find.text('Publish now?'), findsOneWidget);
     await tester.tap(find.widgetWithText(TextButton, 'Publish'));
     await settle(tester);
@@ -148,6 +150,8 @@ void main() {
       ..json('GET', '$sm/posts/:id/validate-publish', {'success': true, 'isReady': false, 'issues': ['No media attached']});
     await pumpApp(tester, b, location: '/posts/post1');
     await tester.tap(find.widgetWithText(ElevatedButton, 'Publish'));
+    await settle(tester);
+    await tester.tap(find.text('Auto-Publish (1-Click)'));
     await settle(tester);
     expect(find.text('Not ready to publish'), findsOneWidget);
     expect(find.textContaining('No media attached'), findsOneWidget);

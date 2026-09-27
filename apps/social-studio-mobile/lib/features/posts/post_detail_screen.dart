@@ -260,11 +260,17 @@ class _PostBodyState extends ConsumerState<_PostBody> {
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: AppTheme.surfaceElevated,
-            title: Text('Publish: ${result.status}'),
+            title: Text(result.simulated ? 'Simulated publish: ${result.status}' : 'Publish: ${result.status}'),
             content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (result.simulated)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text('Sandbox mode: nothing was posted to any platform. Limits were checked as for a real post.',
+                      style: TextStyle(color: AppTheme.warning)),
+                ),
               if (result.message.isNotEmpty) Text(result.message),
               for (final e in result.publishedLinks.entries)
-                Text('✓ ${e.key}: ${e.value}', style: const TextStyle(color: AppTheme.success)),
+                Text(result.simulated ? '✓ ${e.key}: simulated (no live post)' : '✓ ${e.key}: ${e.value}', style: const TextStyle(color: AppTheme.success)),
               for (final e in result.errors.entries) Text('✗ ${e.key}: ${e.value}', style: const TextStyle(color: AppTheme.error)),
             ]),
             actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
@@ -494,15 +500,30 @@ class _PostBodyState extends ConsumerState<_PostBody> {
                   Icon(v.platform.icon, color: v.platform.color, size: 18),
                   const SizedBox(width: 8),
                   Expanded(child: Text(v.platform.label, style: const TextStyle(fontWeight: FontWeight.w600))),
+                  if (v.isSimulated) ...[
+                    const StatusChip(label: 'SIMULATED', color: AppTheme.warning),
+                    const SizedBox(width: 6),
+                  ],
                   if (v.status != null) StatusChip(label: v.status!, color: v.status == 'failed' ? AppTheme.error : AppTheme.textSecondary),
                 ]),
                 if (v.customContent?.isNotEmpty ?? false) Padding(padding: const EdgeInsets.only(top: 6), child: Text(v.customContent!)),
-                if (v.errorMessage != null)
+                if (v.isSimulated)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: Text('Sandbox publish: nothing was posted to the platform and there is no live link.',
+                        style: TextStyle(color: AppTheme.warning, fontSize: 12)),
+                  )
+                else if (v.errorMessage != null && v.isFailed)
                   Row(children: [
                     Expanded(child: Text(v.errorMessage!, style: const TextStyle(color: AppTheme.error))),
                     TextButton(onPressed: busy ? null : () => _retry(v.platform), child: const Text('Retry')),
-                  ]),
-                if (v.publishedUrl != null)
+                  ])
+                else if (v.errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(v.errorMessage!, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                  ),
+                if (v.publishedUrl != null && !v.isSimulated)
                   TextButton.icon(
                     onPressed: () => openExternal(context, v.publishedUrl!),
                     icon: const Icon(Icons.open_in_new_rounded, size: 16),
@@ -514,7 +535,7 @@ class _PostBodyState extends ConsumerState<_PostBody> {
       ],
       if (p.publishedLinks.isNotEmpty) ...[
         const SectionHeader('Live links'),
-        for (final e in p.publishedLinks.entries)
+        for (final e in p.publishedLinks.entries.where((e) => !p.variants.any((v) => v.isSimulated && v.platform == SocialPlatform.parse(e.key))))
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(SocialPlatform.parse(e.key).icon, color: SocialPlatform.parse(e.key).color),

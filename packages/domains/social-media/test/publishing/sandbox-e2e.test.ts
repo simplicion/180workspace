@@ -74,8 +74,8 @@ async function compose(platform: PublishPlatform, accountId: string, over: Parti
     const post = await db.socialPost.create({
         data: { companyId: COMPANY, projectId: PROJECT, content: d.content, title: d.title, mediaType: d.mediaType, mediaUrls: d.mediaUrls, metadata: { mediaInfo: d.info || {} }, status: 'draft' },
     });
-    // publishingMode 'api': the keyless dispatcher otherwise hands unconfigured platforms to the assisted flow.
-    await db.socialPostVariant.create({ data: { postId: post.id, platform, socialAccountId: accountId, platformMeta: { ...d.meta, publishingMode: 'api', ...(d.title ? { title: d.title } : {}) } } });
+    // No publishingMode: in the sandbox, keyless platforms take the simulated API path by default (not the assisted handoff).
+    await db.socialPostVariant.create({ data: { postId: post.id, platform, socialAccountId: accountId, platformMeta: { ...d.meta, ...(d.title ? { title: d.title } : {}) } } });
     return post;
 }
 
@@ -143,4 +143,33 @@ test('sandbox is impossible in production', async () => {
         SocialOAuthService.start({ platform: 'threads', companyId: COMPANY, userId: USER, projectId: PROJECT, redirectUri: REDIRECT, client: 'web' }),
         (e: any) => e.code === 'PUBLISH_NOT_CONFIGURED',
     );
+});
+
+test('publishing autonomy MANUAL holds unapproved AI-authored posts; ASSISTED and human posts publish on schedule', async () => {
+    const accountId = await connect('threads');
+    const make = async (source: string | null, autonomy: 'MANUAL' | 'ASSISTED' | null) => {
+        db.brandVoiceProfile = db.brandVoiceProfile || new (db.socialPost.constructor as any)('brandVoiceProfile');
+        db.brandVoiceProfile.rows = autonomy ? [{ id: 'bv', projectId: PROJECT, companyId: COMPANY, metadata: { brand: { autonomy: { publishing: autonomy } } } }] : [];
+        const post = await compose('threads', accountId);
+        await db.socialPost.update({ where: { id: post.id }, data: { status: 'scheduled', scheduledFor: new Date(Date.now() - 1000), metadata: source ? { source } : {} } });
+        return post.id;
+    };
+    const aiManual = await make('autopilot', null); // default policy = MANUAL
+    let tick = await SocialPublishScheduler.tick();
+    assert.ok(tick.skippedAutonomy.includes(aiManual));
+    assert.equal(db.socialPost.rows.find((p) => p.id === aiManual)!.status, 'scheduled');
+    assert.match(db.socialPost.rows.find((p) => p.id === aiManual)!.errorMessage, /autonomy is MANUAL/);
+
+    const human = await make(null, 'MANUAL');
+    tick = await SocialPublishScheduler.tick();
+    assert.ok(tick.claimed.includes(human), 'a person-scheduled post is not gated');
+
+    const aiAssisted = await make('autopilot', 'ASSISTED');
+    tick = await SocialPublishScheduler.tick();
+    assert.ok(tick.claimed.includes(aiAssisted), 'ASSISTED lets agent posts publish');
+
+    const aiApproved = await make('autopilot', 'MANUAL');
+    await db.socialPost.update({ where: { id: aiApproved }, data: { approvedVersion: 1, nextPublishAttemptAt: null } });
+    tick = await SocialPublishScheduler.tick();
+    assert.ok(tick.claimed.includes(aiApproved), 'an approved agent post publishes under MANUAL');
 });

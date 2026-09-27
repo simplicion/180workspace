@@ -30,6 +30,8 @@ import type { LastExportQa } from "../services/media-analysis";
 import { AICreditProgressWidget } from "@workspace/ui";
 
 export interface DirectorChatMessage {
+  /** Server run id of the director turn that produced this message (agent-memory feedback). */
+  runId?: string;
   id: string;
   sender: "user" | "director";
   text: string;

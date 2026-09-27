@@ -43,6 +43,7 @@ import {
   DirectorRequestError,
   DirectorHistoryTurn,
   directorContextFromUrl,
+  sendDirectorFeedback,
 } from "../services/tauri-bridge";
 import { studioJobs, StudioJob } from "../services/studio-jobs";
 import { buildDirectorConstraints, enforceLocksOnResult, locksFromTimelineKeys, normalizeRanges } from "../services/director-locks";
@@ -358,6 +359,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     setHistoryIndex(0);
   };
 
+  const lastDirectorApplyRef = useRef<{ runId?: string; index: number; summary?: string } | null>(null);
   const pushHistory = (newEditIR: EditIR) => {
     if (!project) return;
     const newHistory = history.slice(0, historyIndex + 1);
@@ -370,6 +372,12 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
   };
 
   const handleUndo = () => {
+    // Undoing a director edit right after it landed is a "rejected" signal for the project's agent memory.
+    const lastAi = lastDirectorApplyRef.current;
+    if (lastAi && lastAi.index === historyIndex) {
+      sendDirectorFeedback({ accepted: false, runId: lastAi.runId, summary: lastAi.summary });
+      lastDirectorApplyRef.current = null;
+    }
     if (historyIndex > 0 && project) {
       const nextIndex = historyIndex - 1;
       setHistoryIndex(nextIndex);
@@ -467,15 +475,9 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           const replyMsg: DirectorChatMessage = {
             id: safeUUID(),
             sender: "director",
-            text: `🎬 Autonomous Video Created Successfully!\n\n• Studio Narration: Cartesia Sonic-3.6 Neural Voiceover\n• Visual Track: Context-matched HD B-Roll cutaways (Pexels / Pixabay)\n• Audio Mix: Ducked background music & tactile SFX\n• Kinetic Subtitles: 3-word safe-zone captions with dynamic highlights`,
+            text: describeGeneratedVideo(result.editIR, result.plan),
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            actions: [
-              "Synthesize Cartesia Voiceover",
-              "Extract Whisper Timestamps",
-              "Source HD B-Roll Cutaways",
-              "Sidechain Duck BGM Track",
-              "Burn Kinetic Subtitles",
-            ],
+            actions: (result.plan?.operations || []).map((op: any) => String(op?.type || "")).filter(Boolean).slice(0, 8),
             snapshotEditIR: result.editIR,
           };
           setAiMessages((prev) => [...prev, replyMsg]);
@@ -555,6 +557,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           warnings: result.warnings.length ? result.warnings : undefined,
           autoApplied: result.autoApplied,
           critique: result.critique,
+          runId: result.runId,
           violations: violations.length ? violations : undefined,
         };
         if (result.requiresConfirmation && !options.preconfirmed) {
@@ -582,6 +585,7 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
           setAiMessages((prev) => [...prev, confirmMsg]);
         } else {
           pushHistory(result.editIR);
+          lastDirectorApplyRef.current = { runId: result.runId, index: historyIndex + 1, summary: result.reply };
           selectFirstNewItem(project.editIR, result.editIR);
           const replyMsg: DirectorChatMessage = {
             id: safeUUID(),
@@ -629,6 +633,8 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     if (!message.pendingConfirmation?.targetEditIR) return;
     if (project) selectFirstNewItem(project.editIR, message.pendingConfirmation.targetEditIR);
     pushHistory(message.pendingConfirmation.targetEditIR);
+    lastDirectorApplyRef.current = { runId: message.runId, index: historyIndex + 1, summary: message.text };
+    sendDirectorFeedback({ accepted: true, runId: message.runId, summary: message.text });
     setAiMessages((prev) =>
       prev.map((m) =>
         m.id === message.id
@@ -1941,3 +1947,18 @@ export const MediaStudioWorkspace: React.FC<MediaStudioWorkspaceProps> = ({
     </div>
   );
 };
+
+/** Summary of what the zero-footage pipeline actually produced (read from the timeline, never canned). */
+function describeGeneratedVideo(editIR: EditIR, plan: any): string {
+  const tracks = editIR.tracks;
+  const videoClips = tracks.videoTracks.reduce((n, t) => n + t.clips.length, 0);
+  const brollClips = tracks.videoTracks.filter((t) => t.type !== "MAIN_VIDEO").reduce((n, t) => n + t.clips.length, 0);
+  const audio = tracks.audioTracks.map((t) => `${t.type.toLowerCase().replace("_", " ")} (${t.clips.length})`);
+  const lines = [
+    `Video created: ${videoClips} clip${videoClips === 1 ? "" : "s"}${brollClips ? `, ${brollClips} B-roll` : ""}.`,
+    audio.length ? `Audio: ${audio.join(", ")}.` : "No audio tracks.",
+    tracks.captionTrack.length ? `Captions: ${tracks.captionTrack.length} segments.` : "No captions.",
+  ];
+  if (plan?.explanation) lines.push("", String(plan.explanation));
+  return lines.join("\n");
+}

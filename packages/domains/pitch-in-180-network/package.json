@@ -1,0 +1,23 @@
+{
+  "name": "@workspace/pitch-in-180-network",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1081.0",
+    "@aws-sdk/s3-request-presigner": "^3.1081.0",
+    "@workspace/backend-infra": "workspace:^",
+    "@workspace/communications": "workspace:*",
+    "@workspace/db": "workspace:*",
+    "bullmq": "^5.7.0",
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "@workspace/typescript-config": "workspace:*"
+  }
+}

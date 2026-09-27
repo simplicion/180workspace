@@ -51,7 +51,7 @@ const walletRoutes = require('../api/v1/wallet/index').default;
 // Maps old frontend API calls (e.g. /api/dashboard) to the new v1 structure
 router.use((req: any, res: any, next: any) => {
     // Only intercept requests missing /v1/, /auth, /setup, /public, /company-profile
-    if (req.url.startsWith('/v1/') || req.url.startsWith('/wallet') || req.url.startsWith('/auth') || req.url.startsWith('/setup') || req.url.startsWith('/public') || req.url.startsWith('/company-profile') || req.url.startsWith('/system') || req.url.startsWith('/integrations') || req.url.startsWith('/init') || req.url.startsWith('/health') || req.url.startsWith('/bootstrap') || req.url.startsWith('/superadmin') || req.url.startsWith('/feature-flags')) {
+    if (req.url.startsWith('/v1/') || req.url.startsWith('/pitch') || req.url.startsWith('/oauth') || req.url.startsWith('/.well-known') || req.url.startsWith('/certs') || req.url.startsWith('/wallet') || req.url.startsWith('/auth') || req.url.startsWith('/setup') || req.url.startsWith('/public') || req.url.startsWith('/company-profile') || req.url.startsWith('/system') || req.url.startsWith('/integrations') || req.url.startsWith('/init') || req.url.startsWith('/health') || req.url.startsWith('/bootstrap') || req.url.startsWith('/superadmin') || req.url.startsWith('/feature-flags')) {
         return next();
     }
 
@@ -194,6 +194,13 @@ router.use((req: any, res: any, next: any) => {
 });
 
 // ─── Public & Core ─────────────────────────────────────────────────────────
+const oauthRoutes = require('./oauth.routes').default || require('./oauth.routes');
+const pitchRoutes = require('./pitch.routes').default || require('./pitch.routes');
+router.use('/oauth', oauthRoutes);
+router.use('/.well-known', oauthRoutes);
+router.use('/certs', oauthRoutes);
+router.use('/v1/pitch', pitchRoutes);
+router.use('/pitch', pitchRoutes);
 router.use('/v1/identity', identityRoutes);
 router.use('/auth', require('../api/v1/identity/auth/auth.routes').authRoutes);
 router.use('/v1/settings', protect, settingsDomainRoutes);

@@ -168,7 +168,13 @@ class _AccountTile extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(a.accountName, style: const TextStyle(fontWeight: FontWeight.w600)),
+              Row(children: [
+                Flexible(child: Text(a.accountName, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                if (a.isSimulated) ...[
+                  const SizedBox(width: 6),
+                  const StatusChip(label: 'SANDBOX', color: AppTheme.warning),
+                ],
+              ]),
               Text([a.platform.label, if (a.username != null) '@${a.username}', ?subtitle].join(' · '),
                   style: Theme.of(context).textTheme.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
               if (status != null)

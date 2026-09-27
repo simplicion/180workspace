@@ -7,7 +7,7 @@ import { authenticator } from 'otplib';
 import qrcode from 'qrcode';
 import { logAction, triggerAutomation, EmailService } from '@workspace/backend-infra';
 import { BillingService, SubscriptionService } from '@workspace/platform-billing';
-import { prisma as globalPrisma, getCompanyPrisma, requestContext } from '@workspace/db';
+import { prisma as globalPrisma, requestContext } from '@workspace/db';
 import { AppError } from '../types/app-error';
 
 // --- JWT Helpers ---

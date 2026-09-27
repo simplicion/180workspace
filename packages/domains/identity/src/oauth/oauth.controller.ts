@@ -1,0 +1,681 @@
+'use strict';
+
+import { prisma } from '@workspace/db';
+import {
+    generateRandomToken,
+    hashSecret,
+    verifyCodeChallenge,
+    signIdToken,
+    verifyIdToken,
+    getJwks,
+    ISSUER
+} from './oauth.service';
+import { FIRST_PARTY_APPS } from './seed-first-party';
+
+/**
+ * Architectural Best Practice: First-Party Ecosystem Auto-Whitelisting
+ * 180 Workspace and official client apps (Pitch in 180, Social Studio, Developer Portal)
+ * are recognized first-party origins.
+ */
+function isFirstPartyOrigin(origin: string | undefined): boolean {
+    if (!origin || typeof origin !== 'string') return false;
+    try {
+        const clean = origin.trim().toLowerCase();
+        if (clean === 'null' || clean === '*' || clean === '') return false;
+        const parsed = new URL(clean.startsWith('http') ? clean : `https://${clean}`);
+        const host = parsed.hostname;
+
+        // Local development environments on any port
+        if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '::1') {
+            return true;
+        }
+
+        // 180 Ecosystem domains
+        if (host === '180workspace.com' || host.endsWith('.180workspace.com')) {
+            return true;
+        }
+
+        // Environment configured main domain
+        const mainDomain = (process.env.NEXT_PUBLIC_MAIN_DOMAIN || '').toLowerCase();
+        if (mainDomain && (host === mainDomain || host.endsWith(`.${mainDomain}`))) {
+            return true;
+        }
+
+        const issuerHost = (() => {
+            try { return new URL(ISSUER).hostname.toLowerCase(); } catch (e) { return ''; }
+        })();
+        if (issuerHost && (host === issuerHost || host.endsWith(`.${issuerHost}`))) {
+            return true;
+        }
+
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+
+export class OAuthController {
+    /**
+     * 1. Validate Authorize Request before rendering Consent / Login Screen
+     */
+    static async validateAuthorize(req: any, res: any) {
+        try {
+            const { client_id, redirect_uri, scope, state, response_type, display, ux_mode } = req.query;
+
+            if (!client_id) {
+                return res.status(400).json({ error: 'invalid_request', error_description: 'Missing client_id parameter' });
+            }
+
+            let app: any = null;
+            try {
+                app = await prisma.oAuthApp.findUnique({
+                    where: { clientId: String(client_id) },
+                    include: { company: true, user: true }
+                });
+            } catch (e) {
+                app = null;
+            }
+
+            if (!app) {
+                const fp = FIRST_PARTY_APPS.find(a => a.clientId === String(client_id));
+                if (fp) {
+                    app = {
+                        id: fp.clientId,
+                        name: fp.name,
+                        description: fp.description,
+                        clientId: fp.clientId,
+                        redirectUris: fp.redirectUris,
+                        allowedOrigins: fp.allowedOrigins,
+                        allowedScopes: fp.allowedScopes,
+                        logoUrl: fp.logoUrl,
+                        homepageUrl: 'https://180workspace.com',
+                        isVerified: true,
+                        isActive: true,
+                        company: null,
+                        user: null
+                    } as any;
+                }
+            }
+
+            if (!app || !app.isActive) {
+                return res.status(400).json({ error: 'unauthorized_client', error_description: 'OAuth Application not found or inactive' });
+            }
+
+            // Redirect URI validation (RFC 9700 Open Redirector Defense)
+            if (redirect_uri && app.redirectUris && app.redirectUris.length > 0) {
+                const isMatch = app.redirectUris.some((uri: string) => {
+                    const cleanRegistered = uri.trim();
+                    const cleanTarget = String(redirect_uri).trim();
+                    if (cleanRegistered === '*') return true;
+                    if (cleanRegistered.toLowerCase() === cleanTarget.toLowerCase()) return true;
+                    try {
+                        const parsedRegistered = new URL(cleanRegistered);
+                        const parsedTarget = new URL(cleanTarget);
+                        return parsedRegistered.origin.toLowerCase() === parsedTarget.origin.toLowerCase() &&
+                               parsedRegistered.pathname === parsedTarget.pathname;
+                    } catch (e) {
+                        return false;
+                    }
+                });
+                if (!isMatch) {
+                    return res.status(400).json({ error: 'invalid_request', error_description: 'Redirect URI is not registered for this application' });
+                }
+            }
+
+            // Origin validation
+            let requestOrigin = req.query.origin as string;
+            if (!requestOrigin && redirect_uri) {
+                try { requestOrigin = new URL(String(redirect_uri)).origin; } catch (e) {}
+            }
+            if (!requestOrigin) {
+                requestOrigin = req.headers.origin || (req.headers.referer ? (() => { try { return new URL(req.headers.referer).origin; } catch (e) { return ''; } })() : '');
+            }
+
+            const isFirstParty = isFirstPartyOrigin(requestOrigin);
+
+            if (!isFirstParty && requestOrigin && app.allowedOrigins && app.allowedOrigins.length > 0) {
+                let normalizedReqOrigin = '';
+                try {
+                    normalizedReqOrigin = new URL(requestOrigin.startsWith('http') ? requestOrigin : `https://${requestOrigin}`).origin.toLowerCase();
+                } catch (e) {
+                    normalizedReqOrigin = requestOrigin.trim().toLowerCase();
+                }
+
+                const isOriginMatch = app.allowedOrigins.some((orig: string) => {
+                    const cleanOrig = orig.trim().toLowerCase();
+                    if (cleanOrig === '*') return true;
+                    try {
+                        const normalizedAllowed = new URL(cleanOrig.startsWith('http') ? cleanOrig : `https://${cleanOrig}`).origin.toLowerCase();
+                        return normalizedAllowed === normalizedReqOrigin;
+                    } catch (e) {
+                        return cleanOrig === normalizedReqOrigin;
+                    }
+                });
+                if (!isOriginMatch) {
+                    return res.status(400).json({
+                        error: 'unauthorized_client',
+                        error_description: `The JavaScript origin '${requestOrigin}' is not whitelisted for this application.`
+                    });
+                }
+            }
+
+            const targetRedirectUri = redirect_uri || (app.redirectUris.length > 0 ? app.redirectUris[0] : '');
+            const requestedScopes = scope ? String(scope).split(' ').filter(Boolean) : ['identity:read'];
+
+            // Check if user is currently authenticated
+            const userId = req.user?.id;
+            let hasConsented = false;
+            let userDetails = null;
+
+            if (userId) {
+                const userRecord = req.user || await prisma.user.findUnique({
+                    where: { id: userId }
+                });
+
+                if (userRecord) {
+                    const nameParts = (userRecord.name || '').trim().split(/\s+/);
+                    userDetails = {
+                        id: userRecord.id,
+                        name: userRecord.name || '',
+                        given_name: nameParts[0] || '',
+                        family_name: nameParts.slice(1).join(' ') || '',
+                        username: userRecord.username || '',
+                        email: userRecord.email,
+                        photoUrl: userRecord.photoUrl || userRecord.image || '',
+                        headline: userRecord.headline || ''
+                    };
+                }
+
+                const existingConsent = await prisma.oAuthConsent.findUnique({
+                    where: {
+                        appId_userId: {
+                            appId: app.id,
+                            userId
+                        }
+                    }
+                });
+
+                if (existingConsent) {
+                    const hasAllScopes = requestedScopes.every(s => existingConsent.scopes.includes(s));
+                    if (hasAllScopes) {
+                        hasConsented = true;
+                    }
+                }
+            }
+
+            return res.json({
+                success: true,
+                app: {
+                    id: app.id,
+                    name: app.name,
+                    description: app.description,
+                    logoUrl: app.logoUrl || app.company?.logoUrl || '',
+                    developerName: app.company?.name || app.user?.name || '180 Developer',
+                    isVerified: app.isVerified,
+                    homepageUrl: app.homepageUrl || ''
+                },
+                client_id,
+                redirect_uri: targetRedirectUri,
+                scopes: requestedScopes,
+                state: state || '',
+                response_type: response_type || 'code',
+                display: display || '',
+                ux_mode: ux_mode || 'popup',
+                hasConsented,
+                isAuthenticated: Boolean(userId),
+                user: userDetails
+            });
+        } catch (err: any) {
+            console.error('[OAuthController] validateAuthorize error:', err);
+            return res.status(500).json({ error: 'server_error', error_description: err.message });
+        }
+    }
+
+    /**
+     * 2. Submit User Consent (Allow / Deny)
+     */
+    static async submitConsent(req: any, res: any) {
+        try {
+            const userId = req.user?.id;
+            if (!userId) {
+                return res.status(401).json({ error: 'unauthorized', error_description: 'User must be authenticated to grant consent' });
+            }
+
+            const { client_id, redirect_uri, scope, state, action, code_challenge, code_challenge_method, nonce, ux_mode } = req.body;
+
+            if (!client_id) {
+                return res.status(400).json({ error: 'invalid_request', error_description: 'Missing client_id' });
+            }
+
+            let app: any = null;
+            try {
+                app = await prisma.oAuthApp.findUnique({
+                    where: { clientId: String(client_id) }
+                });
+            } catch (e) {
+                app = null;
+            }
+
+            if (!app) {
+                const fp = FIRST_PARTY_APPS.find(a => a.clientId === String(client_id));
+                if (fp) {
+                    app = {
+                        id: fp.clientId,
+                        name: fp.name,
+                        description: fp.description,
+                        clientId: fp.clientId,
+                        redirectUris: fp.redirectUris,
+                        allowedOrigins: fp.allowedOrigins,
+                        allowedScopes: fp.allowedScopes,
+                        logoUrl: fp.logoUrl,
+                        homepageUrl: 'https://180workspace.com',
+                        isVerified: true,
+                        isActive: true
+                    } as any;
+                }
+            }
+
+            if (!app || !app.isActive) {
+                return res.status(400).json({ error: 'unauthorized_client', error_description: 'OAuth application not found or disabled' });
+            }
+
+            const user = req.user || await prisma.user.findUnique({
+                where: { id: userId }
+            });
+
+            if (!user) {
+                return res.status(404).json({ error: 'user_not_found', error_description: 'Authenticated user not found' });
+            }
+
+            const targetRedirectUri = redirect_uri || (app.redirectUris.length > 0 ? app.redirectUris[0] : '');
+            const requestedScopes = scope ? (Array.isArray(scope) ? scope : String(scope).split(' ').filter(Boolean)) : ['identity:read'];
+
+            // User denied access
+            if (action === 'deny') {
+                let denyRedirectUrl = '';
+                if (targetRedirectUri) {
+                    try {
+                        const parsedUrl = new URL(targetRedirectUri);
+                        parsedUrl.searchParams.set('error', 'access_denied');
+                        parsedUrl.searchParams.set('error_description', 'The user denied the authorization request');
+                        if (state) parsedUrl.searchParams.set('state', state);
+                        denyRedirectUrl = parsedUrl.toString();
+                    } catch (e) {
+                        denyRedirectUrl = targetRedirectUri;
+                    }
+                }
+
+                return res.json({
+                    success: false,
+                    action: 'deny',
+                    redirectUri: denyRedirectUrl
+                });
+            }
+
+            // User allowed access -> Save / Upsert consent
+            await prisma.oAuthConsent.upsert({
+                where: {
+                    appId_userId: {
+                        appId: app.id,
+                        userId
+                    }
+                },
+                create: {
+                    appId: app.id,
+                    userId,
+                    scopes: requestedScopes
+                },
+                update: {
+                    scopes: requestedScopes,
+                    updatedAt: new Date()
+                }
+            });
+
+            // Generate 5-minute single-use authorization code
+            const code = generateRandomToken('180_code', 32);
+            const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+            await prisma.oAuthAuthorizationCode.create({
+                data: {
+                    code,
+                    appId: app.id,
+                    userId,
+                    redirectUri: targetRedirectUri || 'https://180workspace.com/oauth/callback',
+                    scopes: requestedScopes,
+                    codeChallenge: code_challenge || null,
+                    codeChallengeMethod: code_challenge_method || 'S256',
+                    expiresAt
+                }
+            });
+
+            // Generate signed RS256 JWT ID Token
+            const idToken = signIdToken(user, app.clientId, nonce);
+
+            let allowRedirectUrl = '';
+            if (targetRedirectUri) {
+                try {
+                    const parsedUrl = new URL(targetRedirectUri);
+                    parsedUrl.searchParams.set('code', code);
+                    if (state) parsedUrl.searchParams.set('state', state);
+                    allowRedirectUrl = parsedUrl.toString();
+                } catch (e) {
+                    allowRedirectUrl = targetRedirectUri;
+                }
+            }
+
+            return res.json({
+                success: true,
+                action: 'allow',
+                code,
+                id_token: idToken,
+                credential: idToken,
+                state: state || '',
+                ux_mode: ux_mode || 'popup',
+                redirectUri: allowRedirectUrl,
+                user: {
+                    id: user.id,
+                    name: user.name || '',
+                    username: user.username || '',
+                    email: user.email,
+                    photoUrl: user.photoUrl || user.image || ''
+                }
+            });
+        } catch (err: any) {
+            console.error('[OAuthController] submitConsent error:', err);
+            return res.status(500).json({ error: 'server_error', error_description: err.message });
+        }
+    }
+
+    /**
+     * 3. Exchange Authorization Code for Access Token (RFC 6749)
+     */
+    static async exchangeToken(req: any, res: any) {
+        try {
+            const { grant_type, code, redirect_uri, client_id, client_secret, code_verifier, refresh_token } = req.body;
+
+            // Handle Authorization Code Grant
+            if (grant_type === 'authorization_code') {
+                if (!code) {
+                    return res.status(400).json({ error: 'invalid_request', error_description: 'Missing code parameter' });
+                }
+
+                const authCode = await prisma.oAuthAuthorizationCode.findUnique({
+                    where: { code },
+                    include: { app: true, user: true }
+                });
+
+                if (!authCode) {
+                    return res.status(400).json({ error: 'invalid_grant', error_description: 'Authorization code is invalid or expired' });
+                }
+
+                if (authCode.usedAt || authCode.expiresAt < new Date()) {
+                    return res.status(400).json({ error: 'invalid_grant', error_description: 'Authorization code has already been used or expired' });
+                }
+
+                // Verify client identification
+                const targetClientId = client_id || authCode.app.clientId;
+                if (authCode.app.clientId !== targetClientId) {
+                    return res.status(400).json({ error: 'invalid_client', error_description: 'client_id does not match the authorization code' });
+                }
+
+                // PKCE Verification if challenge was registered
+                if (authCode.codeChallenge) {
+                    if (!code_verifier) {
+                        return res.status(400).json({ error: 'invalid_grant', error_description: 'PKCE code_verifier is required' });
+                    }
+                    const isPkceValid = verifyCodeChallenge(code_verifier, authCode.codeChallenge, authCode.codeChallengeMethod || 'S256');
+                    if (!isPkceValid) {
+                        return res.status(400).json({ error: 'invalid_grant', error_description: 'PKCE code_verifier verification failed' });
+                    }
+                } else if (client_secret) {
+                    // Confidential Client secret verification
+                    const hashed = hashSecret(client_secret);
+                    if (authCode.app.clientSecretHash !== hashed) {
+                        return res.status(401).json({ error: 'invalid_client', error_description: 'Invalid client_secret' });
+                    }
+                }
+
+                // Mark code as used immediately (single-use defense)
+                await prisma.oAuthAuthorizationCode.update({
+                    where: { id: authCode.id },
+                    data: { usedAt: new Date() }
+                });
+
+                // Issue Access Token & Refresh Token
+                const accessToken = generateRandomToken('180_acc', 32);
+                const newRefreshToken = generateRandomToken('180_ref', 32);
+                const accessLifetime = 3600; // 1 hour
+                const expiresAt = new Date(Date.now() + accessLifetime * 1000);
+
+                await prisma.oAuthToken.create({
+                    data: {
+                        accessToken,
+                        refreshToken: newRefreshToken,
+                        tokenType: 'Bearer',
+                        scopes: authCode.scopes,
+                        appId: authCode.app.id,
+                        userId: authCode.user.id,
+                        expiresAt
+                    }
+                });
+
+                const idToken = signIdToken(authCode.user, authCode.app.clientId);
+
+                return res.json({
+                    access_token: accessToken,
+                    token_type: 'Bearer',
+                    expires_in: accessLifetime,
+                    refresh_token: newRefreshToken,
+                    id_token: idToken,
+                    scope: authCode.scopes.join(' ')
+                });
+            }
+
+            // Handle Refresh Token Grant
+            if (grant_type === 'refresh_token') {
+                if (!refresh_token) {
+                    return res.status(400).json({ error: 'invalid_request', error_description: 'Missing refresh_token' });
+                }
+
+                const existingToken = await prisma.oAuthToken.findUnique({
+                    where: { refreshToken: refresh_token },
+                    include: { app: true, user: true }
+                });
+
+                if (!existingToken || existingToken.revokedAt) {
+                    return res.status(400).json({ error: 'invalid_grant', error_description: 'Refresh token is invalid or revoked' });
+                }
+
+                // Rotate refresh token
+                const newAccessToken = generateRandomToken('180_acc', 32);
+                const rotatedRefreshToken = generateRandomToken('180_ref', 32);
+                const accessLifetime = 3600;
+                const expiresAt = new Date(Date.now() + accessLifetime * 1000);
+
+                await prisma.oAuthToken.update({
+                    where: { id: existingToken.id },
+                    data: {
+                        accessToken: newAccessToken,
+                        refreshToken: rotatedRefreshToken,
+                        expiresAt,
+                        updatedAt: new Date()
+                    }
+                });
+
+                const idToken = signIdToken(existingToken.user, existingToken.app.clientId);
+
+                return res.json({
+                    access_token: newAccessToken,
+                    token_type: 'Bearer',
+                    expires_in: accessLifetime,
+                    refresh_token: rotatedRefreshToken,
+                    id_token: idToken,
+                    scope: existingToken.scopes.join(' ')
+                });
+            }
+
+            return res.status(400).json({ error: 'unsupported_grant_type', error_description: `Grant type '${grant_type}' is not supported` });
+        } catch (err: any) {
+            console.error('[OAuthController] exchangeToken error:', err);
+            return res.status(500).json({ error: 'server_error', error_description: err.message });
+        }
+    }
+
+    /**
+     * 4. UserInfo Endpoint (OIDC Standard)
+     */
+    static async getUserInfo(req: any, res: any) {
+        try {
+            const authHeader = req.headers.authorization || '';
+            const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+            if (!token) {
+                return res.status(401).json({ error: 'invalid_token', error_description: 'Missing Bearer token' });
+            }
+
+            // Check if token is an access token from DB
+            const dbToken = await prisma.oAuthToken.findUnique({
+                where: { accessToken: token },
+                include: { user: true }
+            });
+
+            let user = dbToken?.user;
+
+            // If not found in DB, check if it's a signed JWT ID token
+            if (!user) {
+                const verified = verifyIdToken(token);
+                if (verified.valid && verified.payload?.sub) {
+                    user = await prisma.user.findUnique({
+                        where: { id: verified.payload.sub }
+                    });
+                }
+            }
+
+            if (!user) {
+                return res.status(401).json({ error: 'invalid_token', error_description: 'Token expired or invalid' });
+            }
+
+            const nameParts = (user.name || '').trim().split(/\s+/);
+
+            return res.json({
+                sub: user.id,
+                name: user.name || '',
+                given_name: nameParts[0] || '',
+                family_name: nameParts.slice(1).join(' ') || '',
+                username: user.username || '',
+                email: user.email,
+                email_verified: Boolean(user.emailVerified),
+                phone: user.phone || null,
+                picture: user.photoUrl || user.image || '',
+                headline: user.headline || '',
+                bio: user.bio || '',
+                location: (user.latitude && user.longitude) ? {
+                    latitude: user.latitude,
+                    longitude: user.longitude,
+                    city: user.city || '',
+                    country: user.country || ''
+                } : null
+            });
+        } catch (err: any) {
+            console.error('[OAuthController] getUserInfo error:', err);
+            return res.status(500).json({ error: 'server_error', error_description: err.message });
+        }
+    }
+
+    /**
+     * 5. OpenID Connect Discovery (.well-known/openid-configuration)
+     */
+    static getOpenIdConfiguration(req: any, res: any) {
+        const issuer = ISSUER;
+        return res.json({
+            issuer,
+            authorization_endpoint: `${issuer}/oauth/authorize`,
+            token_endpoint: `${issuer}/oauth/token`,
+            userinfo_endpoint: `${issuer}/oauth/userinfo`,
+            jwks_uri: `${issuer}/.well-known/jwks.json`,
+            revocation_endpoint: `${issuer}/oauth/revoke`,
+            response_types_supported: ['code', 'token', 'id_token', 'code id_token'],
+            subject_types_supported: ['public'],
+            id_token_signing_alg_values_supported: ['RS256', 'HS256'],
+            scopes_supported: [
+                'openid',
+                'identity:read',
+                'identity:email',
+                'identity:phone',
+                'pitch:read',
+                'pitch:write',
+                'messages:send'
+            ],
+            token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
+            claims_supported: [
+                'sub',
+                'iss',
+                'aud',
+                'exp',
+                'iat',
+                'name',
+                'given_name',
+                'family_name',
+                'username',
+                'email',
+                'email_verified',
+                'phone',
+                'picture',
+                'headline',
+                'bio',
+                'location'
+            ]
+        });
+    }
+
+    /**
+     * 6. Public JWKS Endpoint (.well-known/jwks.json)
+     */
+    static getJwks(req: any, res: any) {
+        res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=3600');
+        return res.json(getJwks());
+    }
+
+    /**
+     * 7. Direct Token Verification Endpoint
+     */
+    static async verifyToken(req: any, res: any) {
+        const token = req.body?.token || req.query?.token;
+        const expectedClientId = req.body?.client_id || req.query?.client_id || null;
+
+        if (!token) {
+            return res.status(400).json({ valid: false, error: 'Token is required' });
+        }
+
+        const result = verifyIdToken(token, expectedClientId);
+        return res.json(result);
+    }
+
+    /**
+     * 8. Token Revocation Endpoint (RFC 7009)
+     */
+    static async revokeToken(req: any, res: any) {
+        try {
+            const { token, token_type_hint } = req.body;
+            if (!token) {
+                return res.status(400).json({ error: 'invalid_request', error_description: 'Missing token parameter' });
+            }
+
+            if (token_type_hint === 'refresh_token') {
+                await prisma.oAuthToken.updateMany({
+                    where: { refreshToken: token },
+                    data: { revokedAt: new Date() }
+                });
+            } else {
+                await prisma.oAuthToken.updateMany({
+                    where: { accessToken: token },
+                    data: { revokedAt: new Date() }
+                });
+            }
+
+            return res.status(200).json({ success: true, message: 'Token revoked successfully' });
+        } catch (err: any) {
+            return res.status(500).json({ error: 'server_error', error_description: err.message });
+        }
+    }
+}
