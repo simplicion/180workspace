@@ -334,3 +334,17 @@ test('pickEvictionCandidate: pure LRU choice with protection and idle window', (
   assert.equal(pickEvictionCandidate(devices, { now, minIdleMs: 400 * 60_000, protectDeviceIds: ['me'] }), null);
   assert.equal(pickEvictionCandidate(devices, { now, minIdleMs: 0, protectDeviceIds: [undefined] })?.deviceId, 'me');
 });
+
+test('reinstall: a matching install key renews the same device slot even without the stored deviceId; keys are per user', async () => {
+  const u = freshUser();
+  const key = 'android-id-0123456789abcdef';
+  const first = await call('POST', '/api/desktop/devices/register', { user: u, body: { platform: 'android', installKey: key } });
+  const again = await call('POST', '/api/desktop/devices/register', { user: u, body: { platform: 'android', installKey: key } });
+  assert.equal(again.json.deviceId, first.json.deviceId);
+  assert.equal(again.json.renewed, true);
+  const list = await call('GET', '/api/desktop/devices', { user: u });
+  assert.equal(list.json.devices.length, 1);
+  assert.ok(!JSON.stringify(list.json).includes('installKey'), 'install key hash is never returned');
+  const other = await call('POST', '/api/desktop/devices/register', { user: freshUser(), body: { platform: 'android', installKey: key } });
+  assert.notEqual(other.json.deviceId, first.json.deviceId, 'another user never inherits the device');
+});

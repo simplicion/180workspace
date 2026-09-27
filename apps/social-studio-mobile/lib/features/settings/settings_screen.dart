@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/providers.dart';
+import '../../core/services/push_notifications.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_provider.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/universal_skeleton.dart';
 import '../auth/auth_provider.dart';
@@ -152,7 +155,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _sectionHeader(context, 'Active Devices & Slots', Icons.devices_rounded),
           const SizedBox(height: 4),
           Text(
-            'Maximum 5 registered devices. Older devices are automatically evicted on new logins.',
+            'Up to 20 devices. When the limit is reached, the device unused the longest (idle 30+ minutes) is signed out automatically. This device is never removed that way.',
             style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color),
           ),
           const SizedBox(height: 10),
@@ -218,58 +221,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 24),
 
-          // Section: Platform & Production Status
-          _sectionHeader(context, 'Platform & Production Readiness', Icons.verified_user_rounded),
+          // Section: Appearance
+          _sectionHeader(context, 'Appearance', Icons.palette_outlined),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).dividerColor),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppTheme.success, shape: BoxShape.circle)),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text('Backend API Gateway', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    ),
-                    const Text('ONLINE', style: TextStyle(color: AppTheme.success, fontSize: 11, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(AppConfig.apiBaseUrl, style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-                const Divider(height: 20),
-                Row(
-                  children: [
-                    Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppTheme.accentBlue, shape: BoxShape.circle)),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text('Meta Graph API (v21.0)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    ),
-                    const Text('PRODUCTION READY', style: TextStyle(color: AppTheme.accentBlue, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text('Instagram, Facebook, Threads, YouTube, TikTok channels', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-                const Divider(height: 20),
-                Row(
-                  children: [
-                    const Icon(Icons.info_outline_rounded, size: 14, color: AppTheme.textSecondary),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text('180 Manager Mobile', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    ),
-                    const Text('v1.0.0+1 Enterprise', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
-                  ],
-                ),
+          _card(context, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SegmentedButton<ThemeMode>(
+              key: const Key('settings.theme'),
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                ButtonSegment(value: ThemeMode.system, label: Text('System')),
               ],
+              selected: {ref.watch(themeModeProvider) == ThemeMode.light ? ThemeMode.dark : ref.watch(themeModeProvider)},
+              onSelectionChanged: (v) => ref.read(themeModeProvider.notifier).setThemeMode(v.first),
             ),
-          ),
+            const SizedBox(height: 8),
+            const Text(
+              'Light mode is not available yet: the studio screens use the dark Media Studio palette. System follows your device once light mode ships and stays dark until then.',
+              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+            ),
+          ])),
+
+          const SizedBox(height: 24),
+
+          // Section: Notifications
+          _sectionHeader(context, 'Notifications', Icons.notifications_outlined),
+          const SizedBox(height: 8),
+          _card(context, _pushPanel(context)),
+
+          const SizedBox(height: 24),
+
+          // Section: About (real values only)
+          _sectionHeader(context, 'About', Icons.info_outline_rounded),
+          const SizedBox(height: 8),
+          _card(context, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Workspace server', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 4),
+            Text(AppConfig.apiBaseUrl, style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+          ])),
 
           const SizedBox(height: 24),
 
@@ -380,12 +369,77 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _card(BuildContext context, Widget child) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: child,
+      );
+
+  bool _sendingTest = false;
+
+  Future<void> _sendTestPush() async {
+    setState(() => _sendingTest = true);
+    try {
+      await ref.read(apiClientProvider).post('/api/desktop/push/test');
+      if (mounted) showSuccess(context, 'Test notification sent.');
+    } catch (e) {
+      if (mounted) showError(context, 'Test notification failed: $e');
+    } finally {
+      if (mounted) setState(() => _sendingTest = false);
+    }
+  }
+
+  Widget _pushPanel(BuildContext context) {
+    final push = ref.watch(pushServiceProvider);
+    final ok = push.state == PushState.enabled;
+    final color = ok ? AppTheme.success : (push.state == PushState.unknown ? AppTheme.textMuted : AppTheme.warning);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 8),
+        Expanded(child: Text(push.label, key: const Key('settings.push.status'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+      ]),
+      if (push.message != null && !ok) ...[
+        const SizedBox(height: 4),
+        Text(push.message!, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted), maxLines: 3, overflow: TextOverflow.ellipsis),
+      ],
+      const SizedBox(height: 4),
+      const Text('Published, failed, needs-approval and reconnect alerts. Tapping one opens the post.',
+          style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+      const SizedBox(height: 10),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        if (!ok && push.state != PushState.notConfiguredOnDevice)
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
+            onPressed: () => ref.read(pushServiceProvider.notifier).enable(),
+            child: Text(push.state == PushState.error ? 'Retry' : 'Enable notifications'),
+          ),
+        if (push.state == PushState.permissionDenied)
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(minimumSize: const Size(44, 44)),
+            onPressed: () => openAppSettings(),
+            child: const Text('Open system settings'),
+          ),
+        if (ok)
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(minimumSize: const Size(44, 44)),
+            onPressed: _sendingTest ? null : _sendTestPush,
+            child: const Text('Send test notification'),
+          ),
+      ]),
+    ]);
+  }
+
   Widget _sectionHeader(BuildContext context, String title, IconData icon) {
     return Row(
       children: [
         Icon(icon, size: 18, color: AppTheme.primary),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2)),
+        Flexible(child: Text(title, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2))),
       ],
     );
   }
@@ -394,7 +448,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final deviceId = device['deviceId']?.toString() ?? '';
     final label = device['label']?.toString() ?? 'Mobile Device';
     final platform = device['platform']?.toString().toLowerCase() ?? 'android';
-    final isCurrent = deviceId == _currentDeviceId;
+    final isCurrent = device['current'] == true || deviceId == _currentDeviceId;
     final lastSeen = device['lastSeenAt'] != null
         ? DateTime.fromMillisecondsSinceEpoch((device['lastSeenAt'] as num).toInt())
         : null;

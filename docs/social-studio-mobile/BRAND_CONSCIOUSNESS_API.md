@@ -43,6 +43,15 @@ company comes from the token). Source of truth:
 | `captionStylePreset` | `HORMOZI_BOUNCE` \| `ALI_ABDAAL_CLEAN` \| `MINIMAL_SUBTITLE` \| `BOLD_CENTER` \| null | These are the presets the EditIR compiler can render. | recommended |
 | `watermarkEnabled` | boolean \| null | `null` means the user has not chosen. | optional |
 | `customGuidelines` | string \| null | ≤4000 | optional |
+| `website` | http(s) URL \| null | ≤2048, must parse as a URL | recommended |
+| `industry` | string \| null | ≤120. Used by autopilot research. | recommended |
+| `country` | ISO-3166 alpha-2 \| null | `in` becomes `IN` | recommended |
+| `language` | BCP-47 \| null | Canonicalised: `en-us` becomes `en-US` | recommended |
+| `colors.secondary` | `#RRGGBB` \| null | Same rule as the other colours. It is never given a render default: `resolveBrandRendering().secondaryColor` is `null` when unset. | optional |
+| `restrictions` | `{ forbiddenTopics: string[], claimsToAvoid: string[], regulatoryNotes: string\|null }` | ≤50×120 topics, ≤50×200 claims, notes ≤2000. Merges per key on PUT; `null` clears all three. | optional |
+| `postingFrequency` | `{ perWeek: number\|null, platforms?: Record<platform, number> }` | 0..100 per week. Platform keys take the same aliases as `targetPlatforms`. Merges per key; `platforms: null` removes the map. | `postingFrequency.perWeek` recommended |
+| `objectives` | `{ primary: string\|null, secondary: string\|null }` | ≤300 each. Autopilot uses them as plan goals when a run gives none. | `objectives.primary` recommended |
+| `autonomy` | `{ editing: "AUTO"\|"ASSISTED"\|"MANUAL", publishing: "ASSISTED"\|"MANUAL" }` | Always present in responses. The default is `{editing:"ASSISTED", publishing:"MANUAL"}`: this is a policy default, not brand data, and it is not stored until the user chooses. A PUT merges per key; `null` resets to the default. The AI Director reads `editing` (see the AI_DIRECTOR_CONTRACT addendum of 2026-09-27). `publishing` is stored for clients and the scheduler, and publishing still needs a person. | – |
 
 The response also includes these read-only fields: `projectId`, `projectName`, `updatedAt` (ISO string or null) and
 `completeness`.
@@ -212,6 +221,8 @@ call the logo endpoint.
 - merge `metadata` instead of replacing it (the `metadata.brand` key is owned by the endpoints above and cannot be
   overwritten from here);
 - leave fields unchanged when they are absent from the request.
+
+**Prompt context** (`toPromptContext()`) now adds these lines when the fields are set: `Industry`, `Website`, `Market` (country and language), `Never cover these topics`, `Never make these claims`, `Regulatory notes (must follow)`, `Posting frequency` and `Growth objectives`. Autonomy is never put in prompts.
 
 ## For other workstreams (server code)
 

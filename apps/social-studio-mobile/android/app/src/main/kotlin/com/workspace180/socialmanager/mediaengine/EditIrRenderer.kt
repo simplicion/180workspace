@@ -93,6 +93,8 @@ class EditIrRenderer(
     private var transformer: Transformer? = null
     @Volatile private var cancelled = false
     @Volatile private var finished = false
+    /** Set after OpenGL HDR tone-mapping failed on this GPU: retry once with MediaCodec tone-mapping (API 31+). */
+    private var hdrModeOverride: Int? = null
 
     private data class Probe(
         val durationMs: Long,
@@ -114,7 +116,9 @@ class EditIrRenderer(
                 fail(e.code, e.message ?: "invalid editIR", null)
                 return@Thread
             } catch (e: Exception) {
-                fail("RENDER_SETUP_FAILED", e.message ?: e.toString(), null)
+                // Never surface a bare exception class: name the root cause and where it was thrown.
+                android.util.Log.e("EditIrRenderer", "Render setup failed for job $jobId", e)
+                fail("RENDER_SETUP_FAILED", "Could not prepare the export: ${describeRootCause(e)}", e.stackTraceToString().take(4000))
                 return@Thread
             }
             try {
@@ -292,7 +296,6 @@ class EditIrRenderer(
 
         ir.clips.forEach { probe(assetPath(it.assetId)) }
         val anyAudio = ir.clips.any { probe(assetPath(it.assetId)).hasAudio }
-        val allAudio = ir.clips.all { probe(assetPath(it.assetId)).hasAudio }
         if (!anyAudio) warnings.add("main source has no audio track")
 
         fun mainItem(clip: IrClip, index: Int, startMs: Double, endMs: Double, removeAudio: Boolean, removeVideo: Boolean): EditedMediaItem {
@@ -321,11 +324,10 @@ class EditIrRenderer(
                 mainItem(c, i, c.timelineStartMs.toDouble(), c.timelineEndMs.toDouble(), removeAudio = false, removeVideo = false)
             }
             val types = if (anyAudio) setOf(C.TRACK_TYPE_AUDIO, C.TRACK_TYPE_VIDEO) else setOf(C.TRACK_TYPE_VIDEO)
-            sequences.add(
-                EditedMediaItemSequence.Builder(types).addItems(items)
-                    .experimentalSetForceAudioTrack(anyAudio && !allAudio)
-                    .build(),
-            )
+            // The sequence declares its track types; with TRACK_TYPE_AUDIO declared Media3 fills clips without audio
+            // with silence. experimentalSetForceAudioTrack must NOT be called on a sequence built with explicit track
+            // types (Preconditions.checkState throws IllegalStateException; verified on device 2026-09-27).
+            sequences.add(EditedMediaItemSequence.Builder(types).addItems(items).build())
         } else {
             val videoItems = videoPieces(overlays).map { piece ->
                 val clip = ir.clips[piece.clipIndex]
@@ -366,11 +368,7 @@ class EditIrRenderer(
                 val audioItems = ir.clips.mapIndexed { i, c ->
                     mainItem(c, i, c.timelineStartMs.toDouble(), c.timelineEndMs.toDouble(), removeAudio = false, removeVideo = true)
                 }
-                sequences.add(
-                    EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO)).addItems(audioItems)
-                        .experimentalSetForceAudioTrack(!allAudio)
-                        .build(),
-                )
+                sequences.add(EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO)).addItems(audioItems).build())
             }
         }
 
@@ -414,7 +412,7 @@ class EditIrRenderer(
             .setEffects(Effects(emptyList(), compositionFx))
             // Output is 8-bit SDR H.264: tone-map only if an input is actually HDR.
             // On SDR sources, keeping HDR mode avoids unsupported OpenGL ES tone-mapping shader errors.
-            .setHdrMode(if (videoProbes.any { it.isHdr }) Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL else Composition.HDR_MODE_KEEP_HDR)
+            .setHdrMode(hdrModeOverride ?: if (videoProbes.any { it.isHdr }) Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL else Composition.HDR_MODE_KEEP_HDR)
             .build()
     }
 
@@ -570,8 +568,29 @@ class EditIrRenderer(
                     val detail = "${exportException.errorCodeName}: ${exportException.message ?: ""} ${exportException.cause?.message ?: ""}".trim()
                     if (isOutOfSpace(exportException)) {
                         fail("INSUFFICIENT_STORAGE", "The device ran out of storage while exporting. Free up space and try again.", detail)
+                    } else if (isGlHdrUnsupported(exportException) && hdrModeOverride == null && Build.VERSION.SDK_INT >= 31) {
+                        // This GPU cannot run Media3's OpenGL HDR shader (no GL_EXT_YUV_target): retry once with the
+                        // decoder doing the tone-mapping instead.
+                        android.util.Log.w("EditIrRenderer", "OpenGL HDR tone-mapping unsupported; retrying with MediaCodec tone-mapping")
+                        hdrModeOverride = Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_MEDIACODEC
+                        warnings.add("HDR tone-mapped by the video decoder (GPU tone-mapping unsupported on this device)")
+                        val retry = try {
+                            buildComposition()
+                        } catch (e: Exception) {
+                            fail("EXPORT_FAILED", "Could not prepare the HDR retry: ${describeRootCause(e)}", e.stackTraceToString().take(4000))
+                            return
+                        }
+                        startExport(retry)
+                    } else if (isGlHdrUnsupported(exportException) || (hdrModeOverride != null && isHdrError(exportException))) {
+                        fail(
+                            "HDR_NOT_SUPPORTED",
+                            "This device cannot convert HDR video to SDR for export (its GPU and video decoder lack HDR tone-mapping). Record in SDR (turn off HDR in the camera) or export on another device.",
+                            detail.take(4000),
+                        )
                     } else {
-                        fail("EXPORT_FAILED", detail, exportException.errorCodeName)
+                        android.util.Log.e("EditIrRenderer", "Export failed for job $jobId", exportException)
+                        // The top-level message is often generic ("Video frame processing error"); add the deepest cause.
+                        fail("EXPORT_FAILED", "${exportException.errorCodeName}: ${describeRootCause(exportException)}", detail)
                     }
                 }
             })
@@ -629,6 +648,23 @@ class EditIrRenderer(
             ),
         )
     }
+
+    /** "IllegalStateException: <message> (at Class.method:line)" for the deepest cause, never just a class name. */
+    private fun describeRootCause(e: Throwable): String {
+        val root = generateSequence(e) { it.cause }.take(8).last()
+        val frame = root.stackTrace.firstOrNull()
+        val where = frame?.let { " (at ${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber})" } ?: ""
+        // GL errors append the whole shader source; keep the first line(s) only.
+        val msg = (root.message ?: "no message").lineSequence().filter { it.isNotBlank() }.take(2).joinToString(" | ").take(300)
+        return "${root.javaClass.simpleName}: $msg$where"
+    }
+
+    private fun causeText(e: Throwable) = generateSequence(e) { it.cause }.take(8).joinToString(" ") { it.message ?: "" }
+
+    private fun isGlHdrUnsupported(e: Throwable) = "GL_EXT_YUV_target" in causeText(e)
+
+    private fun isHdrError(e: Throwable) = Regex("HDR|tone", RegexOption.IGNORE_CASE).containsMatchIn(causeText(e)) ||
+        (e as? ExportException)?.errorCode == ExportException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
 
     private fun isOutOfSpace(e: Throwable): Boolean =
         generateSequence(e) { it.cause }.take(8).any { (it.message ?: "").let { m -> "ENOSPC" in m || "No space left" in m } }

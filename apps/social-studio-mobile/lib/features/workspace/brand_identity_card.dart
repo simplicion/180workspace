@@ -41,7 +41,7 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
   late final Set<String> _platforms = {...b.targetPlatforms};
   late bool? _watermark = b.watermarkEnabled;
   late String? _editingAutonomy = b.editingAutonomy ?? 'ASSISTED';
-  late String? _publishingAutonomy = b.publishingAutonomy ?? 'MANUAL';
+  late final String _publishingAutonomy = b.publishingAutonomy ?? 'MANUAL';
   late final _name = TextEditingController(text: b.brandName);
   late final _website = TextEditingController(text: b.website);
   late final _industry = TextEditingController(text: b.industry);
@@ -224,7 +224,7 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
           Expanded(
             child: DropdownButtonFormField<String>(
               isExpanded: true,
-              value: _editingAutonomy,
+              initialValue: _editingAutonomy,
               decoration: fieldDecoration('Editing autonomy'),
               items: const [
                 DropdownMenuItem(value: 'AUTO', child: Text('Auto', overflow: TextOverflow.ellipsis)),

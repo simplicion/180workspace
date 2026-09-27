@@ -204,6 +204,15 @@ const swaggerSpecs = require('./src/system-configs/config/swagger');
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 const apiRoutes = require('./src/routes/index.routes').default || require('./src/routes/index.routes');
+const oauthRoutes = require('./src/routes/oauth.routes').default || require('./src/routes/oauth.routes');
+const pitchRoutes = require('./src/routes/pitch.routes').default || require('./src/routes/pitch.routes');
+
+// 180 Identity: OpenID Connect Discovery & OAuth 2.0 Provider
+app.use('/.well-known', oauthRoutes);
+app.use('/oauth', oauthRoutes);
+app.use('/certs', oauthRoutes);
+app.use('/api/v1/pitch', pitchRoutes);
+
 app.use('/api', apiRoutes);
 app.use('/v1', (req, res, next) => {
     req.url = '/v1' + req.url;

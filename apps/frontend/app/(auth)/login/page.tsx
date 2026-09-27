@@ -12,6 +12,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { useAuth } from '@/lib/auth-context';
+import { use180Identity } from '@/lib/use180Identity';
 
 function LoginForm() {
     const router = useRouter();
@@ -19,6 +20,7 @@ function LoginForm() {
     const { platform, isLoading: settingsLoading } = useSettings();
     const { data: session, status } = useSession();
     const { user: authUser, isLoading: authLoading, token } = useAuth();
+    const { launch180Identity, isOpeningIdentity } = use180Identity();
     const user = session?.user;
     const isLoading = status === "loading";
 
@@ -324,9 +326,57 @@ function LoginForm() {
                         )}
                     </div>
 
-                    <div className="text-center mb-10">
+                    <div className="text-center mb-8">
                         <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">Welcome Back</h2>
+                        <p className="text-xs text-gray-500 mt-1">Sign in with your unified 180 Profile</p>
                     </div>
+
+                    {/* ─── Primary: 180 Identity SSO ─── */}
+                    {!mfaRequired && (
+                        <div className="mb-6">
+                            <button
+                                type="button"
+                                disabled={isOpeningIdentity}
+                                onClick={launch180Identity}
+                                className="w-full relative group overflow-hidden rounded-2xl p-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-600 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer"
+                            >
+                                <div className="w-full bg-slate-950/95 group-hover:bg-slate-950/90 rounded-[14px] px-5 py-3.5 flex items-center justify-between transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-xs shadow-md">
+                                            180
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                                                Get started with 180 Identity
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                                            </div>
+                                            <div className="text-[11px] text-slate-400 font-medium">
+                                                Single Sign-On • Fast & Secure
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="w-8 h-8 rounded-full bg-white/10 group-hover:bg-white/20 flex items-center justify-center text-white transition-colors">
+                                        {isOpeningIdentity ? (
+                                            <LogoLoader className="w-4 h-4 animate-spin text-white" />
+                                        ) : (
+                                            <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                                        )}
+                                    </div>
+                                </div>
+                            </button>
+
+                            <div className="relative my-6 flex items-center justify-center">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-gray-200"></div>
+                                </div>
+                                <div className="relative flex justify-center text-xs">
+                                    <span className="px-3 bg-gray-50 text-gray-400 font-semibold uppercase tracking-wider text-[10px]">
+                                        Or sign in with Google or Email
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Google Auth */}
                     {!mfaRequired && (

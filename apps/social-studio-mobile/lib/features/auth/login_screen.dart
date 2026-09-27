@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../core/auth/one_eighty_sso_service.dart';
 import 'auth_provider.dart';
 import 'auth_repository.dart';
 
@@ -102,6 +103,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _loginWith180Identity() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final sso = OneEightySsoService();
+      await sso.launch180IdentityLogin();
+    } catch (e) {
+      if (mounted) setState(() => _error = errorText(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _forgot() async {
     final email = await promptText(context, title: 'Reset password', label: 'Work email', initial: _email.text, action: 'Send link');
     if (email == null || email.isEmpty || !mounted) return;
@@ -162,6 +178,66 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 28),
                   if (_step == _Step.credentials) ...[
+                    // Primary 180 Identity SSO Button
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFFA855F7)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        key: const Key('login.180identity'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: _busy ? null : _loginWith180Identity,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text('180', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.w900, fontSize: 12)),
+                            ),
+                            const SizedBox(width: 10),
+                            const Flexible(
+                              child: Text(
+                                'Get started with 180 Identity',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Expanded(child: Divider(color: Color(0x33FFFFFF))),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('or continue with email', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary)),
+                        ),
+                        const Expanded(child: Divider(color: Color(0x33FFFFFF))),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
                     TextFormField(
                       key: const Key('login.email'),
                       controller: _email,

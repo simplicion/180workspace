@@ -115,3 +115,42 @@ export function fenceUntrusted(source: UntrustedSource, text: unknown, opts: { l
 export function sanitizeInlineUntrusted(text: unknown, maxChars = 200): string {
   return neutraliseUntrustedText(text, maxChars).text.replace(/[\r\n]+/g, " ");
 }
+
+/**
+ * Word-level neutralisation for timed transcripts/OCR, where each word is listed separately (e.g. `1.20-1.40:word`)
+ * and a phrase-level pattern would never see "ignore previous instructions" contiguously. Detects instruction-like
+ * phrases on the joined text and returns the words with every word inside a flagged phrase replaced: the first by
+ * NEUTRALISED_MARKER, the rest by "…". Timings are untouched. Pure.
+ */
+export function neutraliseWordSequence(words: string[]): { words: string[]; flagged: string[] } {
+  const clean = words.map((w) => String(w ?? "").normalize("NFKC").replace(HIDDEN_CHARS, "").replace(FENCE_LOOKALIKE, " "));
+  const starts: number[] = [];
+  let text = "";
+  for (const w of clean) {
+    starts.push(text.length);
+    text += (text ? " " : "") + w;
+    if (starts.length > 1) starts[starts.length - 1] += 1;
+  }
+  const hit = new Array(clean.length).fill(false);
+  const flagged: string[] = [];
+  for (const { id, re } of INJECTION_PATTERNS) {
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    let any = false;
+    while ((m = re.exec(text))) {
+      any = true;
+      const a = m.index;
+      const b = m.index + Math.max(1, m[0].length);
+      for (let i = 0; i < clean.length; i++) {
+        const s = starts[i];
+        const e = s + clean[i].length;
+        if (s < b && e > a) hit[i] = true;
+      }
+      if (m[0].length === 0) re.lastIndex++;
+    }
+    re.lastIndex = 0;
+    if (any) flagged.push(id);
+  }
+  const out = clean.map((w, i) => (hit[i] ? (i > 0 && hit[i - 1] ? "…" : NEUTRALISED_MARKER) : w));
+  return { words: out, flagged };
+}

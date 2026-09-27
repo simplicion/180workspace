@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import pushRoutes from '../../../services/push/push.routes';
+import { installSocialPushHooks } from '../../../services/push/social-push-hooks';
 import { DeviceLimitError, DeviceRecord, listDevices, registerDevice, requestDeviceId, revokeDevice, setDevicePushToken } from './desktop-device';
 
 /**
@@ -15,6 +17,11 @@ import { DeviceLimitError, DeviceRecord, listDevices, registerDevice, requestDev
  */
 const router: Router = Router();
 
+// Push notifications (FCM): status + self-test. Social publishing/approval hooks are installed once, here, because
+// this router is loaded at startup (services/push/social-push-hooks.ts documents what is sent).
+router.use('/push', pushRoutes);
+installSocialPushHooks();
+
 function scope(req: Request) {
   const user = (req as any).user;
   if (!user?.id || !user?.companyId) return null;
@@ -23,7 +30,7 @@ function scope(req: Request) {
 
 /** Never echo a push token back; clients only need to know one is registered. */
 const publicDevice = (d: DeviceRecord) => {
-  const { push, ...rest } = d;
+  const { push, installKeyHash: _k, ...rest } = d;
   return { ...rest, push: push ? { provider: push.provider, registered: true, updatedAt: push.updatedAt } : null };
 };
 
@@ -41,12 +48,13 @@ router.post('/devices/register', async (req: Request, res: Response) => {
   const s = scope(req);
   if (!s) return res.status(401).json({ success: false, error: 'Authentication required' });
   try {
-    const { label, platform, deviceId } = req.body || {};
+    const { label, platform, deviceId, installKey } = req.body || {};
     const device = await registerDevice({
       ...s,
       label: typeof label === 'string' ? label : undefined,
       platform: typeof platform === 'string' ? platform : undefined,
       deviceId: typeof deviceId === 'string' ? deviceId : undefined,
+      installKey: typeof installKey === 'string' ? installKey : undefined,
       // The device making the request (if it presents its token) is never evicted.
       currentDeviceId: requestDeviceId(req),
     });

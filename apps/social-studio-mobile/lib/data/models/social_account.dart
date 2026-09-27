@@ -18,7 +18,12 @@ class SocialAccount {
     this.tokenExpiresAt,
     this.capabilities = const [],
     this.tokenHealth,
+    this.isSimulated = false,
   });
+
+  /// A sandbox account created by the server's SIMULATE_SOCIAL_PUBLISHING mode (dev only): posts to it are never
+  /// sent to the platform.
+  final bool isSimulated;
 
   final String id;
   final SocialPlatform platform;
@@ -61,6 +66,7 @@ class SocialAccount {
       tokenExpiresAt: jDate(j['tokenExpiresAt']),
       capabilities: jStrList(j['capabilities']),
       tokenHealth: jStr(j['tokenHealth']),
+      isSimulated: jBool(jMap(j['metadata'])['simulated']),
     );
   }
 }

@@ -75,8 +75,9 @@ export function isAssistedPlatform(platform: string, variant?: any): boolean {
     const meta = asObj(variant?.platformMeta);
     if (meta.publishingMode === 'user_assisted') return true;
     if (meta.publishingMode === 'api') return false;
-    // All unconfigured platforms (X, TikTok, Pinterest, Reddit) default to assisted mode!
-    if (!isPlatformConfigured(p)) return true;
+    // Unconfigured platforms default to the assisted handoff, except in the dev sandbox (SIMULATE_SOCIAL_PUBLISHING,
+    // never in production), where the keyless API flow is simulated end-to-end with real validation.
+    if (!isPlatformConfigured(p)) return !isSimulationMode();
     return false;
 }
 

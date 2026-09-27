@@ -17,6 +17,7 @@ import {
   UNTRUSTED_DATA_POLICY,
   fenceUntrusted,
   sanitizeInlineUntrusted,
+  neutraliseWordSequence,
 } from "@workspace/video-contracts";
 import { AIProviderService, AIClient, AISettings } from "../kernel/ai-provider.service";
 
@@ -313,7 +314,9 @@ export class CreativePlanner {
       const shown = words.slice(0, MAX_TRANSCRIPT_WORDS);
       lines.push(`Transcript (${words.length} words, format start-end:word${words.length > shown.length ? `, first ${shown.length} shown` : ""}):`);
       // Spoken words are untrusted data (a video can say "ignore your instructions"): fenced and neutralised.
-      lines.push(fenceUntrusted("transcript", shown.map((w) => `${w.startSeconds.toFixed(2)}-${w.endSeconds.toFixed(2)}:${w.word}`).join(" "), { maxChars: 120000 }).block);
+      // Phrase detection runs on the joined words (the timed listing would hide "ignore previous instructions").
+      const safeWords = neutraliseWordSequence(shown.map((w) => w.word)).words;
+      lines.push(fenceUntrusted("transcript", shown.map((w, i) => `${w.startSeconds.toFixed(2)}-${w.endSeconds.toFixed(2)}:${safeWords[i]}`).join(" "), { maxChars: 120000 }).block);
     }
     const sil = g.silences || [];
     lines.push(

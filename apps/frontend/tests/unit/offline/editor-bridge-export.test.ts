@@ -12,6 +12,8 @@ jest.mock('../../../lib/native/desktop-media', () => {
     ...actual,
     hasNativeMedia: jest.fn(() => true),
     runNativeRender: jest.fn(),
+    // post-export QA (analysis.rs) on the written file; an empty report = nothing measured as wrong
+    runMediaAnalysis: jest.fn(async () => ''),
     fetchRemoteMediaWithProgress: jest.fn(async () => 'C:\cache\remote-media\stock.mp4'),
     desktopMedia: {
       pickMediaFiles: jest.fn(), probeMedia: jest.fn(), pickExportPath: jest.fn(), startRender: jest.fn(), renderStatus: jest.fn(), cancelRender: jest.fn(),
@@ -101,7 +103,7 @@ it('remote stock media is downloaded into the cache and rendered from the local 
   const stockIr = ir();
   stockIr.tracks.videoTracks[0].clips[0].sourcePath = 'https://videos.pexels.com/video-files/1/clip.mp4';
   await engineBridge.renderExport(stockIr, settings, jest.fn());
-  expect(fetchRemoteMediaWithProgress).toHaveBeenCalledWith('https://videos.pexels.com/video-files/1/clip.mp4');
+  expect((fetchRemoteMediaWithProgress as jest.Mock).mock.calls[0][0]).toBe('https://videos.pexels.com/video-files/1/clip.mp4');
   expect((runNativeRender as jest.Mock).mock.calls[0][0].inputs).toEqual(['C:\cache\remote-media\stock.mp4']);
 });
 

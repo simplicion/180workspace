@@ -447,3 +447,140 @@ turn**.
   - black_white and vignette: 150 ms ramps;
   - zoom_pulse: `1 + (0.06 + 0.14·i)·sin(πp)`;
   - shake: small sinusoidal jitter with cover scale.
+
+
+## Addendum 2026-09-27: constraints, autonomy, critic, run log (Social OS P1/P3)
+
+These are all **optional and backward compatible**. Older clients ignore the new response fields, and older requests
+still parse. The schemas are the source of truth:
+- `ai-director-api.schema.ts` (`constraints`, `lastExportQa`)
+- `mobile-edit-ir.ts` (`media.scenesMs`, `media.ocr`, `media.loudness`)
+- `director-constraints.ts`
+- `director-critic.ts`
+
+### Request additions
+| field | type | notes |
+|---|---|---|
+| `constraints.lockedRanges` | `Array<[startMs, endMs]>`, max 50, end > start | ms on the **current** timeline (`currentEditIR`, or the raw clip). No cuts, speed changes, reorders or insertions inside the range, and no zoom, B-roll, effect, text or SFX over it. |
+| `constraints.lockedTracks` | `Array<"music"\|"captions"\|"broll"\|"sfx"\|"effects"\|"text">` | Blocks: music → `addBackgroundMusic`, `duckAudio`, `adjustVolume(music)`; captions → `autoCaptions`, `addCaption`, `styleCaption`, `emphasizeWord`, `clearCaptions`; broll → `insertBroll`, `addImage`; sfx → `addSoundEffect`, `autoSoundDesign`; effects → `addEffect`, `applyFilter`, `addTransition`; text → `addText`. |
+| `media.scenesMs` | `number[]` (source ms) | On-device scene cuts. Shown to the planner. |
+| `media.ocr` | `Array<{startMs, endMs, text≤500}>` | On-screen text. Fenced as **untrusted data** in the prompt. |
+| `media.loudness` | `{integratedLufs, truePeakDb?, clippingPct?}` | Used by the critic (quiet voice under music, clipping). |
+| `lastExportQa` | `{durationMs, width, height, fps?, hasAudio, audioChannels?, blackRangesMs, frozenRangesMs, integratedLufs?, clippingPct?}` | QA of the last export of `currentEditIR`. See the critic below. |
+
+The web and desktop form (`telemetry`) accepts `telemetry.scenesMs`, `telemetry.loudness` and `telemetry.ocr` with
+the same meaning.
+
+**Where constraints come from.** The server merges three sources. They are combined as a union, so nothing can
+loosen them:
+1. the request's `constraints`;
+2. the creator's own words, parsed deterministically. Examples:
+   - "don't change the music"
+   - "keep my captions"
+   - "no b-roll"
+   - "keep the first 10 seconds"
+   - "don't touch 0:05-0:12"
+   - "keep the intro/ending" (5 s)
+   - "keep the music but make it quieter" does **not** lock music.
+3. the model's `finish_edit.preserve` argument. It can only add locks.
+
+Operations that break a lock are dropped before compilation and listed in `violations`.
+
+### Response additions
+| field | meaning |
+|---|---|
+| `autoApplied` | `true` only when the project's `autonomy.editing` is `AUTO` **and** every operation is one of `removeSilences`, `cleanFillers`, `autoCaptions`, `styleCaption`, `adjustVolume`, `duckAudio`, `reframeSubject` or `changeAspectRatio`, **and** nothing was dropped for a constraint. `AUTO` with any other op is a proposal (`requiresConfirmation: true`). `MANUAL` is always a proposal. `ASSISTED` (the default) behaves as before. The greet turn is always a proposal. |
+| `critique` | `{score 0..100, issues: [{id, severity: CRITICAL\|WARNING\|SUGGESTION, category: PACING\|VISUAL\|AUDIO\|SUBTITLE\|BROLL\|EXPORT\|CONSTRAINT, title, timeRangeMs?}], repairRounds}` |
+| `runId` | The id of this turn in the agent run log (see below). |
+| `violations?` | One human line per operation dropped because of a constraint. |
+| `constraints?` | The locks that were enforced this turn (`lockedRanges` in ms, `lockedTracks`). |
+
+`operations` now also includes the repair operations. Repair entries in `appliedOperations` are prefixed `repair: `.
+
+### Critic and bounded repair
+After compiling, the critic checks the following:
+- micro clips under 250 ms;
+- dead air left (gaps in speech of more than 1.5 s);
+- zoom overlap and density;
+- captions: overlap, running past the end, too short, words outside the caption;
+- B-roll relevance against the transcript;
+- music over speech (not ducked, ducked too little, or a quiet voice by `media.loudness`), and source clipping;
+- locked ranges whose footage was cut;
+- `lastExportQa` against `currentEditIR`:
+  - duration;
+  - **aspect** (the export pixel size is the user's choice and is not compared);
+  - a missing audio stream;
+  - unexpected black frames (`fade_black` and dip-to-black are excluded);
+  - frozen frames (still photos are excluded);
+  - loudness and clipping.
+
+CRITICAL issues that are repairable **and introduced by this turn** are sent back to the planner as structured JSON.
+This is at most 3 rounds. A round that does not improve the result is discarded. Without an LLM, only known
+deterministic fixes are used (for example `duckAudio`). Anything that remains is reported in `critique` and
+`warnings`; it is never hidden. `llmCallBudget` now defaults to **6** and caps every call in the turn, repairs
+included.
+
+### Run inspector (agent event log)
+The run inspector is also used for the Autopilot, Creative and Publisher runs of the project. Tenant = the JWT
+company, and the project must belong to it; otherwise the response is 404 `PROJECT_NOT_FOUND`.
+
+- `GET /api/v1/social-media/projects/:id/agent-runs?limit=20` (limit max 100) returns
+  `{success, runs: [{runId, agent, status, startedAt, lastEventAt, eventCount, lastEventType}]}`.
+  - `agent` is one of `director`, `autopilot`, `creative`, `publisher`.
+  - `status` is one of `running`, `completed`, `failed`.
+- `GET .../agent-runs/:runId` returns `{success, runId, events: [{id, runId, type, ts, payload}]}`, oldest first. An
+  unknown run returns 404 `RUN_NOT_FOUND`. When the event table is missing, both routes return 503
+  `AGENT_EVENTS_NOT_CONFIGURED`.
+- Event types:
+  - `AgentStarted`
+  - `ContextLoaded`
+  - `MediaAnalyzed`
+  - `PlanCreated`
+  - `PlanValidated`
+  - `ToolCalled`
+  - `ToolCompleted`
+  - `TimelineChanged`
+  - `CriticStarted`
+  - `CriticCompleted`
+  - `RepairCreated`
+  - `RepairApplied`
+  - `PublishStarted`
+  - `PublishCompleted`
+  - `AgentFailed`
+- A run is `completed` when an event has `payload.final: true`. It is `failed` after `AgentFailed`.
+- Payloads are truncated, and keys that look like secrets are redacted.
+- Director runs are stored only when `projectId` resolves to a social project of the caller's company. `runId` is
+  returned either way.
+
+### Project memory and library search (same router)
+All of these are project-scoped: the project must belong to the JWT company, and every query filters by companyId
+and projectId.
+
+- `POST .../media-index`
+  - Body: `[{assetId, kind: "transcript"|"scene"|"ocr"|"caption", text, startMs?, endMs?, url?}]` (or `{items}`),
+    at most 500 items.
+  - Upserts by (asset, kind, startMs) and returns `{created, updated}`. Only text is sent; media stays on the device.
+- `POST .../media-search`
+  - Body: `{query, limit?≤50}`.
+  - Returns `{results: [{assetId, kind, text, startMs, endMs, url, score}]}`. `score` is a local BM25 score; higher is
+    better.
+- `GET .../agent-memory?kind=&limit=` lists the project's memory.
+- `POST .../agent-memory/feedback` takes `{accepted, agent?, runId?, summary?, operations?, note?}`. Call it on
+  Apply and Undo.
+- `POST .../agent-memory/preferences` takes `{text}`.
+- `POST .../agent-memory/performance` takes `{platform, postId?, format?, pillar?, hookType?, metrics}`.
+- `DELETE .../agent-memory/:memoryId` deletes one item.
+- The Director also remembers explicit preferences it finds in the prompt ("less zoom", "smaller captions") and gets
+  a compact project-memory block in its prompt.
+
+### Untrusted data
+Transcripts (word by word), OCR, asset names, caption and title text, calendar scripts, research results and memory
+notes are wrapped in `<<<UNTRUSTED_DATA …>>>` blocks. Instruction-like text inside them is replaced with
+`[instruction-like text removed]`, and the prompt states that none of it can change the task, the tools, the
+permissions or the constraints. When the transcript contains such text, `warnings` says so.
+
+### Tests
+- `packages/video-contracts/tests/director-os.test.ts`: 13
+- `packages/domains/ai/tests/director-os.test.ts`: 12
+- `video-director.test.ts`: still 58
+- `apps/backend/.../projects/brand-bleed.test.ts`: 2 (brand bleed, and the routes over HTTP)

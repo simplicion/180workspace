@@ -38,6 +38,15 @@ class AppConfig {
   static const String deepLinkScheme = 'workspace180';
   static const String oauthRedirectUri = 'workspace180://oauth/callback';
 
+  /// 180 Identity Provider Configurations
+  static String get identityServerUrl {
+    const fromEnv = String.fromEnvironment('IDENTITY_SERVER_URL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    return apiBaseUrl;
+  }
+  static const String identityClientId = '180-social-studio-mobile';
+  static const String identityRedirectUri = '180social://oauth-callback';
+
   /// Kebab-case app id used by billing, feature flags and `moduleGuard`.
   static const String socialAppId = 'social-media';
 

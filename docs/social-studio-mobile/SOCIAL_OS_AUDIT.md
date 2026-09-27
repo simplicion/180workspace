@@ -111,3 +111,197 @@ This plan extends the existing modules. It adds no new engine and no new IR.
 - **Publishing:** `META_APP_ID`/`SECRET` (+ app review), `INSTAGRAM_APP_*`, `THREADS_APP_*`, `YOUTUBE_CLIENT_*` (+ upload audit), `LINKEDIN_CLIENT_*` (+ Community Management API access), `X_CLIENT_*` (paid tier), `TIKTOK_*`.
 - **Platform:** `SOCIAL_TOKEN_ENCRYPTION_KEY`, `SOCIAL_OAUTH_CALLBACK_BASE_URL`, `CLIENT_URL`, storage (R2/S3), and rotation of the old Meta webhook token.
 - **Verification:** a physical Android device run, a CI run of the desktop Rust build, and a production deploy.
+
+## 5. Desktop (P2/P3-QA/P5/P6) status (2026-09-27)
+
+Everything here runs on the user's computer with the bundled FFmpeg (4.1 git build `N-92722`). It has `ebur128`,
+`blackdetect`, `freezedetect`, `select` scene scores and `mpdecimate`, but no `scdet`.
+
+**P2: media intelligence (desktop)**
+- `src-tauri/src/analysis.rs` adds three commands: `start_media_analysis`, `media_analysis_status` and
+  `cancel_media_analysis`. They are registered in `build.rs`, `capabilities/main.json` and `lib.rs`.
+  - It runs four fixed analysis kinds and writes nothing to disk:
+    - `scenes`: `select=gt(scene,T)` + `showinfo`;
+    - `loudness`: `ebur128` + `astats`;
+    - `qa`: `blackdetect` + `freezedetect` + loudness;
+    - `qa_nofreeze`: the same, but frozen picture is measured with `mpdecimate` + `showinfo`.
+  - Paths follow the picker rules (picked, downloaded or saved-dialog files only).
+  - Only the report lines the parsers read are returned, capped at 1 MB. Jobs can be cancelled; cancelling kills FFmpeg.
+- `services/media-analysis.ts` holds the TypeScript mirror of the command lines and all the parsers.
+- `tauri-bridge.ts` analyses the primary clip once per session: silences and transcript (as before), plus scene cuts
+  and loudness.
+  - They are sent as `telemetry.scenesMs` and `telemetry.loudness`. A top-level `media` key would switch
+    `/ai-direct` to the mobile director, so it is not used. **Backend: read them from `telemetry` on the web route.**
+  - A measurement that fails becomes a warning and is left out.
+- **OCR on desktop: not integrated (decision).**
+  - Tesseract is Apache-2.0, but it needs a per-OS native sidecar (about 30–40 MB with `eng` data, more per language).
+  - There is no maintained static macOS binary to bundle, and results on stylised caption text are poor without
+    preprocessing.
+  - Revisit it with the ML Kit parity requirement, or use a WASM build inside the desktop app only.
+  - `media.ocr` is not sent.
+
+**Desktop provider evaluation (speech-to-text)**
+
+`apps/desktop-app/scripts/stt-benchmark.py` runs faster-whisper 1.2.1 (CTranslate2 4.8.2) on CPU int8, on a 16-core
+Windows machine. The test clip is 22 s of Windows SAPI TTS speech with a known reference text.
+
+| Model | WER | Transcribe time | RTF | Peak RSS | Model size | Word timestamps |
+|---|---|---|---|---|---|---|
+| tiny | 7.5% | 37.7 s (first run, cold) | 1.71 | 179 MB | ~75 MB | 54 |
+| base | 1.9% | 2.6 s | 0.12 | 288 MB | ~145 MB | 53 |
+| small | 1.9% | 5.7 s | 0.26 | 616 MB | ~480 MB | 53 |
+
+Load times included the first model download from Hugging Face (Systran/faster-whisper-*, MIT licence), so they are
+not listed.
+
+- **Server STT was not benchmarked:** there is no `CARTESIA_API_KEY` or OpenAI key on this machine.
+- **Recommendation: do not ship faster-whisper in this Tauri app.**
+  - It needs a Python runtime plus CTranslate2 (a 282 MB venv here), frozen with PyInstaller for each OS and
+    architecture, on top of the model. That is about 400 MB+ per platform and adds code-signing and notarisation work.
+  - Quality is good: base gives word timestamps at 0.12× real time.
+  - The realistic local route is **whisper.cpp** (MIT) as an `externalBin` sidecar, next to FFmpeg: a few MB of binary
+    plus a ~142 MB ggml base model downloaded on first use. Put it behind a provider switch (`STT_PROVIDER=local|server`),
+    reusing the existing `extract_audio_for_transcription` output.
+  - This is not implemented. The server STT stays the default.
+
+**P3: post-export QA (desktop)**
+- After every native export, `runExportQa` runs ffprobe, then the `qa` pass on the written file. If this FFmpeg build
+  has no `freezedetect`, it runs `qa_nofreeze` instead.
+- It produces `lastExportQa` in the shared-contract shape. `frozenRangesMs` is always a real measurement.
+- `qaIssues` flags only measured problems that the timeline did not intend. Intended cases are main-track gaps,
+  dip-to-black, `fade_black`, and photos as stills; black frames are not counted twice as frozen.
+- The checks cover: duration, resolution, missing audio, black frames, frozen picture, loudness outside
+  −24…−9 LUFS, and clipping.
+- The export result shows the issues (a click seeks to the time), plus **Ask AI Director to fix**. That sends a repair
+  turn with `lastExportQa`.
+- A QA failure never fails the export; it shows a notice instead.
+- A renderer fix came out of the E2E: `adjustVolume("original")` sets the PRIMARY_VOICE track level. The native export
+  and the preview now apply that level to the main clip's own audio; before this, it was silently ignored.
+
+**P5: jobs (desktop)**
+- `services/studio-jobs.ts` has the same states as mobile:
+  - QUEUED, ANALYZING, PLANNING, EDITING, RENDERING, CRITIQUING, REPAIRING;
+  - then COMPLETED, FAILED or CANCELLED.
+- Every job has an AbortController, and cancellation reaches:
+  - the analysis FFmpeg (killed);
+  - director requests;
+  - stock downloads (new `cancel_remote_media`; the partial file is removed);
+  - renders;
+  - calendar uploads.
+- `components/JobsTray.tsx` lists running and failed jobs, with Cancel and Dismiss.
+- Jobs that were running when the app closed come back as FAILED ("interrupted"). An export can be run again with the
+  same settings. An FFmpeg encode cannot continue part-way, so "resume" means re-run.
+
+**Director UI and locks**
+- Locks:
+  - The Timeline track locks are now controlled. Locks were added to the caption and audio lanes.
+  - **Lock range** locks the selected item's time range; locked ranges are drawn on the ruler, and a click removes one.
+  - Locks are sent as `constraints` using the contract's track names (music, captions, text, broll, sfx, effects).
+    A locked main track locks its whole duration. The camera lock is client-only.
+- Client-side defense in depth (`services/director-locks.ts`):
+  - If a result changed a locked track, that track is restored.
+  - If a result would cut or re-time a locked range's footage, it is **not applied**. The chat says why and offers retry.
+- The chat shows:
+  - "Applied automatically" when the result has `autoApplied`;
+  - the server `critique` (score, repair rounds, and issues whose click seeks to the time);
+  - `violations`, with a Cancel button while a run is in progress;
+  - the number of active locks.
+
+**P6: fixtures + E2E**
+- `apps/frontend/tests/fixtures/media/fixtures.ts` generates 9 lavfi fixtures into `<tmp>/180-media-fixtures-v1`. They
+  are cached and nothing is committed.
+  - Shapes: 9:16 talking head with pauses, 16:9 three-shot multi-clip, 1:1, no-audio, mono, stereo + music bed, long
+    pauses, 1.5 s, and 60 s.
+- `tests/integration/media-analysis.integration.ts` runs the real FFmpeg and checks scene cuts, loudness, clipping,
+  silences, QA (both freeze methods), and no-audio: 9/9 pass.
+- `tests/e2e/studio-journey.e2e.ts` (`cd apps/frontend && npx tsx tests/e2e/studio-journey.e2e.ts`): 16/16 steps pass
+  in about 30 s.
+  - **Real:**
+    - brand-consciousness builders;
+    - the autopilot pipeline code (its schema checks and brand enforcement);
+    - calendar row persistence;
+    - FFmpeg analysis;
+    - `VideoAIDirectorService.directMobile` (planner loop, validator, expander, EditIRCompiler, constraints);
+    - the native render plan and a **real FFmpeg render**;
+    - media checks: size, fps, duration, audio present or absent, no black or frozen frames, caption boxes at their
+      times, and the locked footage frame-identical;
+    - the critic: VideoCriticService plus measured QA, which flags the quiet voice;
+    - one repair turn with `lastExportQa`, then the final render with loudness fixed;
+    - the multipart attach payload;
+    - `buildPublishInput` per platform (no platform is called).
+  - **Stubbed:**
+    - all LLM replies (calendar agents and director tool calls are scripted);
+    - speech-to-text (the fixtures are tones, so the script words are placed on the voiced segments);
+    - caption text raster (a solid box per caption state, because the canvas rasteriser needs a browser).
+- Current counts:
+  - `npx tsc --noEmit -p apps/frontend`: 0 errors;
+  - jest `tests/unit`: 181/181 (new `desktop-intelligence.test.ts`: 20);
+  - `native-render-plan.integration.ts`: 27/27;
+  - `media-analysis.integration.ts`: 9/9;
+  - E2E: 16/16.
+
+**Not verified / needs others**
+- **Rust not compiled** (there is no cargo here). CI must run `cargo test --lib`: analysis.rs (4 tests) and remote.rs
+  (the new cancel-flag test).
+- The UI (JobsTray, the QA panel, the lock-range ruler, the critique list) was typechecked but not driven in a running
+  desktop app.
+- **Backend follow-ups (done 2026-09-27, see §6):**
+  - The web `/ai-direct` now reads `telemetry.scenesMs`, `telemetry.loudness` (and `telemetry.ocr`, fenced) into the
+    planner prompt.
+  - The critic no longer compares export pixel size. It flags only an aspect mismatch (`export_aspect`, >2 %), a
+    duration mismatch, missing audio, and unexpected black or frozen frames.
+
+
+## 6. Backend status: P1, P3, P4, and the backend parts of P2 and P6 (2026-09-27)
+
+Everything below extends existing modules. There is no new engine, IR or agent framework. The AI still emits only
+operations, and every operation goes through the validator and then the EditIRCompiler.
+
+| Item | Status | Where |
+|---|---|---|
+| Onboarding fields (contract A) | ✅ | `social-media/src/brand-consciousness.ts`. Adds `website`, `industry`, `country` (ISO-2), `language` (BCP-47), `colors.secondary`, `restrictions{}`, `postingFrequency{}`, `objectives{}` and `autonomy{}`. The nested objects merge per key on a partial PUT. Completeness and the prompt context were extended. |
+| Autonomy + SAFE_OPS (contract C) | ✅ | `video-contracts/src/director-constraints.ts` (`SAFE_OPS`, `decideAutoApply`). The Director reads `ctx.brand.autonomy`. `autoApplied` is true only when editing is AUTO and every op is safe. Publishing autonomy is stored and returned; the dispatcher still always needs approval or a person. |
+| Preservation constraints, enforced (contract B/C) | ✅ | `director-constraints.ts` (extract, merge, enforce, `mapLockedRanges`, `verifyLockedRangesPreserved`) and `plan-validator.ts` (`violations`). The model can only *add* locks, through `finish_edit.preserve`. |
+| Agent event log (contract D) | ✅ | `ai/src/agent-runs/agent-events.ts` and the Prisma `AgentRunEvent` model. Emitted by the Director, Autopilot, the Creative engine and the publish dispatcher. Routes are in `apps/backend/.../projects/agent-os.routes.ts`. |
+| Untrusted-content fencing | ✅ | `video-contracts/src/untrusted-content.ts`. Used for transcripts (word-level), OCR, filenames, captions/titles, calendar scripts, research results and memory notes. |
+| Critic in the Director loop (P3) | ✅ | `video-contracts/src/director-critic.ts` plus the loop in `video-ai-director.service.ts`. Up to 3 repair rounds. Only CRITICAL issues that are repairable *and introduced this turn* are repaired. A round that does not help is discarded. Remaining issues are reported in `critique` and `warnings`. |
+| Per-project memory (P4) | ✅ | `social-media/src/agent-os/agent-memory.ts` and the Prisma `AgentMemory` model. Memory goes into the Director and strategist prompts. Preferences are captured from the creator's words. |
+| Semantic library search (contract E) | ✅ | `social-media/src/agent-os/media-index.ts` and the Prisma `MediaIndexEntry` model. Uses local BM25 (see the provider matrix). |
+| Brand-bleed test | ✅ | `apps/backend/.../projects/brand-bleed.test.ts`. It found and fixed two leaks: (1) the dispatcher accepted an account from another project in the same company when the post named it explicitly; (2) the director context accepted another project's calendar piece or post. |
+| Migration | ✅ file only | `packages/db/prisma/migrations/20260927100000_agent_os`. **Not applied to any database.** |
+
+**Tests (all in-memory, none uses DATABASE_URL):**
+- video-contracts `director-os`: 13
+- ai `director-os`: 12
+- ai `video-director`: 58
+- social-media `social-os`: 7
+- backend `brand-bleed` + routes: 2
+- regression: brand 15, autopilot 17, tenant-routes 6, creative 20 + 2, publishers 16, tenant-isolation 16, post-edge 15
+
+**Remaining:**
+- The `agent-memory` feedback endpoint has no client caller yet (mobile and desktop should call it on Apply/Undo).
+- Performance memory needs per-post metrics from the platform insights sync (P7 live keys).
+- `autonomy.publishing` is stored but not yet enforced by the scheduler.
+- The deterministic fallback's raw `removeRange` pause cuts are never auto-applied (they are not in SAFE_OPS).
+- The migration has to be applied by the owner.
+- `prisma generate` could not replace the query-engine DLL while a local process held it. The client types are
+  regenerated; restart the dev server to pick up the engine.
+
+## 7. Provider matrix
+
+| Capability | Provider(s) wired | Local? | Free? | Paid? | License / terms | Recommendation |
+|---|---|---|---|---|---|---|
+| LLM planning (Director, autopilot) | Workspace key: Claude / OpenAI / Gemini (kernel) | no | no | yes (per token) | provider ToS | Keep Claude as the default, with the labelled deterministic fallback |
+| Speech-to-text | Cartesia `ink-whisper`, OpenAI Whisper (027187d) | no | no | yes | provider ToS | Add a faster-whisper desktop sidecar (MIT) after the `stt-benchmark.py` results |
+| Scene cuts | FFmpeg `scdet` (desktop), frame-diff (Android) | yes | yes | – | LGPL/GPL (FFmpeg) | Keep on the device |
+| Loudness / clipping | FFmpeg `ebur128` (desktop), MediaCodec PCM (Android) | yes | yes | – | LGPL/GPL | Keep on the device |
+| OCR | ML Kit text recognition (Android) | yes | yes | – | Google ML Kit terms | Keep; desktop: Tesseract (Apache-2.0) if needed |
+| Faces / reframe | ML Kit (Android) | yes | yes | – | ML Kit terms | Keep |
+| Semantic media search | Local BM25 (`media-index.ts`) | yes (server, text only) | yes | – | own code | Keep. Later add local embeddings (e.g. `bge-small`, MIT) behind the same API. The RAG `EmbeddingEngine` was not reused: it is company/vault-scoped, needs a paid OpenAI key and silently mixes hash fallback vectors. |
+| Web research | Tavily / Brave | no | free tiers | yes | provider ToS | Optional. Results are fenced as untrusted data. |
+| Stock video/photo | Pexels, Pixabay, Wikimedia, Internet Archive, NASA | no | yes | – | Pexels/Pixabay licences, CC0/PD/CC BY(-SA) | Keep. Credits are carried in `credits[]`. |
+| Music | Curated Kevin MacLeod catalogue, Freesound | no | yes | – | CC BY 3.0/4.0, CC0 | Keep. The credit line is required. |
+| SFX | Freesound (key) / Openverse | no | yes | – | CC0 / CC BY | Keep |
+| Image generation (carousels) | Workspace image model, with stock fallback | no | no | yes | provider ToS | Keep. `IMAGE_MODEL_NOT_CONFIGURED` when there is no key. |
+| Rendering | Media3 (Android), FFmpeg via Tauri (desktop) | yes | yes | – | Apache-2.0 / LGPL-GPL | Keep. Never on the server. |
+| Agent events / memory | Postgres (Prisma) | server | yes | – | own | Keep |

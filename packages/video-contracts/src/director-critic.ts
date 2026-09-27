@@ -189,7 +189,10 @@ export function critiqueDirectorEdit(input: DirectorCritiqueInput): DirectorCrit
   if (qa && ref) {
     const tol = Math.max(T.exportDurationToleranceMs, Math.round(ref.durationMs * 0.02));
     if (Math.abs(qa.durationMs - ref.durationMs) > tol) add({ id: `export_duration`, severity: "CRITICAL", category: "EXPORT", title: `The last export is ${sec(qa.durationMs)} long but the timeline is ${sec(ref.durationMs)}` });
-    if (qa.width !== ref.canvas.width || qa.height !== ref.canvas.height) add({ id: `export_size`, severity: "CRITICAL", category: "EXPORT", title: `The last export is ${qa.width}x${qa.height}, the timeline is ${ref.canvas.width}x${ref.canvas.height}` });
+    // Export resolution is the creator's choice (up- or down-scaled): only a different ASPECT is a defect.
+    const qaAspect = qa.width / qa.height;
+    const refAspect = ref.canvas.width / ref.canvas.height;
+    if (Math.abs(qaAspect - refAspect) / refAspect > 0.02) add({ id: `export_aspect`, severity: "CRITICAL", category: "EXPORT", title: `The last export is ${qa.width}x${qa.height}, which does not match the timeline's ${ref.canvas.aspect} frame` });
     const expectsAudio = (ref.audio?.originalTrack?.volumeDb ?? 0) > -60 || (ref.audio?.music?.length ?? 0) > 0 || (ref.audio?.sfx?.length ?? 0) > 0;
     if (expectsAudio && !qa.hasAudio) add({ id: `export_no_audio`, severity: "CRITICAL", category: "EXPORT", title: `The last export has no audio stream` });
     if (qa.fps && ref.canvas.fps && Math.abs(qa.fps - ref.canvas.fps) > 1) add({ id: `export_fps`, severity: "WARNING", category: "EXPORT", title: `The last export is ${qa.fps} fps, the timeline is ${ref.canvas.fps} fps` });

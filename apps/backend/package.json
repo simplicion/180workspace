@@ -36,6 +36,7 @@
     "@workspace/integrations": "workspace:*",
     "@workspace/platform-admin": "workspace:*",
     "@workspace/platform-billing": "workspace:*",
+    "@workspace/pitch-in-180-network": "workspace:*",
     "@workspace/projects-and-tasks-domain": "workspace:*",
     "@workspace/public": "workspace:*",
     "@workspace/rag": "workspace:*",

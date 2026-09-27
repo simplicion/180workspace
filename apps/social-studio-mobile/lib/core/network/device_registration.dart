@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
+
 import '../util/json.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
@@ -7,13 +9,32 @@ import 'api_exception.dart';
 /// Native device token for the media routes (`x-device-token`).
 ///
 /// `POST /api/desktop/devices/register { label, platform: ios|android, deviceId? }` → token
-/// valid for 30 days. The stored `deviceId` is sent back so a renewal reuses the same slot
-/// (the server allows 5 devices per user).
+/// valid for 30 days. The stored `deviceId` is sent back so a renewal reuses the same slot.
+/// A reinstall wipes secure storage on Android, so a stable `installKey` (ANDROID_ID, hashed per user on the server)
+/// is sent too: the server then renews the existing device instead of taking a new slot. iOS keeps the Keychain
+/// (and so the deviceId) across reinstalls. At the limit (20) the server evicts the least-recently-seen idle device.
 class DeviceRegistration {
-  DeviceRegistration(this._api, {String? platformOverride}) : _platformOverride = platformOverride;
+  DeviceRegistration(this._api, {String? platformOverride, Future<String?> Function()? installKeyReader})
+      : _platformOverride = platformOverride,
+        _installKeyReader = installKeyReader;
 
   final ApiClient _api;
   final String? _platformOverride;
+  final Future<String?> Function()? _installKeyReader;
+
+  static const _deviceChannel = MethodChannel('com.workspace180.socialmanager/device');
+
+  /// Stable per-install key, or null (unsupported platform / channel missing). Never throws.
+  Future<String?> installKey() async {
+    try {
+      if (_installKeyReader != null) return await _installKeyReader();
+      if (!Platform.isAndroid) return null;
+      final v = await _deviceChannel.invokeMethod<String>('installKey');
+      return (v == null || v.length < 8) ? null : 'android:$v';
+    } catch (_) {
+      return null;
+    }
+  }
 
   static const _renewBefore = Duration(days: 2);
 
@@ -39,6 +60,7 @@ class DeviceRegistration {
       'label': '180 Manager ($platform)',
       'platform': platform,
       'deviceId': deviceId,
+      'installKey': await installKey(),
     }));
     final token = jStr(r['token']);
     final id = jStr(r['deviceId']);
@@ -51,7 +73,7 @@ class DeviceRegistration {
   }
 
   /// Stores (or clears, with null) this device's push token: `PUT /desktop/devices/:id/push-token`.
-  /// Push delivery is not live on the server yet; this only registers readiness.
+  /// The server delivers publish / approval / reconnect notifications to it (FCM).
   Future<void> setPushToken({required String provider, required String? token}) async {
     final id = await _api.tokens.deviceId ?? (await ensureToken().then((_) => _api.tokens.deviceId));
     if (id == null) return;

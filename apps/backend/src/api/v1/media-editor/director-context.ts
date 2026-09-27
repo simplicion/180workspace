@@ -112,7 +112,11 @@ export async function loadDirectorContext(req: DirectorContextRequest, deps: Dir
 
     if (req.postId) {
         post = await deps.findPost(req.postId, companyId).catch(() => null);
-        if (!post) ctx.warnings.push('post not found: brand/script context from the post was skipped');
+        // Project isolation: a post of another project (same company) never lends its script to this project.
+        if (post && req.projectId && post.projectId && post.projectId !== req.projectId) {
+            ctx.warnings.push('post belongs to another project: its context was skipped');
+            post = null;
+        } else if (!post) ctx.warnings.push('post not found: brand/script context from the post was skipped');
         else {
             pieceId = pieceId || post.calendarPieceId || undefined;
             projectId = projectId || post.projectId || undefined;
@@ -120,8 +124,11 @@ export async function loadDirectorContext(req: DirectorContextRequest, deps: Dir
     }
 
     if (pieceId) {
-        const piece = await deps.findPiece(pieceId, companyId).catch(() => null);
-        if (!piece) ctx.warnings.push('calendar piece not found: script context was skipped');
+        let piece = await deps.findPiece(pieceId, companyId).catch(() => null);
+        if (piece && projectId && piece.calendar?.projectId && piece.calendar.projectId !== projectId) {
+            ctx.warnings.push('calendar piece belongs to another project: script context was skipped');
+            piece = null;
+        } else if (!piece) ctx.warnings.push('calendar piece not found: script context was skipped');
         else {
             projectId = projectId || piece.calendar?.projectId || undefined;
             const script = parsePieceScript(piece.videoScriptOrHooks);

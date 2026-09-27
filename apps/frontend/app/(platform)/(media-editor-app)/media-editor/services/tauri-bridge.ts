@@ -258,6 +258,21 @@ export class DirectorRequestError extends Error {
 }
 
 /** projectId / calendarPieceId / postId from the Studio URL. `project` is the local editor project, not a social project. */
+/**
+ * Tells the project's agent memory whether the creator kept (applied) or undid a director edit. Best effort:
+ * no project context = nothing to remember; failures never affect editing.
+ */
+export function sendDirectorFeedback(feedback: { accepted: boolean; runId?: string; summary?: string }): void {
+  const { projectId } = directorContextFromUrl();
+  if (!projectId) return;
+  void fetch(`/api/v1/social-media/projects/${encodeURIComponent(projectId)}/agent-memory/feedback`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    credentials: "include",
+    body: JSON.stringify({ agent: "director", accepted: feedback.accepted, runId: feedback.runId, summary: feedback.summary?.slice(0, 300) }),
+  }).catch(() => undefined);
+}
+
 export function directorContextFromUrl(search?: string): DirectorTurnContext {
   const src = search ?? (typeof window !== "undefined" ? window.location.search : "");
   const p = new URLSearchParams(src);

@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "moduleResolution": "Node",
+    "module": "CommonJS",
+    "target": "ES2022",
+    "jsx": "preserve",
+    "skipLibCheck": true,
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/db": ["../../db/dist/index.d.ts", "../../db/src/index.ts"],
+      "@workspace/db/*": ["../../db/*"]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
