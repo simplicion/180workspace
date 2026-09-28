@@ -18,6 +18,8 @@
     "dev:developers": "pnpm --filter 180developers-frontend dev",
     "dev:traffic": "pnpm --filter traffic-director-web dev",
     "dev:social": "node scripts/dev-runner.js social",
+    "dev:flutter": "node scripts/dev-runner.js flutter",
+    "dev:mobile": "node scripts/dev-runner.js mobile",
     "lint": "turbo run lint",
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
