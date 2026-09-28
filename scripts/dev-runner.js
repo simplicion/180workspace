@@ -120,6 +120,9 @@ const ALIASES = {
   td: 'trafficdirector',
   'social-studio': 'social',
   'social-studio-mobile': 'social',
+  flutter: 'social',
+  mobile: 'social',
+  studio: 'social',
 };
 
 const rawArg = (process.argv[2] || '').trim().toLowerCase();
@@ -138,15 +141,16 @@ function printBanner() {
     console.log(`  ${app.color}${key.padEnd(16)}${RESET} : ${app.name}${portStr}`);
   }
   console.log('\nUsage commands:');
-  console.log('  pnpm dev                 (Spins up ALL workspace platform apps)');
+  console.log('  pnpm dev                 (Spins up ALL workspace platform apps + Flutter)');
   console.log('  pnpm dev:core-backend    (Runs 180 Core Backend on :4003)');
   console.log('  pnpm dev:profile         (Runs 180 Profile Frontend on :3009)');
   console.log('  pnpm dev:developers      (Runs 180 Developer Portal on :3008)');
+  console.log('  pnpm dev:flutter         (Runs 180 Social Studio Flutter on :3007)');
   console.log('  pnpm dev:backend         (Runs Main Backend on :4002)');
   console.log('  pnpm dev:frontend        (Runs Web Platform on :3002)');
   console.log('  pnpm dev:admin           (Runs Admin Portal on :3003)');
   console.log('  pnpm dev:marketing       (Runs Marketing on :3004)');
-  console.log('  pnpm dev:all             (Runs all web & backend apps)');
+  console.log('  pnpm dev:all             (Runs all web, backend & mobile apps)');
   console.log(BOLD + '============================================================\n' + RESET);
 }
 
@@ -173,7 +177,7 @@ function runSingleApp(key) {
   });
 }
 
-function runAllApps(includeMobile = false) {
+function runAllApps(includeMobile = true) {
   console.log(BOLD + 'Starting ALL workspace platform apps in parallel via Turborepo...' + RESET);
   console.log('  [180-core-backend]      -> http://localhost:4003 (Identity, Wallet, 180 Pay & Payouts)');
   console.log('  [180-profile-frontend]  -> http://localhost:3009 (Universal Profile, Wallet & Popups)');
@@ -195,7 +199,7 @@ function runAllApps(includeMobile = false) {
     'turbo',
     'run',
     'dev',
-    '--concurrency=25',
+    '--concurrency=30',
     '--filter=180-core-backend',
     '--filter=180-profile-frontend',
     '--filter=180developers-frontend',
@@ -239,12 +243,12 @@ if (requestedApp === 'help' || requestedApp === '--help' || requestedApp === '-h
   process.exit(0);
 }
 
-if (!requestedApp || requestedApp === '' || requestedApp === 'all') {
-  printBanner();
-  runAllApps(false);
-} else if (requestedApp === 'all:mobile' || requestedApp === 'full') {
+if (!requestedApp || requestedApp === '' || requestedApp === 'all' || requestedApp === 'full') {
   printBanner();
   runAllApps(true);
+} else if (requestedApp === 'web:only') {
+  printBanner();
+  runAllApps(false);
 } else if (APPS[requestedApp]) {
   runSingleApp(requestedApp);
 } else {
@@ -252,3 +256,4 @@ if (!requestedApp || requestedApp === '' || requestedApp === 'all') {
   console.error(`Error: Unknown target "${rawArg}".\n`);
   process.exit(1);
 }
+
