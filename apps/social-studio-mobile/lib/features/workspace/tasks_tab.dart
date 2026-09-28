@@ -37,9 +37,9 @@ class TasksTab extends ConsumerWidget {
         return RefreshIndicator(
           onRefresh: () async => ref.invalidate(projectTasksProvider(project.id)),
           child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 96),
             itemCount: sorted.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => SizedBox(height: 8),
             itemBuilder: (_, i) => _TaskCard(task: sorted[i], project: project),
           ),
         );
@@ -53,7 +53,7 @@ class _TaskCard extends ConsumerWidget {
   final EditingTask task;
   final Project project;
 
-  bool get _done => const {'done', 'completed', 'submitted_for_review', 'approved'}.contains(task.status);
+  bool get _done => {'done', 'completed', 'submitted_for_review', 'approved'}.contains(task.status);
 
   Future<void> _submit(BuildContext context, WidgetRef ref) async {
     final choice = await showModalBottomSheet<String>(
@@ -62,13 +62,13 @@ class _TaskCard extends ConsumerWidget {
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(
-            leading: const Icon(Icons.upload_rounded),
-            title: const Text('Upload a video from this phone'),
+            leading: Icon(Icons.upload_rounded),
+            title: Text('Upload a video from this phone'),
             onTap: () => Navigator.pop(ctx, 'upload'),
           ),
           ListTile(
-            leading: const Icon(Icons.link_rounded),
-            title: const Text('Paste a video URL'),
+            leading: Icon(Icons.link_rounded),
+            title: Text('Paste a video URL'),
             onTap: () => Navigator.pop(ctx, 'link'),
           ),
         ]),
@@ -107,14 +107,14 @@ class _TaskCard extends ConsumerWidget {
       onTap: task.postId == null ? null : () => context.push('/posts/${task.postId}'),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: Text(task.title, style: const TextStyle(fontWeight: FontWeight.w700))),
+          Expanded(child: Text(task.title, style: TextStyle(fontWeight: FontWeight.w700))),
           if (task.status != null) StatusChip(label: task.status!.replaceAll('_', ' '), color: _done ? AppTheme.success : AppTheme.accent),
         ]),
         if (task.description?.isNotEmpty ?? false) ...[
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(task.description!, maxLines: 3, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyMedium),
         ],
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
           StatusChip(label: task.assignee?.name ?? 'Unassigned', color: AppTheme.textSecondary, icon: Icons.person_rounded),
           if (task.dueDate != null)
@@ -126,13 +126,13 @@ class _TaskCard extends ConsumerWidget {
           if (task.priority != null) StatusChip(label: task.priority!, color: task.priority == 'urgent' || task.priority == 'high' ? AppTheme.warning : AppTheme.textMuted),
         ]),
         if (!_done) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: () => _submit(context, ref),
-              icon: const Icon(Icons.task_alt_rounded, size: 18),
-              label: const Text('Submit deliverable'),
+              icon: Icon(Icons.task_alt_rounded, size: 18),
+              label: Text('Submit deliverable'),
             ),
           ),
         ],

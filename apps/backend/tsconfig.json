@@ -15,10 +15,10 @@
     "declarationMap": false,
     "paths": {
       "@workspace/ai": ["../../packages/domains/ai/dist"],
-      "@workspace/pitch-in-180-network": ["../../packages/domains/pitch-in-180-network/dist"],
-      "@workspace/pitch-in-180-network/*": ["../../packages/domains/pitch-in-180-network/dist/*"],
       "@workspace/video-contracts": ["../../packages/video-contracts/dist/index.d.ts"],
-      "@workspace/video-contracts/*": ["../../packages/video-contracts/dist/*"]
+      "@workspace/video-contracts/*": ["../../packages/video-contracts/dist/*"],
+      "@workspace/db-180developers": ["../../packages/db-180developers/dist"],
+      "@workspace/identity-provider": ["../../packages/domains/identity-provider/dist"]
     }
   },
   "include": ["src/**/*", "server.js"],

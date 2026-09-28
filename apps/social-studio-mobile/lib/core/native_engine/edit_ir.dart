@@ -6,7 +6,7 @@ import 'media_engine_exception.dart';
 /// Only the fields the on-device renderer consumes are modelled. Parsing is strict: a missing
 /// required field throws [MediaEngineException] with code `INVALID_EDIT_IR`.
 class MobileEditIr {
-  const MobileEditIr({
+  MobileEditIr({
     required this.projectId,
     required this.canvas,
     required this.durationMs,
@@ -96,7 +96,7 @@ class MobileEditIr {
       overlays: _list(json, 'overlays', EditIrOverlay.fromJson),
       captions: _list(json, 'captions', EditIrCaption.fromJson),
       zooms: _list(json, 'zooms', EditIrZoom.fromJson),
-      audio: json['audio'] == null ? const EditIrAudio() : EditIrAudio.fromJson(_obj(json, 'audio')),
+      audio: json['audio'] == null ? EditIrAudio() : EditIrAudio.fromJson(_obj(json, 'audio')),
       watermark: json['watermark'] == null ? null : EditIrWatermark.fromJson(_obj(json, 'watermark')),
       effects: _list(json, 'effects', EditIrEffect.fromJson),
     );
@@ -125,7 +125,7 @@ class MobileEditIr {
     if (clips.first.timelineStartMs != 0) fail('clips[0] must start at 0');
     for (var i = 0; i < clips.length; i++) {
       final c = clips[i];
-      if (!const {0, 90, 180, 270}.contains(c.rotationDeg)) fail('clip ${c.id}: rotationDeg must be 0, 90, 180 or 270');
+      if (!{0, 90, 180, 270}.contains(c.rotationDeg)) fail('clip ${c.id}: rotationDeg must be 0, 90, 180 or 270');
       if (c.speed < 0.25 || c.speed > 4) fail('clip ${c.id}: speed ${c.speed} outside (0.25..4]');
       if (c.sourceEndMs <= c.sourceStartMs) fail('clip ${c.id}: empty source range');
       final expected = ((c.sourceEndMs - c.sourceStartMs) / c.speed).round();
@@ -147,7 +147,7 @@ class MobileEditIr {
 }
 
 class EditIrWatermark {
-  const EditIrWatermark({required this.imageUrl, this.position = 'top_right', this.opacityPct = 100, this.widthFraction = 0.14});
+  EditIrWatermark({required this.imageUrl, this.position = 'top_right', this.opacityPct = 100, this.widthFraction = 0.14});
   final String imageUrl;
 
   /// top_left | top_right | bottom_left | bottom_right
@@ -168,7 +168,7 @@ class EditIrWatermark {
 }
 
 class EditIrSource {
-  const EditIrSource({this.assetId = 'primary', required this.durationMs, required this.width, required this.height});
+  EditIrSource({this.assetId = 'primary', required this.durationMs, required this.width, required this.height});
   final String assetId;
   final int durationMs, width, height;
 
@@ -183,7 +183,7 @@ class EditIrSource {
 }
 
 class EditIrCanvas {
-  const EditIrCanvas({this.aspect = '9:16', this.width = 1080, this.height = 1920, this.fps = 30, this.background = '#000000'});
+  EditIrCanvas({this.aspect = '9:16', this.width = 1080, this.height = 1920, this.fps = 30, this.background = '#000000'});
   final String aspect;
   final int width;
   final int height;
@@ -202,7 +202,7 @@ class EditIrCanvas {
 }
 
 class EditIrCrop {
-  const EditIrCrop({required this.x, required this.y, required this.width, required this.height});
+  EditIrCrop({required this.x, required this.y, required this.width, required this.height});
   final double x, y, width, height;
 
   factory EditIrCrop.fromJson(Map<String, dynamic> j) =>
@@ -212,7 +212,7 @@ class EditIrCrop {
 }
 
 class EditIrFilter {
-  const EditIrFilter({this.preset = 'NORMAL', this.brightness = 1, this.contrast = 1, this.saturation = 1});
+  EditIrFilter({this.preset = 'NORMAL', this.brightness = 1, this.contrast = 1, this.saturation = 1});
   final String preset;
   final double brightness, contrast, saturation;
 
@@ -227,7 +227,7 @@ class EditIrFilter {
 }
 
 class EditIrTransition {
-  const EditIrTransition({this.type = 'CROSSFADE', required this.durationMs});
+  EditIrTransition({this.type = 'CROSSFADE', required this.durationMs});
   final String type;
   final int durationMs;
 
@@ -253,7 +253,7 @@ class EditIrTransition {
 }
 
 class EditIrClip {
-  const EditIrClip({
+  EditIrClip({
     required this.id,
     this.assetId = 'primary',
     required this.sourceStartMs,
@@ -317,7 +317,7 @@ class EditIrClip {
 }
 
 class EditIrOverlay {
-  const EditIrOverlay({
+  EditIrOverlay({
     required this.id,
     required this.timelineStartMs,
     required this.timelineEndMs,
@@ -356,7 +356,7 @@ class EditIrOverlay {
         timelineStartMs: _int(j, 'timelineStartMs'),
         timelineEndMs: _int(j, 'timelineEndMs'),
         sourceStartMs: (j['sourceStartMs'] as num?)?.toInt() ?? 0,
-        source: (j['source'] as Map?)?.cast<String, dynamic>() ?? const {},
+        source: (j['source'] as Map?)?.cast<String, dynamic>() ?? {},
         opacity: (j['opacity'] as num?)?.toDouble() ?? 1,
         muted: j['muted'] as bool? ?? true,
         mediaType: j['mediaType'] == 'image' ? 'image' : 'video',
@@ -377,7 +377,7 @@ class EditIrOverlay {
 }
 
 class EditIrWord {
-  const EditIrWord({required this.text, required this.startMs, required this.endMs, this.highlight = false, this.color, this.scale = 1});
+  EditIrWord({required this.text, required this.startMs, required this.endMs, this.highlight = false, this.color, this.scale = 1});
   final String text;
   final int startMs, endMs;
   final bool highlight;
@@ -398,7 +398,7 @@ class EditIrWord {
 }
 
 class EditIrCaption {
-  const EditIrCaption({
+  EditIrCaption({
     required this.id,
     this.kind = 'caption',
     required this.startMs,
@@ -424,7 +424,7 @@ class EditIrCaption {
         endMs: _int(j, 'endMs'),
         text: j['text'] as String? ?? '',
         words: _list(j, 'words', EditIrWord.fromJson),
-        style: (j['style'] as Map?)?.cast<String, dynamic>() ?? const {},
+        style: (j['style'] as Map?)?.cast<String, dynamic>() ?? {},
       );
 
   Map<String, dynamic> toJson() => {
@@ -439,7 +439,7 @@ class EditIrCaption {
 }
 
 class EditIrZoom {
-  const EditIrZoom({required this.id, required this.startMs, required this.endMs, this.scale = 1.3, this.centerX = 0.5, this.centerY = 0.5, this.rampMs = 250});
+  EditIrZoom({required this.id, required this.startMs, required this.endMs, this.scale = 1.3, this.centerX = 0.5, this.centerY = 0.5, this.rampMs = 250});
   final String id;
   final int startMs, endMs, rampMs;
   final double scale, centerX, centerY;
@@ -459,7 +459,7 @@ class EditIrZoom {
 }
 
 class EditIrDuck {
-  const EditIrDuck({this.enabled = true, this.duckDb = -12, this.attackMs = 120, this.releaseMs = 350});
+  EditIrDuck({this.enabled = true, this.duckDb = -12, this.attackMs = 120, this.releaseMs = 350});
   final bool enabled;
   final double duckDb;
   final int attackMs, releaseMs;
@@ -475,7 +475,7 @@ class EditIrDuck {
 }
 
 class EditIrMusic {
-  const EditIrMusic({
+  EditIrMusic({
     required this.id,
     required this.timelineStartMs,
     required this.timelineEndMs,
@@ -498,7 +498,7 @@ class EditIrMusic {
         timelineStartMs: _int(j, 'timelineStartMs'),
         timelineEndMs: _int(j, 'timelineEndMs'),
         sourceStartMs: (j['sourceStartMs'] as num?)?.toInt() ?? 0,
-        source: (j['source'] as Map?)?.cast<String, dynamic>() ?? const {},
+        source: (j['source'] as Map?)?.cast<String, dynamic>() ?? {},
         volumeDb: (j['volumeDb'] as num?)?.toDouble() ?? 0,
         fadeInMs: (j['fadeInMs'] as num?)?.toInt() ?? 0,
         fadeOutMs: (j['fadeOutMs'] as num?)?.toInt() ?? 0,
@@ -515,13 +515,13 @@ class EditIrMusic {
         'fadeInMs': fadeInMs,
         'fadeOutMs': fadeOutMs,
         // The contract requires a duck object; "no ducking" is enabled:false, never null.
-        'duck': (duck ?? const EditIrDuck(enabled: false)).toJson(),
+        'duck': (duck ?? EditIrDuck(enabled: false)).toJson(),
       };
 }
 
 /// One-shot sound effect placed by the director (contract §3.6 `audio.sfx`).
 class EditIrSfx {
-  const EditIrSfx({
+  EditIrSfx({
     required this.id,
     required this.timelineStartMs,
     this.durationMs,
@@ -548,7 +548,7 @@ class EditIrSfx {
         id: _str(j, 'id'),
         timelineStartMs: _int(j, 'timelineStartMs'),
         durationMs: (j['durationMs'] as num?)?.toInt(),
-        source: (j['source'] as Map?)?.cast<String, dynamic>() ?? const {},
+        source: (j['source'] as Map?)?.cast<String, dynamic>() ?? {},
         volumeDb: (j['volumeDb'] as num?)?.toDouble() ?? -12,
         credit: j['credit'] as String?,
       );
@@ -576,7 +576,7 @@ class EditIrAudio {
         originalVolumeDb: ((j['originalTrack'] as Map?)?['volumeDb'] as num?)?.toDouble() ?? 0,
         music: _list(j, 'music', EditIrMusic.fromJson),
         sfx: _list(j, 'sfx', EditIrSfx.fromJson),
-        speechRangesMs: ((j['speechRangesMs'] as List?) ?? const [])
+        speechRangesMs: ((j['speechRangesMs'] as List?) ?? [])
             .map((r) => (r as List).map((v) => (v as num).toInt()).toList())
             .toList(),
       );
@@ -621,7 +621,7 @@ List<T> _list<T>(Map<String, dynamic> j, String k, T Function(Map<String, dynami
   final v = j[k];
   if (v == null) {
     if (required) _bad(k, 'is required');
-    return const [];
+    return [];
   }
   if (v is! List) _bad(k, 'must be an array');
   return v.map((e) => parse((e as Map).cast<String, dynamic>())).toList();
@@ -630,7 +630,7 @@ List<T> _list<T>(Map<String, dynamic> j, String k, T Function(Map<String, dynami
 /// One detected face at source time [tMs]: box centre ([x], [y]) and size ([w], [h]) as 0..1
 /// fractions of the display-oriented frame (the `/ai-direct` `media.faces` format).
 class FaceSample {
-  const FaceSample({required this.tMs, required this.x, required this.y, required this.w, required this.h});
+  FaceSample({required this.tMs, required this.x, required this.y, required this.w, required this.h});
   final int tMs;
   final double x;
   final double y;
@@ -650,7 +650,7 @@ class FaceSample {
 
 /// Timeline effect (contract VIDEO_EFFECT_TYPES). Drawn over the whole frame for [startMs, endMs).
 class EditIrEffect {
-  const EditIrEffect({required this.id, required this.type, required this.startMs, required this.endMs, this.intensity = 0.6});
+  EditIrEffect({required this.id, required this.type, required this.startMs, required this.endMs, this.intensity = 0.6});
 
   final String id;
   final String type;

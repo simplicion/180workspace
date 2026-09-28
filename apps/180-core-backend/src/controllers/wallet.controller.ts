@@ -1,0 +1,146 @@
+'use strict';
+
+import { Request, Response } from 'express';
+import { IdentityWalletService } from '@workspace/identity-provider';
+
+export class WalletApiController {
+  /**
+   * GET /api/v1/wallet
+   */
+  static async getUserWallet(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Authentication required' });
+      }
+
+      const wallet = await IdentityWalletService.getOrCreateUserWallet(userId);
+      return res.json({
+        success: true,
+        data: {
+          balance: wallet.balance,
+          currency: wallet.currency,
+          isLocked: wallet.isLocked,
+          recentEntries: wallet.ledgerEntries,
+        },
+      });
+    } catch (err: any) {
+      console.error('[WalletApiController:getUserWallet] Error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/wallet/topup/order
+   */
+  static async createTopupOrder(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Authentication required' });
+      }
+
+      const { amount, currency } = req.body;
+      const order = await IdentityWalletService.createTopupOrder(userId, Number(amount), currency);
+
+      return res.json({ success: true, data: order });
+    } catch (err: any) {
+      console.error('[WalletApiController:createTopupOrder] Error:', err);
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/wallet/topup/verify
+   */
+  static async verifyTopup(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Authentication required' });
+      }
+
+      const { orderId, paymentId, signature, amount } = req.body;
+      const result = await IdentityWalletService.verifyAndCreditTopup(
+        userId,
+        orderId,
+        paymentId,
+        signature,
+        Number(amount)
+      );
+
+      return res.json({ success: true, data: result });
+    } catch (err: any) {
+      console.error('[WalletApiController:verifyTopup] Error:', err);
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * GET /api/v1/wallet/ledger
+   */
+  static async getLedger(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Authentication required' });
+      }
+
+      const { limit, page } = req.query;
+      const data = await IdentityWalletService.getUserLedger(
+        userId,
+        limit ? Number(limit) : 50,
+        page ? Number(page) : 1
+      );
+
+      return res.json({ success: true, ...data });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/wallet/webhook
+   * Razorpay asynchronous server-to-server webhook endpoint
+   */
+  static async handleWebhook(req: Request, res: Response) {
+    try {
+      const crypto = require('crypto');
+      const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
+      const signature = req.headers['x-razorpay-signature'] as string;
+
+      if (webhookSecret && signature) {
+        const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+        const expected = crypto.createHmac('sha256', webhookSecret).update(body).digest('hex');
+        if (expected !== signature) {
+          return res.status(400).json({ error: 'Invalid webhook signature' });
+        }
+      }
+
+      const event = req.body.event;
+      if (event === 'payment.captured' || event === 'order.paid') {
+        const payment = req.body.payload?.payment?.entity;
+        const notes = payment?.notes || {};
+        const userId = notes.userId;
+        const amountInr = (payment?.amount || 0) / 100;
+        const orderId = payment?.order_id;
+        const paymentId = payment?.id;
+
+        if (userId && paymentId && amountInr > 0) {
+          await IdentityWalletService.verifyAndCreditTopup(
+            userId,
+            orderId || `ord_${Date.now()}`,
+            paymentId,
+            signature || '',
+            amountInr
+          ).catch((e: any) => console.log('[WalletWebhook] Processed:', e.message));
+        }
+      }
+
+      return res.json({ status: 'ok' });
+    } catch (err: any) {
+      console.error('[WalletApiController:handleWebhook] Error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+}

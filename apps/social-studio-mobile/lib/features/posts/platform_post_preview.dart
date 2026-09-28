@@ -72,15 +72,15 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
         // Platform Switcher Bar
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
               for (final p in _supportedPreviewPlatforms)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: EdgeInsets.only(right: 8),
                   child: ChoiceChip(
                     avatar: Icon(p.icon, size: 16, color: _platform == p ? Colors.white : p.color),
-                    label: Text(p.label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    label: Text(p.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     selected: _platform == p,
                     selectedColor: p.color,
                     onSelected: (selected) {
@@ -94,10 +94,10 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
 
         // Device Frame Container
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Center(
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 380),
+              constraints: BoxConstraints(maxWidth: 380),
               decoration: BoxDecoration(
                 color: _platform == SocialPlatform.tiktok || _platform == SocialPlatform.youtube
                     ? Colors.black
@@ -108,7 +108,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 18,
-                    offset: const Offset(0, 8),
+                    offset: Offset(0, 8),
                   ),
                 ],
               ),
@@ -142,10 +142,10 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
         // Instagram Header
         ListTile(
           dense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
           leading: Container(
-            padding: const EdgeInsets.all(2),
-            decoration: const BoxDecoration(
+            padding: EdgeInsets.all(2),
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
                 colors: [Color(0xFFF58529), Color(0xFFDD2A7B), Color(0xFF8134AF)],
@@ -158,13 +158,13 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
               backgroundColor: AppTheme.surfaceElevated,
               backgroundImage: widget.avatarUrl != null ? NetworkImage(widget.avatarUrl!) : null,
               child: widget.avatarUrl == null
-                  ? const Icon(Icons.person_rounded, size: 16, color: Colors.white)
+                  ? Icon(Icons.person_rounded, size: 16, color: Colors.white)
                   : null,
             ),
           ),
-          title: Text(_displayAuthor, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-          subtitle: const Text('Original audio', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
-          trailing: const Icon(Icons.more_horiz_rounded, size: 20),
+          title: Text(_displayAuthor, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          subtitle: Text('Original audio', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+          trailing: Icon(Icons.more_horiz_rounded, size: 20),
         ),
 
         // Media Viewport (4:5 vertical feed ratio or fallback)
@@ -190,16 +190,16 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                   top: 10,
                   right: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(_mediaType == 'video' ? Icons.play_arrow_rounded : Icons.photo_library_rounded,
                             size: 14, color: Colors.white),
-                        const SizedBox(width: 4),
+                        SizedBox(width: 4),
                         Text(_mediaType.toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                            style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -211,36 +211,36 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
 
         // Action Bar (Heart, Comment, Share, Save)
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             children: [
-              const Icon(Icons.favorite_border_rounded, size: 22),
-              const SizedBox(width: 14),
-              const Icon(Icons.mode_comment_outlined, size: 20),
-              const SizedBox(width: 14),
-              const Icon(Icons.send_outlined, size: 20),
-              const Spacer(),
-              const Icon(Icons.bookmark_border_rounded, size: 22),
+              Icon(Icons.favorite_border_rounded, size: 22),
+              SizedBox(width: 14),
+              Icon(Icons.mode_comment_outlined, size: 20),
+              SizedBox(width: 14),
+              Icon(Icons.send_outlined, size: 20),
+              Spacer(),
+              Icon(Icons.bookmark_border_rounded, size: 22),
             ],
           ),
         ),
 
         // Likes & Caption
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: EdgeInsets.symmetric(horizontal: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Liked by 180workspace and 1,248 others',
+              Text('Liked by 180workspace and 1,248 others',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               RichText(
                 maxLines: _expandedCaption ? 100 : 2,
                 overflow: TextOverflow.ellipsis,
                 text: TextSpan(
                   style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color),
                   children: [
-                    TextSpan(text: '$_displayAuthor ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    TextSpan(text: '$_displayAuthor ', style: TextStyle(fontWeight: FontWeight.bold)),
                     TextSpan(text: widget.caption.isEmpty ? 'Your post caption goes here...' : widget.caption),
                   ],
                 ),
@@ -248,24 +248,24 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
               if (widget.caption.length > 80 && !_expandedCaption)
                 GestureDetector(
                   onTap: () => setState(() => _expandedCaption = true),
-                  child: const Padding(
+                  child: Padding(
                     padding: EdgeInsets.only(top: 2),
                     child: Text('more', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
                   ),
                 ),
               if (widget.firstComment != null && widget.firstComment!.isNotEmpty) ...[
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(color: AppTheme.surfaceElevated, borderRadius: BorderRadius.circular(6)),
                   child: Row(
                     children: [
-                      const Icon(Icons.reply_rounded, size: 12, color: AppTheme.primary),
-                      const SizedBox(width: 6),
+                      Icon(Icons.reply_rounded, size: 12, color: AppTheme.primary),
+                      SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           'First comment: ${widget.firstComment}',
-                          style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppTheme.textSecondary),
+                          style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppTheme.textSecondary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -274,7 +274,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                   ),
                 ),
               ],
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
             ],
           ),
         ),
@@ -290,7 +290,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
     return AspectRatio(
       aspectRatio: 9 / 16,
       child: Container(
-        color: const Color(0xFF121212),
+        color: Color(0xFF121212),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -312,7 +312,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                     colors: [Colors.black.withValues(alpha: 0.2), Colors.transparent, Colors.black.withValues(alpha: 0.85)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    stops: const [0.0, 0.4, 1.0],
+                    stops: [0.0, 0.4, 1.0],
                   ),
                 ),
               ),
@@ -327,8 +327,8 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text('Following', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-                  const SizedBox(width: 14),
-                  const Text('For You', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  SizedBox(width: 14),
+                  Text('For You', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                 ],
               ),
             ),
@@ -349,37 +349,37 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                         backgroundColor: Colors.white24,
                         backgroundImage: widget.avatarUrl != null ? NetworkImage(widget.avatarUrl!) : null,
                         child: widget.avatarUrl == null
-                            ? const Icon(Icons.person_rounded, color: Colors.white, size: 20)
+                            ? Icon(Icons.person_rounded, color: Colors.white, size: 20)
                             : null,
                       ),
                       Positioned(
                         bottom: -5,
                         child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(color: Color(0xFFFE2C55), shape: BoxShape.circle),
-                          child: const Icon(Icons.add, size: 12, color: Colors.white),
+                          padding: EdgeInsets.all(2),
+                          decoration: BoxDecoration(color: Color(0xFFFE2C55), shape: BoxShape.circle),
+                          child: Icon(Icons.add, size: 12, color: Colors.white),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 18),
+                  SizedBox(height: 18),
                   _tikTokActionIcon(Icons.favorite_rounded, '84.2K'),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _tikTokActionIcon(Icons.mode_comment_rounded, '1,029'),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _tikTokActionIcon(Icons.bookmark_rounded, '9,812'),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _tikTokActionIcon(Icons.share_rounded, 'Share'),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Container(
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF202020),
+                      color: Color(0xFF202020),
                       border: Border.all(color: Colors.white30, width: 2),
                     ),
-                    child: const Icon(Icons.music_note_rounded, size: 16, color: Colors.white),
+                    child: Icon(Icons.music_note_rounded, size: 16, color: Colors.white),
                   ),
                 ],
               ),
@@ -396,27 +396,27 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                 children: [
                   Row(
                     children: [
-                      Text(_displayHandle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.verified_rounded, size: 14, color: Color(0xFF20D5EC)),
+                      Text(_displayHandle, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      SizedBox(width: 4),
+                      Icon(Icons.verified_rounded, size: 14, color: Color(0xFF20D5EC)),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Text(
                     widget.caption.isEmpty ? 'Compelling short-form caption with #trending tags...' : widget.caption,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.3),
+                    style: TextStyle(color: Colors.white, fontSize: 12, height: 1.3),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.music_note_rounded, size: 13, color: Colors.white70),
-                      const SizedBox(width: 6),
+                      Icon(Icons.music_note_rounded, size: 13, color: Colors.white70),
+                      SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           '$_displayAuthor · Original Sound - High Energy',
-                          style: const TextStyle(color: Colors.white70, fontSize: 11),
+                          style: TextStyle(color: Colors.white70, fontSize: 11),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -466,7 +466,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
             ),
 
             // Top Bar
-            const Positioned(
+            Positioned(
               top: 12,
               left: 14,
               right: 14,
@@ -489,13 +489,13 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _shortsActionIcon(Icons.thumb_up_alt_rounded, '24K'),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _shortsActionIcon(Icons.thumb_down_alt_rounded, 'Dislike'),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _shortsActionIcon(Icons.comment_rounded, '412'),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _shortsActionIcon(Icons.share_rounded, 'Share'),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _shortsActionIcon(Icons.loop_rounded, 'Remix'),
                 ],
               ),
@@ -516,27 +516,27 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                         radius: 14,
                         backgroundImage: widget.avatarUrl != null ? NetworkImage(widget.avatarUrl!) : null,
                         child: widget.avatarUrl == null
-                            ? const Icon(Icons.person, size: 14, color: Colors.white)
+                            ? Icon(Icons.person, size: 14, color: Colors.white)
                             : null,
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(_displayHandle,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                      const SizedBox(width: 10),
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-                        child: const Text('Subscribe',
+                        child: Text('Subscribe',
                             style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     widget.title ?? (widget.caption.isEmpty ? 'Shorts catchy title goes here' : widget.caption),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -553,7 +553,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
     final firstMedia = widget.mediaUrls.firstOrNull;
 
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -564,33 +564,33 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                 radius: 18,
                 backgroundColor: AppTheme.surfaceElevated,
                 backgroundImage: widget.avatarUrl != null ? NetworkImage(widget.avatarUrl!) : null,
-                child: widget.avatarUrl == null ? const Icon(Icons.business_rounded, color: AppTheme.primary) : null,
+                child: widget.avatarUrl == null ? Icon(Icons.business_rounded, color: AppTheme.primary) : null,
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_displayAuthor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    const Text('Industry Leader • 1st', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+                    Text(_displayAuthor, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text('Industry Leader • 1st', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
                     Row(
                       children: [
-                        const Text('Just now • ', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+                        Text('Just now • ', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
                         Icon(Icons.public_rounded, size: 11, color: Theme.of(context).hintColor),
                       ],
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.more_horiz_rounded, size: 18),
+              Icon(Icons.more_horiz_rounded, size: 18),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Text(
             widget.caption.isEmpty ? 'Share professional insights, company milestones, or industry news...' : widget.caption,
-            style: const TextStyle(fontSize: 12, height: 1.4),
+            style: TextStyle(fontSize: 12, height: 1.4),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           if (hasMedia && firstMedia != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -603,7 +603,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                 ),
               ),
             ),
-          const Divider(height: 20),
+          Divider(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -624,7 +624,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
     final firstMedia = widget.mediaUrls.firstOrNull;
 
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -634,29 +634,29 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
               CircleAvatar(
                 radius: 18,
                 backgroundImage: widget.avatarUrl != null ? NetworkImage(widget.avatarUrl!) : null,
-                child: widget.avatarUrl == null ? const Icon(Icons.person, color: Colors.blue) : null,
+                child: widget.avatarUrl == null ? Icon(Icons.person, color: Colors.blue) : null,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_displayAuthor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(_displayAuthor, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     Row(
                       children: [
-                        const Text('Just now • ', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
+                        Text('Just now • ', style: TextStyle(fontSize: 10, color: AppTheme.textMuted)),
                         Icon(Icons.public, size: 11, color: Theme.of(context).hintColor),
                       ],
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.more_horiz_rounded),
+              Icon(Icons.more_horiz_rounded),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(widget.caption.isEmpty ? 'What\'s on your mind?' : widget.caption, style: const TextStyle(fontSize: 13)),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
+          Text(widget.caption.isEmpty ? 'What\'s on your mind?' : widget.caption, style: TextStyle(fontSize: 13)),
+          SizedBox(height: 8),
           if (hasMedia && firstMedia != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
@@ -665,8 +665,8 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                 child: Image.network(firstMedia, fit: BoxFit.cover),
               ),
             ),
-          const Divider(height: 18),
-          const Row(
+          Divider(height: 18),
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               Row(children: [Icon(Icons.thumb_up_outlined, size: 18), SizedBox(width: 6), Text('Like', style: TextStyle(fontSize: 12))]),
@@ -685,32 +685,32 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
     final firstMedia = widget.mediaUrls.firstOrNull;
 
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
             radius: 18,
             backgroundImage: widget.avatarUrl != null ? NetworkImage(widget.avatarUrl!) : null,
-            child: widget.avatarUrl == null ? const Icon(Icons.person) : null,
+            child: widget.avatarUrl == null ? Icon(Icons.person) : null,
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(_displayAuthor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    const SizedBox(width: 4),
-                    Text(_displayHandle, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
-                    const Text(' · now', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+                    Text(_displayAuthor, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    SizedBox(width: 4),
+                    Text(_displayHandle, style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+                    Text(' · now', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(widget.caption.isEmpty ? 'What is happening?!' : widget.caption, style: const TextStyle(fontSize: 13)),
+                SizedBox(height: 4),
+                Text(widget.caption.isEmpty ? 'What is happening?!' : widget.caption, style: TextStyle(fontSize: 13)),
                 if (hasMedia && firstMedia != null) ...[
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: AspectRatio(
@@ -719,8 +719,8 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 10),
-                const Row(
+                SizedBox(height: 10),
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Icon(Icons.chat_bubble_outline_rounded, size: 16, color: AppTheme.textMuted),
@@ -745,8 +745,8 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 40, color: Colors.white38),
-          const SizedBox(height: 6),
-          Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500)),
+          SizedBox(height: 6),
+          Text(label, style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -757,8 +757,8 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: Colors.white, size: 28),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+        SizedBox(height: 2),
+        Text(label, style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -768,8 +768,8 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: Colors.white, size: 24),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 10)),
+        SizedBox(height: 2),
+        Text(label, style: TextStyle(color: Colors.white, fontSize: 10)),
       ],
     );
   }
@@ -779,8 +779,8 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 16, color: AppTheme.textSecondary),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+        SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
       ],
     );
   }
@@ -800,47 +800,47 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
       children: [
         // Reddit Header
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          padding: EdgeInsets.fromLTRB(12, 12, 12, 8),
           child: Row(
             children: [
               Container(
                 width: 28,
                 height: 28,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Color(0xFFFF4500),
                 ),
-                child: const Icon(Icons.forum_rounded, size: 16, color: Colors.white),
+                child: Icon(Icons.forum_rounded, size: 16, color: Colors.white),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Text(
+                        Text(
                           'r/socialmedia',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimary),
                         ),
-                        const SizedBox(width: 4),
-                        const Text('• 2h', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                        SizedBox(width: 4),
+                        Text('• 2h', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
                       ],
                     ),
                     Text(
                       author,
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0045AC),
+                  color: Color(0xFF0045AC),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Text('Join', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('Join', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             ],
           ),
@@ -848,22 +848,22 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
 
         // Post Title
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: Text(
             titleText,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary, height: 1.25),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary, height: 1.25),
           ),
         ),
 
         // Body Text
         if (widget.caption.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
             child: Text(
               widget.caption,
               maxLines: _expandedCaption ? null : 4,
               overflow: _expandedCaption ? null : TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary, height: 1.4),
+              style: TextStyle(fontSize: 13, color: AppTheme.textPrimary, height: 1.4),
             ),
           ),
 
@@ -871,8 +871,8 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
         if (hasMedia)
           Container(
             height: 220,
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            decoration: const BoxDecoration(color: Colors.black),
+            margin: EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(color: Colors.black),
             child: firstMedia != null && firstMedia.startsWith('http')
                 ? Image.network(
                     firstMedia,
@@ -890,17 +890,17 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
 
         // Reddit Engagement Bar
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          padding: EdgeInsets.fromLTRB(12, 8, 12, 12),
           child: Row(
             children: [
               // Upvote / Score / Downvote capsule
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceSubtle,
+                  color: AppTheme.surfaceElevated,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.arrow_upward_rounded, size: 16, color: Color(0xFFFF4500)),
@@ -911,16 +911,16 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
 
               // Comments capsule
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceSubtle,
+                  color: AppTheme.surfaceElevated,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.chat_bubble_outline_rounded, size: 14, color: AppTheme.textSecondary),
@@ -929,16 +929,16 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
                   ],
                 ),
               ),
-              const Spacer(),
+              Spacer(),
 
               // Share button
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceSubtle,
+                  color: AppTheme.surfaceElevated,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.share_outlined, size: 14, color: AppTheme.textSecondary),

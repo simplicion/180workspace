@@ -86,7 +86,7 @@ class CaptionFonts {
   static Future<List<int>> _get(Uri uri) async {
     final f = fetchOverride;
     if (f != null) return f(uri);
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+    final client = HttpClient()..connectionTimeout = Duration(seconds: 10);
     try {
       final req = await client.getUrl(uri);
       // A plain user agent makes the Google Fonts CSS API answer with TTF urls (renderers need TTF, not WOFF2).
@@ -96,7 +96,7 @@ class CaptionFonts {
       final bytes = <int>[];
       await for (final chunk in res) {
         bytes.addAll(chunk);
-        if (bytes.length > 5 * 1024 * 1024) throw const HttpException('font too large');
+        if (bytes.length > 5 * 1024 * 1024) throw HttpException('font too large');
       }
       return bytes;
     } finally {
@@ -126,7 +126,7 @@ class CaptionFonts {
     for (var attempt = 0; attempt < 15; attempt++) {
       final best = _closest(dir, prefix, weight);
       if (best != null) return best;
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await Future<void>.delayed(Duration(milliseconds: 200));
     }
     return null;
   }

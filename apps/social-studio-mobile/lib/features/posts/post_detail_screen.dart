@@ -34,20 +34,20 @@ void _showPostPreview(BuildContext context, SocialPost post) {
       maxChildSize: 0.95,
       builder: (_, scroll) => SingleChildScrollView(
         controller: scroll,
-        padding: const EdgeInsets.only(bottom: 32),
+        padding: EdgeInsets.only(bottom: 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+              padding: EdgeInsets.fromLTRB(16, 16, 8, 8),
               child: Row(
                 children: [
-                  const Icon(Icons.devices_rounded, color: AppTheme.primary),
-                  const SizedBox(width: 8),
-                  const Expanded(
+                  Icon(Icons.devices_rounded, color: AppTheme.primary),
+                  SizedBox(width: 8),
+                  Expanded(
                     child: Text('Platform Preview', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
-                  IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
+                  IconButton(icon: Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
                 ],
               ),
             ),
@@ -83,12 +83,12 @@ class PostDetailScreen extends ConsumerWidget {
           if (post.hasValue) ...[
             IconButton(
               tooltip: 'Platform Preview',
-              icon: const Icon(Icons.remove_red_eye_rounded),
+              icon: Icon(Icons.remove_red_eye_rounded),
               onPressed: () => _showPostPreview(context, post.value!),
             ),
             IconButton(
               tooltip: 'Edit',
-              icon: const Icon(Icons.edit_rounded),
+              icon: Icon(Icons.edit_rounded),
               onPressed: () => context.push('/posts/$postId/edit'),
             ),
           ],
@@ -138,7 +138,7 @@ class _PostBodyState extends ConsumerState<_PostBody> {
 
     final redditMeta = redditVariant?.platformMeta ?? {};
 
-    final Map<SocialPlatform, UniversalPlatformPayload> payloads = {};
+    final Map<SocialPlatform, UniversalPlatformPayload> payloads = const {};
     for (final v in p.variants) {
       payloads[v.platform] = UniversalPlatformPayload(
         platform: v.platform,
@@ -203,23 +203,23 @@ class _PostBodyState extends ConsumerState<_PostBody> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(16),
                   child: Text('Publishing Mode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.flash_on_rounded, color: AppTheme.primary),
-                  title: const Text('Auto-Publish (1-Click)'),
-                  subtitle: const Text('Post automatically via API to connected platforms.'),
+                  leading: Icon(Icons.flash_on_rounded, color: AppTheme.primary),
+                  title: Text('Auto-Publish (1-Click)'),
+                  subtitle: Text('Post automatically via API to connected platforms.'),
                   onTap: () => Navigator.pop(ctx, 'auto'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.pan_tool_alt_rounded, color: AppTheme.accentBlue),
-                  title: const Text('Manual Pre-filled Post'),
-                  subtitle: const Text('Open centralized manual hub to post manually.'),
+                  leading: Icon(Icons.pan_tool_alt_rounded, color: AppTheme.accentBlue),
+                  title: Text('Manual Pre-filled Post'),
+                  subtitle: Text('Open centralized manual hub to post manually.'),
                   onTap: () => Navigator.pop(ctx, 'manual'),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
               ],
             ),
           ),
@@ -244,7 +244,7 @@ class _PostBodyState extends ConsumerState<_PostBody> {
                   : readiness.issues.isEmpty
                       ? 'The server reported the post is not ready.'
                       : '• ${readiness.issues.join('\n• ')}'),
-              actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+              actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text('OK'))],
             ),
           );
           return;
@@ -263,17 +263,17 @@ class _PostBodyState extends ConsumerState<_PostBody> {
             title: Text(result.simulated ? 'Simulated publish: ${result.status}' : 'Publish: ${result.status}'),
             content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (result.simulated)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(bottom: 8),
                   child: Text('Sandbox mode: nothing was posted to any platform. Limits were checked as for a real post.',
                       style: TextStyle(color: AppTheme.warning)),
                 ),
               if (result.message.isNotEmpty) Text(result.message),
               for (final e in result.publishedLinks.entries)
-                Text(result.simulated ? '✓ ${e.key}: simulated (no live post)' : '✓ ${e.key}: ${e.value}', style: const TextStyle(color: AppTheme.success)),
-              for (final e in result.errors.entries) Text('✗ ${e.key}: ${e.value}', style: const TextStyle(color: AppTheme.error)),
+                Text(result.simulated ? '✓ ${e.key}: simulated (no live post)' : '✓ ${e.key}: ${e.value}', style: TextStyle(color: AppTheme.success)),
+              for (final e in result.errors.entries) Text('✗ ${e.key}: ${e.value}', style: TextStyle(color: AppTheme.error)),
             ]),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text('OK'))],
           ),
         );
 
@@ -341,9 +341,9 @@ class _PostBodyState extends ConsumerState<_PostBody> {
   Future<void> _repurpose() async {
     final d = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 7)),
+      initialDate: DateTime.now().add(Duration(days: 7)),
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 730)),
+      lastDate: DateTime.now().add(Duration(days: 730)),
       helpText: 'Schedule the copy for',
     );
     if (d == null || !mounted) return;
@@ -364,19 +364,19 @@ class _PostBodyState extends ConsumerState<_PostBody> {
   Widget build(BuildContext context) {
     final errors = p.platformErrors;
     final busy = _busy != null;
-    return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 48), children: [
+    return ListView(padding: EdgeInsets.fromLTRB(16, 8, 16, 48), children: [
       SectionCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
             StatusChip(label: p.status.label, color: p.status.color),
             if (p.versionNumber > 1) StatusChip(label: 'v${p.versionNumber}', color: AppTheme.textSecondary),
-            if (p.isEvergreen) const StatusChip(label: 'Evergreen', color: AppTheme.success, icon: Icons.autorenew_rounded),
+            if (p.isEvergreen) StatusChip(label: 'Evergreen', color: AppTheme.success, icon: Icons.autorenew_rounded),
             if (p.mediaType != null) StatusChip(label: p.mediaType!, color: AppTheme.textSecondary),
             for (final pl in p.platforms) StatusChip(label: pl.label, color: pl.color, icon: pl.icon),
           ]),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Text(p.displayTitle, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             [
               if (p.projectName != null) p.projectName!,
@@ -389,152 +389,152 @@ class _PostBodyState extends ConsumerState<_PostBody> {
         ]),
       ),
       if (busy)
-        Padding(padding: const EdgeInsets.only(top: 12), child: LinearProgressIndicator(value: _progress)),
-      const SizedBox(height: 12),
+        Padding(padding: EdgeInsets.only(top: 12), child: LinearProgressIndicator(value: _progress)),
+      SizedBox(height: 12),
       Wrap(spacing: 8, runSpacing: 8, children: [
         ElevatedButton.icon(
           onPressed: busy ? null : _publish,
-          icon: const Icon(Icons.send_rounded, size: 18),
-          label: const Text('Publish'),
+          icon: Icon(Icons.send_rounded, size: 18),
+          label: Text('Publish'),
         ),
         if (p.platforms.any((pl) => pl.isUserAssisted))
           OutlinedButton.icon(
             onPressed: busy ? null : _openCentralizedManualPublishSheet,
-            icon: const Icon(Icons.open_in_new_rounded, size: 18),
-            label: const Text('Manual publish hub'),
+            icon: Icon(Icons.open_in_new_rounded, size: 18),
+            label: Text('Manual publish hub'),
           ),
         OutlinedButton.icon(
           onPressed: busy ? null : () => context.push('/studio/session?postId=${p.id}${p.projectId == null ? '' : '&projectId=${p.projectId}'}'),
-          icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-          label: const Text('Edit in Studio'),
+          icon: Icon(Icons.auto_awesome_rounded, size: 18),
+          label: Text('Edit in Studio'),
         ),
         OutlinedButton.icon(
           onPressed: busy ? null : _uploadDeliverable,
-          icon: const Icon(Icons.upload_rounded, size: 18),
-          label: const Text('Upload final video'),
+          icon: Icon(Icons.upload_rounded, size: 18),
+          label: Text('Upload final video'),
         ),
         OutlinedButton.icon(
           onPressed: busy ? null : _assignEditor,
-          icon: const Icon(Icons.person_add_alt_rounded, size: 18),
-          label: const Text('Assign editor'),
+          icon: Icon(Icons.person_add_alt_rounded, size: 18),
+          label: Text('Assign editor'),
         ),
         OutlinedButton.icon(
           onPressed: busy ? null : _repurpose,
-          icon: const Icon(Icons.copy_all_rounded, size: 18),
-          label: const Text('Repurpose'),
+          icon: Icon(Icons.copy_all_rounded, size: 18),
+          label: Text('Repurpose'),
         ),
       ]),
       if (p.revisionNotes?.isNotEmpty ?? false) ...[
-        const SectionHeader('Revision notes'),
+        SectionHeader('Revision notes'),
         SectionCard(borderColor: AppTheme.warning.withValues(alpha: 0.5), child: Text(p.revisionNotes!)),
       ],
       if (errors.isNotEmpty) ...[
-        const SectionHeader('Publishing errors'),
+        SectionHeader('Publishing errors'),
         SectionCard(
           borderColor: AppTheme.error.withValues(alpha: 0.5),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             for (final e in errors.entries)
               Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: EdgeInsets.only(bottom: 6),
                 child: Row(children: [
-                  Expanded(child: Text('${e.key}: ${e.value}', style: const TextStyle(color: AppTheme.error))),
+                  Expanded(child: Text('${e.key}: ${e.value}', style: TextStyle(color: AppTheme.error))),
                   if (SocialPlatform.parse(e.key) != SocialPlatform.unknown)
-                    TextButton(onPressed: busy ? null : () => _retry(SocialPlatform.parse(e.key)), child: const Text('Retry')),
+                    TextButton(onPressed: busy ? null : () => _retry(SocialPlatform.parse(e.key)), child: Text('Retry')),
                 ]),
               ),
           ]),
         ),
       ],
       if (p.finalVideoUrl != null || p.thumbnailUrl != null || p.mediaUrls.isNotEmpty) ...[
-        const SectionHeader('Media'),
+        SectionHeader('Media'),
         if (p.thumbnailUrl != null)
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image.network(p.thumbnailUrl!, height: 200, fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const SizedBox.shrink()),
+                errorBuilder: (_, _, _) => SizedBox.shrink()),
           ),
         if (p.finalVideoUrl != null)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.movie_rounded, color: AppTheme.success),
-            title: const Text('Final video'),
+            leading: Icon(Icons.movie_rounded, color: AppTheme.success),
+            title: Text('Final video'),
             subtitle: Text(p.finalVideoUrl!, maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () => openExternal(context, p.finalVideoUrl!),
           ),
         for (final url in p.mediaUrls)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.attachment_rounded),
+            leading: Icon(Icons.attachment_rounded),
             title: Text(url, maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () => openExternal(context, url),
           ),
       ],
-      const SectionHeader('Caption'),
+      SectionHeader('Caption'),
       SectionCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           if (p.hook != null) ...[
             Text('HOOK', style: Theme.of(context).textTheme.labelSmall),
-            Text(p.hook!, style: const TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
+            Text(p.hook!, style: TextStyle(fontWeight: FontWeight.w700)),
+            SizedBox(height: 10),
           ],
           SelectableText(p.content),
           if (p.objective != null) ...[
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Text('Objective: ${p.objective}', style: Theme.of(context).textTheme.bodyMedium),
           ],
           if (p.firstComment != null) ...[
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text('First comment: ${p.firstComment}', style: Theme.of(context).textTheme.bodyMedium),
           ],
         ]),
       ),
       if (p.variants.isNotEmpty) ...[
-        const SectionHeader('Per-platform'),
+        SectionHeader('Per-platform'),
         for (final v in p.variants)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(bottom: 8),
             child: SectionCard(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Icon(v.platform.icon, color: v.platform.color, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(v.platform.label, style: const TextStyle(fontWeight: FontWeight.w600))),
+                  SizedBox(width: 8),
+                  Expanded(child: Text(v.platform.label, style: TextStyle(fontWeight: FontWeight.w600))),
                   if (v.isSimulated) ...[
-                    const StatusChip(label: 'SIMULATED', color: AppTheme.warning),
-                    const SizedBox(width: 6),
+                    StatusChip(label: 'SIMULATED', color: AppTheme.warning),
+                    SizedBox(width: 6),
                   ],
                   if (v.status != null) StatusChip(label: v.status!, color: v.status == 'failed' ? AppTheme.error : AppTheme.textSecondary),
                 ]),
-                if (v.customContent?.isNotEmpty ?? false) Padding(padding: const EdgeInsets.only(top: 6), child: Text(v.customContent!)),
+                if (v.customContent?.isNotEmpty ?? false) Padding(padding: EdgeInsets.only(top: 6), child: Text(v.customContent!)),
                 if (v.isSimulated)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 6),
                     child: Text('Sandbox publish: nothing was posted to the platform and there is no live link.',
                         style: TextStyle(color: AppTheme.warning, fontSize: 12)),
                   )
                 else if (v.errorMessage != null && v.isFailed)
                   Row(children: [
-                    Expanded(child: Text(v.errorMessage!, style: const TextStyle(color: AppTheme.error))),
-                    TextButton(onPressed: busy ? null : () => _retry(v.platform), child: const Text('Retry')),
+                    Expanded(child: Text(v.errorMessage!, style: TextStyle(color: AppTheme.error))),
+                    TextButton(onPressed: busy ? null : () => _retry(v.platform), child: Text('Retry')),
                   ])
                 else if (v.errorMessage != null)
                   Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(v.errorMessage!, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                    padding: EdgeInsets.only(top: 6),
+                    child: Text(v.errorMessage!, style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                   ),
                 if (v.publishedUrl != null && !v.isSimulated)
                   TextButton.icon(
                     onPressed: () => openExternal(context, v.publishedUrl!),
-                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                    label: const Text('View live post'),
+                    icon: Icon(Icons.open_in_new_rounded, size: 16),
+                    label: Text('View live post'),
                   ),
               ]),
             ),
           ),
       ],
       if (p.publishedLinks.isNotEmpty) ...[
-        const SectionHeader('Live links'),
+        SectionHeader('Live links'),
         for (final e in p.publishedLinks.entries.where((e) => !p.variants.any((v) => v.isSimulated && v.platform == SocialPlatform.parse(e.key))))
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -546,21 +546,21 @@ class _PostBodyState extends ConsumerState<_PostBody> {
       ],
       SectionHeader('Raw footage',
           trailing: TextButton.icon(
-              onPressed: busy ? null : _addFootageLink, icon: const Icon(Icons.add_link_rounded, size: 16), label: const Text('Add link'))),
+              onPressed: busy ? null : _addFootageLink, icon: Icon(Icons.add_link_rounded, size: 16), label: Text('Add link'))),
       if (p.rawMediaUrls.isEmpty && p.externalStorageLinks.isEmpty)
-        const SectionCard(child: Text('No footage yet. Shoot in Studio, or add a cloud link.'))
+        SectionCard(child: Text('No footage yet. Shoot in Studio, or add a cloud link.'))
       else ...[
         for (final url in p.rawMediaUrls)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.video_file_rounded),
+            leading: Icon(Icons.video_file_rounded),
             title: Text(url, maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () => openExternal(context, url),
           ),
         for (final l in p.externalStorageLinks)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.cloud_rounded),
+            leading: Icon(Icons.cloud_rounded),
             title: Text(l.label ?? l.provider ?? 'Link'),
             subtitle: Text(l.url, maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () => openExternal(context, l.url),
@@ -568,13 +568,13 @@ class _PostBodyState extends ConsumerState<_PostBody> {
       ],
       SectionHeader('Review comments (${p.unresolvedComments} open)'),
       if (p.reviewComments.isEmpty)
-        const SectionCard(child: Text('No comments yet.'))
+        SectionCard(child: Text('No comments yet.'))
       else
         for (final c in p.reviewComments)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(bottom: 8),
             child: SectionCard(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
               borderColor: c.resolved ? null : AppTheme.warning.withValues(alpha: 0.4),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
@@ -582,9 +582,9 @@ class _PostBodyState extends ConsumerState<_PostBody> {
                     child: Text('${c.authorName ?? c.authorType ?? 'Reviewer'} · ${timeAgo(c.createdAt)}',
                         style: Theme.of(context).textTheme.labelSmall),
                   ),
-                  if (c.resolved) const StatusChip(label: 'Resolved', color: AppTheme.success),
+                  if (c.resolved) StatusChip(label: 'Resolved', color: AppTheme.success),
                 ]),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(c.text),
               ]),
             ),
@@ -620,9 +620,9 @@ class _AssignEditorSheetState extends ConsumerState<_AssignEditorSheet> {
       padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 16),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text('Assign an editor', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         users.when(
-          loading: () => const LinearProgressIndicator(),
+          loading: () => LinearProgressIndicator(),
           error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(workspaceUsersProvider)),
           data: (list) => DropdownButtonFormField<String>(
             isExpanded: true,
@@ -635,11 +635,11 @@ class _AssignEditorSheetState extends ConsumerState<_AssignEditorSheet> {
             onChanged: (v) => setState(() => _assigneeId = v),
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: _priority,
           decoration: fieldDecoration('Priority'),
-          items: const [
+          items: [
             DropdownMenuItem(value: 'low', child: Text('Low')),
             DropdownMenuItem(value: 'medium', child: Text('Medium')),
             DropdownMenuItem(value: 'high', child: Text('High')),
@@ -647,23 +647,23 @@ class _AssignEditorSheetState extends ConsumerState<_AssignEditorSheet> {
           ],
           onChanged: (v) => setState(() => _priority = v ?? 'medium'),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         OutlinedButton.icon(
-          icon: const Icon(Icons.event_rounded),
+          icon: Icon(Icons.event_rounded),
           label: Text(_deadline == null ? 'Set deadline' : 'Due ${fmtDate(_deadline)}'),
           onPressed: () async {
             final d = await showDatePicker(
               context: context,
-              initialDate: DateTime.now().add(const Duration(days: 2)),
+              initialDate: DateTime.now().add(Duration(days: 2)),
               firstDate: DateTime.now(),
-              lastDate: DateTime.now().add(const Duration(days: 365)),
+              lastDate: DateTime.now().add(Duration(days: 365)),
             );
             if (d != null) setState(() => _deadline = d);
           },
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         TextField(controller: _instructions, minLines: 2, maxLines: 5, decoration: fieldDecoration('Editing instructions')),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         ElevatedButton(
           onPressed: _assigneeId == null
               ? null
@@ -676,7 +676,7 @@ class _AssignEditorSheetState extends ConsumerState<_AssignEditorSheet> {
                     'projectId': ?widget.post.projectId,
                     'clientId': ?widget.post.clientId,
                   }),
-          child: const Text('Create editing task'),
+          child: Text('Create editing task'),
         ),
       ]),
     );

@@ -14,30 +14,34 @@ export class PlatformOverviewRepository {
     }
 
     static async getMonthlyRevenue(startOfMonth: Date) {
-        return prisma.subscription.findMany({
+        const result = await prisma.subscription.aggregate({
             where: { paymentStatus: 'paid', createdAt: { gte: startOfMonth } },
-            select: { amount: true }
+            _sum: { amount: true }
         });
+        return Number(result._sum.amount) || 0;
     }
 
     static async getRecentSubscriptions(sixMonthsAgo: Date) {
         return prisma.subscription.findMany({
             where: { paymentStatus: 'paid', createdAt: { gte: sixMonthsAgo } },
-            select: { amount: true, createdAt: true }
+            select: { amount: true, createdAt: true },
+            take: 2000,
         });
     }
 
     static async getRecentCompanies(sixMonthsAgo: Date) {
         return prisma.company.findMany({
             where: { createdAt: { gte: sixMonthsAgo } },
-            select: { createdAt: true }
+            select: { createdAt: true },
+            take: 2000,
         });
     }
 
     static async getActiveSubscriptionsWithPlan() {
         return prisma.subscription.findMany({
             where: { status: 'active' },
-            include: { plan: true }
+            include: { plan: true },
+            take: 1000,
         });
     }
 
@@ -59,4 +63,5 @@ export class PlatformOverviewRepository {
         });
     }
 }
+
 

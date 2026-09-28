@@ -22,7 +22,7 @@ class AppShell extends ConsumerWidget {
     return Scaffold(
       body: shell,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.surface,
           border: Border(top: BorderSide(color: AppTheme.border)),
         ),

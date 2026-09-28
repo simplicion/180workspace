@@ -13,7 +13,7 @@ void main() {
 
   group('User-Assisted Publishing Payload Models', () {
     test('XPublishPayload serializes to and from json accurately', () {
-      const payload = XPublishPayload(
+      final payload = XPublishPayload(
         text: 'Exciting announcement from 180 Workspace! #buildinpublic',
         mediaPath: '/cache/videos/export.mp4',
         mimeType: 'video/mp4',
@@ -59,8 +59,8 @@ void main() {
         projectId: 'proj_1',
         title: 'Universal Post Title',
         caption: 'Universal Post Caption',
-        xPayload: const XPublishPayload(text: 'X Caption #growth'),
-        redditPayload: const RedditPublishPayload(
+        xPayload: XPublishPayload(text: 'X Caption #growth'),
+        redditPayload: RedditPublishPayload(
           subreddit: 'startups',
           title: 'Reddit Title',
           body: 'Reddit Body',
@@ -82,13 +82,13 @@ void main() {
     test('XUserAssistedPublisher validates text length and empty checks', () {
       // Empty text
       final empty = XUserAssistedPublisher.validate(
-        const XPublishPayload(text: '   '),
+        XPublishPayload(text: '   '),
       );
       expect(empty, contains('Post text cannot be empty for X.'));
 
       // Standard text (<= 280 chars)
       final valid = XUserAssistedPublisher.validate(
-        const XPublishPayload(text: 'Valid short tweet within standard limits'),
+        XPublishPayload(text: 'Valid short tweet within standard limits'),
       );
       expect(valid, isEmpty);
 
@@ -103,13 +103,13 @@ void main() {
     test('RedditUserAssistedPublisher validates required post title', () {
       // Empty title
       final emptyTitle = RedditUserAssistedPublisher.validate(
-        const RedditPublishPayload(title: '  '),
+        RedditPublishPayload(title: '  '),
       );
       expect(emptyTitle, contains('Post title is required for Reddit.'));
 
       // Valid title
       final valid = RedditUserAssistedPublisher.validate(
-        const RedditPublishPayload(title: 'Valid Reddit Discussion Title'),
+        RedditPublishPayload(title: 'Valid Reddit Discussion Title'),
       );
       expect(valid, isEmpty);
     });
@@ -187,19 +187,19 @@ void main() {
         title: 'Test Discussion Title',
         caption: 'This is the test copy for publishing.',
         platformPayloads: {
-          SocialPlatform.x: const UniversalPlatformPayload(
+          SocialPlatform.x: UniversalPlatformPayload(
             platform: SocialPlatform.x,
             caption: 'This is the test copy for publishing.',
           ),
-          SocialPlatform.reddit: const UniversalPlatformPayload(
+          SocialPlatform.reddit: UniversalPlatformPayload(
             platform: SocialPlatform.reddit,
             caption: 'This is the test copy for publishing.',
             title: 'Test Discussion Title',
             subreddit: 'socialmedia',
           ),
         },
-        xPayload: const XPublishPayload(text: 'This is the test copy for publishing.'),
-        redditPayload: const RedditPublishPayload(
+        xPayload: XPublishPayload(text: 'This is the test copy for publishing.'),
+        redditPayload: RedditPublishPayload(
           subreddit: 'socialmedia',
           title: 'Test Discussion Title',
           body: 'This is the test copy for publishing.',

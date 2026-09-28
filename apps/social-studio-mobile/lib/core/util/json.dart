@@ -64,7 +64,7 @@ List<Object?> _asList(Object? v) {
       if (d is List) return d;
     } catch (_) {}
   }
-  return const [];
+  return [];
 }
 
 List<String> jStrList(Object? v) {

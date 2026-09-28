@@ -12,13 +12,13 @@ interface ScopeInfo {
 const SCOPE_DEFINITIONS: Record<string, ScopeInfo> = {
   openid: {
     id: 'openid',
-    name: 'OpenID Connect Identity',
-    desc: 'Verify your unique account identity across the ecosystem',
+    name: 'Account Verification',
+    desc: 'Confirm your account identity with this application',
   },
   'identity:read': {
     id: 'identity:read',
-    name: 'Basic 180 Profile',
-    desc: 'Access your full name, @handle, headline, location, and avatar',
+    name: 'Profile Information',
+    desc: 'Name, username, headline, and profile picture',
   },
   'identity:email': {
     id: 'identity:email',
@@ -30,20 +30,10 @@ const SCOPE_DEFINITIONS: Record<string, ScopeInfo> = {
     name: 'Phone Number',
     desc: 'View your verified phone number',
   },
-  'pitch:read': {
-    id: 'pitch:read',
-    name: 'Pitch Network Activity',
-    desc: 'View your pitch videos, upvotes, and public gigs',
-  },
-  'pitch:write': {
-    id: 'pitch:write',
-    name: 'Pitch Network Creation',
-    desc: 'Publish pitch reels and post opportunities on your behalf',
-  },
   'messages:send': {
     id: 'messages:send',
-    name: 'Direct Messaging',
-    desc: 'Send connection notes and chat messages in the 180 network',
+    name: 'Messaging',
+    desc: 'Send messages within the 180 network',
   },
 };
 
@@ -82,8 +72,8 @@ export const ConsentScreen: React.FC<ConsentScreenProps> = ({
       {/* App Header & Handshake */}
       <div className="flex flex-col items-center text-center space-y-3 pt-2">
         <div className="relative">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 p-0.5 shadow-xl shadow-indigo-500/20">
-            <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center overflow-hidden">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-0.5 shadow-xl shadow-blue-500/20">
+            <div className="w-full h-full bg-zinc-950 rounded-[14px] flex items-center justify-center overflow-hidden">
               {app.logoUrl ? (
                 <img
                   src={app.logoUrl}
@@ -98,7 +88,7 @@ export const ConsentScreen: React.FC<ConsentScreenProps> = ({
             </div>
           </div>
           {app.isVerified && (
-            <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 p-1 rounded-full shadow-lg" title="Verified Application">
+            <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-black p-1 rounded-full shadow-lg" title="Verified Application">
               <ShieldCheck className="w-3.5 h-3.5" />
             </div>
           )}
@@ -113,16 +103,16 @@ export const ConsentScreen: React.FC<ConsentScreenProps> = ({
               </span>
             )}
           </h2>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs">
+          <p className="text-xs text-zinc-400 mt-1 max-w-xs">
             {app.description || 'wants to connect with your 180 Profile'}
           </p>
         </div>
       </div>
 
       {/* Active User Card */}
-      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-900/80 border border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-indigo-950 border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-semibold overflow-hidden">
+          <div className="w-10 h-10 rounded-full bg-blue-950/60 border border-blue-500/30 flex items-center justify-center text-blue-300 font-semibold overflow-hidden">
             {user.photoUrl ? (
               <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" />
             ) : (
@@ -133,12 +123,12 @@ export const ConsentScreen: React.FC<ConsentScreenProps> = ({
             <div className="text-sm font-semibold text-white flex items-center gap-1">
               {user.name}
               {user.username && (
-                <span className="text-xs text-indigo-400 font-normal">
+                <span className="text-xs text-blue-400 font-normal">
                   @{user.username}
                 </span>
               )}
             </div>
-            <div className="text-xs text-slate-400 truncate max-w-[180px]">
+            <div className="text-xs text-zinc-400 truncate max-w-[180px]">
               {user.email}
             </div>
           </div>
@@ -148,7 +138,7 @@ export const ConsentScreen: React.FC<ConsentScreenProps> = ({
           type="button"
           onClick={onSwitchAccount}
           title="Switch Account"
-          className="text-xs text-slate-400 hover:text-white flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-slate-800/80 transition-colors"
+          className="text-xs text-zinc-400 hover:text-white flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
         >
           <LogOut className="w-3.5 h-3.5" />
           <span>Switch</span>
@@ -157,7 +147,7 @@ export const ConsentScreen: React.FC<ConsentScreenProps> = ({
 
       {/* Permissions List */}
       <div className="space-y-2">
-        <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 px-1">
+        <div className="text-xs font-semibold uppercase tracking-wider text-zinc-400 px-1">
           Permissions Requested
         </div>
         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -170,16 +160,16 @@ export const ConsentScreen: React.FC<ConsentScreenProps> = ({
             return (
               <div
                 key={scope}
-                className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-900/50 border border-slate-800/80"
+                className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/60 border border-white/5"
               >
-                <div className="mt-0.5 text-indigo-400 bg-indigo-500/10 p-1 rounded-md">
+                <div className="mt-0.5 text-blue-400 bg-blue-500/10 p-1 rounded-md">
                   <Check className="w-3.5 h-3.5" />
                 </div>
                 <div className="text-left">
-                  <div className="text-xs font-semibold text-slate-200">
+                  <div className="text-xs font-semibold text-zinc-200">
                     {def.name}
                   </div>
-                  <div className="text-[11px] text-slate-400 leading-snug">
+                  <div className="text-[11px] text-zinc-400 leading-snug">
                     {def.desc}
                   </div>
                 </div>
@@ -195,7 +185,7 @@ export const ConsentScreen: React.FC<ConsentScreenProps> = ({
           type="button"
           disabled={isSubmitting}
           onClick={onApprove}
-          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/25 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           {isSubmitting ? (
             'Authorizing...'
@@ -211,16 +201,16 @@ export const ConsentScreen: React.FC<ConsentScreenProps> = ({
           type="button"
           disabled={isSubmitting}
           onClick={onCancel}
-          className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 font-medium text-xs transition-colors cursor-pointer"
+          className="w-full py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-400 hover:text-zinc-200 font-medium text-xs transition-colors cursor-pointer"
         >
           Cancel
         </button>
       </div>
 
       {/* Footer Trust Shield */}
-      <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 pt-1">
-        <Lock className="w-3 h-3 text-slate-500" />
-        <span>End-to-End Cryptographic Handshake by 180 Identity</span>
+      <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 pt-1">
+        <Lock className="w-3 h-3 text-zinc-500" />
+        <span>Secured by 180 Identity</span>
       </div>
     </div>
   );

@@ -47,10 +47,10 @@ class _AccountSelectionSheetState extends ConsumerState<AccountSelectionSheet> {
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+        padding: EdgeInsets.fromLTRB(16, 8, 8, 0),
         child: Row(children: [
           Expanded(child: Text('Choose accounts to connect', style: Theme.of(context).textTheme.titleMedium)),
-          IconButton(tooltip: 'Close', icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(context)),
+          IconButton(tooltip: 'Close', icon: Icon(Icons.close_rounded), onPressed: () => Navigator.pop(context)),
         ]),
       ),
       Expanded(
@@ -65,7 +65,7 @@ class _AccountSelectionSheetState extends ConsumerState<AccountSelectionSheet> {
                   actionLabel: 'Close',
                   onAction: () => Navigator.pop(context),
                 )
-              : ListView(padding: const EdgeInsets.fromLTRB(8, 8, 8, 16), children: [
+              : ListView(padding: EdgeInsets.fromLTRB(8, 8, 8, 16), children: [
                   for (final c in sel.candidates)
                     CheckboxListTile(
                       value: _picked.contains(c.candidateId),
@@ -82,11 +82,11 @@ class _AccountSelectionSheetState extends ConsumerState<AccountSelectionSheet> {
         ),
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: ElevatedButton(
           onPressed: _saving || _picked.isEmpty ? null : _connect,
           child: _saving
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
               : Text(_picked.isEmpty ? 'Pick at least one' : 'Connect ${_picked.length}'),
         ),
       ),

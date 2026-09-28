@@ -65,7 +65,7 @@ class VideoMetadata {
 enum SttAudioFormat { wav, m4a }
 
 class ExtractedAudio {
-  const ExtractedAudio({required this.path, required this.format, required this.sampleRate, required this.channels, required this.durationMs, required this.fileSizeBytes});
+  ExtractedAudio({required this.path, required this.format, required this.sampleRate, required this.channels, required this.durationMs, required this.fileSizeBytes});
 
   final String path;
   final SttAudioFormat format;
@@ -88,7 +88,7 @@ enum RenderState { started, progress, completed }
 
 /// Verified facts about a finished render, read back from the written file.
 class RenderResult {
-  const RenderResult({
+  RenderResult({
     required this.outputPath,
     required this.durationMs,
     required this.expectedDurationMs,
@@ -124,14 +124,14 @@ class RenderResult {
         fileSizeBytes: (m['fileSizeBytes'] as num).toInt(),
         videoEncoder: m['videoEncoder'] as String?,
         audioEncoder: m['audioEncoder'] as String?,
-        warnings: ((m['warnings'] as List?) ?? const []).cast<String>(),
+        warnings: ((m['warnings'] as List?) ?? []).cast<String>(),
       );
 }
 
 /// A render progress update. The final event has [state] == completed and a non-null [result].
 /// Failures and cancellation arrive as a [MediaEngineException] error on the stream.
 class RenderProgress {
-  const RenderProgress({required this.jobId, required this.state, required this.progress, this.result});
+  RenderProgress({required this.jobId, required this.state, required this.progress, this.result});
   final String jobId;
   final RenderState state;
 
@@ -249,7 +249,7 @@ class MediaEngineService {
   static Future<({List<int> beatsMs, double? bpm})> detectBeats({required String audioPath}) async {
     final m = await _invokeMap('detectBeats', {'audioPath': audioPath});
     return (
-      beatsMs: ((m['beatsMs'] as List?) ?? const []).map((e) => (e as num).toInt()).toList(),
+      beatsMs: ((m['beatsMs'] as List?) ?? []).map((e) => (e as num).toInt()).toList(),
       bpm: (m['bpm'] as num?)?.toDouble(),
     );
   }
@@ -335,7 +335,7 @@ class MediaEngineService {
                   detail: e['detail'] as String?));
               finish();
             case 'cancelled':
-              controller.addError(const MediaEngineException(MediaEngineException.cancelledCode, 'Render was cancelled'));
+              controller.addError(MediaEngineException(MediaEngineException.cancelledCode, 'Render was cancelled'));
               finish();
           }
         }, onError: (Object err) {

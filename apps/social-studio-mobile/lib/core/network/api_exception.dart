@@ -36,7 +36,7 @@ enum ApiErrorKind {
 /// Every failure from the HTTP layer is one of these. The [message] is the server's own text
 /// whenever the server sent one; the UI shows it as-is rather than inventing a success.
 class ApiException implements Exception {
-  const ApiException({
+  ApiException({
     required this.kind,
     required this.message,
     this.statusCode,
@@ -76,7 +76,7 @@ class ApiException implements Exception {
         return '$i';
       }).toList();
     }
-    return const [];
+    return [];
   }
 
   @override
@@ -90,19 +90,19 @@ class ApiException implements Exception {
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.transformTimeout:
-        return const ApiException(
+        return ApiException(
           kind: ApiErrorKind.timeout,
           message: 'The server took too long to respond. Check your connection and try again.',
         );
       case DioExceptionType.cancel:
-        return const ApiException(kind: ApiErrorKind.cancelled, message: 'Request cancelled.');
+        return ApiException(kind: ApiErrorKind.cancelled, message: 'Request cancelled.');
       case DioExceptionType.connectionError:
-        return const ApiException(
+        return ApiException(
           kind: ApiErrorKind.network,
           message: 'Cannot reach 180 Workspace. You appear to be offline.',
         );
       case DioExceptionType.badCertificate:
-        return const ApiException(kind: ApiErrorKind.network, message: 'The server certificate could not be verified.');
+        return ApiException(kind: ApiErrorKind.network, message: 'The server certificate could not be verified.');
       case DioExceptionType.badResponse:
       case DioExceptionType.unknown:
         final response = e.response;

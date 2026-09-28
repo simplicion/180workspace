@@ -16,7 +16,7 @@ import OtpVerification from '@/app/(auth)/_components/OtpVerification';
 import PasswordSetup from '@/app/(auth)/_components/PasswordSetup';
 import BasicProfile from '@/app/(auth)/_components/BasicProfile';
 import { Rocket, Shield, Clock, Users, Bot, FolderKanban, MessageSquare, Cloud, BarChart3, ArrowLeft, Sparkles, ArrowRight } from 'lucide-react';
-import { use180Identity } from '@/lib/use180Identity';
+import { use180Identity } from '@workspace/identity-sdk';
 
 export default function SignupFlow() {
     const router = useRouter();
@@ -329,7 +329,7 @@ export default function SignupFlow() {
                                         </div>
                                         <div className="text-left">
                                             <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                                                Sign up with 180 Identity
+                                                Continue with 180 Identity
                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
                                             </div>
                                             <div className="text-[11px] text-slate-400 font-medium">

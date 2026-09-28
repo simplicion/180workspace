@@ -85,11 +85,11 @@ export const UsernameField: React.FC<UsernameFieldProps> = ({
 
   return (
     <div className="w-full space-y-1.5">
-      <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+      <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider">
         Your 180 Handle
       </label>
       <div className="relative flex items-center">
-        <div className="absolute left-3.5 text-slate-400 pointer-events-none flex items-center">
+        <div className="absolute left-3.5 text-zinc-400 pointer-events-none flex items-center">
           <AtSign className="w-4 h-4" />
         </div>
         <input
@@ -101,19 +101,19 @@ export const UsernameField: React.FC<UsernameFieldProps> = ({
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className={`w-full pl-9 pr-10 py-2.5 bg-slate-900/80 border rounded-xl text-white text-sm transition-all duration-200 outline-none
+          className={`w-full pl-9 pr-10 py-2.5 bg-zinc-900/90 border rounded-xl text-white text-sm transition-all duration-200 outline-none
             ${
               status === 'available'
                 ? 'border-emerald-500/80 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20'
                 : status === 'taken' || status === 'invalid'
                 ? 'border-rose-500/80 focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20'
-                : 'border-slate-800 hover:border-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                : 'border-white/10 hover:border-white/20 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
             }
             disabled:opacity-50`}
         />
         <div className="absolute right-3 flex items-center pointer-events-none">
           {status === 'checking' && (
-            <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
+            <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
           )}
           {status === 'available' && (
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -131,7 +131,7 @@ export const UsernameField: React.FC<UsernameFieldProps> = ({
               ? 'text-emerald-400'
               : status === 'taken' || status === 'invalid'
               ? 'text-rose-400'
-              : 'text-slate-400'
+              : 'text-zinc-400'
           }`}
         >
           {message}

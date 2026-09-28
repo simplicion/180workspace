@@ -135,7 +135,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
     final result = e?.result;
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -158,13 +158,13 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                       c.clearExport();
                       Navigator.pop(context);
                     },
-                    icon: const Icon(Icons.close_rounded),
+                    icon: Icon(Icons.close_rounded),
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             if (e == null)
-              const SizedBox.shrink()
+              SizedBox.shrink()
             else if (e.error != null) ...[
               ErrorView(
                 error: e.error!,
@@ -177,20 +177,20 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
             ] else if (result == null) ...[
               Text(
                 e.stage,
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: TextStyle(color: AppTheme.textSecondary),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               LinearProgressIndicator(
                 value: e.stage == 'Rendering…' ? e.progress : null,
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               if (e.stage == 'Rendering…')
                 Text(
                   '${(e.progress * 100).round()}%',
                   textAlign: TextAlign.right,
                 ),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 8),
+              Text(
                 'Rendering happens on this phone. You can switch apps; progress shows in your notifications.',
                 style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
               ),
@@ -199,7 +199,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                   await c.cancelExport();
                   if (context.mounted) Navigator.pop(context);
                 },
-                child: const Text('Cancel export'),
+                child: Text('Cancel export'),
               ),
             ] else ...[
               if (_player?.value.isInitialized ?? false)
@@ -221,7 +221,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                             if (_safeZones && _player!.value.aspectRatio < 0.7)
                               const _SafeZones(),
                             if (!_player!.value.isPlaying)
-                              const Center(
+                              Center(
                                 child: Icon(
                                   Icons.play_circle_fill_rounded,
                                   size: 56,
@@ -238,13 +238,13 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                 children: [
                   Text(
                     '${(result.durationMs / 1000).toStringAsFixed(1)}s · ${result.width}×${result.height} · ${(result.fileSizeBytes / 1048576).toStringAsFixed(1)} MB',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       color: AppTheme.textSecondary,
                     ),
                   ),
-                  const Spacer(),
-                  const Text('Safe zones', style: TextStyle(fontSize: 12)),
+                  Spacer(),
+                  Text('Safe zones', style: TextStyle(fontSize: 12)),
                   Switch(
                     value: _safeZones,
                     onChanged: (v) => setState(() => _safeZones = v),
@@ -254,14 +254,14 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
               for (final w in e.warnings)
                 Text(
                   '• $w',
-                  style: const TextStyle(fontSize: 12, color: AppTheme.warning),
+                  style: TextStyle(fontSize: 12, color: AppTheme.warning),
                 ),
               if (e.credits.isNotEmpty)
                 Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                  margin: EdgeInsets.only(top: 8),
+                  padding: EdgeInsets.fromLTRB(12, 8, 4, 8),
                   decoration: BoxDecoration(
-                    color: AppTheme.surfaceSubtle,
+                    color: AppTheme.surfaceElevated,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppTheme.border),
                   ),
@@ -275,20 +275,20 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                               e.credits.length == 1
                                   ? 'Media credit: add this to the post caption'
                                   : 'Media credits: add these to the post caption',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.textSecondary,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            SizedBox(height: 2),
                             for (final c in e.credits)
-                              Text(c, style: const TextStyle(fontSize: 12)),
+                              Text(c, style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),
                       IconButton(
                         tooltip: 'Copy credits',
-                        icon: const Icon(Icons.copy_rounded, size: 18),
+                        icon: Icon(Icons.copy_rounded, size: 18),
                         onPressed: () async {
                           await Clipboard.setData(
                             ClipboardData(text: e.credits.join('\n')),
@@ -303,17 +303,17 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                 ),
               if (_upload != null)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: EdgeInsets.symmetric(vertical: 8),
                   child: LinearProgressIndicator(value: _upload),
                 ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: _upload != null
                     ? null
                     : () => c.pieceId != null || c.postId != null
                           ? _submit(c.postId)
                           : _pickPostAndSubmit(),
-                icon: const Icon(Icons.verified_rounded),
+                icon: Icon(Icons.verified_rounded),
                 label: Text(
                   c.pieceId != null
                       ? 'Attach to calendar day & send for approval'
@@ -322,7 +322,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                       : 'Attach to a post & send for approval',
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: AppTheme.accentBlue,
@@ -360,18 +360,18 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.send_rounded),
-                label: const Text('Manual publish hub'),
+                icon: Icon(Icons.send_rounded),
+                label: Text('Manual publish hub'),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () => SharePlus.instance.share(
                   ShareParams(
                     files: [XFile(result.outputPath, mimeType: 'video/mp4')],
                   ),
                 ),
-                icon: const Icon(Icons.ios_share_rounded),
-                label: const Text('Share or save'),
+                icon: Icon(Icons.ios_share_rounded),
+                label: Text('Share or save'),
               ),
             ],
           ],
@@ -422,7 +422,7 @@ class _PostPicker extends ConsumerWidget {
         height: MediaQuery.of(context).size.height * 0.6,
         child: Column(
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
               child: Text(
                 'Which post is this video for?',
@@ -436,14 +436,14 @@ class _PostPicker extends ConsumerWidget {
                 builder: (posts) {
                   final open = posts
                       .where(
-                        (p) => !const {
+                        (p) => !{
                           PostStatus.published,
                           PostStatus.publishing,
                         }.contains(p.status),
                       )
                       .toList();
                   if (open.isEmpty) {
-                    return const EmptyView(
+                    return EmptyView(
                       icon: Icons.article_rounded,
                       title: 'No open posts',
                       message: 'Create a post first, then attach the video from its page.',

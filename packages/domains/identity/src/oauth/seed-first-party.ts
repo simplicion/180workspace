@@ -33,24 +33,29 @@ export const FIRST_PARTY_APPS = [
         logoUrl: '/icon.svg'
     },
     {
-        clientId: '180-pitch-network',
-        name: 'Pitch in 180',
-        description: 'High-Impact 180s Elevator Pitches, Startup Gigs & Opportunities',
+        clientId: '180-social-studio-mobile',
+        name: '180 Social Studio',
+        description: 'Multi-Channel Social Media Automation & Analytics',
         redirectUris: [
-            '180pitch://oauth-callback',
-            'http://localhost:3000/pitch/callback',
-            'https://pitch.180workspace.com/callback'
+            '180social://oauth-callback',
+            'http://localhost:3000/social/callback',
+            'http://localhost:3007/oauth-callback',
+            'http://localhost:3007/#/oauth-callback',
+            'http://localhost:3007/callback',
+            'http://localhost:3007',
+            'https://social.180workspace.com/callback'
         ],
         allowedOrigins: [
             'http://localhost:3000',
-            'https://pitch.180workspace.com'
+            'http://localhost:3007',
+            'http://127.0.0.1:3007',
+            'https://social.180workspace.com'
         ],
         allowedScopes: [
             'openid',
             'identity:read',
             'identity:email',
-            'pitch:read',
-            'pitch:write',
+            'social:publish',
             'messages:send'
         ],
         isVerified: true,
@@ -58,15 +63,77 @@ export const FIRST_PARTY_APPS = [
         logoUrl: '/icon.svg'
     },
     {
-        clientId: '180-social-studio-mobile',
-        name: '180 Social Studio',
-        description: 'Multi-Channel Social Media Automation & Analytics',
+        clientId: '180-developers-portal',
+        name: '180 Developers Console',
+        description: 'Developer Console & API Management for 180 Workspace Ecosystem',
         redirectUris: [
-            '180social://oauth-callback',
-            'http://localhost:3000/social/callback'
+            'http://localhost:3000/callback',
+            'http://localhost:3008/callback',
+            'http://localhost:3002/callback',
+            'https://developers.180workspace.com/callback'
         ],
         allowedOrigins: [
-            'http://localhost:3000'
+            'http://localhost:3000',
+            'http://localhost:3008',
+            'http://localhost:3002',
+            'https://developers.180workspace.com'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email',
+            'developer:read',
+            'developer:write'
+        ],
+        isVerified: true,
+        isActive: true,
+        logoUrl: '/icon.svg'
+    },
+    {
+        clientId: '180-developer-portal',
+        name: '180 Developers Console',
+        description: 'Developer Console & API Management for 180 Workspace Ecosystem',
+        redirectUris: [
+            'http://localhost:3000/callback',
+            'http://localhost:3008/callback',
+            'http://localhost:3002/callback',
+            'https://developers.180workspace.com/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3000',
+            'http://localhost:3008',
+            'http://localhost:3002',
+            'https://developers.180workspace.com'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email',
+            'developer:read',
+            'developer:write'
+        ],
+        isVerified: true,
+        isActive: true,
+        logoUrl: '/icon.svg'
+    },
+    {
+        clientId: '180-traffic-director',
+        name: '180 Traffic Director',
+        description: 'Enterprise Edge Traffic Router, Safe-Page Cloaker & Click Armor',
+        redirectUris: [
+            'http://localhost:3000/callback',
+            'http://localhost:3009/callback',
+            'http://localhost:3002/callback',
+            'https://trafficdirector.180workspace.com/callback',
+            'https://*.180workspace.com/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3000',
+            'http://localhost:3009',
+            'http://127.0.0.1:3009',
+            'http://localhost:3002',
+            'https://trafficdirector.180workspace.com',
+            'https://*.180workspace.com'
         ],
         allowedScopes: [
             'openid',
@@ -118,6 +185,19 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                     }
                 });
                 console.log(`[SeedFirstParty] Created first-party OAuth app: ${app.name} (${app.clientId})`);
+            } else {
+                await prisma.oAuthApp.update({
+                    where: { id: existing.id },
+                    data: {
+                        name: app.name,
+                        description: app.description,
+                        redirectUris: app.redirectUris,
+                        allowedOrigins: app.allowedOrigins,
+                        allowedScopes: app.allowedScopes,
+                        isVerified: true,
+                        isActive: true
+                    }
+                });
             }
         }
     } catch (e: any) {

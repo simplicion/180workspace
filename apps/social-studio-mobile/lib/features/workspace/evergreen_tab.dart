@@ -20,14 +20,14 @@ class EvergreenTab extends ConsumerWidget {
 
   Future<void> _addSlot(BuildContext context, WidgetRef ref) async {
     var day = 1;
-    var time = const TimeOfDay(hour: 10, minute: 0);
+    var time = TimeOfDay(hour: 10, minute: 0);
     var category = EvergreenSlot.categoryPresets.first;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) => AlertDialog(
           backgroundColor: AppTheme.surfaceElevated,
-          title: const Text('New evergreen slot'),
+          title: Text('New evergreen slot'),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             DropdownButtonFormField<int>(
               isExpanded: true,
@@ -36,16 +36,16 @@ class EvergreenTab extends ConsumerWidget {
               items: [for (var i = 0; i < 7; i++) DropdownMenuItem(value: i, child: Text(EvergreenSlot.dayNames[i]))],
               onChanged: (v) => set(() => day = v ?? 1),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             OutlinedButton.icon(
-              icon: const Icon(Icons.schedule_rounded),
+              icon: Icon(Icons.schedule_rounded),
               label: Text('${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')} UTC'),
               onPressed: () async {
                 final t = await showTimePicker(context: ctx, initialTime: time, helpText: 'Time (UTC)');
                 if (t != null) set(() => time = t);
               },
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             DropdownButtonFormField<String>(
               isExpanded: true,
               initialValue: category,
@@ -55,8 +55,8 @@ class EvergreenTab extends ConsumerWidget {
             ),
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Add')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Add')),
           ],
         ),
       ),
@@ -84,28 +84,28 @@ class EvergreenTab extends ConsumerWidget {
         ref.invalidate(evergreenSlotsProvider(project.id));
         ref.invalidate(projectPostsProvider(q));
       },
-      child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 96), children: [
+      child: ListView(padding: EdgeInsets.fromLTRB(16, 8, 16, 96), children: [
         SectionHeader('Weekly slots',
             trailing: TextButton.icon(
-                onPressed: () => _addSlot(context, ref), icon: const Icon(Icons.add_rounded, size: 18), label: const Text('Add slot'))),
+                onPressed: () => _addSlot(context, ref), icon: Icon(Icons.add_rounded, size: 18), label: Text('Add slot'))),
         slots.when(
-          loading: () => const Padding(padding: EdgeInsets.all(16), child: LoadingView()),
+          loading: () => Padding(padding: EdgeInsets.all(16), child: LoadingView()),
           error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(evergreenSlotsProvider(project.id))),
           data: (list) => list.isEmpty
-              ? const SectionCard(child: Text('No slots. Add one to recycle top content automatically.'))
+              ? SectionCard(child: Text('No slots. Add one to recycle top content automatically.'))
               : Column(children: [
                   for (final s in [...list]..sort((a, b) => a.dayOfWeek != b.dayOfWeek ? a.dayOfWeek.compareTo(b.dayOfWeek) : a.timeSlotUtc.compareTo(b.timeSlotUtc)))
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: EdgeInsets.only(bottom: 8),
                       child: SectionCard(
-                        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+                        padding: EdgeInsets.fromLTRB(12, 4, 4, 4),
                         child: Row(children: [
-                          const Icon(Icons.autorenew_rounded, color: AppTheme.success),
-                          const SizedBox(width: 12),
+                          Icon(Icons.autorenew_rounded, color: AppTheme.success),
+                          SizedBox(width: 12),
                           Expanded(child: Text('${s.dayName} · ${s.timeSlotUtc} UTC\n${s.category}')),
-                          if (!s.isActive) const StatusChip(label: 'Paused', color: AppTheme.textMuted),
+                          if (!s.isActive) StatusChip(label: 'Paused', color: AppTheme.textMuted),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded),
+                            icon: Icon(Icons.delete_outline_rounded),
                             onPressed: () async {
                               if (!await confirm(context, title: 'Delete slot?', message: '${s.dayName} ${s.timeSlotUtc} UTC', action: 'Delete', destructive: true)) return;
                               if (!context.mounted) return;
@@ -118,12 +118,12 @@ class EvergreenTab extends ConsumerWidget {
                     ),
                 ]),
         ),
-        const SectionHeader('Evergreen posts'),
+        SectionHeader('Evergreen posts'),
         posts.when(
-          loading: () => const Padding(padding: EdgeInsets.all(16), child: LoadingView()),
+          loading: () => Padding(padding: EdgeInsets.all(16), child: LoadingView()),
           error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(projectPostsProvider(q))),
           data: (list) => list.isEmpty
-              ? const SectionCard(child: Text('Mark a post as Evergreen in the composer to add it here.'))
+              ? SectionCard(child: Text('Mark a post as Evergreen in the composer to add it here.'))
               : Column(children: [
                   for (final SocialPost p in list)
                     PostTile(post: p, trailing: Text('×${p.reuseCount}', style: Theme.of(context).textTheme.labelSmall)),

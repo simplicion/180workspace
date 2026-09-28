@@ -1,6 +1,6 @@
 'use strict';
 
-import { prisma } from '@workspace/db';
+import { developersPrisma as prisma } from '@workspace/db-180developers';
 import {
     generateRandomToken,
     hashSecret,
@@ -70,7 +70,7 @@ export class OAuthController {
             try {
                 app = await prisma.oAuthApp.findUnique({
                     where: { clientId: String(client_id) },
-                    include: { company: true, user: true }
+                    include: { user: true }
                 });
             } catch (e) {
                 app = null;
@@ -99,6 +99,10 @@ export class OAuthController {
 
             if (!app || !app.isActive) {
                 return res.status(400).json({ error: 'unauthorized_client', error_description: 'OAuth Application not found or inactive' });
+            }
+
+            if (app.enableAuth === false) {
+                return res.status(403).json({ error: 'unauthorized_client', error_description: '180 Identity Authentication is disabled for this application. Please enable it in your 180 Developer Portal.' });
             }
 
             // Redirect URI validation (RFC 9700 Open Redirector Defense)

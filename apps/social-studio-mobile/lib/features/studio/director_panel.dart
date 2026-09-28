@@ -59,40 +59,40 @@ class _DirectorPanelState extends State<DirectorPanel> {
         height: MediaQuery.of(context).size.height * 0.75,
         child: Column(children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+            padding: EdgeInsets.fromLTRB(16, 16, 8, 8),
             child: Row(children: [
-              const Icon(Icons.auto_awesome_rounded, color: AppTheme.primary),
-              const SizedBox(width: 8),
+              Icon(Icons.auto_awesome_rounded, color: AppTheme.primary),
+              SizedBox(width: 8),
               Expanded(child: Text('AI Director', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18))),
-              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+              IconButton(onPressed: () => Navigator.pop(context), icon: Icon(Icons.close_rounded)),
             ]),
           ),
           if (c.transcriptState != TranscriptState.ready)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 c.transcriptState == TranscriptState.running
                     ? 'Transcribing… Speech-based edits (pauses, captions, fillers) work once the transcript is ready.'
                     : 'No transcript, so the director cannot cut pauses or add captions. Visual edits still work.',
-                style: const TextStyle(fontSize: 12, color: AppTheme.warning),
+                style: TextStyle(fontSize: 12, color: AppTheme.warning),
               ),
             ),
           Expanded(
             child: msgs.isEmpty
-                ? ListView(padding: const EdgeInsets.all(16), children: [
-                    const Text('Describe the edit you want in plain words. The director uses your transcript, stock footage and music, then updates the timeline. You can undo anything.',
+                ? ListView(padding: EdgeInsets.all(16), children: [
+                    Text('Describe the edit you want in plain words. The director uses your transcript, stock footage and music, then updates the timeline. You can undo anything.',
                         style: TextStyle(color: AppTheme.textSecondary)),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     Wrap(spacing: 8, runSpacing: 8, children: [
                       for (final s in _starters) ActionChip(label: Text(s), onPressed: () => _send(s)),
                     ]),
                   ])
                 : ListView.builder(
-                    padding: const EdgeInsets.all(12),
+                    padding: EdgeInsets.all(12),
                     itemCount: msgs.length + (c.directorBusy ? 1 : 0),
                     itemBuilder: (_, i) {
                       if (i == msgs.length) {
-                        return const Padding(
+                        return Padding(
                           padding: EdgeInsets.all(12),
                           child: Row(children: [
                             SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
@@ -108,8 +108,8 @@ class _DirectorPanelState extends State<DirectorPanel> {
           SafeArea(
             top: false,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-              decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppTheme.border))),
+              padding: EdgeInsets.fromLTRB(12, 8, 8, 8),
+              decoration: BoxDecoration(border: Border(top: BorderSide(color: AppTheme.border))),
               child: Row(children: [
                 Expanded(
                   child: TextField(
@@ -124,7 +124,7 @@ class _DirectorPanelState extends State<DirectorPanel> {
                 IconButton(
                   tooltip: 'Send',
                   onPressed: c.directorBusy ? null : _send,
-                  icon: const Icon(Icons.send_rounded, color: AppTheme.primary),
+                  icon: Icon(Icons.send_rounded, color: AppTheme.primary),
                 ),
               ]),
             ),
@@ -148,8 +148,8 @@ class _MessageTile extends StatelessWidget {
       return Align(
         alignment: Alignment.centerRight,
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          margin: EdgeInsets.symmetric(vertical: 4),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
           decoration: BoxDecoration(color: AppTheme.primary, borderRadius: BorderRadius.circular(14)),
           child: Text(m.text),
@@ -157,34 +157,34 @@ class _MessageTile extends StatelessWidget {
       );
     }
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(color: AppTheme.surfaceElevated, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppTheme.border)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(m.text),
         if (r != null && r.appliedOperations.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Wrap(spacing: 6, runSpacing: 6, children: [
             for (final op in r.appliedOperations) StatusChip(label: op, color: m.applied ? AppTheme.success : AppTheme.accentBlue),
           ]),
         ],
         if (r != null && r.rejectedOperations.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text('Could not apply: ${r.rejectedOperations.join(', ')}', style: const TextStyle(fontSize: 12, color: AppTheme.warning)),
+          SizedBox(height: 6),
+          Text('Could not apply: ${r.rejectedOperations.join(', ')}', style: TextStyle(fontSize: 12, color: AppTheme.warning)),
         ],
         for (final w in r?.warnings ?? const <String>[])
-          Padding(padding: const EdgeInsets.only(top: 4), child: Text('• $w', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary))),
+          Padding(padding: EdgeInsets.only(top: 4), child: Text('• $w', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary))),
         if (r != null && r.isDeterministic && r.plannerReason != null)
           Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text('Basic mode: ${r.plannerReason}', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+            padding: EdgeInsets.only(top: 6),
+            child: Text('Basic mode: ${r.plannerReason}', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
           ),
         if (r != null && !m.applied && r.appliedOperations.isNotEmpty)
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton.icon(onPressed: onApply, icon: const Icon(Icons.check_rounded, size: 18), label: const Text('Apply to timeline')),
+            child: FilledButton.icon(onPressed: onApply, icon: Icon(Icons.check_rounded, size: 18), label: Text('Apply to timeline')),
           ),
-        if (m.applied) const Padding(padding: EdgeInsets.only(top: 6), child: Text('Applied · tap any item on the timeline to change it · Undo is in the top bar', style: TextStyle(fontSize: 11, color: AppTheme.success))),
+        if (m.applied) Padding(padding: EdgeInsets.only(top: 6), child: Text('Applied · tap any item on the timeline to change it · Undo is in the top bar', style: TextStyle(fontSize: 11, color: AppTheme.success))),
       ]),
     );
   }

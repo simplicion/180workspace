@@ -9,7 +9,7 @@ env:
 
 jobs:
   # ====================================================
-  # Phase 1: Deploy Marketing Web to Cloudflare Pages
+  # Phase 1: Deploy Frontends to Cloudflare Pages
   # ====================================================
   deploy-marketing-cloudflare:
     name: Deploy Marketing Site to Cloudflare Pages
@@ -42,6 +42,103 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy apps/marketing-web/dist --project-name=180workspace-marketing --branch=main --commit-dirty=true
 
+  deploy-profile-cloudflare:
+    name: Deploy 180 Profile Frontend (profile, auth, pay) to Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build 180 Profile Frontend
+        env:
+          NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
+        run: pnpm turbo run build --filter=180-profile-frontend...
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/180-profile-frontend/.next --project-name=180workspace-profile --branch=main --commit-dirty=true
+
+  deploy-developer-cloudflare:
+    name: Deploy 180 Developer Portal to Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build 180 Developer Portal
+        env:
+          NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
+        run: pnpm turbo run build --filter=180developers-frontend...
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/180developers-frontend/.next --project-name=180workspace-developer --branch=main --commit-dirty=true
+
+  deploy-docs-cloudflare:
+    name: Deploy 180 Documentation (docs.180workspace.com) to Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build 180 Documentation Site
+        run: pnpm turbo run build --filter=apps-docs...
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/docs/build --project-name=180workspace-docs --branch=main --commit-dirty=true
+
   # ====================================================
   # Phase 2: Build & Push Docker Images (GHCR)
   # ====================================================
@@ -58,6 +155,9 @@ jobs:
           - name: backend
             file: ./Dockerfile
             suffix: ""
+          - name: core-backend
+            file: ./apps/180-core-backend/Dockerfile
+            suffix: "-core-backend"
           - name: frontend
             file: ./apps/frontend/Dockerfile
             suffix: "-frontend"
@@ -322,6 +422,8 @@ jobs:
 
             const subdomainsToUpdate = [
               'api.180workspace.com',
+              'services.180workspace.com',
+              'api.auth.180workspace.com',
               'app.180workspace.com',
               'admin.180workspace.com',
               'livekit.180workspace.com',

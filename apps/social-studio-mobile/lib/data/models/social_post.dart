@@ -6,23 +6,39 @@ import 'platform.dart';
 
 /// `SocialPost.status` exactly as the backend stores it.
 enum PostStatus {
-  draft('draft', 'Draft', AppTheme.textSecondary),
-  scheduled('scheduled', 'Scheduled', AppTheme.accentBlue),
-  inEditing('in_editing', 'In editing', AppTheme.accent),
-  inReview('in_review', 'In review', AppTheme.warning),
-  pendingReview('pending_review', 'Pending review', AppTheme.warning),
-  approved('approved', 'Approved', AppTheme.success),
-  ready('ready', 'Ready', AppTheme.accentCyan),
-  publishing('publishing', 'Publishing', AppTheme.accentBlue),
-  published('published', 'Published', AppTheme.success),
-  partiallyPublished('partially_published', 'Partially published', AppTheme.warning),
-  failed('failed', 'Failed', AppTheme.error),
-  unknown('unknown', 'Unknown', AppTheme.textMuted);
+  draft('draft', 'Draft'),
+  scheduled('scheduled', 'Scheduled'),
+  inEditing('in_editing', 'In editing'),
+  inReview('in_review', 'In review'),
+  pendingReview('pending_review', 'Pending review'),
+  approved('approved', 'Approved'),
+  ready('ready', 'Ready'),
+  publishing('publishing', 'Publishing'),
+  published('published', 'Published'),
+  partiallyPublished('partially_published', 'Partially published'),
+  failed('failed', 'Failed'),
+  unknown('unknown', 'Unknown');
 
-  const PostStatus(this.id, this.label, this.color);
+  const PostStatus(this.id, this.label);
   final String id;
   final String label;
-  final Color color;
+
+  Color get color {
+    switch (this) {
+      case PostStatus.draft: return AppTheme.textSecondary;
+      case PostStatus.scheduled: return AppTheme.accentBlue;
+      case PostStatus.inEditing: return AppTheme.accent;
+      case PostStatus.inReview: return AppTheme.warning;
+      case PostStatus.pendingReview: return AppTheme.warning;
+      case PostStatus.approved: return AppTheme.success;
+      case PostStatus.ready: return AppTheme.success;
+      case PostStatus.publishing: return AppTheme.accentBlue;
+      case PostStatus.published: return AppTheme.success;
+      case PostStatus.partiallyPublished: return AppTheme.warning;
+      case PostStatus.failed: return AppTheme.error;
+      case PostStatus.unknown: return AppTheme.textMuted;
+    }
+  }
 
   /// Statuses offered in the content list filter (parity with ContentListTab).
   static const filterable = [draft, inEditing, inReview, approved, scheduled, published];
@@ -32,7 +48,7 @@ enum PostStatus {
 }
 
 class PostVariant {
-  const PostVariant({
+  PostVariant({
     this.id,
     required this.platform,
     this.customContent,
@@ -82,7 +98,7 @@ class PostVariant {
 }
 
 class ReviewComment {
-  const ReviewComment({
+  ReviewComment({
     required this.id,
     required this.text,
     this.authorName,
@@ -109,7 +125,7 @@ class ReviewComment {
 }
 
 class ExternalLink {
-  const ExternalLink({required this.url, this.provider, this.label, this.submittedAt});
+  ExternalLink({required this.url, this.provider, this.label, this.submittedAt});
   final String url;
   final String? provider;
   final String? label;
@@ -141,7 +157,7 @@ class ExternalLink {
 }
 
 class SocialPost {
-  const SocialPost({
+  SocialPost({
     required this.id,
     required this.content,
     this.title,
@@ -230,7 +246,7 @@ class SocialPost {
     final fromVariants = variants.map((v) => v.platform).toSet().toList();
     if (fromVariants.isNotEmpty) return fromVariants;
     if (accountPlatform != null) return [accountPlatform!];
-    return const [];
+    return [];
   }
 
   int get unresolvedComments => reviewComments.where((c) => !c.resolved).length;
@@ -238,7 +254,7 @@ class SocialPost {
   /// Per-platform publishing errors. `errorMessage` is a JSON string `{platform: message}`.
   Map<String, String> get platformErrors {
     final raw = errorMessage;
-    if (raw == null || raw.isEmpty) return const {};
+    if (raw == null || raw.isEmpty) return {};
     final m = jMap(raw);
     if (m.isEmpty) return {'error': raw};
     return m.map((k, v) => MapEntry(k, '$v'));
@@ -297,7 +313,7 @@ class SocialPost {
 
 /// Result of `GET /posts/:id/validate-publish`.
 class PublishReadiness {
-  const PublishReadiness({
+  PublishReadiness({
     required this.isReady,
     required this.issues,
     this.schedulingBlockers = const [],
@@ -324,7 +340,7 @@ class PublishReadiness {
       schedulingBlockers: j['schedulingBlockers'] is List ? jStrList(j['schedulingBlockers']) : issues,
       approvalPending: jBool(j['approvalPending']),
       warnings: [
-        for (final w in (j['warnings'] is List ? j['warnings'] as List : const []))
+        for (final w in (j['warnings'] is List ? j['warnings'] as List : []))
           if (w is String) w else if (w is Map && w['message'] is String) w['message'] as String,
       ],
     );
@@ -333,7 +349,7 @@ class PublishReadiness {
 
 /// Result of `POST /posts/:id/publish`, shown verbatim (including per-platform errors).
 class PublishResult {
-  const PublishResult({
+  PublishResult({
     required this.status,
     required this.message,
     required this.publishedLinks,

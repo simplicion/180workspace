@@ -129,7 +129,7 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     p.setPlaybackSpeed(ir.clips[clipIndex].speed);
     p.setVolume(ir.clips[clipIndex].volumeDb <= -60 ? 0 : 1);
     p.play();
-    _tick = Timer.periodic(const Duration(milliseconds: 40), (_) {
+    _tick = Timer.periodic(Duration(milliseconds: 40), (_) {
       final cur = c.ir;
       if (cur == null || !mounted) return;
       final clip = cur.clips[clipIndex.clamp(0, cur.clips.length - 1)];
@@ -201,12 +201,12 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
         backgroundColor: AppTheme.background,
         appBar: AppBar(
           backgroundColor: AppTheme.surface,
-          title: const Text('Studio'),
+          title: Text('Studio'),
           actions: [
-            IconButton(tooltip: 'Undo', onPressed: c.canUndo ? c.undo : null, icon: const Icon(Icons.undo_rounded)),
-            IconButton(tooltip: 'Redo', onPressed: c.canRedo ? c.redo : null, icon: const Icon(Icons.redo_rounded)),
+            IconButton(tooltip: 'Undo', onPressed: c.canUndo ? c.undo : null, icon: Icon(Icons.undo_rounded)),
+            IconButton(tooltip: 'Redo', onPressed: c.canRedo ? c.redo : null, icon: Icon(Icons.redo_rounded)),
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: EdgeInsets.only(right: 8),
               child: FilledButton(
                 onPressed: ir == null
                     ? null
@@ -214,13 +214,13 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
                         _stop();
                         showExportSheet(context, c);
                       },
-                child: const Text('Export'),
+                child: Text('Export'),
               ),
             ),
           ],
         ),
         body: _loading
-            ? const LoadingView(label: 'Opening video…')
+            ? LoadingView(label: 'Opening video…')
             : ir == null
                 ? _Empty(error: _loadError, onPick: _pick, onRecord: () => context.pushReplacement(
                     '/camera?projectId=${widget.projectId ?? ''}&postId=${widget.postId ?? ''}'))
@@ -253,16 +253,16 @@ class _Empty extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(32),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            if (error != null) ...[ErrorView(error: error!, compact: true), const SizedBox(height: 16)],
-            const Icon(Icons.movie_edit, size: 48, color: AppTheme.textSecondary),
-            const SizedBox(height: 12),
+            if (error != null) ...[ErrorView(error: error!, compact: true), SizedBox(height: 16)],
+            Icon(Icons.movie_edit, size: 48, color: AppTheme.textSecondary),
+            SizedBox(height: 12),
             Text('Choose a video to edit', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 20),
-            FilledButton.icon(onPressed: onPick, icon: const Icon(Icons.video_library_rounded), label: const Text('Choose from gallery')),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(onPressed: onRecord, icon: const Icon(Icons.videocam_rounded), label: const Text('Record with teleprompter')),
+            SizedBox(height: 20),
+            FilledButton.icon(onPressed: onPick, icon: Icon(Icons.video_library_rounded), label: Text('Choose from gallery')),
+            SizedBox(height: 8),
+            OutlinedButton.icon(onPressed: onRecord, icon: Icon(Icons.videocam_rounded), label: Text('Record with teleprompter')),
           ]),
         ),
       );
@@ -288,7 +288,7 @@ class _Preview extends StatelessWidget {
     final canvasAspect = ir.canvas.width / ir.canvas.height;
     return Container(
       color: AppTheme.background,
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       child: Center(
         child: AspectRatio(
           aspectRatio: canvasAspect,
@@ -306,20 +306,20 @@ class _Preview extends StatelessWidget {
                   Image.network(
                     broll.source['url'] as String,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    errorBuilder: (_, _, _) => SizedBox.shrink(),
                   ),
                 if (broll != null)
                   Container(
                     color: broll.isImage ? null : Colors.black54,
                     alignment: Alignment.topLeft,
-                    padding: const EdgeInsets.all(8),
+                    padding: EdgeInsets.all(8),
                     child: StatusChip(label: '${broll.isImage ? 'Photo' : 'B-roll'}: ${broll.source['query'] ?? broll.source['kind']}', color: AppTheme.accentBlue, icon: Icons.layers_rounded),
                   ),
                 for (final cap in captions)
                   Align(
                     alignment: Alignment(0, ((cap.style['positionY'] as num?)?.toDouble() ?? 0.72) * 2 - 1),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: EdgeInsets.symmetric(horizontal: 12),
                       child: _CaptionPreview(caption: cap, t: t),
                     ),
                   ),
@@ -350,7 +350,7 @@ class _CroppedVideo extends StatelessWidget {
     final sideways = clip.rotationDeg == 90 || clip.rotationDeg == 270;
     final srcW = sideways ? size.height : size.width;
     final srcH = sideways ? size.width : size.height;
-    final crop = clip.crop ?? const EditIrCrop(x: 0, y: 0, width: 1, height: 1);
+    final crop = clip.crop ?? EditIrCrop(x: 0, y: 0, width: 1, height: 1);
     Widget video = Transform(
       alignment: Alignment.center,
       transform: Matrix4.identity()
@@ -418,7 +418,7 @@ class _CaptionPreview extends StatelessWidget {
 
     final upper = st['uppercase'] == true;
     final text = col('textColor', Colors.white);
-    final hi = col('highlightColor', const Color(0xFFFFE600));
+    final hi = col('highlightColor', Color(0xFFFFE600));
     final bgSpec = st['background'];
     final bg = bgSpec is Map ? col2(bgSpec['color'], Colors.black.withValues(alpha: 0.7)) : null;
     final spans = caption.words.isEmpty || caption.kind == 'text'
@@ -437,7 +437,7 @@ class _CaptionPreview extends StatelessWidget {
               ),
           ];
     return Container(
-      padding: bg == null ? null : const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: bg == null ? null : EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: bg == null ? null : BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
       child: Text.rich(
         TextSpan(children: spans),
@@ -448,7 +448,7 @@ class _CaptionPreview extends StatelessWidget {
           fontSize: caption.kind == 'text' ? 22 : 18,
           shadows: [
             if (st['glow'] == true) Shadow(blurRadius: 12, color: hi),
-            if (st['shadow'] == true || (st['strokeWidthPx'] as num? ?? 0) > 0) ...const [
+            if (st['shadow'] == true || (st['strokeWidthPx'] as num? ?? 0) > 0) ...[
               Shadow(blurRadius: 4, color: Colors.black),
               Shadow(blurRadius: 1, color: Colors.black),
             ],
@@ -472,16 +472,16 @@ class _TransportBar extends StatelessWidget {
     final mono = GoogleFonts.jetBrainsMono(fontSize: 13, color: AppTheme.textPrimary);
     return Container(
       color: AppTheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(horizontal: 8),
       height: 48,
       child: Row(children: [
         IconButton(tooltip: playing ? 'Pause' : 'Play', onPressed: onPlay, icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded)),
         Text(timecode(controller.playheadMs), style: mono),
         Text(' / ${timecode(ir.durationMs)}', style: mono.copyWith(color: AppTheme.textMuted)),
-        const Spacer(),
+        Spacer(),
         Text('${ir.canvas.aspect} · ${ir.clips.length} clip${ir.clips.length == 1 ? '' : 's'}',
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-        IconButton(tooltip: 'Split at playhead', onPressed: onSplit, icon: const Icon(Icons.content_cut_rounded)),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+        IconButton(tooltip: 'Split at playhead', onPressed: onSplit, icon: Icon(Icons.content_cut_rounded)),
       ]),
     );
   }
@@ -500,17 +500,17 @@ class _TranscriptChip extends StatelessWidget {
       TranscriptState.failed => ('No transcript: ${errorText(c.transcriptError ?? '')}', AppTheme.warning, Icons.info_rounded),
       TranscriptState.idle => ('', AppTheme.textMuted, Icons.info_rounded),
     };
-    if (label.isEmpty) return const SizedBox.shrink();
+    if (label.isEmpty) return SizedBox.shrink();
     return Container(
       width: double.infinity,
       color: AppTheme.surface,
-      padding: const EdgeInsets.fromLTRB(12, 0, 4, 4),
+      padding: EdgeInsets.fromLTRB(12, 0, 4, 4),
       child: Row(children: [
         Icon(icon, size: 14, color: color),
-        const SizedBox(width: 6),
+        SizedBox(width: 6),
         Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: color))),
         if (c.transcriptState == TranscriptState.failed && (c.meta?.hasAudio ?? false))
-          TextButton(onPressed: c.transcribe, child: const Text('Retry')),
+          TextButton(onPressed: c.transcribe, child: Text('Retry')),
       ]),
     );
   }
@@ -523,12 +523,12 @@ class _ToolBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: const BoxDecoration(color: AppTheme.surface, border: Border(top: BorderSide(color: AppTheme.border))),
+        decoration: BoxDecoration(color: AppTheme.surface, border: Border(top: BorderSide(color: AppTheme.border))),
         child: SafeArea(
           top: false,
           child: SizedBox(
             height: 68,
-            child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 4), children: [
+            child: ListView(scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 4), children: [
               for (final t in StudioTool.values)
                 InkWell(
                   onTap: () => onTool(t),
@@ -536,8 +536,8 @@ class _ToolBar extends StatelessWidget {
                     width: 64,
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Icon(t.icon, color: t == StudioTool.director ? AppTheme.primary : AppTheme.textPrimary, size: 22),
-                      const SizedBox(height: 4),
-                      Text(t.label, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary), maxLines: 1),
+                      SizedBox(height: 4),
+                      Text(t.label, style: TextStyle(fontSize: 10, color: AppTheme.textSecondary), maxLines: 1),
                     ]),
                   ),
                 ),

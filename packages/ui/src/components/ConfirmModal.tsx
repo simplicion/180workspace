@@ -97,20 +97,21 @@ export function ConfirmModal({
     const { Icon } = currentVariant;
 
     return createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 border border-gray-100">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 border border-gray-100 dark:border-white/10 text-zinc-900 dark:text-zinc-100">
                 {/* Header/Icon */}
                 <div className="p-6 text-center">
                     <div className={clsx(
                         "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 border",
                         currentVariant.bg,
-                        currentVariant.border
+                        currentVariant.border,
+                        "dark:bg-opacity-20"
                     )}>
                         <Icon className={clsx("w-6 h-6", currentVariant.icon)} />
                     </div>
 
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">{title}</h2>
-                    <p className="text-gray-500 text-sm leading-relaxed mb-4">{displayMessage}</p>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100 mb-2">{title}</h2>
+                    <p className="text-gray-500 dark:text-zinc-400 text-sm leading-relaxed mb-4">{displayMessage}</p>
 
                     {type === 'prompt' && (
                         <input
@@ -119,7 +120,7 @@ export function ConfirmModal({
                             value={promptValue}
                             onChange={(e) => setPromptValue(e.target.value)}
                             placeholder={placeholder}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-sm"
+                            className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-white/10 text-zinc-900 dark:text-white rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-sm"
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' && !loading) onConfirm(promptValue);
                                 if (e.key === 'Escape' && handleClose) handleClose();
@@ -129,12 +130,12 @@ export function ConfirmModal({
                 </div>
 
                 {/* Actions */}
-                <div className="px-6 py-4 bg-gray-50 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <div className="px-6 py-4 bg-gray-50 dark:bg-zinc-900/80 border-t border-gray-100 dark:border-white/10 flex flex-col sm:flex-row items-center justify-center gap-3">
                     {type !== 'alert' && (
                         <button
                             onClick={handleClose}
                             disabled={loading}
-                            className="w-full sm:w-auto flex-1 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                            className="w-full sm:w-auto flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 min-h-[44px] cursor-pointer"
                         >
                             {cancelText}
                         </button>
@@ -147,7 +148,7 @@ export function ConfirmModal({
                                     onClick={action.onClick}
                                     disabled={loading}
                                     className={clsx(
-                                        "w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-semibold transition-all focus:ring-2 focus:ring-offset-2 disabled:opacity-50 flex items-center justify-center gap-2",
+                                        "w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-semibold transition-all focus:ring-2 focus:ring-offset-2 disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
                                         action.className || currentVariant.btn
                                     )}
                                 >
@@ -161,7 +162,7 @@ export function ConfirmModal({
                             onClick={() => onConfirm(type === 'prompt' ? promptValue : undefined)}
                             disabled={loading}
                             className={clsx(
-                                "w-full sm:w-auto px-4 py-2.5 rounded-xl text-white text-sm font-semibold transition-all focus:ring-2 focus:ring-offset-2 disabled:opacity-50 flex items-center justify-center gap-2",
+                                "w-full sm:w-auto px-4 py-2.5 rounded-xl text-white text-sm font-semibold transition-all focus:ring-2 focus:ring-offset-2 disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
                                 type !== 'alert' ? "flex-1" : "min-w-[120px]",
                                 currentVariant.btn
                             )}

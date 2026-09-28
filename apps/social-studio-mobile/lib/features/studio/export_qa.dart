@@ -15,7 +15,7 @@ enum QaFix {
 }
 
 class QaIssue {
-  const QaIssue({
+  QaIssue({
     required this.id,
     required this.severity,
     required this.title,
@@ -87,7 +87,7 @@ List<QaIssue> evaluateExportQa(ExportQa qa, {required MobileEditIr ir, required 
   }
   final wantsAudio = timelineExpectsAudio(ir, sourceHasAudio: sourceHasAudio);
   if (wantsAudio && !qa.hasAudio) {
-    issues.add(const QaIssue(
+    issues.add(QaIssue(
       id: 'missing_audio',
       severity: QaSeverity.critical,
       title: 'No sound',
@@ -95,7 +95,7 @@ List<QaIssue> evaluateExportQa(ExportQa qa, {required MobileEditIr ir, required 
       fix: QaFix.exportAgain,
     ));
   } else if (wantsAudio && qa.hasAudio && qa.integratedLufs == null) {
-    issues.add(const QaIssue(
+    issues.add(QaIssue(
       id: 'silent_audio',
       severity: QaSeverity.critical,
       title: 'Silent audio',

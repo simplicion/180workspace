@@ -26,8 +26,6 @@ export async function GET(
   const candidatePaths = [
     path.resolve(process.cwd(), "public/downloads/180Workspace-Setup-x64.exe"),
     path.resolve(process.cwd(), "../marketing-web/public/downloads/180Workspace-Setup-x64.exe"),
-    path.resolve(process.cwd(), "../desktop-app/windows/180Workspace-Setup-x64.exe"),
-    path.resolve(process.cwd(), "../desktop-app/windows/180Workspace.exe"),
   ];
 
   for (const p of candidatePaths) {

@@ -1,0 +1,107 @@
+'use strict';
+
+import path from 'path';
+import dotenv from 'dotenv';
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import compression from 'compression';
+
+import authRoutes from './routes/auth.routes';
+import walletRoutes from './routes/wallet.routes';
+import checkoutRoutes from './routes/checkout.routes';
+import developerRoutes from './routes/developer.routes';
+
+const app = express();
+const server = http.createServer(app);
+
+// Security & Performance Middlewares
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+  })
+);
+app.use(compression() as any);
+app.use(morgan('dev') as any);
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// CORS configuration supporting 180 Profile, Developers, and external origins
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3008',
+  'http://localhost:3009',
+  'https://180workspace.com',
+  'https://profile.180workspace.com',
+  'https://developers.180workspace.com',
+  'https://auth.180workspace.com',
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, server-to-server) or matching allowed
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('180workspace.com')) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all for 3rd-party checkout and OAuth integrations
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-180-Signature', 'X-180-Event'],
+  })
+);
+
+// Healthcheck
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: '180-core-backend',
+    timestamp: new Date().toISOString(),
+    domains: ['identity', 'wallet', 'checkout', 'developer', 'payout'],
+  });
+});
+
+// ─── Domain Routes Registration ──────────────────────────────────────────────
+app.use('/oauth', authRoutes);
+app.use('/api/oauth', authRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/identity/oauth', authRoutes);
+app.use('/api/v1/identity', authRoutes);
+
+app.use('/api/v1/wallet', walletRoutes);
+app.use('/api/oauth/wallet', walletRoutes);
+
+app.use('/api/v1/checkout', checkoutRoutes);
+app.use('/api/oauth/checkout', checkoutRoutes);
+app.use('/api/v1/payment/checkout', checkoutRoutes);
+
+app.use('/api/v1/developer', developerRoutes);
+app.use('/api/oauth/developer', developerRoutes);
+app.use('/api/v1/identity/developer', developerRoutes);
+
+// Error Handling
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('[180-core-backend] Unhandled Error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    error: err.message || 'Internal Server Error',
+  });
+});
+
+const PORT = process.env.PORT || process.env.CORE_BACKEND_PORT || 4003;
+
+server.listen(PORT, () => {
+  console.log(`🚀 180 Core Dedicated Backend running on http://localhost:${PORT}`);
+  console.log(`💳 Domains active: Identity / OAuth2, Prepaid Wallet (Razorpay), 1-Click Checkout, Developer Payouts`);
+});
+
+export default app;

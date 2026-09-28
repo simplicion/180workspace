@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -7,6 +8,7 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../core/auth/one_eighty_sso_service.dart';
+import '../../core/providers.dart';
 import 'auth_provider.dart';
 import 'auth_repository.dart';
 
@@ -29,9 +31,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
   String? _error;
   String? _notice;
+  StreamSubscription? _oauthSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _oauthSub = ref.read(deepLinksProvider).oauthCallbacks.listen((cb) async {
+      final code = cb.uri.queryParameters['code'];
+      if (code != null && code.isNotEmpty) {
+        setState(() {
+          _busy = true;
+          _error = null;
+        });
+        try {
+          final sso = OneEightySsoService();
+          final data = await sso.handleCallbackUri(cb.uri);
+          final accessToken = data['access_token'] as String;
+          final refreshToken = data['refresh_token'] as String?;
+          await ref.read(tokenStoreProvider).saveSession(accessToken: accessToken, refreshToken: refreshToken);
+          await ref.read(sessionProvider.notifier).retryRestore();
+        } catch (e) {
+          if (mounted) setState(() => _error = errorText(e));
+        } finally {
+          if (mounted) setState(() => _busy = false);
+        }
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _oauthSub?.cancel();
     _email.dispose();
     _password.dispose();
     _mfa.dispose();
@@ -131,9 +161,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: BoxConstraints(maxWidth: 420),
               child: Form(
                 key: _form,
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -141,7 +171,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Container(
                       width: 84,
                       height: 84,
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(22),
@@ -149,7 +179,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.15),
                             blurRadius: 16,
-                            offset: const Offset(0, 6),
+                            offset: Offset(0, 6),
                           ),
                         ],
                       ),
@@ -159,7 +189,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
                   Text(
                     '180 Manager',
                     textAlign: TextAlign.center,
@@ -168,7 +198,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           fontWeight: FontWeight.w800,
                         ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Text(
                     _step == _Step.mfa
                         ? 'Enter the 6-digit code from your authenticator app.'
@@ -176,29 +206,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
                   ),
-                  const SizedBox(height: 28),
+                  SizedBox(height: 28),
                   if (_step == _Step.credentials) ...[
                     // Primary 180 Identity SSO Button
                     Container(
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           colors: [Color(0xFF6366F1), Color(0xFFA855F7)],
                         ),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                            color: Color(0xFF6366F1).withValues(alpha: 0.35),
                             blurRadius: 16,
-                            offset: const Offset(0, 4),
+                            offset: Offset(0, 4),
                           ),
                         ],
                       ),
                       child: ElevatedButton(
-                        key: const Key('login.180identity'),
+                        key: Key('login.180identity'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
                         onPressed: _busy ? null : _loginWith180Identity,
@@ -206,15 +236,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Text('180', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.w900, fontSize: 12)),
+                              child: Text('180', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.w900, fontSize: 12)),
                             ),
-                            const SizedBox(width: 10),
-                            const Flexible(
+                            SizedBox(width: 10),
+                            Flexible(
                               child: Text(
                                 'Get started with 180 Identity',
                                 maxLines: 1,
@@ -226,33 +256,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     Row(
                       children: [
-                        const Expanded(child: Divider(color: Color(0x33FFFFFF))),
+                        Expanded(child: Divider(color: Color(0x33FFFFFF))),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          padding: EdgeInsets.symmetric(horizontal: 12),
                           child: Text('or continue with email', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary)),
                         ),
-                        const Expanded(child: Divider(color: Color(0x33FFFFFF))),
+                        Expanded(child: Divider(color: Color(0x33FFFFFF))),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     TextFormField(
-                      key: const Key('login.email'),
+                      key: Key('login.email'),
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
+                      autofillHints: [AutofillHints.email],
                       textInputAction: TextInputAction.next,
                       decoration: fieldDecoration('Work email'),
                       validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
                     ),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     TextFormField(
-                      key: const Key('login.password'),
+                      key: Key('login.password'),
                       controller: _password,
                       obscureText: _obscure,
-                      autofillHints: const [AutofillHints.password],
+                      autofillHints: [AutofillHints.password],
                       onFieldSubmitted: (_) => _submit(),
                       decoration: fieldDecoration('Password',
                           suffix: IconButton(
@@ -263,11 +293,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: TextButton(onPressed: _busy ? null : _forgot, child: const Text('Forgot password?')),
+                      child: TextButton(onPressed: _busy ? null : _forgot, child: Text('Forgot password?')),
                     ),
                   ] else ...[
                     TextFormField(
-                      key: const Key('login.mfa'),
+                      key: Key('login.mfa'),
                       controller: _mfa,
                       autofocus: true,
                       keyboardType: TextInputType.number,
@@ -278,33 +308,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     TextButton(
                       onPressed: _busy ? null : () => setState(() => _step = _Step.credentials),
-                      child: const Text('Use a different account'),
+                      child: Text('Use a different account'),
                     ),
                   ],
                   if (_error != null) _Banner(text: _error!, color: AppTheme.error, icon: Icons.error_outline_rounded),
                   if (_notice != null)
                     _Banner(text: _notice!, color: AppTheme.warning, icon: Icons.info_outline_rounded, onOpenWeb: true),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   ElevatedButton(
-                    key: const Key('login.submit'),
+                    key: Key('login.submit'),
                     onPressed: _busy ? null : _submit,
                     child: _busy
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text(_step == _Step.mfa ? 'Verify' : 'Sign in', style: const TextStyle(fontWeight: FontWeight.w700)),
+                        ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Text(_step == _Step.mfa ? 'Verify' : 'Sign in', style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                   if (_step == _Step.credentials) ...[
-                    const SizedBox(height: 20),
-                    const Row(children: [
+                    SizedBox(height: 20),
+                    Row(children: [
                       Expanded(child: Divider()),
                       Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('or', style: TextStyle(color: AppTheme.textMuted))),
                       Expanded(child: Divider()),
                     ]),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     OutlinedButton.icon(
-                      key: const Key('login.google'),
+                      key: Key('login.google'),
                       onPressed: _busy ? null : _google,
-                      icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
-                      label: const Text('Continue with Google'),
+                      icon: Icon(Icons.g_mobiledata_rounded, size: 28),
+                      label: Text('Continue with Google'),
                     ),
                   ],
                 ]),
@@ -326,8 +356,8 @@ class _Banner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(top: 14),
-        padding: const EdgeInsets.all(12),
+        margin: EdgeInsets.only(top: 14),
+        padding: EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(12),
@@ -336,13 +366,13 @@ class _Banner extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Icon(icon, color: color, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text(text, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13))),
+            SizedBox(width: 8),
+            Expanded(child: Text(text, style: TextStyle(color: AppTheme.textPrimary, fontSize: 13))),
           ]),
           if (onOpenWeb)
             TextButton(
               onPressed: () => launchUrl(Uri.parse(AppConfig.webAppUrl), mode: LaunchMode.externalApplication),
-              child: const Text('Open 180 Workspace on the web'),
+              child: Text('Open 180 Workspace on the web'),
             ),
         ]),
       );

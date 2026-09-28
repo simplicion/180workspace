@@ -4,7 +4,7 @@
 library;
 
 List<List<int>> _ranges(Object? v) => [
-      for (final r in (v as List?) ?? const [])
+      for (final r in (v as List?) ?? [])
         if (r is List && r.length == 2 && r[0] is num && r[1] is num) [(r[0] as num).toInt(), (r[1] as num).toInt()],
     ];
 
@@ -12,7 +12,7 @@ double? _d(Object? v) => v is num && v.isFinite ? v.toDouble() : null;
 
 /// On-screen text seen in [startMs, endMs) of the source (sent as `media.ocr`).
 class OcrSpan {
-  const OcrSpan({required this.startMs, required this.endMs, required this.text});
+  OcrSpan({required this.startMs, required this.endMs, required this.text});
   final int startMs;
   final int endMs;
   final String text;
@@ -27,7 +27,7 @@ class OcrSpan {
 /// EBU R128 gates), true peak (dBTP, 4x oversampled estimate) and the share of clipped samples.
 /// [integratedLufs] is null when the audio is entirely below the absolute gate (silence).
 class LoudnessStats {
-  const LoudnessStats({this.integratedLufs, this.truePeakDb, this.clippingPct});
+  LoudnessStats({this.integratedLufs, this.truePeakDb, this.clippingPct});
   final double? integratedLufs;
   final double? truePeakDb;
   final double? clippingPct;
@@ -51,7 +51,7 @@ class LoudnessStats {
 
 /// A cached on-device analysis of one source file (OCR, scene cuts, loudness).
 class MediaIntelligence {
-  const MediaIntelligence({this.scenesMs, this.ocr, this.loudness});
+  MediaIntelligence({this.scenesMs, this.ocr, this.loudness});
   final List<int>? scenesMs;
   final List<OcrSpan>? ocr;
   final LoudnessStats? loudness;
@@ -84,7 +84,7 @@ class MediaIntelligence {
 
 /// Measured facts about an exported file (`lastExportQa` in the `/ai-direct` request).
 class ExportQa {
-  const ExportQa({
+  ExportQa({
     required this.durationMs,
     required this.width,
     required this.height,

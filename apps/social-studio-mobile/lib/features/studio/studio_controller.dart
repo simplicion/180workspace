@@ -13,7 +13,7 @@ import 'timeline_ops.dart';
 enum TranscriptState { idle, running, ready, failed }
 
 class DirectorMessage {
-  const DirectorMessage({
+  DirectorMessage({
     required this.fromUser,
     required this.text,
     this.response,
@@ -33,7 +33,7 @@ class DirectorMessage {
 }
 
 class ExportState {
-  const ExportState({
+  ExportState({
     this.progress = 0,
     this.stage = '',
     this.result,
@@ -94,7 +94,7 @@ class StudioController extends ChangeNotifier {
       final r = await director.direct(
         prompt: '',
         intent: 'greet',
-        history: const [],
+        history: [],
         media: _analysis(),
         projectId: projectId,
         calendarPieceId: pieceId,
@@ -118,8 +118,8 @@ class StudioController extends ChangeNotifier {
   String? sourcePath;
   VideoMetadata? meta;
   MobileEditIr? _ir;
-  final List<MobileEditIr> _undo = [];
-  final List<MobileEditIr> _redo = [];
+  final List<MobileEditIr> _undo = const [];
+  final List<MobileEditIr> _redo = const [];
 
   TranscriptState transcriptState = TranscriptState.idle;
   Transcript? transcript;
@@ -131,7 +131,7 @@ class StudioController extends ChangeNotifier {
 
   /// Licence credit lines by media URL (music, B-roll, SFX). CC BY / BY-SA items must be credited
   /// in the post caption; the others are credited as a courtesy.
-  final Map<String, String> mediaCredits = {};
+  final Map<String, String> mediaCredits = const {};
 
   /// On-device ML Kit face samples of the source (null until detected / when unavailable).
   List<FaceSample>? faces;
@@ -146,7 +146,7 @@ class StudioController extends ChangeNotifier {
   int playheadMs = 0;
   int? selectedClip;
 
-  final List<DirectorMessage> messages = [];
+  final List<DirectorMessage> messages = const [];
   bool directorBusy = false;
 
   ExportState? export;
@@ -156,7 +156,7 @@ class StudioController extends ChangeNotifier {
   MobileEditIr? get ir => _ir;
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
-  List<TranscriptWord> get words => transcript?.words ?? const [];
+  List<TranscriptWord> get words => transcript?.words ?? [];
 
   void _notify() {
     if (!_disposed) notifyListeners();
@@ -179,7 +179,7 @@ class StudioController extends ChangeNotifier {
     }
     final info = await MediaEngineService.getVideoInfo(path);
     if (!info.hasVideo) {
-      throw const MediaEngineException(
+      throw MediaEngineException(
         'NO_VIDEO_TRACK',
         'This file has no video track.',
       );
@@ -278,7 +278,7 @@ class StudioController extends ChangeNotifier {
         destPath: audioPath,
       );
       if (audio.fileSizeBytes > AudioTranscriptionService.maxBytes) {
-        throw const MediaEngineException(
+        throw MediaEngineException(
           'AUDIO_TOO_LARGE',
           'This video is too long to transcribe (audio over 25 MB). Trim it first.',
         );
@@ -490,7 +490,7 @@ class StudioController extends ChangeNotifier {
     final src = sourcePath;
     if (ir == null || src == null || (export?.running ?? false)) return;
     final warnings = <String>[];
-    export = const ExportState(stage: 'Preparing media…');
+    export = ExportState(stage: 'Preparing media…');
     _notify();
     try {
       final dir = await _tempDir();
@@ -525,7 +525,7 @@ class StudioController extends ChangeNotifier {
         final imgExt = Uri.tryParse(url)?.path.split('.').last.toLowerCase();
         final ext = !o.isImage
             ? 'mp4'
-            : const {'jpg', 'jpeg', 'png', 'webp'}.contains(imgExt)
+            : {'jpg', 'jpeg', 'png', 'webp'}.contains(imgExt)
                 ? imgExt!
                 : 'jpg';
         overlayPaths[o.id] = await director.download(
@@ -565,7 +565,7 @@ class StudioController extends ChangeNotifier {
         usedUrls.add(url);
         musicPaths[m.id] = await director.download(
           url,
-          '${dir.path}/${m.id}.${const {'mp3', 'm4a', 'aac', 'wav', 'ogg'}.contains(ext) ? ext : 'mp3'}',
+          '${dir.path}/${m.id}.${{'mp3', 'm4a', 'aac', 'wav', 'ogg'}.contains(ext) ? ext : 'mp3'}',
         );
       }
       final sfxPaths = <String, String>{};
@@ -579,7 +579,7 @@ class StudioController extends ChangeNotifier {
         try {
           final ext = Uri.tryParse(url)?.path.split('.').last.toLowerCase();
           final safeExt =
-              const {'mp3', 'm4a', 'aac', 'wav', 'ogg'}.contains(ext)
+              {'mp3', 'm4a', 'aac', 'wav', 'ogg'}.contains(ext)
               ? ext
               : 'mp3';
           sfxPaths[e.id] = await director.download(
@@ -625,7 +625,7 @@ class StudioController extends ChangeNotifier {
               .split('.')
               .last
               .toLowerCase();
-          final safeExt = const {'png', 'jpg', 'jpeg', 'webp'}.contains(ext)
+          final safeExt = {'png', 'jpg', 'jpeg', 'webp'}.contains(ext)
               ? ext
               : 'png';
           watermarkPath = await director.download(

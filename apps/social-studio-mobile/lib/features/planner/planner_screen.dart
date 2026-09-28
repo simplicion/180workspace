@@ -31,17 +31,17 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'planner.new',
         onPressed: () => context.push('/planner/new'),
-        icon: const Icon(Icons.auto_awesome_rounded),
-        label: const Text('Generate calendar'),
+        icon: Icon(Icons.auto_awesome_rounded),
+        label: Text('Generate calendar'),
       ),
       body: Column(children: [
         SizedBox(
           height: 52,
-          child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
-            ChoiceChip(label: const Text('All'), selected: _status == null, onSelected: (_) => setState(() => _status = null)),
+          child: ListView(scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
+            ChoiceChip(label: Text('All'), selected: _status == null, onSelected: (_) => setState(() => _status = null)),
             for (final s in CalendarStatus.filters)
               Padding(
-                padding: const EdgeInsets.only(left: 8),
+                padding: EdgeInsets.only(left: 8),
                 child: ChoiceChip(label: Text(s.label), selected: _status == s, onSelected: (_) => setState(() => _status = s)),
               ),
           ]),
@@ -66,11 +66,11 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
               final rest = list.where((c) => !mine.contains(c)).toList();
               return RefreshIndicator(
                 onRefresh: () async => ref.invalidate(calendarsProvider),
-                child: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 96), children: [
+                child: ListView(padding: EdgeInsets.fromLTRB(16, 0, 16, 96), children: [
                   if (mine.isNotEmpty) ...[
-                    const SectionHeader('This project'),
+                    SectionHeader('This project'),
                     for (final c in mine) _CalendarCard(calendar: c),
-                    const SectionHeader('Other calendars'),
+                    SectionHeader('Other calendars'),
                   ],
                   for (final c in rest) _CalendarCard(calendar: c),
                 ]),
@@ -91,15 +91,15 @@ class _CalendarCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = calendar;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.only(bottom: 10),
       child: SectionCard(
         onTap: () => context.push('/planner/${c.id}'),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Expanded(child: Text(c.displayName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+            Expanded(child: Text(c.displayName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
             StatusChip(label: c.status.label, color: c.status.color),
           ]),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             [
               if (c.industry?.isNotEmpty ?? false) c.industry!,
@@ -108,19 +108,19 @@ class _CalendarCard extends StatelessWidget {
             ].join(' · '),
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Row(children: [
-            const Icon(Icons.layers_rounded, size: 14, color: AppTheme.textSecondary),
-            const SizedBox(width: 4),
+            Icon(Icons.layers_rounded, size: 14, color: AppTheme.textSecondary),
+            SizedBox(width: 4),
             Text('${c.totalPieces} pieces', style: Theme.of(context).textTheme.labelSmall),
-            const SizedBox(width: 12),
-            const Icon(Icons.event_rounded, size: 14, color: AppTheme.textSecondary),
-            const SizedBox(width: 4),
+            SizedBox(width: 12),
+            Icon(Icons.event_rounded, size: 14, color: AppTheme.textSecondary),
+            SizedBox(width: 4),
             Flexible(
               child: Text('${fmtDate(c.startDate)} – ${fmtDate(c.endDate)}',
                   style: Theme.of(context).textTheme.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Expanded(
               child: Text(c.platforms.take(3).join(', '),
                   style: Theme.of(context).textTheme.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end),

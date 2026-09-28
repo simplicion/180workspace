@@ -65,9 +65,9 @@ class DeviceRegistration {
     final token = jStr(r['token']);
     final id = jStr(r['deviceId']);
     if (token == null || id == null) {
-      throw const ApiException(kind: ApiErrorKind.server, message: 'Device registration returned no token.');
+      throw ApiException(kind: ApiErrorKind.server, message: 'Device registration returned no token.');
     }
-    final exp = jDate(r['expiresAt']) ?? DateTime.now().add(const Duration(days: 30));
+    final exp = jDate(r['expiresAt']) ?? DateTime.now().add(Duration(days: 30));
     await tokens.saveDevice(deviceId: id, token: token, expiresAt: exp);
     return token;
   }

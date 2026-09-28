@@ -11,7 +11,7 @@ abstract class KeyValueStore {
 class SecureKeyValueStore implements KeyValueStore {
   SecureKeyValueStore([FlutterSecureStorage? storage])
       : _storage = storage ??
-            const FlutterSecureStorage(
+            FlutterSecureStorage(
               iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
             );
 

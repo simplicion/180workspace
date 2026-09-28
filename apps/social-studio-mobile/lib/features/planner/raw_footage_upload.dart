@@ -14,12 +14,12 @@ Future<void> uploadRawFootage(BuildContext context, WidgetRef ref, String pieceI
     barrierDismissible: false,
     builder: (_) => AlertDialog(
       backgroundColor: AppTheme.surfaceElevated,
-      title: const Text('Uploading footage'),
+      title: Text('Uploading footage'),
       content: ValueListenableBuilder<double?>(
         valueListenable: progress,
         builder: (_, v, _) => Column(mainAxisSize: MainAxisSize.min, children: [
           LinearProgressIndicator(value: v, minHeight: 6),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(v == null ? 'Starting…' : '${(v * 100).round()}%'),
         ]),
       ),

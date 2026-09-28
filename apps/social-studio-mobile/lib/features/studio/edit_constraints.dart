@@ -14,7 +14,7 @@ enum LockableTrack {
   effects('Effects & zooms'),
   text('Text');
 
-  const LockableTrack(this.label);
+  LockableTrack(this.label);
   final String label;
 
   /// The lock that covers timeline track [k]; null for tracks that can only be range-locked
@@ -35,7 +35,7 @@ enum LockableTrack {
 /// A locked stretch of source media. Locks are anchored to the source (not the timeline) so they
 /// stay on the same footage when earlier parts of the timeline are cut, moved or sped up.
 class SourceRange {
-  const SourceRange(this.assetId, this.startMs, this.endMs);
+  SourceRange(this.assetId, this.startMs, this.endMs);
   final String assetId;
   final int startMs;
   final int endMs;
@@ -54,7 +54,7 @@ class SourceRange {
 /// and re-checked on the phone before any director result is applied (defense in depth: the server
 /// validator rejects violating operations too).
 class EditLocks {
-  const EditLocks({this.tracks = const {}, this.ranges = const []});
+  EditLocks({this.tracks = const {}, this.ranges = const []});
 
   final Set<LockableTrack> tracks;
   final List<SourceRange> ranges;
@@ -220,14 +220,14 @@ class EditLocks {
 
   static String _trackSignature(MobileEditIr ir, LockableTrack t, {required bool withTiming}) {
     final j = ir.toJson();
-    final audio = (j['audio'] as Map?) ?? const {};
+    final audio = (j['audio'] as Map?) ?? {};
     final List<Object?> items = switch (t) {
-      LockableTrack.music => (audio['music'] as List?) ?? const [],
-      LockableTrack.sfx => (audio['sfx'] as List?) ?? const [],
-      LockableTrack.broll => (j['overlays'] as List?) ?? const [],
-      LockableTrack.effects => [...(j['effects'] as List?) ?? const [], ...(j['zooms'] as List?) ?? const []],
-      LockableTrack.captions => [for (final c in (j['captions'] as List?) ?? const []) if ((c as Map)['kind'] != 'text') c],
-      LockableTrack.text => [for (final c in (j['captions'] as List?) ?? const []) if ((c as Map)['kind'] == 'text') c],
+      LockableTrack.music => (audio['music'] as List?) ?? [],
+      LockableTrack.sfx => (audio['sfx'] as List?) ?? [],
+      LockableTrack.broll => (j['overlays'] as List?) ?? [],
+      LockableTrack.effects => [...(j['effects'] as List?) ?? [], ...(j['zooms'] as List?) ?? []],
+      LockableTrack.captions => [for (final c in (j['captions'] as List?) ?? []) if ((c as Map)['kind'] != 'text') c],
+      LockableTrack.text => [for (final c in (j['captions'] as List?) ?? []) if ((c as Map)['kind'] == 'text') c],
     };
     final encoded = [for (final i in items) jsonEncode(withTiming ? i : _stripTiming(i))]..sort();
     return encoded.join('\n');

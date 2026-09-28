@@ -31,7 +31,7 @@ class PostComposerScreen extends ConsumerWidget {
     if (postId != null) {
       final post = ref.watch(postDetailProvider(postId!));
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit post')),
+        appBar: AppBar(title: Text('Edit post')),
         body: AsyncBody<SocialPost>(
           value: post,
           onRetry: () => ref.invalidate(postDetailProvider(postId!)),
@@ -40,7 +40,7 @@ class PostComposerScreen extends ConsumerWidget {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('New post')),
+      appBar: AppBar(title: Text('New post')),
       body: _ProjectLoader(
         projectId: projectId ?? ref.watch(activeProjectProvider).valueOrNull?.id,
         builder: (project) => _ComposerForm(
@@ -48,7 +48,7 @@ class PostComposerScreen extends ConsumerWidget {
           date: date,
           calendarId: calendarId,
           pieceId: pieceId,
-          prefill: prefill ?? const {},
+          prefill: prefill ?? {},
         ),
       ),
     );
@@ -139,12 +139,12 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
 
   Future<void> _pickSchedule() async {
     final now = DateTime.now();
-    final initial = _scheduledFor ?? now.add(const Duration(days: 1));
+    final initial = _scheduledFor ?? now.add(Duration(days: 1));
     final d = await showDatePicker(
       context: context,
       initialDate: initial,
-      firstDate: now.subtract(const Duration(days: 1)),
-      lastDate: now.add(const Duration(days: 730)),
+      firstDate: now.subtract(Duration(days: 1)),
+      lastDate: now.add(Duration(days: 730)),
     );
     if (d == null || !mounted) return;
     final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(initial));
@@ -270,27 +270,27 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
   @override
   Widget build(BuildContext context) {
     final project = widget.project;
-    final accounts = project?.socialAccounts ?? const [];
+    final accounts = project?.socialAccounts ?? [];
     final voice = project == null ? null : ref.watch(brandVoiceProvider(project.id)).valueOrNull;
-    final hits = _restrictedHits(voice?.forbiddenWords ?? const []);
+    final hits = _restrictedHits(voice?.forbiddenWords ?? []);
     final scheduleNote = _scheduledFor != null && _p == null
         ? (project?.settings.approvalRequired ?? false)
             ? 'This project requires approval, but the server marks a dated post as Scheduled on creation. Send it for approval before its date.'
             : 'A post with a date is created as Scheduled.'
         : null;
 
-    return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 120), children: [
+    return ListView(padding: EdgeInsets.fromLTRB(16, 12, 16, 120), children: [
       if (project != null)
         Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: EdgeInsets.only(bottom: 12),
           child: Row(children: [
-            const Icon(Icons.folder_rounded, size: 16, color: AppTheme.textSecondary),
-            const SizedBox(width: 6),
+            Icon(Icons.folder_rounded, size: 16, color: AppTheme.textSecondary),
+            SizedBox(width: 6),
             Expanded(child: Text(project.name, style: Theme.of(context).textTheme.bodyMedium)),
           ]),
         ),
       SegmentedButton<String>(
-        segments: const [
+        segments: [
           ButtonSegment(value: 'video', label: Text('Video'), icon: Icon(Icons.videocam_rounded)),
           ButtonSegment(value: 'image', label: Text('Image'), icon: Icon(Icons.image_rounded)),
           ButtonSegment(value: 'carousel', label: Text('Carousel'), icon: Icon(Icons.view_carousel_rounded)),
@@ -298,11 +298,11 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         selected: {_mediaType},
         onSelectionChanged: (s) => setState(() => _mediaType = s.first),
       ),
-      const SizedBox(height: 16),
+      SizedBox(height: 16),
       TextField(controller: _title, decoration: fieldDecoration('Title (internal)')),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       TextField(controller: _hook, onChanged: (_) => setState(() {}), decoration: fieldDecoration('Hook', hint: 'The first line / first 3 seconds')),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       TextField(
         controller: _content,
         minLines: 5,
@@ -311,31 +311,31 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         decoration: fieldDecoration('Caption *', helper: '${_content.text.characters.length} characters'),
       ),
       if (hits.isNotEmpty) ...[
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         StatusChip(label: 'Restricted words: ${hits.join(', ')}', color: AppTheme.error, icon: Icons.block_rounded),
       ],
       if (voice != null && voice.defaultHashtags.isNotEmpty) ...[
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Wrap(spacing: 6, runSpacing: 6, children: [
           for (final h in voice.defaultHashtags)
             ActionChip(
-              label: Text(h, style: const TextStyle(fontSize: 12)),
+              label: Text(h, style: TextStyle(fontSize: 12)),
               onPressed: () => setState(() => _content.text = '${_content.text.trimRight()} $h'),
             ),
         ]),
       ],
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       TextField(controller: _objective, decoration: fieldDecoration('Objective', hint: 'e.g. Drive sign-ups')),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       TextField(controller: _firstComment, maxLines: 3, minLines: 1, decoration: fieldDecoration('First comment')),
-      const SectionHeader('Channels'),
+      SectionHeader('Channels'),
       if (accounts.isNotEmpty)
         DropdownButtonFormField<String?>(
           isExpanded: true,
           initialValue: accounts.any((a) => a.id == _accountId) ? _accountId : null,
           decoration: fieldDecoration('Publish from account'),
           items: [
-            const DropdownMenuItem(value: null, child: Text('Not set')),
+            DropdownMenuItem(value: null, child: Text('Not set')),
             for (final a in accounts)
               DropdownMenuItem(value: a.id, child: Text('${a.platform.label} · ${a.accountName}', overflow: TextOverflow.ellipsis)),
           ],
@@ -346,9 +346,9 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
           }),
         )
       else
-        const Text('No channels are linked to this project. Link one under Channels to publish.',
+        Text('No channels are linked to this project. Link one under Channels to publish.',
             style: TextStyle(color: AppTheme.textSecondary)),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       Wrap(spacing: 8, runSpacing: 8, children: [
         for (final p in SocialPlatform.connectable)
           FilterChip(
@@ -357,10 +357,10 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(p.label),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Text(
                   p.isAutomated ? '● Auto & Manual' : '○ Manual Assist',
-                  style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+                  style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
                 ),
               ],
             ),
@@ -370,7 +370,7 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
       ]),
       for (final p in _platforms)
         Padding(
-          padding: const EdgeInsets.only(top: 12),
+          padding: EdgeInsets.only(top: 12),
           child: TextField(
             controller: _variantText.putIfAbsent(p, TextEditingController.new),
             minLines: 1,
@@ -380,36 +380,36 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         ),
       if (_platforms.contains(SocialPlatform.reddit)) ...[
         Padding(
-          padding: const EdgeInsets.only(top: 12),
+          padding: EdgeInsets.only(top: 12),
           child: TextField(
             controller: _redditSubreddit,
             decoration: fieldDecoration('Reddit Subreddit destination', hint: 'e.g. technology (without r/)'),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(top: 12),
+          padding: EdgeInsets.only(top: 12),
           child: TextField(
             controller: _redditTitle,
             decoration: fieldDecoration('Reddit Post Title', helper: 'Defaults to main post title if empty'),
           ),
         ),
       ],
-      const SectionHeader('Schedule'),
+      SectionHeader('Schedule'),
       SectionCard(
         onTap: _pickSchedule,
         child: Row(children: [
-          const Icon(Icons.event_rounded, color: AppTheme.primary),
-          const SizedBox(width: 12),
+          Icon(Icons.event_rounded, color: AppTheme.primary),
+          SizedBox(width: 12),
           Expanded(child: Text(_scheduledFor == null ? 'Not scheduled (draft)' : fmtDateTime(_scheduledFor))),
           if (_scheduledFor != null)
-            IconButton(icon: const Icon(Icons.clear_rounded), onPressed: () => setState(() => _scheduledFor = null)),
+            IconButton(icon: Icon(Icons.clear_rounded), onPressed: () => setState(() => _scheduledFor = null)),
         ]),
       ),
       if (scheduleNote != null)
-        Padding(padding: const EdgeInsets.only(top: 6), child: Text(scheduleNote, style: Theme.of(context).textTheme.labelSmall)),
+        Padding(padding: EdgeInsets.only(top: 6), child: Text(scheduleNote, style: Theme.of(context).textTheme.labelSmall)),
       if (project != null)
         Padding(
-          padding: const EdgeInsets.only(top: 4),
+          padding: EdgeInsets.only(top: 4),
           child: Text('Times are shown in device time. Project timezone: ${project.settings.defaultTimezone}.',
               style: Theme.of(context).textTheme.labelSmall),
         ),
@@ -417,29 +417,29 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         contentPadding: EdgeInsets.zero,
         value: _evergreen,
         onChanged: (v) => setState(() => _evergreen = v),
-        title: const Text('Evergreen'),
-        subtitle: const Text('Eligible for the evergreen re-post queue'),
+        title: Text('Evergreen'),
+        subtitle: Text('Eligible for the evergreen re-post queue'),
       ),
-      const SectionHeader('Media'),
+      SectionHeader('Media'),
       for (final url in _mediaUrls)
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.attachment_rounded),
+          leading: Icon(Icons.attachment_rounded),
           title: Text(Uri.tryParse(url)?.pathSegments.lastOrNull ?? url, maxLines: 1, overflow: TextOverflow.ellipsis),
-          trailing: IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => setState(() => _mediaUrls.remove(url))),
+          trailing: IconButton(icon: Icon(Icons.close_rounded), onPressed: () => setState(() => _mediaUrls.remove(url))),
         ),
       if (_uploadProgress != null)
-        Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator(value: _uploadProgress)),
+        Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator(value: _uploadProgress)),
       OutlinedButton.icon(
         onPressed: _uploadProgress != null ? null : _addMedia,
-        icon: const Icon(Icons.upload_rounded),
+        icon: Icon(Icons.upload_rounded),
         label: Text(_mediaType == 'video' ? 'Upload video' : 'Upload image'),
       ),
-      const SizedBox(height: 16),
-      const SectionHeader('180 Engagement Automation'),
+      SizedBox(height: 16),
+      SectionHeader('180 Engagement Automation'),
       // SectionCard is a Material, so the SwitchListTile's ink renders correctly inside it.
       SectionCard(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(12),
         borderColor: _enableEngagement ? AppTheme.primary.withValues(alpha: 0.4) : AppTheme.borderSubtle,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,27 +448,27 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
               contentPadding: EdgeInsets.zero,
               value: _enableEngagement,
               onChanged: (v) => setState(() => _enableEngagement = v),
-              title: const Text('Auto-DM & Comment Funnel', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Send direct messages, lead magnets, and auto-like comments'),
+              title: Text('Auto-DM & Comment Funnel', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Send direct messages, lead magnets, and auto-like comments'),
             ),
             if (_enableEngagement) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(
                 controller: _engagementKeyword,
                 decoration: fieldDecoration('Trigger Keyword', hint: 'e.g. GROWTH, BLUEPRINT, INFO', helper: 'Users who comment this word get the auto-DM'),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(
                 controller: _engagementDeliverable,
                 decoration: fieldDecoration('Deliverable URL', hint: 'https://yoursite.com/free-guide'),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(
                 controller: _engagementDmTemplate,
                 maxLines: 2,
                 decoration: fieldDecoration('Direct Message Template', hint: 'Hey {name}! Here is your link: {link}'),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Row(
                 children: [
                   Checkbox(
@@ -476,7 +476,7 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                     activeColor: AppTheme.primary,
                     onChanged: (v) => setState(() => _engagementAutoLike = v ?? true),
                   ),
-                  const Text('Auto-like matching comment', style: TextStyle(fontSize: 13)),
+                  Text('Auto-like matching comment', style: TextStyle(fontSize: 13)),
                 ],
               ),
               Row(
@@ -486,24 +486,24 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                     activeColor: AppTheme.primary,
                     onChanged: (v) => setState(() => _engagementAiAgent = v ?? true),
                   ),
-                  const Text('Enable AI Follow-up Agent', style: TextStyle(fontSize: 13)),
+                  Text('Enable AI Follow-up Agent', style: TextStyle(fontSize: 13)),
                 ],
               ),
             ],
           ],
         ),
       ),
-      const SizedBox(height: 24),
+      SizedBox(height: 24),
       OutlinedButton.icon(
         onPressed: () => _showPreview(context),
-        icon: const Icon(Icons.remove_red_eye_rounded),
-        label: const Text('Preview across channels'),
+        icon: Icon(Icons.remove_red_eye_rounded),
+        label: Text('Preview across channels'),
       ),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       ElevatedButton(
         onPressed: _saving || _uploadProgress != null ? null : _save,
         child: _saving
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
             : Text(_p == null ? 'Create post' : 'Save changes'),
       ),
     ]);
@@ -520,20 +520,20 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         maxChildSize: 0.95,
         builder: (_, scroll) => SingleChildScrollView(
           controller: scroll,
-          padding: const EdgeInsets.only(bottom: 32),
+          padding: EdgeInsets.only(bottom: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+                padding: EdgeInsets.fromLTRB(16, 16, 8, 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.devices_rounded, color: AppTheme.primary),
-                    const SizedBox(width: 8),
-                    const Expanded(
+                    Icon(Icons.devices_rounded, color: AppTheme.primary),
+                    SizedBox(width: 8),
+                    Expanded(
                       child: Text('Live Channel Previews', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
-                    IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
+                    IconButton(icon: Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
                   ],
                 ),
               ),

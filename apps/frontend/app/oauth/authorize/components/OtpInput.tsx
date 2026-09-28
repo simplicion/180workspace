@@ -111,23 +111,23 @@ export const OtpInput: React.FC<OtpInputProps> = ({
               onChange={(e) => handleChange(e, idx)}
               onKeyDown={(e) => handleKeyDown(e, idx)}
               onPaste={handlePaste}
-              className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl border bg-slate-900/80 text-white transition-all duration-200 outline-none
+              className={`w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold font-mono rounded-xl border bg-zinc-900/90 text-white transition-all duration-200 outline-none
                 ${
                   char
-                    ? 'border-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.25)]'
-                    : 'border-slate-800 hover:border-slate-700'
+                    ? 'border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.25)]'
+                    : 'border-white/10 hover:border-white/20'
                 }
-                focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50`}
+                focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50`}
             />
           );
         })}
       </div>
 
       {/* Resend and Countdown */}
-      <div className="flex items-center justify-between w-full text-xs text-slate-400 pt-1">
+      <div className="flex items-center justify-between w-full text-xs text-zinc-400 pt-1">
         <span>Sent via {channelName}</span>
         {cooldown > 0 ? (
-          <span className="text-slate-500 font-mono">
+          <span className="text-zinc-500 font-mono">
             Resend in {cooldown}s
           </span>
         ) : (
@@ -135,7 +135,7 @@ export const OtpInput: React.FC<OtpInputProps> = ({
             type="button"
             onClick={handleResendClick}
             disabled={isResending}
-            className="flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-medium transition-colors cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-medium transition-colors cursor-pointer disabled:opacity-50 py-1"
           >
             <RotateCw className={`w-3.5 h-3.5 ${isResending ? 'animate-spin' : ''}`} />
             Resend code

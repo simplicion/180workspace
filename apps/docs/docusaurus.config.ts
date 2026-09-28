@@ -2,34 +2,23 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
-// This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
-
 const config: Config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
-  favicon: 'img/favicon.ico',
+  title: '180 Documentation',
+  tagline: 'Enterprise Architecture, Work Graph Specifications & Engineering Blueprints',
+  favicon: 'img/favicon.svg',
 
-  // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
-    v4: true, // Improve compatibility with the upcoming Docusaurus v4
+    v4: true,
   },
 
-  // Set the production url of your site here
-  url: 'https://your-docusaurus-site.example.com',
-  // Set the /<baseUrl>/ pathname under which your site is served
-  // For GitHub pages deployment, it is often '/<projectName>/'
+  url: 'https://docs.180workspace.com',
   baseUrl: '/',
 
-  // GitHub pages deployment config.
-  // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: '180workspace',
+  projectName: '180-docs',
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
 
-  // Even if you don't use internationalization, you can use this field to set
-  // useful metadata like html lang. For example, if your site is Chinese, you
-  // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
@@ -41,10 +30,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+          routeBasePath: 'docs',
         },
         blog: {
           showReadingTime: true,
@@ -52,11 +38,6 @@ const config: Config = {
             type: ['rss', 'atom'],
             xslt: true,
           },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
-          // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
           onUntruncatedBlogPosts: 'warn',
@@ -69,28 +50,53 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: 'img/logo-white.svg',
     colorMode: {
+      defaultMode: 'dark',
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'My Site',
+      title: '180 Documentation',
       logo: {
-        alt: 'My Site Logo',
-        src: 'img/logo.svg',
+        alt: '180 Documentation Logo',
+        src: 'img/logo-dark.svg',
+        srcDark: 'img/logo-white.svg',
       },
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
+          sidebarId: 'docsSidebar',
           position: 'left',
-          label: 'Tutorial',
+          label: 'Documentation',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/facebook/docusaurus',
-          label: 'GitHub',
+          to: '/docs/platform/platform-overview',
+          label: 'Architecture',
+          position: 'left',
+        },
+        {
+          to: '/docs/API_DOCUMENTATION',
+          label: 'API Reference',
+          position: 'left',
+        },
+        {
+          href: 'https://180workspace.com/whitepapers',
+          label: 'White Papers',
+          position: 'left',
+        },
+        {
+          href: 'https://developers.180workspace.com',
+          label: 'Developer Portal ↗',
+          position: 'left',
+        },
+        {
+          to: '/blog',
+          label: 'Changelog',
+          position: 'left',
+        },
+        {
+          href: 'https://app.180workspace.com',
+          label: '180 Platform ↗',
           position: 'right',
         },
       ],
@@ -99,46 +105,87 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
+          title: 'Core Architecture',
           items: [
             {
-              label: 'Tutorial',
-              to: '/docs/intro',
+              label: 'Platform Overview',
+              to: '/docs/platform/platform-overview',
+            },
+            {
+              label: 'System Architecture',
+              to: '/docs/SYSTEM_ARCHITECTURE',
+            },
+            {
+              label: 'Database Schema & Multitenancy',
+              to: '/docs/DATABASE_SCHEMA',
+            },
+            {
+              label: 'Security & RBAC',
+              to: '/docs/AUTHENTICATION_AND_SECURITY',
             },
           ],
         },
         {
-          title: 'Community',
+          title: 'Engineering & Guides',
           items: [
             {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
+              label: 'Developer Onboarding',
+              to: '/docs/developer-onboarding',
             },
             {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
+              label: 'Local Development Runbook',
+              to: '/docs/getting-started/local-development',
             },
             {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
+              label: 'Git & PR Workflow',
+              to: '/docs/getting-started/git-pr-workflow',
+            },
+            {
+              label: 'API Reference',
+              to: '/docs/API_DOCUMENTATION',
             },
           ],
         },
         {
-          title: 'More',
+          title: 'Ecosystem & Work Graph',
           items: [
             {
-              label: 'Blog',
+              label: 'Business Logic & Work Graph',
+              to: '/docs/BUSINESS_LOGIC',
+            },
+            {
+              label: 'State Management & Sockets',
+              to: '/docs/STATE_MANAGEMENT',
+            },
+            {
+              label: 'Performance Analysis',
+              to: '/docs/PERFORMANCE_ANALYSIS',
+            },
+            {
+              label: 'Folder Structure',
+              to: '/docs/FOLDER_STRUCTURE',
+            },
+          ],
+        },
+        {
+          title: '180workspace Platform',
+          items: [
+            {
+              label: 'Launch Platform App',
+              href: 'https://app.180workspace.com',
+            },
+            {
+              label: 'Developer Portal',
+              href: 'https://developers.180workspace.com',
+            },
+            {
+              label: 'Changelog & Updates',
               to: '/blog',
-            },
-            {
-              label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} 180workspace. All rights reserved. Enterprise Work Graph Platform.`,
     },
     prism: {
       theme: prismThemes.github,

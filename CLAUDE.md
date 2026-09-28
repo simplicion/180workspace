@@ -25,9 +25,8 @@ docs relevant to the task.
 | Area | Path |
 |---|---|
 | Backend (Express) | `apps/backend` — routes `src/api/v1/**`, mounts `src/routes/index.routes.ts`, auth `src/system-configs/middleware/auth` |
-| Web app (Next.js) | `apps/frontend` — social: `app/(platform)/(social-media-management-app)`, studio: `app/(platform)/(media-editor-app)/media-editor` (`tauri-bridge.ts`, `MediaStudioWorkspace.tsx`) |
-| Desktop app | `apps/desktop-app` (Tauri, native FFmpeg render) |
-| Android/Flutter app | `apps/social-studio-mobile` (see below) |
+| Web app (Next.js) | `apps/frontend` — social: `app/(platform)/(social-media-management-app)`, studio: `app/(platform)/(media-editor-app)/media-editor` (`MediaStudioWorkspace.tsx`) |
+| Social Studio Client | `apps/social-studio-mobile` (Flutter multi-platform client: Mobile & Desktop) |
 | Social domain | `packages/domains/social-media/src` — brand-consciousness.ts, content-calendar, calendar-piece-media, creative/ (carousels+image models), publishing/ (oauth, token-vault, publishers, scheduler, webhooks), engagement/ (matcher, dispatcher, AI agent, AI reply-all), social-insights |
 | AI domain | `packages/domains/ai/src` — kernel/ (provider + company AI key resolution), builders/video-ai-director.service.ts (director), content/autopilot/* (multi-agent calendar) |
 | Video contracts | `packages/video-contracts/src` — edit-ir schema/compiler, mobile-edit-ir.ts, director-tools.ts, plan-expander.ts, music-catalog.ts |

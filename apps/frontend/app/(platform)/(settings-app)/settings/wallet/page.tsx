@@ -32,31 +32,13 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { locationService } from '@/lib/location-service';
-import { LogoLoader, PlatformModal } from '@workspace/ui';
+import { LogoLoader, PlatformModal, AILogoIcon } from '@workspace/ui';
+import { use180Pay } from '@workspace/identity-sdk';
 import clsx from 'clsx';
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
-const loadRazorpayScript = (): Promise<boolean> => {
-  return new Promise((resolve) => {
-    if (typeof window === 'undefined') return resolve(false);
-    if (window.Razorpay) return resolve(true);
-
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
 
 export default function DedicatedWalletSettingsPage() {
   const { user, company } = useAuth();
+  const { launch180Pay, isOpeningPay } = use180Pay();
   const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -258,7 +240,7 @@ export default function DedicatedWalletSettingsPage() {
     }
   }, [rechargeAmount, customAmount]);
 
-  // Process Razorpay Top-Up with Custom Coupon Code Support
+  // Process 1-Click 180 Pay Sovereign Top-Up with Coupon Code Support
   const handleTopup = async () => {
     const amountToCharge = customAmount ? Number(customAmount) : rechargeAmount;
     const minTopup = isUsd ? 10 : 100;
@@ -268,90 +250,39 @@ export default function DedicatedWalletSettingsPage() {
       return;
     }
 
-    try {
-      setIsRecharging(true);
-
-      const orderRes = await api.post('/api/v1/wallet/order', {
-        amountInr: amountToCharge,
-        couponCode: appliedCoupon?.code
-      });
-
-      if (!orderRes.data?.success) {
-        throw new Error(orderRes.data?.error || 'Order creation failed');
-      }
-
-      // Case 1: 100% Free Coupon - Instant credit with Zero Payment Gateway Interruption
-      if (orderRes.data.data?.isFree) {
-        toast.success(
-          `🎉 Coupon ${appliedCoupon?.code} Applied! ${currencySymbol}${amountToCharge.toFixed(2)} credited directly to your wallet for FREE!`,
-          { duration: 6000 }
-        );
+    setIsRecharging(true);
+    launch180Pay({
+      amount: amountToCharge,
+      currency: currencyCode,
+      couponCode: appliedCoupon?.code,
+      title: appliedCoupon
+        ? `Dedicated Wallet Top-up (Coupon ${appliedCoupon.code})`
+        : 'Dedicated Prepaid Telephony & AI Top-Up',
+      description: `Instant workspace balance recharge of ${currencySymbol}${amountToCharge.toFixed(2)}`,
+      onSuccess: (res) => {
+        if (res.isFree) {
+          toast.success(
+            `🎉 Coupon ${appliedCoupon?.code} Applied! ${currencySymbol}${amountToCharge.toFixed(2)} credited directly to your wallet for FREE!`,
+            { duration: 6000 }
+          );
+        } else {
+          toast.success(`Success! ${currencySymbol}${amountToCharge.toFixed(2)} credited via 180 Pay to your dedicated wallet.`);
+        }
         setCustomAmount('');
         setAppliedCoupon(null);
         setCouponCodeInput('');
         fetchWallet(true);
         fetchLedger();
-        return;
-      }
-
-      // Case 2: Partial or Full Payment through Razorpay
-      const scriptLoaded = await loadRazorpayScript();
-      const { orderId, amountPaise, keyId, amountInr: netPayable } = orderRes.data.data;
-
-      if (scriptLoaded && (window as any).Razorpay) {
-        const options = {
-          key: keyId,
-          amount: amountPaise,
-          currency: currencyCode,
-          name: '180workspace',
-          description: appliedCoupon
-            ? `Prepaid Wallet Top-up (Pay ${currencySymbol}${netPayable.toFixed(2)} for ${currencySymbol}${amountToCharge.toFixed(2)} credit)`
-            : `Prepaid Wallet Top-up (${currencySymbol}${amountToCharge.toFixed(2)})`,
-          order_id: orderId,
-          handler: async (response: any) => {
-            try {
-              toast.loading('Cryptographically verifying payment truth...', { id: 'wallet-verify' });
-              const verifyRes = await api.post('/api/v1/wallet/verify', {
-                orderId: response.razorpay_order_id,
-                paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature,
-                amountInr: netPayable,
-                couponCode: appliedCoupon?.code,
-                creditedAmount: amountToCharge
-              });
-
-              if (verifyRes.data?.success) {
-                toast.success(`Success! ${currencySymbol}${amountToCharge.toFixed(2)} credited to your dedicated wallet.`, { id: 'wallet-verify' });
-                setCustomAmount('');
-                setAppliedCoupon(null);
-                setCouponCodeInput('');
-                fetchWallet(true);
-                fetchLedger();
-              }
-            } catch (vErr: any) {
-              toast.error(vErr.response?.data?.error || 'Cryptographic verification failed', { id: 'wallet-verify' });
-            }
-          },
-          prefill: {
-            name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.email || company?.name || 'Workspace Administrator' : (company?.name || 'Workspace Administrator'),
-            email: user?.email || (company as any)?.billingEmail || (company as any)?.email || ''
-          },
-          theme: { color: '#4f46e5' }
-        };
-
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', (failRes: any) => {
-          toast.error(`Payment failed: ${failRes.error?.description || 'Cancelled'}`);
-        });
-        rzp.open();
-      } else {
-        toast.error('Razorpay payment gateway script could not be loaded.');
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.message || 'Payment initiation failed');
-    } finally {
-      setIsRecharging(false);
-    }
+        setIsRecharging(false);
+      },
+      onError: (err) => {
+        toast.error(err.message || '180 Pay checkout failed');
+        setIsRecharging(false);
+      },
+      onCancel: () => {
+        setIsRecharging(false);
+      },
+    });
   };
 
   // Save Auto-Recharge Automation Rules
@@ -582,12 +513,17 @@ export default function DedicatedWalletSettingsPage() {
         <div className="flex flex-col justify-between rounded-2xl border border-gray-200/80 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 md:p-8 shadow-sm">
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
-                <CreditCard className="h-5 w-5" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+                <AILogoIcon className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-900 dark:text-white">Instant Prepaid Top-Up</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Cryptographically verified Razorpay payment with zero carrier debt risk.</p>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span>1-Click 180 Pay Top-Up</span>
+                  <span className="rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-[10px] font-bold px-2 py-0.5">
+                    180 Profile
+                  </span>
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Instant carrier top-ups with sovereign wallet debit, UPI & cards via 180 Pay.</p>
               </div>
             </div>
 
@@ -612,13 +548,13 @@ export default function DedicatedWalletSettingsPage() {
                       className={clsx(
                         'relative flex flex-col items-center justify-center rounded-xl border p-3 transition-all cursor-pointer min-h-[44px]',
                         isSelected
-                          ? 'border-2 border-indigo-600 dark:border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold shadow-sm'
+                          ? 'border-2 border-purple-600 dark:border-purple-500 bg-purple-50/80 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-bold shadow-sm'
                           : 'border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700 font-semibold'
                       )}
                     >
                       <span className="text-sm font-bold">{currencySymbol}{amt}</span>
                       {isRecommended && (
-                        <span className="mt-1 rounded bg-indigo-600 dark:bg-indigo-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        <span className="mt-1 rounded bg-purple-600 dark:bg-purple-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                           Recommended
                         </span>
                       )}
@@ -640,7 +576,7 @@ export default function DedicatedWalletSettingsPage() {
                   placeholder={`Enter custom amount (min ${currencySymbol}${isUsd ? 10 : 100})`}
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 pl-8 pr-4 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 pl-8 pr-4 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                 />
               </div>
             </div>
@@ -649,7 +585,7 @@ export default function DedicatedWalletSettingsPage() {
             <div className="mt-5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                  <Tag className="h-3.5 w-3.5 text-indigo-500" />
+                  <Tag className="h-3.5 w-3.5 text-purple-500" />
                   Have a Promo / Coupon Code?
                 </label>
                 {appliedCoupon && (
@@ -679,7 +615,7 @@ export default function DedicatedWalletSettingsPage() {
                           handleApplyCoupon();
                         }
                       }}
-                      className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 pl-9 pr-3 text-sm uppercase tracking-wider font-mono text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                      className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 py-2.5 pl-9 pr-3 text-sm uppercase tracking-wider font-mono text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                     />
                   </div>
                   <button
@@ -759,31 +695,33 @@ export default function DedicatedWalletSettingsPage() {
           <div className="mt-8 pt-4 border-t border-gray-100 dark:border-gray-800">
             <button
               onClick={() => handleTopup()}
-              disabled={isRecharging}
+              disabled={isRecharging || isOpeningPay}
               className={clsx(
                 'flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold shadow-sm transition-all hover:shadow-md active:scale-[0.99] disabled:opacity-50 cursor-pointer',
                 appliedCoupon?.isFree
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-600/20'
               )}
             >
-              {appliedCoupon?.isFree ? (
+              {isRecharging || isOpeningPay ? (
+                <LogoLoader className="h-4 w-4 animate-spin text-white" />
+              ) : appliedCoupon?.isFree ? (
                 <Gift className="h-4 w-4" />
               ) : (
-                <Lock className="h-4 w-4" />
+                <AILogoIcon className="h-4 w-4" />
               )}
-              {isRecharging
-                ? 'Processing Top-Up...'
+              {isRecharging || isOpeningPay
+                ? 'Launching 180 Pay...'
                 : appliedCoupon?.isFree
                 ? `Claim 100% Free ${currencySymbol}${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} Credit`
                 : appliedCoupon
-                ? `Pay ${currencySymbol}${appliedCoupon.finalPayableAmount.toFixed(2)} via Razorpay (Get ${currencySymbol}${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} Credit)`
-                : `Top Up ${currencySymbol}${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} via Razorpay`}
+                ? `Pay ${currencySymbol}${appliedCoupon.finalPayableAmount.toFixed(2)} via 180 Pay (Get ${currencySymbol}${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} Credit)`
+                : `Top Up ${currencySymbol}${(customAmount ? Number(customAmount) : rechargeAmount).toFixed(2)} via 180 Pay`}
             </button>
             <p className="mt-2.5 text-center text-[11px] text-gray-400 dark:text-gray-500">
               {appliedCoupon?.isFree
                 ? 'Zero transaction fees & zero payment gateway routing required for free promotion codes.'
-                : 'Secured with 256-bit SSL encryption & server-side HMAC SHA-256 truth verification.'}
+                : '1-Click Sovereign Checkout powered by 180 Pay & End-to-End Cryptographic Verification.'}
             </p>
           </div>
         </div>

@@ -978,9 +978,9 @@ export class AuthService {
         const mailOptions = {
             from: process.env.EMAIL_FROM || process.env.SMTP_USER || 'noreply@localhost',
             to: email,
-            subject: "Your PitchIn Verification Code",
+            subject: "Your 180 Identity Verification Code",
             html: `<div style="font-family: Arial, sans-serif; padding: 20px;">
-                    <h2>Welcome to PitchIn!</h2>
+                    <h2>Welcome to 180 Identity!</h2>
                     <p>Your verification code is: <strong>${otpCode}</strong></p>
                     <p>This code will expire in 10 minutes.</p>
                    </div>`,

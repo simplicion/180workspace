@@ -34,7 +34,6 @@ export async function GET(
   if (fileName.endsWith(".exe")) {
     const candidates = [
       path.resolve(process.cwd(), "public/downloads/180Workspace-Setup-x64.exe"),
-      path.resolve(process.cwd(), "../desktop-app/windows/180Workspace-Setup-x64.exe"),
     ];
     try {
       for (const p of candidates) {

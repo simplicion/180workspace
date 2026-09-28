@@ -1,19 +1,14 @@
-facebook:
-  label: Facebook
-  permalink: /facebook
-  description: Facebook tag description
+architecture:
+  label: Architecture
+  permalink: /architecture
+  description: Platform and system architecture updates
 
-hello:
-  label: Hello
-  permalink: /hello
-  description: Hello tag description
+work-graph:
+  label: Work Graph
+  permalink: /work-graph
+  description: Work Graph engine and cross-application synergies
 
-docusaurus:
-  label: Docusaurus
-  permalink: /docusaurus
-  description: Docusaurus tag description
-
-hola:
-  label: Hola
-  permalink: /hola
-  description: Hola tag description
+engineering:
+  label: Engineering
+  permalink: /engineering
+  description: Engineering runbooks, guides, and releases

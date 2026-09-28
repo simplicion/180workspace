@@ -48,9 +48,15 @@ export class BillingController {
             const companyId = (req as any).company?.id || (req as any).user?.companyId;
             if (!companyId) return res.status(400).json({ error: 'Company ID required' });
 
-            const company = await prisma.company.findUnique({ where: { id: companyId } });
+            const [company, currentSubscription, companyConfig, teamMembersCount, activeWebsitesCount, storageAgg] = await Promise.all([
+                prisma.company.findUnique({ where: { id: companyId } }),
+                BillingService.getActiveSubscription(companyId),
+                prisma.companyConfig.findUnique({ where: { companyId } }),
+                prisma.user.count({ where: { companyId } }),
+                prisma.website.count({ where: { companyId } }),
+                prisma.document.aggregate({ where: { companyId }, _sum: { fileSize: true } })
+            ]);
 
-            const currentSubscription = await BillingService.getActiveSubscription(companyId);
             let plan = currentSubscription?.planId 
                 ? await prisma.plan.findUnique({ where: { id: currentSubscription.planId } }) 
                 : null;
@@ -58,14 +64,6 @@ export class BillingController {
             if (!plan) {
                 plan = await prisma.plan.findFirst({ where: { price: 0 } });
             }
-
-            
-            const [companyConfig, teamMembersCount, activeWebsitesCount, storageAgg] = await Promise.all([
-                prisma.companyConfig.findUnique({ where: { companyId } }),
-                prisma.user.count({ where: { companyId } }),
-                prisma.website.count({ where: { companyId } }),
-                prisma.document.aggregate({ where: { companyId }, _sum: { fileSize: true } })
-            ]);
 
             const companyMetadata = (company?.metadata && typeof company.metadata === 'object') ? (company.metadata as any) : {};
             const rawEnabledApps = Array.isArray(companyMetadata.enabledApps) ? companyMetadata.enabledApps : [];

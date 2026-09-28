@@ -9,7 +9,7 @@ import '../../core/network/device_registration.dart';
 import '../../core/util/json.dart';
 
 class DirectorTurn {
-  const DirectorTurn({required this.role, required this.content});
+  DirectorTurn({required this.role, required this.content});
   final String role; // user | assistant
   final String content;
 
@@ -17,7 +17,7 @@ class DirectorTurn {
 }
 
 class SilenceRange {
-  const SilenceRange(this.startMs, this.endMs);
+  SilenceRange(this.startMs, this.endMs);
   final int startMs;
   final int endMs;
   Json toJson() => {'startMs': startMs, 'endMs': endMs};
@@ -25,7 +25,7 @@ class SilenceRange {
 
 /// The on-device analysis of the source clip sent with every turn (contract §2.1 `media`).
 class MediaAnalysis {
-  const MediaAnalysis({
+  MediaAnalysis({
     this.assetId = 'primary',
     required this.durationMs,
     required this.width,
@@ -67,7 +67,7 @@ class MediaAnalysis {
 }
 
 class DirectorResponse {
-  const DirectorResponse({
+  DirectorResponse({
     required this.plannerSource,
     required this.plannerReason,
     required this.summary,
@@ -104,7 +104,7 @@ class DirectorResponse {
   factory DirectorResponse.fromData(Json d) {
     final ir = jMap(d['editIR']);
     if (ir.isEmpty) {
-      throw const ApiException(kind: ApiErrorKind.server, message: 'The AI Director returned no timeline (editIR).');
+      throw ApiException(kind: ApiErrorKind.server, message: 'The AI Director returned no timeline (editIR).');
     }
     MobileEditIr parsed;
     try {
@@ -134,7 +134,7 @@ class DirectorResponse {
 }
 
 class StockVideoResult {
-  const StockVideoResult({
+  StockVideoResult({
     required this.id,
     required this.downloadUrl,
     this.previewUrl,
@@ -162,7 +162,7 @@ class StockVideoResult {
 }
 
 class StockPhotoResult {
-  const StockPhotoResult({required this.id, required this.url, required this.thumbnailUrl, required this.title, this.attribution});
+  StockPhotoResult({required this.id, required this.url, required this.thumbnailUrl, required this.title, this.attribution});
   final String id;
   final String url;
   final String thumbnailUrl;
@@ -171,7 +171,7 @@ class StockPhotoResult {
 }
 
 class StockAudioResult {
-  const StockAudioResult({
+  StockAudioResult({
     required this.id,
     required this.url,
     required this.title,
@@ -237,7 +237,7 @@ class AiDirectorService {
     CancelToken? cancelToken,
   }) async {
     if (prompt.trim().isEmpty && intent != 'greet') {
-      throw const ApiException(kind: ApiErrorKind.validation, message: 'Tell the director what to change.');
+      throw ApiException(kind: ApiErrorKind.validation, message: 'Tell the director what to change.');
     }
     await _device.ensureToken();
     final body = buildRequest(
@@ -311,9 +311,9 @@ class AiDirectorService {
         'perPage': 18,
       });
       final list = <StockVideoResult>[];
-      final unified = (r['unifiedVideos'] as List?)?.whereType<Map>().toList() ?? const [];
+      final unified = (r['unifiedVideos'] as List?)?.whereType<Map>().toList() ?? [];
       for (final v in unified) {
-        final downloadUrl = jStr(v['downloadUrl']) ?? jStr(v['previewVideoUrl']) ?? _firstHttpUrl(v['video_files'], const ['link']);
+        final downloadUrl = jStr(v['downloadUrl']) ?? jStr(v['previewVideoUrl']) ?? _firstHttpUrl(v['video_files'], ['link']);
         if (downloadUrl == null) continue;
         final preview = jStr(v['previewVideoUrl']) ?? downloadUrl;
         final thumb = jStr(v['thumbnailUrl']) ?? jStr(v['image']) ?? jStr(v['picture_url']);
@@ -349,10 +349,10 @@ class AiDirectorService {
         'orientation': orientation,
         'perPage': 18,
       });
-      final videos = (r['videos'] as List?)?.whereType<Map>().toList() ?? const [];
+      final videos = (r['videos'] as List?)?.whereType<Map>().toList() ?? [];
       final list = <StockVideoResult>[];
       for (final v in videos) {
-        final dl = jStr(v['downloadUrl']) ?? _firstHttpUrl(v['video_files'], const ['link']) ?? '';
+        final dl = jStr(v['downloadUrl']) ?? _firstHttpUrl(v['video_files'], ['link']) ?? '';
         if (dl.isEmpty) continue;
         list.add(StockVideoResult(
           id: jStr(v['id']) ?? 'vid',
@@ -370,9 +370,9 @@ class AiDirectorService {
       return list;
     } on ApiException catch (e) {
       if (e.isAccessLock || e.kind == ApiErrorKind.unauthorized) rethrow;
-      return const [];
+      return [];
     } catch (_) {
-      return const [];
+      return [];
     }
   }
 
@@ -384,7 +384,7 @@ class AiDirectorService {
         'type': type,
         'perPage': 20,
       });
-      final audioList = (r['unifiedAudio'] as List?)?.whereType<Map>().toList() ?? const [];
+      final audioList = (r['unifiedAudio'] as List?)?.whereType<Map>().toList() ?? [];
       final list = <StockAudioResult>[];
       for (final a in audioList) {
         final url = jStr(a['url']) ?? jStr(a['downloadUrl']) ?? jStr(a['previewUrl']);
@@ -407,7 +407,7 @@ class AiDirectorService {
     // Fallback: /stock/music catalogue
     try {
       final r = await _api.get('/api/v1/media-editor/stock/music', query: {'query': query});
-      final tracks = (r['tracks'] as List?)?.whereType<Map>().toList() ?? const [];
+      final tracks = (r['tracks'] as List?)?.whereType<Map>().toList() ?? [];
       final list = <StockAudioResult>[];
       for (final t in tracks) {
         final u = jStr(t['url']) ?? '';
@@ -425,9 +425,9 @@ class AiDirectorService {
       return list;
     } on ApiException catch (e) {
       if (e.isAccessLock || e.kind == ApiErrorKind.unauthorized) rethrow;
-      return const [];
+      return [];
     } catch (_) {
-      return const [];
+      return [];
     }
   }
 

@@ -9,7 +9,7 @@
   var DEFAULT_AUTH_SERVER = 'http://localhost:3000';
   if (typeof window !== 'undefined' && window.location) {
     if (window.location.hostname.endsWith('180workspace.com')) {
-      DEFAULT_AUTH_SERVER = 'https://auth.180workspace.com';
+      DEFAULT_AUTH_SERVER = 'https://180identity.180workspace.com';
     } else {
       DEFAULT_AUTH_SERVER = window.location.origin;
     }

@@ -38,7 +38,7 @@ class ProjectWorkspaceScreen extends ConsumerWidget {
           if (detail.valueOrNull != null)
             Text(detail.valueOrNull!.project.name, style: Theme.of(context).textTheme.labelSmall),
         ]),
-        actions: const [SyncIndicator()],
+        actions: [SyncIndicator()],
       ),
       body: section == null
           ? EmptyView(icon: Icons.help_outline_rounded, title: 'Unknown section "$tab"')
@@ -64,6 +64,6 @@ class ProjectWorkspaceScreen extends ConsumerWidget {
         'accounts' => AccountsTab(project: d.project),
         'evergreen' => EvergreenTab(project: d.project),
         'settings' => SettingsTab(project: d.project),
-        _ => const SizedBox.shrink(),
+        _ => SizedBox.shrink(),
       };
 }

@@ -4,7 +4,7 @@ import '../../core/util/json.dart';
 
 /// `GET /projects/:id/autopilot/jobs/:jobId`. The server's multi-agent calendar run.
 class AutopilotJob {
-  const AutopilotJob({
+  AutopilotJob({
     required this.jobId,
     required this.calendarId,
     required this.status,
@@ -66,7 +66,7 @@ class AutopilotJob {
 }
 
 class CreativeSlide {
-  const CreativeSlide({required this.index, required this.url, this.headline});
+  CreativeSlide({required this.index, required this.url, this.headline});
   final int index;
   final String url;
   final String? headline;
@@ -74,7 +74,7 @@ class CreativeSlide {
 
 /// `GET /projects/:id/creative/jobs/:jobId` → `job`. Carousel or single static post render.
 class CreativeJob {
-  const CreativeJob({
+  CreativeJob({
     required this.id,
     required this.kind,
     required this.status,
@@ -112,7 +112,7 @@ class CreativeJob {
     final progress = jMap(j['progress']);
     final err = jMap(j['error']);
     final urls = jStrList(result['mediaUrls']);
-    final rawSlides = result['slides'] is List ? result['slides'] as List : const [];
+    final rawSlides = result['slides'] is List ? result['slides'] as List : [];
     final slides = <CreativeSlide>[];
     for (var i = 0; i < rawSlides.length; i++) {
       final s = jMap(rawSlides[i]);
@@ -143,7 +143,7 @@ class CreativeJob {
 }
 
 class ScriptBeat {
-  const ScriptBeat(this.beat, [this.retentionDevice]);
+  ScriptBeat(this.beat, [this.retentionDevice]);
   final String beat;
   final String? retentionDevice;
 }
@@ -151,7 +151,7 @@ class ScriptBeat {
 /// The autopilot piece payload the server stores as JSON in `videoScriptOrHooks`.
 /// [PieceBrief.parse] returns null for plain-text scripts (older calendars, user edits).
 class PieceBrief {
-  const PieceBrief({
+  PieceBrief({
     this.format,
     this.spokenHook,
     this.onScreenHook,
@@ -195,7 +195,7 @@ class PieceBrief {
     final script = jMap(j['script']);
     final carousel = jMap(j['carouselBrief']);
     final body = <ScriptBeat>[];
-    for (final b in script['body'] is List ? script['body'] as List : const []) {
+    for (final b in script['body'] is List ? script['body'] as List : []) {
       if (b is String && b.trim().isNotEmpty) {
         body.add(ScriptBeat(b.trim()));
       } else if (b is Map) {
@@ -241,7 +241,7 @@ class PieceBrief {
 
 /// `GET/PUT /projects/:id/brand-consciousness` → `brand`. Only what the user entered; nulls are "not set".
 class BrandConsciousness {
-  const BrandConsciousness({
+  BrandConsciousness({
     this.brandName,
     this.brandType,
     this.website,

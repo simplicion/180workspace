@@ -32,31 +32,31 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
     final projects = ref.watch(projectListProvider(filter));
     final activeId = ref.watch(activeProjectProvider).valueOrNull?.id;
     return Scaffold(
-      appBar: AppBar(title: const Text('Projects')),
+      appBar: AppBar(title: Text('Projects')),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'projects.new',
         onPressed: () => context.push('/projects/new'),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New project'),
+        icon: Icon(Icons.add_rounded),
+        label: Text('New project'),
       ),
       body: Column(children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: TextField(
             controller: _searchCtl,
             textInputAction: TextInputAction.search,
             onSubmitted: (v) => setState(() => _search = v),
             decoration: fieldDecoration('Search projects',
-                suffix: IconButton(icon: const Icon(Icons.search_rounded), onPressed: () => setState(() => _search = _searchCtl.text))),
+                suffix: IconButton(icon: Icon(Icons.search_rounded), onPressed: () => setState(() => _search = _searchCtl.text))),
           ),
         ),
         SizedBox(
           height: 52,
-          child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
-            ChoiceChip(label: const Text('All'), selected: _status == null, onSelected: (_) => setState(() => _status = null)),
+          child: ListView(scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
+            ChoiceChip(label: Text('All'), selected: _status == null, onSelected: (_) => setState(() => _status = null)),
             for (final s in ProjectStatus.listFilters)
               Padding(
-                padding: const EdgeInsets.only(left: 8),
+                padding: EdgeInsets.only(left: 8),
                 child: ChoiceChip(label: Text(s.label), selected: _status == s.id, onSelected: (_) => setState(() => _status = s.id)),
               ),
           ]),
@@ -76,9 +76,9 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
             builder: (list) => RefreshIndicator(
               onRefresh: () async => ref.invalidate(projectListProvider(filter)),
               child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 96),
                 itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => SizedBox(height: 10),
                 itemBuilder: (_, i) => _ProjectCard(project: list[i], isActive: list[i].id == activeId),
               ),
             ),
@@ -105,21 +105,21 @@ class _ProjectCard extends ConsumerWidget {
       },
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: Text(project.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
-          if (isActive) const Padding(padding: EdgeInsets.only(right: 8), child: StatusChip(label: 'Active', color: AppTheme.primary)),
+          Expanded(child: Text(project.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+          if (isActive) Padding(padding: EdgeInsets.only(right: 8), child: StatusChip(label: 'Active', color: AppTheme.primary)),
           StatusChip(label: project.status.label, color: project.status.color),
         ]),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         Text(
           project.client?.name ?? (project.clientIds.isEmpty ? 'Internal project' : 'Client project'),
           style: Theme.of(context).textTheme.bodyMedium,
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Row(children: [
           for (final a in project.socialAccounts.take(5))
-            Padding(padding: const EdgeInsets.only(right: 6), child: Icon(a.platform.icon, size: 16, color: a.needsAttention ? AppTheme.error : a.platform.color)),
+            Padding(padding: EdgeInsets.only(right: 6), child: Icon(a.platform.icon, size: 16, color: a.needsAttention ? AppTheme.error : a.platform.color)),
           if (project.socialAccounts.isEmpty) Text('No channels', style: Theme.of(context).textTheme.labelSmall),
-          const Spacer(),
+          Spacer(),
           _Count(Icons.event_rounded, m.scheduledPosts, 'scheduled'),
           _Count(Icons.hourglass_top_rounded, m.pendingApprovals, 'pending review'),
           _Count(Icons.assignment_rounded, m.outstandingTasks, 'tasks'),
@@ -139,11 +139,11 @@ class _Count extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
         message: '$value $tooltip',
         child: Padding(
-          padding: const EdgeInsets.only(left: 12),
+          padding: EdgeInsets.only(left: 12),
           child: Row(children: [
             Icon(icon, size: 14, color: AppTheme.textSecondary),
-            const SizedBox(width: 3),
-            Text('$value', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+            SizedBox(width: 3),
+            Text('$value', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
           ]),
         ),
       );

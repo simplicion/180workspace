@@ -11,7 +11,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
 import { locationService } from '@/lib/location-service';
 import { UniversalSlideDrawer } from './UniversalSlideDrawer';
-import { UniversalSkeleton } from '@workspace/ui';
+import { use180Pay } from '@workspace/identity-sdk';
+import { UniversalSkeleton, AILogoIcon, LogoLoader } from '@workspace/ui';
 import clsx from 'clsx';
 
 interface WalletLedgerDrawerProps {
@@ -20,33 +21,20 @@ interface WalletLedgerDrawerProps {
   onBalanceUpdated?: () => void;
 }
 
-const loadRazorpayScript = (): Promise<boolean> => {
-  return new Promise((resolve) => {
-    if (typeof window === 'undefined') return resolve(false);
-    if ((window as any).Razorpay) return resolve(true);
-
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
-
 /**
- * 180 Voiceforce: Prepaid Wallet Ledger & Razorpay Top-Up Drawer
+ * 180 Voiceforce: Prepaid Wallet Ledger & 180 Pay Top-Up Drawer
  * 
  * Rules:
  * - Minimum calling threshold: ₹200.00 (Hard Lock if below ₹200)
  * - Recommended balance: ₹1,000.00
  * - Call rate: ₹6.00 / minute
  * - Number lease: ₹149.00 / month (Auto-released if unpaid for 5 days)
- * - Cryptographic Razorpay checkout with HMAC verification & webhook truth
+ * - 1-Click 180 Pay Sovereign Checkout & Cryptographic HMAC truth
  */
 export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: WalletLedgerDrawerProps) {
   const router = useRouter();
   const { user, company } = useAuth();
+  const { launch180Pay, isOpeningPay } = use180Pay();
   const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [rechargeAmount, setRechargeAmount] = useState<number>(1000);
@@ -88,7 +76,6 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
   useEffect(() => {
     if (isOpen) {
       fetchWallet();
-      loadRazorpayScript().catch(() => {});
     }
   }, [isOpen]);
 
@@ -101,77 +88,27 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
       return;
     }
 
-    try {
-      setIsRecharging(true);
-      const scriptLoaded = await loadRazorpayScript();
-
-      // 1. Request Razorpay Order from server
-      const orderRes = await api.post('/api/v1/wallet/order', {
-        amountInr: amountToCharge
-      });
-
-      if (orderRes.data?.success && scriptLoaded && (window as any).Razorpay) {
-        const { orderId, amountPaise, keyId } = orderRes.data.data;
-
-        const orderCurr = orderRes.data?.data?.currency || currencyCode;
-        const options = {
-          key: keyId,
-          amount: amountPaise,
-          currency: orderCurr,
-          name: '180 Voiceforce',
-          description: `Prepaid Voice Wallet Top-up (${currencySymbol}${amountToCharge})`,
-          order_id: orderId,
-          handler: async (response: any) => {
-            try {
-              toast.loading('Verifying payment cryptographically on server...', { id: 'rzp-verify' });
-              const verifyRes = await api.post('/api/v1/wallet/verify', {
-                orderId: response.razorpay_order_id,
-                paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature,
-                amountInr: amountToCharge
-              });
-
-              if (verifyRes.data?.success) {
-                toast.success(`Payment verified! ${currencySymbol}${amountToCharge.toFixed(2)} credited to your 180 Wallet.`, { id: 'rzp-verify' });
-                setCustomAmount('');
-                fetchWallet();
-                if (onBalanceUpdated) onBalanceUpdated();
-              }
-            } catch (vErr: any) {
-              toast.error(vErr.response?.data?.error || 'Payment verification failed', { id: 'rzp-verify' });
-            }
-          },
-          prefill: {
-            name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.email || company?.name || 'Workspace Admin' : (company?.name || 'Workspace Admin'),
-            email: user?.email || (company as any)?.billingEmail || ''
-          },
-          theme: { color: '#f59e0b' }
-        };
-
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', (failRes: any) => {
-          toast.error(`Payment failed: ${failRes.error?.description || 'Cancelled'}`);
-        });
-        rzp.open();
-      } else {
-        // Fallback test recharge
-        const res = await api.post('/api/v1/wallet/recharge', {
-          amountInr: amountToCharge,
-          paymentRef: `manual_topup_${Date.now()}`
-        });
-
-        if (res.data?.success) {
-          toast.success(`Wallet successfully credited with ${currencySymbol}${amountToCharge.toFixed(2)}!`);
-          setCustomAmount('');
-          fetchWallet();
-          if (onBalanceUpdated) onBalanceUpdated();
-        }
+    setIsRecharging(true);
+    launch180Pay({
+      amount: amountToCharge,
+      title: 'Voiceforce Telephony Top-Up',
+      description: `Recharge telephony balance with ${currencySymbol}${amountToCharge}`,
+      currency: currencyCode,
+      onSuccess: () => {
+        toast.success(`Success! ${currencySymbol}${amountToCharge.toFixed(2)} credited via 180 Pay to your voice wallet.`);
+        setCustomAmount('');
+        fetchWallet();
+        if (onBalanceUpdated) onBalanceUpdated();
+        setIsRecharging(false);
+      },
+      onError: (err) => {
+        toast.error(err.message || '180 Pay checkout failed');
+        setIsRecharging(false);
+      },
+      onCancel: () => {
+        setIsRecharging(false);
       }
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Recharge request failed');
-    } finally {
-      setIsRecharging(false);
-    }
+    });
   };
 
   const handleSaveAutoRecharge = async () => {
@@ -347,15 +284,15 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
             </div>
           </div>
 
-          {/* Quick Top-Up with Razorpay Section */}
+          {/* Quick Top-Up with 180 Pay Section */}
           <div className="p-5 rounded-2xl bg-white dark:bg-gray-800/80 border border-gray-200/80 dark:border-gray-700 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-500" />
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Top Up via Razorpay</h3>
+                <AILogoIcon className="w-4 h-4 text-purple-500" />
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Top Up via 180 Pay</h3>
               </div>
               <span className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> UPI, Cards, Netbanking
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> 1-Click Sovereign Auth
               </span>
             </div>
 
@@ -384,7 +321,7 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
                   className={clsx(
                     "relative py-3 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5",
                     rechargeAmount === amt && !customAmount
-                      ? "bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/20"
+                      ? "bg-purple-600 text-white border-purple-700 shadow-md shadow-purple-500/20"
                       : "bg-gray-50 dark:bg-gray-750 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                   )}
                 >
@@ -407,18 +344,18 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
                   placeholder={`Custom amount (e.g. ${isUsd ? '75' : '1500'})`}
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
-                  className="w-full pl-7 pr-3 py-2.5 rounded-xl text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full pl-7 pr-3 py-2.5 rounded-xl text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
 
               <button
                 type="button"
                 onClick={() => handleRecharge()}
-                disabled={isRecharging}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-xs font-bold shadow-md shadow-amber-500/20 disabled:opacity-50 transition-all cursor-pointer flex-shrink-0 flex items-center gap-1.5"
+                disabled={isRecharging || isOpeningPay}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-500/20 disabled:opacity-50 transition-all cursor-pointer flex-shrink-0 flex items-center gap-1.5"
               >
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>{isRecharging ? 'Opening Razorpay...' : `Pay ${currencySymbol}${customAmount ? Number(customAmount) || 0 : rechargeAmount}`}</span>
+                {isRecharging || isOpeningPay ? <LogoLoader className="w-3.5 h-3.5 animate-spin text-white" /> : <AILogoIcon className="w-3.5 h-3.5" />}
+                <span>{isRecharging || isOpeningPay ? 'Opening 180 Pay...' : `Pay ${currencySymbol}${customAmount ? Number(customAmount) || 0 : rechargeAmount} via 180 Pay`}</span>
               </button>
             </div>
           </div>

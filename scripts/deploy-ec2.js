@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const INSTANCE_ID = 'i-0faa8af91b9af8366';
+const INSTANCE_ID = 'i-040592f78ef3ea179';
 const REGION = 'us-east-1';
 const PROFILE = 'simplicion';
 

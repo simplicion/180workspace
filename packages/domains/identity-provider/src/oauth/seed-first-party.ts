@@ -1,6 +1,6 @@
 'use strict';
 
-import { prisma } from '@workspace/db';
+import { developersPrisma as prisma } from '@workspace/db-180developers';
 import { hashSecret } from './oauth.service';
 
 export const FIRST_PARTY_APPS = [
@@ -33,31 +33,6 @@ export const FIRST_PARTY_APPS = [
         logoUrl: '/icon.svg'
     },
     {
-        clientId: '180-pitch-network',
-        name: 'Pitch in 180',
-        description: 'High-Impact 180s Elevator Pitches, Startup Gigs & Opportunities',
-        redirectUris: [
-            '180pitch://oauth-callback',
-            'http://localhost:3000/pitch/callback',
-            'https://pitch.180workspace.com/callback'
-        ],
-        allowedOrigins: [
-            'http://localhost:3000',
-            'https://pitch.180workspace.com'
-        ],
-        allowedScopes: [
-            'openid',
-            'identity:read',
-            'identity:email',
-            'pitch:read',
-            'pitch:write',
-            'messages:send'
-        ],
-        isVerified: true,
-        isActive: true,
-        logoUrl: '/icon.svg'
-    },
-    {
         clientId: '180-social-studio-mobile',
         name: '180 Social Studio',
         description: 'Multi-Channel Social Media Automation & Analytics',
@@ -67,6 +42,34 @@ export const FIRST_PARTY_APPS = [
         ],
         allowedOrigins: [
             'http://localhost:3000'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email'
+        ],
+        isVerified: true,
+        isActive: true,
+        logoUrl: '/icon.svg'
+    },
+    {
+        clientId: '180-traffic-director',
+        name: '180 Traffic Director',
+        description: 'Enterprise Edge Traffic Router, Safe-Page Cloaker & Click Armor',
+        redirectUris: [
+            'http://localhost:3000/callback',
+            'http://localhost:3009/callback',
+            'http://localhost:3002/callback',
+            'https://trafficdirector.180workspace.com/callback',
+            'https://*.180workspace.com/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3000',
+            'http://localhost:3009',
+            'http://127.0.0.1:3009',
+            'http://localhost:3002',
+            'https://trafficdirector.180workspace.com',
+            'https://*.180workspace.com'
         ],
         allowedScopes: [
             'openid',

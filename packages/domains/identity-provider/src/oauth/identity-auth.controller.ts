@@ -2,7 +2,7 @@
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '@workspace/db';
+import { developersPrisma as prisma } from '@workspace/db-180developers';
 import { Msg91OtpService } from '../otp/msg91-otp.service';
 import { UsernameService } from '../user/username.service';
 import { LocationService } from '../user/location.service';

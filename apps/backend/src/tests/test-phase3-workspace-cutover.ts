@@ -33,11 +33,9 @@ async function runPhase3WorkspaceCutoverSuite() {
     await test('FIRST_PARTY_APPS contains 180-workspace-platform and companion apps', () => {
         assert(Array.isArray(FIRST_PARTY_APPS), 'FIRST_PARTY_APPS must be an array');
         const workspaceApp = FIRST_PARTY_APPS.find(a => a.clientId === '180-workspace-platform');
-        const pitchApp = FIRST_PARTY_APPS.find(a => a.clientId === '180-pitch-network');
         const socialApp = FIRST_PARTY_APPS.find(a => a.clientId === '180-social-studio-mobile');
 
         assert(workspaceApp, '180 Workspace must be registered');
-        assert(pitchApp, 'Pitch in 180 must be registered');
         assert(socialApp, '180 Social Studio must be registered');
 
         assert.strictEqual(workspaceApp?.isVerified, true);
@@ -92,28 +90,30 @@ async function runPhase3WorkspaceCutoverSuite() {
         assert.strictEqual(resolvePostAuthTarget(newIdentityUser), '/workspace-setup');
     });
 
-    // ─── Test 4: Frontend Cutover Files Exist & Wired ─────────────────────────
-    await test('Frontend login, signup, callback, and hook files are intact', () => {
-        const hookPath = path.resolve(__dirname, '../../../frontend/lib/use180Identity.ts');
+    // ─── Test 4: Identity SDK & Frontend Cutover Files Exist & Wired ─────────
+    await test('Identity SDK and Frontend login, signup, callback files are intact', () => {
+        const sdkPath = path.resolve(__dirname, '../../../../packages/identity-sdk/src/index.tsx');
         const callbackPath = path.resolve(__dirname, '../../../frontend/app/(auth)/callback/page.tsx');
         const loginPath = path.resolve(__dirname, '../../../frontend/app/(auth)/login/page.tsx');
         const signupPath = path.resolve(__dirname, '../../../frontend/app/(auth)/signup/page.tsx');
 
-        assert(fs.existsSync(hookPath), 'use180Identity.ts must exist');
+        assert(fs.existsSync(sdkPath), 'packages/identity-sdk/src/index.tsx must exist');
         assert(fs.existsSync(callbackPath), 'callback/page.tsx must exist');
         assert(fs.existsSync(loginPath), 'login/page.tsx must exist');
         assert(fs.existsSync(signupPath), 'signup/page.tsx must exist');
 
-        const hookContent = fs.readFileSync(hookPath, 'utf8');
-        assert(hookContent.includes('180-workspace-platform'));
-        assert(hookContent.includes('180_IDENTITY_SUCCESS'));
+        const sdkContent = fs.readFileSync(sdkPath, 'utf8');
+        assert(sdkContent.includes('180-workspace-platform'));
+        assert(sdkContent.includes('180_IDENTITY_SUCCESS'));
+        assert(sdkContent.includes('use180Identity'));
+        assert(sdkContent.includes('use180Pay'));
 
         const loginContent = fs.readFileSync(loginPath, 'utf8');
-        assert(loginContent.includes('Get started with 180 Identity'));
+        assert(loginContent.includes('@workspace/identity-sdk'));
         assert(loginContent.includes('launch180Identity'));
 
         const signupContent = fs.readFileSync(signupPath, 'utf8');
-        assert(signupContent.includes('Sign up with 180 Identity'));
+        assert(signupContent.includes('@workspace/identity-sdk'));
         assert(signupContent.includes('launch180Identity'));
 
         const callbackContent = fs.readFileSync(callbackPath, 'utf8');

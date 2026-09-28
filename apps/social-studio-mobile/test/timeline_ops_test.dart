@@ -154,18 +154,18 @@ void main() {
 
     test('filter, volume, transition only at cuts', () {
       var ir = TimelineOps.split(base(), 5000);
-      ir = TimelineOps.setFilter(ir, const EditIrFilter(preset: 'VIVID', saturation: 1.3), index: 1);
+      ir = TimelineOps.setFilter(ir, EditIrFilter(preset: 'VIVID', saturation: 1.3), index: 1);
       expect(ir.clips[0].filter, isNull);
       expect(ir.clips[1].filter!.preset, 'VIVID');
       ir = TimelineOps.setClipVolume(ir, -100);
       expect(ir.clips.every((c) => c.volumeDb == -60), isTrue);
-      ir = TimelineOps.setTransition(ir, const EditIrTransition(durationMs: 300));
+      ir = TimelineOps.setTransition(ir, EditIrTransition(durationMs: 300));
       expect(ir.clips[0].transitionIn, isNull);
       expect(ir.clips[1].transitionIn, isNotNull);
     });
 
     test('crop outside the frame is rejected', () {
-      expect(() => TimelineOps.setCrop(base(), const EditIrCrop(x: 0.8, y: 0, width: 0.5, height: 1)), throwsA(isA<MediaEngineException>()));
+      expect(() => TimelineOps.setCrop(base(), EditIrCrop(x: 0.8, y: 0, width: 0.5, height: 1)), throwsA(isA<MediaEngineException>()));
     });
 
     test('music needs https and ducks only with speech', () {
@@ -218,13 +218,13 @@ void main() {
   group('face-centred reframe', () {
     final faces = [
       for (var i = 0; i < 10; i++) FaceSample(tMs: i * 500, x: i == 4 ? 0.1 : 0.75, y: 0.35, w: 0.1, h: 0.18),
-      const FaceSample(tMs: 0, x: 0.2, y: 0.5, w: 0.02, h: 0.03), // smaller face in the same frame: ignored
+      FaceSample(tMs: 0, x: 0.2, y: 0.5, w: 0.02, h: 0.03), // smaller face in the same frame: ignored
     ];
 
     test('faceFocus is the median of the largest face per sample, clamped', () {
       expect(TimelineOps.faceFocus(faces), (x: 0.75, y: 0.35));
       expect(TimelineOps.faceFocus(const []), isNull);
-      expect(TimelineOps.faceFocus(const [FaceSample(tMs: 0, x: 0.99, y: 0.01, w: 0.1, h: 0.1)]), (x: 0.9, y: 0.1));
+      expect(TimelineOps.faceFocus([FaceSample(tMs: 0, x: 0.99, y: 0.01, w: 0.1, h: 0.1)]), (x: 0.9, y: 0.1));
     });
 
     test('initial and setAspect centre the crop on the face and keep it inside the frame', () {
@@ -278,7 +278,7 @@ void main() {
     test('text template: style applied with brand font, text and style editable, move keeps length', () {
       final t = TextTemplate.byId('lower_third')!;
       var ir = TimelineOps.addText(base(), 'Jane · Founder', startMs: 1000, durationMs: 3000, positionY: t.positionY,
-          style: t.style(const BrandLook(font: 'Poppins', primaryColor: '#1F3A2E')));
+          style: t.style(BrandLook(font: 'Poppins', primaryColor: '#1F3A2E')));
       final cap = ir.captions.single;
       expect(cap.style['fontFamily'], 'Poppins');
       expect((cap.style['background'] as Map)['color'], '#1F3A2EE6');
@@ -328,7 +328,7 @@ void main() {
       var ir = TimelineOps.addEffect(base(), 'vignette', startMs: 0);
       ir = TimelineOps.setOriginalVolume(ir, -3);
       ir = TimelineOps.addText(ir, 'Hi', startMs: 0, durationMs: 1000);
-      ir = ir.withWatermark(const EditIrWatermark(imageUrl: 'https://cdn.test/logo.png'));
+      ir = ir.withWatermark(EditIrWatermark(imageUrl: 'https://cdn.test/logo.png'));
       expect(ir.effects.single.type, 'vignette');
     });
 
@@ -429,7 +429,7 @@ void main() {
         ir = TimelineOps.setTransition(ir, EditIrTransition(type: type, durationMs: 400));
         expect(MobileEditIr.fromJson(ir.toJson()).clips[1].transitionIn!.type, type);
       }
-      const odd = EditIrTransition(type: 'WIPE_LEFT', durationMs: 300);
+      final odd = EditIrTransition(type: 'WIPE_LEFT', durationMs: 300);
       expect(odd.isKnown, isFalse);
       expect(EditIrTransition.fromJson(odd.toJson()).type, 'WIPE_LEFT');
     });

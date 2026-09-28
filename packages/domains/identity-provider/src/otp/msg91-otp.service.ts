@@ -1,7 +1,7 @@
 'use strict';
 
 import axios from 'axios';
-import { prisma } from '@workspace/db';
+import { developersPrisma as prisma } from '@workspace/db-180developers';
 
 export class Msg91OtpService {
     /**

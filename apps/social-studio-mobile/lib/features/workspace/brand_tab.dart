@@ -95,9 +95,9 @@ class _BrandEditorState extends ConsumerState<_BrandEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 120), children: [
+    return ListView(padding: EdgeInsets.fromLTRB(16, 12, 16, 120), children: [
       if (_voice.isUnsaved)
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(bottom: 12),
           child: StatusChip(label: 'Not saved yet: these are the server defaults', color: AppTheme.warning, icon: Icons.info_rounded),
         ),
@@ -112,28 +112,28 @@ class _BrandEditorState extends ConsumerState<_BrandEditor> {
       ElevatedButton(
         onPressed: _saving || !_dirty ? null : _save,
         child: _saving
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-            : const Text('Save brand identity'),
+            ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            : Text('Save brand identity'),
       ),
-      const SizedBox(height: 16),
+      SizedBox(height: 16),
       BrandIdentityCard(projectId: widget.project.id),
       SectionHeader('Content ideas',
           trailing: TextButton.icon(
             onPressed: _ideasLoading ? null : _generateIdeas,
-            icon: const Icon(Icons.auto_awesome_rounded, size: 16),
-            label: const Text('Generate'),
+            icon: Icon(Icons.auto_awesome_rounded, size: 16),
+            label: Text('Generate'),
           )),
-      if (_ideasLoading) const Padding(padding: EdgeInsets.all(16), child: LoadingView(label: 'Thinking up ideas…')),
+      if (_ideasLoading) Padding(padding: EdgeInsets.all(16), child: LoadingView(label: 'Thinking up ideas…')),
       if (_ideasError != null) ErrorView(error: _ideasError!, compact: true, onRetry: _generateIdeas),
-      if (_ideas != null && _ideas!.isEmpty) const SectionCard(child: Text('The server returned no ideas.')),
+      if (_ideas != null && _ideas!.isEmpty) SectionCard(child: Text('The server returned no ideas.')),
       for (final idea in _ideas ?? const <ContentIdea>[])
         Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: EdgeInsets.only(bottom: 8),
           child: SectionCard(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(idea.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(idea.title, style: TextStyle(fontWeight: FontWeight.w700)),
               if (idea.hook != null) Text('Hook: ${idea.hook}', style: Theme.of(context).textTheme.bodyMedium),
-              if (idea.caption != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(idea.caption!, maxLines: 4, overflow: TextOverflow.ellipsis)),
+              if (idea.caption != null) Padding(padding: EdgeInsets.only(top: 4), child: Text(idea.caption!, maxLines: 4, overflow: TextOverflow.ellipsis)),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -143,7 +143,7 @@ class _BrandEditorState extends ConsumerState<_BrandEditor> {
                     'content': idea.caption ?? idea.title,
                     'platforms': [?idea.platform],
                   }),
-                  child: const Text('Create post'),
+                  child: Text('Create post'),
                 ),
               ),
             ]),

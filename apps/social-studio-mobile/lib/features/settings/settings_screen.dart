@@ -26,7 +26,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _loadingDevices = true;
   Object? _devicesError;
-  List<Map<String, dynamic>> _devices = [];
+  List<Map<String, dynamic>> _devices = const [];
   String? _currentDeviceId;
   String? _cacheSizeStr = 'Calculating...';
   bool _clearingCache = false;
@@ -146,52 +146,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text('Settings'),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: [
           // Section: Device Management
           _sectionHeader(context, 'Active Devices & Slots', Icons.devices_rounded),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             'Up to 20 devices. When the limit is reached, the device unused the longest (idle 30+ minutes) is signed out automatically. This device is never removed that way.',
             style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Theme.of(context).dividerColor),
             ),
             child: _loadingDevices
-                ? const SizedBox(height: 120, child: UniversalSkeleton(type: SkeletonType.activity))
+                ? SizedBox(height: 120, child: UniversalSkeleton(type: SkeletonType.activity))
                 : _devicesError != null
                     ? ErrorView(error: _devicesError!, compact: true, onRetry: _loadDevices)
                 : _devices.isEmpty
-                    ? const Padding(
+                    ? Padding(
                         padding: EdgeInsets.all(16),
                         child: Text('No active devices recorded.', style: TextStyle(color: AppTheme.textMuted)),
                       )
                     : Column(
                         children: [
                           for (int i = 0; i < _devices.length; i++) ...[
-                            if (i > 0) const Divider(height: 1),
+                            if (i > 0) Divider(height: 1),
                             _buildDeviceTile(_devices[i]),
                           ],
                         ],
                       ),
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
 
           // Section: Storage & Cache
           _sectionHeader(context, 'Storage & Media Cache', Icons.storage_rounded),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
@@ -203,70 +203,71 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Temporary Render & B-roll Cache', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      const SizedBox(height: 4),
-                      Text('Current cache: $_cacheSizeStr', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                      Text('Temporary Render & B-roll Cache', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      SizedBox(height: 4),
+                      Text('Current cache: $_cacheSizeStr', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
                     ],
                   ),
                 ),
                 FilledButton.tonal(
                   onPressed: _clearingCache ? null : _clearCache,
                   child: _clearingCache
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Clear'),
+                      ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : Text('Clear'),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
 
           // Section: Appearance
           _sectionHeader(context, 'Appearance', Icons.palette_outlined),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _card(context, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SegmentedButton<ThemeMode>(
-              key: const Key('settings.theme'),
+              key: Key('settings.theme'),
               showSelectedIcon: false,
-              segments: const [
+              segments: [
+                ButtonSegment(value: ThemeMode.light, label: Text('Light')),
                 ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
                 ButtonSegment(value: ThemeMode.system, label: Text('System')),
               ],
-              selected: {ref.watch(themeModeProvider) == ThemeMode.light ? ThemeMode.dark : ref.watch(themeModeProvider)},
+              selected: {ref.watch(themeModeProvider)},
               onSelectionChanged: (v) => ref.read(themeModeProvider.notifier).setThemeMode(v.first),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Light mode is not available yet: the studio screens use the dark Media Studio palette. System follows your device once light mode ships and stays dark until then.',
+            SizedBox(height: 8),
+            Text(
+              'Select the appearance of the application. Light mode is now fully supported!',
               style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
             ),
           ])),
 
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
 
           // Section: Notifications
           _sectionHeader(context, 'Notifications', Icons.notifications_outlined),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _card(context, _pushPanel(context)),
 
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
 
           // Section: About (real values only)
           _sectionHeader(context, 'About', Icons.info_outline_rounded),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _card(context, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Workspace server', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            const SizedBox(height: 4),
-            Text(AppConfig.apiBaseUrl, style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+            Text('Workspace server', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            SizedBox(height: 4),
+            Text(AppConfig.apiBaseUrl, style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
           ])),
 
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
 
           // Section: What's New & System Updates
           _sectionHeader(context, 'What\'s New & System Updates', Icons.auto_awesome_rounded),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
@@ -279,22 +280,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   '🎬 Autonomous Video AI Director',
                   'Chat with the AI Director to splice footage, search unified Pexels/Pixabay stock B-roll, and auto-duck CC0 royalty-free soundtracks under speech.',
                 ),
-                const Divider(height: 16),
+                Divider(height: 16),
                 _updateItem(
                   '📱 Real-Time Channel Previews',
                   'Interactive pixel-faithful previews for Instagram, TikTok 9:16, YouTube Shorts, LinkedIn, Facebook, and Twitter/X inside the post composer.',
                 ),
-                const Divider(height: 16),
+                Divider(height: 16),
                 _updateItem(
                   '🤖 AI Autopilot Content Calendar',
                   'Multi-agent planner writes 30-day cross-platform schedules. Single-piece AI rewrite allows custom prompts on any calendar piece.',
                 ),
-                const Divider(height: 16),
+                Divider(height: 16),
                 _updateItem(
                   '🎨 Brand Consciousness & Cloudflare R2',
                   'Full brand DNA management with direct logo upload to Cloudflare R2, hex palettes, typography, and Hormozi/Ali Abdaal caption styles.',
                 ),
-                const Divider(height: 16),
+                Divider(height: 16),
                 _updateItem(
                   '🔗 Client Magic Link Approvals',
                   'Public client review portal with no-login required, allowing clients to leave feedback and approve entire content calendars in batch.',
@@ -303,13 +304,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
 
           // Section: Account & Security
           _sectionHeader(context, 'Account & Privacy', Icons.shield_outlined),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
@@ -319,17 +320,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (session != null) ...[
-                  Text(session.user.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 2),
-                  Text('${session.user.email} • ${session.company.name}', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-                  const Divider(height: 24),
+                  Text(session.user.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 2),
+                  Text('${session.user.email} • ${session.company.name}', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                  Divider(height: 24),
                 ],
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.delete_forever_rounded, color: AppTheme.error),
-                  title: const Text('Delete Account & Data', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Permanently delete account, published data, and tenant workspace.'),
-                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                  leading: Icon(Icons.delete_forever_rounded, color: AppTheme.error),
+                  title: Text('Delete Account & Data', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.w600)),
+                  subtitle: Text('Permanently delete account, published data, and tenant workspace.'),
+                  trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14),
                   onTap: () async {
                     final uri = Uri.parse('https://180workspace.com/account-delete');
                     if (await canLaunchUrl(uri)) {
@@ -341,14 +342,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
 
           // Sign out button
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: AppTheme.error,
-              side: const BorderSide(color: AppTheme.error),
-              minimumSize: const Size(double.infinity, 50),
+              side: BorderSide(color: AppTheme.error),
+              minimumSize: Size(double.infinity, 50),
             ),
             onPressed: () async {
               final ok = await confirm(
@@ -359,18 +360,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               );
               if (ok) await ref.read(sessionProvider.notifier).logout();
             },
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text('Sign out of 180 Workspace'),
+            icon: Icon(Icons.logout_rounded),
+            label: Text('Sign out of 180 Workspace'),
           ),
 
-          const SizedBox(height: 40),
+          SizedBox(height: 40),
         ],
       ),
     );
   }
 
   Widget _card(BuildContext context, Widget child) => Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
@@ -400,35 +401,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 8),
-        Expanded(child: Text(push.label, key: const Key('settings.push.status'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+        SizedBox(width: 8),
+        Expanded(child: Text(push.label, key: Key('settings.push.status'), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
       ]),
       if (push.message != null && !ok) ...[
-        const SizedBox(height: 4),
-        Text(push.message!, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted), maxLines: 3, overflow: TextOverflow.ellipsis),
+        SizedBox(height: 4),
+        Text(push.message!, style: TextStyle(fontSize: 12, color: AppTheme.textMuted), maxLines: 3, overflow: TextOverflow.ellipsis),
       ],
-      const SizedBox(height: 4),
-      const Text('Published, failed, needs-approval and reconnect alerts. Tapping one opens the post.',
+      SizedBox(height: 4),
+      Text('Published, failed, needs-approval and reconnect alerts. Tapping one opens the post.',
           style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-      const SizedBox(height: 10),
+      SizedBox(height: 10),
       Wrap(spacing: 8, runSpacing: 8, children: [
         if (!ok && push.state != PushState.notConfiguredOnDevice)
           FilledButton.tonal(
-            style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
+            style: FilledButton.styleFrom(minimumSize: Size(44, 44)),
             onPressed: () => ref.read(pushServiceProvider.notifier).enable(),
             child: Text(push.state == PushState.error ? 'Retry' : 'Enable notifications'),
           ),
         if (push.state == PushState.permissionDenied)
           OutlinedButton(
-            style: OutlinedButton.styleFrom(minimumSize: const Size(44, 44)),
+            style: OutlinedButton.styleFrom(minimumSize: Size(44, 44)),
             onPressed: () => openAppSettings(),
-            child: const Text('Open system settings'),
+            child: Text('Open system settings'),
           ),
         if (ok)
           OutlinedButton(
-            style: OutlinedButton.styleFrom(minimumSize: const Size(44, 44)),
+            style: OutlinedButton.styleFrom(minimumSize: Size(44, 44)),
             onPressed: _sendingTest ? null : _sendTestPush,
-            child: const Text('Send test notification'),
+            child: Text('Send test notification'),
           ),
       ]),
     ]);
@@ -438,8 +439,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Row(
       children: [
         Icon(icon, size: 18, color: AppTheme.primary),
-        const SizedBox(width: 8),
-        Flexible(child: Text(title, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2))),
+        SizedBox(width: 8),
+        Flexible(child: Text(title, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2))),
       ],
     );
   }
@@ -460,34 +461,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             : Icons.computer_rounded;
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       leading: CircleAvatar(
         backgroundColor: isCurrent ? AppTheme.primary.withValues(alpha: 0.2) : Theme.of(context).dividerColor,
         child: Icon(icon, color: isCurrent ? AppTheme.primary : AppTheme.textMuted, size: 20),
       ),
       title: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+          Expanded(child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
           if (isCurrent)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: AppTheme.primary.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: AppTheme.primary.withValues(alpha: 0.5)),
               ),
-              child: const Text('THIS DEVICE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+              child: Text('THIS DEVICE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.primary)),
             ),
         ],
       ),
       subtitle: Text(
         lastSeen != null ? 'Last active: ${DateFormat('MMM d, h:mm a').format(lastSeen)}' : 'Registered device',
-        style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+        style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
       ),
       trailing: isCurrent
           ? null
           : IconButton(
-              icon: const Icon(Icons.remove_circle_outline_rounded, color: AppTheme.error, size: 20),
+              icon: Icon(Icons.remove_circle_outline_rounded, color: AppTheme.error, size: 20),
               tooltip: 'Revoke device',
               onPressed: () => _revokeDevice(deviceId, label),
             ),
@@ -496,13 +497,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _updateItem(String title, String description) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          const SizedBox(height: 3),
-          Text(description, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.35)),
+          Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          SizedBox(height: 3),
+          Text(description, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.35)),
         ],
       ),
     );

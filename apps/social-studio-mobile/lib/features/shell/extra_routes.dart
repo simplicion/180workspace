@@ -24,21 +24,21 @@ String? _q(GoRouterState s, String k) {
   return v == null || v.isEmpty ? null : v;
 }
 
-Json _extra(GoRouterState s) => s.extra is Map ? (s.extra as Map).cast<String, dynamic>() : const {};
+Json _extra(GoRouterState s) => s.extra is Map ? (s.extra as Map).cast<String, dynamic>() : {};
 
 /// Bottom-nav branches after Home, in [AppShell] order: Planner, Inbox, Library, Studio.
 List<StatefulShellBranch> shellBranches() => [
-      StatefulShellBranch(routes: [GoRoute(path: '/planner', builder: (_, _) => const PlannerScreen())]),
-      StatefulShellBranch(routes: [GoRoute(path: '/inbox', builder: (_, _) => const InboxScreen())]),
-      StatefulShellBranch(routes: [GoRoute(path: '/library', builder: (_, _) => const LibraryScreen())]),
-      StatefulShellBranch(routes: [GoRoute(path: '/studio', builder: (_, _) => const StudioScreen())]),
+      StatefulShellBranch(routes: [GoRoute(path: '/planner', builder: (_, _) => PlannerScreen())]),
+      StatefulShellBranch(routes: [GoRoute(path: '/inbox', builder: (_, _) => InboxScreen())]),
+      StatefulShellBranch(routes: [GoRoute(path: '/library', builder: (_, _) => LibraryScreen())]),
+      StatefulShellBranch(routes: [GoRoute(path: '/studio', builder: (_, _) => StudioScreen())]),
     ];
 
 /// Full-screen routes outside the bottom navigation.
 List<RouteBase> extraRoutes() => [
-      GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
-      GoRoute(path: '/projects', builder: (_, _) => const ProjectsListScreen()),
-      GoRoute(path: '/projects/new', builder: (_, _) => const CreateProjectScreen()),
+      GoRoute(path: '/settings', builder: (_, _) => SettingsScreen()),
+      GoRoute(path: '/projects', builder: (_, _) => ProjectsListScreen()),
+      GoRoute(path: '/projects/new', builder: (_, _) => CreateProjectScreen()),
       GoRoute(
         path: '/projects/:id/:tab',
         builder: (_, s) => ProjectWorkspaceScreen(
@@ -91,7 +91,7 @@ List<RouteBase> extraRoutes() => [
                   hook: jStr(x['hook']),
                   script: jStr(x['script']),
                 )
-              : const StudioScreen();
+              : StudioScreen();
         },
       ),
       GoRoute(path: '/review/:token', builder: (_, s) => PublicReviewScreen(token: s.pathParameters['token']!)),

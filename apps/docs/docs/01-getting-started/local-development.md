@@ -42,7 +42,7 @@ This uses Turborepo to concurrently start:
 - `http-backend` (usually on port 5000)
 - `user-web` (usually on port 3001)
 - `admin-web` (usually on port 3000)
-- `docs` (Docusaurus on port 3002)
+- `docs` (180 Documentation on port 3005)
 
 ## 4. Seeding the Database
 For a fresh environment, you may want to seed the database with initial superadmin users and roles:

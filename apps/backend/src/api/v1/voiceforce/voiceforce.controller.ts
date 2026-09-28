@@ -25,8 +25,15 @@ import { redisClient } from '../../../system-configs/utils/redis';
 import { Queue } from 'bullmq';
 
 const telnyx = new TelnyxService();
-const livekitTokenService = new LiveKitTokenService();
+let _livekitTokenService: LiveKitTokenService | null = null;
+function getLiveKitTokenService(): LiveKitTokenService {
+  if (!_livekitTokenService) {
+    _livekitTokenService = new LiveKitTokenService();
+  }
+  return _livekitTokenService;
+}
 const voiceforceQueue = new Queue('voiceforce-queue', { connection: redisClient as any });
+
 
 export const VoiceforceController = {
   // ─── Dashboard Metrics ───────────────────────────────────────────────────
@@ -1230,7 +1237,7 @@ export const VoiceforceController = {
 
       // Generate in-browser LiveKit room connection so human operator takes the call immediately
       const roomName = `queue_takeover_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      const { token, url } = await livekitTokenService.generateToken({
+      const { token, url } = await getLiveKitTokenService().generateToken({
         roomName,
         participantIdentity: `operator_${req.user?.id || 'supervisor'}`,
         participantName: req.user?.name || 'Live Supervisor',
@@ -1829,7 +1836,7 @@ export const VoiceforceController = {
       });
 
       // Generate signed JWT token
-      const { token, url } = await livekitTokenService.generateToken({
+      const { token, url } = await getLiveKitTokenService().generateToken({
         roomName,
         participantIdentity,
         participantName: req.user?.name || 'Tester',

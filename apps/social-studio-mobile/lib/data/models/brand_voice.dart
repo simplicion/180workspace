@@ -6,7 +6,7 @@ import '../../core/util/json.dart';
 /// standardCtas, metadata`. Content pillars and the hook style have no column, so they live in
 /// `metadata.contentPillars` / `metadata.hookStyle` / `metadata.hooks`.
 class BrandVoice {
-  const BrandVoice({
+  BrandVoice({
     this.id,
     required this.projectId,
     this.tone = '',

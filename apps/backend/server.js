@@ -205,13 +205,29 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 const apiRoutes = require('./src/routes/index.routes').default || require('./src/routes/index.routes');
 const oauthRoutes = require('./src/routes/oauth.routes').default || require('./src/routes/oauth.routes');
-const pitchRoutes = require('./src/routes/pitch.routes').default || require('./src/routes/pitch.routes');
 
 // 180 Identity: OpenID Connect Discovery & OAuth 2.0 Provider
+app.get('/.well-known/openid-configuration', (req, res, next) => {
+    const { OAuthController } = require('@workspace/identity');
+    return OAuthController.getOpenIdConfiguration(req, res);
+});
+app.get('/.well-known/jwks.json', (req, res, next) => {
+    const { OAuthController } = require('@workspace/identity');
+    return OAuthController.getJwks(req, res);
+});
+app.get('/certs/jwks.json', (req, res, next) => {
+    const { OAuthController } = require('@workspace/identity');
+    return OAuthController.getJwks(req, res);
+});
+app.get('/oauth/authorize', (req, res) => {
+    const frontendUrl = process.env.IDENTITY_FRONTEND_URL 
+        || (process.env.NODE_ENV === 'development' ? 'http://localhost:3002' : 'https://180identity.180workspace.com');
+    const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    return res.redirect(302, `${frontendUrl}/oauth/authorize${query}`);
+});
 app.use('/.well-known', oauthRoutes);
 app.use('/oauth', oauthRoutes);
 app.use('/certs', oauthRoutes);
-app.use('/api/v1/pitch', pitchRoutes);
 
 app.use('/api', apiRoutes);
 app.use('/v1', (req, res, next) => {

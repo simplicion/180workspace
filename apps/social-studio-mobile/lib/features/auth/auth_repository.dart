@@ -4,7 +4,7 @@ import '../../core/network/api_exception.dart';
 import '../../core/util/json.dart';
 
 class SessionUser {
-  const SessionUser({required this.id, required this.name, required this.email, this.role, this.imageUrl});
+  SessionUser({required this.id, required this.name, required this.email, this.role, this.imageUrl});
   final String id;
   final String name;
   final String email;
@@ -27,7 +27,7 @@ class SessionUser {
 }
 
 class SessionCompany {
-  const SessionCompany({required this.id, required this.name, this.logoUrl});
+  SessionCompany({required this.id, required this.name, this.logoUrl});
   final String id;
   final String name;
   final String? logoUrl;
@@ -42,7 +42,7 @@ class SessionCompany {
 enum LockReason { appNotEnabled, adminDisabled, subscriptionExpired, companySuspended }
 
 class Entitlement {
-  const Entitlement({this.lockReason, this.isPaidPlan = false, this.enabledApps = const [], this.message});
+  Entitlement({this.lockReason, this.isPaidPlan = false, this.enabledApps = const [], this.message});
   final LockReason? lockReason;
   final bool isPaidPlan;
   final List<String> enabledApps;
@@ -50,30 +50,30 @@ class Entitlement {
 
   bool get hasSocial => lockReason == null;
 
-  static const unknown = Entitlement();
+  static final unknown = Entitlement();
 }
 
 sealed class LoginResult {
-  const LoginResult();
+  LoginResult();
 }
 
 class LoginSuccess extends LoginResult {
-  const LoginSuccess(this.me);
+  LoginSuccess(this.me);
   final Json me;
 }
 
 class LoginMfaRequired extends LoginResult {
-  const LoginMfaRequired(this.userId);
+  LoginMfaRequired(this.userId);
   final String? userId;
 }
 
 class LoginOnboardingRequired extends LoginResult {
-  const LoginOnboardingRequired(this.message);
+  LoginOnboardingRequired(this.message);
   final String message;
 }
 
 class LoginPasswordSetupRequired extends LoginResult {
-  const LoginPasswordSetupRequired(this.message);
+  LoginPasswordSetupRequired(this.message);
   final String message;
 }
 
@@ -110,7 +110,7 @@ class AuthRepository {
   Future<LoginResult> _completeLogin(Json r) async {
     final token = jStr(r['token']) ?? jStr(r['accessToken']);
     if (token == null || token.isEmpty) {
-      throw const ApiException(kind: ApiErrorKind.server, message: 'Sign-in response did not include a session token.');
+      throw ApiException(kind: ApiErrorKind.server, message: 'Sign-in response did not include a session token.');
     }
     await _api.tokens.saveSession(accessToken: token, refreshToken: jStr(r['refreshToken']));
     final me = await fetchMe();

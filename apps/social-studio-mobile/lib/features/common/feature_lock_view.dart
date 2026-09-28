@@ -40,7 +40,7 @@ class FeatureLockView extends ConsumerWidget {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: EdgeInsets.symmetric(horizontal: 32),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Container(
                 width: 80,
@@ -50,37 +50,37 @@ class FeatureLockView extends ConsumerWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: AppTheme.border),
                 ),
-                child: const Icon(Icons.lock_outline_rounded, size: 38, color: AppTheme.warning),
+                child: Icon(Icons.lock_outline_rounded, size: 38, color: AppTheme.warning),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               Text(title,
-                  key: const Key('lock.title'),
+                  key: Key('lock.title'),
                   style: Theme.of(context).textTheme.titleLarge,
                   textAlign: TextAlign.center),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(ent?.message ?? body, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
               if (session != null) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text('${session.user.email} · ${session.company.name}',
                     style: Theme.of(context).textTheme.labelSmall, textAlign: TextAlign.center),
               ],
-              const SizedBox(height: 28),
+              SizedBox(height: 28),
               if (ent?.lockReason == LockReason.appNotEnabled || ent?.lockReason == LockReason.subscriptionExpired)
                 ElevatedButton.icon(
                   onPressed: () => launchUrl(Uri.parse('${AppConfig.webAppUrl}/dashboard/billing'),
                       mode: LaunchMode.externalApplication),
-                  icon: const Icon(Icons.bolt_rounded, size: 18),
-                  label: const Text('Open billing'),
+                  icon: Icon(Icons.bolt_rounded, size: 18),
+                  label: Text('Open billing'),
                 ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: () => ref.read(sessionProvider.notifier).refreshEntitlement(),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Check again'),
+                icon: Icon(Icons.refresh_rounded),
+                label: Text('Check again'),
               ),
               TextButton(
                 onPressed: () => ref.read(sessionProvider.notifier).logout(),
-                child: const Text('Sign out'),
+                child: Text('Sign out'),
               ),
             ]),
           ),

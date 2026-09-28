@@ -83,6 +83,8 @@ jobs:
             // 3. Targets to update
             const subdomainsToUpdate = [
               'api.180workspace.com',
+              'services.180workspace.com',
+              'api.auth.180workspace.com',
               'app.180workspace.com',
               'admin.180workspace.com',
               'livekit.180workspace.com',

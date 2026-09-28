@@ -55,18 +55,18 @@ class _CalendarTabState extends ConsumerState<CalendarTab> {
     final posts = ref.watch(projectPostsProvider(_query));
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+        padding: EdgeInsets.fromLTRB(8, 4, 8, 0),
         child: Row(children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left_rounded),
+            icon: Icon(Icons.chevron_left_rounded),
             onPressed: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
           ),
           Expanded(
             child: Text(DateFormat('MMMM yyyy').format(_month),
-                textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right_rounded),
+            icon: Icon(Icons.chevron_right_rounded),
             onPressed: () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
           ),
           IconButton(
@@ -77,14 +77,14 @@ class _CalendarTabState extends ConsumerState<CalendarTab> {
         ]),
       ),
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: EdgeInsets.symmetric(horizontal: 16),
         // Wrap, not Row: a long timezone plus the button overflowed on 320dp phones.
         child: Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center, children: [
           StatusChip(label: widget.project.settings.defaultTimezone, color: AppTheme.textSecondary, icon: Icons.public_rounded),
           TextButton.icon(
             onPressed: () => context.push('/posts/new?projectId=${widget.project.id}'),
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Create content'),
+            icon: Icon(Icons.add_rounded, size: 18),
+            label: Text('Create content'),
           ),
         ]),
       ),
@@ -101,22 +101,22 @@ class _CalendarTabState extends ConsumerState<CalendarTab> {
             final clashes = findCannibalization(inMonth);
             return RefreshIndicator(
               onRefresh: () async => ref.invalidate(projectPostsProvider(_query)),
-              child: ListView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 96), children: [
+              child: ListView(padding: EdgeInsets.fromLTRB(12, 8, 12, 96), children: [
                 if (all.length >= 200)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(bottom: 8),
                     child: StatusChip(
                         label: 'Showing the first 200 posts; some may be missing', color: AppTheme.warning, icon: Icons.warning_rounded),
                   ),
                 for (final g in clashes)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: EdgeInsets.only(bottom: 8),
                     child: SectionCard(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(12),
                       borderColor: AppTheme.warning.withValues(alpha: 0.6),
                       child: Row(children: [
-                        const Icon(Icons.warning_amber_rounded, color: AppTheme.warning),
-                        const SizedBox(width: 10),
+                        Icon(Icons.warning_amber_rounded, color: AppTheme.warning),
+                        SizedBox(width: 10),
                         Expanded(
                           child: Text(
                               '${g.length} posts within 15 minutes on ${fmtDateTime(g.first.scheduledFor)}: they will compete for reach.'),
@@ -125,7 +125,7 @@ class _CalendarTabState extends ConsumerState<CalendarTab> {
                     ),
                   ),
                 if (_list) ...[
-                  if (inMonth.isEmpty) const SectionCard(child: Text('Nothing scheduled this month.')),
+                  if (inMonth.isEmpty) SectionCard(child: Text('Nothing scheduled this month.')),
                   for (final p in inMonth) PostTile(post: p),
                 ] else ...[
                   _MonthGrid(
@@ -154,10 +154,10 @@ class _CalendarTabState extends ConsumerState<CalendarTab> {
               final at = DateTime(d.year, d.month, d.day, 10);
               context.push('/posts/new?projectId=${widget.project.id}&date=${Uri.encodeQueryComponent(at.toIso8601String())}');
             },
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Add'),
+            icon: Icon(Icons.add_rounded, size: 18),
+            label: Text('Add'),
           )),
-      if (dayPosts.isEmpty) const SectionCard(child: Text('No posts on this day.')),
+      if (dayPosts.isEmpty) SectionCard(child: Text('No posts on this day.')),
       for (final p in dayPosts) PostTile(post: p),
     ];
   }
@@ -179,18 +179,18 @@ class _MonthGrid extends StatelessWidget {
     final today = DateTime.now();
     return Column(children: [
       Row(children: [
-        for (final w in const ['S', 'M', 'T', 'W', 'T', 'F', 'S'])
+        for (final w in ['S', 'M', 'T', 'W', 'T', 'F', 'S'])
           Expanded(child: Center(child: Text(w, style: Theme.of(context).textTheme.labelSmall))),
       ]),
-      const SizedBox(height: 4),
+      SizedBox(height: 4),
       GridView.builder(
         shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
+        physics: NeverScrollableScrollPhysics(),
         itemCount: cells,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 0.62),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 0.62),
         itemBuilder: (_, i) {
           final dayNum = i - lead + 1;
-          if (dayNum < 1 || dayNum > days) return const SizedBox.shrink();
+          if (dayNum < 1 || dayNum > days) return SizedBox.shrink();
           final date = DateTime(month.year, month.month, dayNum);
           final dayPosts = posts.where((p) => DateUtils.isSameDay(p.scheduledFor, date)).toList();
           final isSel = DateUtils.isSameDay(selected, date);
@@ -199,8 +199,8 @@ class _MonthGrid extends StatelessWidget {
             key: Key('calendarDay.$dayNum'),
             onTap: () => onSelect(date),
             child: Container(
-              margin: const EdgeInsets.all(1.5),
-              padding: const EdgeInsets.all(3),
+              margin: EdgeInsets.all(1.5),
+              padding: EdgeInsets.all(3),
               decoration: BoxDecoration(
                 color: isSel ? AppTheme.primary.withValues(alpha: 0.2) : AppTheme.surface,
                 borderRadius: BorderRadius.circular(6),
@@ -210,12 +210,12 @@ class _MonthGrid extends StatelessWidget {
                 Text('$dayNum', style: TextStyle(fontSize: 11, fontWeight: isToday ? FontWeight.w800 : FontWeight.w500)),
                 for (final p in dayPosts.take(2))
                   Container(
-                    margin: const EdgeInsets.only(top: 2),
+                    margin: EdgeInsets.only(top: 2),
                     height: 5,
                     decoration: BoxDecoration(color: p.status.color, borderRadius: BorderRadius.circular(2)),
                   ),
                 if (dayPosts.length > 2)
-                  Text('+${dayPosts.length - 2}', style: const TextStyle(fontSize: 9, color: AppTheme.textSecondary)),
+                  Text('+${dayPosts.length - 2}', style: TextStyle(fontSize: 9, color: AppTheme.textSecondary)),
               ]),
             ),
           );

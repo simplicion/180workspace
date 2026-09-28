@@ -64,11 +64,10 @@ export class WalletLedgerService {
    */
   static async getSummary(companyId: string): Promise<WalletSummary> {
     const validId = WalletIsolationGuard.assertCompany(companyId, 'getSummary');
-    const wallet = await WalletService.getBalance(validId);
-
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const [allDebits, allCredits, recentDebits] = await Promise.all([
+    const [wallet, allDebits, allCredits, recentDebits] = await Promise.all([
+      WalletService.getBalance(validId),
       (prisma as any).voiceWalletTransaction.aggregate({
         where: { companyId: validId, amountInr: { lt: 0 } },
         _sum: { amountInr: true }

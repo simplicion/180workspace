@@ -33,12 +33,12 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
     return RefreshIndicator(
       onRefresh: () async => ref.invalidate(projectAnalyticsProvider(key)),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
           // Time range selector
           Center(
             child: SegmentedButton<String>(
-              segments: const [
+              segments: [
                 ButtonSegment(value: '7d', label: Text('7 Days')),
                 ButtonSegment(value: '30d', label: Text('30 Days')),
                 ButtonSegment(value: '90d', label: Text('90 Days')),
@@ -47,11 +47,11 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
               onSelectionChanged: (s) => setState(() => _range = s.first),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
 
           // Analytics Data Body
           data.when(
-            loading: () => const Padding(padding: EdgeInsets.all(32), child: LoadingView(label: 'Computing analytics…')),
+            loading: () => Padding(padding: EdgeInsets.all(32), child: LoadingView(label: 'Computing analytics…')),
             error: (e, _) => ErrorView(
               error: e,
               compact: true,
@@ -90,7 +90,7 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
+                    physics: NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
                     childAspectRatio: 1.8,
@@ -125,13 +125,13 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
 
                   // Platform Distribution
-                  const SectionHeader('Publishing by Channel'),
+                  SectionHeader('Publishing by Channel'),
                   SectionCard(
                     child: platforms.isEmpty
-                        ? const Padding(
+                        ? Padding(
                             padding: EdgeInsets.symmetric(vertical: 8),
                             child: Text(
                               'No posts published yet in this date range.',
@@ -143,20 +143,20 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
                             children: [
                               for (final entry in platforms.entries) ...[
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
+                                  padding: EdgeInsets.symmetric(vertical: 6),
                                   child: Row(
                                     children: [
                                       Icon(entry.key.icon, size: 18, color: entry.key.color),
-                                      const SizedBox(width: 10),
+                                      SizedBox(width: 10),
                                       Expanded(
                                         child: Text(
                                           entry.key.label,
-                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                                         ),
                                       ),
                                       Text(
                                         '${entry.value} posts',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                       ),
                                     ],
                                   ),
@@ -170,48 +170,48 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
                                     minHeight: 6,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                SizedBox(height: 6),
                               ],
                             ],
                           ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
 
                   // Approval Velocity
-                  const SectionHeader('Client Review Velocity'),
+                  SectionHeader('Client Review Velocity'),
                   SectionCard(
                     child: Column(
                       children: [
                         _metricRow('Review Sessions Sent', '$sessionsSent'),
-                        const Divider(height: 16),
+                        Divider(height: 16),
                         _metricRow('Sessions Approved', '$sessionsApproved'),
-                        const Divider(height: 16),
+                        Divider(height: 16),
                         _metricRow(
                           'Average Turnaround',
                           avgHours != null ? '${avgHours.toStringAsFixed(1)} hours' : 'N/A',
                         ),
                         if (medianHours != null) ...[
-                          const Divider(height: 16),
+                          Divider(height: 16),
                           _metricRow('Median Turnaround', '${medianHours.toStringAsFixed(1)} hours'),
                         ],
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
 
                   // Social CRM & Inbox Conversion
-                  const SectionHeader('Inquiries & Lead Generation'),
+                  SectionHeader('Inquiries & Lead Generation'),
                   SectionCard(
                     child: Column(
                       children: [
                         _metricRow('Total Conversations', '$conversations'),
-                        const Divider(height: 16),
+                        Divider(height: 16),
                         _metricRow(
                           'Unread Messages',
                           '$unread',
                           highlightColor: unread > 0 ? AppTheme.warning : null,
                         ),
-                        const Divider(height: 16),
+                        Divider(height: 16),
                         _metricRow(
                           'Converted to CRM Leads',
                           '$convertedLeads',
@@ -225,21 +225,21 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
             },
           ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
 
           // All-Time Project Metrics
-          const SectionHeader('All-Time Project Summary'),
+          SectionHeader('All-Time Project Summary'),
           SectionCard(
             child: Column(
               children: [
                 _metricRow('Total posts', '${m.totalPosts}'),
-                const Divider(height: 16),
+                Divider(height: 16),
                 _metricRow('Published posts', '${m.publishedPosts}'),
-                const Divider(height: 16),
+                Divider(height: 16),
                 _metricRow('Scheduled posts', '${m.scheduledPosts}'),
-                const Divider(height: 16),
+                Divider(height: 16),
                 _metricRow('Pending approvals', '${m.pendingApprovals}'),
-                const Divider(height: 16),
+                Divider(height: 16),
                 _metricRow('Outstanding tasks', '${m.outstandingTasks}'),
               ],
             ),
@@ -251,7 +251,7 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
 
   Widget _kpiCard(String label, String value, IconData icon, Color color, {String? subtitle}) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
@@ -264,27 +264,27 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
           Row(
             children: [
               Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.5),
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(
               subtitle,
-              style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+              style: TextStyle(fontSize: 10, color: AppTheme.textMuted),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -300,7 +300,7 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
           ),
         ),
         Text(

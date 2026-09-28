@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* 180 Workspace Royal Blue & Indigo Theme */
+  --theme-color: #2563eb;
+  --primary-rgb: 37 99 235;
+  --primary-dark-rgb: 29 78 216; /* blue-700 */
+
+  --secondary: #6366f1;
+  --secondary-foreground: #ffffff;
+
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  --background: #f8fafc;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #2563eb;
+  --muted: #f4f4f5;
+  --muted-foreground: #64748b;
+  --radius: 0.875rem;
+}
+
+.dark {
+  /* 180 Workspace SaaS Pro Max & Obsidian Dark Mode */
+  --theme-color: #3b82f6;
+  --primary-rgb: 59 130 246;
+  --primary-dark-rgb: 37 99 235; /* blue-600 */
+
+  --secondary: #6366f1;
+  --secondary-foreground: #ffffff;
+
+  --background: #000000;
+  --foreground: #f4f4f5;
+  --card: #101012;
+  --card-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #3b82f6;
+  --muted: #161619;
+  --muted-foreground: #94a3b8;
+}
+
+@layer base {
+  * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  html,
+  body {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  *::-webkit-scrollbar,
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  body {
+    @apply bg-slate-50 dark:bg-black text-gray-900 dark:text-zinc-100 font-sans antialiased leading-relaxed tracking-normal transition-colors duration-200;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight text-gray-950 dark:text-white;
+  }
+}
+
+/* Glassmorphism panel complying with design-system.md */
+.glass-panel {
+  @apply backdrop-blur-md bg-white/70 dark:bg-zinc-950/70 border border-gray-200/80 dark:border-white/10;
+}
+
+@layer components {
+  /* --- Typography Scale Hierarchy --- */
+  .display-h1 {
+    @apply text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08] text-slate-950 dark:text-white;
+  }
+
+  .section-h2 {
+    @apply text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight text-slate-950 dark:text-white;
+  }
+
+  .card-h3 {
+    @apply text-xl sm:text-2xl font-bold tracking-tight text-slate-950 dark:text-white;
+  }
+
+  .body-lead {
+    @apply text-lg sm:text-xl text-slate-600 dark:text-slate-300 font-medium leading-relaxed;
+  }
+
+  .body-standard {
+    @apply text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-normal;
+  }
+
+  /* --- Glass Surfaces --- */
+  .glass-card {
+    @apply rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl shadow-xl shadow-slate-900/5 transition-all duration-300;
+  }
+
+  .glass-card-interactive {
+    @apply glass-card hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-2xl hover:-translate-y-1;
+  }
+
+  /* --- Button Hierarchy --- */
+  .btn-primary {
+    @apply inline-flex h-12 md:h-14 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm md:text-base px-8 shadow-xl shadow-blue-600/25 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap;
+  }
+
+  .btn-secondary {
+    @apply inline-flex h-12 md:h-14 items-center justify-center rounded-full border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-zinc-900/80 text-slate-800 dark:text-slate-200 font-bold text-sm md:text-base px-8 shadow-sm hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all duration-200 cursor-pointer whitespace-nowrap backdrop-blur-md;
+  }
+}
+
+@layer utilities {
+  .bg-grid-pattern {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+  }
+  .bg-grid-pattern-dark {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
+  }
+}
+
+

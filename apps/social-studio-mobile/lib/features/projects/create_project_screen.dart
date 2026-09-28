@@ -32,8 +32,8 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   String? _clientId;
   bool _newClient = false;
   final Set<String> _services = {'content_calendar', 'short_form_video', 'publishing'};
-  BrandVoice _voice = const BrandVoice(projectId: '');
-  final Set<String> _accountIds = {};
+  BrandVoice _voice = BrandVoice(projectId: '');
+  final Set<String> _accountIds = const {};
   bool _approval = true;
   String _tz = 'UTC';
 
@@ -92,7 +92,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
     final clients = ref.watch(clientsProvider);
     final accounts = ref.watch(_accountsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('New project')),
+      appBar: AppBar(title: Text('New project')),
       body: Stepper(
         currentStep: _step,
         onStepTapped: (i) => i < _step ? setState(() => _step = i) : null,
@@ -107,46 +107,46 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
           }
         },
         controlsBuilder: (context, d) => Padding(
-          padding: const EdgeInsets.only(top: 16),
+          padding: EdgeInsets.only(top: 16),
           child: Row(children: [
             FilledButton(
               onPressed: _saving ? null : d.onStepContinue,
               child: _saving
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                   : Text(_step == 3 ? 'Create project' : 'Next'),
             ),
-            if (d.onStepCancel != null) TextButton(onPressed: d.onStepCancel, child: const Text('Back')),
+            if (d.onStepCancel != null) TextButton(onPressed: d.onStepCancel, child: Text('Back')),
           ]),
         ),
         steps: [
           Step(
-            title: const Text('Project & client'),
+            title: Text('Project & client'),
             isActive: _step >= 0,
             content: Column(children: [
               TextField(controller: _name, autofocus: true, decoration: fieldDecoration('Project name *', hint: 'e.g. Apex Gym – Q4 social')),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(controller: _description, minLines: 1, maxLines: 3, decoration: fieldDecoration('Description')),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               SegmentedButton<bool>(
-                segments: const [ButtonSegment(value: false, label: Text('Existing / no client')), ButtonSegment(value: true, label: Text('New client'))],
+                segments: [ButtonSegment(value: false, label: Text('Existing / no client')), ButtonSegment(value: true, label: Text('New client'))],
                 selected: {_newClient},
                 onSelectionChanged: (s) => setState(() => _newClient = s.first),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               if (_newClient) ...[
                 TextField(controller: _clientName, decoration: fieldDecoration('Client name *')),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 TextField(controller: _clientEmail, keyboardType: TextInputType.emailAddress, decoration: fieldDecoration('Client email', helper: 'Used for review links')),
               ] else
                 clients.when(
-                  loading: () => const LinearProgressIndicator(),
+                  loading: () => LinearProgressIndicator(),
                   error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(clientsProvider)),
                   data: (list) => DropdownButtonFormField<String?>(
                     isExpanded: true,
                     initialValue: _clientId,
                     decoration: fieldDecoration('Client', helper: 'Without a client, review links cannot be sent.'),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('No client (internal)')),
+                      DropdownMenuItem(value: null, child: Text('No client (internal)')),
                       for (final c in list) DropdownMenuItem(value: c.id, child: Text(c.name, overflow: TextOverflow.ellipsis)),
                     ],
                     onChanged: (v) => setState(() => _clientId = v),
@@ -155,7 +155,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
             ]),
           ),
           Step(
-            title: const Text('Services'),
+            title: Text('Services'),
             isActive: _step >= 1,
             content: Wrap(spacing: 8, runSpacing: 8, children: [
               for (final e in socialServiceOptions.entries)
@@ -167,20 +167,20 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
             ]),
           ),
           Step(
-            title: const Text('Brand identity'),
-            subtitle: const Text('Optional, and editable later'),
+            title: Text('Brand identity'),
+            subtitle: Text('Optional, and editable later'),
             isActive: _step >= 2,
             content: BrandVoiceForm(initial: _voice, onChanged: (v) => _voice = v),
           ),
           Step(
-            title: const Text('Channels & workflow'),
+            title: Text('Channels & workflow'),
             isActive: _step >= 3,
             content: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               accounts.when(
-                loading: () => const LinearProgressIndicator(),
+                loading: () => LinearProgressIndicator(),
                 error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(_accountsProvider)),
                 data: (list) => list.isEmpty
-                    ? const Text('No channels connected yet. Connect them later from the project\'s Channels section.')
+                    ? Text('No channels connected yet. Connect them later from the project\'s Channels section.')
                     : Column(children: [
                         for (final a in list)
                           CheckboxListTile(
@@ -197,7 +197,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
                 contentPadding: EdgeInsets.zero,
                 value: _approval,
                 onChanged: (v) => setState(() => _approval = v),
-                title: const Text('Client approval required'),
+                title: Text('Client approval required'),
               ),
               DropdownButtonFormField<String>(
                 initialValue: _tz,

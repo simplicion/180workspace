@@ -50,7 +50,7 @@ class CalendarDetailScreen extends ConsumerWidget {
                   }
                 }
               },
-              itemBuilder: (_) => const [
+              itemBuilder: (_) => [
                 PopupMenuItem(value: 'extend', child: Text('Extend for next period')),
                 PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: AppTheme.error))),
               ],
@@ -63,34 +63,34 @@ class CalendarDetailScreen extends ConsumerWidget {
         onRetry: () => ref.invalidate(calendarDetailProvider(calendarId)),
         builder: (c) => RefreshIndicator(
           onRefresh: () async => ref.invalidate(calendarDetailProvider(calendarId)),
-          child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 48), children: [
+          child: ListView(padding: EdgeInsets.fromLTRB(16, 8, 16, 48), children: [
             SectionCard(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Expanded(child: Text(c.displayName, style: Theme.of(context).textTheme.titleLarge)),
                   StatusChip(label: c.status.label, color: c.status.color),
                 ]),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Wrap(spacing: 6, runSpacing: 6, children: [
                   if (c.calendarDuration != null) StatusChip(label: c.calendarDuration!, color: AppTheme.textSecondary, icon: Icons.timelapse_rounded),
                   if (c.frequency != null) StatusChip(label: c.frequency!, color: AppTheme.textSecondary, icon: Icons.repeat_rounded),
                   StatusChip(label: '${c.totalPieces} pieces', color: AppTheme.accentBlue),
                   if (c.reelsCount > 0) StatusChip(label: '${c.reelsCount} reels', color: AppTheme.accent),
-                  if (c.postsCount > 0) StatusChip(label: '${c.postsCount} posts', color: AppTheme.accentCyan),
+                  if (c.postsCount > 0) StatusChip(label: '${c.postsCount} posts', color: AppTheme.accentBlue),
                   if (c.carouselsCount > 0) StatusChip(label: '${c.carouselsCount} carousels', color: AppTheme.success),
                 ]),
                 if (c.engagementGoal?.isNotEmpty ?? false) ...[
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   Text('Goal: ${c.engagementGoal}', style: Theme.of(context).textTheme.bodyMedium),
                 ],
                 if (c.contentPillars.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Text('Pillars: ${c.contentPillars.join(', ')}', style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ]),
             ),
             if (c.pieces.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 24),
                 child: EmptyView(icon: Icons.hourglass_empty_rounded, title: 'No pieces yet', message: 'If the calendar is still processing, pull to refresh.'),
               ),
@@ -112,9 +112,9 @@ class _PieceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: EdgeInsets.only(bottom: 8),
         child: SectionCard(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(12),
           onTap: () => showModalBottomSheet<void>(
             context: context,
             isScrollControlled: true,
@@ -123,12 +123,12 @@ class _PieceTile extends StatelessWidget {
           ),
           child: Row(children: [
             Container(width: 4, height: 40, decoration: BoxDecoration(color: piece.status.color, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(piece.headline.isEmpty ? '(no headline)' : piece.headline,
-                    maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
+                    maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w600)),
+                SizedBox(height: 4),
                 Text(
                   [fmtDate(piece.dateScheduled), piece.platform, piece.contentType, piece.status.label].where((s) => s.isNotEmpty).join(' · '),
                   style: Theme.of(context).textTheme.labelSmall,
@@ -295,20 +295,20 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
         maxChildSize: 0.95,
         builder: (_, scroll) => SingleChildScrollView(
           controller: scroll,
-          padding: const EdgeInsets.only(bottom: 32),
+          padding: EdgeInsets.only(bottom: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+                padding: EdgeInsets.fromLTRB(16, 16, 8, 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.devices_rounded, color: AppTheme.primary),
-                    const SizedBox(width: 8),
-                    const Expanded(
+                    Icon(Icons.devices_rounded, color: AppTheme.primary),
+                    SizedBox(width: 8),
+                    Expanded(
                       child: Text('Post Preview', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
-                    IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
+                    IconButton(icon: Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
                   ],
                 ),
               ),
@@ -331,15 +331,15 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
   }
 
   Widget _block(String label, String text) => text.trim().isEmpty
-      ? const SizedBox.shrink()
+      ? SizedBox.shrink()
       : Padding(
-          padding: const EdgeInsets.only(top: 14),
+          padding: EdgeInsets.only(top: 14),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(child: Text(label.toUpperCase(), style: Theme.of(context).textTheme.labelSmall)),
               IconButton(
                 tooltip: 'Copy',
-                icon: const Icon(Icons.copy_rounded, size: 16),
+                icon: Icon(Icons.copy_rounded, size: 16),
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: text));
                   if (mounted) showInfo(context, '$label copied');
@@ -372,7 +372,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
       expand: false,
       initialChildSize: 0.88,
       maxChildSize: 0.96,
-      builder: (_, scroll) => ListView(controller: scroll, padding: const EdgeInsets.fromLTRB(16, 16, 16, 32), children: [
+      builder: (_, scroll) => ListView(controller: scroll, padding: EdgeInsets.fromLTRB(16, 16, 16, 32), children: [
         Row(
           children: [
             Expanded(
@@ -385,7 +385,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Wrap(spacing: 6, runSpacing: 6, children: [
           if (p.platform.isNotEmpty) StatusChip(label: p.platform, color: AppTheme.accentBlue),
           if (p.contentType.isNotEmpty) StatusChip(label: p.contentType, color: AppTheme.accent),
@@ -394,14 +394,14 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
           if (p.postingTimeTz.isNotEmpty) StatusChip(label: p.postingTimeTz, color: AppTheme.textSecondary, icon: Icons.schedule_rounded),
           if (p.estimatedImpressions != null) StatusChip(label: '~${p.estimatedImpressions} impressions', color: AppTheme.textSecondary),
         ]),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         DropdownButtonFormField<PieceStatus>(
           initialValue: PieceStatus.settable.contains(_status) ? _status : null,
           decoration: fieldDecoration('Status'),
           items: [for (final s in PieceStatus.settable) DropdownMenuItem(value: s, child: Text(s.label))],
           onChanged: (s) => s == null || s == _status ? null : _setStatus(s),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
 
         // Action Toolbar
         Row(children: [
@@ -411,38 +411,38 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
                 Navigator.pop(context);
                 context.push('/posts/new?$pieceQuery', extra: prefill);
               },
-              icon: const Icon(Icons.send_rounded, size: 16),
-              label: const Text('To Post'),
+              icon: Icon(Icons.send_rounded, size: 16),
+              label: Text('To Post'),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(
             child: OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
                 context.push('/camera', extra: {'hook': prefill['hook'] ?? p.headline, 'script': _prompterScript, 'projectId': projectId});
               },
-              icon: const Icon(Icons.videocam_rounded, size: 16),
-              label: const Text('Shoot'),
+              icon: Icon(Icons.videocam_rounded, size: 16),
+              label: Text('Shoot'),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           OutlinedButton.icon(
             onPressed: _showPreview,
-            icon: const Icon(Icons.remove_red_eye_rounded, size: 16),
-            label: const Text('Preview'),
+            icon: Icon(Icons.remove_red_eye_rounded, size: 16),
+            label: Text('Preview'),
           ),
         ]),
         if (p.contentType.toLowerCase().contains('video') ||
             p.contentType.toLowerCase().contains('reel') ||
             p.contentType.toLowerCase().contains('short') ||
             p.contentType.toLowerCase().contains('tiktok')) ...[
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: AppTheme.accent,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: EdgeInsets.symmetric(vertical: 12),
             ),
             onPressed: () async {
               Navigator.pop(context);
@@ -453,19 +453,19 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
                 builder: (ctx) => SafeArea(
                   child: Wrap(children: [
                     ListTile(
-                      leading: const Icon(Icons.video_library_rounded, color: AppTheme.primary),
-                      title: const Text('Pick Raw Footage from Gallery'),
+                      leading: Icon(Icons.video_library_rounded, color: AppTheme.primary),
+                      title: Text('Pick Raw Footage from Gallery'),
                       onTap: () => Navigator.pop(ctx, 'gallery'),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.videocam_rounded, color: AppTheme.accent),
-                      title: const Text('Record with Teleprompter Camera'),
+                      leading: Icon(Icons.videocam_rounded, color: AppTheme.accent),
+                      title: Text('Record with Teleprompter Camera'),
                       onTap: () => Navigator.pop(ctx, 'camera'),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.cloud_upload_rounded),
-                      title: const Text('Send raw footage to my editor'),
-                      subtitle: const Text('Uploads it to this piece for editing on the desktop app'),
+                      leading: Icon(Icons.cloud_upload_rounded),
+                      title: Text('Send raw footage to my editor'),
+                      subtitle: Text('Uploads it to this piece for editing on the desktop app'),
                       onTap: () => Navigator.pop(ctx, 'upload'),
                     ),
                   ]),
@@ -495,52 +495,52 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
                 }
               }
             },
-            icon: const Icon(Icons.movie_creation_rounded, size: 18),
-            label: const Text('🎬 Edit in 180 Media Studio'),
+            icon: Icon(Icons.movie_creation_rounded, size: 18),
+            label: Text('🎬 Edit in 180 Media Studio'),
           ),
         ],
         if (_isCarousel && projectId != null) ...[
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           FilledButton.tonalIcon(
             onPressed: () => showCarouselSheet(context, projectId: projectId, pieceId: p.id, title: p.headline),
-            icon: const Icon(Icons.view_carousel_rounded, size: 18),
-            label: const Text('Design carousel slides'),
+            icon: Icon(Icons.view_carousel_rounded, size: 18),
+            label: Text('Design carousel slides'),
           ),
         ],
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
 
         // AI Autopilot Rewrite Button
         FilledButton.tonalIcon(
           onPressed: _regenerating ? null : _regenerateWithAi,
           icon: _regenerating
-              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.primary),
+              ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+              : Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.primary),
           label: Text(_regenerating ? 'AI Autopilot Writing…' : 'AI Autopilot Rewrite Piece'),
         ),
 
         // Editable Form or Display Blocks
         if (_isEditing) ...[
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           TextField(controller: _headline, decoration: fieldDecoration('Headline')),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           if (_brief == null)
             TextField(controller: _script, minLines: 2, maxLines: 6, decoration: fieldDecoration('Script / Hooks'))
           else
-            const Text('The hook and script were written by Autopilot. Use "AI Autopilot Rewrite" with an instruction to change them.'),
-          const SizedBox(height: 12),
+            Text('The hook and script were written by Autopilot. Use "AI Autopilot Rewrite" with an instruction to change them.'),
+          SizedBox(height: 12),
           TextField(controller: _adCopy, minLines: 4, maxLines: 10, decoration: fieldDecoration('Full Caption / Ad Copy')),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           TextField(controller: _cta, decoration: fieldDecoration('Call to Action')),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           TextField(controller: _hashtags, decoration: fieldDecoration('Hashtags')),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           TextField(controller: _visualBrief, minLines: 2, maxLines: 4, decoration: fieldDecoration('Visual Brief')),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           ElevatedButton(
             onPressed: _saving ? null : _saveChanges,
             child: _saving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Save Changes'),
+                ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text('Save Changes'),
           ),
         ] else ...[
           if (_brief case final b?) ..._briefBlocks(b) else _block('Script / hooks', _script.text),

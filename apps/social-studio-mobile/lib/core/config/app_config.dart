@@ -42,10 +42,19 @@ class AppConfig {
   static String get identityServerUrl {
     const fromEnv = String.fromEnvironment('IDENTITY_SERVER_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
-    return apiBaseUrl;
+    if (kDebugMode) return apiBaseUrl;
+    return 'https://180identity.180workspace.com';
   }
   static const String identityClientId = '180-social-studio-mobile';
-  static const String identityRedirectUri = '180social://oauth-callback';
+  static String get identityRedirectUri {
+    const fromEnv = String.fromEnvironment('IDENTITY_REDIRECT_URI');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (kIsWeb) {
+      final base = Uri.base.origin;
+      return base.isNotEmpty ? '$base/#/oauth-callback' : 'http://localhost:3007/#/oauth-callback';
+    }
+    return '180social://oauth-callback';
+  }
 
   /// Kebab-case app id used by billing, feature flags and `moduleGuard`.
   static const String socialAppId = 'social-media';

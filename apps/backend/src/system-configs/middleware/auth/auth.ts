@@ -29,7 +29,56 @@ export async function protect(req: any, res: Response, next: NextFunction) {
         if (!secret) {
             return res.status(500).json({ error: 'Server configuration error' });
         }
-        const decoded: any = jwt.verify(token, secret);
+        
+        let decoded: any = null;
+        let isOAuthToken = false;
+        let oAuthUser: any = null;
+
+        try {
+            decoded = jwt.verify(token, secret);
+        } catch (jwtErr: any) {
+            // Check if this is an OAuth access token or an RS256 token from 180 Identity
+            try {
+                const { prisma: globalPrisma } = require('@workspace/db');
+                const dbToken = await globalPrisma.oAuthToken.findUnique({
+                    where: { accessToken: token },
+                    include: { user: true, app: true }
+                });
+
+                if (dbToken && !dbToken.revokedAt && dbToken.expiresAt > new Date() && dbToken.user) {
+                    isOAuthToken = true;
+                    oAuthUser = dbToken.user;
+                    decoded = {
+                        id: dbToken.userId,
+                        companyId: dbToken.user.companyId || dbToken.app?.companyId || null,
+                        scopes: dbToken.scopes
+                    };
+                } else {
+                    // Try verifying as RS256 ID Token
+                    const { verifyIdToken } = require('@workspace/identity');
+                    const verified = verifyIdToken(token);
+                    if (verified.valid && verified.payload?.sub) {
+                        const userFromSub = await globalPrisma.user.findUnique({
+                            where: { id: verified.payload.sub }
+                        });
+                        if (userFromSub) {
+                            isOAuthToken = true;
+                            oAuthUser = userFromSub;
+                            decoded = {
+                                id: userFromSub.id,
+                                companyId: userFromSub.companyId || null
+                            };
+                        }
+                    }
+                }
+            } catch (oauthLookupErr) {
+                console.warn('[Auth] OAuth token fallback check error:', oauthLookupErr);
+            }
+
+            if (!decoded) {
+                throw jwtErr;
+            }
+        }
 
         // Tenant binding: company-context resolves the workspace from `x-company-id` BEFORE the token is verified, and the
         // domain services scope every query by that workspace. A token issued for company A must never act on company B
@@ -41,10 +90,11 @@ export async function protect(req: any, res: Response, next: NextFunction) {
 
         // Ensure multitenancy DB connection is established by proceeding middleware
         if (!req.prisma) {
-            return res.status(500).json({ error: 'We couldn\'t identify your workspace connection. Please ensure your Company ID is correct.' });
+            const { prisma: globalPrisma } = require('@workspace/db');
+            req.prisma = globalPrisma;
         }
 
-        let user: any = null;
+        let user: any = oAuthUser || null;
         const cacheKey = `auth:user:${decoded.id}`;
         
         try {
@@ -227,11 +277,39 @@ export async function optionalProtect(req: any, res: Response, next: NextFunctio
         }
 
         const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET;
-        if (!secret) return next();
+        let decoded: any = null;
+        let oAuthUser: any = null;
 
-        const decoded: any = jwt.verify(token, secret);
+        try {
+            decoded = jwt.verify(token, secret);
+        } catch (jwtErr) {
+            try {
+                const { prisma: globalPrisma } = require('@workspace/db');
+                const dbToken = await globalPrisma.oAuthToken.findUnique({
+                    where: { accessToken: token },
+                    include: { user: true }
+                });
+                if (dbToken && !dbToken.revokedAt && dbToken.expiresAt > new Date() && dbToken.user) {
+                    oAuthUser = dbToken.user;
+                    decoded = { id: dbToken.userId, companyId: dbToken.user.companyId || null };
+                } else {
+                    const { verifyIdToken } = require('@workspace/identity');
+                    const verified = verifyIdToken(token);
+                    if (verified.valid && verified.payload?.sub) {
+                        const u = await globalPrisma.user.findUnique({ where: { id: verified.payload.sub } });
+                        if (u) {
+                            oAuthUser = u;
+                            decoded = { id: u.id, companyId: u.companyId || null };
+                        }
+                    }
+                }
+            } catch (_) {}
+        }
+
+        if (!decoded) return next();
+
         const { prisma } = require('@workspace/db');
-        const user = await prisma.user.findUnique({
+        const user = oAuthUser || await prisma.user.findUnique({
             where: { id: decoded.id }
         });
 

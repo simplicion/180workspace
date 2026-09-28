@@ -1,41 +1,27 @@
-# Website
+# 180 Documentation Portal
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
-
-## Installation
-
-```bash
-yarn
-```
+Internal platform architecture, engineering blueprints, database models, and developer onboarding runbooks for **180workspace**.
 
 ## Local Development
 
-```bash
-yarn start
-```
-
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-## Build
+Run the documentation server locally from the monorepo root:
 
 ```bash
-yarn build
+pnpm dev --filter docs
 ```
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
-
-## Deployment
-
-Using SSH:
+Or from the `apps/docs` directory:
 
 ```bash
-USE_SSH=true yarn deploy
+pnpm dev
 ```
 
-Not using SSH:
+The portal runs by default at `http://localhost:3005`.
+
+## Building for Production
 
 ```bash
-GIT_USER=<Your GitHub username> yarn deploy
+pnpm build
 ```
 
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+This compiles static assets into the `build` directory, fully optimized for CDN edge caching and static delivery.

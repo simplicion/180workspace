@@ -75,7 +75,7 @@ export function VoiceforceGlobalBanner() {
             className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/25 flex items-center gap-2 transition-all cursor-pointer flex-shrink-0"
           >
             <CreditCard className="w-4 h-4" />
-            <span>Recharge {currencySymbol}{recommendedAmount.toLocaleString()} via Razorpay</span>
+            <span>Recharge {currencySymbol}{recommendedAmount.toLocaleString()} via 180 Pay</span>
           </button>
         </div>
       )}

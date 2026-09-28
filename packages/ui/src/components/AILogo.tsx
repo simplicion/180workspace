@@ -15,21 +15,25 @@ export function AILogoIcon({
     className = "w-5 h-5", 
     color, 
     eyeColor = "#38bdf8",
+    size,
     style,
     ...props 
 }: React.SVGProps<SVGSVGElement> & { 
     color?: string; 
     eyeColor?: string;
+    size?: number | string;
 }) {
     const rawId = useId();
     const gradId = `ai_grad_${rawId.replace(/:/g, '_')}`;
 
     return (
         <svg 
+            width={size}
+            height={size}
             viewBox="0 0 420 420" 
             fill="none" 
             xmlns="http://www.w3.org/2000/svg" 
-            className={className}
+            className={clsx("w-5 h-5 shrink-0 max-w-full max-h-full", className)}
             style={style}
             {...props}
         >

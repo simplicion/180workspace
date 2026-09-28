@@ -1,6 +1,6 @@
 'use strict';
 
-import { prisma } from '@workspace/db';
+import { developersPrisma as prisma } from '@workspace/db-180developers';
 import { generateRandomToken, hashSecret } from '../oauth/oauth.service';
 
 export class DeveloperController {
@@ -39,6 +39,10 @@ export class DeveloperController {
                 homepageUrl: app.homepageUrl,
                 isVerified: app.isVerified,
                 isActive: app.isActive,
+                enableAuth: app.enableAuth ?? true,
+                enablePay: app.enablePay ?? true,
+                webhookUrl: app.webhookUrl || '',
+                webhookSecret: app.webhookSecret || '',
                 allowedScopes: app.allowedScopes,
                 metrics: {
                     activeTokens: app._count.tokens,
@@ -98,6 +102,10 @@ export class DeveloperController {
                     homepageUrl: app.homepageUrl,
                     isVerified: app.isVerified,
                     isActive: app.isActive,
+                    enableAuth: (app as any).enableAuth ?? true,
+                    enablePay: (app as any).enablePay ?? true,
+                    webhookUrl: (app as any).webhookUrl || '',
+                    webhookSecret: (app as any).webhookSecret || '',
                     allowedScopes: app.allowedScopes,
                     metrics: {
                         activeTokens: app._count.tokens,
@@ -114,7 +122,7 @@ export class DeveloperController {
     }
 
     /**
-     * Create a new OAuth application and generate Client ID + Secret
+     * Create a new OAuth application and generate Client ID + Secret + Webhook Secret
      */
     static async createApp(req: any, res: any) {
         try {
@@ -123,17 +131,29 @@ export class DeveloperController {
                 return res.status(401).json({ success: false, message: 'Authentication required' });
             }
 
-            const { name, description, redirectUris = [], allowedOrigins = [], logoUrl, homepageUrl, allowedScopes } = req.body;
+            const {
+                name,
+                description,
+                redirectUris = [],
+                allowedOrigins = [],
+                logoUrl,
+                homepageUrl,
+                allowedScopes,
+                enableAuth = true,
+                enablePay = true,
+                webhookUrl = ''
+            } = req.body;
 
             if (!name || String(name).trim().length < 2) {
                 return res.status(400).json({ success: false, message: 'Application name is required (min 2 characters)' });
             }
 
-            // Generate client ID and high-entropy secret
+            // Generate client ID, high-entropy secret, and webhook secret
             const clientId = generateRandomToken('180_client', 16);
             const rawSecret = generateRandomToken('180_secret', 32);
             const clientSecretHash = hashSecret(rawSecret);
             const clientSecretHint = `...${rawSecret.slice(-4)}`;
+            const webhookSecret = generateRandomToken('whsec', 24);
 
             // Check if user has a company to link
             const user = await prisma.user.findUnique({
@@ -153,9 +173,13 @@ export class DeveloperController {
                     logoUrl: logoUrl || '',
                     homepageUrl: homepageUrl || '',
                     allowedScopes: Array.isArray(allowedScopes) && allowedScopes.length > 0 ? allowedScopes : ['identity:read'],
+                    enableAuth: Boolean(enableAuth),
+                    enablePay: Boolean(enablePay),
+                    webhookUrl: String(webhookUrl || '').trim(),
+                    webhookSecret,
                     userId,
                     companyId: user?.companyId || null
-                }
+                } as any
             });
 
             return res.status(201).json({
@@ -166,6 +190,10 @@ export class DeveloperController {
                     name: app.name,
                     clientId: app.clientId,
                     clientSecret: rawSecret, // RETURNED ONCE ON CREATION
+                    webhookSecret,
+                    enableAuth: (app as any).enableAuth,
+                    enablePay: (app as any).enablePay,
+                    webhookUrl: (app as any).webhookUrl,
                     redirectUris: app.redirectUris,
                     allowedScopes: app.allowedScopes
                 }
@@ -177,13 +205,25 @@ export class DeveloperController {
     }
 
     /**
-     * Update an existing OAuth application
+     * Update an existing OAuth application (toggles, settings, webhooks)
      */
     static async updateApp(req: any, res: any) {
         try {
             const userId = req.user?.id;
             const { id } = req.params;
-            const { name, description, redirectUris, allowedOrigins, logoUrl, homepageUrl, allowedScopes, isActive } = req.body;
+            const {
+                name,
+                description,
+                redirectUris,
+                allowedOrigins,
+                logoUrl,
+                homepageUrl,
+                allowedScopes,
+                isActive,
+                enableAuth,
+                enablePay,
+                webhookUrl
+            } = req.body;
 
             const app = await prisma.oAuthApp.findFirst({
                 where: { id, userId }
@@ -203,8 +243,11 @@ export class DeveloperController {
                     ...(logoUrl !== undefined && { logoUrl }),
                     ...(homepageUrl !== undefined && { homepageUrl }),
                     ...(allowedScopes && { allowedScopes }),
-                    ...(isActive !== undefined && { isActive: Boolean(isActive) })
-                }
+                    ...(isActive !== undefined && { isActive: Boolean(isActive) }),
+                    ...(enableAuth !== undefined && { enableAuth: Boolean(enableAuth) }),
+                    ...(enablePay !== undefined && { enablePay: Boolean(enablePay) }),
+                    ...(webhookUrl !== undefined && { webhookUrl: String(webhookUrl).trim() })
+                } as any
             });
 
             return res.json({
@@ -214,6 +257,9 @@ export class DeveloperController {
                     id: updated.id,
                     name: updated.name,
                     clientId: updated.clientId,
+                    enableAuth: (updated as any).enableAuth,
+                    enablePay: (updated as any).enablePay,
+                    webhookUrl: (updated as any).webhookUrl,
                     redirectUris: updated.redirectUris,
                     allowedScopes: updated.allowedScopes,
                     isActive: updated.isActive
@@ -260,6 +306,136 @@ export class DeveloperController {
             });
         } catch (err: any) {
             console.error('[DeveloperController] rotateSecret error:', err);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    }
+
+    /**
+     * Rotate Webhook Secret
+     */
+    static async rotateWebhookSecret(req: any, res: any) {
+        try {
+            const userId = req.user?.id;
+            const { id } = req.params;
+
+            const app = await prisma.oAuthApp.findFirst({
+                where: { id, userId }
+            });
+
+            if (!app) {
+                return res.status(404).json({ success: false, message: 'OAuth application not found' });
+            }
+
+            const newWebhookSecret = generateRandomToken('whsec', 24);
+
+            await prisma.oAuthApp.update({
+                where: { id },
+                data: {
+                    webhookSecret: newWebhookSecret
+                } as any
+            });
+
+            return res.json({
+                success: true,
+                message: 'Webhook signing secret rotated successfully.',
+                webhookSecret: newWebhookSecret
+            });
+        } catch (err: any) {
+            console.error('[DeveloperController] rotateWebhookSecret error:', err);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    }
+
+    /**
+     * Test Webhook Dispatch directly to Developer Server
+     */
+    static async testWebhook(req: any, res: any) {
+        try {
+            const userId = req.user?.id;
+            const { id } = req.params;
+            const axios = require('axios');
+            const crypto = require('crypto');
+
+            const app = await prisma.oAuthApp.findFirst({
+                where: { id, userId }
+            });
+
+            if (!app) {
+                return res.status(404).json({ success: false, message: 'OAuth application not found' });
+            }
+
+            const targetUrl = (app as any).webhookUrl || req.body?.url;
+            if (!targetUrl || !targetUrl.startsWith('http')) {
+                return res.status(400).json({ success: false, message: 'No valid webhook URL configured for this app' });
+            }
+
+            const signingSecret = (app as any).webhookSecret || app.clientSecretHash;
+            const payload = {
+                event: 'payment.test',
+                id: `evt_test_${Date.now()}`,
+                createdAt: new Date().toISOString(),
+                data: {
+                    sessionId: `cs_test_${generateRandomToken('180', 8)}`,
+                    amount: 499.00,
+                    currency: 'INR',
+                    title: 'Test Webhook Verification Payment',
+                    customer: {
+                        name: '180 Test Customer',
+                        email: 'test@180workspace.com'
+                    },
+                    metadata: {
+                        tier: 'pro_monthly',
+                        isSandbox: true
+                    },
+                    timestamp: new Date().toISOString()
+                }
+            };
+
+            const payloadString = JSON.stringify(payload);
+            const signature = crypto
+                .createHmac('sha256', signingSecret)
+                .update(payloadString)
+                .digest('hex');
+
+            const startTime = Date.now();
+            let deliveryStatus = 'SUCCESS';
+            let responseStatus = 200;
+            let responseBody = '';
+
+            try {
+                const response = await axios.post(targetUrl, payload, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-180-Signature': signature,
+                        'X-180-Event': 'payment.test',
+                        'User-Agent': '180-Webhook-Dispatcher/1.0'
+                    },
+                    timeout: 8000
+                });
+                responseStatus = response.status;
+                responseBody = typeof response.data === 'string' ? response.data.slice(0, 500) : JSON.stringify(response.data).slice(0, 500);
+            } catch (httpErr: any) {
+                deliveryStatus = 'FAILED';
+                responseStatus = httpErr.response?.status || 500;
+                responseBody = httpErr.response?.data ? JSON.stringify(httpErr.response.data).slice(0, 500) : httpErr.message;
+            }
+
+            const latencyMs = Date.now() - startTime;
+
+            return res.json({
+                success: deliveryStatus === 'SUCCESS',
+                targetUrl,
+                event: 'payment.test',
+                signature,
+                statusCode: responseStatus,
+                latencyMs,
+                response: responseBody,
+                message: deliveryStatus === 'SUCCESS' 
+                    ? `Webhook verified successfully (HTTP ${responseStatus} in ${latencyMs}ms)` 
+                    : `Webhook delivered with error (HTTP ${responseStatus} in ${latencyMs}ms)`
+            });
+        } catch (err: any) {
+            console.error('[DeveloperController] testWebhook error:', err);
             return res.status(500).json({ success: false, message: err.message });
         }
     }

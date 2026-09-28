@@ -11,16 +11,26 @@ import 'social_post.dart';
 import 'task.dart';
 
 enum ProjectStatus {
-  inProgress('in_progress', 'In progress', AppTheme.accentBlue),
-  inReview('in_review', 'In review', AppTheme.warning),
-  paused('paused', 'Paused', AppTheme.textMuted),
-  completed('completed', 'Completed', AppTheme.success),
-  unknown('unknown', 'Unknown', AppTheme.textMuted);
+  inProgress('in_progress', 'In progress'),
+  inReview('in_review', 'In review'),
+  paused('paused', 'Paused'),
+  completed('completed', 'Completed'),
+  unknown('unknown', 'Unknown');
 
-  const ProjectStatus(this.id, this.label, this.color);
+  const ProjectStatus(this.id, this.label);
   final String id;
   final String label;
-  final Color color;
+  
+  Color get color {
+    switch (this) {
+      case ProjectStatus.inProgress: return AppTheme.accent;
+      case ProjectStatus.inReview: return AppTheme.warning;
+      case ProjectStatus.paused: return AppTheme.textMuted;
+      case ProjectStatus.completed: return AppTheme.success;
+      case ProjectStatus.unknown: return AppTheme.textMuted;
+    }
+  }
+
 
   static const editable = [inProgress, inReview, paused, completed];
   static const listFilters = [inProgress, inReview, completed];
@@ -101,7 +111,7 @@ class ProjectSettings {
 }
 
 class ClientRef {
-  const ClientRef({required this.id, required this.name, this.email});
+  ClientRef({required this.id, required this.name, this.email});
   final String id;
   final String name;
   final String? email;
@@ -114,7 +124,7 @@ class ClientRef {
 }
 
 class Project {
-  const Project({
+  Project({
     required this.id,
     required this.name,
     this.description,
@@ -182,7 +192,7 @@ class Project {
 
 /// `GET /projects/:id` — the project plus its related collections.
 class ProjectDetail {
-  const ProjectDetail({
+  ProjectDetail({
     required this.project,
     this.calendars = const [],
     this.posts = const [],
@@ -209,7 +219,7 @@ class ProjectDetail {
 }
 
 class AttentionItem {
-  const AttentionItem({
+  AttentionItem({
     required this.id,
     required this.type,
     required this.title,
@@ -243,7 +253,7 @@ class AttentionItem {
 }
 
 class ProjectDashboard {
-  const ProjectDashboard({
+  ProjectDashboard({
     required this.metrics,
     required this.attentionItems,
     required this.upcomingContent,
@@ -263,7 +273,7 @@ class ProjectDashboard {
 }
 
 class ActivityItem {
-  const ActivityItem({
+  ActivityItem({
     required this.id,
     required this.type,
     required this.title,

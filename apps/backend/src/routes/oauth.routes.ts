@@ -57,6 +57,12 @@ router.get('/jwks.json', OAuthController.getJwks);
 router.get('/certs', OAuthController.getJwks);
 
 // ─── Authorize & Consent Flow ────────────────────────────────────────────────
+router.get('/authorize', (req: any, res: any) => {
+    const frontendUrl = process.env.IDENTITY_FRONTEND_URL 
+        || (process.env.NODE_ENV === 'development' ? 'http://localhost:3002' : 'https://180identity.180workspace.com');
+    const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    return res.redirect(302, `${frontendUrl}/oauth/authorize${query}`);
+});
 router.get('/authorize/validate', validateAuthorizeLimiter, optionalAuth || ((req: any, res: any, next: any) => next()), OAuthController.validateAuthorize);
 router.post('/authorize/consent', consentLimiter, protect, OAuthController.submitConsent);
 
@@ -149,6 +155,10 @@ router.post('/resolve-location', async (req: any, res: any) => {
         const result = await LocationService.resolveCoordinates(Number(latitude), Number(longitude));
         return res.json({ success: true, location: result });
     } catch (e: any) {
+        return res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 // 5. Direct 180 Identity Modal Auth Routes
 router.post('/auth/login', IdentityAuthController.login);
 router.post('/auth/register', IdentityAuthController.register);
@@ -157,3 +167,4 @@ router.post('/auth/reset-password', IdentityAuthController.resetPassword);
 router.post('/auth/google-continue', IdentityAuthController.googleContinue);
 
 export default router;
+

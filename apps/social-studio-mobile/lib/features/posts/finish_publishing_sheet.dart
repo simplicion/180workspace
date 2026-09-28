@@ -29,12 +29,12 @@ class CentralizedManualPublishSheet extends ConsumerStatefulWidget {
 }
 
 class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManualPublishSheet> with WidgetsBindingObserver {
-  late final Map<SocialPlatform, UniversalPlatformPayload> _payloads = {};
-  late final Map<SocialPlatform, TextEditingController> _controllers = {};
-  late final Map<SocialPlatform, TextEditingController> _titleControllers = {};
-  late final Map<SocialPlatform, TextEditingController> _metaControllers = {};
+  late final Map<SocialPlatform, UniversalPlatformPayload> _payloads = const {};
+  late final Map<SocialPlatform, TextEditingController> _controllers = const {};
+  late final Map<SocialPlatform, TextEditingController> _titleControllers = const {};
+  late final Map<SocialPlatform, TextEditingController> _metaControllers = const {};
 
-  final Map<SocialPlatform, String> _statuses = {};
+  final Map<SocialPlatform, String> _statuses = const {};
   String? _pendingPlatformHandoff;
   bool _isPublishing = false;
 
@@ -226,7 +226,7 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -239,11 +239,11 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
             // Modal Grab Handle
             Center(
               child: Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                margin: EdgeInsets.only(top: 12, bottom: 8),
                 width: 44,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: AppTheme.borderActive,
+                  color: AppTheme.primary,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -251,7 +251,7 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
 
             // Header Bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
                 children: [
                   Expanded(
@@ -265,8 +265,8 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
                                 color: AppTheme.textPrimary,
                               ),
                         ),
-                        const SizedBox(height: 2),
-                        const Text(
+                        SizedBox(height: 2),
+                        Text(
                           'User-assisted publishing hub',
                           style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                         ),
@@ -274,68 +274,68 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: AppTheme.textSecondary),
+                    icon: Icon(Icons.close_rounded, color: AppTheme.textSecondary),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
             ),
 
-            const Divider(color: AppTheme.borderSubtle, height: 1),
+            Divider(color: AppTheme.borderSubtle, height: 1),
 
             // Scrollable Content
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Media banner indicator
                     if (mediaExists) ...[
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.surfaceSubtle,
+                          color: AppTheme.surfaceElevated,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: AppTheme.border),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.video_library_rounded, color: AppTheme.accentBlue, size: 20),
-                            const SizedBox(width: 10),
+                            Icon(Icons.video_library_rounded, color: AppTheme.accentBlue, size: 20),
+                            SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 fileName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary),
+                                style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
                               ),
                             ),
-                            const Text(
+                            Text(
                               'Ready for handoff',
                               style: TextStyle(fontSize: 11, color: AppTheme.success, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                     ],
 
                     // Dynamic Platforms List
                     for (final platform in _payloads.keys) ...[
                       _buildPlatformCard(platform),
-                      const SizedBox(height: 20),
+                      SizedBox(height: 20),
                     ],
 
                     // Honest Platform Disclosure
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppTheme.backgroundSubtle,
+                        color: AppTheme.surfaceElevated,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppTheme.borderSubtle),
                       ),
-                      child: const Row(
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(Icons.verified_user_outlined, size: 16, color: AppTheme.textMuted),
@@ -349,7 +349,7 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                   ],
                 ),
               ),
@@ -371,7 +371,7 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
     final status = _statuses[platform] ?? 'ready';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.surfaceElevated,
         borderRadius: BorderRadius.circular(16),
@@ -385,24 +385,24 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceSubtle,
+                  color: AppTheme.surfaceElevated,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.borderActive),
+                  border: Border.all(color: AppTheme.primary),
                 ),
-                child: const Icon(Icons.share_rounded, size: 18, color: AppTheme.textPrimary),
+                child: Icon(Icons.share_rounded, size: 18, color: AppTheme.textPrimary),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Post on ${platform.label}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
                 ),
               ),
               if (status != 'ready')
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: status == 'user_confirmed' ? AppTheme.success.withValues(alpha: 0.2) : AppTheme.accentBlue.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
@@ -418,9 +418,9 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
                 ),
               if (status == 'ready' && !cap.requiresTitle)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: isOverLimit ? AppTheme.warning.withValues(alpha: 0.2) : AppTheme.surfaceSubtle,
+                    color: isOverLimit ? AppTheme.warning.withValues(alpha: 0.2) : AppTheme.surfaceElevated,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -435,54 +435,54 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
             ],
           ),
           if (isOverLimit) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               'Caption exceeds ${cap.maxChars} characters.',
-              style: const TextStyle(fontSize: 11, color: AppTheme.warning),
+              style: TextStyle(fontSize: 11, color: AppTheme.warning),
             ),
           ],
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           
           if (platform == SocialPlatform.reddit && metaController != null) ...[
             TextField(
               controller: metaController,
-              style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+              style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
               decoration: InputDecoration(
                 prefixText: 'r/ ',
-                prefixStyle: const TextStyle(color: Color(0xFFFF4500), fontWeight: FontWeight.bold),
+                prefixStyle: TextStyle(color: Color(0xFFFF4500), fontWeight: FontWeight.bold),
                 labelText: 'Target Subreddit',
-                labelStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                labelStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                 filled: true,
-                fillColor: AppTheme.surfaceSubtle,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                fillColor: AppTheme.surfaceElevated,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppTheme.borderSubtle),
+                  borderSide: BorderSide(color: AppTheme.borderSubtle),
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
           ],
 
           if (cap.requiresTitle && titleController != null) ...[
             TextField(
               controller: titleController,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
               decoration: InputDecoration(
                 labelText: 'Title (Required)',
-                labelStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                labelStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                 filled: true,
-                fillColor: AppTheme.surfaceSubtle,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                fillColor: AppTheme.surfaceElevated,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppTheme.borderSubtle),
+                  borderSide: BorderSide(color: AppTheme.borderSubtle),
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
           ],
 
           if (controller != null) ...[
@@ -490,29 +490,29 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
               controller: controller,
               maxLines: 4,
               minLines: 2,
-              style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+              style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Caption…',
                 labelText: cap.requiresTitle ? 'Description / Body' : 'Caption',
-                labelStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-                hintStyle: const TextStyle(color: AppTheme.textMuted),
+                labelStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                hintStyle: TextStyle(color: AppTheme.textMuted),
                 filled: true,
-                fillColor: AppTheme.surfaceSubtle,
-                contentPadding: const EdgeInsets.all(12),
+                fillColor: AppTheme.surfaceElevated,
+                contentPadding: EdgeInsets.all(12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppTheme.borderSubtle),
+                  borderSide: BorderSide(color: AppTheme.borderSubtle),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppTheme.borderSubtle),
+                  borderSide: BorderSide(color: AppTheme.borderSubtle),
                 ),
               ),
               onChanged: (_) => setState(() {}),
             ),
           ],
           
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           Row(
             children: [
               Expanded(
@@ -520,23 +520,23 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
                   style: FilledButton.styleFrom(
                     backgroundColor: AppTheme.textPrimary,
                     foregroundColor: AppTheme.surface,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: _isPublishing ? null : () => _postOnPlatform(platform, preferWeb: false),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                  label: Text('Post on ${platform.label}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  icon: Icon(Icons.open_in_new_rounded, size: 16),
+                  label: Text('Post on ${platform.label}', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               IconButton(
                 tooltip: 'Open Web Composer',
-                icon: const Icon(Icons.language_rounded, size: 18),
+                icon: Icon(Icons.language_rounded, size: 18),
                 style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.surfaceSubtle,
+                  backgroundColor: AppTheme.surfaceElevated,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: AppTheme.border),
+                    side: BorderSide(color: AppTheme.border),
                   ),
                 ),
                 onPressed: _isPublishing ? null : () => _postOnPlatform(platform, preferWeb: true),
@@ -581,7 +581,7 @@ class PostPublishReturnDialog extends StatelessWidget {
       backgroundColor: AppTheme.surfaceElevated,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       title: Text('Did you publish on $platform?'),
-      content: const Text(
+      content: Text(
         '180 Workspace cannot independently verify posts published through external apps. Please let us know if your post went live.',
         style: TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.4),
       ),
@@ -591,14 +591,14 @@ class PostPublishReturnDialog extends StatelessWidget {
             Navigator.pop(context);
             await onConfirm('user_cancelled');
           },
-          child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+          child: Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
         ),
         TextButton(
           onPressed: () async {
             Navigator.pop(context);
             await onConfirm('ready_to_publish');
           },
-          child: const Text('Not yet', style: TextStyle(color: AppTheme.accentBlue)),
+          child: Text('Not yet', style: TextStyle(color: AppTheme.accentBlue)),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -609,7 +609,7 @@ class PostPublishReturnDialog extends StatelessWidget {
             Navigator.pop(context);
             await onConfirm('user_confirmed');
           },
-          child: const Text('Yes, I posted'),
+          child: Text('Yes, I posted'),
         ),
       ],
     );

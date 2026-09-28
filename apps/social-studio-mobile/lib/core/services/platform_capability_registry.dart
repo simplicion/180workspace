@@ -4,7 +4,7 @@ import '../../data/models/platform.dart';
 
 /// Capability metadata describing what publishing features are supported for a platform.
 class PlatformCapability {
-  const PlatformCapability({
+  PlatformCapability({
     required this.platform,
     required this.userAssistedPublishing,
     required this.apiPublishing,
@@ -35,12 +35,12 @@ class PlatformCapability {
 
 /// Registry for detecting platform availability, capabilities, and web composer URLs.
 class PlatformCapabilityRegistry {
-  const PlatformCapabilityRegistry._();
+  PlatformCapabilityRegistry._();
 
   /// Static capabilities registry reflecting dual-mode platform realities.
   /// All 9 platforms support userAssistedPublishing (manual pre-filled handoff).
   /// Instagram, Threads, Facebook, YouTube, and LinkedIn also support automated 1-click apiPublishing.
-  static const Map<SocialPlatform, PlatformCapability> capabilities = {
+  static final Map<SocialPlatform, PlatformCapability> capabilities = {
     SocialPlatform.instagram: PlatformCapability(
       platform: SocialPlatform.instagram,
       userAssistedPublishing: true,

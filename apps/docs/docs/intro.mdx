@@ -1,47 +1,81 @@
 ---
 sidebar_position: 1
+title: Platform Introduction
 ---
 
-# Tutorial Intro
+# 180workspace Platform Overview
 
-Let's discover **Docusaurus in less than 5 minutes**.
+Welcome to the **180workspace Platform Documentation**. This portal contains the internal engineering specifications, architectural blueprints, database models, and developer runbooks for the entire 180workspace ecosystem.
 
-## Getting Started
+---
 
-Get started by **creating a new site**.
+## 🎯 What is 180workspace?
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+**180workspace** is a unified multi-company enterprise business management and operations platform. It bridges traditionally fragmented business functions into a synchronized **Work Graph**:
 
-### What you'll need
+- **CRM & Sales Operations:** Lead scoring, deals pipeline, customer interactions, and contact books.
+- **Human Resources & Team:** Employee directory, leaves management, attendance, and automated payroll pipelines.
+- **Financial Intelligence:** Invoicing, vendor bill tracking, expense categorization, and multi-currency ledger.
+- **Traffic Director & Link Infrastructure:** High-velocity traffic routing, geo-targeting, web cloaking, and real-time click telemetry.
+- **180 Studio & Creative Media:** Asset storage, visual timeline editing, social publishing, and AI-assisted generation.
+- **Platform Work Graph Core:** Cross-app data relationships, unified notification bus, and centralized audit logging.
 
-- [Node.js](https://nodejs.org/en/download/) version 20.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+---
 
-## Generate a new site
+## 🏗️ Architecture at a Glance
 
-Generate a new Docusaurus site using the **classic template**.
+The platform utilizes a **Modular Monolith** pattern designed for high performance, strict multi-tenant isolation, and real-time responsiveness:
 
-The classic template will automatically be added to your project after you run the command:
-
-```bash
-npm init docusaurus@latest my-website classic
+```mermaid
+graph TD
+    Client[Next.js 15 App Router Frontend] -->|HTTPS REST + x-company-id| Gateway[Express.js API Gateway]
+    Client -->|Socket.IO Namespaces| SocketServer[Real-Time Event Engine]
+    Gateway --> Auth[JWT & RBAC Security Layer]
+    Gateway --> TenantMiddleware[company-db Multitenancy Middleware]
+    TenantMiddleware --> Prisma[Prisma ORM Layer]
+    Prisma --> PG[(PostgreSQL Atlas - Dynamic Namespaces)]
+    Gateway --> BullMQ[BullMQ Job Producer]
+    BullMQ --> Redis[(Redis Cache & Queues)]
+    Redis --> Worker[Asynchronous Worker Nodes]
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+### Core Technology Stack
+- **Frontend Layer:** Next.js 15 (App Router, Server-Side Rendering), React 19, Tailwind CSS, Zustand, Socket.IO Client.
+- **Backend API Layer:** Node.js, Express.js, TypeScript.
+- **Data Persistence:** PostgreSQL with Prisma ORM, utilizing company-isolated dynamic schema switching.
+- **Asynchronous Execution:** Redis with BullMQ for background job scheduling, payroll runs, and telemetry processing.
+- **Security & RBAC:** Dual-token JWT architecture (short-lived access tokens, refresh tokens), helmet, rate-limiting, and sanitized inputs.
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+---
 
-## Start your site
+## 📚 Documentation Roadmap
 
-Run the development server:
+Explore the sections below to understand each area of the system:
+
+| Section | Focus Area | Description |
+| :--- | :--- | :--- |
+| [System Architecture](/docs/SYSTEM_ARCHITECTURE) | Core Design | Comprehensive modular monolith topology, data flow, and deployment models. |
+| [Database Schema](/docs/DATABASE_SCHEMA) | Data Layer | Multi-company isolation, Prisma schema specifications, and relational constraints. |
+| [API Documentation](/docs/API_DOCUMENTATION) | Endpoints & Contracts | RESTful API routes, request interceptors, headers, and Socket.IO namespaces. |
+| [Authentication & Security](/docs/AUTHENTICATION_AND_SECURITY) | Zero-Trust RBAC | JWT lifecycle, permission matrix, and mutation audit trail logs. |
+| [Local Development Runbook](/docs/getting-started/local-development) | Developer Onboarding | Monorepo pnpm workspace setup, Docker orchestration, and environment variables. |
+| [Business Logic & Work Graph](/docs/BUSINESS_LOGIC) | Domain Workflows | Cross-application synergies connecting CRM, HR, Finance, and Marketing. |
+
+---
+
+## ⚡ Quick Start for Developers
+
+To run the platform locally, clone the monorepo and run the following in your terminal:
 
 ```bash
-cd my-website
-npm run start
+# 1. Install workspace dependencies
+pnpm install
+
+# 2. Provision local environment
+cp .env.example .env
+
+# 3. Launch full monorepo development cluster
+pnpm dev
 ```
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
-
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
-
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+The documentation portal runs on port `3005`, the Next.js frontend on port `3000`, the Express backend API on port `5000`, and additional micro-web apps on their dedicated ports.

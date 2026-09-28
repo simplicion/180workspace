@@ -16,7 +16,7 @@ The **180 Workspace** is a high-scale enterprise monorepo managed via **pnpm v9.
 │   ├── marketing-web/        # Next.js / Astro Public Landing & Conversion Islands
 │   ├── backend/              # Express API Server (Prisma, BullMQ, Multi-Provider AI, FFmpeg)
 │   ├── worker/               # BullMQ Background Job Worker (Redis, Crons, Aggregations)
-│   └── docs/                 # Docusaurus Architecture & API Documentation Hub
+│   └── docs/                 # 180 Documentation Platform & Architecture Hub
 │
 ├── packages/
 │   ├── db/                   # Prisma ORM (PostgreSQL schema with 3,400+ LOC, 200+ models)
