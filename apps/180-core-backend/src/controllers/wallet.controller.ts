@@ -112,7 +112,9 @@ export class WalletApiController {
       if (webhookSecret && signature) {
         const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
         const expected = crypto.createHmac('sha256', webhookSecret).update(body).digest('hex');
-        if (expected !== signature) {
+        const expectedBuf = Buffer.from(expected, 'utf-8');
+        const signatureBuf = Buffer.from(signature, 'utf-8');
+        if (expectedBuf.length !== signatureBuf.length || !crypto.timingSafeEqual(expectedBuf, signatureBuf)) {
           return res.status(400).json({ error: 'Invalid webhook signature' });
         }
       }

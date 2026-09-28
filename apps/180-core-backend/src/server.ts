@@ -16,6 +16,7 @@ import authRoutes from './routes/auth.routes';
 import walletRoutes from './routes/wallet.routes';
 import checkoutRoutes from './routes/checkout.routes';
 import developerRoutes from './routes/developer.routes';
+import { generalApiLimiter } from './middleware/rate-limiter.middleware';
 
 const app = express();
 const server = http.createServer(app);
@@ -32,6 +33,7 @@ app.use(compression() as any);
 app.use(morgan('dev') as any);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(generalApiLimiter);
 
 // CORS configuration supporting 180 Profile, Developers, and external origins
 const allowedOrigins = [
@@ -56,7 +58,7 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-180-Signature', 'X-180-Event'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-180-Signature', 'X-180-Timestamp', 'X-180-Event'],
   })
 );
 
@@ -104,4 +106,22 @@ server.listen(PORT, () => {
   console.log(`💳 Domains active: Identity / OAuth2, Prepaid Wallet (Razorpay), 1-Click Checkout, Developer Payouts`);
 });
 
+// Graceful Shutdown on zero-downtime deploy
+const gracefulShutdown = (signal: string) => {
+  console.log(`[180-core-backend] Received ${signal}. Draining connections and shutting down cleanly...`);
+  server.close(() => {
+    console.log('[180-core-backend] HTTP server closed cleanly.');
+    process.exit(0);
+  });
+  // Force exit after 10s if hanging
+  setTimeout(() => {
+    console.error('[180-core-backend] Forced shutdown after timeout.');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 export default app;
+
