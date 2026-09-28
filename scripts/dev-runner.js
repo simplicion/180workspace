@@ -84,7 +84,7 @@ const APPS = {
     filter: 'traffic-director-web',
     cmd: 'pnpm',
     args: ['--filter', 'traffic-director-web', 'dev'],
-    port: 3010,
+    port: 3006,
     color: '\x1b[38;5;197m', // Crimson / Rose
   },
   social: {
@@ -186,7 +186,7 @@ function runAllApps(includeMobile = true) {
   console.log('  [frontend]              -> http://localhost:3002 (180 Workspace Web Platform)');
   console.log('  [admin-web]             -> http://localhost:3003 (Platform Admin Portal)');
   console.log('  [apps-marketing-web]    -> http://localhost:3004 (Marketing & Landing Web)');
-  console.log('  [traffic-director-web]  -> http://localhost:3010 (Traffic Director)');
+  console.log('  [traffic-director-web]  -> http://localhost:3006 (Traffic Director)');
   console.log('  [worker]                -> Background Jobs Node');
   console.log('  [apps-docs]             -> http://localhost:3005 (Documentation Portal)');
   if (includeMobile) {
