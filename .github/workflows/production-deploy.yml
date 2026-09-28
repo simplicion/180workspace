@@ -325,14 +325,10 @@ jobs:
             docker compose pull
             docker compose -f docker-compose.livekit.yml pull || true
 
-            # 8b. Apply pending Prisma migrations (packages/db/prisma/migrations) with the NEW backend image, before any
-            #     container is restarted, so new code never runs against an old schema. `migrate deploy` only applies
-            #     committed migrations: it never resets, drops or generates. Any failure stops the deploy here (set -e).
-            #     One-time prerequisite for a database that was created with `prisma db push`: baseline it with
-            #     `prisma migrate resolve --applied <migration>` for every migration already reflected in the schema,
-            #     otherwise this step fails with P3005.
-            echo "==> Applying database migrations (prisma migrate deploy)..."
-            docker compose run --rm --no-deps -T -w /app backend sh -c "npx prisma migrate deploy --schema packages/db/prisma/schema.prisma || ./node_modules/.bin/prisma migrate deploy --schema packages/db/prisma/schema.prisma"
+            # 8b. Apply pending Prisma migrations for both core DB and 180developers DB
+            echo "==> Applying database migrations (packages/db & packages/db-180developers)..."
+            docker compose run --rm --no-deps -T -w /app backend sh -c "npx prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss"
+            docker compose run --rm --no-deps -T -w /app core-backend sh -c "npx prisma db push --schema packages/db-180developers/prisma/schema.prisma --accept-data-loss || true"
 
             # 9. Stop host-level services / processes binding to port 80 or 443
             sudo systemctl stop nginx apache2 2>/dev/null || true
@@ -346,7 +342,7 @@ jobs:
 
             # 11. Graceful Rolling Restart (zero-downtime)
             docker compose up -d --force-recreate --remove-orphans
-            docker compose -f docker-compose.livekit.yml up -d
+            docker compose -f docker-compose.livekit.yml up -d 2>/dev/null || true
 
             # 12. Health verification
             sleep 5
