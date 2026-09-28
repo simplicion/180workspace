@@ -22,6 +22,18 @@ export function hashSecret(secret: string): string {
 }
 
 /**
+ * Constant-time string comparison to prevent timing side-channel attacks
+ */
+export function timingSafeCompare(a: string, b: string): boolean {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    const bufA = Buffer.from(a, 'utf-8');
+    const bufB = Buffer.from(b, 'utf-8');
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+}
+
+
+/**
  * Verify PKCE Code Challenge (RFC 7636)
  */
 export function verifyCodeChallenge(verifier: string, challenge: string, method: string = 'S256'): boolean {
