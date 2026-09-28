@@ -87,7 +87,7 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
   }
 
   Widget _field(TextEditingController c, String label, {String? hint, int maxLines = 1, String? helper}) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
+        padding: EdgeInsets.only(bottom: 14),
         child: TextField(
           controller: c,
           maxLines: maxLines,
@@ -128,18 +128,18 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
                     : null,
               ),
               child: widget.initial.logoUrl == null
-                  ? const Icon(Icons.business_rounded, color: AppTheme.textSecondary, size: 28)
+                  ? Icon(Icons.business_rounded, color: AppTheme.textSecondary, size: 28)
                   : null,
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Brand Logo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text('Brand Logo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   Text(
                     widget.initial.logoUrl != null ? 'Stored in Cloudflare R2' : 'PNG, JPEG, WebP or SVG',
-                    style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                    style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
                   ),
                 ],
               ),
@@ -147,16 +147,16 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
             if (widget.onUploadLogo != null)
               FilledButton.tonalIcon(
                 onPressed: widget.onUploadLogo,
-                icon: const Icon(Icons.upload_rounded, size: 16),
+                icon: Icon(Icons.upload_rounded, size: 16),
                 label: Text(widget.initial.logoUrl != null ? 'Change' : 'Upload'),
               ),
           ],
         ),
       ),
-      const SizedBox(height: 16),
+      SizedBox(height: 16),
 
       // Brand Colors & Styling
-      const SectionHeader('Visual Identity & Aesthetics'),
+      SectionHeader('Visual Identity & Aesthetics'),
       Row(
         children: [
           Expanded(
@@ -168,13 +168,13 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
                 prefix: Container(
                   width: 16,
                   height: 16,
-                  margin: const EdgeInsets.only(left: 10, right: 8),
+                  margin: EdgeInsets.only(left: 10, right: 8),
                   decoration: BoxDecoration(color: pColor, shape: BoxShape.circle),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: _accentColor,
@@ -184,7 +184,7 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
                 prefix: Container(
                   width: 16,
                   height: 16,
-                  margin: const EdgeInsets.only(left: 10, right: 8),
+                  margin: EdgeInsets.only(left: 10, right: 8),
                   decoration: BoxDecoration(color: aColor, shape: BoxShape.circle),
                 ),
               ),
@@ -192,13 +192,13 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
           ),
         ],
       ),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       DropdownButtonFormField<String?>(
         isExpanded: true,
         initialValue: BrandVoice.fontPresets.contains(_font) ? _font : null,
         decoration: fieldDecoration('Typography Font'),
         items: [
-          const DropdownMenuItem<String?>(value: null, child: Text('Not chosen')),
+          DropdownMenuItem<String?>(value: null, child: Text('Not chosen')),
           for (final f in BrandVoice.fontPresets) DropdownMenuItem(value: f, child: Text(f, overflow: TextOverflow.ellipsis)),
         ],
         onChanged: (v) {
@@ -206,13 +206,13 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
           _emit();
         },
       ),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       DropdownButtonFormField<String?>(
         isExpanded: true,
         initialValue: BrandVoice.captionStylePresets.contains(_captionStyle) ? _captionStyle : null,
         decoration: fieldDecoration('Caption Styling Preset'),
         items: [
-          const DropdownMenuItem<String?>(value: null, child: Text('Not chosen')),
+          DropdownMenuItem<String?>(value: null, child: Text('Not chosen')),
           for (final s in BrandVoice.captionStylePresets)
             DropdownMenuItem(value: s, child: Text(s.replaceAll('_', ' '), overflow: TextOverflow.ellipsis)),
         ],
@@ -221,10 +221,10 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
           _emit();
         },
       ),
-      const SizedBox(height: 18),
+      SizedBox(height: 18),
 
       // Tone Presets
-      const SectionHeader('Tone & Persona'),
+      SectionHeader('Tone & Persona'),
       Wrap(spacing: 8, runSpacing: 8, children: [
         for (final preset in BrandVoice.tonePresets)
           ChoiceChip(
@@ -236,7 +236,7 @@ class _BrandVoiceFormState extends State<BrandVoiceForm> {
             },
           ),
       ]),
-      const SizedBox(height: 14),
+      SizedBox(height: 14),
       _field(_tone, 'Tone of voice', hint: 'e.g. Bold & energetic, never salesy'),
       _field(_audience, 'Target audience', hint: 'Who are we talking to?', maxLines: 3),
       _field(_pillars, 'Content pillars', helper: 'Comma separated, e.g. Education, Behind the scenes, Offers'),

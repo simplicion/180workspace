@@ -7,7 +7,7 @@ import 'api_exception.dart';
 import 'device_registration.dart';
 
 class TranscriptWord {
-  const TranscriptWord({required this.text, required this.startMs, required this.endMs});
+  TranscriptWord({required this.text, required this.startMs, required this.endMs});
   final String text;
   final int startMs;
   final int endMs;
@@ -22,7 +22,7 @@ class TranscriptWord {
 }
 
 class Transcript {
-  const Transcript({required this.language, required this.durationMs, required this.text, required this.words});
+  Transcript({required this.language, required this.durationMs, required this.text, required this.words});
   final String language;
   final int durationMs;
   final String text;
@@ -83,7 +83,7 @@ class AudioTranscriptionService {
     final data = jMap(r['data']);
     final t = Transcript.fromJson(data);
     if (t.words.isEmpty) {
-      throw const ApiException(
+      throw ApiException(
         kind: ApiErrorKind.server,
         code: 'TRANSCRIPTION_FAILED',
         message: 'The transcription returned no word timings.',

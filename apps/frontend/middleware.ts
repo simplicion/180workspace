@@ -98,6 +98,43 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // 1.4. 180 Identity Subdomain Routing (180identity.180workspace.com / auth.180workspace.com)
+  const isIdentityDomain =
+    hostname.startsWith('180identity.') ||
+    hostname.startsWith('auth.') ||
+    hostname.includes('180identity.localhost') ||
+    hostname.includes('auth.localhost');
+
+  if (isIdentityDomain) {
+    if (pathname === '/') {
+      const rewriteUrl = new URL(`/login${url.search}`, req.url);
+      const res = NextResponse.rewrite(rewriteUrl);
+      res.headers.set('Access-Control-Allow-Origin', '*');
+      res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res;
+    }
+  }
+
+  // 1.5. Developer Subdomain Routing (developers.180workspace.com / developer.180workspace.com)
+  const isDeveloperDomain =
+    hostname.startsWith('developers.') ||
+    hostname.startsWith('developer.') ||
+    hostname.includes('developers.localhost') ||
+    hostname.includes('developer.localhost');
+
+  if (isDeveloperDomain) {
+    if (!pathname.startsWith('/developers') && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/sdk')) {
+      const devPath = pathname === '/' ? '/developers' : `/developers${pathname}`;
+      const rewriteUrl = new URL(`${devPath}${url.search}`, req.url);
+      const res = NextResponse.rewrite(rewriteUrl);
+      res.headers.set('Access-Control-Allow-Origin', '*');
+      res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res;
+    }
+  }
+
   // 2. Define main application domains
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || "180workspace.com";
   const mainDomains = [
@@ -105,10 +142,18 @@ export async function middleware(req: NextRequest) {
     "www.180workspace.com",
     "app.180workspace.com",
     "media.180workspace.com",
+    "180identity.180workspace.com",
+    "auth.180workspace.com",
+    "developers.180workspace.com",
+    "developer.180workspace.com",
     rootDomain,
     `www.${rootDomain}`,
     `app.${rootDomain}`,
-    `media.${rootDomain}`
+    `media.${rootDomain}`,
+    `180identity.${rootDomain}`,
+    `auth.${rootDomain}`,
+    `developers.${rootDomain}`,
+    `developer.${rootDomain}`
   ].filter(Boolean);
 
   const isLocalhostBase = /^localhost(:\d+)?$/.test(hostname) || /^127\.0\.0\.1(:\d+)?$/.test(hostname);
@@ -155,6 +200,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.rewrite(new URL(`/sites/${domainKey}${pathname}${search}`, req.url));
   }
 
+  if (pathname.includes('180social') || (pathname.startsWith('/oauth/') && pathname.includes('social'))) {
+    const isDev = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+    const targetBase = isDev ? 'http://localhost:3007' : 'https://social.180workspace.com';
+    return NextResponse.redirect(`${targetBase}/#/oauth-callback${url.search}`);
+  }
+
   // 3. Fast redirect routes & public forms/payslips on main platform domains bypass auth
   if (
     pathname.startsWith('/shield/') ||
@@ -163,6 +214,9 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/f/') ||
     pathname.startsWith('/payslip') ||
     pathname.startsWith('/api') ||
+    pathname.startsWith('/sdk') ||
+    pathname.startsWith('/oauth') ||
+    pathname.startsWith('/developers') ||
     pathname === '/favicon.ico'
   ) {
     return NextResponse.next();

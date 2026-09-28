@@ -68,7 +68,7 @@ async function runPhase7SecurityAndE2E() {
       picture: 'https://r2.180workspace.com/avatars/prince.jpg',
     };
 
-    const idToken = signIdToken(testClaims, '180-pitch-network', '1h');
+    const idToken = signIdToken(testClaims, '180-social-studio-mobile', '1h');
     assert(
       typeof idToken === 'string' && idToken.split('.').length === 3,
       'signIdToken generates valid 3-part RS256 JWT string'
@@ -80,7 +80,7 @@ async function runPhase7SecurityAndE2E() {
       verified.payload?.sub === testClaims.sub &&
       verified.payload?.username === testClaims.username &&
       verified.payload?.iss === ISSUER &&
-      verified.payload?.aud === '180-pitch-network',
+      verified.payload?.aud === '180-social-studio-mobile',
       'Cryptographically verifies claims, subject, issuer, and audience against RS256 public key'
     );
   } catch (err: any) {
@@ -165,7 +165,7 @@ async function runPhase7SecurityAndE2E() {
     );
     const contextContent = fs.readFileSync(companyContextPath, 'utf8');
 
-    // 1. Confirm IdP, Auth, and Pitch Network routes are explicitly exempt
+    // 1. Confirm IdP and Auth routes are explicitly exempt
     const expectedExemptions = [
       '/oauth',
       '/.well-known',
@@ -173,9 +173,6 @@ async function runPhase7SecurityAndE2E() {
       '/api/v1/identity/check-username',
       '/api/v1/identity/resolve-location',
       '/api/v1/identity/otp',
-      '/api/v1/pitch',
-      '/v1/pitch',
-      '/pitch',
     ];
 
     for (const route of expectedExemptions) {

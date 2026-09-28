@@ -51,7 +51,7 @@ const walletRoutes = require('../api/v1/wallet/index').default;
 // Maps old frontend API calls (e.g. /api/dashboard) to the new v1 structure
 router.use((req: any, res: any, next: any) => {
     // Only intercept requests missing /v1/, /auth, /setup, /public, /company-profile
-    if (req.url.startsWith('/v1/') || req.url.startsWith('/pitch') || req.url.startsWith('/oauth') || req.url.startsWith('/.well-known') || req.url.startsWith('/certs') || req.url.startsWith('/wallet') || req.url.startsWith('/auth') || req.url.startsWith('/setup') || req.url.startsWith('/public') || req.url.startsWith('/company-profile') || req.url.startsWith('/system') || req.url.startsWith('/integrations') || req.url.startsWith('/init') || req.url.startsWith('/health') || req.url.startsWith('/bootstrap') || req.url.startsWith('/superadmin') || req.url.startsWith('/feature-flags')) {
+    if (req.url.startsWith('/v1/') || req.url.startsWith('/oauth') || req.url.startsWith('/.well-known') || req.url.startsWith('/certs') || req.url.startsWith('/wallet') || req.url.startsWith('/auth') || req.url.startsWith('/setup') || req.url.startsWith('/public') || req.url.startsWith('/company-profile') || req.url.startsWith('/system') || req.url.startsWith('/integrations') || req.url.startsWith('/init') || req.url.startsWith('/health') || req.url.startsWith('/bootstrap') || req.url.startsWith('/superadmin') || req.url.startsWith('/feature-flags')) {
         return next();
     }
 
@@ -195,14 +195,12 @@ router.use((req: any, res: any, next: any) => {
 
 // ─── Public & Core ─────────────────────────────────────────────────────────
 const oauthRoutes = require('./oauth.routes').default || require('./oauth.routes');
-const pitchRoutes = require('./pitch.routes').default || require('./pitch.routes');
 router.use('/oauth', oauthRoutes);
 router.use('/.well-known', oauthRoutes);
 router.use('/certs', oauthRoutes);
-router.use('/v1/pitch', pitchRoutes);
-router.use('/pitch', pitchRoutes);
 router.use('/v1/identity', identityRoutes);
 router.use('/auth', require('../api/v1/identity/auth/auth.routes').authRoutes);
+router.use('/v1/auth', require('../api/v1/identity/auth/auth.routes').authRoutes);
 router.use('/v1/settings', protect, settingsDomainRoutes);
 router.use('/v1/projects-and-tasks', protect, moduleGuard('projects'), projectsAndTasksRoutes);
 router.use('/v1/hr-management', protect, moduleGuard('hr'), hrManagementRoutes);
@@ -273,7 +271,7 @@ router.use('/v1/social-media/webhooks/meta', require('../api/v1/social-media/web
 
 router.use('/v1/communications', protect, communicationsRoutes);
 router.use('/v1/advertising', protect, moduleGuard('advertising'), advertisingRoutes);
-router.use('/v1/traffic-director', protect, moduleGuard('traffic-director'), trafficDirectorRoutes);
+router.use('/v1/traffic-director', protect, trafficDirectorRoutes);
 router.use('/v1/social-media', protect, moduleGuard('social-media'), socialMediaRoutes);
 router.use('/social-media', protect, moduleGuard('social-media'), socialMediaRoutes);
 router.use('/content-calendar', protect, moduleGuard('social-media'), require('../api/v1/social-media/content-calendar/content-calendar.routes').default);
@@ -413,7 +411,6 @@ router.get([
   const isWindows = platform === "windows" || platform === "win" || platform === "msi";
   const candidatePaths: string[] = isWindows
     ? [
-        path.resolve(__dirname, "../../../desktop-app/windows/180Workspace-Setup-x64.exe"),
         path.resolve(__dirname, "../../../frontend/public/downloads/180Workspace-Setup-x64.exe"),
         path.resolve(__dirname, "../../downloads/180Workspace-Setup-x64.exe"),
       ]

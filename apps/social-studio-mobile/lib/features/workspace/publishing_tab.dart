@@ -14,7 +14,7 @@ class PublishingTab extends ConsumerWidget {
   const PublishingTab({super.key, required this.project});
   final Project project;
 
-  static const _groups = [
+  static final _groups = [
     ('Needs attention', [PostStatus.failed, PostStatus.partiallyPublished], AppTheme.error),
     ('Publishing now', [PostStatus.publishing], AppTheme.accentBlue),
     ('Ready to publish', [PostStatus.approved, PostStatus.ready], AppTheme.success),
@@ -32,7 +32,7 @@ class PublishingTab extends ConsumerWidget {
       onRetry: () => ref.invalidate(projectPostsProvider(q)),
       builder: (all) => RefreshIndicator(
         onRefresh: () async => ref.invalidate(projectPostsProvider(q)),
-        child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 96), children: [
+        child: ListView(padding: EdgeInsets.fromLTRB(16, 8, 16, 96), children: [
           if (reauth.isNotEmpty)
             SectionCard(
               borderColor: AppTheme.error.withValues(alpha: 0.5),
@@ -49,7 +49,7 @@ class PublishingTab extends ConsumerWidget {
           }(),
           if (all.every((p) => !_groups.any((g) => g.$2.contains(p.status))))
             Padding(
-              padding: const EdgeInsets.only(top: 48),
+              padding: EdgeInsets.only(top: 48),
               child: EmptyView(
                 icon: Icons.send_rounded,
                 title: 'Nothing in the publishing queue',

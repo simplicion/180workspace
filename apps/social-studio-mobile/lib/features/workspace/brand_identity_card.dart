@@ -139,7 +139,7 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
   }
 
   Widget _field(TextEditingController c, String label, {String? hint, int maxLines = 1, int? maxLength}) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: EdgeInsets.only(bottom: 12),
         child: TextField(
           controller: c,
           minLines: 1,
@@ -158,18 +158,18 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
           Expanded(child: Text('Brand consciousness', style: Theme.of(context).textTheme.titleMedium)),
           Text('${b.percent}%', style: Theme.of(context).textTheme.labelLarge),
         ]),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         LinearProgressIndicator(value: b.percent / 100, minHeight: 4),
         if (missing.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 8),
+            padding: EdgeInsets.only(top: 8),
             child: Text('The AI still needs: ${missing.join(', ')}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.warning)),
           ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _field(_name, 'Brand name', maxLength: 120),
-        const Text('Brand type'),
-        const SizedBox(height: 6),
+        Text('Brand type'),
+        SizedBox(height: 6),
         Wrap(spacing: 8, children: [
           for (final e in BrandConsciousness.brandTypes.entries)
             ChoiceChip(
@@ -181,15 +181,15 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
               }),
             ),
         ]),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Row(children: [
           Expanded(child: _field(_website, 'Website', hint: 'https://example.com')),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(child: _field(_industry, 'Industry', hint: 'Technology / Retail')),
         ]),
         Row(children: [
           Expanded(child: _field(_country, 'Country code', hint: 'US, UK, IN')),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(child: _field(_language, 'Language', hint: 'en-US, hi-IN')),
         ]),
         _field(_positioning, 'Positioning', hint: 'Who it is for and why it is different', maxLines: 3, maxLength: 500),
@@ -199,13 +199,13 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
         _field(_ideology, 'Beliefs and values', maxLines: 5, maxLength: 2000),
         Row(children: [
           Expanded(child: _field(_bg, 'Background colour', hint: '#FFFFFF')),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(child: _field(_text, 'Text colour', hint: '#111111')),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(child: _field(_secondary, 'Secondary colour', hint: '#E0E0E0')),
         ]),
-        const Text('Target platforms'),
-        const SizedBox(height: 6),
+        Text('Target platforms'),
+        SizedBox(height: 6),
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final e in BrandConsciousness.platforms.entries)
             FilterChip(
@@ -217,16 +217,16 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
               }),
             ),
         ]),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Row(children: [
           Expanded(child: _field(_postsPerWeek, 'Target posts per week', hint: '5')),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
               isExpanded: true,
               initialValue: _editingAutonomy,
               decoration: fieldDecoration('Editing autonomy'),
-              items: const [
+              items: [
                 DropdownMenuItem(value: 'AUTO', child: Text('Auto', overflow: TextOverflow.ellipsis)),
                 DropdownMenuItem(value: 'ASSISTED', child: Text('Assisted', overflow: TextOverflow.ellipsis)),
                 DropdownMenuItem(value: 'MANUAL', child: Text('Manual', overflow: TextOverflow.ellipsis)),
@@ -242,7 +242,7 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
           isExpanded: true,
           initialValue: _watermark,
           decoration: fieldDecoration('Logo watermark on videos'),
-          items: const [
+          items: [
             DropdownMenuItem(value: null, child: Text('Not chosen', overflow: TextOverflow.ellipsis)),
             DropdownMenuItem(value: true, child: Text('Yes', overflow: TextOverflow.ellipsis)),
             DropdownMenuItem(value: false, child: Text('No', overflow: TextOverflow.ellipsis)),
@@ -252,13 +252,13 @@ class _IdentityEditorState extends ConsumerState<_IdentityEditor> {
             _dirty = true;
           }),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         _field(_guidelines, 'Other guidelines for the AI', maxLines: 5, maxLength: 4000),
         ElevatedButton(
           onPressed: _saving || !_dirty ? null : _save,
           child: _saving
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Save brand consciousness'),
+              ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : Text('Save brand consciousness'),
         ),
       ]),
     );

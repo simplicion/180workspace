@@ -22,8 +22,8 @@ import 'device_registration.dart';
 
 /// Result of a write that may have been queued for later because the device is offline.
 class MutationOutcome {
-  const MutationOutcome.applied(this.data) : queued = false;
-  const MutationOutcome.queued()
+  MutationOutcome.applied(this.data) : queued = false;
+  MutationOutcome.queued()
       : data = null,
         queued = true;
 
@@ -94,7 +94,7 @@ class SocialApi {
   final ApiClient _api;
   final Outbox? _outbox;
   final DeviceRegistration? _device;
-  final _uuid = const Uuid();
+  final _uuid = Uuid();
 
   static const base = '/api/v1/social-media';
 
@@ -109,7 +109,7 @@ class SocialApi {
       final outbox = _outbox;
       if (e.isNetwork && outbox != null) {
         await outbox.enqueue(method: method, path: path, body: body, label: label, clientMutationId: key);
-        return const MutationOutcome.queued();
+        return MutationOutcome.queued();
       }
       rethrow;
     }
@@ -198,7 +198,7 @@ class SocialApi {
     final url = jStr(r['url']) ?? jStr(r['authorizeUrl']) ?? jStr(jMap(r['data'])['url']);
     final uri = url == null ? null : Uri.tryParse(url);
     if (uri == null || !(uri.isScheme('https') || uri.isScheme('http') || uri.scheme == AppConfig.deepLinkScheme)) {
-      throw const ApiException(kind: ApiErrorKind.server, message: 'The server did not return an authorization URL.');
+      throw ApiException(kind: ApiErrorKind.server, message: 'The server did not return an authorization URL.');
     }
     return uri;
   }
@@ -283,7 +283,7 @@ class SocialApi {
     final jobId = jStr(r['jobId']);
     final calendarId = jStr(r['calendarId']);
     if (jobId == null || calendarId == null) {
-      throw const ApiException(kind: ApiErrorKind.server, message: 'The server did not return an autopilot job.');
+      throw ApiException(kind: ApiErrorKind.server, message: 'The server did not return an autopilot job.');
     }
     return (jobId: jobId, calendarId: calendarId);
   }
@@ -410,7 +410,7 @@ class SocialApi {
     final r = await _api.postForm('$base/calendar-pieces/$pieceId/raw-footage', form, onProgress: onProgress);
     final url = jStr(jMap(r['data'])['url']);
     if (url == null || url.isEmpty) {
-      throw const ApiException(kind: ApiErrorKind.server, message: 'Footage uploaded but the server returned no URL.');
+      throw ApiException(kind: ApiErrorKind.server, message: 'Footage uploaded but the server returned no URL.');
     }
     return url;
   }
@@ -755,7 +755,7 @@ class SocialApi {
     final doc = jMap(r['document']);
     final url = jStr(doc['fileUrl']) ?? jStr(r['fileUrl']) ?? jStr(r['url']);
     if (url == null || url.isEmpty) {
-      throw const ApiException(kind: ApiErrorKind.server, message: 'Upload finished but the server returned no file URL.');
+      throw ApiException(kind: ApiErrorKind.server, message: 'Upload finished but the server returned no file URL.');
     }
     return url;
   }
@@ -769,7 +769,7 @@ class SocialApi {
     );
     final url = jStr(r['logoUrl']);
     if (url == null || url.isEmpty) {
-      throw const ApiException(kind: ApiErrorKind.server, message: 'Logo uploaded but the server returned no logo URL.');
+      throw ApiException(kind: ApiErrorKind.server, message: 'Logo uploaded but the server returned no logo URL.');
     }
     return url;
   }

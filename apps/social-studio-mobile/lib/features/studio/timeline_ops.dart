@@ -16,7 +16,7 @@ import '../../core/network/audio_transcription_service.dart';
 /// captions and their word timings, zooms, B-roll, music and speech ranges — through one
 /// old-timeline → new-timeline mapping, so nothing drifts out of sync with the speech.
 class TimelineOps {
-  const TimelineOps._();
+  TimelineOps._();
 
   static const minClipMs = 100;
   static const _uuid = Uuid();
@@ -938,7 +938,7 @@ class TimelineOps {
           style: style,
         ),
       );
-      group = [];
+      group = const [];
     }
 
     for (final w in mapped) {
@@ -1171,7 +1171,7 @@ class TimelineOps {
   }
 
   static MobileEditIr removeMusic(MobileEditIr ir) =>
-      _withAudio(ir, music: const []);
+      _withAudio(ir, music: []);
 
   // ── Sound effects ──────────────────────────────────────────────────────────
 
@@ -1237,7 +1237,7 @@ class TimelineOps {
         TrackKind.voice => {'original': ir.audio.originalVolumeDb},
         TrackKind.music => {for (final m in ir.audio.music) m.id: m.volumeDb},
         TrackKind.sfx => {for (final e in ir.audio.sfx) e.id: e.volumeDb},
-        _ => const {},
+        _ => {},
       };
 
   /// True when every item on the track is at [mutedDb] (and the track has items).
@@ -1489,12 +1489,12 @@ enum TrackKind {
   music('Music'),
   sfx('Sound FX');
 
-  const TrackKind(this.label);
+  TrackKind(this.label);
   final String label;
 }
 
 class TimelineItem {
-  const TimelineItem(this.kind, this.id, this.startMs, this.endMs, this.label);
+  TimelineItem(this.kind, this.id, this.startMs, this.endMs, this.label);
   final TrackKind kind;
   final String id;
   final int startMs;

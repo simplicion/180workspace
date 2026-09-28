@@ -23,7 +23,7 @@ void main() {
     return true;
   };
 
-  runApp(const ProviderScope(child: SocialStudioApp()));
+  runApp(ProviderScope(child: SocialStudioApp()));
 }
 
 class SocialStudioApp extends ConsumerStatefulWidget {

@@ -53,16 +53,16 @@ class _StudioTimelineState extends State<StudioTimeline> {
   /// Volumes captured before muting a track, so unmuting restores them.
   final _restoreDb = <TrackKind, Map<String, double>>{};
 
-  static const _colors = {
+  static final _colors = {
     TrackKind.video: AppTheme.accentBlue,
     TrackKind.broll: AppTheme.accent,
     TrackKind.text: AppTheme.primary,
-    TrackKind.captions: AppTheme.accentCyan,
+    TrackKind.captions: AppTheme.accentBlue,
     TrackKind.zoom: AppTheme.warning,
     TrackKind.effect: AppTheme.accent,
     TrackKind.voice: AppTheme.accentBlue,
     TrackKind.music: AppTheme.success,
-    TrackKind.sfx: AppTheme.accentCyan,
+    TrackKind.sfx: AppTheme.accentBlue,
   };
 
   static const _icons = {
@@ -96,28 +96,28 @@ class _StudioTimelineState extends State<StudioTimeline> {
     if (_selectedId != null && !items.any((i) => i.id == _selectedId)) _selectedId = null;
 
     return Container(
-      color: AppTheme.surfaceSubtle,
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
+      color: AppTheme.surfaceElevated,
+      padding: EdgeInsets.fromLTRB(8, 6, 8, 4),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Row(children: [
           Text('${timecode(c.playheadMs)} / ${timecode(ir.durationMs)}',
-              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-          const Spacer(),
+              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+          Spacer(),
           IconButton(
             tooltip: 'Zoom out timeline',
             visualDensity: VisualDensity.compact,
             onPressed: _zoom <= 1 ? null : () => setState(() => _zoom = math.max(1, _zoom / 2)),
-            icon: const Icon(Icons.zoom_out_rounded, size: 20),
+            icon: Icon(Icons.zoom_out_rounded, size: 20),
           ),
           IconButton(
             tooltip: 'Zoom in timeline',
             visualDensity: VisualDensity.compact,
             onPressed: _zoom >= 8 ? null : () => setState(() => _zoom = math.min(8, _zoom * 2)),
-            icon: const Icon(Icons.zoom_in_rounded, size: 20),
+            icon: Icon(Icons.zoom_in_rounded, size: 20),
           ),
         ]),
         ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 190),
+          constraints: BoxConstraints(maxHeight: 190),
           child: SingleChildScrollView(
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Column(children: [
@@ -182,18 +182,18 @@ class _StudioTimelineState extends State<StudioTimeline> {
                               top: 0,
                               child: IgnorePointer(
                                 child: Container(
-                                  key: const Key('timeline-drag-tooltip'),
+                                  key: Key('timeline-drag-tooltip'),
                                   width: 60,
-                                  padding: const EdgeInsets.symmetric(vertical: 2),
+                                  padding: EdgeInsets.symmetric(vertical: 2),
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: AppTheme.surfaceElevated,
                                     borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: AppTheme.borderActive),
+                                    border: Border.all(color: AppTheme.primary),
                                   ),
                                   child: Text(
                                     timecode(drag.mode == _DragMode.trimEnd ? drag.preview.endMs : drag.preview.startMs),
-                                    style: const TextStyle(fontSize: 10, color: AppTheme.textPrimary),
+                                    style: TextStyle(fontSize: 10, color: AppTheme.textPrimary),
                                   ),
                                 ),
                               ),
@@ -410,8 +410,8 @@ class _Block extends StatelessWidget {
           child: Opacity(
             opacity: muted ? 0.45 : 1,
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 0.5),
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              margin: EdgeInsets.symmetric(horizontal: 0.5),
+              padding: EdgeInsets.symmetric(horizontal: 4),
               alignment: Alignment.centerLeft,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: selected ? 0.6 : 0.3),
@@ -419,7 +419,7 @@ class _Block extends StatelessWidget {
                 border: Border.all(color: selected ? color : color.withValues(alpha: 0.6)),
               ),
               child: Text(item.label,
-                  maxLines: 1, overflow: TextOverflow.clip, style: const TextStyle(fontSize: 10, color: AppTheme.textPrimary)),
+                  maxLines: 1, overflow: TextOverflow.clip, style: TextStyle(fontSize: 10, color: AppTheme.textPrimary)),
             ),
           ),
         ),
@@ -492,21 +492,21 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
           Text(it.kind.label, style: Theme.of(context).textTheme.labelSmall),
           Text(it.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium),
           Text('${timecode(it.startMs)} – ${timecode(it.endMs)}', style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           if (movable) ...[
             Row(children: [
-              Expanded(child: OutlinedButton(onPressed: () => _nudge(-500), child: const Text('← 0.5 s'))),
-              const SizedBox(width: 8),
+              Expanded(child: OutlinedButton(onPressed: () => _nudge(-500), child: Text('← 0.5 s'))),
+              SizedBox(width: 8),
               Expanded(
                 child: FilledButton.tonal(
                   onPressed: () => _apply((ir) => TimelineOps.moveItem(ir, it.kind, it.id, widget.c.playheadMs), 'Moved to the playhead'),
-                  child: const Text('To playhead'),
+                  child: Text('To playhead'),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(child: OutlinedButton(onPressed: () => _nudge(500), child: const Text('0.5 s →'))),
+              SizedBox(width: 8),
+              Expanded(child: OutlinedButton(onPressed: () => _nudge(500), child: Text('0.5 s →'))),
             ]),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
           ],
           if (it.kind != TrackKind.video) ...[
             Text('Start and end', style: Theme.of(context).textTheme.labelMedium),
@@ -523,11 +523,11 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
                 (ir) => TimelineOps.setItemRange(ir, it.kind, it.id, _range.start.round(), _range.end.round()),
                 'Timing updated',
               ),
-              child: const Text('Apply timing'),
+              child: Text('Apply timing'),
             ),
           ],
           if (it.kind == TrackKind.sfx || it.kind == TrackKind.music) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text('Volume ${_volume.toStringAsFixed(0)} dB', style: Theme.of(context).textTheme.labelMedium),
             Slider(value: _volume.clamp(-40, 6).toDouble(), min: -40, max: 6, divisions: 46, onChanged: (v) => setState(() => _volume = v)),
             OutlinedButton(
@@ -535,29 +535,29 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
                 (ir) => it.kind == TrackKind.sfx ? TimelineOps.setSfxVolume(ir, it.id, _volume) : TimelineOps.updateMusic(ir, volumeDb: _volume),
                 'Volume updated',
               ),
-              child: const Text('Apply volume'),
+              child: Text('Apply volume'),
             ),
           ],
           if (it.kind == TrackKind.effect) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text('Strength ${(_intensity * 100).round()}%', style: Theme.of(context).textTheme.labelMedium),
             Slider(value: _intensity, min: 0.1, max: 1, divisions: 9, onChanged: (v) => setState(() => _intensity = v)),
             OutlinedButton(
               onPressed: () => _apply((ir) => TimelineOps.setEffectIntensity(ir, it.id, _intensity), 'Strength updated'),
-              child: const Text('Apply strength'),
+              child: Text('Apply strength'),
             ),
           ],
           if (it.kind == TrackKind.text) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             TextField(controller: _text, decoration: fieldDecoration('Text')),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             OutlinedButton(
               onPressed: () => _apply((ir) => TimelineOps.editText(ir, it.id, text: _text.text), 'Text updated'),
-              child: const Text('Update text'),
+              child: Text('Update text'),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text('Style', style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Wrap(spacing: 8, runSpacing: 6, children: [
               for (final t in TextTemplate.all)
                 ActionChip(
@@ -567,32 +567,32 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
             ]),
           ],
           if (it.kind == TrackKind.captions) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
                 widget.onOpenTool(StudioTool.captions);
               },
-              icon: const Icon(Icons.closed_caption_rounded),
-              label: const Text('Change caption style'),
+              icon: Icon(Icons.closed_caption_rounded),
+              label: Text('Change caption style'),
             ),
           ],
           if (it.kind == TrackKind.music || it.kind == TrackKind.broll) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
                 widget.onOpenTool(it.kind == TrackKind.music ? StudioTool.music : StudioTool.broll);
               },
-              icon: const Icon(Icons.swap_horiz_rounded),
+              icon: Icon(Icons.swap_horiz_rounded),
               label: Text(it.kind == TrackKind.music ? 'Replace music' : 'Add different B-roll'),
             ),
           ],
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           TextButton.icon(
             style: TextButton.styleFrom(foregroundColor: AppTheme.error),
             onPressed: () => _apply((ir) => TimelineOps.deleteItem(ir, it.kind, it.id), '${it.kind.label} removed'),
-            icon: const Icon(Icons.delete_outline_rounded),
+            icon: Icon(Icons.delete_outline_rounded),
             label: Text('Delete ${it.kind.label.toLowerCase()}'),
           ),
         ]),

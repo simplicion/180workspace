@@ -25,12 +25,12 @@ class StudioScreen extends ConsumerWidget {
     return Scaffold(
       appBar: workspaceAppBar(context, ref),
       body: !studioSupported
-          ? const EmptyView(
+          ? EmptyView(
               icon: Icons.phone_iphone_rounded,
               title: 'Video editing is Android-only for now',
               message: 'The on-device editor is coming to iPhone. You can still plan, write, review and publish from here.',
             )
-          : ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 96), children: [
+          : ListView(padding: EdgeInsets.fromLTRB(16, 12, 16, 96), children: [
               Row(children: [
                 Expanded(
                   child: _Action(
@@ -40,7 +40,7 @@ class StudioScreen extends ConsumerWidget {
                     onTap: () => context.push('/camera${projectId == null ? '' : '?projectId=$projectId'}'),
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(
                   child: _Action(
                     icon: Icons.movie_edit,
@@ -50,29 +50,29 @@ class StudioScreen extends ConsumerWidget {
                   ),
                 ),
               ]),
-              const SectionHeader('Needs a video'),
+              SectionHeader('Needs a video'),
               if (posts == null)
-                const SectionCard(child: Text('Pick a project on Home to see posts waiting for footage.'))
+                SectionCard(child: Text('Pick a project on Home to see posts waiting for footage.'))
               else
                 posts.when(
-                  loading: () => const Padding(padding: EdgeInsets.all(24), child: LoadingView()),
+                  loading: () => Padding(padding: EdgeInsets.all(24), child: LoadingView()),
                   error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(projectPostsProvider(PostQuery(projectId: projectId!)))),
                   data: (list) {
                     final todo = list
                         .where((p) =>
                             (p.mediaType == null || p.mediaType == 'video') &&
                             p.finalVideoUrl == null &&
-                            const {PostStatus.draft, PostStatus.inEditing, PostStatus.scheduled, PostStatus.approved}.contains(p.status))
+                            {PostStatus.draft, PostStatus.inEditing, PostStatus.scheduled, PostStatus.approved}.contains(p.status))
                         .toList()
                       ..sort((a, b) => (a.scheduledFor ?? DateTime(9999)).compareTo(b.scheduledFor ?? DateTime(9999)));
-                    if (todo.isEmpty) return const SectionCard(child: Text('Every video post has its final video. Nice.'));
+                    if (todo.isEmpty) return SectionCard(child: Text('Every video post has its final video. Nice.'));
                     return Column(children: [
                       for (final p in todo)
                         PostTile(
                           post: p,
                           trailing: IconButton(
                             tooltip: 'Shoot for this post',
-                            icon: const Icon(Icons.videocam_rounded, color: AppTheme.primary),
+                            icon: Icon(Icons.videocam_rounded, color: AppTheme.primary),
                             onPressed: () => context.push('/camera?projectId=$projectId&postId=${p.id}',
                                 extra: {'hook': p.hook ?? p.displayTitle, 'script': p.content}),
                           ),
@@ -97,8 +97,8 @@ class _Action extends StatelessWidget {
         onTap: onTap,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, color: AppTheme.primary, size: 28),
-          const SizedBox(height: 12),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          SizedBox(height: 12),
+          Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           Text(hint, style: Theme.of(context).textTheme.labelSmall),
         ]),
       );

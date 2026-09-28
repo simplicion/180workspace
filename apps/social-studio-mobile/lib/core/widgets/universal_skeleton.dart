@@ -43,7 +43,7 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: Duration(milliseconds: 1200),
     )..repeat(reverse: true);
 
     _pulseAnimation = Tween<double>(begin: 0.35, end: 0.85).animate(
@@ -110,8 +110,8 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
       children: List.generate(
         widget.itemCount,
         (index) => Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
+          margin: EdgeInsets.only(bottom: 12),
+          padding: EdgeInsets.all(16),
           decoration: AppTheme.glassCardDecoration(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,15 +123,15 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
                   _buildShimmerBox(width: 70, height: 24, borderRadius: BorderRadius.circular(12)),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               _buildShimmerBox(width: double.infinity, height: 16),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               _buildShimmerBox(width: 200, height: 14),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Row(
                 children: [
                   _buildShimmerBox(width: 90, height: 36, borderRadius: BorderRadius.circular(8)),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   _buildShimmerBox(width: 90, height: 36, borderRadius: BorderRadius.circular(8)),
                 ],
               ),
@@ -146,11 +146,11 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
     return Column(
       children: [
         _buildShimmerBox(width: double.infinity, height: 220, borderRadius: BorderRadius.circular(12)),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _buildShimmerBox(width: double.infinity, height: 48, borderRadius: BorderRadius.circular(8)),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         _buildShimmerBox(width: double.infinity, height: 56, borderRadius: BorderRadius.circular(8)),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         _buildShimmerBox(width: double.infinity, height: 56, borderRadius: BorderRadius.circular(8)),
       ],
     );
@@ -163,15 +163,15 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
         (index) => Align(
           alignment: index.isEven ? Alignment.centerLeft : Alignment.centerRight,
           child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            padding: const EdgeInsets.all(14),
+            margin: EdgeInsets.symmetric(vertical: 6),
+            padding: EdgeInsets.all(14),
             width: 260,
             decoration: AppTheme.glassCardDecoration(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildShimmerBox(width: 140, height: 14),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 _buildShimmerBox(width: 220, height: 12),
               ],
             ),
@@ -186,19 +186,19 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
       children: List.generate(
         widget.itemCount,
         (index) => Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
+          margin: EdgeInsets.only(bottom: 12),
+          padding: EdgeInsets.all(16),
           decoration: AppTheme.glassCardDecoration(),
           child: Row(
             children: [
               _buildShimmerBox(width: 44, height: 44, borderRadius: BorderRadius.circular(10)),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildShimmerBox(width: 120, height: 16),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     _buildShimmerBox(width: 180, height: 12),
                   ],
                 ),
@@ -214,7 +214,7 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
   Widget _buildMetricsSkeleton() {
     return GridView.count(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
@@ -222,14 +222,14 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
       children: List.generate(
         4,
         (index) => Container(
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(14),
           decoration: AppTheme.glassCardDecoration(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildShimmerBox(width: 70, height: 14),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               _buildShimmerBox(width: 50, height: 24),
             ],
           ),
@@ -243,19 +243,19 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
       children: List.generate(
         widget.itemCount,
         (index) => Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          margin: EdgeInsets.only(bottom: 10),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: AppTheme.glassCardDecoration(),
           child: Row(
             children: [
               _buildShimmerBox(width: 36, height: 36, borderRadius: BorderRadius.circular(8)),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildShimmerBox(width: 160, height: 14),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     _buildShimmerBox(width: 100, height: 12),
                   ],
                 ),
@@ -275,14 +275,14 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
         (index) => Expanded(
           child: Container(
             margin: EdgeInsets.only(right: index == 0 ? 12 : 0),
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             decoration: AppTheme.glassCardDecoration(),
             child: Column(
               children: [
                 _buildShimmerBox(width: 90, height: 18),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 _buildShimmerBox(width: double.infinity, height: 60),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 _buildShimmerBox(width: double.infinity, height: 60),
               ],
             ),
@@ -294,17 +294,17 @@ class _UniversalSkeletonState extends State<UniversalSkeleton>
 
   Widget _buildDetailSkeleton() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: AppTheme.glassCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildShimmerBox(width: 140, height: 20),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           _buildShimmerBox(width: double.infinity, height: 16),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _buildShimmerBox(width: double.infinity, height: 16),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           _buildShimmerBox(width: 220, height: 16),
         ],
       ),

@@ -7,7 +7,7 @@ import '../../data/models/project.dart';
 
 /// Filter of the projects list screen (search + status chip).
 class ProjectFilter {
-  const ProjectFilter({this.search = '', this.status});
+  ProjectFilter({this.search = '', this.status});
   final String search;
   final String? status;
 

@@ -24,7 +24,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   List<ReplySuggestion>? _suggestions;
 
   /// Replies accepted by the server or queued offline, shown until the thread reloads.
-  final List<InboxMessage> _pending = [];
+  final List<InboxMessage> _pending = const [];
 
   @override
   void dispose() {
@@ -112,7 +112,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Row(children: [
-          if (c != null) ...[Icon(c.platform.icon, color: c.platform.color, size: 18), const SizedBox(width: 8)],
+          if (c != null) ...[Icon(c.platform.icon, color: c.platform.color, size: 18), SizedBox(width: 8)],
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(c?.participantName ?? 'Conversation', overflow: TextOverflow.ellipsis),
@@ -125,23 +125,23 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
             if (c.aiAgentActive && !c.isHumanTakeover)
               IconButton(
                 tooltip: 'AI Agent is Active. Tap to take over.',
-                icon: const Icon(Icons.smart_toy_rounded, color: AppTheme.accent),
+                icon: Icon(Icons.smart_toy_rounded, color: AppTheme.accent),
                 onPressed: () => _takeoverAiAgent(c),
               )
             else if (c.isHumanTakeover)
               IconButton(
                 tooltip: 'Human Takeover active. Tap to re-enable AI.',
-                icon: const Icon(Icons.person_pin_rounded, color: AppTheme.warning),
+                icon: Icon(Icons.person_pin_rounded, color: AppTheme.warning),
                 onPressed: () => _toggleAiAgent(c),
               )
             else
               IconButton(
                 tooltip: 'Enable AI Agent for this thread',
-                icon: const Icon(Icons.smart_toy_outlined),
+                icon: Icon(Icons.smart_toy_outlined),
                 onPressed: () => _toggleAiAgent(c),
               ),
             if (c.convertedLeadId == null)
-              IconButton(tooltip: 'Convert to lead', icon: const Icon(Icons.person_add_alt_1_rounded), onPressed: () => _convert(c)),
+              IconButton(tooltip: 'Convert to lead', icon: Icon(Icons.person_add_alt_1_rounded), onPressed: () => _convert(c)),
           ],
         ],
       ),
@@ -153,10 +153,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
             onRetry: () => ref.invalidate(conversationProvider(widget.conversationId)),
             builder: (c) {
               final msgs = [...c.messages, ..._pending];
-              if (msgs.isEmpty) return const EmptyView(icon: Icons.chat_bubble_outline_rounded, title: 'No messages yet');
+              if (msgs.isEmpty) return EmptyView(icon: Icons.chat_bubble_outline_rounded, title: 'No messages yet');
               return ListView.builder(
                 reverse: true,
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(12),
                 itemCount: msgs.length,
                 itemBuilder: (_, i) => _Bubble(message: msgs[msgs.length - 1 - i], pending: msgs[msgs.length - 1 - i].id.startsWith('pending.')),
               );
@@ -166,13 +166,13 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         if (_suggestions != null && _suggestions!.isNotEmpty)
           SizedBox(
             height: 64,
-            child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), children: [
+            child: ListView(scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8), children: [
               for (final s in _suggestions!)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: EdgeInsets.only(right: 8),
                   child: ActionChip(
                     label: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 260),
+                      constraints: BoxConstraints(maxWidth: 260),
                       child: Text(s.text, maxLines: 2, overflow: TextOverflow.ellipsis),
                     ),
                     onPressed: () => setState(() => _reply.text = s.text),
@@ -183,15 +183,15 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         SafeArea(
           top: false,
           child: Container(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-            decoration: const BoxDecoration(color: AppTheme.surface, border: Border(top: BorderSide(color: AppTheme.border))),
+            padding: EdgeInsets.fromLTRB(8, 8, 8, 8),
+            decoration: BoxDecoration(color: AppTheme.surface, border: Border(top: BorderSide(color: AppTheme.border))),
             child: Row(children: [
               IconButton(
                 tooltip: 'Suggest replies in brand voice',
                 onPressed: _suggesting ? null : _suggest,
                 icon: _suggesting
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.auto_awesome_rounded, color: AppTheme.primary),
+                    ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Icon(Icons.auto_awesome_rounded, color: AppTheme.primary),
               ),
               Expanded(
                 child: TextField(
@@ -205,7 +205,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
               IconButton(
                 tooltip: 'Send',
                 onPressed: _sending ? null : _send,
-                icon: const Icon(Icons.send_rounded, color: AppTheme.primary),
+                icon: Icon(Icons.send_rounded, color: AppTheme.primary),
               ),
             ]),
           ),
@@ -227,18 +227,18 @@ class _Bubble extends StatelessWidget {
       alignment: out ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        margin: EdgeInsets.symmetric(vertical: 4),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: out ? AppTheme.primary.withValues(alpha: pending ? 0.35 : 0.85) : AppTheme.surfaceElevated,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(crossAxisAlignment: out ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
           Text(message.content),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(
             pending ? 'Waiting to send' : [if (message.senderType == 'ai_bot') 'AI', timeAgo(message.createdAt)].where((s) => s.isNotEmpty).join(' · '),
-            style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+            style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
           ),
         ]),
       ),

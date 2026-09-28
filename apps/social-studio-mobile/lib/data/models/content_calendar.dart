@@ -4,17 +4,27 @@ import '../../core/theme/app_theme.dart';
 import '../../core/util/json.dart';
 
 enum CalendarStatus {
-  draft('draft', 'Draft', AppTheme.textSecondary),
-  processing('processing', 'Processing', AppTheme.accentBlue),
-  active('active', 'Active', AppTheme.success),
-  archived('archived', 'Archived', AppTheme.textMuted),
-  failed('failed', 'Failed', AppTheme.error),
-  unknown('unknown', 'Unknown', AppTheme.textMuted);
+  draft('draft', 'Draft'),
+  processing('processing', 'Processing'),
+  active('active', 'Active'),
+  archived('archived', 'Archived'),
+  failed('failed', 'Failed'),
+  unknown('unknown', 'Unknown');
 
-  const CalendarStatus(this.id, this.label, this.color);
+  const CalendarStatus(this.id, this.label);
   final String id;
   final String label;
-  final Color color;
+
+  Color get color {
+    switch (this) {
+      case CalendarStatus.draft: return AppTheme.textSecondary;
+      case CalendarStatus.processing: return AppTheme.accentBlue;
+      case CalendarStatus.active: return AppTheme.success;
+      case CalendarStatus.archived: return AppTheme.textMuted;
+      case CalendarStatus.failed: return AppTheme.error;
+      case CalendarStatus.unknown: return AppTheme.textMuted;
+    }
+  }
 
   static const filters = [draft, processing, active, archived, failed];
 
@@ -24,16 +34,25 @@ enum CalendarStatus {
 
 /// `CalendarContentPiece.status`, 1:1 with the backend enum.
 enum PieceStatus {
-  ready('ready', 'Ready', AppTheme.accentCyan),
-  inProgress('in_progress', 'In progress', AppTheme.accent),
-  pendingReview('pending_review', 'Pending review', AppTheme.warning),
-  published('published', 'Published', AppTheme.success),
-  unknown('unknown', 'Unknown', AppTheme.textMuted);
+  ready('ready', 'Ready'),
+  inProgress('in_progress', 'In progress'),
+  pendingReview('pending_review', 'Pending review'),
+  published('published', 'Published'),
+  unknown('unknown', 'Unknown');
 
-  const PieceStatus(this.id, this.label, this.color);
+  const PieceStatus(this.id, this.label);
   final String id;
   final String label;
-  final Color color;
+
+  Color get color {
+    switch (this) {
+      case PieceStatus.ready: return AppTheme.accentBlue;
+      case PieceStatus.inProgress: return AppTheme.accent;
+      case PieceStatus.pendingReview: return AppTheme.warning;
+      case PieceStatus.published: return AppTheme.success;
+      case PieceStatus.unknown: return AppTheme.textMuted;
+    }
+  }
 
   static const settable = [ready, inProgress, pendingReview, published];
 
@@ -42,7 +61,7 @@ enum PieceStatus {
 }
 
 class ContentCalendar {
-  const ContentCalendar({
+  ContentCalendar({
     required this.id,
     required this.name,
     this.status = CalendarStatus.unknown,
@@ -152,7 +171,7 @@ class ContentCalendar {
 }
 
 class CalendarPiece {
-  const CalendarPiece({
+  CalendarPiece({
     required this.id,
     required this.calendarId,
     this.weekNumber = 1,

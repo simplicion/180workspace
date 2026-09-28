@@ -29,15 +29,15 @@ void showError(BuildContext context, Object error) {
       content: Text(errorText(error)),
       backgroundColor: AppTheme.error,
       behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 6),
+      duration: Duration(seconds: 6),
     ));
 }
 
-void showInfo(BuildContext context, String message, {Color color = AppTheme.surfaceElevated}) {
+void showInfo(BuildContext context, String message, {Color? color}) {
   if (!context.mounted) return;
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message), backgroundColor: color, behavior: SnackBarBehavior.floating));
+    ..showSnackBar(SnackBar(content: Text(message), backgroundColor: color ?? AppTheme.surfaceElevated, behavior: SnackBarBehavior.floating));
 }
 
 void showSuccess(BuildContext context, String message) => showInfo(context, message, color: AppTheme.success);
@@ -87,7 +87,7 @@ class LoadingView extends StatelessWidget {
           Stack(
             alignment: Alignment.center,
             children: [
-              const SizedBox(
+              SizedBox(
                 width: 68,
                 height: 68,
                 child: CircularProgressIndicator(
@@ -98,7 +98,7 @@ class LoadingView extends StatelessWidget {
               Container(
                 width: 44,
                 height: 44,
-                padding: const EdgeInsets.all(6),
+                padding: EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
@@ -117,7 +117,7 @@ class LoadingView extends StatelessWidget {
             ],
           ),
           if (label != null) ...[
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Text(label!, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
           ],
         ]),
@@ -152,7 +152,7 @@ class ErrorView extends StatelessWidget {
             : Icons.error_outline_rounded;
     final content = Column(mainAxisSize: MainAxisSize.min, children: [
       Icon(icon, color: offline || notAvailable ? AppTheme.warning : AppTheme.error, size: compact ? 28 : 40),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       Text(
         offline
             ? 'You are offline'
@@ -162,21 +162,21 @@ class ErrorView extends StatelessWidget {
         style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16),
         textAlign: TextAlign.center,
       ),
-      const SizedBox(height: 6),
+      SizedBox(height: 6),
       Text(errorText(error), style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
-      const SizedBox(height: 16),
+      SizedBox(height: 16),
       // Never a dead end: retry where possible, and always a way home (ux-best-practices §2).
       Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
         if (onRetry != null)
-          OutlinedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded), label: const Text('Try again')),
+          OutlinedButton.icon(onPressed: onRetry, icon: Icon(Icons.refresh_rounded), label: Text('Try again')),
         if (!compact && _canGoHome(context))
-          TextButton.icon(onPressed: () => context.go('/home'), icon: const Icon(Icons.home_rounded), label: const Text('Go to Home')),
+          TextButton.icon(onPressed: () => context.go('/home'), icon: Icon(Icons.home_rounded), label: Text('Go to Home')),
       ]),
     ]);
     final announced = Semantics(liveRegion: true, container: true, child: content);
     return compact
-        ? Padding(padding: const EdgeInsets.all(16), child: announced)
-        : Center(child: SingleChildScrollView(padding: const EdgeInsets.all(32), child: announced));
+        ? Padding(padding: EdgeInsets.all(16), child: announced)
+        : Center(child: SingleChildScrollView(padding: EdgeInsets.all(32), child: announced));
   }
 }
 
@@ -199,7 +199,7 @@ class EmptyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(32),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
               width: 64,
@@ -211,14 +211,14 @@ class EmptyView extends StatelessWidget {
               ),
               child: Icon(icon, color: AppTheme.textSecondary, size: 28),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16), textAlign: TextAlign.center),
             if (message != null) ...[
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               Text(message!, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
             ],
             if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               ElevatedButton(onPressed: onAction, child: Text(actionLabel!)),
             ],
           ]),
@@ -255,7 +255,7 @@ class AsyncBody<T> extends StatelessWidget {
       // Skeletons, not spinners, for page loads (ui-architecture §5). Long AI jobs pass a label.
       loading: () => loadingLabel != null
           ? LoadingView(label: loadingLabel)
-          : SingleChildScrollView(padding: const EdgeInsets.all(16), child: UniversalSkeleton(type: skeleton)),
+          : SingleChildScrollView(padding: EdgeInsets.all(16), child: UniversalSkeleton(type: skeleton)),
       error: (e, _) => ErrorView(error: e, onRetry: onRetry),
     );
   }
@@ -269,14 +269,14 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: color.withValues(alpha: 0.35)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (icon != null) ...[Icon(icon, size: 12, color: color), const SizedBox(width: 4)],
+          if (icon != null) ...[Icon(icon, size: 12, color: color), SizedBox(width: 4)],
           // Flexible + ellipsis: a long label shrinks instead of overflowing its parent.
           Flexible(
             child: Text(label,
@@ -312,11 +312,11 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+        padding: EdgeInsets.fromLTRB(4, 16, 4, 8),
         child: Row(children: [
           Expanded(
             child: Text(title.toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
           ),
           ?trailing,
@@ -332,12 +332,12 @@ InputDecoration fieldDecoration(String label, {String? hint, Widget? prefix, Wid
       prefixIcon: prefix,
       suffixIcon: suffix,
       filled: true,
-      fillColor: AppTheme.surfaceSubtle,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.border)),
+      fillColor: AppTheme.surfaceElevated,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.border)),
       enabledBorder:
-          OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.border)),
+          OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.border)),
       focusedBorder:
-          OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primary)),
+          OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.primary)),
     );
 
 /// Parses a comma/newline separated list typed by the user.
@@ -352,7 +352,7 @@ Future<bool> confirm(BuildContext context, {required String title, required Stri
       title: Text(title),
       content: Text(message),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
         TextButton(
           onPressed: () => Navigator.pop(ctx, true),
           child: Text(action, style: TextStyle(color: destructive ? AppTheme.error : AppTheme.primary)),
@@ -373,7 +373,7 @@ Future<String?> promptText(BuildContext context, {required String title, String 
         title: Text(title),
         content: TextField(controller: c.first, autofocus: true, maxLines: maxLines, decoration: fieldDecoration(label)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(ctx, c.first.text.trim()), child: Text(action)),
         ],
       ),

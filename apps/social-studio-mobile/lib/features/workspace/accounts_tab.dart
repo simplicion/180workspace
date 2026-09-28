@@ -98,11 +98,11 @@ class _AccountsTabState extends ConsumerState<AccountsTab> {
     final all = ref.watch(allAccountsProvider);
     return RefreshIndicator(
       onRefresh: () async => _refresh(),
-      child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 96), children: [
+      child: ListView(padding: EdgeInsets.fromLTRB(16, 8, 16, 96), children: [
         SectionHeader('Linked to this project (${linked.length})'),
-        if (linked.isEmpty) const SectionCard(child: Text('No channels linked yet.')),
-        for (final a in linked) _AccountTile(account: a, trailing: TextButton(onPressed: () => _unlink(a), child: const Text('Unlink'))),
-        const SectionHeader('Connect a new channel'),
+        if (linked.isEmpty) SectionCard(child: Text('No channels linked yet.')),
+        for (final a in linked) _AccountTile(account: a, trailing: TextButton(onPressed: () => _unlink(a), child: Text('Unlink'))),
+        SectionHeader('Connect a new channel'),
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final p in SocialPlatform.connectable)
             OutlinedButton.icon(
@@ -111,18 +111,18 @@ class _AccountsTabState extends ConsumerState<AccountsTab> {
               label: Text(p.label),
             ),
         ]),
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 6),
           child: Text('Opens the platform sign-in in your browser and returns here when done.',
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
         ),
-        const SectionHeader('Other workspace accounts'),
+        SectionHeader('Other workspace accounts'),
         all.when(
-          loading: () => const Padding(padding: EdgeInsets.all(16), child: LoadingView()),
+          loading: () => Padding(padding: EdgeInsets.all(16), child: LoadingView()),
           error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(allAccountsProvider)),
           data: (list) {
             final others = list.where((a) => a.projectId != widget.project.id).toList();
-            if (others.isEmpty) return const SectionCard(child: Text('No other connected accounts.'));
+            if (others.isEmpty) return SectionCard(child: Text('No other connected accounts.'));
             return Column(children: [
               for (final a in others)
                 _AccountTile(
@@ -155,9 +155,9 @@ class _AccountTile extends StatelessWidget {
                 ? (a.tokenExpiresAt == null ? 'Access expires within 7 days' : 'Access expires ${fmtDate(a.tokenExpiresAt)}')
                 : null;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: 8),
       child: SectionCard(
-        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+        padding: EdgeInsets.fromLTRB(12, 8, 4, 8),
         borderColor: a.needsAttention ? AppTheme.error.withValues(alpha: 0.5) : null,
         child: Row(children: [
           CircleAvatar(
@@ -165,14 +165,14 @@ class _AccountTile extends StatelessWidget {
             foregroundImage: a.profileImageUrl == null ? null : NetworkImage(a.profileImageUrl!),
             child: Icon(a.platform.icon, color: a.platform.color, size: 18),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Flexible(child: Text(a.accountName, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                Flexible(child: Text(a.accountName, style: TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
                 if (a.isSimulated) ...[
-                  const SizedBox(width: 6),
-                  const StatusChip(label: 'SANDBOX', color: AppTheme.warning),
+                  SizedBox(width: 6),
+                  StatusChip(label: 'SANDBOX', color: AppTheme.warning),
                 ],
               ]),
               Text([a.platform.label, if (a.username != null) '@${a.username}', ?subtitle].join(' · '),

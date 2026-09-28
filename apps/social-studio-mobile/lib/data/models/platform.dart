@@ -14,7 +14,7 @@ enum SocialPlatform {
   tiktok('tiktok', 'TikTok', Icons.music_note_rounded, Color(0xFF25F4EE)),
   unknown('unknown', 'Unknown', Icons.public_rounded, Color(0xFF64748B));
 
-  const SocialPlatform(this.id, this.label, this.icon, this.color);
+  SocialPlatform(this.id, this.label, this.icon, this.color);
 
   final String id;
   final String label;

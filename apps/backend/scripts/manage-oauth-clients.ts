@@ -87,19 +87,6 @@ async function seedAllPrimaryClients() {
             isConfidential: true,
         },
         {
-            clientId: '180-pitch-network',
-            name: 'Pitch in 180 (Flutter Mobile)',
-            description: '180-Second Elevator Pitch Network, Startup Gigs & Opportunities',
-            redirectUris: [
-                '180pitch://oauth-callback',
-                'http://localhost:3000/pitch/callback',
-                'https://pitch.180workspace.com/callback',
-            ],
-            allowedOrigins: ['http://localhost:3000', 'https://pitch.180workspace.com'],
-            allowedScopes: ['openid', 'identity:read', 'identity:email', 'pitch:read', 'pitch:write', 'messages:send'],
-            isConfidential: false,
-        },
-        {
             clientId: '180-social-studio-mobile',
             name: '180 Social Studio (Flutter Mobile)',
             description: 'Multi-Channel Social Media Automation, Publishing & Analytics',

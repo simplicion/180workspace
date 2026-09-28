@@ -14,7 +14,7 @@ enum StudioJobKind {
   export('Export'),
   upload('Upload');
 
-  const StudioJobKind(this.label);
+  StudioJobKind(this.label);
   final String label;
 }
 
@@ -58,7 +58,7 @@ class IllegalJobTransition extends StateError {
 /// - REPAIRING loops back to EDITING, RENDERING or CRITIQUING (a bounded repair cycle).
 /// - Repeating the current live phase is a progress update, not a transition.
 class StudioJobMachine {
-  const StudioJobMachine._();
+  StudioJobMachine._();
 
   static const _pipeline = [
     StudioJobPhase.queued,
@@ -82,7 +82,7 @@ class StudioJobMachine {
 }
 
 class StudioJob {
-  const StudioJob({
+  StudioJob({
     required this.id,
     required this.kind,
     required this.phase,
@@ -196,8 +196,8 @@ class StudioJobStore extends ChangeNotifier {
   static const _keepFinished = 20;
 
   final KeyValueStore? _storage;
-  final List<StudioJob> _jobs = [];
-  final Map<String, FutureOr<void> Function()> _cancellers = {};
+  final List<StudioJob> _jobs = const [];
+  final Map<String, FutureOr<void> Function()> _cancellers = const {};
   int _counter = 0;
   bool _disposed = false;
 

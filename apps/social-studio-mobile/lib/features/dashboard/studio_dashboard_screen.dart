@@ -42,12 +42,12 @@ class ProjectSection {
 PreferredSizeWidget workspaceAppBar(BuildContext context, WidgetRef ref, {List<Widget> actions = const []}) {
   return AppBar(
     titleSpacing: 16,
-    title: const ProjectSwitcher(),
+    title: ProjectSwitcher(),
     actions: [
       ...actions,
-      const SyncIndicator(),
+      SyncIndicator(),
       PopupMenuButton<String>(
-        icon: const Icon(Icons.account_circle_rounded, color: AppTheme.textSecondary),
+        icon: Icon(Icons.account_circle_rounded, color: AppTheme.textSecondary),
         color: AppTheme.surfaceElevated,
         onSelected: (v) async {
           if (v == 'logout') {
@@ -65,15 +65,15 @@ PreferredSizeWidget workspaceAppBar(BuildContext context, WidgetRef ref, {List<W
           final s = ref.read(sessionProvider).valueOrNull;
           return [
             if (s != null)
-              PopupMenuItem(enabled: false, child: Text('${s.user.name}\n${s.company.name}', style: const TextStyle(color: AppTheme.textSecondary))),
-            const PopupMenuItem(value: 'projects', child: Text('All projects')),
-            const PopupMenuItem(value: 'settings', child: Text('Settings & Devices')),
-            const PopupMenuItem(value: 'sync', child: Text('Sync status')),
-            const PopupMenuItem(value: 'logout', child: Text('Sign out')),
+              PopupMenuItem(enabled: false, child: Text('${s.user.name}\n${s.company.name}', style: TextStyle(color: AppTheme.textSecondary))),
+            PopupMenuItem(value: 'projects', child: Text('All projects')),
+            PopupMenuItem(value: 'settings', child: Text('Settings & Devices')),
+            PopupMenuItem(value: 'sync', child: Text('Sync status')),
+            PopupMenuItem(value: 'logout', child: Text('Sign out')),
           ];
         },
       ),
-      const SizedBox(width: 4),
+      SizedBox(width: 4),
     ],
   );
 }
@@ -89,7 +89,7 @@ class StudioDashboardScreen extends ConsumerWidget {
       appBar: workspaceAppBar(context, ref),
       body: active.when(
         // Page load: a skeleton, not a spinner (ui-architecture §5).
-        loading: () => const SingleChildScrollView(padding: EdgeInsets.all(16), child: UniversalSkeleton(type: SkeletonType.projects)),
+        loading: () => SingleChildScrollView(padding: EdgeInsets.all(16), child: UniversalSkeleton(type: SkeletonType.projects)),
         error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(allProjectsProvider)),
         data: (project) => project == null
             ? EmptyView(
@@ -106,8 +106,8 @@ class StudioDashboardScreen extends ConsumerWidget {
           : FloatingActionButton.extended(
               heroTag: 'home.create',
               onPressed: () => context.push('/posts/new?projectId=${active.valueOrNull!.id}'),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Create content'),
+              icon: Icon(Icons.add_rounded),
+              label: Text('Create content'),
             ),
     );
   }
@@ -123,15 +123,15 @@ class _Overview extends ConsumerWidget {
     final activity = ref.watch(projectActivityProvider(project.id));
     return RefreshIndicator(
       onRefresh: () async => ref.refreshProjectData(project.id),
-      child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 96), children: [
+      child: ListView(padding: EdgeInsets.fromLTRB(16, 8, 16, 96), children: [
         _Header(project: project),
         dashboard.when(
-          loading: () => const Padding(padding: EdgeInsets.all(32), child: LoadingView()),
+          loading: () => Padding(padding: EdgeInsets.all(32), child: LoadingView()),
           error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(projectDashboardProvider(project.id))),
           data: (d) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            const SectionHeader('Action required'),
+            SectionHeader('Action required'),
             if (d.attentionItems.isEmpty)
-              const SectionCard(child: Row(children: [
+              SectionCard(child: Row(children: [
                 Icon(Icons.check_circle_rounded, color: AppTheme.success),
                 SizedBox(width: 12),
                 Expanded(child: Text('Nothing needs your attention right now.')),
@@ -139,31 +139,31 @@ class _Overview extends ConsumerWidget {
             else
               for (final item in d.attentionItems)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: EdgeInsets.only(bottom: 8),
                   child: SectionCard(
                     borderColor: item.priority == 'high' ? AppTheme.error.withValues(alpha: 0.5) : null,
                     child: Row(children: [
                       Icon(_attentionIcon(item.type), color: item.priority == 'high' ? AppTheme.error : AppTheme.warning),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Text(item.title, style: TextStyle(fontWeight: FontWeight.w600)),
                           if (item.description != null) Text(item.description!, style: Theme.of(context).textTheme.bodyMedium),
                         ]),
                       ),
                       if (item.targetTab != null)
                         TextButton(
                           onPressed: () => context.push('/projects/${project.id}/${item.targetTab}'),
-                          child: const Text('Resolve'),
+                          child: Text('Resolve'),
                         ),
                     ]),
                   ),
                 ),
-            const SectionHeader('This week'),
+            SectionHeader('This week'),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+              physics: NeverScrollableScrollPhysics(),
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
               childAspectRatio: 1.6,
@@ -177,45 +177,45 @@ class _Overview extends ConsumerWidget {
               ],
             ),
             SectionHeader('Upcoming content',
-                trailing: TextButton(onPressed: () => context.push('/projects/${project.id}/calendar'), child: const Text('Calendar'))),
+                trailing: TextButton(onPressed: () => context.push('/projects/${project.id}/calendar'), child: Text('Calendar'))),
             if (d.upcomingContent.isEmpty)
-              const SectionCard(child: Text('No upcoming posts scheduled.'))
+              SectionCard(child: Text('No upcoming posts scheduled.'))
             else
               for (final post in d.upcomingContent.take(6)) PostTile(post: post),
           ]),
         ),
-        const SectionHeader('Workspace'),
+        SectionHeader('Workspace'),
         GridView.count(
           crossAxisCount: 3,
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: NeverScrollableScrollPhysics(),
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
           childAspectRatio: 1.1,
           children: [
             for (final s in ProjectSection.all)
               SectionCard(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(10),
                 onTap: () => context.push('/projects/${project.id}/${s.tab}'),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Icon(s.icon, color: AppTheme.primary),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   // Two lines max so long labels never overflow a tile on small phones.
                   Text(s.label,
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1.15)),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1.15)),
                 ]),
               ),
           ],
         ),
-        const SectionHeader('Recent activity'),
+        SectionHeader('Recent activity'),
         activity.when(
-          loading: () => const Padding(padding: EdgeInsets.all(16), child: LoadingView()),
+          loading: () => Padding(padding: EdgeInsets.all(16), child: LoadingView()),
           error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(projectActivityProvider(project.id))),
           data: (items) => items.isEmpty
-              ? const SectionCard(child: Text('No activity yet.'))
+              ? SectionCard(child: Text('No activity yet.'))
               : SectionCard(
                   padding: EdgeInsets.zero,
                   child: Column(children: [
@@ -264,47 +264,47 @@ class _Header extends StatelessWidget {
           StatusChip(label: project.status.label, color: project.status.color),
         ]),
         if (project.description?.isNotEmpty ?? false) ...[
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(project.description!, style: Theme.of(context).textTheme.bodyMedium, maxLines: 3, overflow: TextOverflow.ellipsis),
         ],
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Wrap(spacing: 6, runSpacing: 6, children: [
           for (final a in project.socialAccounts)
             StatusChip(label: a.accountName, color: a.needsAttention ? AppTheme.error : a.platform.color, icon: a.platform.icon),
           if (project.socialAccounts.isEmpty)
-            const StatusChip(label: 'No channels linked', color: AppTheme.textMuted, icon: Icons.link_off_rounded),
+            StatusChip(label: 'No channels linked', color: AppTheme.textMuted, icon: Icons.link_off_rounded),
           StatusChip(label: project.settings.defaultTimezone, color: AppTheme.textSecondary, icon: Icons.public_rounded),
           if (project.settings.approvalRequired)
-            const StatusChip(label: 'Approval required', color: AppTheme.warning, icon: Icons.verified_rounded),
+            StatusChip(label: 'Approval required', color: AppTheme.warning, icon: Icons.verified_rounded),
         ]),
         if (reauth.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(10),
             decoration: BoxDecoration(color: AppTheme.error.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
             child: Row(children: [
-              const Icon(Icons.link_off_rounded, color: AppTheme.error, size: 18),
-              const SizedBox(width: 8),
+              Icon(Icons.link_off_rounded, color: AppTheme.error, size: 18),
+              SizedBox(width: 8),
               Expanded(child: Text('${reauth.map((a) => a.accountName).join(', ')} need re-authorization before posts can publish.')),
-              TextButton(onPressed: () => context.push('/projects/${project.id}/accounts'), child: const Text('Fix')),
+              TextButton(onPressed: () => context.push('/projects/${project.id}/accounts'), child: Text('Fix')),
             ]),
           ),
         ],
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Row(children: [
           Expanded(
             child: OutlinedButton.icon(
               onPressed: () => context.push('/projects/${project.id}/approvals?send=1'),
-              icon: const Icon(Icons.send_rounded, size: 16),
-              label: const Text('Send for approval'),
+              icon: Icon(Icons.send_rounded, size: 16),
+              label: Text('Send for approval'),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(
             child: OutlinedButton.icon(
               onPressed: () => context.push('/camera?projectId=${project.id}'),
-              icon: const Icon(Icons.videocam_rounded, size: 16),
-              label: const Text('Shoot'),
+              icon: Icon(Icons.videocam_rounded, size: 16),
+              label: Text('Shoot'),
             ),
           ),
         ]),
@@ -322,14 +322,14 @@ class _Kpi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SectionCard(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(12),
         child: Row(children: [
           Icon(icon, color: color),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('$value', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-              Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+              Text('$value', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              Text(label, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
             ]),
           ),
         ]),
@@ -344,9 +344,9 @@ class PostTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: EdgeInsets.only(bottom: 8),
         child: SectionCard(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(12),
           onTap: () => context.push('/posts/${post.id}'),
           child: Row(children: [
             Container(
@@ -354,13 +354,13 @@ class PostTile extends StatelessWidget {
               height: 40,
               decoration: BoxDecoration(color: post.status.color, borderRadius: BorderRadius.circular(2)),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(post.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
+                Text(post.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w600)),
+                SizedBox(height: 4),
                 Row(children: [
-                  for (final p in post.platforms) Padding(padding: const EdgeInsets.only(right: 4), child: Icon(p.icon, size: 14, color: p.color)),
+                  for (final p in post.platforms) Padding(padding: EdgeInsets.only(right: 4), child: Icon(p.icon, size: 14, color: p.color)),
                   Flexible(
                     child: Text(
                       '${post.status.label} · ${fmtDateTime(post.scheduledFor)}${post.versionNumber > 1 ? ' · v${post.versionNumber}' : ''}',

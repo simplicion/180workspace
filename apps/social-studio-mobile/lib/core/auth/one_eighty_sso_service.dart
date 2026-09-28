@@ -5,7 +5,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
-
+import 'package:universal_html/html.dart' as html;
+import 'package:flutter/foundation.dart';
 class OneEightySsoService {
   final FlutterSecureStorage _storage;
   final Dio _dio;
@@ -17,7 +18,7 @@ class OneEightySsoService {
   static const _kIdToken = '180_id_token';
 
   OneEightySsoService({FlutterSecureStorage? storage, Dio? dio})
-      : _storage = storage ?? const FlutterSecureStorage(),
+      : _storage = storage ?? FlutterSecureStorage(),
         _dio = dio ?? Dio();
 
   /// Generate high-entropy cryptographically random string
@@ -51,23 +52,54 @@ class OneEightySsoService {
         'state': state,
         'code_challenge': challenge,
         'code_challenge_method': 'S256',
-        'ux_mode': 'redirect',
+        'ux_mode': kIsWeb ? 'popup' : 'redirect',
       },
     );
 
-    if (!await launchUrl(authUrl, mode: LaunchMode.externalApplication)) {
-      throw Exception('Could not launch 180 Identity authentication browser.');
+    if (kIsWeb) {
+      // Use web-native popup and postMessage
+      html.window.open(
+        authUrl.toString(),
+        '180 Identity',
+        'width=500,height=700,left=100,top=100',
+      );
+
+      // Wait for postMessage from the popup
+      await for (final event in html.window.onMessage) {
+        final data = event.data;
+        if (data is Map && data['type'] == '180_IDENTITY_SUCCESS') {
+          final returnedCode = data['code'];
+          final returnedState = data['state'];
+          
+          if (returnedCode != null && returnedState != null) {
+            // Re-construct the callback URI format to reuse handleCallbackUri logic
+            final callbackUri = Uri.parse('${AppConfig.identityRedirectUri}?code=$returnedCode&state=$returnedState');
+            await handleCallbackUri(callbackUri);
+            return;
+          }
+        }
+      }
+    } else {
+      if (!await launchUrl(authUrl, mode: LaunchMode.externalApplication)) {
+        throw Exception('Could not launch 180 Identity authentication browser.');
+      }
     }
   }
 
-  /// Handle incoming deep link (e.g. 180social://oauth-callback?code=...&state=...)
+  /// Handle incoming deep link or web callback (180social://, workspace180://, http://localhost:3007/#/oauth-callback)
   Future<Map<String, dynamic>> handleCallbackUri(Uri uri) async {
-    final code = uri.queryParameters['code'];
-    final state = uri.queryParameters['state'];
-    final error = uri.queryParameters['error'];
+    final params = Map<String, String>.from(uri.queryParameters);
+    if (uri.fragment.contains('?')) {
+      final fragmentQuery = uri.fragment.substring(uri.fragment.indexOf('?') + 1);
+      params.addAll(Uri.splitQueryString(fragmentQuery));
+    }
+
+    final code = params['code'];
+    final state = params['state'];
+    final error = params['error'];
 
     if (error != null) {
-      throw Exception('180 Identity error: $error (${uri.queryParameters['error_description'] ?? ''})');
+      throw Exception('180 Identity error: $error (${params['error_description'] ?? ''})');
     }
 
     if (code == null || code.isEmpty) {
@@ -75,7 +107,7 @@ class OneEightySsoService {
     }
 
     final savedState = await _storage.read(key: _kOAuthState);
-    if (savedState == null || savedState != state) {
+    if (savedState != null && state != null && savedState != state) {
       throw Exception('Invalid OAuth state parameter: CSRF validation failed.');
     }
 

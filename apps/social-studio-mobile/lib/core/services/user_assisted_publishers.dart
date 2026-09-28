@@ -17,7 +17,7 @@ enum HandoffMode {
 
 /// Result of a user-assisted handoff operation.
 class UserAssistedHandoffResult {
-  const UserAssistedHandoffResult({
+  UserAssistedHandoffResult({
     required this.success,
     required this.mode,
     required this.message,
@@ -32,7 +32,7 @@ class UserAssistedHandoffResult {
 
 /// Publisher handling user-assisted publishing to X (Twitter).
 class XUserAssistedPublisher {
-  const XUserAssistedPublisher._();
+  XUserAssistedPublisher._();
 
   /// Maximum standard character limit for an X post.
   static const int maxStandardChars = 280;
@@ -74,13 +74,13 @@ class XUserAssistedPublisher {
       final url = PlatformCapabilityRegistry.getXWebComposeUrl(text: payload.text);
       final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
       if (launched) {
-        return const UserAssistedHandoffResult(
+        return UserAssistedHandoffResult(
           success: true,
           mode: HandoffMode.webCompose,
           message: 'Opened X in web browser with prefilled text.',
         );
       }
-      return const UserAssistedHandoffResult(
+      return UserAssistedHandoffResult(
         success: false,
         mode: HandoffMode.webCompose,
         message: 'Could not open web browser for X.',
@@ -102,7 +102,7 @@ class XUserAssistedPublisher {
           ShareParams(text: payload.text),
         );
       }
-      return const UserAssistedHandoffResult(
+      return UserAssistedHandoffResult(
         success: true,
         mode: HandoffMode.nativeShare,
         message: 'Content handed off to device sharing sheet.',
@@ -131,7 +131,7 @@ class XUserAssistedPublisher {
 
 /// Publisher handling user-assisted publishing to Reddit.
 class RedditUserAssistedPublisher {
-  const RedditUserAssistedPublisher._();
+  RedditUserAssistedPublisher._();
 
   /// Validates Reddit post payload requirements.
   static List<String> validate(RedditPublishPayload payload) {
@@ -174,13 +174,13 @@ class RedditUserAssistedPublisher {
       );
       final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
       if (launched) {
-        return const UserAssistedHandoffResult(
+        return UserAssistedHandoffResult(
           success: true,
           mode: HandoffMode.webCompose,
           message: 'Opened Reddit web submission with prefilled title.',
         );
       }
-      return const UserAssistedHandoffResult(
+      return UserAssistedHandoffResult(
         success: false,
         mode: HandoffMode.webCompose,
         message: 'Could not open Reddit in web browser.',
@@ -207,7 +207,7 @@ class RedditUserAssistedPublisher {
         );
       }
 
-      return const UserAssistedHandoffResult(
+      return UserAssistedHandoffResult(
         success: true,
         mode: HandoffMode.nativeShare,
         message: 'Content handed off to device sharing sheet.',

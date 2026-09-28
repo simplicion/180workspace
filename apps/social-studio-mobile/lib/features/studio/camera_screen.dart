@@ -24,7 +24,7 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver {
   CameraController? _cam;
-  List<CameraDescription> _cameras = [];
+  List<CameraDescription> _cameras = const [];
   int _index = 0;
   Object? _error;
   bool _recording = false;
@@ -118,8 +118,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         _recording = true;
         _seconds = 0;
       });
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) => mounted ? setState(() => _seconds++) : null);
-      _scroll = Timer.periodic(const Duration(milliseconds: 30), (_) {
+      _timer = Timer.periodic(Duration(seconds: 1), (_) => mounted ? setState(() => _seconds++) : null);
+      _scroll = Timer.periodic(Duration(milliseconds: 30), (_) {
         if (_scrollCtl.hasClients && _scrollCtl.offset < _scrollCtl.position.maxScrollExtent) {
           _scrollCtl.jumpTo(_scrollCtl.offset + _speed);
         }
@@ -172,73 +172,73 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         else if (_error != null)
           Center(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(24),
               child: ErrorView(error: _error!, compact: true, onRetry: _init),
             ),
           )
         else
-          const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+          Center(child: CircularProgressIndicator(color: AppTheme.primary)),
         SafeArea(
           child: Column(children: [
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(8),
               child: Row(children: [
                 IconButton(
                   tooltip: 'Close',
-                  style: IconButton.styleFrom(backgroundColor: Colors.black54, minimumSize: const Size(44, 44)),
+                  style: IconButton.styleFrom(backgroundColor: Colors.black54, minimumSize: Size(44, 44)),
                   onPressed: _recording ? null : () => context.pop(),
-                  icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  icon: Icon(Icons.close_rounded, color: Colors.white),
                 ),
-                const Spacer(),
+                Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10)),
                   child: Row(children: [
-                    if (_recording) Container(width: 10, height: 10, margin: const EdgeInsets.only(right: 8), decoration: const BoxDecoration(color: AppTheme.error, shape: BoxShape.circle)),
+                    if (_recording) Container(width: 10, height: 10, margin: EdgeInsets.only(right: 8), decoration: BoxDecoration(color: AppTheme.error, shape: BoxShape.circle)),
                     Text('${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}', style: mono),
                   ]),
                 ),
-                const Spacer(),
+                Spacer(),
                 IconButton(
                   tooltip: 'Switch camera',
-                  style: IconButton.styleFrom(backgroundColor: Colors.black54, minimumSize: const Size(44, 44)),
+                  style: IconButton.styleFrom(backgroundColor: Colors.black54, minimumSize: Size(44, 44)),
                   onPressed: _cameras.length > 1 && !_recording ? _flip : null,
-                  icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
+                  icon: Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
                 ),
               ]),
             ),
             if (_hasScript)
               Expanded(
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  margin: EdgeInsets.symmetric(horizontal: 16),
+                  padding: EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(16)),
                   child: ListView(controller: _scrollCtl, children: [
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
                     if (widget.hook?.trim().isNotEmpty ?? false) ...[
-                      const Text('HOOK · LOOK AT THE LENS', style: TextStyle(color: AppTheme.accentCyan, fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 1.2)),
-                      const SizedBox(height: 6),
-                      Text(widget.hook!, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, height: 1.3)),
-                      const SizedBox(height: 24),
+                      Text('HOOK · LOOK AT THE LENS', style: TextStyle(color: AppTheme.accentBlue, fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 1.2)),
+                      SizedBox(height: 6),
+                      Text(widget.hook!, style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, height: 1.3)),
+                      SizedBox(height: 24),
                     ],
                     if (widget.script?.trim().isNotEmpty ?? false)
-                      Text(widget.script!, style: const TextStyle(color: Colors.white, fontSize: 21, height: 1.5, fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 240),
+                      Text(widget.script!, style: TextStyle(color: Colors.white, fontSize: 21, height: 1.5, fontWeight: FontWeight.w500)),
+                    SizedBox(height: 240),
                   ]),
                 ),
               )
             else
-              const Spacer(),
+              Spacer(),
             if (_hasScript)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: 24),
                 child: Row(children: [
-                  const Icon(Icons.speed_rounded, color: Colors.white70, size: 18),
+                  Icon(Icons.speed_rounded, color: Colors.white70, size: 18),
                   Expanded(child: Slider(value: _speed, min: 0.4, max: 3, onChanged: (v) => setState(() => _speed = v))),
                 ]),
               ),
             Padding(
-              padding: const EdgeInsets.only(bottom: 24, top: 8),
+              padding: EdgeInsets.only(bottom: 24, top: 8),
               child: Semantics(
                 button: true,
                 label: _recording ? 'Stop recording' : 'Start recording',
@@ -247,11 +247,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                   child: Container(
                     width: 80,
                     height: 80,
-                    padding: const EdgeInsets.all(4),
+                    padding: EdgeInsets.all(4),
                     decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)),
                     child: Center(
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: Duration(milliseconds: 200),
                         width: _recording ? 32 : 64,
                         height: _recording ? 32 : 64,
                         decoration: BoxDecoration(color: AppTheme.error, borderRadius: BorderRadius.circular(_recording ? 8 : 40)),

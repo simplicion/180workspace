@@ -83,18 +83,18 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   @override
   Widget build(BuildContext context) {
     final tzOptions = {...timezoneOptions, _tz}.toList();
-    return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 96), children: [
+    return ListView(padding: EdgeInsets.fromLTRB(16, 12, 16, 96), children: [
       TextField(controller: _name, decoration: fieldDecoration('Project name')),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       TextField(controller: _description, minLines: 2, maxLines: 5, decoration: fieldDecoration('Description')),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       DropdownButtonFormField<ProjectStatus>(
         initialValue: _status,
         decoration: fieldDecoration('Status'),
         items: [for (final s in ProjectStatus.editable) DropdownMenuItem(value: s, child: Text(s.label))],
         onChanged: (v) => setState(() => _status = v ?? _status),
       ),
-      const SectionHeader('Services'),
+      SectionHeader('Services'),
       Wrap(spacing: 8, runSpacing: 8, children: [
         for (final e in socialServiceOptions.entries)
           FilterChip(
@@ -103,13 +103,13 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
             onSelected: (on) => setState(() => on ? _services.add(e.key) : _services.remove(e.key)),
           ),
       ]),
-      const SectionHeader('Workflow'),
+      SectionHeader('Workflow'),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
         value: _approval,
         onChanged: (v) => setState(() => _approval = v),
-        title: const Text('Client approval required'),
-        subtitle: const Text('Posts must be approved before they publish'),
+        title: Text('Client approval required'),
+        subtitle: Text('Posts must be approved before they publish'),
       ),
       DropdownButtonFormField<String>(
         initialValue: _tz,
@@ -117,24 +117,24 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         items: [for (final t in tzOptions) DropdownMenuItem(value: t, child: Text(t))],
         onChanged: (v) => setState(() => _tz = v ?? _tz),
       ),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       DropdownButtonFormField<int>(
         initialValue: _retention,
         decoration: fieldDecoration('Keep raw footage for'),
         items: [for (final d in {7, 14, 30, 60, 90, _retention}) DropdownMenuItem(value: d, child: Text('$d days'))],
         onChanged: (v) => setState(() => _retention = v ?? _retention),
       ),
-      const SizedBox(height: 24),
+      SizedBox(height: 24),
       ElevatedButton(
         onPressed: _saving ? null : _save,
-        child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save settings'),
+        child: _saving ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Text('Save settings'),
       ),
-      const SectionHeader('Danger zone'),
+      SectionHeader('Danger zone'),
       OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(foregroundColor: AppTheme.error, side: const BorderSide(color: AppTheme.error)),
+        style: OutlinedButton.styleFrom(foregroundColor: AppTheme.error, side: BorderSide(color: AppTheme.error)),
         onPressed: _delete,
-        icon: const Icon(Icons.delete_forever_rounded),
-        label: const Text('Delete project'),
+        icon: Icon(Icons.delete_forever_rounded),
+        label: Text('Delete project'),
       ),
     ]);
   }

@@ -40,14 +40,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
-      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
-      GoRoute(path: '/locked', builder: (_, _) => const FeatureLockView()),
-      GoRoute(path: '/sync', builder: (_, _) => const OutboxScreen()),
+      GoRoute(path: '/splash', builder: (_, _) => SplashScreen()),
+      GoRoute(path: '/login', builder: (_, _) => LoginScreen()),
+      GoRoute(path: '/locked', builder: (_, _) => FeatureLockView()),
+      GoRoute(path: '/sync', builder: (_, _) => OutboxScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(shell: shell),
         branches: [
-          StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (_, _) => const StudioDashboardScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (_, _) => StudioDashboardScreen())]),
           ...shellBranches(),
         ],
       ),
@@ -66,9 +66,9 @@ class SplashScreen extends ConsumerWidget {
       body: session.hasError
           ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               ErrorView(error: session.error!, onRetry: () => ref.read(sessionProvider.notifier).retryRestore()),
-              TextButton(onPressed: () => ref.read(sessionProvider.notifier).logout(), child: const Text('Sign out')),
+              TextButton(onPressed: () => ref.read(sessionProvider.notifier).logout(), child: Text('Sign out')),
             ])
-          : const LoadingView(label: 'Initializing 180 Manager...'),
+          : LoadingView(label: 'Initializing 180 Manager...'),
     );
   }
 }

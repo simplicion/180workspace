@@ -47,13 +47,13 @@ class MediaTab extends ConsumerWidget {
           );
         }
         return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 96),
           itemCount: items.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => SizedBox(height: 8),
           itemBuilder: (_, i) {
             final m = items[i];
             return SectionCard(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
               onTap: () => openExternal(context, m.url),
               child: Row(children: [
                 Icon(
@@ -64,7 +64,7 @@ class MediaTab extends ConsumerWidget {
                           : Icons.attachment_rounded,
                   color: m.kind == 'Final video' ? AppTheme.success : AppTheme.textSecondary,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(Uri.tryParse(m.url)?.pathSegments.lastOrNull ?? m.url, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -73,7 +73,7 @@ class MediaTab extends ConsumerWidget {
                 ),
                 IconButton(
                   tooltip: 'Open post',
-                  icon: const Icon(Icons.article_rounded, size: 18),
+                  icon: Icon(Icons.article_rounded, size: 18),
                   onPressed: () => context.push('/posts/${m.post.id}'),
                 ),
               ]),

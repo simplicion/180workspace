@@ -13,7 +13,7 @@ import '../dashboard/studio_dashboard_screen.dart';
 import '../projects/project_provider.dart';
 
 class InboxFilter {
-  const InboxFilter({this.projectId, this.platform, this.unreadOnly = false, this.search = ''});
+  InboxFilter({this.projectId, this.platform, this.unreadOnly = false, this.search = ''});
   final String? projectId;
   final String? platform;
   final bool unreadOnly;
@@ -79,7 +79,7 @@ class _ConversationListState extends ConsumerState<ConversationList> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppTheme.surfaceElevated,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _AiReplyAllModal(
         projectId: widget.projectId,
         platform: _platform?.id,
@@ -94,24 +94,24 @@ class _ConversationListState extends ConsumerState<ConversationList> {
     final list = ref.watch(conversationsProvider(f));
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
         child: TextField(
           controller: _searchCtl,
           textInputAction: TextInputAction.search,
           onSubmitted: (v) => setState(() => _search = v.trim()),
           decoration: fieldDecoration('Search people and messages',
-              suffix: IconButton(icon: const Icon(Icons.search_rounded), onPressed: () => setState(() => _search = _searchCtl.text.trim()))),
+              suffix: IconButton(icon: Icon(Icons.search_rounded), onPressed: () => setState(() => _search = _searchCtl.text.trim()))),
         ),
       ),
       SizedBox(
         height: 52,
-        child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
-          FilterChip(label: const Text('Unread'), selected: _unread, onSelected: (v) => setState(() => _unread = v)),
-          const SizedBox(width: 8),
-          ChoiceChip(label: const Text('All channels'), selected: _platform == null, onSelected: (_) => setState(() => _platform = null)),
+        child: ListView(scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
+          FilterChip(label: Text('Unread'), selected: _unread, onSelected: (v) => setState(() => _unread = v)),
+          SizedBox(width: 8),
+          ChoiceChip(label: Text('All channels'), selected: _platform == null, onSelected: (_) => setState(() => _platform = null)),
           for (final p in SocialPlatform.connectable)
             Padding(
-              padding: const EdgeInsets.only(left: 8),
+              padding: EdgeInsets.only(left: 8),
               child: ChoiceChip(
                 avatar: Icon(p.icon, size: 16, color: p.color),
                 label: Text(p.label),
@@ -124,9 +124,9 @@ class _ConversationListState extends ConsumerState<ConversationList> {
 
       // 1-Click AI Reply All Action Banner
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -139,13 +139,13 @@ class _ConversationListState extends ConsumerState<ConversationList> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.auto_awesome, color: AppTheme.accent, size: 20),
-              const SizedBox(width: 10),
+              Icon(Icons.auto_awesome, color: AppTheme.accent, size: 20),
+              SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('AI Reply All',
+                    Text('AI Reply All',
                         maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     Text(
                       'Reply to open messages in your brand voice',
@@ -158,8 +158,8 @@ class _ConversationListState extends ConsumerState<ConversationList> {
               ),
               FilledButton.tonalIcon(
                 onPressed: () => _openAiReplyAllModal(context, f),
-                icon: const Icon(Icons.bolt_rounded, size: 16),
-                label: const Text('Reply All'),
+                icon: Icon(Icons.bolt_rounded, size: 16),
+                label: Text('Reply All'),
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   backgroundColor: AppTheme.primary,
@@ -187,9 +187,9 @@ class _ConversationListState extends ConsumerState<ConversationList> {
           builder: (items) => RefreshIndicator(
             onRefresh: () async => ref.invalidate(conversationsProvider(f)),
             child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 96),
+              padding: EdgeInsets.fromLTRB(8, 0, 8, 96),
               itemCount: items.length,
-              separatorBuilder: (_, _) => const Divider(height: 1, color: AppTheme.borderSubtle),
+              separatorBuilder: (_, _) => Divider(height: 1, color: AppTheme.borderSubtle),
               itemBuilder: (_, i) {
                 final c = items[i];
                 return ListTile(
@@ -212,21 +212,21 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                       ),
                       if (c.aiAgentActive && !c.isHumanTakeover)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppTheme.accent.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text('🤖 AI Active', style: TextStyle(fontSize: 10, color: AppTheme.accent, fontWeight: FontWeight.bold)),
+                          child: Text('🤖 AI Active', style: TextStyle(fontSize: 10, color: AppTheme.accent, fontWeight: FontWeight.bold)),
                         ),
                       if (c.isHumanTakeover)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppTheme.warning.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text('👤 Takeover', style: TextStyle(fontSize: 10, color: AppTheme.warning, fontWeight: FontWeight.bold)),
+                          child: Text('👤 Takeover', style: TextStyle(fontSize: 10, color: AppTheme.warning, fontWeight: FontWeight.bold)),
                         ),
                     ],
                   ),
@@ -234,10 +234,10 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                   trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Text(timeAgo(c.lastMessageAt), style: Theme.of(context).textTheme.labelSmall),
                     if (!c.isRead) ...[
-                      const SizedBox(height: 4),
-                      Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle)),
+                      SizedBox(height: 4),
+                      Container(width: 8, height: 8, decoration: BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle)),
                     ],
-                    if (c.convertedLeadId != null) const Icon(Icons.person_pin_rounded, size: 14, color: AppTheme.success),
+                    if (c.convertedLeadId != null) Icon(Icons.person_pin_rounded, size: 14, color: AppTheme.success),
                   ]),
                 );
               },
@@ -262,7 +262,7 @@ class _AiReplyAllModal extends ConsumerStatefulWidget {
 class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
   bool _loading = true;
   bool _dispatching = false;
-  List<BatchAiReplySuggestion> _suggestions = [];
+  List<BatchAiReplySuggestion> _suggestions = const [];
   Object? _error;
 
   @override
@@ -315,7 +315,7 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
 
       final res = await ref.read(socialApiProvider).dispatchAiReplyAll(payload);
       if (!mounted) return;
-      final results = (res['results'] as List?)?.whereType<Map>().toList() ?? const [];
+      final results = (res['results'] as List?)?.whereType<Map>().toList() ?? [];
       final notSent = <String, String>{};
       for (final r in results) {
         if (r['status'] == 'sent') continue;
@@ -361,13 +361,13 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome, color: AppTheme.accent),
-              const SizedBox(width: 8),
+              Icon(Icons.auto_awesome, color: AppTheme.accent),
+              SizedBox(width: 8),
               Text(
                 'AI Reply All',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
-              const Spacer(),
+              Spacer(),
               if (!_loading && _suggestions.isNotEmpty)
                 TextButton(
                   onPressed: () {
@@ -382,16 +382,16 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'The AI has analyzed unread inquiries using your project\'s Brand Voice DNA. Review and approve before sending.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
           ),
-          const Divider(height: 24, color: AppTheme.borderSubtle),
+          Divider(height: 24, color: AppTheme.borderSubtle),
 
           Expanded(
             child: _loading
-                ? const UniversalSkeleton(type: SkeletonType.chat)
+                ? UniversalSkeleton(type: SkeletonType.chat)
                 : _error != null
                     ? ErrorView(error: _error!, onRetry: _fetchSuggestions)
                     : _suggestions.isEmpty
@@ -404,11 +404,11 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
                           )
                         : ListView.separated(
                             itemCount: _suggestions.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 12),
+                            separatorBuilder: (_, _) => SizedBox(height: 12),
                             itemBuilder: (_, i) {
                               final item = _suggestions[i];
                               return Container(
-                                padding: const EdgeInsets.all(12),
+                                padding: EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: AppTheme.surface,
                                   borderRadius: BorderRadius.circular(12),
@@ -426,41 +426,41 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
                                           activeColor: AppTheme.primary,
                                           onChanged: (v) => setState(() => item.selected = v ?? false),
                                         ),
-                                        Text('@${item.participantHandle}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                        const Spacer(),
+                                        Text('@${item.participantHandle}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        Spacer(),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
                                             color: AppTheme.primary.withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(4),
                                           ),
-                                          child: Text(item.tone, style: const TextStyle(fontSize: 10, color: AppTheme.primary)),
+                                          child: Text(item.tone, style: TextStyle(fontSize: 10, color: AppTheme.primary)),
                                         ),
                                       ],
                                     ),
                                     Padding(
-                                      padding: const EdgeInsets.only(left: 48, right: 8, bottom: 8),
+                                      padding: EdgeInsets.only(left: 48, right: 8, bottom: 8),
                                       child: Text(
                                         'Inquiry: "${item.lastCustomerMessage}"',
-                                        style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppTheme.textSecondary),
+                                        style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppTheme.textSecondary),
                                       ),
                                     ),
                                     Padding(
-                                      padding: const EdgeInsets.only(left: 48),
+                                      padding: EdgeInsets.only(left: 48),
                                       child: TextFormField(
                                         initialValue: item.suggestedReply,
                                         maxLines: 2,
                                         onChanged: (v) => item.suggestedReply = v,
-                                        style: const TextStyle(fontSize: 12),
+                                        style: TextStyle(fontSize: 12),
                                         decoration: fieldDecoration('Draft AI Reply'),
                                       ),
                                     ),
                                     if ((item.dispatchError ?? item.blockedReason) != null)
                                       Padding(
-                                        padding: const EdgeInsets.only(left: 48, top: 4),
+                                        padding: EdgeInsets.only(left: 48, top: 4),
                                         child: Text(
                                           item.dispatchError ?? 'Cannot send: ${item.blockedReason}',
-                                          style: const TextStyle(fontSize: 11, color: AppTheme.error),
+                                          style: TextStyle(fontSize: 11, color: AppTheme.error),
                                         ),
                                       ),
                                   ],
@@ -470,15 +470,15 @@ class _AiReplyAllModalState extends ConsumerState<_AiReplyAllModal> {
                           ),
           ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             height: 48,
             child: FilledButton.icon(
               onPressed: (_dispatching || _suggestions.isEmpty || selectedCount == 0) ? null : _dispatch,
               icon: _dispatching
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.send_rounded),
+                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Icon(Icons.send_rounded),
               label: Text(_dispatching ? 'Sending...' : 'Approve & send ($selectedCount)'),
               style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
             ),

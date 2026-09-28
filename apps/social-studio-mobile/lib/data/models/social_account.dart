@@ -4,7 +4,7 @@ import 'platform.dart';
 /// A connected social channel. Tokens are never parsed or kept on the device even though the
 /// current backend still returns them (FEATURE_PARITY §5.3).
 class SocialAccount {
-  const SocialAccount({
+  SocialAccount({
     required this.id,
     required this.platform,
     required this.accountName,
@@ -74,7 +74,7 @@ class SocialAccount {
 /// One account the provider offered after OAuth (a Facebook Page, an Instagram business account,
 /// the LinkedIn member or one of their organisations).
 class OAuthCandidate {
-  const OAuthCandidate({required this.candidateId, required this.kind, required this.accountName, this.username, this.profileImageUrl});
+  OAuthCandidate({required this.candidateId, required this.kind, required this.accountName, this.username, this.profileImageUrl});
   final String candidateId;
   final String kind;
   final String accountName;

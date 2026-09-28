@@ -84,7 +84,7 @@ class _CarouselSheetState extends ConsumerState<CarouselSheet> {
   void _schedule() {
     _timer?.cancel();
     if (_job == null || _job!.isFinished) return;
-    _timer = Timer(widget.pollInterval ?? const Duration(seconds: 2), _poll);
+    _timer = Timer(widget.pollInterval ?? Duration(seconds: 2), _poll);
   }
 
   Future<void> _poll() async {
@@ -132,17 +132,17 @@ class _CarouselSheetState extends ConsumerState<CarouselSheet> {
     final job = _job;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+        padding: EdgeInsets.fromLTRB(16, 8, 8, 0),
         child: Row(children: [
           Expanded(
             child: Text(widget.title?.isNotEmpty == true ? widget.title! : 'Carousel',
                 style: Theme.of(context).textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
-          IconButton(tooltip: 'Close', icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(context)),
+          IconButton(tooltip: 'Close', icon: Icon(Icons.close_rounded), onPressed: () => Navigator.pop(context)),
         ]),
       ),
       Expanded(
-        child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
+        child: ListView(padding: EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
           if (job == null && !_starting) ..._setup(context),
           if (_starting || (job != null && !job.isFinished)) _progress(context, job),
           if (_error != null || (job?.isFailed ?? false)) _failure(context, job),
@@ -155,30 +155,30 @@ class _CarouselSheetState extends ConsumerState<CarouselSheet> {
   List<Widget> _setup(BuildContext context) => [
         Text('Slides are designed in your brand fonts and colours, with photos from your image model.',
             style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         SegmentedButton<String>(
-          segments: const [
+          segments: [
             ButtonSegment(value: 'portrait', label: Text('Portrait 4:5')),
             ButtonSegment(value: 'square', label: Text('Square 1:1')),
           ],
           selected: {_format},
           onSelectionChanged: (s) => setState(() => _format = s.first),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         ElevatedButton.icon(
           onPressed: _start,
-          icon: const Icon(Icons.auto_awesome_rounded),
-          label: const Text('Design slides'),
+          icon: Icon(Icons.auto_awesome_rounded),
+          label: Text('Design slides'),
         ),
       ];
 
   Widget _progress(BuildContext context, CreativeJob? job) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
+        padding: EdgeInsets.symmetric(vertical: 24),
         child: Column(children: [
           Text(job?.step.isNotEmpty == true ? job!.step : 'Starting…', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           LinearProgressIndicator(value: job?.fraction, minHeight: 6),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text('Usually under a minute. The slides are saved to this piece when done.',
               textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
         ]),
@@ -188,24 +188,24 @@ class _CarouselSheetState extends ConsumerState<CarouselSheet> {
     if (_imageModelMissing) {
       return SectionCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('No image model is set up for this workspace', style: TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          const Text('Add an image API key in Settings → AI on the web app, or design the slides with free stock photos (or text-only slides if none are available).'),
-          const SizedBox(height: 12),
-          ElevatedButton(onPressed: () => _start(stockPhotos: true), child: const Text('Use stock photos')),
-          TextButton(onPressed: _start, child: const Text('Try again')),
+          Text('No image model is set up for this workspace', style: TextStyle(fontWeight: FontWeight.w700)),
+          SizedBox(height: 6),
+          Text('Add an image API key in Settings → AI on the web app, or design the slides with free stock photos (or text-only slides if none are available).'),
+          SizedBox(height: 12),
+          ElevatedButton(onPressed: () => _start(stockPhotos: true), child: Text('Use stock photos')),
+          TextButton(onPressed: _start, child: Text('Try again')),
         ]),
       );
     }
     if (job != null && job.isFailed) {
       return SectionCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('The slides could not be designed', style: TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
+          Text('The slides could not be designed', style: TextStyle(fontWeight: FontWeight.w700)),
+          SizedBox(height: 6),
           Text(job.errorMessage ?? 'The server stopped at "${job.step}".'),
-          const SizedBox(height: 12),
-          ElevatedButton(onPressed: _start, child: const Text('Try again')),
-          TextButton(onPressed: () => _start(stockPhotos: true), child: const Text('Try with stock photos')),
+          SizedBox(height: 12),
+          ElevatedButton(onPressed: _start, child: Text('Try again')),
+          TextButton(onPressed: () => _start(stockPhotos: true), child: Text('Try with stock photos')),
         ]),
       );
     }
@@ -215,14 +215,14 @@ class _CarouselSheetState extends ConsumerState<CarouselSheet> {
   List<Widget> _result(BuildContext context, CreativeJob job) => [
         if (job.warnings.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: EdgeInsets.only(bottom: 12),
             child: StatusChip(label: job.warnings.first, color: AppTheme.warning, icon: Icons.info_rounded),
           ),
         if (job.slides.isEmpty) EmptyView(icon: Icons.view_carousel_rounded, title: 'The server returned no slides.', actionLabel: 'Try again', onAction: _start),
         GridView.count(
           crossAxisCount: 2,
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: NeverScrollableScrollPhysics(),
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
           childAspectRatio: _format == 'square' ? 0.82 : 0.68,
@@ -240,22 +240,22 @@ class _CarouselSheetState extends ConsumerState<CarouselSheet> {
                       errorBuilder: (_, _, _) => Container(
                         color: AppTheme.surface,
                         alignment: Alignment.center,
-                        child: const Icon(Icons.broken_image_rounded),
+                        child: Icon(Icons.broken_image_rounded),
                       ),
                     ),
                   ),
                 ),
                 TextButton.icon(
                   onPressed: _regenerating == null ? () => _regenerate(s.index) : null,
-                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  icon: Icon(Icons.refresh_rounded, size: 16),
                   label: Text(_regenerating == s.index ? 'Redesigning…' : 'Slide ${s.index + 1}: redo'),
                 ),
               ]),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text('Saved to this piece. Open it in Posts to review and publish.',
             textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
-        TextButton(onPressed: () => setState(() => _job = null), child: const Text('Design a new set')),
+        TextButton(onPressed: () => setState(() => _job = null), child: Text('Design a new set')),
       ];
 }

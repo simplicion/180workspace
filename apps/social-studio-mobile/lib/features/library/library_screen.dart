@@ -23,7 +23,7 @@ class LibraryScreen extends ConsumerWidget {
       length: 3,
       child: Scaffold(
         appBar: workspaceAppBar(context, ref),
-        body: const Column(children: [
+        body: Column(children: [
           TabBar(tabs: [Tab(text: 'Assets'), Tab(text: 'Hashtags'), Tab(text: 'Hooks')]),
           Expanded(child: TabBarView(children: [_AssetsView(), _BankView(type: 'hashtag'), _BankView(type: 'hook')])),
         ]),
@@ -46,12 +46,12 @@ class _AssetsView extends ConsumerWidget {
         builder: (ctx, c) => StatefulBuilder(
         builder: (ctx, set) => AlertDialog(
           backgroundColor: AppTheme.surfaceElevated,
-          title: const Text('Link an asset'),
+          title: Text('Link an asset'),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(controller: c[0], decoration: fieldDecoration('URL *', hint: 'Drive, Dropbox, Canva…')),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             TextField(controller: c[1], decoration: fieldDecoration('Title')),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: type,
               decoration: fieldDecoration('Type'),
@@ -60,8 +60,8 @@ class _AssetsView extends ConsumerWidget {
             ),
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            TextButton(onPressed: () => Navigator.pop(ctx, (c[0].text.trim(), c[1].text.trim())), child: const Text('Save')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, (c[0].text.trim(), c[1].text.trim())), child: Text('Save')),
           ],
         ),
       ),
@@ -86,7 +86,7 @@ class _AssetsView extends ConsumerWidget {
         heroTag: 'library.asset',
         tooltip: 'Link an asset',
         onPressed: () => _add(context, ref),
-        child: const Icon(Icons.add_link_rounded),
+        child: Icon(Icons.add_link_rounded),
       ),
       body: AsyncBody<List<LinkedAsset>>(
         value: ref.watch(assetsProvider),
@@ -102,13 +102,13 @@ class _AssetsView extends ConsumerWidget {
         builder: (list) => RefreshIndicator(
           onRefresh: () async => ref.invalidate(assetsProvider),
           child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 96),
             itemCount: list.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => SizedBox(height: 8),
             itemBuilder: (_, i) {
               final a = list[i];
               return SectionCard(
-                padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+                padding: EdgeInsets.fromLTRB(12, 4, 4, 4),
                 onTap: () => openExternal(context, a.url),
                 child: Row(children: [
                   Icon(switch (a.type) {
@@ -117,16 +117,16 @@ class _AssetsView extends ConsumerWidget {
                     'folder' => Icons.folder_rounded,
                     _ => Icons.link_rounded,
                   }, color: AppTheme.textSecondary),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(a.title ?? a.url, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text(a.title ?? a.url, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w600)),
                       Text(a.url, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.labelSmall),
                     ]),
                   ),
                   IconButton(
                     tooltip: 'Remove',
-                    icon: const Icon(Icons.delete_outline_rounded),
+                    icon: Icon(Icons.delete_outline_rounded),
                     onPressed: () async {
                       if (!await confirm(context, title: 'Remove asset link?', message: a.title ?? a.url, action: 'Remove', destructive: true)) return;
                       if (!context.mounted) return;
@@ -169,7 +169,7 @@ class _BankView extends ConsumerWidget {
         heroTag: 'library.$type',
         tooltip: 'New $_label',
         onPressed: () => _add(context, ref),
-        child: const Icon(Icons.add_rounded),
+        child: Icon(Icons.add_rounded),
       ),
       body: AsyncBody<List<SavedBankItem>>(
         value: ref.watch(banksProvider(type)),
@@ -185,24 +185,24 @@ class _BankView extends ConsumerWidget {
         builder: (list) => RefreshIndicator(
           onRefresh: () async => ref.invalidate(banksProvider(type)),
           child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 96),
             itemCount: list.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => SizedBox(height: 8),
             itemBuilder: (_, i) {
               final b = list[i];
               return SectionCard(
-                padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                padding: EdgeInsets.fromLTRB(12, 8, 4, 8),
                 child: Row(children: [
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(b.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
+                      Text(b.name, style: TextStyle(fontWeight: FontWeight.w700)),
+                      SizedBox(height: 4),
                       Text(b.content, maxLines: 4, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyMedium),
                     ]),
                   ),
                   IconButton(
                     tooltip: 'Copy',
-                    icon: const Icon(Icons.copy_rounded, size: 18),
+                    icon: Icon(Icons.copy_rounded, size: 18),
                     onPressed: () async {
                       await Clipboard.setData(ClipboardData(text: b.content));
                       if (context.mounted) showInfo(context, 'Copied');
@@ -210,7 +210,7 @@ class _BankView extends ConsumerWidget {
                   ),
                   IconButton(
                     tooltip: 'Delete',
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    icon: Icon(Icons.delete_outline_rounded, size: 18),
                     onPressed: () async {
                       if (!await confirm(context, title: 'Delete "${b.name}"?', message: 'This cannot be undone.', action: 'Delete', destructive: true)) return;
                       if (!context.mounted) return;

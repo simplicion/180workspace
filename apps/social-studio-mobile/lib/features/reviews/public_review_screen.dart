@@ -75,64 +75,64 @@ class _PublicReviewScreenState extends ConsumerState<PublicReviewScreen> {
         builder: (r) {
           final s = r.session;
           final done = s.status == ReviewStatus.approved;
-          return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 48), children: [
+          return ListView(padding: EdgeInsets.fromLTRB(16, 8, 16, 48), children: [
             SectionCard(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(s.companyName ?? s.projectName ?? 'Content review', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text('${fmtDate(s.startDate)} – ${fmtDate(s.endDate)} · ${r.posts.length} posts', style: Theme.of(context).textTheme.bodyMedium),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 StatusChip(label: s.isExpired && !done ? 'Link expired' : s.status.label, color: s.isExpired && !done ? AppTheme.textMuted : s.status.color),
               ]),
             ),
             if (!done && !s.isExpired) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(controller: _name, decoration: fieldDecoration('Your name', hint: 'Shown with your feedback')),
             ],
             for (final p in r.posts)
               Padding(
-                padding: const EdgeInsets.only(top: 12),
+                padding: EdgeInsets.only(top: 12),
                 child: SectionCard(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      Expanded(child: Text(p.displayTitle, style: const TextStyle(fontWeight: FontWeight.w700))),
+                      Expanded(child: Text(p.displayTitle, style: TextStyle(fontWeight: FontWeight.w700))),
                       StatusChip(label: p.status.label, color: p.status.color),
                     ]),
                     Text(fmtDateTime(p.scheduledFor), style: Theme.of(context).textTheme.labelSmall),
                     if (p.thumbnailUrl != null) ...[
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: Image.network(p.thumbnailUrl!, height: 220, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink()),
+                        child: Image.network(p.thumbnailUrl!, height: 220, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, _, _) => SizedBox.shrink()),
                       ),
                     ],
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text(p.content),
                     if (p.finalVideoUrl != null)
                       TextButton.icon(
                         onPressed: () => openExternal(context, p.finalVideoUrl!),
-                        icon: const Icon(Icons.play_circle_rounded),
-                        label: const Text('Watch video'),
+                        icon: Icon(Icons.play_circle_rounded),
+                        label: Text('Watch video'),
                       ),
                     for (final c in p.reviewComments)
                       Padding(
-                        padding: const EdgeInsets.only(top: 6),
+                        padding: EdgeInsets.only(top: 6),
                         child: Text('${c.authorName ?? 'Reviewer'}: ${c.text}', style: Theme.of(context).textTheme.bodyMedium),
                       ),
                     if (!done && !s.isExpired)
                       Align(
                         alignment: Alignment.centerRight,
-                        child: TextButton.icon(onPressed: () => _comment(p), icon: const Icon(Icons.rate_review_rounded, size: 18), label: const Text('Request changes')),
+                        child: TextButton.icon(onPressed: () => _comment(p), icon: Icon(Icons.rate_review_rounded, size: 18), label: Text('Request changes')),
                       ),
                   ]),
                 ),
               ),
             if (!done && !s.isExpired && r.posts.isNotEmpty) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: _approving ? null : () => _approveAll(r.posts),
-                icon: const Icon(Icons.verified_rounded),
-                label: const Text('Approve all'),
+                icon: Icon(Icons.verified_rounded),
+                label: Text('Approve all'),
               ),
             ],
           ]);

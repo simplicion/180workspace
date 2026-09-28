@@ -17,7 +17,7 @@ export const CodeSnippets: React.FC<CodeSnippetsProps> = ({ clientId }) => {
       title: 'cURL',
       lang: 'bash',
       code: `# 1. Exchange authorization code for RS256 tokens
-curl -X POST https://auth.180workspace.com/oauth/token \\
+curl -X POST https://180identity.180workspace.com/oauth/token \\
   -H "Content-Type: application/json" \\
   -d '{
     "grant_type": "authorization_code",
@@ -28,14 +28,14 @@ curl -X POST https://auth.180workspace.com/oauth/token \\
   }'
 
 # 2. Fetch authenticated 180 Profile
-curl -X GET https://auth.180workspace.com/oauth/userinfo \\
+curl -X GET https://180identity.180workspace.com/oauth/userinfo \\
   -H "Authorization: Bearer 180_acc_xyz123..."`,
     },
     react: {
       title: 'React / HTML',
       lang: 'jsx',
       code: `<!-- 1. Include 180 Identity SDK in <head> -->
-<script src="https://auth.180workspace.com/sdk/180-identity.js"></script>
+<script src="https://180identity.180workspace.com/sdk/180-identity.js"></script>
 
 <!-- 2. Mount button or trigger popup programmatically -->
 <div id="180-auth-btn"></div>
@@ -64,7 +64,7 @@ app.post('/api/auth/180/callback', async (req, res) => {
   const { code } = req.body;
 
   // 1. Exchange code for access & ID token
-  const tokenRes = await axios.post('https://auth.180workspace.com/oauth/token', {
+  const tokenRes = await axios.post('https://180identity.180workspace.com/oauth/token', {
     grant_type: 'authorization_code',
     client_id: '${clientId}',
     client_secret: process.env.ONE_EIGHTY_CLIENT_SECRET,
@@ -75,7 +75,7 @@ app.post('/api/auth/180/callback', async (req, res) => {
   const { access_token, id_token } = tokenRes.data;
 
   // 2. Fetch verified 180 profile
-  const userRes = await axios.get('https://auth.180workspace.com/oauth/userinfo', {
+  const userRes = await axios.get('https://180identity.180workspace.com/oauth/userinfo', {
     headers: { Authorization: \`Bearer \${access_token}\` }
   });
 
@@ -91,8 +91,8 @@ from fastapi import FastAPI, HTTPException
 
 app = FastAPI()
 
-AUTH_URL = "https://auth.180workspace.com/oauth/token"
-USERINFO_URL = "https://auth.180workspace.com/oauth/userinfo"
+AUTH_URL = "https://180identity.180workspace.com/oauth/token"
+USERINFO_URL = "https://180identity.180workspace.com/oauth/userinfo"
 CLIENT_ID = "${clientId}"
 CLIENT_SECRET = "YOUR_CLIENT_SECRET"
 
@@ -128,7 +128,7 @@ export const authOptions = {
       id: "180-identity",
       name: "180 Identity",
       type: "oauth",
-      wellKnown: "https://auth.180workspace.com/.well-known/openid-configuration",
+      wellKnown: "https://180identity.180workspace.com/.well-known/openid-configuration",
       authorization: { params: { scope: "openid identity:read identity:email" } },
       clientId: "${clientId}",
       clientSecret: process.env.ONE_EIGHTY_CLIENT_SECRET,
@@ -159,7 +159,7 @@ Future<void> signInWith180Identity() async {
   const redirectUri = '$callbackUrlScheme://oauth-callback';
 
   final authUri = Uri.parse(
-    'https://auth.180workspace.com/oauth/authorize'
+    'https://180identity.180workspace.com/oauth/authorize'
     '?client_id=$clientId'
     '&redirect_uri=$redirectUri'
     '&response_type=code'
@@ -178,7 +178,7 @@ Future<void> signInWith180Identity() async {
 
   // 3. Exchange code for tokens
   final response = await http.post(
-    Uri.parse('https://auth.180workspace.com/oauth/token'),
+    Uri.parse('https://180identity.180workspace.com/oauth/token'),
     headers: {'Content-Type': 'application/json'},
     body: jsonEncode({
       'grant_type': 'authorization_code',

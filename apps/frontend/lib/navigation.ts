@@ -74,20 +74,6 @@ export const navigation = [
     },
 
     {
-        group: 'Traffic Director',
-        appId: 'traffic-director',
-        icon: GitFork,
-        roles: ['admin', 'employee'],
-        items: [
-            { id: 'overview', name: 'Traffic Overview', href: '/traffic-director', exact: true, icon: Activity, roles: ['admin', 'employee'] },
-            { id: 'links', name: 'Smart Links & Rules', href: '/traffic-director/links', icon: Globe, roles: ['admin', 'employee'] },
-            { id: 'simulator', name: 'Routing Simulator', href: '/traffic-director/simulator', icon: Sparkles, roles: ['admin', 'employee'] },
-            { id: 'logs', name: 'Live Stream Logs', href: '/traffic-director/logs', icon: Activity, roles: ['admin', 'employee'] },
-            { id: 'analytics', name: 'Traffic Analytics', href: '/traffic-director/analytics', icon: BarChart3, roles: ['admin', 'employee'] },
-        ]
-    },
-
-    {
         group: '180 Voiceforce',
         appId: 'voiceforce',
         icon: PhoneCall,

@@ -9,7 +9,7 @@ import '../../core/util/json.dart';
 import 'auth_repository.dart';
 
 class Session {
-  const Session({required this.user, required this.company, required this.entitlement, this.offline = false});
+  Session({required this.user, required this.company, required this.entitlement, this.offline = false});
   final SessionUser user;
   final SessionCompany company;
   final Entitlement entitlement;
@@ -104,7 +104,7 @@ class SessionController extends AsyncNotifier<Session?> {
   }
 
   Future<void> retryRestore() async {
-    state = const AsyncLoading();
+    state = AsyncLoading();
     state = await AsyncValue.guard(_restore);
   }
 
@@ -130,13 +130,13 @@ class SessionController extends AsyncNotifier<Session?> {
 
   void _onExpired() {
     if (state.valueOrNull == null) return;
-    state = const AsyncData(null);
+    state = AsyncData(null);
   }
 
   Future<void> logout() async {
     await ref.read(deviceRegistrationProvider).revoke();
     await _repo.logout();
     ref.read(currentUserIdProvider.notifier).state = null;
-    state = const AsyncData(null);
+    state = AsyncData(null);
   }
 }

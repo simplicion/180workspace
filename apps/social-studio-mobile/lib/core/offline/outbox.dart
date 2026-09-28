@@ -124,7 +124,7 @@ class FileOutboxStorage implements OutboxStorage {
 }
 
 class MemoryOutboxStorage implements OutboxStorage {
-  List<Json> rows = [];
+  List<Json> rows = const [];
 
   @override
   Future<List<Json>> load() async => rows.map((r) => Map<String, dynamic>.from(r)).toList();
@@ -151,9 +151,9 @@ class Outbox extends ChangeNotifier {
   final String? Function() _currentUserId;
   final Duration _heartbeatInterval;
   final Random _random;
-  final _uuid = const Uuid();
+  final _uuid = Uuid();
 
-  final List<OutboxMutation> _items = [];
+  final List<OutboxMutation> _items = const [];
   bool _loaded = false;
   bool _draining = false;
   bool online = true;
@@ -204,7 +204,7 @@ class Outbox extends ChangeNotifier {
     await init();
     final uid = _currentUserId();
     if (uid == null) {
-      throw const ApiException(kind: ApiErrorKind.unauthorized, message: 'Sign in to save changes.');
+      throw ApiException(kind: ApiErrorKind.unauthorized, message: 'Sign in to save changes.');
     }
     final m = OutboxMutation(
       id: _uuid.v4(),

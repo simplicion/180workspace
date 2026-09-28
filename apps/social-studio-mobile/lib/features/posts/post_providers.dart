@@ -5,7 +5,7 @@ import '../../data/models/social_post.dart';
 import '../../data/models/task.dart';
 
 class PostQuery {
-  const PostQuery({required this.projectId, this.status, this.isEvergreen, this.from, this.to});
+  PostQuery({required this.projectId, this.status, this.isEvergreen, this.from, this.to});
   final String projectId;
   final String? status;
   final bool? isEvergreen;

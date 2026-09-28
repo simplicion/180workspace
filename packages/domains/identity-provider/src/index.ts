@@ -11,3 +11,7 @@ export * from './developer/developer.controller';
 export * from './otp/msg91-otp.service';
 export * from './user/location.service';
 export * from './user/username.service';
+export * from './wallet/identity-wallet.service';
+export * from './payment/checkout.service';
+export * from './payment/checkout.controller';
+export * from './payout/payout.service';

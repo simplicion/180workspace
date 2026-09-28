@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,17 +10,18 @@ const _kThemePrefKey = 'user_theme_mode';
 /// text on white surfaces. Until those screens read colours from Theme/ColorScheme, the choices are Dark and System,
 /// and System resolves to the dark palette (see [lightModeAvailable]). A previously stored 'light' falls back to dark.
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.dark) {
+  ThemeModeNotifier() : super(ThemeMode.light) {
+    AppTheme.currentThemeMode = ThemeMode.light;
     _load();
   }
 
   /// Flip to true once every screen is tokenised through Theme.of(context) (then offer Light in Settings).
-  static const lightModeAvailable = false;
+  static const lightModeAvailable = true;
 
   static ThemeMode parse(String? saved) => switch (saved) {
         'system' => ThemeMode.system,
-        'light' when lightModeAvailable => ThemeMode.light,
-        _ => ThemeMode.dark,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.light, // Default to light mode
       };
 
   Future<void> _load() async {
@@ -27,6 +29,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
       final prefs = await SharedPreferences.getInstance();
       if (!mounted) return;
       state = parse(prefs.getString(_kThemePrefKey));
+      AppTheme.currentThemeMode = state;
     } catch (_) {
       // Preferences unavailable: keep dark.
     }
@@ -35,6 +38,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   Future<void> setThemeMode(ThemeMode mode) async {
     if (mode == ThemeMode.light && !lightModeAvailable) mode = ThemeMode.dark;
     state = mode;
+    AppTheme.currentThemeMode = mode;
     final prefs = await SharedPreferences.getInstance();
     final val = switch (mode) {
       ThemeMode.light => 'light',

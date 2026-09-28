@@ -7,15 +7,25 @@ import '../config/app_config.dart';
 
 /// Result delivered to `workspace180://oauth/callback?...` after a social-account OAuth hop.
 class OAuthCallback {
-  const OAuthCallback(this.uri);
+  OAuthCallback(this.uri);
   final Uri uri;
 
-  String? get status => uri.queryParameters['status'];
-  String? get error => uri.queryParameters['error_description'] ?? uri.queryParameters['error'];
-  String? get platform => uri.queryParameters['platform'];
-  String? get accountId => uri.queryParameters['accountId'];
-  String? get state => uri.queryParameters['state'];
-  String? get selectionId => uri.queryParameters['selectionId'];
+  Map<String, String> get _allParams {
+    final params = Map<String, String>.from(uri.queryParameters);
+    if (uri.fragment.contains('?')) {
+      final fragmentQuery = uri.fragment.substring(uri.fragment.indexOf('?') + 1);
+      params.addAll(Uri.splitQueryString(fragmentQuery));
+    }
+    return params;
+  }
+
+  String? get status => _allParams['status'];
+  String? get error => _allParams['error_description'] ?? _allParams['error'];
+  String? get platform => _allParams['platform'];
+  String? get accountId => _allParams['accountId'];
+  String? get state => _allParams['state'];
+  String? get selectionId => _allParams['selectionId'];
+  String? get code => _allParams['code'];
 
   /// The provider returned several pages / organisations; the user picks which to connect.
   bool get needsSelection => status == 'select' && (selectionId?.isNotEmpty ?? false);
@@ -36,14 +46,35 @@ class DeepLinkService {
   /// Returns an in-app location for [uri], or null if it is an OAuth callback / unknown.
   String? routeFor(Uri uri) {
     final isCustomScheme =
-        uri.scheme == AppConfig.deepLinkScheme || uri.scheme == 'one80' || uri.scheme == 'workspace180';
-    if (!isCustomScheme && !(uri.scheme == 'https' && uri.host.contains('180workspace'))) {
+        uri.scheme == AppConfig.deepLinkScheme || uri.scheme == 'one80' || uri.scheme == 'workspace180' || uri.scheme == '180social';
+    final isLocalOrEcosystem =
+        (uri.scheme == 'https' || uri.scheme == 'http') && (uri.host.contains('180workspace') || uri.host == 'localhost' || uri.host == '127.0.0.1');
+    if (!isCustomScheme && !isLocalOrEcosystem) {
       return null;
     }
+
+    final isOAuth = uri.scheme == '180social' ||
+        uri.scheme == 'workspace180' ||
+        uri.host == 'oauth-callback' ||
+        uri.path.contains('oauth-callback') ||
+        uri.fragment.contains('oauth-callback') ||
+        uri.queryParameters.containsKey('code') ||
+        uri.fragment.contains('code=');
+
+    if (isOAuth &&
+        (uri.queryParameters.containsKey('code') ||
+            uri.fragment.contains('code=') ||
+            uri.queryParameters.containsKey('error') ||
+            uri.fragment.contains('error='))) {
+      _oauth.add(OAuthCallback(uri));
+      return null;
+    }
+
     final segments = [if (isCustomScheme && uri.host.isNotEmpty) uri.host, ...uri.pathSegments];
     if (segments.isEmpty) return '/home';
     switch (segments.first) {
       case 'oauth':
+      case 'oauth-callback':
         _oauth.add(OAuthCallback(uri));
         return null;
       case 'review':
@@ -65,6 +96,11 @@ class DeepLinkService {
   }
 
   Future<void> start(void Function(String location) navigate) async {
+    if (kIsWeb) {
+      final baseUri = Uri.base;
+      final r = routeFor(baseUri);
+      if (r != null) navigate(r);
+    }
     try {
       _appLinks ??= AppLinks();
       final initial = await _appLinks!.getInitialLink();

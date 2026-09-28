@@ -11,8 +11,6 @@ import { UsageProgressBar } from '@/components/ui/UsageProgressBar';
 import toast from 'react-hot-toast';
 import { APPS_CONFIG } from '@/lib/module-map';
 
-declare global { interface Window { Razorpay: any; } }
-
 export default function PlatformBillingPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
@@ -34,7 +32,6 @@ export default function PlatformBillingPage() {
                     api.get('/api/v1/platform-billing/plans')
                 ]);
                 setBillingInfo(infoRes.data);
-                setPlans(plansRes.data.plans || []);
                 setPlans(plansRes.data.plans || []);
                 
                 const backendCurrency = plansRes.data.currency || 'USD';
@@ -58,14 +55,6 @@ export default function PlatformBillingPage() {
             }
         };
         fetchData();
-
-        // Load Razorpay Script
-        if (typeof window !== 'undefined' && !window.Razorpay) {
-            const s = document.createElement('script');
-            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            s.async = true;
-            document.body.appendChild(s);
-        }
     }, []);
 
     const handleCancelSubscription = async () => {

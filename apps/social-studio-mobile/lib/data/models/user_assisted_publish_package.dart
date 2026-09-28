@@ -3,7 +3,7 @@ import 'platform.dart';
 
 /// Generic, universal payload for manual pre-filled publishing across any SocialPlatform.
 class UniversalPlatformPayload {
-  const UniversalPlatformPayload({
+  UniversalPlatformPayload({
     required this.platform,
     required this.caption,
     this.title,
@@ -93,11 +93,11 @@ class UniversalPlatformPayload {
       platform: plat,
       caption: jStrOr(j['caption'] ?? j['text'], ''),
       title: jStr(j['title']),
-      hashtags: (j['hashtags'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      hashtags: (j['hashtags'] as List?)?.map((e) => e.toString()).toList() ?? [],
       mediaPath: jStr(j['mediaPath']) ?? jStr(j['mediaUri']),
       mimeType: jStrOr(j['mimeType'], 'video/mp4'),
       subreddit: jStr(j['subreddit']),
-      extraMetadata: (j['extraMetadata'] is Map) ? Map<String, dynamic>.from(j['extraMetadata'] as Map) : const {},
+      extraMetadata: (j['extraMetadata'] is Map) ? Map<String, dynamic>.from(j['extraMetadata'] as Map) : {},
       sourceContentId: jStr(j['sourceContentId']),
       calendarItemId: jStr(j['calendarItemId']),
       projectId: jStr(j['projectId']),
@@ -121,7 +121,7 @@ class UniversalPlatformPayload {
 
 /// Payload prepared specifically for X (Twitter) user-assisted handoff.
 class XPublishPayload {
-  const XPublishPayload({
+  XPublishPayload({
     required this.text,
     this.mediaPath,
     this.mimeType = 'video/mp4',
@@ -159,7 +159,7 @@ class XPublishPayload {
 
 /// Payload prepared specifically for Reddit user-assisted handoff.
 class RedditPublishPayload {
-  const RedditPublishPayload({
+  RedditPublishPayload({
     this.subreddit,
     required this.title,
     this.body,
@@ -224,7 +224,7 @@ class RedditPublishPayload {
 
 /// Universal publishing package for user-assisted platform handoffs.
 class UserAssistedPublishPackage {
-  const UserAssistedPublishPackage({
+  UserAssistedPublishPackage({
     required this.id,
     required this.projectId,
     this.calendarItemId,
@@ -254,7 +254,7 @@ class UserAssistedPublishPackage {
 
   factory UserAssistedPublishPackage.fromJson(Json j) {
     final rawPlatformPayloads = j['platformPayloads'];
-    final Map<SocialPlatform, UniversalPlatformPayload> payloads = {};
+    final Map<SocialPlatform, UniversalPlatformPayload> payloads = const {};
     if (rawPlatformPayloads is Map) {
       for (final entry in rawPlatformPayloads.entries) {
         final plat = SocialPlatform.parse(entry.key);

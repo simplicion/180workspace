@@ -2,7 +2,7 @@ import '../../core/util/json.dart';
 import 'platform.dart';
 
 class InboxMessage {
-  const InboxMessage({required this.id, required this.senderType, required this.content, this.createdAt});
+  InboxMessage({required this.id, required this.senderType, required this.content, this.createdAt});
   final String id;
 
   /// `participant`, `agent` or `ai_bot`.
@@ -21,7 +21,7 @@ class InboxMessage {
 }
 
 class Conversation {
-  const Conversation({
+  Conversation({
     required this.id,
     required this.platform,
     required this.participantName,
@@ -79,7 +79,7 @@ class Conversation {
 }
 
 class ReplySuggestion {
-  const ReplySuggestion({required this.tone, required this.text});
+  ReplySuggestion({required this.tone, required this.text});
   final String tone;
   final String text;
 

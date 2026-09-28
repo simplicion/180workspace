@@ -63,8 +63,8 @@ class SkeletonBoundary extends StatelessWidget {
       liveRegion: true,
       label: 'Error: $error',
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 16),
-        padding: const EdgeInsets.all(24),
+        margin: EdgeInsets.symmetric(vertical: 16),
+        padding: EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: AppTheme.surface,
           borderRadius: BorderRadius.circular(16),
@@ -73,7 +73,7 @@ class SkeletonBoundary extends StatelessWidget {
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.4),
               blurRadius: 16,
-              offset: const Offset(0, 4),
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -88,14 +88,14 @@ class SkeletonBoundary extends StatelessWidget {
                 color: AppTheme.error.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.error_outline_rounded,
                 color: AppTheme.error,
                 size: 28,
               ),
             ),
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               'Something Went Wrong',
               style: TextStyle(
                 fontSize: 18,
@@ -104,17 +104,17 @@ class SkeletonBoundary extends StatelessWidget {
                 letterSpacing: -0.3,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               error ?? 'An unexpected network or engine error occurred.',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 color: AppTheme.textSecondary,
                 height: 1.4,
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -122,25 +122,25 @@ class SkeletonBoundary extends StatelessWidget {
                 if (onRetry != null)
                   ElevatedButton.icon(
                     onPressed: onRetry,
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: const Text('Try Again'),
+                    icon: Icon(Icons.refresh_rounded, size: 18),
+                    label: Text('Try Again'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
-                      minimumSize: const Size(120, 44), // Strict 44px min touch target
+                      minimumSize: Size(120, 44), // Strict 44px min touch target
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
-                if (onRetry != null) const SizedBox(width: 12),
+                if (onRetry != null) SizedBox(width: 12),
                 // Secondary Recovery Path: Return to Dashboard
                 OutlinedButton.icon(
                   onPressed: onNavigateHome ?? () => Navigator.of(context).maybePop(),
-                  icon: const Icon(Icons.dashboard_rounded, size: 18),
-                  label: const Text('Dashboard'),
+                  icon: Icon(Icons.dashboard_rounded, size: 18),
+                  label: Text('Dashboard'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.textSecondary,
-                    side: const BorderSide(color: AppTheme.border),
-                    minimumSize: const Size(120, 44), // Strict 44px min touch target
+                    side: BorderSide(color: AppTheme.border),
+                    minimumSize: Size(120, 44), // Strict 44px min touch target
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
@@ -156,8 +156,8 @@ class SkeletonBoundary extends StatelessWidget {
   /// "When a list is empty, show a beautifully designed empty state with an actionable button to create the first item."
   Widget _buildEmptyState(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 24),
-      padding: const EdgeInsets.all(32),
+      margin: EdgeInsets.symmetric(vertical: 24),
+      padding: EdgeInsets.all(32),
       decoration: AppTheme.glassCardDecoration(),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -177,36 +177,36 @@ class SkeletonBoundary extends StatelessWidget {
               size: 32,
             ),
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
           Text(
             emptyTitle ?? 'No Items Found',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: AppTheme.textPrimary,
               letterSpacing: -0.3,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             emptyMessage ?? 'Get started by creating your first entry right here.',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               color: AppTheme.textSecondary,
               height: 1.4,
             ),
           ),
           if (onEmptyAction != null) ...[
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: onEmptyAction,
-              icon: const Icon(Icons.add_rounded, size: 18),
+              icon: Icon(Icons.add_rounded, size: 18),
               label: Text(emptyActionLabel ?? 'Create First Item'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
-                minimumSize: const Size(180, 44), // Strict 44px min touch target
+                minimumSize: Size(180, 44), // Strict 44px min touch target
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 elevation: 0,
               ),

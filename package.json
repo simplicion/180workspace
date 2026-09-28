@@ -4,11 +4,25 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "pnpm --parallel -r dev",
+    "dev": "node scripts/dev-runner.js",
+    "dev:all": "node scripts/dev-runner.js all",
+    "dev:full": "node scripts/dev-runner.js full",
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:core-backend": "pnpm --filter 180-core-backend dev",
+    "dev:profile": "pnpm --filter 180-profile-frontend dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:admin": "pnpm --filter admin-web dev",
+    "dev:marketing": "pnpm --filter apps-marketing-web dev",
+    "dev:worker": "pnpm --filter worker dev",
+    "dev:docs": "pnpm --filter apps-docs dev",
+    "dev:developers": "pnpm --filter 180developers-frontend dev",
+    "dev:traffic": "pnpm --filter traffic-director-web dev",
+    "dev:social": "node scripts/dev-runner.js social",
     "lint": "turbo run lint",
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "deploy:aws": "node scripts/deploy-ec2.js"
+    "deploy:aws": "node scripts/deploy-ec2.js",
+    "deploy:nginx": "node scripts/update-ec2-nginx.js"
   },
   "devDependencies": {
     "prettier": "latest",
@@ -27,6 +41,7 @@
     }
   },
   "dependencies": {
+    "@workspace/db-180developers": "workspace:*",
     "proxy-from-env": "^1.1.0"
   },
   "prisma": {

@@ -47,6 +47,12 @@
       ],
       "@workspace/video-contracts/*": [
         "../../packages/video-contracts/src/*"
+      ],
+      "@workspace/ui": [
+        "../../packages/ui/src/index.ts"
+      ],
+      "@workspace/ui/*": [
+        "../../packages/ui/src/*"
       ]
     },
     "strictNullChecks": true

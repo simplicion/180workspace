@@ -6,7 +6,7 @@ import '../widgets/common.dart';
 
 /// Service providing user-assisted clipboard operations with feedback.
 class ClipboardAssistService {
-  const ClipboardAssistService._();
+  ClipboardAssistService._();
 
   /// Copies raw text to the device clipboard and optionally displays a feedback toast.
   static Future<bool> copyText(

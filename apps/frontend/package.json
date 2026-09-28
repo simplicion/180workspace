@@ -53,6 +53,7 @@
         "@types/react-signature-canvas": "^1.0.7",
         "@workspace/common": "workspace:^",
         "@workspace/db": "workspace:^",
+        "@workspace/identity-sdk": "workspace:*",
         "@workspace/ui": "workspace:^",
         "@workspace/video-contracts": "workspace:^",
         "axios": "^1.7.9",

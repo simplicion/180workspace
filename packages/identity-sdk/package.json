@@ -1,11 +1,22 @@
 {
   "name": "@workspace/identity-sdk",
   "version": "1.0.0",
-  "description": "Client SDK for 180 Identity Single Sign-On and OAuth 2.0 / OIDC provider",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "description": "Universal Client SDK for 180 Identity Single Sign-On and 180 Pay Sovereign Checkout",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
   "scripts": {
     "build": "tsc"
   },
-  "dependencies": {}
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  }
 }

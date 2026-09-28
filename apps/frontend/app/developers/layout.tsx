@@ -38,6 +38,12 @@ export default function DeveloperPortalLayout({
               >
                 Applications
               </Link>
+              <Link
+                href="/developers/docs"
+                className="px-3 py-1.5 rounded-lg hover:text-white hover:bg-slate-900 transition-colors"
+              >
+                Documentation & SDKs
+              </Link>
               <a
                 href="/.well-known/openid-configuration"
                 target="_blank"

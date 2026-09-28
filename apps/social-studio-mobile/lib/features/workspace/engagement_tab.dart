@@ -30,7 +30,7 @@ class EngagementTab extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppTheme.surfaceElevated,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _EngagementRuleFormSheet(projectId: project.id),
     );
   }
@@ -40,7 +40,7 @@ class EngagementTab extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppTheme.surfaceElevated,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _DryRunTesterSheet(projectId: project.id),
     );
   }
@@ -53,8 +53,8 @@ class EngagementTab extends ConsumerWidget {
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openCreateRuleSheet(context, ref),
-        icon: const Icon(Icons.bolt_rounded),
-        label: const Text('New Automation'),
+        icon: Icon(Icons.bolt_rounded),
+        label: Text('New Automation'),
         backgroundColor: AppTheme.primary,
       ),
       body: RefreshIndicator(
@@ -63,12 +63,12 @@ class EngagementTab extends ConsumerWidget {
           ref.invalidate(engagementStatsProvider(project.id));
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 100),
           children: [
             // Stats summary card
             statsAsync.when(
               data: (stats) => _buildStatsRow(context, stats),
-              loading: () => const SizedBox(height: 84, child: UniversalSkeleton(type: SkeletonType.metrics)),
+              loading: () => SizedBox(height: 84, child: UniversalSkeleton(type: SkeletonType.metrics)),
               error: (err, _) => ErrorView(
                 error: err,
                 compact: true,
@@ -76,7 +76,7 @@ class EngagementTab extends ConsumerWidget {
               ),
             ),
             _buildLiveMetricsCard(context, ref),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
 
             SectionHeader(
               'Active Funnels & Triggers',
@@ -85,12 +85,12 @@ class EngagementTab extends ConsumerWidget {
                   children: [
                     TextButton.icon(
                       onPressed: () => _openDryRunSheet(context, ref),
-                      icon: const Icon(Icons.science_rounded, size: 16, color: AppTheme.accent),
-                      label: const Text('Test Matcher', style: TextStyle(fontSize: 12, color: AppTheme.accent)),
+                      icon: Icon(Icons.science_rounded, size: 16, color: AppTheme.accent),
+                      label: Text('Test Matcher', style: TextStyle(fontSize: 12, color: AppTheme.accent)),
                     ),
                     IconButton(
                       tooltip: 'Refresh',
-                      icon: const Icon(Icons.refresh_rounded, size: 20),
+                      icon: Icon(Icons.refresh_rounded, size: 20),
                       onPressed: () {
                         ref.invalidate(engagementRulesProvider(project.id));
                         ref.invalidate(engagementStatsProvider(project.id));
@@ -100,7 +100,7 @@ class EngagementTab extends ConsumerWidget {
                   ],
                 ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
 
             rulesAsync.when(
               data: (rules) {
@@ -115,13 +115,13 @@ class EngagementTab extends ConsumerWidget {
                 }
                 return ListView.separated(
                   shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+                  physics: NeverScrollableScrollPhysics(),
                   itemCount: rules.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => SizedBox(height: 12),
                   itemBuilder: (_, i) => _RuleCard(rule: rules[i], projectId: project.id),
                 );
               },
-              loading: () => const UniversalSkeleton(type: SkeletonType.table),
+              loading: () => UniversalSkeleton(type: SkeletonType.table),
               error: (err, _) => ErrorView(
                 error: err,
                 compact: true,
@@ -136,7 +136,7 @@ class EngagementTab extends ConsumerWidget {
 
   Widget _buildStatsRow(BuildContext context, EngagementStats stats) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
@@ -147,12 +147,12 @@ class EngagementTab extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.insights_rounded, color: AppTheme.accent, size: 20),
-              const SizedBox(width: 8),
+              Icon(Icons.insights_rounded, color: AppTheme.accent, size: 20),
+              SizedBox(width: 8),
               Text('Automation Telemetry', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -171,9 +171,9 @@ class EngagementTab extends ConsumerWidget {
     return Column(
       children: [
         Icon(icon, size: 20, color: color),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+        SizedBox(height: 4),
+        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        Text(label, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
       ],
     );
   }
@@ -182,11 +182,11 @@ class EngagementTab extends ConsumerWidget {
     final metricsAsync = ref.watch(livePlatformMetricsProvider(project.id));
     return metricsAsync.when(
       data: (metrics) {
-        if (metrics.isEmpty) return const SizedBox.shrink();
+        if (metrics.isEmpty) return SizedBox.shrink();
         return Padding(
-          padding: const EdgeInsets.only(top: 14),
+          padding: EdgeInsets.only(top: 14),
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: AppTheme.surface,
               borderRadius: BorderRadius.circular(16),
@@ -197,38 +197,38 @@ class EngagementTab extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.sensors_rounded, color: AppTheme.success, size: 18),
-                    const SizedBox(width: 8),
+                    Icon(Icons.sensors_rounded, color: AppTheme.success, size: 18),
+                    SizedBox(width: 8),
                     Text(
                       'Network metrics',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 for (final m in metrics) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         (m['platform'] as String? ?? 'channel').toUpperCase(),
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                       Text(
                         _metricLine(m),
-                        style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                 ],
               ],
             ),
           ),
         );
       },
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      loading: () => SizedBox.shrink(),
+      error: (_, _) => SizedBox.shrink(),
     );
   }
 }
@@ -241,7 +241,7 @@ class _RuleCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
@@ -257,11 +257,11 @@ class _RuleCard extends ConsumerWidget {
                 color: rule.isActive ? AppTheme.primary : AppTheme.textSecondary,
                 size: 20,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: Text(
                   rule.name,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -276,7 +276,7 @@ class _RuleCard extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
 
           // Keywords
           if (rule.triggerKeywords.isNotEmpty)
@@ -286,19 +286,19 @@ class _RuleCard extends ConsumerWidget {
               children: [
                 for (final kw in rule.triggerKeywords)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: AppTheme.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       '# $kw',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary),
                     ),
                   ),
               ],
             ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
 
           // Details summary
           Wrap(
@@ -307,35 +307,35 @@ class _RuleCard extends ConsumerWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               if (rule.actionAutoLike) ...[
-                const Icon(Icons.favorite_rounded, size: 14, color: AppTheme.accent),
-                const SizedBox(width: 4),
-                const Text('Auto-Like', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                const SizedBox(width: 12),
+                Icon(Icons.favorite_rounded, size: 14, color: AppTheme.accent),
+                SizedBox(width: 4),
+                Text('Auto-Like', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                SizedBox(width: 12),
               ],
               if (rule.actionSendDm) ...[
-                const Icon(Icons.chat_bubble_rounded, size: 14, color: AppTheme.accent),
-                const SizedBox(width: 4),
-                const Text('Auto-DM', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                const SizedBox(width: 12),
+                Icon(Icons.chat_bubble_rounded, size: 14, color: AppTheme.accent),
+                SizedBox(width: 4),
+                Text('Auto-DM', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                SizedBox(width: 12),
               ],
               if (rule.actionEnableAiAgent) ...[
-                const Icon(Icons.auto_awesome, size: 14, color: AppTheme.warning),
-                const SizedBox(width: 4),
-                const Text('AI Multi-Turn', style: TextStyle(fontSize: 12, color: AppTheme.warning)),
+                Icon(Icons.auto_awesome, size: 14, color: AppTheme.warning),
+                SizedBox(width: 4),
+                Text('AI Multi-Turn', style: TextStyle(fontSize: 12, color: AppTheme.warning)),
               ],
             ],
           ),
 
           if (rule.actionDmDeliverableUrl != null && rule.actionDmDeliverableUrl!.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.link_rounded, size: 14, color: AppTheme.textSecondary),
-                const SizedBox(width: 4),
+                Icon(Icons.link_rounded, size: 14, color: AppTheme.textSecondary),
+                SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     rule.actionDmDeliverableUrl!,
-                    style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary, decoration: TextDecoration.underline),
+                    style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, decoration: TextDecoration.underline),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -343,17 +343,17 @@ class _RuleCard extends ConsumerWidget {
             ),
           ],
 
-          const Divider(height: 20, color: AppTheme.borderSubtle),
+          Divider(height: 20, color: AppTheme.borderSubtle),
 
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 '${rule.totalTriggered} triggered · ${rule.totalDmsSent} DMs sent',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.error),
+                icon: Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.error),
                 onPressed: () async {
                   final ok = await confirm(context, title: 'Delete rule?', message: 'This automation rule will be permanently deleted.', action: 'Delete');
                   if (ok) {
@@ -494,45 +494,45 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
           children: [
             Row(
               children: [
-                const Icon(Icons.bolt_rounded, color: AppTheme.primary),
-                const SizedBox(width: 8),
+                Icon(Icons.bolt_rounded, color: AppTheme.primary),
+                SizedBox(width: 8),
                 Text('Create Engagement Funnel', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               ],
             ),
-            const SizedBox(height: 12),
-            const Text('Quick Preset Templates:', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
+            SizedBox(height: 12),
+            Text('Quick Preset Templates:', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+            SizedBox(height: 6),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
                   ActionChip(
-                    avatar: const Icon(Icons.card_giftcard_rounded, size: 14, color: AppTheme.primary),
-                    label: const Text('Blueprint Giveaway', style: TextStyle(fontSize: 11)),
+                    avatar: Icon(Icons.card_giftcard_rounded, size: 14, color: AppTheme.primary),
+                    label: Text('Blueprint Giveaway', style: TextStyle(fontSize: 11)),
                     onPressed: () => _applyPreset('blueprint'),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   ActionChip(
-                    avatar: const Icon(Icons.smart_toy_rounded, size: 14, color: AppTheme.accent),
-                    label: const Text('Support Bot', style: TextStyle(fontSize: 11)),
+                    avatar: Icon(Icons.smart_toy_rounded, size: 14, color: AppTheme.accent),
+                    label: Text('Support Bot', style: TextStyle(fontSize: 11)),
                     onPressed: () => _applyPreset('support'),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   ActionChip(
-                    avatar: const Icon(Icons.local_offer_rounded, size: 14, color: AppTheme.warning),
-                    label: const Text('VIP Promo Code', style: TextStyle(fontSize: 11)),
+                    avatar: Icon(Icons.local_offer_rounded, size: 14, color: AppTheme.warning),
+                    label: Text('VIP Promo Code', style: TextStyle(fontSize: 11)),
                     onPressed: () => _applyPreset('promo'),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
 
             TextField(
               controller: _nameCtl,
               decoration: fieldDecoration('Rule Name *', hint: 'e.g. Reel Blueprint Giveaway'),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             TextField(
               controller: _keywordsCtl,
@@ -542,13 +542,13 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                 helper: 'Triggers when a comment contains any of these keywords',
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               value: _autoLike,
-              title: const Text('Auto-Like Comment'),
-              subtitle: const Text('Likes the comment immediately to increase reach'),
+              title: Text('Auto-Like Comment'),
+              subtitle: Text('Likes the comment immediately to increase reach'),
               onChanged: (v) => setState(() => _autoLike = v),
             ),
 
@@ -556,13 +556,13 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
               controller: _publicReplyCtl,
               decoration: fieldDecoration('Public Comment Reply', hint: 'e.g. Sent to your DM! Check your inbox'),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             TextField(
               controller: _deliverableUrlCtl,
               decoration: fieldDecoration('Deliverable / Link URL', hint: 'https://yoursite.com/resource'),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             TextField(
               controller: _dmTemplateCtl,
@@ -573,23 +573,23 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                 helper: 'Use {name}, {handle}, {link} tokens',
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               value: _enableAiAgent,
-              title: const Text('Enable AI Multi-Turn Agent'),
-              subtitle: const Text('Autonomous AI qualifies lead and answers questions after DM deliverable'),
+              title: Text('Enable AI Multi-Turn Agent'),
+              subtitle: Text('Autonomous AI qualifies lead and answers questions after DM deliverable'),
               onChanged: (v) => setState(() => _enableAiAgent = v),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
 
             SizedBox(
               width: double.infinity,
               height: 48,
               child: FilledButton.icon(
                 onPressed: _saving ? null : _submit,
-                icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.textPrimary, strokeWidth: 2)) : const Icon(Icons.check_rounded),
+                icon: _saving ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.textPrimary, strokeWidth: 2)) : Icon(Icons.check_rounded),
                 label: Text(_saving ? 'Creating...' : 'Activate Automation Funnel'),
                 style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
               ),
@@ -665,17 +665,17 @@ class _DryRunTesterSheetState extends ConsumerState<_DryRunTesterSheet> {
           children: [
             Row(
               children: [
-                const Icon(Icons.science_rounded, color: AppTheme.accent),
-                const SizedBox(width: 8),
+                Icon(Icons.science_rounded, color: AppTheme.accent),
+                SizedBox(width: 8),
                 Text('Test Automation Matcher', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               ],
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'Simulate how incoming comments trigger auto-likes, public replies, and DMs before going live.',
               style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
 
             // Platform selector
             Wrap(
@@ -689,14 +689,14 @@ class _DryRunTesterSheetState extends ConsumerState<_DryRunTesterSheet> {
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             TextField(
               controller: _commentCtl,
               maxLines: 2,
               decoration: fieldDecoration('Sample Incoming Comment', hint: 'e.g. Can you send me the blueprint?'),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
 
             SizedBox(
               width: double.infinity,
@@ -704,18 +704,18 @@ class _DryRunTesterSheetState extends ConsumerState<_DryRunTesterSheet> {
               child: FilledButton.icon(
                 onPressed: _testing ? null : _runSimulation,
                 icon: _testing
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.textPrimary, strokeWidth: 2))
-                    : const Icon(Icons.play_arrow_rounded),
+                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.textPrimary, strokeWidth: 2))
+                    : Icon(Icons.play_arrow_rounded),
                 label: Text(_testing ? 'Evaluating Rules...' : 'Run Simulation'),
                 style: FilledButton.styleFrom(backgroundColor: AppTheme.accent),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
 
             if (_testResult != null) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: matched ? AppTheme.success.withValues(alpha: 0.1) : AppTheme.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -727,7 +727,7 @@ class _DryRunTesterSheetState extends ConsumerState<_DryRunTesterSheet> {
                     Row(
                       children: [
                         Icon(matched ? Icons.check_circle_rounded : Icons.cancel_rounded, color: matched ? AppTheme.success : AppTheme.error, size: 20),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             matched ? 'Rule Matched: ${rule?['name'] ?? 'Active Rule'}' : 'No Rule Matched',
@@ -737,37 +737,37 @@ class _DryRunTesterSheetState extends ConsumerState<_DryRunTesterSheet> {
                       ],
                     ),
                     if (matched && rule != null) ...[
-                      const SizedBox(height: 12),
-                      const Text('Automated Action Sequence:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
+                      SizedBox(height: 12),
+                      Text('Automated Action Sequence:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      SizedBox(height: 6),
                       if (rule['actionAutoLike'] == true)
-                        const Row(children: [
+                        Row(children: [
                           Icon(Icons.favorite, size: 14, color: AppTheme.accent),
                           SizedBox(width: 6),
                           Text('Auto-like (where the platform allows it)', style: TextStyle(fontSize: 12)),
                         ]),
                       if (rule['actionPublicReplies'] != null && (rule['actionPublicReplies'] as List).isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Icon(Icons.reply, size: 14, color: AppTheme.primary),
-                          const SizedBox(width: 6),
+                          Icon(Icons.reply, size: 14, color: AppTheme.primary),
+                          SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'Public Reply: "${(rule['actionPublicReplies'] as List).first.toString().replaceAll('{handle}', '@prospect_jane')}"',
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(fontSize: 12),
                             ),
                           ),
                         ]),
                       ],
                       if (rule['actionSendDm'] == true && rule['actionDmTemplate'] != null) ...[
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Icon(Icons.send_rounded, size: 14, color: AppTheme.accent),
-                          const SizedBox(width: 6),
+                          Icon(Icons.send_rounded, size: 14, color: AppTheme.accent),
+                          SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'Private DM: "${rule['actionDmTemplate'].toString().replaceAll('{name}', 'Jane').replaceAll('{handle}', '@prospect_jane').replaceAll('{link}', rule['actionDmDeliverableUrl'] ?? '')}"',
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(fontSize: 12),
                             ),
                           ),
                         ]),

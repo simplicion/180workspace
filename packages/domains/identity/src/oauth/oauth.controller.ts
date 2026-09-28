@@ -54,6 +54,29 @@ function isFirstPartyOrigin(origin: string | undefined): boolean {
     }
 }
 
+/**
+ * Robust redirect URL builder supporting both standard HTTP(S) and custom mobile schemes
+ * (e.g. 180social://oauth-callback, workspace180://oauth/callback)
+ */
+export function buildRedirectUrl(baseUrl: string, queryParams: Record<string, string | null | undefined>): string {
+    const validParams = Object.entries(queryParams).filter(([_, v]) => v != null && v !== '');
+    if (validParams.length === 0) return baseUrl;
+
+    try {
+        const parsed = new URL(baseUrl);
+        for (const [k, v] of validParams) {
+            parsed.searchParams.set(k, String(v));
+        }
+        return parsed.toString();
+    } catch {
+        // Fallback for custom mobile schemes that WHATWG URL parser rejects
+        const qs = validParams
+            .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+            .join('&');
+        return baseUrl.includes('?') ? `${baseUrl}&${qs}` : `${baseUrl}?${qs}`;
+    }
+}
+
 export class OAuthController {
     /**
      * 1. Validate Authorize Request before rendering Consent / Login Screen
@@ -292,18 +315,13 @@ export class OAuthController {
 
             // User denied access
             if (action === 'deny') {
-                let denyRedirectUrl = '';
-                if (targetRedirectUri) {
-                    try {
-                        const parsedUrl = new URL(targetRedirectUri);
-                        parsedUrl.searchParams.set('error', 'access_denied');
-                        parsedUrl.searchParams.set('error_description', 'The user denied the authorization request');
-                        if (state) parsedUrl.searchParams.set('state', state);
-                        denyRedirectUrl = parsedUrl.toString();
-                    } catch (e) {
-                        denyRedirectUrl = targetRedirectUri;
-                    }
-                }
+                const denyRedirectUrl = targetRedirectUri
+                    ? buildRedirectUrl(targetRedirectUri, {
+                        error: 'access_denied',
+                        error_description: 'The user denied the authorization request',
+                        state: state || undefined,
+                    })
+                    : '';
 
                 return res.json({
                     success: false,
@@ -351,17 +369,12 @@ export class OAuthController {
             // Generate signed RS256 JWT ID Token
             const idToken = signIdToken(user, app.clientId, nonce);
 
-            let allowRedirectUrl = '';
-            if (targetRedirectUri) {
-                try {
-                    const parsedUrl = new URL(targetRedirectUri);
-                    parsedUrl.searchParams.set('code', code);
-                    if (state) parsedUrl.searchParams.set('state', state);
-                    allowRedirectUrl = parsedUrl.toString();
-                } catch (e) {
-                    allowRedirectUrl = targetRedirectUri;
-                }
-            }
+            const allowRedirectUrl = targetRedirectUri
+                ? buildRedirectUrl(targetRedirectUri, {
+                    code,
+                    state: state || undefined,
+                })
+                : '';
 
             return res.json({
                 success: true,

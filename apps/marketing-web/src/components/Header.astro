@@ -44,28 +44,36 @@ const appCategories = [
 
 const resources = [
   {
-    title: "Case Studies",
-    href: "/case-studies",
-    desc: "Real-world customer success and Work Graph ROI stories",
-    badge: "Results"
+    title: "Docs Portal",
+    href: "https://docs.180workspace.com",
+    desc: "Enterprise architecture blueprints, runbooks, and multi-tenant schema guides",
+    badge: "Docs",
+    isExternal: true
   },
   {
-    title: "Developers & API",
-    href: "/developers",
-    desc: "REST APIs, webhooks, and developer SDK documentation",
-    badge: "Docs"
+    title: "Developer Portal",
+    href: "https://developers.180workspace.com",
+    desc: "Build on 180 Identity & Sovereign Pay with SDKs, APIs & webhook tools",
+    badge: "Portal",
+    isExternal: true
   },
   {
     title: "Blog & Product News",
     href: "/blog",
     desc: "Latest release notes, engineering insights, and playbooks",
-    badge: ""
+    badge: "Articles"
   },
   {
-    title: "Work Graph Architecture",
-    href: "/whitepaper",
-    desc: "Architectural blueprint of our zero-redundancy unified database",
-    badge: "Tech"
+    title: "White Papers & Research",
+    href: "/whitepapers",
+    desc: "Work Graph Architecture, edge routing & sovereign ledger whitepapers",
+    badge: "Research"
+  },
+  {
+    title: "Case Studies",
+    href: "/case-studies",
+    desc: "Real-world customer success and Work Graph ROI stories",
+    badge: "Results"
   }
 ];
 ---
@@ -256,6 +264,23 @@ const resources = [
       <a href="/tools" class="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 text-center col-span-2">
         ⚡ Free Tools Suite
       </a>
+      <a href="https://docs.180workspace.com" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center flex items-center justify-center gap-1">
+        <span>Docs Portal</span>
+        <span class="text-[9px] text-indigo-500">↗</span>
+      </a>
+      <a href="https://developers.180workspace.com" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center flex items-center justify-center gap-1">
+        <span>Dev Portal</span>
+        <span class="text-[9px] text-indigo-500">↗</span>
+      </a>
+      <a href="/blog" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+        Blog & News
+      </a>
+      <a href="/whitepapers" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+        White Papers
+      </a>
+      <a href="/case-studies" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+        Case Studies
+      </a>
       <a href="/apps" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
         All 15 Apps
       </a>
@@ -264,15 +289,6 @@ const resources = [
       </a>
       <a href="/enterprise" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
         Enterprise
-      </a>
-      <a href="/case-studies" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
-        Case Studies
-      </a>
-      <a href="/developers" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
-        Developers
-      </a>
-      <a href="/blog" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
-        Blog & News
       </a>
     </div>
     <div class="flex flex-col gap-2 pt-1">

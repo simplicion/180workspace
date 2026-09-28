@@ -1,7 +1,7 @@
 import '../../core/util/json.dart';
 
 class WorkspaceUser {
-  const WorkspaceUser({required this.id, required this.name, this.email, this.imageUrl, this.role});
+  WorkspaceUser({required this.id, required this.name, this.email, this.imageUrl, this.role});
   final String id;
   final String name;
   final String? email;
@@ -24,7 +24,7 @@ extension on String {
 
 /// A task from the projects-and-tasks domain (editing tasks are regular tasks linked to a post).
 class EditingTask {
-  const EditingTask({
+  EditingTask({
     required this.id,
     required this.title,
     this.description,

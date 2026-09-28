@@ -7,19 +7,29 @@ export class PlatformOverviewService {
         const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
         const [
-            totalCompanies,
-            activeCompanies,
-            newCompaniesThisMonth,
-            totalSubscriptions,
-            activeSubscriptions,
-            failedPayments,
-            totalUsers
-        ] = await PlatformOverviewRepository.getOverviewCounts(startOfMonth);
+            [
+                totalCompanies,
+                activeCompanies,
+                newCompaniesThisMonth,
+                totalSubscriptions,
+                activeSubscriptions,
+                failedPayments,
+                totalUsers
+            ],
+            monthlyRevenue,
+            recentSubs,
+            sixMonthCompanies,
+            activeSubs,
+            recentCompanies
+        ] = await Promise.all([
+            PlatformOverviewRepository.getOverviewCounts(startOfMonth),
+            PlatformOverviewRepository.getMonthlyRevenue(startOfMonth),
+            PlatformOverviewRepository.getRecentSubscriptions(sixMonthsAgo),
+            PlatformOverviewRepository.getRecentCompanies(sixMonthsAgo),
+            PlatformOverviewRepository.getActiveSubscriptionsWithPlan(),
+            PlatformOverviewRepository.getLatestCompanies(5),
+        ]);
 
-        const monthlyRevenueSub = await PlatformOverviewRepository.getMonthlyRevenue(startOfMonth);
-        const monthlyRevenue = monthlyRevenueSub.reduce((acc, sub) => acc + (Number(sub.amount) || 0), 0);
-
-        const recentSubs = await PlatformOverviewRepository.getRecentSubscriptions(sixMonthsAgo);
         const revenueMap: Record<string, number> = {};
         recentSubs.forEach(sub => {
             const date = new Date(sub.createdAt);
@@ -31,7 +41,6 @@ export class PlatformOverviewService {
             return { _id: { year, month }, revenue: revenueMap[key] };
         }).sort((a, b) => a._id.year - b._id.year || a._id.month - b._id.month);
 
-        const sixMonthCompanies = await PlatformOverviewRepository.getRecentCompanies(sixMonthsAgo);
         const companyMap: Record<string, number> = {};
         sixMonthCompanies.forEach(c => {
             const date = new Date(c.createdAt);
@@ -43,7 +52,6 @@ export class PlatformOverviewService {
             return { _id: { year, month }, count: companyMap[key] };
         }).sort((a, b) => a._id.year - b._id.year || a._id.month - b._id.month);
 
-        const activeSubs = await PlatformOverviewRepository.getActiveSubscriptionsWithPlan();
         const planDistMap: Record<string, number> = {};
         activeSubs.forEach(sub => {
             const planName = (sub.plan as any)?.planName || 'Unknown';
@@ -53,8 +61,6 @@ export class PlatformOverviewService {
             _id: planName,
             count: planDistMap[planName]
         }));
-
-        const recentCompanies = await PlatformOverviewRepository.getLatestCompanies(5);
 
         return {
             stats: {

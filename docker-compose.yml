@@ -16,6 +16,7 @@ services:
       - frontend
       - admin-web
       - backend
+      - core-backend
     networks:
       - 180workspace-net
 
@@ -74,7 +75,26 @@ services:
     networks:
       - 180workspace-net
 
-  # 5. BullMQ & Background Worker
+  # 5. 180 Core Backend (Identity, Wallet, Checkout & Payouts Engine)
+  core-backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_LOWER}-core-backend:latest
+    container_name: 180workspace-core-backend
+    restart: always
+    ports:
+      - "4003:4003"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - PORT=4003
+      - NODE_ENV=production
+      - REDIS_URL=redis://host.docker.internal:6379
+      - REDIS_INTERNAL_URL=redis://host.docker.internal:6379
+    env_file:
+      - .env
+    networks:
+      - 180workspace-net
+
+  # 6. BullMQ & Background Worker
   worker:
     image: ghcr.io/${GITHUB_REPOSITORY_LOWER}:latest
     container_name: 180workspace-worker
@@ -84,7 +104,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - RUN_MODE=worker
-      - PORT=4003
+      - PORT=4004
       - NODE_ENV=production
       - REDIS_URL=redis://host.docker.internal:6379
       - REDIS_INTERNAL_URL=redis://host.docker.internal:6379

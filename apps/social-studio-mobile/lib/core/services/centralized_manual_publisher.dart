@@ -16,7 +16,7 @@ import 'user_assisted_publishers.dart';
 /// 2. Performs clipboard assist (auto-copies caption/title to device clipboard).
 /// 3. Hands off to native Sharesheet with video/image attachment or opens native/web composer.
 class CentralizedManualPublisher {
-  const CentralizedManualPublisher._();
+  CentralizedManualPublisher._();
 
   /// Validates text requirements, character limits, and media files for any platform.
   static List<String> validate(UniversalPlatformPayload payload) {

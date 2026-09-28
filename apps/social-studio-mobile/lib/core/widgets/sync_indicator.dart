@@ -15,7 +15,7 @@ class SyncIndicator extends ConsumerWidget {
     final outbox = ref.watch(outboxProvider);
     final pending = outbox.pendingCount;
     final attention = outbox.attentionCount;
-    if (outbox.online && pending == 0 && attention == 0) return const SizedBox.shrink();
+    if (outbox.online && pending == 0 && attention == 0) return SizedBox.shrink();
     final color = attention > 0
         ? AppTheme.error
         : outbox.online
@@ -47,10 +47,10 @@ class OutboxScreen extends ConsumerWidget {
     final outbox = ref.watch(outboxProvider);
     final items = outbox.mine;
     return Scaffold(
-      appBar: AppBar(title: const Text('Sync status'), actions: [
-        IconButton(onPressed: () => outbox.drain(force: true), icon: const Icon(Icons.sync_rounded), tooltip: 'Sync now'),
+      appBar: AppBar(title: Text('Sync status'), actions: [
+        IconButton(onPressed: () => outbox.drain(force: true), icon: Icon(Icons.sync_rounded), tooltip: 'Sync now'),
       ]),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      body: ListView(padding: EdgeInsets.all(16), children: [
         ListTile(
           leading: Icon(outbox.online ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
               color: outbox.online ? AppTheme.success : AppTheme.warning),
@@ -62,7 +62,7 @@ class OutboxScreen extends ConsumerWidget {
             _ => items.isEmpty ? 'Everything is synced.' : '${items.length} change(s) waiting to sync.',
           }),
         ),
-        const Divider(),
+        Divider(),
         for (final m in items)
           Card(
             color: AppTheme.surface,
@@ -77,7 +77,7 @@ class OutboxScreen extends ConsumerWidget {
               isThreeLine: true,
               trailing: PopupMenuButton<String>(
                 onSelected: (v) => v == 'retry' ? outbox.retry(m.id) : outbox.discard(m.id),
-                itemBuilder: (_) => const [
+                itemBuilder: (_) => [
                   PopupMenuItem(value: 'retry', child: Text('Retry now')),
                   PopupMenuItem(value: 'discard', child: Text('Discard change')),
                 ],

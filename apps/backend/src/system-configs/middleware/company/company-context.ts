@@ -61,8 +61,7 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
             '/r', '/shield', '/tag', '/evaluate',
             '/api/v1/traffic-director/evaluate', '/api/v1/traffic-director/tag', '/api/v1/traffic-director/stream-proxy',
             '/oauth', '/api/oauth', '/.well-known', '/certs',
-            '/api/v1/identity/check-username', '/api/v1/identity/resolve-location', '/api/v1/identity/otp',
-            '/api/v1/pitch', '/api/pitch', '/v1/pitch', '/pitch'
+            '/api/v1/identity/check-username', '/api/v1/identity/resolve-location', '/api/v1/identity/otp'
         ];
         const isPublic = publicRoutes.some(route => req.path.startsWith(route));
         const isOnboardingRoute = (req.originalUrl || req.url).includes('/api/auth/complete-workspace-setup') || 

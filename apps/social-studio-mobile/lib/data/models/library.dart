@@ -2,7 +2,7 @@ import '../../core/util/json.dart';
 
 /// A linked external asset (`GET /assets`). These are link records; nothing is uploaded.
 class LinkedAsset {
-  const LinkedAsset({
+  LinkedAsset({
     required this.id,
     required this.url,
     required this.type,
@@ -38,7 +38,7 @@ class LinkedAsset {
 
 /// Hashtag or hook bank entry (`GET /saved-banks`).
 class SavedBankItem {
-  const SavedBankItem({
+  SavedBankItem({
     required this.id,
     required this.type,
     required this.name,
@@ -65,7 +65,7 @@ class SavedBankItem {
 }
 
 class EvergreenSlot {
-  const EvergreenSlot({
+  EvergreenSlot({
     required this.id,
     required this.projectId,
     required this.dayOfWeek,
@@ -100,7 +100,7 @@ class EvergreenSlot {
 
 /// A brand-voice content idea (`POST /brand-voice/:projectId/ideas`, proposed endpoint).
 class ContentIdea {
-  const ContentIdea({required this.title, this.hook, this.caption, this.platform, this.pillar});
+  ContentIdea({required this.title, this.hook, this.caption, this.platform, this.pillar});
   final String title;
   final String? hook;
   final String? caption;

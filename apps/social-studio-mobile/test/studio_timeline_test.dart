@@ -214,7 +214,7 @@ void main() {
   });
 
   testWidgets('Captions sheet shows every preset as a sample and applies one to all captions', (tester) async {
-    c.apply((ir) => TimelineOps.autoCaptions(ir, const [
+    c.apply((ir) => TimelineOps.autoCaptions(ir, [
           TranscriptWord(text: 'hello', startMs: 500, endMs: 900),
           TranscriptWord(text: 'world', startMs: 900, endMs: 1300),
         ]));

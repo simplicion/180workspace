@@ -1,6 +1,6 @@
 'use strict';
 
-import { prisma } from '@workspace/db';
+import { developersPrisma as prisma } from '@workspace/db-180developers';
 
 export class UsernameService {
     /**

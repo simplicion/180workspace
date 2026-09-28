@@ -30,7 +30,7 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
   static const _platformIds = BrandConsciousness.platforms;
 
   int _days = 30;
-  DateTime _start = DateTime.now().add(const Duration(days: 1));
+  DateTime _start = DateTime.now().add(Duration(days: 1));
   late final Set<String> _platforms = {
     for (final a in widget.project.socialAccounts)
       for (final id in _platformIds.keys)
@@ -126,17 +126,17 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
       setState(() => _pollError = e);
       if (e is ApiException && !e.isTransient) return;
     }
-    _timer = Timer(widget.pollInterval ?? const Duration(seconds: 2), _poll);
+    _timer = Timer(widget.pollInterval ?? Duration(seconds: 2), _poll);
   }
 
   @override
   Widget build(BuildContext context) {
     if (_jobId != null) return _progress(context);
-    return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 120), children: [
+    return ListView(padding: EdgeInsets.fromLTRB(16, 12, 16, 120), children: [
       SectionCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Autopilot', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             'Researches your niche and writes a hook, script, captions and visuals for every day, '
             'using this project\'s brand identity.',
@@ -144,9 +144,9 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
           ),
         ]),
       ),
-      const SectionHeader('Length'),
+      SectionHeader('Length'),
       SegmentedButton<int>(
-        segments: const [
+        segments: [
           ButtonSegment(value: 7, label: Text('7 days')),
           ButtonSegment(value: 14, label: Text('14 days')),
           ButtonSegment(value: 30, label: Text('30 days')),
@@ -154,21 +154,21 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
         selected: {_days},
         onSelectionChanged: (s) => setState(() => _days = s.first),
       ),
-      const SizedBox(height: 12),
+      SizedBox(height: 12),
       OutlinedButton.icon(
-        icon: const Icon(Icons.event_rounded),
+        icon: Icon(Icons.event_rounded),
         label: Text('Starts ${fmtDate(_start)}'),
         onPressed: () async {
           final d = await showDatePicker(
             context: context,
             initialDate: _start,
-            firstDate: DateTime.now().subtract(const Duration(days: 1)),
-            lastDate: DateTime.now().add(const Duration(days: 365)),
+            firstDate: DateTime.now().subtract(Duration(days: 1)),
+            lastDate: DateTime.now().add(Duration(days: 365)),
           );
           if (d != null) setState(() => _start = d);
         },
       ),
-      const SectionHeader('Platforms'),
+      SectionHeader('Platforms'),
       Wrap(spacing: 8, runSpacing: 8, children: [
         for (final e in _platformIds.entries)
           FilterChip(
@@ -177,7 +177,7 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
             onSelected: (on) => setState(() => on ? _platforms.add(e.key) : _platforms.remove(e.key)),
           ),
       ]),
-      const SectionHeader('Goals'),
+      SectionHeader('Goals'),
       TextField(
         controller: _goals,
         minLines: 1,
@@ -185,13 +185,13 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
         decoration: fieldDecoration('What should this month achieve?',
             hint: 'e.g. 50 trial sign-ups, grow Reels reach', helper: 'Optional. Up to 5, one per line or comma separated'),
       ),
-      const SizedBox(height: 20),
+      SizedBox(height: 20),
       ElevatedButton.icon(
         onPressed: _starting ? null : _start_,
-        icon: const Icon(Icons.auto_awesome_rounded),
+        icon: Icon(Icons.auto_awesome_rounded),
         label: Text(_starting ? 'Starting…' : 'Generate $_days-day calendar'),
       ),
-      TextButton(onPressed: widget.onUseClassic, child: const Text('Use the classic generator instead')),
+      TextButton(onPressed: widget.onUseClassic, child: Text('Use the classic generator instead')),
     ]);
   }
 
@@ -200,49 +200,49 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
     if (job != null && job.isFailed) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.error_outline_rounded, size: 40, color: AppTheme.error),
-            const SizedBox(height: 12),
+            Icon(Icons.error_outline_rounded, size: 40, color: AppTheme.error),
+            SizedBox(height: 12),
             Text('The calendar could not be finished', style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(job.errorMessage ?? 'The server stopped at "${job.stageLabel}".', textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: () => setState(() => _jobId = null), child: const Text('Try again')),
-            TextButton(onPressed: widget.onUseClassic, child: const Text('Use the classic generator')),
+            SizedBox(height: 20),
+            ElevatedButton(onPressed: () => setState(() => _jobId = null), child: Text('Try again')),
+            TextButton(onPressed: widget.onUseClassic, child: Text('Use the classic generator')),
           ]),
         ),
       );
     }
     final pct = job?.progress ?? 0;
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(24),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text(job?.stageLabel ?? 'Starting…', style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Semantics(
           label: 'Calendar progress',
           value: '$pct percent',
           child: LinearProgressIndicator(value: pct / 100, minHeight: 6),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text('$pct%', textAlign: TextAlign.center),
         if (job?.detail != null) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(job!.detail!, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
         ],
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Text(
           'This runs on the server. You can leave this screen; the calendar appears in Planner when it is done.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall,
         ),
         if (_pollError != null) ...[
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           ErrorView(error: _pollError!, compact: true, onRetry: _poll),
         ],
-        const SizedBox(height: 12),
-        TextButton(onPressed: () => context.go('/planner'), child: const Text('Back to Planner')),
+        SizedBox(height: 12),
+        TextButton(onPressed: () => context.go('/planner'), child: Text('Back to Planner')),
       ]),
     );
   }

@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 /// `NO_AUDIO_TRACK`, `INVALID_EDIT_IR`, `MISSING_MEDIA`, `EXPORT_FAILED`, `CANCELLED`,
 /// `ENGINE_UNAVAILABLE`). The engine never substitutes placeholder output for a failure.
 class MediaEngineException implements Exception {
-  const MediaEngineException(this.code, this.message, {this.detail});
+  MediaEngineException(this.code, this.message, {this.detail});
 
   /// Converts a channel error into a typed exception.
   factory MediaEngineException.fromPlatform(PlatformException e) =>

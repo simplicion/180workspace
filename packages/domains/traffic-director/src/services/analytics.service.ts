@@ -799,7 +799,15 @@ export class TrafficAnalyticsService {
         }
       }
     } else {
-      const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      let effectiveStart = start;
+      if (timeRange === 'all' || start.getFullYear() < 2020) {
+        if (logs.length > 0) {
+          effectiveStart = new Date(logs[0].timestamp);
+        } else {
+          effectiveStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        }
+      }
+      const cursor = new Date(effectiveStart.getFullYear(), effectiveStart.getMonth(), effectiveStart.getDate());
       const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
       while (cursor <= endDay) {
         const dayStr = cursor.toISOString().substring(0, 10);

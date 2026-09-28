@@ -6,15 +6,24 @@ import '../../core/util/json.dart';
 import 'social_post.dart';
 
 enum ReviewStatus {
-  pending('pending', 'Pending', AppTheme.warning),
-  revisionsRequested('revisions_requested', 'Revisions requested', AppTheme.error),
-  approved('approved', 'Approved', AppTheme.success),
-  unknown('unknown', 'Unknown', AppTheme.textMuted);
+  pending('pending', 'Pending'),
+  revisionsRequested('revisions_requested', 'Revisions requested'),
+  approved('approved', 'Approved'),
+  unknown('unknown', 'Unknown');
 
-  const ReviewStatus(this.id, this.label, this.color);
+  const ReviewStatus(this.id, this.label);
   final String id;
   final String label;
-  final Color color;
+  
+  Color get color {
+    switch (this) {
+      case ReviewStatus.pending: return AppTheme.warning;
+      case ReviewStatus.revisionsRequested: return AppTheme.error;
+      case ReviewStatus.approved: return AppTheme.success;
+      case ReviewStatus.unknown: return AppTheme.textMuted;
+    }
+  }
+
 
   static ReviewStatus parse(Object? raw) =>
       ReviewStatus.values.firstWhere((s) => s.id == raw, orElse: () => ReviewStatus.unknown);
@@ -22,7 +31,7 @@ enum ReviewStatus {
 
 /// `ClientReviewSession`: a magic-link approval window for a client.
 class ReviewSession {
-  const ReviewSession({
+  ReviewSession({
     required this.id,
     required this.token,
     required this.name,
@@ -87,7 +96,7 @@ class ReviewSession {
 
 /// `GET /reviews/public/:token`.
 class PublicReview {
-  const PublicReview({required this.session, required this.posts});
+  PublicReview({required this.session, required this.posts});
   final ReviewSession session;
   final List<SocialPost> posts;
 

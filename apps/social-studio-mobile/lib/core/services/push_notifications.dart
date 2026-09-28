@@ -31,7 +31,7 @@ enum PushState {
 }
 
 class PushStatus {
-  const PushStatus(this.state, {this.message});
+  PushStatus(this.state, {this.message});
   final PushState state;
   final String? message;
 
@@ -50,7 +50,7 @@ class PushStatus {
 /// `workspace180://posts/<id>`). Everything is gated: without Firebase config the app keeps working and Settings
 /// says "Push not configured". Tests replace [pushServiceProvider] with a fake.
 class PushNotificationService extends StateNotifier<PushStatus> {
-  PushNotificationService(this._api, this._device) : super(const PushStatus(PushState.unknown));
+  PushNotificationService(this._api, this._device) : super(PushStatus(PushState.unknown));
 
   final ApiClient _api;
   final DeviceRegistration _device;
@@ -68,7 +68,7 @@ class PushNotificationService extends StateNotifier<PushStatus> {
       _firebaseReady = true;
     } catch (e) {
       debugPrint('[Push] Firebase unavailable: $e');
-      state = const PushStatus(PushState.notConfiguredOnDevice, message: 'This build has no Firebase configuration.');
+      state = PushStatus(PushState.notConfiguredOnDevice, message: 'This build has no Firebase configuration.');
       return;
     }
     try {
@@ -99,26 +99,26 @@ class PushNotificationService extends StateNotifier<PushStatus> {
   Future<void> enable({bool prompt = true}) async {
     if (_initFuture != null) await _initFuture;
     if (!_firebaseReady) {
-      state = const PushStatus(PushState.notConfiguredOnDevice, message: 'This build has no Firebase configuration.');
+      state = PushStatus(PushState.notConfiguredOnDevice, message: 'This build has no Firebase configuration.');
       return;
     }
     try {
       final server = await _api.get('/api/desktop/push/status');
       if (server['configured'] != true) {
-        state = const PushStatus(PushState.notConfiguredOnServer, message: 'Your workspace server has no Firebase credentials yet.');
+        state = PushStatus(PushState.notConfiguredOnServer, message: 'Your workspace server has no Firebase credentials yet.');
         return;
       }
       final messaging = FirebaseMessaging.instance;
       final settings = prompt ? await messaging.requestPermission() : await messaging.getNotificationSettings();
       if (settings.authorizationStatus == AuthorizationStatus.denied || settings.authorizationStatus == AuthorizationStatus.notDetermined) {
-        state = const PushStatus(PushState.permissionDenied, message: 'Allow notifications for 180 Social in system settings.');
+        state = PushStatus(PushState.permissionDenied, message: 'Allow notifications for 180 Social in system settings.');
         return;
       }
       final token = await messaging.getToken();
       if (token == null) throw StateError('FCM returned no token');
       await _device.setPushToken(provider: 'fcm', token: token);
       _refreshSub ??= messaging.onTokenRefresh.listen((t) => unawaited(_device.setPushToken(provider: 'fcm', token: t).catchError((_) {})));
-      state = const PushStatus(PushState.enabled);
+      state = PushStatus(PushState.enabled);
     } catch (e) {
       state = PushStatus(PushState.error, message: '$e');
     }

@@ -16,23 +16,23 @@ class ProjectSwitcher extends ConsumerWidget {
     final active = ref.watch(activeProjectProvider);
     final name = active.valueOrNull?.name ?? (active.isLoading ? 'Loading…' : 'Select project');
     return InkWell(
-      key: const Key('projectSwitcher'),
+      key: Key('projectSwitcher'),
       borderRadius: BorderRadius.circular(10),
       onTap: () => showProjectSwitcherSheet(context, ref),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: EdgeInsets.symmetric(vertical: 6),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: AppTheme.primary.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.business_rounded, color: AppTheme.primary, size: 16),
+            child: Icon(Icons.business_rounded, color: AppTheme.primary, size: 16),
           ),
-          const SizedBox(width: 10),
-          Flexible(child: Text(name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
-          const Icon(Icons.expand_more_rounded, color: AppTheme.textSecondary),
+          SizedBox(width: 10),
+          Flexible(child: Text(name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+          Icon(Icons.expand_more_rounded, color: AppTheme.textSecondary),
         ]),
       ),
     );
@@ -44,7 +44,7 @@ Future<void> showProjectSwitcherSheet(BuildContext context, WidgetRef ref) {
     context: context,
     backgroundColor: AppTheme.surface,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     builder: (ctx) => Consumer(builder: (ctx, ref, _) {
       final projects = ref.watch(allProjectsProvider);
       final activeId = ref.watch(activeProjectProvider).valueOrNull?.id;
@@ -52,22 +52,22 @@ Future<void> showProjectSwitcherSheet(BuildContext context, WidgetRef ref) {
         child: ConstrainedBox(
           constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.7),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Container(width: 40, height: 4, decoration: BoxDecoration(color: AppTheme.border, borderRadius: BorderRadius.circular(2))),
             ListTile(
-              title: const Text('Projects', style: TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: const Text('One project per client or brand'),
+              title: Text('Projects', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text('One project per client or brand'),
               trailing: TextButton(
                 onPressed: () {
                   Navigator.pop(ctx);
                   context.push('/projects');
                 },
-                child: const Text('Manage'),
+                child: Text('Manage'),
               ),
             ),
             Flexible(
               child: projects.when(
-                loading: () => const Padding(padding: EdgeInsets.all(24), child: LoadingView()),
+                loading: () => Padding(padding: EdgeInsets.all(24), child: LoadingView()),
                 error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(allProjectsProvider)),
                 data: (list) => ListView(shrinkWrap: true, children: [
                   for (final Project p in list)
@@ -75,7 +75,7 @@ Future<void> showProjectSwitcherSheet(BuildContext context, WidgetRef ref) {
                       leading: Icon(Icons.circle, size: 12, color: p.status.color),
                       title: Text(p.name),
                       subtitle: Text('${p.socialAccounts.length} channels · ${p.metrics.scheduledPosts} scheduled'),
-                      trailing: p.id == activeId ? const Icon(Icons.check_rounded, color: AppTheme.primary) : null,
+                      trailing: p.id == activeId ? Icon(Icons.check_rounded, color: AppTheme.primary) : null,
                       onTap: () {
                         ref.read(activeProjectIdProvider.notifier).select(p.id);
                         Navigator.pop(ctx);
@@ -85,8 +85,8 @@ Future<void> showProjectSwitcherSheet(BuildContext context, WidgetRef ref) {
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.add_circle_outline_rounded, color: AppTheme.primary),
-              title: const Text('New project'),
+              leading: Icon(Icons.add_circle_outline_rounded, color: AppTheme.primary),
+              title: Text('New project'),
               onTap: () {
                 Navigator.pop(ctx);
                 context.push('/projects/new');

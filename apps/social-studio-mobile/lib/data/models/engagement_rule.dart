@@ -1,7 +1,7 @@
 import '../../core/util/json.dart';
 
 class EngagementRule {
-  const EngagementRule({
+  EngagementRule({
     required this.id,
     required this.companyId,
     required this.name,
@@ -96,7 +96,7 @@ class EngagementRule {
 }
 
 class EngagementStats {
-  const EngagementStats({
+  EngagementStats({
     this.totalRules = 0,
     this.activeRules = 0,
     this.totalTriggered = 0,

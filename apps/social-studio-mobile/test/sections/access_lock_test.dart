@@ -15,7 +15,7 @@ import '../support/fixtures.dart';
 Map<String, dynamic> appDisabled(String app) =>
     {'error': 'App Disabled', 'message': 'The $app application is currently disabled for your workspace.', 'code': 'APP_DISABLED'};
 
-const _media = MediaAnalysis(durationMs: 10000, width: 1080, height: 1920);
+final _media = MediaAnalysis(durationMs: 10000, width: 1080, height: 1920);
 
 Future<ApiException> _directorError(WidgetTester tester, AppHarness h) async {
   try {

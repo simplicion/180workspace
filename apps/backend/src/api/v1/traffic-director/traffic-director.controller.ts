@@ -7,10 +7,59 @@ import {
 } from '@workspace/traffic-director';
 
 export class TrafficDirectorController {
+  /**
+   * Resolves the company ID for the request.
+   * If an authenticated 180 Identity user does not have a workspace company yet,
+   * automatically provisions a seamless personal headless tenant so they skip
+   * onboarding and can use Traffic Director immediately.
+   */
+  private static async getCompanyId(req: Request): Promise<string> {
+    const reqAny = req as any;
+    let companyId = reqAny.companyId || reqAny.company?.id || reqAny.user?.companyId;
+    if (companyId) return companyId;
+
+    const user = reqAny.user;
+    if (user?.id) {
+      const { prisma } = require('@workspace/db');
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { id: true, companyId: true, email: true, name: true }
+      });
+
+      if (dbUser?.companyId) {
+        reqAny.companyId = dbUser.companyId;
+        return dbUser.companyId;
+      }
+
+      // Auto-provision personal workspace for 180 Traffic Director
+      const baseSlug = `td-${user.id.slice(0, 8)}-${Date.now().toString(36)}`;
+      const newCompany = await prisma.company.create({
+        data: {
+          name: `${dbUser?.name || dbUser?.email?.split('@')[0] || 'User'}'s Traffic Director`,
+          slug: baseSlug,
+          ownerId: user.id,
+          status: 'ACTIVE',
+          subscriptionStatus: 'active',
+          enabledApps: ['traffic-director']
+        }
+      });
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { companyId: newCompany.id, role: 'OWNER' }
+      });
+
+      reqAny.companyId = newCompany.id;
+      return newCompany.id;
+    }
+
+    return '';
+  }
+
   // ─── Links ─────────────────────────────────────────────────────────
   static async getLinks(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const { page, limit, search, isActive } = req.query;
 
       const result = await TrafficLinksService.getLinks(companyId, {
@@ -202,7 +251,7 @@ export class TrafficDirectorController {
 
   static async getLinkById(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const linkId = String(req.params.linkId);
 
       const result = await TrafficLinksService.getLinkById(companyId, linkId);
@@ -215,7 +264,7 @@ export class TrafficDirectorController {
 
   static async createLink(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const { 
         name, slug, description, fallbackUrl, customDomain, tags,
         warmupUntil, rampUpEnabled, rampUpDurationHours, shieldMode, datacenterBlocked,
@@ -251,7 +300,7 @@ export class TrafficDirectorController {
 
   static async updateLink(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const linkId = String(req.params.linkId);
 
       const result = await TrafficLinksService.updateLink(companyId, linkId, req.body);
@@ -264,7 +313,7 @@ export class TrafficDirectorController {
 
   static async deleteLink(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const linkId = String(req.params.linkId);
 
       await TrafficLinksService.deleteLink(companyId, linkId);
@@ -277,7 +326,7 @@ export class TrafficDirectorController {
 
   static async bulkDeleteLinks(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const linkIds = req.body.linkIds || req.body.ids || [];
       if (!Array.isArray(linkIds) || linkIds.length === 0) {
         return res.status(400).json({ success: false, error: 'Please provide linkIds to delete' });
@@ -300,7 +349,7 @@ export class TrafficDirectorController {
   // ─── Rules ────────────────────────────────────────────────────────
   static async getRules(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const linkId = String(req.params.linkId);
 
       const result = await TrafficRulesService.getRulesByLinkId(companyId, linkId);
@@ -313,7 +362,7 @@ export class TrafficDirectorController {
 
   static async createRule(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const linkId = String(req.params.linkId);
       const { name, destinationUrl, actionType, conditions, weight, priority, isActive } = req.body;
 
@@ -341,7 +390,7 @@ export class TrafficDirectorController {
 
   static async updateRule(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const ruleId = String(req.params.ruleId);
 
       const result = await TrafficRulesService.updateRule(companyId, ruleId, req.body);
@@ -354,7 +403,7 @@ export class TrafficDirectorController {
 
   static async deleteRule(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const ruleId = String(req.params.ruleId);
 
       await TrafficRulesService.deleteRule(companyId, ruleId);
@@ -367,7 +416,7 @@ export class TrafficDirectorController {
 
   static async reorderRules(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const linkId = String(req.params.linkId);
       const { orderedRuleIds } = req.body;
 
@@ -386,7 +435,7 @@ export class TrafficDirectorController {
   // ─── Analytics & Simulator ─────────────────────────────────────────
   static async getLinkAnalytics(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const linkId = String(req.params.linkId);
       const { timeRange, startDate, endDate, country, routingAction, isBot, deviceType } = req.query;
 
@@ -412,7 +461,7 @@ export class TrafficDirectorController {
 
   static async getOverviewStats(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const { timeRange, startDate, endDate } = req.query;
 
       const result = await TrafficAnalyticsService.getOverviewStats(companyId, {
@@ -429,7 +478,7 @@ export class TrafficDirectorController {
 
   static async getLogs(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const { linkId, isBot, timeRange, startDate, endDate, action, country, deviceType, search, page, limit } = req.query;
 
       const result = await TrafficAnalyticsService.getLogs(companyId, {
@@ -455,7 +504,7 @@ export class TrafficDirectorController {
 
   static async simulate(req: Request, res: Response) {
     try {
-      const companyId = (req as any).companyId || (req as any).company?.id || (req as any).user?.companyId;
+      const companyId = await TrafficDirectorController.getCompanyId(req);
       const result = await TrafficSimulatorService.simulate(companyId, req.body);
       return res.json({ success: true, data: result });
     } catch (error: any) {

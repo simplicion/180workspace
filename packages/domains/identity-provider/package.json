@@ -8,7 +8,8 @@
     "dev": "tsc -w"
   },
   "dependencies": {
-    "@workspace/db": "workspace:*",
+    "@workspace/db-180developers": "workspace:*",
+    "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2"
   },

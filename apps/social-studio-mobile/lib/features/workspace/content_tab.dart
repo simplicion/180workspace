@@ -27,19 +27,19 @@ class _ContentTabState extends ConsumerState<ContentTab> {
     final posts = ref.watch(projectPostsProvider(q));
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
         child: TextField(
           onChanged: (v) => setState(() => _search = v.trim().toLowerCase()),
-          decoration: fieldDecoration('Search content', suffix: const Icon(Icons.search_rounded)),
+          decoration: fieldDecoration('Search content', suffix: Icon(Icons.search_rounded)),
         ),
       ),
       SizedBox(
         height: 52,
-        child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
-          ChoiceChip(label: const Text('All'), selected: _status == null, onSelected: (_) => setState(() => _status = null)),
+        child: ListView(scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
+          ChoiceChip(label: Text('All'), selected: _status == null, onSelected: (_) => setState(() => _status = null)),
           for (final s in PostStatus.filterable)
             Padding(
-              padding: const EdgeInsets.only(left: 8),
+              padding: EdgeInsets.only(left: 8),
               child: ChoiceChip(label: Text(s.label), selected: _status == s, onSelected: (_) => setState(() => _status = s)),
             ),
         ]),
@@ -63,7 +63,7 @@ class _ContentTabState extends ConsumerState<ContentTab> {
             return RefreshIndicator(
               onRefresh: () async => ref.invalidate(projectPostsProvider(q)),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 96),
                 children: [for (final p in list) PostTile(post: p)],
               ),
             );

@@ -97,12 +97,12 @@ class _CalendarGeneratorScreenState extends ConsumerState<CalendarGeneratorScree
     if (active != null) _prefillFromProject(active);
     if (widget.extendFrom == null && active != null && !_classic) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Generate calendar')),
+        appBar: AppBar(title: Text('Generate calendar')),
         body: AutopilotGenerator(project: active, onUseClassic: () => setState(() => _classic = true)),
       );
     }
     if (_generating) {
-      return const Scaffold(
+      return Scaffold(
         body: LoadingView(label: 'Writing your calendar…\nThis usually takes 30–90 seconds. Keep the app open.'),
       );
     }
@@ -122,35 +122,35 @@ class _CalendarGeneratorScreenState extends ConsumerState<CalendarGeneratorScree
           }
         },
         controlsBuilder: (context, d) => Padding(
-          padding: const EdgeInsets.only(top: 16),
+          padding: EdgeInsets.only(top: 16),
           child: Row(children: [
             ElevatedButton(onPressed: d.onStepContinue, child: Text(_step == 2 ? 'Generate' : 'Next')),
-            if (d.onStepCancel != null) TextButton(onPressed: d.onStepCancel, child: const Text('Back')),
+            if (d.onStepCancel != null) TextButton(onPressed: d.onStepCancel, child: Text('Back')),
           ]),
         ),
         steps: [
           Step(
-            title: const Text('Brand'),
+            title: Text('Brand'),
             isActive: _step >= 0,
             content: Column(children: [
               SegmentedButton<String>(
-                segments: const [
+                segments: [
                   ButtonSegment(value: 'company', label: Text('Business')),
                   ButtonSegment(value: 'personal', label: Text('Personal brand')),
                 ],
                 selected: {_c.calendarType},
                 onSelectionChanged: (s) => setState(() => _c.calendarType = s.first),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(controller: _brand, decoration: fieldDecoration('Brand name *')),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(controller: _industry, decoration: fieldDecoration('Industry *', hint: 'e.g. Boutique fitness')),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(controller: _audience, maxLines: 3, minLines: 1, decoration: fieldDecoration('Target audience *')),
             ]),
           ),
           Step(
-            title: const Text('Channels & cadence'),
+            title: Text('Channels & cadence'),
             isActive: _step >= 1,
             content: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Wrap(spacing: 8, runSpacing: 8, children: [
@@ -161,30 +161,30 @@ class _CalendarGeneratorScreenState extends ConsumerState<CalendarGeneratorScree
                     onSelected: (on) => setState(() => on ? _c.platforms.add(p) : _c.platforms.remove(p)),
                   ),
               ]),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: CalendarConfig.durationOptions.contains(_c.durationWords) ? _c.durationWords : null,
                 decoration: fieldDecoration('Duration'),
                 items: [for (final d in CalendarConfig.durationOptions) DropdownMenuItem(value: d, child: Text(d))],
                 onChanged: (v) => setState(() => _c.durationWords = v ?? _c.durationWords),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: CalendarConfig.frequencyOptions.contains(_c.frequency) ? _c.frequency : null,
                 decoration: fieldDecoration('Posting frequency'),
                 items: [for (final f in CalendarConfig.frequencyOptions) DropdownMenuItem(value: f, child: Text(f))],
                 onChanged: (v) => setState(() => _c.frequency = v ?? _c.frequency),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               OutlinedButton.icon(
-                icon: const Icon(Icons.event_rounded),
+                icon: Icon(Icons.event_rounded),
                 label: Text('Starts ${fmtDate(_c.startDate)}'),
                 onPressed: () async {
                   final d = await showDatePicker(
                     context: context,
                     initialDate: _c.startDate,
-                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    firstDate: DateTime.now().subtract(Duration(days: 1)),
+                    lastDate: DateTime.now().add(Duration(days: 365)),
                   );
                   if (d != null) setState(() => _c.startDate = d);
                 },
@@ -192,15 +192,15 @@ class _CalendarGeneratorScreenState extends ConsumerState<CalendarGeneratorScree
             ]),
           ),
           Step(
-            title: const Text('Strategy'),
+            title: Text('Strategy'),
             isActive: _step >= 2,
             content: Column(children: [
               TextField(controller: _pillars, decoration: fieldDecoration('Content pillars', helper: 'Comma separated')),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(controller: _voice, decoration: fieldDecoration('Brand voice')),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(controller: _goal, decoration: fieldDecoration('Engagement goal', hint: 'e.g. 50 trial sign-ups')),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(controller: _competitors, decoration: fieldDecoration('Competitors', helper: 'Comma separated, optional')),
             ]),
           ),
