@@ -169,7 +169,7 @@ export default function PayProductPage() {
             </div>
             <h3 className="font-bold text-zinc-950 dark:text-white text-base">Step 2: Signed Webhook Dispatch</h3>
             <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              180 Core Backend debits user wallet and immediately dispatches an HMAC SHA-256 signed webhook (<code className="text-emerald-500">X-180-Signature</code>) to your server.
+              180 Pay debits user wallet and immediately dispatches an HMAC SHA-256 signed webhook (<code className="text-emerald-500">X-180-Signature</code>) to your server.
             </p>
           </div>
 

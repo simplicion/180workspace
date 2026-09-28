@@ -717,7 +717,7 @@ export default function AppDetailPage() {
                 </span>
               </div>
               <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                1-Click Sovereign Wallet & UPI checkout popup. Dedicated 180 Core backend processes payments with 2-way verification.
+                1-Click Sovereign Wallet & UPI checkout popup. Dedicated 180 Pay engine processes payments with 2-way verification.
               </p>
             </div>
 
@@ -764,11 +764,11 @@ export default function AppDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] text-zinc-600 dark:text-zinc-400">
             <div className="p-3 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/5 space-y-1">
               <div className="font-bold text-zinc-900 dark:text-zinc-200">1. Verification Leg 1</div>
-              <div>Customer pays in 180 popup. Razorpay & 180 Core Backend confirm capture.</div>
+              <div>Customer pays in 180 popup. 180 Pay Gateway confirms instant capture.</div>
             </div>
             <div className="p-3 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/5 space-y-1">
               <div className="font-bold text-zinc-900 dark:text-zinc-200">2. Verification Leg 2</div>
-              <div>180 Core Backend dispatches signed webhook with <code className="text-emerald-500">X-180-Signature</code> to your server.</div>
+              <div>180 Platform dispatches signed webhook with <code className="text-emerald-500">X-180-Signature</code> to your server.</div>
             </div>
             <div className="p-3 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/5 space-y-1">
               <div className="font-bold text-zinc-900 dark:text-zinc-200">3. Fulfillment</div>

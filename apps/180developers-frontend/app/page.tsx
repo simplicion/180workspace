@@ -38,7 +38,7 @@ import {
   HelpIcon,
   AILogoIcon,
 } from '@workspace/ui';
-import { use180Identity } from '@workspace/identity-sdk';
+import { use180Identity, use180Pay } from '@workspace/identity-sdk';
 
 interface DeveloperApp {
   id: string;
@@ -106,12 +106,15 @@ export default function DeveloperPortalPage() {
   });
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 180 Identity SSO Hook
+  // 180 Identity & 180 Pay Hooks
   const { launch180Identity, isOpeningIdentity } = use180Identity();
+  const { launch180Pay, isOpeningPay } = use180Pay();
 
   // Landing Page Interactive Demo Modal State
   const [showDemoModal, setShowDemoModal] = useState(false);
-  const [demoStep, setDemoStep] = useState<'prompt' | 'authenticating' | 'verified'>('prompt');
+  const [demoActiveTab, setDemoActiveTab] = useState<'identity' | 'pay'>('identity');
+  const [demoAuthPayload, setDemoAuthPayload] = useState<any>(null);
+  const [demoPaymentResult, setDemoPaymentResult] = useState<any>(null);
   const [landingCodeTab, setLandingCodeTab] = useState<'nextauth' | 'pay' | 'webhook' | 'react' | 'node' | 'python' | 'flutter'>('nextauth');
 
   // Create App Modal State
@@ -536,21 +539,26 @@ export default function DeveloperPortalPage() {
 
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-700 dark:text-zinc-300 text-xs font-semibold tracking-wide">
             <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 animate-pulse" />
-            Agentic Infrastructure • Universal Identity & 1-Click Payments
+            <span>Sovereign Identity & 1-Click Payments for Modern Apps</span>
           </div>
 
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-zinc-950 dark:text-white leading-[1.1]">
-            Build on <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-zinc-900 dark:from-blue-400 dark:via-indigo-300 dark:to-white bg-clip-text text-transparent">180 Core</span>.
-            <br />
-            Identity, Payments & Agentic Infra.
+            Build with{' '}
+            <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-300 dark:to-purple-300 bg-clip-text text-transparent">
+              180 Identity
+            </span>{' '}
+            &{' '}
+            <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 dark:from-purple-400 dark:via-pink-300 dark:to-indigo-300 bg-clip-text text-transparent">
+              180 Pay
+            </span>.
           </h1>
 
           <p className="text-base sm:text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-            One universal Client ID powers <strong>180 Identity</strong> (1-tap WhatsApp OTP, Google SSO, RS256 JWKS) and <strong>180 Pay</strong> (1-click checkout popups, sovereign wallet settlements, and 2-way signed verification webhooks).
+            Authenticate users with 1-tap WhatsApp OTP and accept sovereign wallet payments in fewer than 35 lines of code. One universal Client ID powers your entire application ecosystem.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            {/* Primary Action: Get started with 180 Identity SSO Button */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            {/* Primary Action */}
             <Button
               onClick={() => launch180Identity(() => checkAuthAndFetchApps())}
               disabled={isOpeningIdentity}
@@ -560,14 +568,14 @@ export default function DeveloperPortalPage() {
               {isOpeningIdentity ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Connecting to 180 Core...</span>
+                  <span>Connecting with 180 Identity...</span>
                 </>
               ) : (
                 <>
                   <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
                     <span className="font-bold text-xs text-white">180</span>
                   </div>
-                  <span>Sign In with 180 ID</span>
+                  <span>Get Started with 180</span>
                   <ArrowRight className="w-4 h-4 text-blue-200" />
                 </>
               )}
@@ -579,33 +587,119 @@ export default function DeveloperPortalPage() {
               size="lg"
               onClick={() => {
                 setShowDemoModal(true);
-                setDemoStep('prompt');
+                setDemoActiveTab('identity');
               }}
               className="w-full sm:w-auto rounded-2xl px-8 py-4 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-zinc-800 dark:text-zinc-200 font-semibold text-base shadow-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Play className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Try Interactive Demo</span>
+              <span>Try Interactive Sandbox</span>
             </Button>
           </div>
+        </section>
 
-          {/* Quick Metrics Grid (Conforming to CSS Grid Rule in design-system.md) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-10 text-left">
-            <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 shadow-sm dark:shadow-none space-y-1 backdrop-blur-md">
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">RS256</div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">Asymmetric JWKS Keys</div>
-            </div>
-            <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 shadow-sm dark:shadow-none space-y-1 backdrop-blur-md">
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-purple-600 dark:text-purple-400">1-Click</div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">180 Pay Popup Checkout</div>
-            </div>
-            <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 shadow-sm dark:shadow-none space-y-1 backdrop-blur-md">
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">2-Way</div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">Signed Webhook Verification</div>
-            </div>
-            <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 shadow-sm dark:shadow-none space-y-1 backdrop-blur-md">
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-sky-600 dark:text-sky-400">Single ID</div>
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">Multi-Service Capabilities</div>
-            </div>
+        {/* ── THE 2 CORE DEVELOPER PRODUCTS (Clickable Product Cards) ──────────────── */}
+        <section className="max-w-5xl mx-auto space-y-6">
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
+              Two Sovereign Products. One Platform.
+            </h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto">
+              Choose the capability you need, or combine both under a single Client ID.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+            {/* Product Card 1: 180 Identity */}
+            <Link
+              href="/products/identity"
+              className="group rounded-3xl bg-white dark:bg-zinc-900/80 border border-zinc-200/90 dark:border-white/10 p-8 space-y-6 shadow-md hover:shadow-xl hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all duration-300 flex flex-col justify-between"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Shield className="w-6 h-6" />
+                  </div>
+                  <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                    OIDC 1.0 & OAuth 2.0 PKCE
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold text-zinc-950 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    180 Identity (Authentication & SSO)
+                  </h3>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 leading-relaxed">
+                    Universal single sign-on with 1-tap WhatsApp OTP and Google SSO. Verified users receive cryptographic RS256 JWKS tokens verified on your backend.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-zinc-100 dark:border-white/5 text-xs text-zinc-600 dark:text-zinc-300">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Passwordless 1-Tap WhatsApp OTP & Google SSO</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Sovereign Profile with custom @username</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Asymmetric RS256 JWKS token signing</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform">
+                <span>Explore 180 Identity</span>
+                <ArrowRight className="w-4 h-4" />
+              </div>
+            </Link>
+
+            {/* Product Card 2: 180 Pay */}
+            <Link
+              href="/products/pay"
+              className="group rounded-3xl bg-white dark:bg-zinc-900/80 border border-zinc-200/90 dark:border-white/10 p-8 space-y-6 shadow-md hover:shadow-xl hover:border-purple-500/50 dark:hover:border-purple-500/50 transition-all duration-300 flex flex-col justify-between"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-500/30 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <CreditCard className="w-6 h-6" />
+                  </div>
+                  <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
+                    1-Click Popup & Wallet
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold text-zinc-950 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                    180 Pay (1-Click Sovereign Payments)
+                  </h3>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 leading-relaxed">
+                    Frictionless checkout popup backed by the Sovereign Prepaid Wallet. Instant merchant payouts and 2-way cryptographically signed HMAC webhooks.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-zinc-100 dark:border-white/5 text-xs text-zinc-600 dark:text-zinc-300">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Instant Popup Checkout without gateway redirects</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Sovereign prepaid wallet balance deductions</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>2-Way Cryptographically Signed HMAC Webhooks</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs font-bold text-purple-600 dark:text-purple-400 group-hover:translate-x-1 transition-transform">
+                <span>Explore 180 Pay</span>
+                <ArrowRight className="w-4 h-4" />
+              </div>
+            </Link>
           </div>
         </section>
 
@@ -733,7 +827,7 @@ export const authOptions = {
 import { OneEightyPay } from '@workspace/identity-sdk';
 
 async function buyProduct() {
-  // Step 1: Create session on your backend via 180 Core Backend
+  // Step 1: Create session on your backend via 180 Pay API
   const res = await fetch('/api/create-checkout', {
     method: 'POST',
     body: JSON.stringify({ amount: 499, title: 'Pro Plan' })
@@ -850,93 +944,224 @@ Future<void> signInWith180() async {
           </div>
         </section>
 
-        {/* Feature Cards Grid (4 columns CSS Grid conforming to design-system.md) */}
-        <section className="space-y-6">
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
-              Why Developers Build on 180 Core
-            </h2>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">Everything you need for agentic infrastructure, auth, and sovereign checkouts</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
-            <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 space-y-3 backdrop-blur-md shadow-sm dark:shadow-none hover:border-blue-500/40 transition-all duration-300">
-              <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-zinc-950 border border-blue-100 dark:border-white/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <Shield className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-zinc-950 dark:text-white text-base">Sovereign Identity</h3>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                Users own their digital passport with custom @username, verified WhatsApp phone, and Google single sign-on.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 space-y-3 backdrop-blur-md shadow-sm dark:shadow-none hover:border-purple-500/40 transition-all duration-300">
-              <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-zinc-950 border border-purple-100 dark:border-white/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                <CreditCard className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-zinc-950 dark:text-white text-base">1-Click 180 Pay</h3>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                Seamless checkout popup backed by the Sovereign Wallet. Eliminate customer friction and drop-off.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 space-y-3 backdrop-blur-md shadow-sm dark:shadow-none hover:border-emerald-500/40 transition-all duration-300">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-zinc-950 border border-emerald-100 dark:border-white/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <Webhook className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-zinc-950 dark:text-white text-base">2-Way Webhooks</h3>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                Cryptographically signed HMAC SHA-256 webhooks for real-time payment confirmation and instant fulfillment.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 space-y-3 backdrop-blur-md shadow-sm dark:shadow-none hover:border-amber-500/40 transition-all duration-300">
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-zinc-950 border border-amber-100 dark:border-white/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <Zap className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-zinc-950 dark:text-white text-base">Single Client ID</h3>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                Toggle authentication and payments on or off per application dynamically with zero code changes.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Interactive Demo Modal */}
+        {/* ── HIGH-FIDELITY INTERACTIVE FEATURE SANDBOX MODAL ────────────────── */}
+        {/* ── HIGH-FIDELITY INTERACTIVE FEATURE SANDBOX MODAL ────────────────── */}
         <PlatformModal
           isOpen={showDemoModal}
           onClose={() => setShowDemoModal(false)}
-          title="180 Identity Live Demo"
-          icon={Play}
-          iconBgClass="bg-blue-500/10"
-          iconColorClass="text-blue-600 dark:text-blue-400"
-          maxWidthClass="max-w-md"
-        >
-          {demoStep === 'prompt' && (
-            <div className="space-y-4 text-center text-zinc-900 dark:text-white">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-zinc-900 border border-blue-100 dark:border-white/10 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center">
-                <Shield className="w-8 h-8" />
-              </div>
-              <div>
-                <h4 className="font-bold text-lg text-zinc-950 dark:text-white">Test the End-User Flow</h4>
-                <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
-                  Click below to launch the authentic 180 Identity sovereign authentication modal.
-                </p>
-              </div>
-              <Button
-                onClick={() => {
-                  launch180Identity(() => {
-                    setShowDemoModal(false);
-                    checkAuthAndFetchApps();
-                  });
-                }}
-                className="w-full py-3.5 min-h-[44px] rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>Launch 180 Identity Popup</span>
-                <ExternalLink className="w-4 h-4" />
-              </Button>
+          title={
+            <div className="flex items-center gap-2">
+              <span>Interactive Feature Sandbox</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                Live Testbed
+              </span>
             </div>
-          )}
+          }
+          icon={Play}
+          iconBgClass="bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30"
+          iconColorClass="text-blue-600 dark:text-blue-400"
+          maxWidthClass="max-w-xl"
+        >
+          <div className="space-y-6">
+            {/* Modal Feature Switcher Tab Bar */}
+            <div className="p-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-white/10 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setDemoActiveTab('identity')}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  demoActiveTab === 'identity'
+                    ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-sm border border-zinc-200/80 dark:border-white/10'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
+                }`}
+              >
+                <Shield className="w-4 h-4" />
+                <span>180 Identity (SSO)</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-mono">
+                  OIDC 1.0
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDemoActiveTab('pay')}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  demoActiveTab === 'pay'
+                    ? 'bg-white dark:bg-zinc-800 text-purple-600 dark:text-purple-400 shadow-sm border border-zinc-200/80 dark:border-white/10'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
+                }`}
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>180 Pay (Checkout)</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 font-mono">
+                  1-Click
+                </span>
+              </button>
+            </div>
+
+            {/* TAB 1: 180 IDENTITY TESTBED */}
+            {demoActiveTab === 'identity' && (
+              <div className="space-y-4 animate-in fade-in duration-200">
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/20 border border-blue-200/80 dark:border-blue-800/40 text-xs text-blue-950 dark:text-blue-200 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                    <span>Live Sovereign Authentication Flow</span>
+                  </p>
+                  <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                    Test the complete passwordless single sign-on experience. Users verify via 1-tap WhatsApp OTP or Google SSO, returning an authentic RS256 token payload.
+                  </p>
+                </div>
+
+                <div className="p-6 rounded-3xl bg-zinc-50/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-white/10 space-y-5 text-center shadow-xs">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white mx-auto flex items-center justify-center shadow-lg shadow-blue-600/30">
+                    <Shield className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-base text-zinc-950 dark:text-white">
+                      Single Sign-On Authentication
+                    </h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      Simulated Client ID:{' '}
+                      <code className="font-mono text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900/40">
+                        180-developer-portal
+                      </code>
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => {
+                      launch180Identity({
+                        clientId: '180-developer-portal',
+                        onSuccess: (res) => {
+                          setDemoAuthPayload(res);
+                          toast.success(`Verified: ${res.user?.name || res.user?.phone || '180 User'}`);
+                        },
+                      });
+                    }}
+                    disabled={isOpeningIdentity}
+                    className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/25 active:scale-98 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                  >
+                    {isOpeningIdentity ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Opening Sovereign Modal...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="w-4 h-4" />
+                        <span>Launch Live 180 Identity Popup</span>
+                        <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Returned Payload Box */}
+                {demoAuthPayload && (
+                  <div className="p-4 rounded-2xl bg-zinc-950 border border-emerald-500/40 space-y-2.5 text-left animate-in fade-in zoom-in-95 duration-200 shadow-xl">
+                    <div className="flex items-center justify-between text-xs text-emerald-400 font-bold">
+                      <span className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Authenticated Claims Decoded
+                      </span>
+                      <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                        RS256 Verified
+                      </span>
+                    </div>
+                    <pre className="text-[11px] font-mono text-zinc-300 overflow-x-auto p-3 bg-black/70 rounded-xl max-h-48 custom-scrollbar border border-white/5">
+                      {JSON.stringify(demoAuthPayload, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: 180 PAY TESTBED */}
+            {demoActiveTab === 'pay' && (
+              <div className="space-y-4 animate-in fade-in duration-200">
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-50/80 to-pink-50/50 dark:from-purple-950/30 dark:to-pink-950/20 border border-purple-200/80 dark:border-purple-800/40 text-xs text-purple-950 dark:text-purple-200 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                    <span>Live 1-Click Sovereign Payment Flow</span>
+                  </p>
+                  <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                    Experience frictionless checkout. Balances deduct instantly from the user's sovereign prepaid wallet with cryptographic webhook dispatch.
+                  </p>
+                </div>
+
+                {/* Mock Purchase Item Card */}
+                <div className="p-6 rounded-3xl bg-zinc-50/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-white/10 space-y-5 shadow-xs">
+                  <div className="flex items-center justify-between pb-4 border-b border-zinc-200/80 dark:border-white/10">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold border border-purple-200 dark:border-purple-900/40">
+                        <CreditCard className="w-6 h-6" />
+                      </div>
+                      <div className="text-left">
+                        <h4 className="font-bold text-sm text-zinc-950 dark:text-white">
+                          Developer Pro License
+                        </h4>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                          Universal Scope & Webhook Dispatch
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-extrabold text-base text-zinc-950 dark:text-white">₹499.00</div>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                        1-Click Ready
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={() => {
+                      launch180Pay({
+                        sessionId: 'sess_sandbox_' + Math.random().toString(36).substring(2, 8),
+                        amount: 499.0,
+                        currency: 'INR',
+                        title: 'Developer Pro License',
+                        description: 'Interactive Sandbox Sovereign Checkout',
+                        onSuccess: (res) => {
+                          setDemoPaymentResult(res);
+                          toast.success(`Payment Captured! ID: ${res.transactionId || 'tx_demo'}`);
+                        },
+                      });
+                    }}
+                    disabled={isOpeningPay}
+                    className="w-full py-4 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-lg shadow-purple-600/25 active:scale-98 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                  >
+                    {isOpeningPay ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Opening 180 Pay Popup...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4" />
+                        <span>Test 1-Click Sovereign Checkout (₹499)</span>
+                        <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Returned Payment Result Box */}
+                {demoPaymentResult && (
+                  <div className="p-4 rounded-2xl bg-zinc-950 border border-purple-500/40 space-y-2.5 text-left animate-in fade-in zoom-in-95 duration-200 shadow-xl">
+                    <div className="flex items-center justify-between text-xs text-purple-400 font-bold">
+                      <span className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-purple-400" /> Webhook Event: payment.captured
+                      </span>
+                      <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">
+                        HMAC-SHA256 Signed
+                      </span>
+                    </div>
+                    <pre className="text-[11px] font-mono text-zinc-300 overflow-x-auto p-3 bg-black/70 rounded-xl max-h-48 custom-scrollbar border border-white/5">
+                      {JSON.stringify(demoPaymentResult, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </PlatformModal>
       </div>
     );

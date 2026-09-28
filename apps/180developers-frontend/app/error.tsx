@@ -34,7 +34,7 @@ export default function ErrorBoundary({
             Portal Rendering Error
           </h1>
           <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            {error?.message || 'An unexpected error occurred while communicating with the 180 Core Backend.'}
+            {error?.message || 'An unexpected error occurred while communicating with 180 Developer Services.'}
           </p>
         </div>
 

@@ -4,23 +4,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Terminal,
   Code2,
   Menu,
   X,
   Shield,
   CreditCard,
   ChevronDown,
-  Layers,
-  Sparkles,
-  Plus,
   LogOut,
-  User,
-  Key,
-  Play,
-  CheckCircle2,
   ArrowRight,
-  ExternalLink,
+  Terminal,
 } from 'lucide-react';
 import { AILogoIcon, Button } from '@workspace/ui';
 import { use180Identity } from '@workspace/identity-sdk';
@@ -56,7 +48,6 @@ export default function Navbar() {
         if (storedUser) {
           setUserProfile(JSON.parse(storedUser));
         } else {
-          // Decode payload from token
           const parts = token.split('.');
           if (parts.length === 3) {
             const payload = JSON.parse(atob(parts[1]));
@@ -93,14 +84,12 @@ export default function Navbar() {
     };
   }, [pathname]);
 
-  // Close menus on route change
   useEffect(() => {
     setMobileMenuOpen(false);
     setProductsDropdownOpen(false);
     setUserDropdownOpen(false);
   }, [pathname]);
 
-  // Click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -135,58 +124,50 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200/80 dark:border-white/10 bg-white/90 dark:bg-black/85 backdrop-blur-xl transition-colors duration-200 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Left: Brand & Primary Navigation */}
-        <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+        {/* Left: Clean Brand Logo */}
+        <div className="flex items-center gap-6 shrink-0">
           <Link href="/" className="flex items-center gap-3 group min-h-[44px] shrink-0">
-            <div className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-[1px] shadow-xs group-hover:scale-105 transition-all duration-300 shrink-0">
+            <div className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-[1px] shadow-xs group-hover:scale-105 transition-all duration-300 shrink-0">
               <div className="w-full h-full bg-white dark:bg-[#101012] rounded-xl flex items-center justify-center p-1.5">
-                <AILogoIcon className="w-5 h-5 min-w-[20px] min-h-[20px] max-w-[20px] max-h-[20px] text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300 shrink-0" />
+                <AILogoIcon className="w-5 h-5 min-w-[20px] min-h-[20px] text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300 shrink-0" />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-base tracking-tight text-zinc-950 dark:text-white flex items-center">
-                180<span className="text-blue-600 dark:text-blue-400 font-semibold ml-0.5">Developers</span>
-              </span>
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800 rounded-full tracking-wider uppercase">
-                PLATFORM
-              </span>
-            </div>
+            <span className="font-bold text-base tracking-tight text-zinc-950 dark:text-white flex items-center">
+              180<span className="text-blue-600 dark:text-blue-400 font-semibold ml-0.5">Developers</span>
+            </span>
           </Link>
+        </div>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 bg-zinc-100/90 dark:bg-zinc-900/90 p-1 rounded-2xl border border-zinc-200/70 dark:border-white/10 shadow-xs">
-            {/* 1. Applications / Console Link */}
-            <Link
-              href="/"
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center gap-2 min-h-[34px] cursor-pointer ${
-                pathname === '/'
-                  ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/60 dark:border-white/10 font-bold'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'
+        {/* Center: Clean, Modern Tech Navigation Links */}
+        <nav className="hidden md:flex items-center gap-6 text-sm font-semibold">
+          {/* 1. Products Hover / Click Dropdown */}
+          <div
+            className="relative"
+            ref={dropdownRef}
+            onMouseEnter={() => setProductsDropdownOpen(true)}
+            onMouseLeave={() => setProductsDropdownOpen(false)}
+          >
+            <button
+              type="button"
+              onClick={() => setProductsDropdownOpen(!productsDropdownOpen)}
+              className={`flex items-center gap-1.5 py-2 transition-colors cursor-pointer ${
+                isProductsActive || productsDropdownOpen
+                  ? 'text-blue-600 dark:text-blue-400 font-bold'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
               }`}
             >
-              <Terminal className={`w-3.5 h-3.5 ${pathname === '/' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`} />
-              <span>{isAuthenticated ? 'Console' : 'Overview'}</span>
-            </Link>
-
-            {/* 2. Products Dropdown Trigger */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                type="button"
-                onClick={() => setProductsDropdownOpen(!productsDropdownOpen)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 min-h-[34px] cursor-pointer ${
-                  isProductsActive || productsDropdownOpen
-                    ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/60 dark:border-white/10 font-bold'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'
+              <span>Products</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                  productsDropdownOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : 'opacity-60'
                 }`}
-              >
-                <Layers className={`w-3.5 h-3.5 ${isProductsActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`} />
-                <span>Products</span>
-                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${productsDropdownOpen ? 'rotate-180 text-zinc-950 dark:text-white' : 'opacity-60'}`} />
-              </button>
+              />
+            </button>
 
-              {/* Products Floating Dropdown */}
-              {productsDropdownOpen && (
-                <div className="absolute top-full left-0 mt-2 w-80 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/10 shadow-2xl p-2.5 space-y-1.5 z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+            {/* Products Floating Dropdown */}
+            {productsDropdownOpen && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-80 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/10 shadow-2xl p-2.5 space-y-1.5 backdrop-blur-xl">
                   <Link
                     href="/products/identity"
                     onClick={() => setProductsDropdownOpen(false)}
@@ -229,74 +210,57 @@ export default function Navbar() {
                     </div>
                   </Link>
                 </div>
-              )}
-            </div>
-
-            {/* 3. Docs & SDKs Link */}
-            <Link
-              href="/docs"
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center gap-2 min-h-[34px] cursor-pointer ${
-                pathname === '/docs'
-                  ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs border border-zinc-200/60 dark:border-white/10 font-bold'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'
-              }`}
-            >
-              <Code2 className={`w-3.5 h-3.5 ${pathname === '/docs' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`} />
-              <span>Docs & SDKs</span>
-            </Link>
-          </nav>
-        </div>
-
-        {/* Right: Status, Theme, and Authentication Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Live System Indicator */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>180 Core Live</span>
+              </div>
+            )}
           </div>
 
-          {/* Theme Toggle (Light / Obsidian Dark) */}
+          {/* 2. Docs Link */}
+          <Link
+            href="/docs"
+            className={`py-2 transition-colors ${
+              pathname === '/docs'
+                ? 'text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
+            }`}
+          >
+            <span>Docs</span>
+          </Link>
+        </nav>
+
+        {/* Right: Theme Toggle & Single Action Button */}
+        <div className="flex items-center gap-3">
+          {/* Theme Toggle */}
           <ThemeToggle />
 
-          {/* ─────────────────────────────────────────────────────────────────
-              AUTH ACTIONS: Sign In / Create App (Dynamic State)
-             ───────────────────────────────────────────────────────────────── */}
+          {/* Action Button: Dashboard if logged in, Get Started if not */}
           {isAuthenticated ? (
             <div className="flex items-center gap-2" ref={userDropdownRef}>
-              {/* Quick Action: Register App */}
-              <button
-                type="button"
-                onClick={() => {
-                  window.dispatchEvent(new Event('180_OPEN_CREATE_APP_MODAL'));
-                }}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all active:scale-95 cursor-pointer min-h-[38px]"
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all active:scale-95 cursor-pointer min-h-[38px]"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>New App</span>
-              </button>
+                <Terminal className="w-3.5 h-3.5" />
+                <span>Dashboard</span>
+              </Link>
 
-              {/* User Profile Pill & Dropdown */}
+              {/* User Dropdown */}
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 hover:bg-zinc-200/70 dark:hover:bg-zinc-800 transition-all cursor-pointer min-h-[38px]"
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 hover:bg-zinc-200/70 dark:hover:bg-zinc-800 transition-all cursor-pointer min-h-[38px]"
                 >
                   <div className="w-6 h-6 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
                     {(userProfile?.name || userProfile?.email || 'D')[0].toUpperCase()}
                   </div>
-                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-200 max-w-[120px] truncate hidden sm:inline">
-                    {userProfile?.username ? `@${userProfile.username}` : userProfile?.name || 'Developer'}
-                  </span>
                   <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* Profile Floating Menu */}
                 {userDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/10 shadow-2xl p-2 space-y-1 z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
-                    <div className="px-3 py-2.5 border-b border-zinc-100 dark:border-white/10">
+                  <div className="absolute right-0 top-full mt-2 w-60 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/10 shadow-2xl p-2 space-y-1 z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-2 border-b border-zinc-100 dark:border-white/10">
                       <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">
-                        {userProfile?.name || '180 Developer'}
+                        {userProfile?.name || 'Developer'}
                       </p>
                       <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
                         {userProfile?.email || 'Sovereign Account'}
@@ -309,7 +273,7 @@ export default function Navbar() {
                       className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
                     >
                       <Terminal className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span>My Applications</span>
+                      <span>Applications Dashboard</span>
                     </Link>
 
                     <Link
@@ -318,7 +282,7 @@ export default function Navbar() {
                       className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
                     >
                       <Code2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                      <span>Documentation & SDKs</span>
+                      <span>Documentation</span>
                     </Link>
 
                     <button
@@ -334,23 +298,18 @@ export default function Navbar() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => launch180Identity(() => checkAuth())}
-                disabled={isOpeningIdentity}
-                size="sm"
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer min-h-[38px]"
-              >
-                <div className="w-4 h-4 rounded bg-white/20 flex items-center justify-center font-bold text-[10px] text-white">
-                  180
-                </div>
-                <span>{isOpeningIdentity ? 'Connecting...' : 'Sign In / Register'}</span>
-                <ArrowRight className="w-3.5 h-3.5 opacity-80" />
-              </Button>
-            </div>
+            <Button
+              onClick={() => launch180Identity(() => checkAuth())}
+              disabled={isOpeningIdentity}
+              size="sm"
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer min-h-[38px]"
+            >
+              <span>{isOpeningIdentity ? 'Connecting...' : 'Get Started with 180'}</span>
+              <ArrowRight className="w-3.5 h-3.5 opacity-80" />
+            </Button>
           )}
 
-          {/* Mobile Hamburger Menu Toggle */}
+          {/* Mobile Hamburger Toggle */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -366,21 +325,7 @@ export default function Navbar() {
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-black/95 px-4 pt-3 pb-6 space-y-3 backdrop-blur-2xl shadow-xl animate-in slide-in-from-top-2 duration-200">
-          <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all min-h-[44px] ${
-              pathname === '/'
-                ? 'text-zinc-950 dark:text-white bg-zinc-100 dark:bg-white/10 font-bold border border-zinc-200/80 dark:border-white/10'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/5'
-            }`}
-          >
-            <Terminal className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <span>{isAuthenticated ? 'Developer Console' : 'Overview & Apps'}</span>
-          </Link>
-
-          {/* Mobile Products Group */}
-          <div className="space-y-1 pt-1 border-t border-zinc-200 dark:border-white/10">
+          <div className="space-y-1">
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider px-4">
               Products
             </span>
@@ -415,19 +360,21 @@ export default function Navbar() {
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 min-h-[44px]"
           >
             <Code2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <span>Docs & SDKs</span>
+            <span>Docs</span>
           </Link>
 
           {/* Auth Action on Mobile */}
           <div className="pt-3 border-t border-zinc-200 dark:border-white/10">
             {isAuthenticated ? (
               <div className="space-y-2">
-                <div className="flex items-center justify-between px-4 py-2 bg-zinc-100 dark:bg-zinc-900 rounded-xl">
-                  <span className="text-xs font-bold text-zinc-900 dark:text-white truncate">
-                    {userProfile?.name || 'Developer'}
-                  </span>
-                  <span className="text-[10px] text-emerald-600 font-semibold">Active Session</span>
-                </div>
+                <Link
+                  href="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md"
+                >
+                  <Terminal className="w-4 h-4" />
+                  <span>Open Dashboard</span>
+                </Link>
                 <button
                   type="button"
                   onClick={handleSignOut}
@@ -446,7 +393,7 @@ export default function Navbar() {
                 disabled={isOpeningIdentity}
                 className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2"
               >
-                <span>Sign In with 180 Identity</span>
+                <span>Get Started with 180</span>
                 <ArrowRight className="w-4 h-4" />
               </Button>
             )}
