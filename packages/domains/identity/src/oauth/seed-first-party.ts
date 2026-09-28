@@ -122,6 +122,7 @@ export const FIRST_PARTY_APPS = [
         description: 'Enterprise Edge Traffic Router, Safe-Page Cloaker & Click Armor',
         redirectUris: [
             'http://localhost:3000/callback',
+            'http://localhost:3006/callback',
             'http://localhost:3009/callback',
             'http://localhost:3002/callback',
             'https://trafficdirector.180workspace.com/callback',
@@ -129,6 +130,8 @@ export const FIRST_PARTY_APPS = [
         ],
         allowedOrigins: [
             'http://localhost:3000',
+            'http://localhost:3006',
+            'http://127.0.0.1:3006',
             'http://localhost:3009',
             'http://127.0.0.1:3009',
             'http://localhost:3002',
