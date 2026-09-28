@@ -157,8 +157,33 @@ export default function DeveloperPortalPage() {
         setTimeout(() => checkAuthAndFetchApps(), 300);
       }
     };
+
+    const handleOpenCreateModal = () => {
+      let token = localStorage.getItem('platform_auth_token')
+        || localStorage.getItem('auth_token')
+        || localStorage.getItem('token');
+      if (token) {
+        setShowCreateModal(true);
+      } else {
+        launch180Identity(() => checkAuthAndFetchApps());
+      }
+    };
+
+    const handleSignoutEvent = () => {
+      setIsAuthenticated(false);
+      setApps([]);
+      setUserProfile(null);
+    };
+
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener('180_OPEN_CREATE_APP_MODAL', handleOpenCreateModal);
+    window.addEventListener('180_SIGNOUT', handleSignoutEvent);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('180_OPEN_CREATE_APP_MODAL', handleOpenCreateModal);
+      window.removeEventListener('180_SIGNOUT', handleSignoutEvent);
+    };
   }, []);
 
   const getApiBase = () => {
@@ -580,6 +605,50 @@ export default function DeveloperPortalPage() {
             <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 shadow-sm dark:shadow-none space-y-1 backdrop-blur-md">
               <div className="text-2xl sm:text-3xl font-bold tracking-tight text-sky-600 dark:text-sky-400">Single ID</div>
               <div className="text-xs text-zinc-500 dark:text-zinc-400">Multi-Service Capabilities</div>
+            </div>
+          </div>
+        </section>
+
+        {/* 3-Step Developer Workflow Section */}
+        <section className="max-w-4xl mx-auto space-y-8">
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
+              Go Live in 3 Simple Steps
+            </h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto">
+              Everything you need to add Sovereign Identity and 1-Click Payments to your application.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 space-y-3 relative group hover:border-blue-500/40 transition-all">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-sm border border-blue-200 dark:border-blue-800">
+                01
+              </div>
+              <h3 className="font-bold text-zinc-950 dark:text-white text-base">Create Account & App</h3>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                Sign in with 180 ID in 1-tap. Register your application to get your unique <strong>Client ID</strong> and <strong>Client Secret</strong>.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 space-y-3 relative group hover:border-purple-500/40 transition-all">
+              <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 font-bold flex items-center justify-center text-sm border border-purple-200 dark:border-purple-800">
+                02
+              </div>
+              <h3 className="font-bold text-zinc-950 dark:text-white text-base">Drop in the SDK or OIDC</h3>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                Install <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono text-[11px]">@workspace/identity-sdk</code> or connect via standard OpenID Connect in NextAuth, FastAPI, Node, or Flutter.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 space-y-3 relative group hover:border-emerald-500/40 transition-all">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center text-sm border border-emerald-200 dark:border-emerald-800">
+                03
+              </div>
+              <h3 className="font-bold text-zinc-950 dark:text-white text-base">Accept Logins & 180 Pay</h3>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                Users authenticate with WhatsApp OTP / Google SSO and pay in 1 click from their sovereign wallet with verified webhooks.
+              </p>
             </div>
           </div>
         </section>
