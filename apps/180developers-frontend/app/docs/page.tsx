@@ -104,7 +104,7 @@ export default function DeveloperDocsPage() {
               Zero-Download Integration Blueprint
             </h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Developers never need to download or copy bulky files. All heavy cryptographic operations run on 180 Core Backend.
+              Developers never need to download or copy bulky files. All heavy cryptographic operations run securely on 180 Platform Infrastructure.
             </p>
           </div>
         </div>
@@ -137,7 +137,7 @@ export default function DeveloperDocsPage() {
             </div>
             <h3 className="font-bold text-sm text-zinc-900 dark:text-white">Zero Gateway Friction</h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              100% of Razorpay & OTP gateway keys stay on 180 Core. Developers never configure Razorpay in their app.
+              100% of payment and OTP gateway infrastructure runs securely on 180 Platform. Developers never need to configure individual banking gateways.
             </p>
           </div>
         </div>
@@ -162,14 +162,14 @@ export default function DeveloperDocsPage() {
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-white/5 font-mono text-zinc-700 dark:text-zinc-300">
               <tr>
-                <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">180 Core Backend</td>
+                <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">180 Identity & Payments API</td>
                 <td className="py-3 px-5 text-purple-600 dark:text-purple-400">:4003</td>
-                <td className="py-3 px-5 text-blue-600 dark:text-blue-400">services.180workspace.com</td>
-                <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">OAuth2/OIDC Engine, Sovereign Double-Entry Ledger, Razorpay Keys, Webhook Dispatcher</td>
+                <td className="py-3 px-5 text-blue-600 dark:text-blue-400">api.180workspace.com</td>
+                <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">OAuth2/OIDC Engine, Sovereign Double-Entry Ledger, Payment Processing, Webhook Dispatcher</td>
               </tr>
               <tr>
                 <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">180 Developer Portal</td>
-                <td className="py-3 px-5 text-purple-600 dark:text-purple-400">:3010</td>
+                <td className="py-3 px-5 text-purple-600 dark:text-purple-400">:3008</td>
                 <td className="py-3 px-5 text-blue-600 dark:text-blue-400">developers.180workspace.com</td>
                 <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">App Registration, Client Credentials, Capability Toggles, Webhook Tester</td>
               </tr>
