@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 
 const rootDir = path.resolve(__dirname, '..');
@@ -145,6 +145,7 @@ function printBanner() {
   console.log('  pnpm dev:core-backend    (Runs 180 Core Backend on :4003)');
   console.log('  pnpm dev:profile         (Runs 180 Profile Frontend on :3009)');
   console.log('  pnpm dev:developers      (Runs 180 Developer Portal on :3008)');
+  console.log('  pnpm dev:traffic         (Runs 180 Traffic Director on :3006)');
   console.log('  pnpm dev:flutter         (Runs 180 Social Studio Flutter on :3007)');
   console.log('  pnpm dev:backend         (Runs Main Backend on :4002)');
   console.log('  pnpm dev:frontend        (Runs Web Platform on :3002)');
@@ -178,7 +179,7 @@ function runSingleApp(key) {
 }
 
 function runAllApps(includeMobile = true) {
-  console.log(BOLD + 'Starting ALL workspace platform apps in parallel via Turborepo...' + RESET);
+  console.log(BOLD + 'Starting ALL workspace platform apps in parallel...' + RESET);
   console.log('  [180-core-backend]      -> http://localhost:4003 (Identity, Wallet, 180 Pay & Payouts)');
   console.log('  [180-profile-frontend]  -> http://localhost:3009 (Universal Profile, Wallet & Popups)');
   console.log('  [180developers-frontend]-> http://localhost:3008 (180 Developer Portal)');
@@ -194,6 +195,9 @@ function runAllApps(includeMobile = true) {
   }
   console.log('\nPress Ctrl+C to terminate all servers.\n');
 
+  const runningChildren = [];
+
+  // 1. Launch Turborepo for all Web, Backend & Worker services
   const turboArgs = [
     'exec',
     'turbo',
@@ -212,28 +216,41 @@ function runAllApps(includeMobile = true) {
     '--filter=apps-docs',
   ];
 
-  if (includeMobile) {
-    turboArgs.push('--filter=social-studio-mobile');
-  }
-
-  const child = spawn('pnpm', turboArgs, {
+  const turboChild = spawn('pnpm', turboArgs, {
     cwd: rootDir,
     stdio: 'inherit',
     shell: true,
   });
+  runningChildren.push(turboChild);
+
+  // 2. Launch Flutter mobile in parallel if enabled
+  if (includeMobile) {
+    const flutterChild = spawn('flutter', ['run', '-d', 'chrome', '--web-port', '3007'], {
+      cwd: path.join(rootDir, 'apps', 'social-studio-mobile'),
+      stdio: 'inherit',
+      shell: true,
+    });
+    runningChildren.push(flutterChild);
+
+    flutterChild.on('error', (err) => {
+      console.warn('Flutter launch note:', err.message);
+    });
+  }
 
   const cleanup = () => {
-    try {
-      child.kill('SIGINT');
-    } catch {}
+    for (const child of runningChildren) {
+      try {
+        child.kill('SIGINT');
+      } catch (_) {}
+    }
     process.exit(0);
   };
 
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
 
-  child.on('exit', (code) => {
-    process.exit(code || 0);
+  turboChild.on('exit', (code) => {
+    cleanup();
   });
 }
 
@@ -256,4 +273,3 @@ if (!requestedApp || requestedApp === '' || requestedApp === 'all' || requestedA
   console.error(`Error: Unknown target "${rawArg}".\n`);
   process.exit(1);
 }
-
