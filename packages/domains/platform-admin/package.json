@@ -1,8 +1,8 @@
 {
   "name": "@workspace/platform-admin",
   "version": "1.0.0",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "dependencies": {
     "@workspace/db": "workspace:*",
     "@workspace/backend-infra": "workspace:*",
@@ -13,6 +13,8 @@
   },
   "scripts": {
     "build": "tsc"
+  },
+  "exports": {
+    ".": "./src/index.ts"
   }
 }
-
