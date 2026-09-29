@@ -68,7 +68,7 @@ class SplashScreen extends ConsumerWidget {
               ErrorView(error: session.error!, onRetry: () => ref.read(sessionProvider.notifier).retryRestore()),
               TextButton(onPressed: () => ref.read(sessionProvider.notifier).logout(), child: Text('Sign out')),
             ])
-          : LoadingView(label: 'Initializing 180 Manager...'),
+          : LoadingView(label: 'Initializing 180 Social Studio...'),
     );
   }
 }

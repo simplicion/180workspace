@@ -23,11 +23,11 @@ class FeatureLockView extends ConsumerWidget {
           ),
         LockReason.adminDisabled => (
             'Temporarily unavailable',
-            'The Social Media Manager has been disabled by the platform administrator. Please check back later.'
+            '180 Social Studio has been disabled by the platform administrator. Please check back later.'
           ),
         _ => (
-            'Social Media Manager is locked',
-            'Your workspace plan does not include the Social Media Manager. An administrator can enable it from the 180 Workspace billing hub.'
+            '180 Social Studio is locked',
+            'Your workspace plan does not include 180 Social Studio. An administrator can enable it from the 180 Workspace billing hub.'
           ),
       };
 
