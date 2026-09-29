@@ -29,11 +29,11 @@ import {
     regenerateAutopilotPiece,
     rowToPiece,
     runAutopilotPipeline,
-} from '@workspace/ai/dist/content/autopilot';
+} from '@workspace/ai/content/autopilot';
 // Deep import on purpose: the autopilot module only needs the AI kernel, not the whole @workspace/ai index
 // (which boots Redis-backed memory services on load).
 import * as SocialProjectModule from './social-project.service';
-import { AgentEventStore, createAgentRunEmitter, getDefaultAgentEventStore } from '@workspace/ai/dist/agent-runs';
+import { AgentEventStore, createAgentRunEmitter, getDefaultAgentEventStore } from '@workspace/ai/agent-runs';
 import { AgentMemoryService } from './agent-os/agent-memory';
 
 export type AutopilotJobStatus = 'queued' | 'running' | 'completed' | 'failed';

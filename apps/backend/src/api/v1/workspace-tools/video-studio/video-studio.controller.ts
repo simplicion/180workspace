@@ -28,7 +28,7 @@ export function setDirectorAgentOs(v: DirectorAgentOs | null) {
 }
 function directorAgentOs(): DirectorAgentOs {
   if (agentOsOverride) return agentOsOverride;
-  const runs = require("@workspace/ai/dist/agent-runs");
+  const runs = require("@workspace/ai/agent-runs");
   const { AgentMemoryService } = require("@workspace/social-media");
   const memory = new AgentMemoryService();
   return {

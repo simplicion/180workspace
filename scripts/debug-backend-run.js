@@ -8,7 +8,7 @@ const REGION = 'us-east-1';
 const PROFILE = 'simplicion';
 
 async function runSsm(commands) {
-  const tmpParamsFile = path.join(os.tmpdir(), `ssm_audit_${Date.now()}.json`);
+  const tmpParamsFile = path.join(os.tmpdir(), `ssm_debug_${Date.now()}.json`);
   fs.writeFileSync(tmpParamsFile, JSON.stringify({ commands }), 'utf-8');
 
   try {
@@ -18,7 +18,6 @@ async function runSsm(commands) {
     );
     const sendRes = JSON.parse(sendResRaw);
     const commandId = sendRes.Command.CommandId;
-    console.log(`Dispatched SSM Command: ${commandId}`);
 
     let status = 'Pending';
     let output = '';
@@ -52,14 +51,9 @@ async function runSsm(commands) {
 async function main() {
   const res = await runSsm([
     'cd /home/ubuntu/app',
-    'echo "=== PULLING LATEST CODE ==="',
-    'git pull origin main || true',
-    'echo "=== BUILDING DOCKER BACKEND ON EC2 ==="',
-    'docker build -t ghcr.io/simplicion/180workspace:latest -f Dockerfile .',
-    'echo "=== RECREATING BACKEND & WORKER CONTAINERS ==="',
-    'docker compose up -d --force-recreate backend worker',
-    'sleep 5',
-    'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+    'export GITHUB_REPOSITORY_LOWER=simplicion/180workspace',
+    'echo "=== RUNNING SERVER.JS MANUALLY ==="',
+    'docker compose run --rm --no-deps -T backend npx tsx server.js 2>&1 | head -n 50 | tr -cd "\\11\\12\\15\\40-\\176"'
   ]);
   console.log(res);
 }

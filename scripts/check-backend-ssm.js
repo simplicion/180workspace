@@ -7,18 +7,19 @@ const INSTANCE_ID = 'i-040592f78ef3ea179';
 const REGION = 'us-east-1';
 const PROFILE = 'simplicion';
 
+process.env.PYTHONIOENCODING = 'utf-8';
+
 async function runSsm(commands) {
-  const tmpParamsFile = path.join(os.tmpdir(), `ssm_audit_${Date.now()}.json`);
+  const tmpParamsFile = path.join(os.tmpdir(), `ssm_backend_${Date.now()}.json`);
   fs.writeFileSync(tmpParamsFile, JSON.stringify({ commands }), 'utf-8');
 
   try {
     const sendResRaw = execSync(
       `aws ssm send-command --instance-ids "${INSTANCE_ID}" --document-name "AWS-RunShellScript" --parameters "file://${tmpParamsFile}" --region ${REGION} --profile ${PROFILE} --output json`,
-      { encoding: 'utf-8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } }
+      { encoding: 'utf-8' }
     );
     const sendRes = JSON.parse(sendResRaw);
     const commandId = sendRes.Command.CommandId;
-    console.log(`Dispatched SSM Command: ${commandId}`);
 
     let status = 'Pending';
     let output = '';
@@ -27,12 +28,15 @@ async function runSsm(commands) {
       await new Promise(r => setTimeout(r, 2000));
       try {
         const checkCmd = `aws ssm get-command-invocation --command-id "${commandId}" --instance-id "${INSTANCE_ID}" --region ${REGION} --profile ${PROFILE} --output json`;
-        const checkRes = JSON.parse(execSync(checkCmd, { encoding: 'utf-8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } }));
+        const checkRes = JSON.parse(execSync(checkCmd, { encoding: 'utf-8' }));
         status = checkRes.Status;
         output = checkRes.StandardOutputContent || '';
         const errorOutput = checkRes.StandardErrorContent || '';
 
         if (status === 'Success') {
+          console.log('\n--- SSM OUTPUT ---');
+          console.log(Buffer.from(output).toString('utf-8'));
+          console.log('------------------\n');
           try { fs.unlinkSync(tmpParamsFile); } catch (_) {}
           return output;
         } else if (status === 'Failed' || status === 'Cancelled' || status === 'TimedOut') {
@@ -45,23 +49,10 @@ async function runSsm(commands) {
   } catch (err) {
     console.error('SSM invocation error:', err.message);
     try { fs.unlinkSync(tmpParamsFile); } catch (_) {}
-    return null;
   }
 }
 
-async function main() {
-  const res = await runSsm([
-    'cd /home/ubuntu/app',
-    'echo "=== PULLING LATEST CODE ==="',
-    'git pull origin main || true',
-    'echo "=== BUILDING DOCKER BACKEND ON EC2 ==="',
-    'docker build -t ghcr.io/simplicion/180workspace:latest -f Dockerfile .',
-    'echo "=== RECREATING BACKEND & WORKER CONTAINERS ==="',
-    'docker compose up -d --force-recreate backend worker',
-    'sleep 5',
-    'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
-  ]);
-  console.log(res);
-}
-
-main();
+runSsm([
+  'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"',
+  'docker logs 180workspace-backend --tail 30'
+]);
