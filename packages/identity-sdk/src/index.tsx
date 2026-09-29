@@ -808,7 +808,7 @@ export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = (
           : '0 2px 8px -1px rgba(37, 99, 235, 0.15), 0 1px 3px rgba(0, 0, 0, 0.04)',
       }}
     >
-      {/* ── Black Capricorn Logo Mark / Spinner ─────────────────────── */}
+      {/* ── Black Capricorn Logo Mark ─────────────────────────────── */}
       <div className={`
         relative shrink-0 w-7 h-7 rounded-lg
         border transition-all duration-200
@@ -818,21 +818,17 @@ export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = (
           : 'bg-slate-50 border-slate-200/70 group-hover:scale-105'
         }
       `}>
-        {isBusy ? (
-          <LoadingSpinner className="w-4 h-4 text-blue-600" />
-        ) : (
-          <img
-            src="/black icon.svg"
-            alt="180 Profile"
-            className="w-4 h-4 object-contain"
-            onError={(e) => {
-              const target = e.currentTarget as HTMLImageElement;
-              if (!target.src.includes('black-icon')) {
-                target.src = '/black-icon.svg';
-              }
-            }}
-          />
-        )}
+        <img
+          src="/black icon.svg"
+          alt="180 Profile"
+          className="w-4 h-4 object-contain"
+          onError={(e) => {
+            const target = e.currentTarget as HTMLImageElement;
+            if (!target.src.includes('black-icon')) {
+              target.src = '/black-icon.svg';
+            }
+          }}
+        />
         {/* Live Status Dot */}
         {!isBusy && (
           <span className="absolute -top-1 -right-1 flex h-2 w-2">
@@ -846,23 +842,9 @@ export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = (
       <div className="flex-1 text-left min-w-0">
         <div className="text-[13px] font-bold leading-tight tracking-[-0.01em] text-gray-900 flex items-center gap-1.5">
           {isProcessing ? (
-            <span className="flex items-center gap-1.5 text-blue-900">
-              <span>{processingText}</span>
-              <span className="inline-flex gap-0.5 items-center">
-                <span className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-1 h-1 bg-blue-600 rounded-full animate-bounce" />
-              </span>
-            </span>
+            <span className="text-blue-900">{processingText}</span>
           ) : isOpeningIdentity ? (
-            <span className="flex items-center gap-1.5 text-blue-900">
-              <span>{loadingText}</span>
-              <span className="inline-flex gap-0.5 items-center">
-                <span className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-1 h-1 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-1 h-1 bg-blue-600 rounded-full animate-bounce" />
-              </span>
-            </span>
+            <span className="text-blue-900">{loadingText}</span>
           ) : (
             text
           )}
@@ -872,7 +854,7 @@ export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = (
         </div>
       </div>
 
-      {/* ── Arrow / Spinner ─────────────────────────────────────────── */}
+      {/* ── Arrow / Single Loading Spinner ───────────────────────────── */}
       <div className={`
         shrink-0 w-5 h-5 rounded-full
         flex items-center justify-center
