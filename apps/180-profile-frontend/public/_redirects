@@ -1,0 +1,2 @@
+/api/* https://services.180workspace.com/api/:splat 200
+/oauth/* https://services.180workspace.com/oauth/:splat 200

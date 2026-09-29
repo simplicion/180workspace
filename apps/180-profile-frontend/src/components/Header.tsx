@@ -75,8 +75,13 @@ export function Header({ balance, user }: HeaderProps) {
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-6 lg:gap-8">
-          {/* Logo & Platform Name */}
-          <Link href="/" className="flex items-center gap-3 group min-h-[44px] shrink-0">
+          {/* Logo & Platform Name: Shown on mobile/tablet or when unauthenticated */}
+          <Link
+            href="/"
+            className={`flex items-center gap-3 group min-h-[44px] shrink-0 ${
+              user ? 'lg:hidden' : 'flex'
+            }`}
+          >
             <div className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[1px] shadow-xs shrink-0 overflow-hidden">
               <div className="w-full h-full bg-white rounded-xl flex items-center justify-center p-1.5 overflow-hidden">
                 <AILogoIcon className="w-5 h-5 min-w-[20px] min-h-[20px] max-w-[20px] max-h-[20px] text-blue-600 group-hover:scale-110 transition-transform duration-300 shrink-0" />
@@ -93,9 +98,30 @@ export function Header({ balance, user }: HeaderProps) {
             </div>
           </Link>
 
-          {/* Desktop 4 Main Navigation Tabs: ONLY VISIBLE WHEN LOGGED IN */}
+          {/* Desktop Breadcrumb: Only visible on desktop when sidebar handles navigation */}
           {user && (
-            <nav className="hidden md:flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 animate-in fade-in duration-200">
+            <div className="hidden lg:flex items-center gap-2 text-xs text-slate-500 font-medium select-none">
+              <Link href="/" className="hover:text-blue-600 transition-colors">180 Profile</Link>
+              <span className="text-slate-300">/</span>
+              <span className="font-bold text-slate-900">
+                {pathname === '/'
+                  ? 'Overview'
+                  : pathname === '/wallet'
+                  ? 'Wallet & Balance'
+                  : pathname === '/transactions'
+                  ? 'Transactions'
+                  : pathname === '/connected-apps'
+                  ? 'Connected Apps'
+                  : pathname === '/profile'
+                  ? 'Profile & Security'
+                  : 'Dashboard'}
+              </span>
+            </div>
+          )}
+
+          {/* Tablet 4 Main Navigation Tabs: Visible only on tablet (md:flex lg:hidden) */}
+          {user && (
+            <nav className="hidden md:flex lg:hidden items-center gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 animate-in fade-in duration-200">
               {navItems.map((item) => {
                 const isActive =
                   item.href === '/'

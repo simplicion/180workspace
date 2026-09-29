@@ -2,6 +2,10 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',
+  images: {
+    unoptimized: true,
+  },
   transpilePackages: ['@workspace/ui', '@workspace/identity-sdk'],
   reactStrictMode: true,
   poweredByHeader: false,
@@ -35,18 +39,6 @@ const nextConfig = {
     return config;
   },
   outputFileTracingRoot: path.join(__dirname, '../../'),
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
-        ],
-      },
-    ];
-  },
 };
 
 module.exports = nextConfig;

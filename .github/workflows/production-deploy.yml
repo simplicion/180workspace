@@ -75,15 +75,12 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm exec wrangler pages project create 180workspace-profile --production-branch=main || true
 
-      - name: Remove webpack cache (exceeds CF 25 MiB limit)
-        run: rm -rf apps/180-profile-frontend/.next/cache
-
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/180-profile-frontend/.next --project-name=180workspace-profile --branch=main --commit-dirty=true
+          command: pages deploy apps/180-profile-frontend/out --project-name=180workspace-profile --branch=main --commit-dirty=true
 
   deploy-developer-cloudflare:
     name: Deploy 180 Developer Portal to Cloudflare Pages
@@ -118,15 +115,52 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm exec wrangler pages project create 180workspace-developer --production-branch=main || true
 
-      - name: Remove webpack cache (exceeds CF 25 MiB limit)
-        run: rm -rf apps/180developers-frontend/.next/cache
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/180developers-frontend/out --project-name=180workspace-developer --branch=main --commit-dirty=true
+
+  deploy-traffic-director-cloudflare:
+    name: Deploy 180 Traffic Director to Cloudflare Pages
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Traffic Director
+        env:
+          NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
+        run: pnpm turbo run build --filter=traffic-director-web...
+
+      - name: Ensure Cloudflare Pages Project Exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler pages project create 180workspace-traffic --production-branch=main || true
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/180developers-frontend/.next --project-name=180workspace-developer --branch=main --commit-dirty=true
+          command: pages deploy apps/traffic-director-web/out --project-name=180workspace-traffic --branch=main --commit-dirty=true
 
   deploy-docs-cloudflare:
     name: Deploy 180 Documentation (docs.180workspace.com) to Cloudflare Pages
@@ -383,6 +417,7 @@ jobs:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CF_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TARGET_IP: ${{ secrets.EC2_HOST }}
         run: |
           node << 'EOF'
@@ -391,6 +426,7 @@ jobs:
           const token = process.env.CF_TOKEN;
           const key = process.env.CF_KEY;
           const email = process.env.CF_EMAIL;
+          const accountId = process.env.CF_ACCOUNT_ID;
           const targetIp = process.env.TARGET_IP;
 
           if (!targetIp) {
@@ -398,7 +434,7 @@ jobs:
             process.exit(1);
           }
 
-          console.log(`==> Synchronizing Cloudflare DNS to EC2 Host: ${targetIp}`);
+          console.log(`==> Synchronizing Cloudflare DNS & Pages to EC2 Host: ${targetIp}`);
 
           function cfRequest(path, method = 'GET', body = null) {
             return new Promise((resolve, reject) => {
@@ -442,12 +478,63 @@ jobs:
             const zoneId = zones[0].id;
             const records = await cfRequest(`/zones/${zoneId}/dns_records?per_page=100`);
 
+            // 1. Synchronize Cloudflare Pages Custom Domains & CNAMEs
+            const pagesProjects = [
+              { project: '180workspace-docs', domain: 'docs.180workspace.com' },
+              { project: '180workspace-profile', domain: 'profile.180workspace.com' },
+              { project: '180workspace-developer', domain: 'developers.180workspace.com' },
+              { project: '180workspace-traffic', domain: 'traffic.180workspace.com' }
+            ];
+
+            if (accountId) {
+              for (const p of pagesProjects) {
+                try {
+                  console.log(`==> Binding domain ${p.domain} to Pages project ${p.project}...`);
+                  await cfRequest(`/accounts/${accountId}/pages/projects/${p.project}/domains`, 'POST', { name: p.domain });
+                  console.log(`✓ Bound ${p.domain} to ${p.project}`);
+                } catch (e) {
+                  console.log(`Note for ${p.domain} binding on ${p.project}: ${e.message}`);
+                }
+              }
+            }
+
+            for (const p of pagesProjects) {
+              const targetCname = `${p.project}.pages.dev`;
+              const existing = records.find(r => r.name === p.domain);
+              if (existing) {
+                if (existing.type === 'CNAME' && existing.content === targetCname) {
+                  console.log(`✓ Record ${p.domain} already CNAME -> ${targetCname}`);
+                } else {
+                  console.log(`==> Updating ${p.domain} (${existing.type} -> CNAME ${targetCname})...`);
+                  await cfRequest(`/zones/${zoneId}/dns_records/${existing.id}`, 'PUT', {
+                    type: 'CNAME',
+                    name: p.domain,
+                    content: targetCname,
+                    proxied: true
+                  });
+                  console.log(`✓ Updated ${p.domain} -> CNAME ${targetCname}`);
+                }
+              } else {
+                console.log(`==> Creating CNAME for ${p.domain} -> ${targetCname}...`);
+                await cfRequest(`/zones/${zoneId}/dns_records`, 'POST', {
+                  type: 'CNAME',
+                  name: p.domain,
+                  content: targetCname,
+                  ttl: 1,
+                  proxied: true
+                });
+                console.log(`✓ Created CNAME ${p.domain} -> ${targetCname}`);
+              }
+            }
+
+            // 2. Synchronize EC2 Host A-Records
             const subdomainsToUpdate = [
               'api.180workspace.com',
               'services.180workspace.com',
-              'api.auth.180workspace.com',
               'app.180workspace.com',
               'admin.180workspace.com',
+              'auth.180workspace.com',
+              '180identity.180workspace.com',
               'livekit.180workspace.com',
               'cname.180workspace.com',
               '*.180workspace.com'
@@ -456,11 +543,11 @@ jobs:
             for (const sub of subdomainsToUpdate) {
               const existing = records.find(r => r.name === sub && (r.type === 'A' || r.type === 'CNAME'));
               if (existing) {
-                if (existing.content === targetIp) {
+                if (existing.type === 'A' && existing.content === targetIp) {
                   console.log(`✓ Record ${sub} already points to ${targetIp}`);
                 } else {
                   console.log(`==> Updating ${sub} from ${existing.content} to ${targetIp}...`);
-                  await cfRequest(`/zones/${zoneId}/dns_records/${existing.id}`, 'PATCH', {
+                  await cfRequest(`/zones/${zoneId}/dns_records/${existing.id}`, 'PUT', {
                     type: 'A',
                     name: sub,
                     content: targetIp,
@@ -481,7 +568,7 @@ jobs:
               }
             }
 
-            console.log('==> Cloudflare DNS is in sync with EC2.');
+            console.log('==> Cloudflare DNS & Pages are in sync.');
           }
 
           main().catch(err => {

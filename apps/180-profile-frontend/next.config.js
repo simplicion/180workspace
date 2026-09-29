@@ -1,8 +1,11 @@
 /** @type {import('next').NextConfig} */
+const isDev = process.env.NODE_ENV === 'development';
+
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@workspace/ui'],
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -31,20 +34,28 @@ const nextConfig = {
     }
     return config;
   },
-  async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_CORE_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4003';
-    return [
-      {
-        source: '/api/v1/:path*',
-        destination: `${backendUrl}/api/v1/:path*`,
-      },
-      {
-        source: '/api/oauth/:path*',
-        destination: `${backendUrl}/api/oauth/:path*`,
-      },
-    ];
-  },
+  ...(isDev
+    ? {
+        async rewrites() {
+          const backendUrl =
+            process.env.NEXT_PUBLIC_CORE_BACKEND_URL ||
+            process.env.NEXT_PUBLIC_BACKEND_URL ||
+            'http://localhost:4003';
+          return [
+            {
+              source: '/api/v1/:path*',
+              destination: `${backendUrl}/api/v1/:path*`,
+            },
+            {
+              source: '/api/oauth/:path*',
+              destination: `${backendUrl}/api/oauth/:path*`,
+            },
+          ];
+        },
+      }
+    : {
+        output: 'export',
+      }),
 };
 
 module.exports = nextConfig;
-
