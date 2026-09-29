@@ -103,11 +103,28 @@ export class OAuthController {
             }
 
             if (!app || !app.isActive) {
-                return res.status(400).json({ error: 'unauthorized_client', error_description: 'OAuth Application not found or inactive' });
+                return res.status(400).json({
+                    error: 'unauthorized_client',
+                    error_description: `OAuth Application with Client ID '${client_id}' was not found or is currently inactive.`,
+                    details: {
+                        type: 'CLIENT_NOT_FOUND',
+                        clientId: String(client_id),
+                        hint: `Verify that the Client ID matches an active application in your 180 Developer Portal.`
+                    }
+                });
             }
 
             if (app.enableAuth === false) {
-                return res.status(403).json({ error: 'unauthorized_client', error_description: '180 Identity Authentication is disabled for this application. Please enable it in your 180 Developer Portal.' });
+                return res.status(403).json({
+                    error: 'unauthorized_client',
+                    error_description: `180 Identity Authentication is disabled for application '${app.name}'.`,
+                    details: {
+                        type: 'AUTH_DISABLED',
+                        clientId: app.clientId,
+                        appName: app.name,
+                        hint: `Enable 180 Identity in the application settings under 180 Developer Portal.`
+                    }
+                });
             }
 
             // Redirect URI validation (RFC 9700 Open Redirector Defense)
@@ -127,7 +144,19 @@ export class OAuthController {
                     }
                 });
                 if (!isMatch) {
-                    return res.status(400).json({ error: 'invalid_request', error_description: 'Redirect URI is not registered for this application' });
+                    return res.status(400).json({
+                        error: 'invalid_request',
+                        error_description: `The redirect URI '${redirect_uri}' is not registered for application '${app.name || 'Application'}' (${app.clientId}).`,
+                        details: {
+                            type: 'REDIRECT_URI_MISMATCH',
+                            requestedUri: String(redirect_uri),
+                            appName: app.name,
+                            clientId: app.clientId,
+                            registeredUris: app.redirectUris || [],
+                            allowedOrigins: app.allowedOrigins || [],
+                            hint: `Add '${redirect_uri}' to the Allowed Redirect URIs list of '${app.name}' in your 180 Developer Portal.`
+                        }
+                    });
                 }
             }
 
@@ -163,7 +192,16 @@ export class OAuthController {
                 if (!isOriginMatch) {
                     return res.status(400).json({
                         error: 'unauthorized_client',
-                        error_description: `The JavaScript origin '${requestOrigin}' is not whitelisted for this application.`
+                        error_description: `The origin '${requestOrigin}' is not whitelisted for application '${app.name || 'Application'}' (${app.clientId}).`,
+                        details: {
+                            type: 'ORIGIN_MISMATCH',
+                            requestedOrigin: String(requestOrigin),
+                            appName: app.name,
+                            clientId: app.clientId,
+                            allowedOrigins: app.allowedOrigins || [],
+                            registeredUris: app.redirectUris || [],
+                            hint: `Add '${requestOrigin}' to the Allowed Origins list of '${app.name}' in your 180 Developer Portal.`
+                        }
                     });
                 }
             }
@@ -307,6 +345,39 @@ export class OAuthController {
 
             const targetRedirectUri = redirect_uri || (app.redirectUris.length > 0 ? app.redirectUris[0] : '');
             const requestedScopes = scope ? (Array.isArray(scope) ? scope : String(scope).split(' ').filter(Boolean)) : ['identity:read'];
+
+            // Validate redirect URI in submitConsent (RFC 9700 Open Redirector Defense)
+            if (redirect_uri && app.redirectUris && app.redirectUris.length > 0) {
+                const isMatch = app.redirectUris.some((uri: string) => {
+                    const cleanRegistered = uri.trim();
+                    const cleanTarget = String(redirect_uri).trim();
+                    if (cleanRegistered === '*') return true;
+                    if (cleanRegistered.toLowerCase() === cleanTarget.toLowerCase()) return true;
+                    try {
+                        const parsedRegistered = new URL(cleanRegistered);
+                        const parsedTarget = new URL(cleanTarget);
+                        return parsedRegistered.origin.toLowerCase() === parsedTarget.origin.toLowerCase() &&
+                               parsedRegistered.pathname === parsedTarget.pathname;
+                    } catch (e) {
+                        return false;
+                    }
+                });
+                if (!isMatch) {
+                    return res.status(400).json({
+                        error: 'invalid_request',
+                        error_description: `Redirect URI '${redirect_uri}' is not registered for application '${app.name || 'Application'}' (${app.clientId}).`,
+                        details: {
+                            type: 'REDIRECT_URI_MISMATCH',
+                            requestedUri: String(redirect_uri),
+                            appName: app.name,
+                            clientId: app.clientId,
+                            registeredUris: app.redirectUris || [],
+                            allowedOrigins: app.allowedOrigins || [],
+                            hint: `Add '${redirect_uri}' to the Allowed Redirect URIs list of '${app.name}' in your 180 Developer Portal.`
+                        }
+                    });
+                }
+            }
 
             // User denied access
             if (action === 'deny') {

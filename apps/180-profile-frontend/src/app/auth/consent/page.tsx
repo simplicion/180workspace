@@ -15,7 +15,7 @@ import {
   XCircle,
   ExternalLink,
 } from 'lucide-react';
-import { AILogoIcon, LogoLoader, Button } from '@workspace/ui';
+import { OAuthErrorCard, OAuthErrorDetails } from '@/components/auth/OAuthErrorCard';
 import { getCoreApiUrl } from '@/lib/api';
 
 const SCOPE_DESCRIPTIONS: Record<string, { title: string; description: string; icon: any }> = {
@@ -59,6 +59,11 @@ function ConsentForm() {
 
   const [loading, setLoading] = useState(true);
   const [authorizing, setAuthorizing] = useState(false);
+  const [oauthError, setOauthError] = useState<{
+    error: string;
+    errorDescription: string;
+    details?: OAuthErrorDetails;
+  } | null>(null);
   const [appInfo, setAppInfo] = useState<any>({
     name: 'Third-Party Application',
     clientId,
@@ -139,6 +144,11 @@ function ConsentForm() {
 
       const data = await res.json();
       if (!res.ok || !data.success || !data.code) {
+        setOauthError({
+          error: data.error || 'invalid_request',
+          errorDescription: data.error_description || data.message || 'Authorization failed: Invalid redirect URI or origin.',
+          details: data.details,
+        });
         throw new Error(data.error_description || data.message || 'Authorization failed');
       }
 
@@ -203,6 +213,19 @@ function ConsentForm() {
 
   return (
     <div className="w-full space-y-5 text-slate-900 font-sans relative">
+      {oauthError ? (
+        <OAuthErrorCard
+          error={oauthError.error}
+          errorDescription={oauthError.errorDescription}
+          details={oauthError.details}
+          onRetry={() => {
+            setOauthError(null);
+            handleAuthorize();
+          }}
+          onClose={() => setOauthError(null)}
+        />
+      ) : (
+        <>
       {/* Header / Brand Connection Visual */}
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center gap-3 pt-2">
@@ -324,6 +347,8 @@ function ConsentForm() {
         <Lock className="w-3 h-3 text-emerald-600" />
         <span>End-to-End Cryptographic RS256 Verification</span>
       </div>
+        </>
+      )}
     </div>
   );
 }
