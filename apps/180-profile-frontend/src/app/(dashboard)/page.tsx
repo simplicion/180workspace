@@ -218,20 +218,20 @@ export default function HomePage() {
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-mono">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-500 font-mono">
                 <span className="text-blue-700 font-bold font-sans">
                   @{user.username || (user.email ? user.email.split('@')[0] : 'user')}
                 </span>
-                <span>•</span>
-                <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-mono text-[11px] flex items-center gap-1.5">
-                  {user.id}
+                <span className="hidden sm:inline">•</span>
+                <span className="bg-slate-100 px-2 py-0.5 rounded-lg text-slate-700 font-mono text-[11px] flex items-center gap-1.5 max-w-full sm:max-w-none truncate">
+                  <span className="truncate">{user.id}</span>
                   <button
                     type="button"
                     onClick={handleCopyId}
-                    className="hover:text-blue-700 cursor-pointer"
+                    className="hover:text-blue-700 cursor-pointer shrink-0 p-0.5"
                     title="Copy Sovereign ID"
                   >
-                    {copiedId ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </span>
               </div>
@@ -243,11 +243,11 @@ export default function HomePage() {
           </div>
 
           {/* Actions */}
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
             <Button
               variant="outline"
               onClick={() => setIsEditModalOpen(true)}
-              className="min-h-[40px] px-4 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-2 text-xs font-semibold cursor-pointer"
+              className="flex-1 sm:flex-none min-h-[40px] px-4 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer shadow-2xs"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>Edit Profile</span>
@@ -256,7 +256,7 @@ export default function HomePage() {
             <Button
               variant="outline"
               onClick={() => setIsQRModalOpen(true)}
-              className="min-h-[40px] px-3.5 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+              className="min-h-[40px] px-3.5 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shadow-2xs"
               title="Pair Companion Device"
             >
               <QrCode className="w-4 h-4 text-blue-600" />
