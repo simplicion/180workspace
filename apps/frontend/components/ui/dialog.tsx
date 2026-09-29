@@ -130,7 +130,7 @@ export function DialogContent({
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className={clsx(
-              "relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-10 my-auto",
+              "relative w-full max-w-lg bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border border-gray-100 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 overflow-hidden z-10 my-auto",
               className
             )}
             onClick={(e) => e.stopPropagation()}
@@ -142,7 +142,7 @@ export function DialogContent({
                   onOpenChange(false);
                   onClose?.();
                 }}
-                className="absolute right-4 top-4 p-1.5 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors z-20"
+                className="absolute right-4 top-4 p-1.5 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors z-20"
                 aria-label="Close dialog"
               >
                 <X className="w-4 h-4" />
@@ -180,7 +180,7 @@ export function DialogTitle({
   className?: string;
 }) {
   return (
-    <h2 className={clsx("text-lg font-bold text-gray-900 tracking-tight", className)}>
+    <h2 className={clsx("text-lg font-bold text-gray-900 dark:text-zinc-100 tracking-tight", className)}>
       {children}
     </h2>
   );
@@ -194,7 +194,7 @@ export function DialogDescription({
   className?: string;
 }) {
   return (
-    <p className={clsx("text-xs text-gray-500 leading-relaxed", className)}>
+    <p className={clsx("text-xs text-gray-500 dark:text-zinc-400 leading-relaxed", className)}>
       {children}
     </p>
   );
@@ -208,7 +208,7 @@ export function DialogFooter({
   className?: string;
 }) {
   return (
-    <div className={clsx("px-6 py-4 bg-gray-50/70 border-t border-gray-100 flex items-center justify-end gap-2.5", className)}>
+    <div className={clsx("px-6 py-4 bg-gray-50/70 dark:bg-zinc-900/80 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-end gap-2.5", className)}>
       {children}
     </div>
   );

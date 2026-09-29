@@ -137,10 +137,10 @@ export function OfflineWall({
             </div>
 
             {/* Header Text */}
-            <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            <h2 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">
                 {featureName} Requires Live Connection
             </h2>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-md">
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed max-w-md">
                 {reason}
             </p>
 
@@ -158,9 +158,9 @@ export function OfflineWall({
             </div>
 
             {/* Recommended Offline Workflows */}
-            <div className="w-full mt-10 text-left border-t border-slate-200/80 dark:border-slate-800/80 pt-6">
+            <div className="w-full mt-10 text-left border-t border-zinc-200/80 dark:border-zinc-800/80 pt-6">
                 <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                         Available Offline Workflows
                     </span>
                     <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
@@ -175,17 +175,17 @@ export function OfflineWall({
                             <a
                                 key={idx}
                                 href={act.href}
-                                className="group p-3 rounded-xl bg-slate-50 hover:bg-white dark:bg-slate-900/60 dark:hover:bg-slate-800/80 border border-slate-200/70 hover:border-indigo-500/40 dark:border-slate-800 dark:hover:border-indigo-500/40 transition-all shadow-sm hover:shadow-md flex flex-col justify-between"
+                                className="group p-3 rounded-xl bg-zinc-50 hover:bg-white dark:bg-zinc-900/60 dark:hover:bg-zinc-800/80 border border-zinc-200/70 hover:border-indigo-500/40 dark:border-zinc-800 dark:hover:border-indigo-500/40 transition-all shadow-sm hover:shadow-md flex flex-col justify-between"
                             >
                                 <div>
                                     <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                                         <Icon className="w-4 h-4" />
                                     </div>
-                                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                    <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                         {act.label}
                                     </h4>
                                     {act.description && (
-                                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-snug">
+                                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2 leading-snug">
                                             {act.description}
                                         </p>
                                     )}
@@ -204,8 +204,8 @@ export function OfflineWall({
 
     if (fullScreen) {
         return (
-            <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 overflow-y-auto ${className}`}>
-                <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden my-auto">
+            <div className={`fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/80 backdrop-blur-md p-4 overflow-y-auto ${className}`}>
+                <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden my-auto">
                     {content}
                 </div>
             </div>
@@ -213,7 +213,7 @@ export function OfflineWall({
     }
 
     return (
-        <div className={`relative rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-950/95 shadow-sm min-h-[420px] flex items-center justify-center ${className}`}>
+        <div className={`relative rounded-3xl overflow-hidden border border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/95 shadow-sm min-h-[420px] flex items-center justify-center ${className}`}>
             {/* Background Content Blurred Layer */}
             {children && (
                 <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden opacity-40 filter blur-[4px] grayscale-[30%]">

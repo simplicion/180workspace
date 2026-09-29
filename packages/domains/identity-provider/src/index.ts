@@ -9,6 +9,7 @@ export * from './oauth/identity-auth.controller';
 export * from './oauth/seed-first-party';
 export * from './developer/developer.controller';
 export * from './otp/msg91-otp.service';
+export * from './otp/email-otp.service';
 export * from './user/location.service';
 export * from './user/username.service';
 export * from './wallet/identity-wallet.service';

@@ -75,13 +75,13 @@ export default function TimeProgressBar({
     if (compact) {
         return (
             <div className="flex items-center gap-2 w-full">
-                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="flex-1 h-1.5 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                     <div
                         className={clsx('h-full rounded-full transition-all duration-700', barColor)}
                         style={{ width: `${isDone ? 100 : pct}%` }}
                     />
                 </div>
-                <span className={clsx('text-[10px] font-bold whitespace-nowrap', isOverdue ? 'text-rose-500' : isDone ? 'text-emerald-600' : 'text-gray-400')}>
+                <span className={clsx('text-[10px] font-bold whitespace-nowrap', isOverdue ? 'text-rose-500' : isDone ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-zinc-500')}>
                     {isDone ? (completedOnTime ? '✓ On time' : '✓ Done') : remainingLabel}
                 </span>
             </div>
@@ -97,22 +97,22 @@ export default function TimeProgressBar({
                     ) : isOverdue ? (
                         <AlertTriangle className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
                     ) : (
-                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        <Clock className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
                     )}
-                    <span className={clsx('font-semibold', isOverdue ? 'text-rose-600' : isDone ? 'text-emerald-600' : 'text-gray-600')}>
+                    <span className={clsx('font-semibold', isOverdue ? 'text-rose-600' : isDone ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-zinc-300')}>
                         {isDone ? (completedOnTime ? '✅ Completed on time (+1 pt)' : '✅ Completed') : remainingLabel}
                     </span>
                 </div>
-                <span className="text-gray-400">Due {format(due, 'MMM d, hh:mm a')}</span>
+                <span className="text-gray-400 dark:text-zinc-500">Due {format(due, 'MMM d, hh:mm a')}</span>
             </div>
-            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                 <div
                     className={clsx('h-full rounded-full transition-all duration-700', barColor)}
                     style={{ width: `${isDone ? 100 : pct}%` }}
                 />
             </div>
             {estimatedHours ? (
-                <p className="text-[10px] text-gray-400">{estimatedHours}h estimated</p>
+                <p className="text-[10px] text-gray-400 dark:text-zinc-500">{estimatedHours}h estimated</p>
             ) : null}
         </div>
     );

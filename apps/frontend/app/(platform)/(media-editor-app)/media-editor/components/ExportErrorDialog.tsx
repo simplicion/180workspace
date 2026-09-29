@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, Download, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, RefreshCw, X } from "lucide-react";
 
 export interface ExportFailure {
   message: string;
@@ -40,16 +40,9 @@ export function ExportErrorDialog({
           </button>
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
-          {failure.blocked ? (
-            <a href="/download" target="_blank" rel="noreferrer"
-              className="flex min-h-[44px] items-center gap-2 rounded-xl px-4 text-sm text-zinc-200 hover:bg-white/5">
-              <Download className="h-4 w-4" /> Get the desktop app
-            </a>
-          ) : (
-            <button onClick={copyDetails} className="min-h-[44px] rounded-xl px-4 text-sm text-zinc-200 hover:bg-white/5">
-              Copy error details
-            </button>
-          )}
+          <button onClick={copyDetails} className="min-h-[44px] rounded-xl px-4 text-sm text-zinc-200 hover:bg-white/5">
+            Copy error details
+          </button>
           <button onClick={onRetry}
             className="flex min-h-[44px] items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-black hover:bg-zinc-200">
             <RefreshCw className="h-4 w-4" /> {failure.blocked ? "I changed it, export again" : "Try again"}

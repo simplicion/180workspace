@@ -142,7 +142,6 @@ export default function DedicatedWalletSettingsPage() {
 
   useEffect(() => {
     fetchWallet();
-    loadRazorpayScript().catch(() => {});
   }, []);
 
   useEffect(() => {

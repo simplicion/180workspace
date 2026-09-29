@@ -274,7 +274,7 @@ export default function DeveloperPortalPage() {
             <button
               type="button"
               disabled={isOpeningIdentity}
-              onClick={launch180Identity}
+              onClick={() => launch180Identity()}
               className="w-full sm:w-auto relative group overflow-hidden rounded-2xl p-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-600 shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
             >
               <div className="w-full bg-slate-950/95 group-hover:bg-slate-950/90 rounded-[14px] px-6 py-3.5 flex items-center justify-center gap-3 transition-colors">

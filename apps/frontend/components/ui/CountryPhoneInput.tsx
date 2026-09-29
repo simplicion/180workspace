@@ -412,7 +412,7 @@ export default function CountryPhoneInput({
           role="listbox"
         >
           {/* Search Header */}
-          <div className="p-2.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/90 dark:bg-zinc-850/90 backdrop-blur-sm sticky top-0 z-10 flex items-center gap-2">
+          <div className="p-2.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/90 dark:bg-zinc-900/90 backdrop-blur-sm sticky top-0 z-10 flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
               <input

@@ -1,6 +1,6 @@
 'use strict';
 
-import { developersPrisma as prisma } from '@workspace/db-180developers';
+import { developersPrisma as prisma } from '@workspace/db-180core';
 import { IdentityWalletService } from '../wallet/identity-wallet.service';
 
 export interface CreatePayoutInput {

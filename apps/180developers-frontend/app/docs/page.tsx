@@ -23,10 +23,10 @@ import {
   Server,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Button } from '@workspace/ui';
+import { Button, OneEightyAuthButton } from '@workspace/ui';
 
 export default function DeveloperDocsPage() {
-  const [activeTab, setActiveTab] = useState<'guide' | 'ai-prompt' | 'sdk' | 'pay' | 'webhooks' | 'nextauth' | 'node' | 'python' | 'flutter' | 'curl'>('guide');
+  const [activeTab, setActiveTab] = useState<'guide' | 'button' | 'redis' | 'ai-prompt' | 'sdk' | 'pay' | 'webhooks' | 'nextauth' | 'node' | 'python' | 'flutter' | 'curl'>('guide');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Playground state
@@ -265,6 +265,8 @@ export default function DeveloperDocsPage() {
             {(
               [
                 { id: 'guide', label: 'Overview' },
+                { id: 'button', label: 'Embeddable Button' },
+                { id: 'redis', label: 'Token Lifecycle & Redis' },
                 { id: 'pay', label: '180 Pay (Checkout)' },
                 { id: 'webhooks', label: 'Webhooks' },
                 { id: 'sdk', label: 'Drop-in JS' },
@@ -299,6 +301,10 @@ export default function DeveloperDocsPage() {
               <span className="ml-2 text-xs font-mono text-zinc-500">
                 {activeTab === 'guide'
                   ? 'integration-summary.ts'
+                  : activeTab === 'button'
+                  ? 'OneEightyAuthButton.tsx'
+                  : activeTab === 'redis'
+                  ? 'redis-session-manager.ts'
                   : activeTab === 'sdk'
                   ? 'index.html'
                   : activeTab === 'pay'
@@ -320,6 +326,8 @@ export default function DeveloperDocsPage() {
               onClick={() => {
                 let code = '';
                 if (activeTab === 'guide') code = integrationSummaryCode;
+                else if (activeTab === 'button') code = buttonCode;
+                else if (activeTab === 'redis') code = redisCode;
                 else if (activeTab === 'sdk') code = dropInJsCode;
                 else if (activeTab === 'pay') code = payCheckoutCode;
                 else if (activeTab === 'webhooks') code = webhookCode;
@@ -339,6 +347,8 @@ export default function DeveloperDocsPage() {
 
           <pre className="text-xs text-zinc-300 overflow-x-auto leading-relaxed font-mono">
             {activeTab === 'guide' && integrationSummaryCode}
+            {activeTab === 'button' && buttonCode}
+            {activeTab === 'redis' && redisCode}
             {activeTab === 'sdk' && dropInJsCode}
             {activeTab === 'pay' && payCheckoutCode}
             {activeTab === 'webhooks' && webhookCode}
@@ -459,6 +469,55 @@ export default function DeveloperDocsPage() {
               </div>
             </div>
           </div>
+
+          {/* Live Interactive Embeddable Button Preview */}
+          <div className="space-y-3 pt-6 border-t border-zinc-200 dark:border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <span>Interactive 180 Profile Button Preview</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                    Live Component
+                  </span>
+                </span>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  This is the exact official button developers can embed via React or standard &lt;script&gt; tag. Click it to test the popup modal!
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-white/10 flex flex-wrap items-center gap-6 justify-center sm:justify-start">
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Dark Variant</span>
+                <div>
+                  <OneEightyAuthButton
+                    clientId={testClientId}
+                    text="Get Started"
+                    variant="dark"
+                    scope={testScope}
+                    onSuccess={(code) => {
+                      toast.success(`Authenticated with 180 Profile! Code: ${code.slice(0, 10)}...`);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Light Variant</span>
+                <div>
+                  <OneEightyAuthButton
+                    clientId={testClientId}
+                    text="Sign up"
+                    variant="light"
+                    scope={testScope}
+                    onSuccess={(code) => {
+                      toast.success(`Authenticated with 180 Profile! Code: ${code.slice(0, 10)}...`);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </div>
@@ -551,6 +610,28 @@ export async function buyWith180Pay(amount: number) {
       window.location.href = '/dashboard/success';
     },
   });
+}`;
+
+const buttonCode = `// Embeddable 180 Workspace Auth Button
+import { OneEightyAuthButton } from '@workspace/ui';
+
+export function LoginWidget() {
+  return (
+    <OneEightyAuthButton
+      clientId={process.env.NEXT_PUBLIC_180_CLIENT_ID!}
+      text="Continue with 180"
+      variant="dark"
+      scope="openid identity:read identity:email identity:phone"
+      onSuccess={async (code) => {
+        await fetch('/api/auth/callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        window.location.reload();
+      }}
+    />
+  );
 }`;
 
 const payCheckoutCode = `// Frontend: Trigger 1-Click 180 Pay Sovereign Checkout Modal
@@ -789,4 +870,210 @@ curl -X POST https://services.180workspace.com/api/oauth/token \\
 
 # Step 2: Fetch Verified User Profile using Bearer Token
 curl -X GET https://services.180workspace.com/api/oauth/userinfo \\
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"`;
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"\`;
+
+const buttonCode = \`// ============================================================================
+// 180 Profile Embeddable Button (React / Next.js & Plain HTML)
+// ============================================================================
+
+// OPTION A: React / Next.js Component (from @workspace/ui)
+import { OneEightyAuthButton } from '@workspace/ui';
+
+export function AuthSection() {
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Dark Variant with 'Get Started' and gradient 'with 180 Profile' */}
+      <OneEightyAuthButton
+        clientId={process.env.NEXT_PUBLIC_180_CLIENT_ID!}
+        text="Get Started"
+        variant="dark"
+        scope="openid identity:read identity:email"
+        onSuccess={(code) => {
+          console.log('Authorization Code received:', code);
+          // Send code to your backend /api/auth/180-callback
+        }}
+      />
+
+      {/* Light Variant with custom label */}
+      <OneEightyAuthButton
+        clientId={process.env.NEXT_PUBLIC_180_CLIENT_ID!}
+        text="Sign up"
+        variant="light"
+        scope="openid identity:read identity:email"
+        onSuccess={(code) => {
+          window.location.href = '/api/auth/callback?code=' + code;
+        }}
+      />
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// OPTION B: Drop-in Vanilla JS (Works on any static HTML / PHP / Ruby site)
+// ----------------------------------------------------------------------------
+<!-- 1. Include the lightweight button script in <head> or before </body> -->
+<script src="https://developers.180workspace.com/sdk/180-auth-button.js" defer></script>
+
+<!-- 2. Drop the button element anywhere in your markup -->
+<div 
+  data-180-button 
+  data-client-id="YOUR_CLIENT_ID"
+  data-text="Get Started"
+  data-variant="dark"
+  data-scope="openid identity:read identity:email"
+></div>
+
+<!-- 3. Listen for the native success event -->
+<script>
+  window.addEventListener('180_AUTH_SUCCESS', function(e) {
+    const authCode = e.detail.code;
+    console.log('Authenticated! Authorization code:', authCode);
+    
+    // Send code to backend token exchange endpoint
+    fetch('/api/auth/180-callback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: authCode })
+    }).then(res => res.json()).then(data => {
+      window.location.href = '/dashboard';
+    });
+  });
+</script>`;
+
+const redisCode = `// ============================================================================
+// Token Lifecycle, Refresh Tokens & Redis Session Caching
+// Minimalist: Powered exclusively by ONE80_CLIENT_ID & ONE80_CLIENT_SECRET
+// ============================================================================
+
+import express from 'express';
+import { Redis } from 'ioredis';
+
+const app = express();
+app.use(express.json());
+
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
+// 1. Initial Login: Exchange Code & Cache in Redis
+app.post('/api/auth/180-callback', async (req, res) => {
+  const { code } = req.body;
+
+  try {
+    const tokenRes = await fetch('https://services.180workspace.com/api/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'authorization_code',
+        code,
+        client_id: process.env.ONE80_CLIENT_ID,
+        client_secret: process.env.ONE80_CLIENT_SECRET,
+      }),
+    });
+
+    const data = await tokenRes.json();
+    if (!tokenRes.ok) return res.status(400).json(data);
+
+    const { access_token, refresh_token, expires_in, user } = data;
+
+    // Cache Session in Redis with TTL matching JWT expiration (e.g. 1 hour)
+    const sessionKey = 'session:' + user.id;
+    await redis.set(
+      sessionKey,
+      JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        access_token,
+        refresh_token,
+        authenticatedAt: new Date().toISOString(),
+      }),
+      'EX',
+      expires_in || 3600
+    );
+
+    // Also index refresh token with a longer TTL (e.g. 30 days)
+    await redis.set('refresh_token:' + refresh_token, user.id, 'EX', 30 * 86400);
+
+    return res.json({ success: true, user, access_token });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Token Lifecycle & Auto-Refresh Middleware
+export async function authenticateSession(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+
+  const token = authHeader.split(' ')[1];
+
+  // Try Redis session cache first for fast 0ms offline validation
+  const userId = req.headers['x-user-id'] as string;
+  if (userId) {
+    const cachedSession = await redis.get('session:' + userId);
+    if (cachedSession) {
+      req.user = JSON.parse(cachedSession);
+      return next();
+    }
+  }
+
+  // If token expired, trigger Refresh Token Cycle seamlessly
+  const refreshToken = req.cookies?.['180_refresh_token'] || req.headers['x-refresh-token'];
+  if (refreshToken) {
+    const refreshed = await refreshAccessToken(refreshToken as string);
+    if (refreshed) {
+      res.setHeader('x-refreshed-token', refreshed.access_token);
+      req.user = refreshed.user;
+      return next();
+    }
+  }
+
+  return res.status(401).json({ error: 'Session expired. Please re-authenticate.' });
+}
+
+// 3. Background Refresh Token Rotator
+async function refreshAccessToken(refreshToken: string) {
+  const refreshRes = await fetch('https://services.180workspace.com/api/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: process.env.ONE80_CLIENT_ID,
+      client_secret: process.env.ONE80_CLIENT_SECRET,
+    }),
+  });
+
+  if (!refreshRes.ok) return null;
+  const data = await refreshRes.json();
+
+  // Update Redis cache with the newly issued access token
+  if (data.user?.id) {
+    await redis.set(
+      'session:' + data.user.id,
+      JSON.stringify({ ...data.user, access_token: data.access_token, refresh_token: data.refresh_token }),
+      'EX',
+      data.expires_in || 3600
+    );
+  }
+
+  return data;
+}
+
+// 4. Session Revocation / Logout (Purge from Redis & Invalidate on 180 Core)
+app.post('/api/auth/logout', async (req, res) => {
+  const { userId, refreshToken } = req.body;
+  if (userId) await redis.del('session:' + userId);
+  if (refreshToken) {
+    await redis.del('refresh_token:' + refreshToken);
+    await fetch('https://services.180workspace.com/api/oauth/revoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: refreshToken,
+        client_id: process.env.ONE80_CLIENT_ID,
+        client_secret: process.env.ONE80_CLIENT_SECRET,
+      }),
+    });
+  }
+  res.json({ success: true, message: 'Logged out cleanly.' });
+});`;

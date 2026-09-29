@@ -5,10 +5,11 @@
  * Re-exported from @workspace/ui for universal use across all 180 Workspace applications.
  */
 import { AICreditProgressWidget } from "@workspace/ui";
-export { AICreditProgressWidget, AI_CREDITS_SYNC_EVENT } from "@workspace/ui";
+export { AICreditProgressWidget, AI_CREDITS_SYNC_EVENT, AICreditDrawer, AI_CREDITS_DRAWER_OPEN_EVENT } from "@workspace/ui";
 export default AICreditProgressWidget;
 export type {
   AICreditProgressWidgetProps,
   AICreditAccountStatus,
   AICreditWidgetVariant,
+  AICreditDrawerProps,
 } from "@workspace/ui";

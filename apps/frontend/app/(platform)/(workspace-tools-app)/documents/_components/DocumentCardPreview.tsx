@@ -86,7 +86,7 @@ export function DocumentCardPreview({ doc, isSelected, onToggleSelect }: Documen
     const isHR = rawType.toLowerCase().includes('offer') || rawType.toLowerCase().includes('warning') || rawType.toLowerCase().includes('letter') || rawType.toLowerCase().includes('hr');
 
     return (
-        <div className="relative w-full aspect-[16/11] bg-slate-100 dark:bg-slate-800/60 rounded-t-2xl border-b border-gray-200/70 flex items-center justify-center p-2.5 overflow-hidden select-none group/preview">
+        <div className="relative w-full aspect-[16/11] bg-zinc-100 dark:bg-zinc-900/80 rounded-t-2xl border-b border-zinc-200/70 dark:border-zinc-800 flex items-center justify-center p-2.5 overflow-hidden select-none group/preview">
 
             {/* Top Left: Category Badge */}
             <div className="absolute top-2.5 left-2.5 z-20">

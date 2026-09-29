@@ -151,11 +151,11 @@
   }
 
   .btn-secondary {
-    @apply btn bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 active:scale-95;
+    @apply btn bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-200 border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800 hover:text-gray-900 dark:hover:text-white active:scale-95 transition-all;
   }
 
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700 active:scale-95;
+    @apply btn bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500 active:scale-95;
   }
 
   .card {
@@ -171,7 +171,7 @@
   }
 
   .input {
-    @apply w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder-gray-400;
+    @apply w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-500/30 focus:border-indigo-500 dark:focus:border-indigo-500 transition-all;
   }
 
   /* Global validation styles */
@@ -181,12 +181,12 @@
   .show-errors input:invalid,
   .show-errors select:invalid,
   .show-errors textarea:invalid {
-    @apply !border-red-500 !text-red-900 !bg-red-50/50 focus:!border-red-500 focus:!ring-red-500/20;
+    @apply !border-red-500 !text-red-900 dark:!text-red-200 !bg-red-50/50 dark:!bg-red-950/30 focus:!border-red-500 focus:!ring-red-500/20;
   }
 
   .show-errors .input:invalid:not(:focus),
   .show-errors input:invalid:not(:focus) {
-    @apply !bg-red-50/50;
+    @apply !bg-red-50/50 dark:!bg-red-950/30;
   }
 
   .textarea {
@@ -194,7 +194,7 @@
   }
 
   .label {
-    @apply block text-sm font-medium text-gray-700 mb-1.5;
+    @apply block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1.5;
   }
 
   .select {
@@ -206,27 +206,27 @@
   }
 
   .badge-green {
-    @apply badge bg-emerald-100 text-emerald-700;
+    @apply badge bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-transparent dark:border-emerald-800/60;
   }
 
   .badge-blue {
-    @apply badge bg-blue-100 text-blue-700;
+    @apply badge bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-transparent dark:border-blue-800/60;
   }
 
   .badge-orange {
-    @apply badge bg-orange-100 text-orange-700;
+    @apply badge bg-orange-100 dark:bg-orange-950/70 text-orange-700 dark:text-orange-300 border border-transparent dark:border-orange-800/60;
   }
 
   .badge-red {
-    @apply badge bg-red-100 text-red-700;
+    @apply badge bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-300 border border-transparent dark:border-red-800/60;
   }
 
   .badge-gray {
-    @apply badge bg-gray-100 text-gray-700;
+    @apply badge bg-gray-100 dark:bg-zinc-800/80 text-gray-700 dark:text-zinc-300 border border-transparent dark:border-zinc-700/60;
   }
 
   .badge-purple {
-    @apply badge bg-purple-100 text-purple-700;
+    @apply badge bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-transparent dark:border-purple-800/60;
   }
 
   .stat-card {
@@ -238,11 +238,11 @@
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-primary transition-all duration-150;
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-900/80 hover:text-primary dark:hover:text-zinc-100 transition-all duration-150;
   }
 
   .sidebar-link.active {
-    @apply bg-gray-100 text-primary;
+    @apply bg-gray-100 dark:bg-zinc-800/80 text-primary dark:text-zinc-100 font-semibold;
   }
 
   .page-header {
@@ -250,7 +250,7 @@
   }
 
   .page-title {
-    @apply text-2xl font-bold text-gray-900;
+    @apply text-2xl font-bold text-gray-900 dark:text-zinc-100;
   }
 
   /* Global invisible scrollbar utilities */
@@ -273,31 +273,31 @@
 }
 
   .page-subtitle {
-    @apply text-sm text-gray-500 mt-1;
+    @apply text-sm text-gray-500 dark:text-zinc-400 mt-1;
   }
 
   .table-wrapper {
-    @apply overflow-x-auto rounded-xl border border-gray-100;
+    @apply overflow-x-auto rounded-xl border border-gray-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/60;
   }
 
   .table {
-    @apply w-full text-sm;
+    @apply w-full text-sm text-gray-900 dark:text-zinc-100;
   }
 
   .table th {
-    @apply px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50;
+    @apply px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider bg-gray-50 dark:bg-zinc-900/90 border-b border-gray-100 dark:border-zinc-800;
   }
 
   .table td {
-    @apply px-4 py-3 border-t border-gray-50 text-gray-700;
+    @apply px-4 py-3 border-t border-gray-50 dark:border-zinc-800/60 text-gray-700 dark:text-zinc-300;
   }
 
   .table tr:hover td {
-    @apply bg-gray-50/70;
+    @apply bg-gray-50/70 dark:bg-zinc-800/50;
   }
 
   .form-label {
-    @apply block text-sm font-semibold text-gray-800 mb-2 mt-4 tracking-wide;
+    @apply block text-sm font-semibold text-gray-800 dark:text-zinc-200 mb-2 mt-4 tracking-wide;
   }
 }
 
@@ -313,7 +313,7 @@
   }
 
   .glass {
-    @apply bg-white/70 dark:bg-gray-900/60 backdrop-blur-2xl border border-white/50 dark:border-gray-800/50 shadow-sm transition-colors duration-300;
+    @apply backdrop-blur-md bg-white/70 dark:bg-black/70 border border-white/40 dark:border-white/10 shadow-sm transition-colors duration-300;
   }
 }
 

@@ -209,13 +209,13 @@ Acknowledge these instructions and tell the user you are ready for their require
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl shadow-xl overflow-hidden flex flex-col max-h-[88vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl w-full max-w-4xl shadow-xl overflow-hidden flex flex-col max-h-[88vh]">
                 
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 flex items-center justify-center border border-blue-100 dark:border-blue-900/50 shadow-2xs">
+                        <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/50 shadow-2xs">
                             <Code2 className="w-5 h-5" />
                         </div>
                         <div>
@@ -223,11 +223,11 @@ Acknowledge these instructions and tell the user you are ready for their require
                                 <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                                     Document JSON Schema
                                 </h3>
-                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60">
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
                                     Live Sync
                                 </span>
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                            <p className="text-xs text-gray-500 dark:text-zinc-400">
                                 View document structure, copy AI prompt template, or paste JSON to update the canvas.
                             </p>
                         </div>
@@ -235,15 +235,15 @@ Acknowledge these instructions and tell the user you are ready for their require
 
                     <div className="flex items-center gap-2">
                         {/* Tab Switcher */}
-                        <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
+                        <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-xl text-xs font-semibold">
                             <button
                                 type="button"
                                 onClick={() => setActiveTab('editor')}
                                 className={clsx(
                                     "px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5",
                                     activeTab === 'editor' 
-                                        ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs" 
-                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                                        ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-2xs" 
+                                        : "text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200"
                                 )}
                             >
                                 <FileCode2 className="w-3.5 h-3.5" /> Raw JSON
@@ -254,8 +254,8 @@ Acknowledge these instructions and tell the user you are ready for their require
                                 className={clsx(
                                     "px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5",
                                     activeTab === 'ai_prompt' 
-                                        ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs" 
-                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                                        ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-2xs" 
+                                        : "text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200"
                                 )}
                             >
                                 <Bot className="w-3.5 h-3.5" /> AI Prompt Template
@@ -264,7 +264,7 @@ Acknowledge these instructions and tell the user you are ready for their require
 
                         <button
                             onClick={onClose}
-                            className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors ml-1"
+                            className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors ml-1"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -272,28 +272,28 @@ Acknowledge these instructions and tell the user you are ready for their require
                 </div>
 
                 {/* Body Content */}
-                <div className="flex-1 overflow-hidden flex flex-col p-6 space-y-3 bg-gray-50/50 dark:bg-slate-900/50">
+                <div className="flex-1 overflow-hidden flex flex-col p-6 space-y-3 bg-gray-50/50 dark:bg-zinc-950/50">
                     {activeTab === 'editor' ? (
                         <>
                             {/* Toolbar */}
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-gray-500 dark:text-gray-400 font-medium">
+                                <span className="text-gray-500 dark:text-zinc-400 font-medium">
                                     Document Payload ({blocks.length} elements)
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
                                         onClick={handleFormatJson}
-                                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-gray-50 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-700 font-medium flex items-center gap-1.5 shadow-2xs transition-colors"
+                                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700 font-medium flex items-center gap-1.5 shadow-2xs transition-colors"
                                     >
                                         <RefreshCw className="w-3.5 h-3.5" /> Prettify
                                     </button>
                                     <button
                                         type="button"
                                         onClick={handleCopyJson}
-                                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-gray-50 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-700 font-medium flex items-center gap-1.5 shadow-2xs transition-colors"
+                                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700 font-medium flex items-center gap-1.5 shadow-2xs transition-colors"
                                     >
-                                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                                         {copied ? 'Copied' : 'Copy JSON'}
                                     </button>
                                 </div>
@@ -311,45 +311,45 @@ Acknowledge these instructions and tell the user you are ready for their require
                             )}
 
                             {/* Code Area */}
-                            <div className="flex-1 relative rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-950 shadow-inner">
+                            <div className="flex-1 relative rounded-xl border border-gray-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-950 shadow-inner">
                                 <textarea
                                     value={jsonText}
                                     onChange={(e) => {
                                         setJsonText(e.target.value);
                                     }}
-                                    className="w-full h-full min-h-[380px] p-4 bg-transparent text-gray-800 dark:text-gray-200 font-mono text-xs leading-relaxed outline-none resize-none focus:ring-1 focus:ring-blue-500 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                                    className="w-full h-full min-h-[380px] p-4 bg-transparent text-gray-800 dark:text-zinc-200 font-mono text-xs leading-relaxed outline-none resize-none focus:ring-1 focus:ring-indigo-500 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
                                     spellCheck={false}
                                     placeholder="Paste document JSON schema here..."
                                 />
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-4 text-gray-700 dark:text-gray-300 text-xs">
-                            <div className="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-xl space-y-1.5">
-                                <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300 font-bold text-xs">
-                                    <Sparkles className="w-4 h-4 text-blue-600" />
+                        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-4 text-gray-700 dark:text-zinc-300 text-xs">
+                            <div className="p-4 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-xl space-y-1.5">
+                                <div className="flex items-center gap-2 text-indigo-800 dark:text-indigo-300 font-bold text-xs">
+                                    <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                                     How to generate documents with ChatGPT / Claude
                                 </div>
-                                <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-xs">
+                                <p className="text-gray-600 dark:text-zinc-400 leading-relaxed text-xs">
                                     Copy the structured prompt below and paste it into ChatGPT, Claude, or any AI assistant. The AI will output valid JSON that you can paste directly into the <b>Raw JSON</b> tab.
                                 </p>
                             </div>
 
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider text-[11px]">
+                                    <span className="font-bold text-gray-600 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
                                         Ready-to-use Master Prompt
                                     </span>
                                     <button
                                         type="button"
                                         onClick={handleCopyAiPrompt}
-                                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1.5 transition-all shadow-sm shadow-blue-600/20 active:scale-98"
+                                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-1.5 transition-all shadow-sm shadow-indigo-600/20 active:scale-98"
                                     >
                                         {copiedPrompt ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                                         {copiedPrompt ? 'Copied!' : 'Copy AI Prompt'}
                                     </button>
                                 </div>
-                                <pre className="p-4 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl font-mono text-[11px] text-gray-700 dark:text-gray-300 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] leading-relaxed max-h-[320px]">
+                                <pre className="p-4 bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl font-mono text-[11px] text-gray-700 dark:text-zinc-300 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] leading-relaxed max-h-[320px]">
 {`You are an expert AI business & legal document generator for the "180 Workspace Document Editor". 
 Your task is to generate a complete, professional document in a strict JSON format based on the user's requirements.
 
@@ -387,8 +387,8 @@ Acknowledge these instructions and tell the user you are ready for their require
                 </div>
 
                 {/* Footer Controls */}
-                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-                    <span className="text-[11px] text-gray-500">
+                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <span className="text-[11px] text-gray-500 dark:text-zinc-400">
                         {activeTab === 'editor' ? 'Paste valid document JSON schema to update the canvas.' : 'Generate document JSON with AI and paste it into the Raw JSON tab.'}
                     </span>
 
@@ -396,7 +396,7 @@ Acknowledge these instructions and tell the user you are ready for their require
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                            className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                         >
                             Cancel
                         </button>
@@ -405,7 +405,7 @@ Acknowledge these instructions and tell the user you are ready for their require
                                 type="button"
                                 onClick={handleApplyJson}
                                 disabled={!!parseError}
-                                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white flex items-center gap-2 transition-all shadow-sm shadow-blue-600/20 active:scale-95"
+                                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white flex items-center gap-2 transition-all shadow-sm shadow-indigo-600/20 active:scale-95"
                             >
                                 <Play className="w-3.5 h-3.5 fill-current" />
                                 Apply & Render to Canvas
@@ -414,7 +414,7 @@ Acknowledge these instructions and tell the user you are ready for their require
                             <button
                                 type="button"
                                 onClick={handleCopyAiPrompt}
-                                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 transition-all shadow-sm shadow-blue-600/20 active:scale-95"
+                                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 transition-all shadow-sm shadow-indigo-600/20 active:scale-95"
                             >
                                 <Copy className="w-3.5 h-3.5" />
                                 Copy AI Prompt

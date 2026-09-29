@@ -18,7 +18,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
   const [username, setUsername] = useState(user.username || '');
   const [email, setEmail] = useState(user.email || '');
   const [phone, setPhone] = useState(user.phone || '');
-  const [dob, setDob] = useState(user.dob || '1998-05-14');
+  const [dob, setDob] = useState(user.dob || '');
 
   // Step 1: Form, Step 2: OTP Verification
   const [step, setStep] = useState<'FORM' | 'OTP'>('FORM');
@@ -111,7 +111,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
       maxWidthClass="max-w-lg"
     >
       {step === 'FORM' ? (
-        <form onSubmit={handleSubmit} className="space-y-5 text-xs text-slate-700 pt-1">
+        <form onSubmit={handleSubmit} className="space-y-5 text-xs text-slate-700 pt-1 font-sans">
           <p className="text-slate-500 text-xs">
             Update your identity across all 180 Workspace apps. Changing contact details requires OTP verification.
           </p>
@@ -123,7 +123,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3.5 py-2.5 min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-purple-500/30"
+                className="w-full px-3.5 py-2.5 min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
                 required
               />
             </div>
@@ -136,7 +136,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                  className="w-full pl-7 pr-3.5 py-2.5 min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-purple-500/30"
+                  className="w-full pl-7 pr-3.5 py-2.5 min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
                   required
                 />
               </div>
@@ -148,7 +148,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3.5 py-2.5 min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-purple-500/30"
+                className="w-full px-3.5 py-2.5 min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
                 required
               />
             </div>
@@ -159,7 +159,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-purple-500/30"
+                className="w-full px-3.5 py-2.5 min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
                 required
               />
             </div>
@@ -170,13 +170,13 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
                 type="date"
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
-                className="w-full px-3.5 py-2.5 min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-purple-500/30"
+                className="w-full px-3.5 py-2.5 min-h-[40px] rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
               />
             </div>
           </div>
 
           {isSensitiveChange && (
-            <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 flex items-start gap-2.5 text-xs">
+            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-start gap-2.5 text-xs">
               <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
               <span>Contact changes require a quick 6-digit OTP sent to your WhatsApp number.</span>
             </div>
@@ -186,16 +186,16 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
             <Button variant="ghost" onClick={onClose} disabled={saving} className="min-h-[40px] cursor-pointer">
               Cancel
             </Button>
-            <Button variant="default" type="submit" disabled={saving} className="min-h-[40px] bg-purple-600 hover:bg-purple-700 text-white cursor-pointer flex items-center gap-2">
+            <Button variant="default" type="submit" disabled={saving} className="min-h-[40px] bg-blue-600 hover:bg-blue-700 text-white cursor-pointer flex items-center gap-2 shadow-md shadow-blue-600/20">
               {saving ? <LogoLoader size={16} className="w-4 h-4 text-white" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
               <span>{isSensitiveChange ? 'Continue to OTP Verification' : 'Save Changes'}</span>
             </Button>
           </div>
         </form>
       ) : (
-        <form onSubmit={handleVerifyOtpAndSave} className="space-y-5 text-xs text-slate-700 pt-1">
+        <form onSubmit={handleVerifyOtpAndSave} className="space-y-5 text-xs text-slate-700 pt-1 font-sans">
           <div className="text-center space-y-1">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-200 text-purple-600 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center mx-auto">
               <Lock className="w-6 h-6" />
             </div>
             <h3 className="text-sm font-bold text-slate-900">Enter 6-Digit Verification Code</h3>
@@ -209,7 +209,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
               placeholder="••••••"
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 min-h-[48px] text-center tracking-[0.4em] text-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 min-h-[48px] text-center tracking-[0.4em] text-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
               required
               autoFocus
             />
@@ -217,7 +217,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
               <button
                 type="button"
                 onClick={() => setStep('FORM')}
-                className="text-purple-600 font-semibold hover:underline cursor-pointer"
+                className="text-blue-600 font-semibold hover:underline cursor-pointer"
               >
                 ← Edit details
               </button>
@@ -229,7 +229,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
             <Button variant="ghost" onClick={onClose} disabled={saving} className="min-h-[40px] cursor-pointer">
               Cancel
             </Button>
-            <Button variant="default" type="submit" disabled={saving || otp.length < 6} className="min-h-[40px] bg-purple-600 hover:bg-purple-700 text-white cursor-pointer flex items-center gap-2">
+            <Button variant="default" type="submit" disabled={saving || otp.length < 6} className="min-h-[40px] bg-blue-600 hover:bg-blue-700 text-white cursor-pointer flex items-center gap-2 shadow-md shadow-blue-600/20">
               {saving ? <LogoLoader size={16} className="w-4 h-4 text-white" /> : <ShieldCheck className="w-4 h-4" />}
               <span>Verify & Save Profile</span>
             </Button>

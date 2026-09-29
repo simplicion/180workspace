@@ -58,24 +58,24 @@ export default function UniversalShareSheet({ isOpen, onClose, title = "Share", 
               onClick={option.action}
               className="flex flex-col items-center gap-2 group"
             >
-              <div className="w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
+              <div className="w-12 h-12 rounded-full bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 flex items-center justify-center group-hover:bg-indigo-50 dark:group-hover:bg-zinc-800 group-hover:border-indigo-100 dark:group-hover:border-zinc-700 transition-colors">
                 {option.icon}
               </div>
-              <span className="text-xs font-medium text-gray-600">{option.name}</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-zinc-300">{option.name}</span>
             </button>
           ))}
         </div>
 
         {/* Copy Link Section */}
-        <div className="flex flex-col gap-2 pt-4 border-t border-gray-100">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Page Link</span>
-          <div className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+        <div className="flex flex-col gap-2 pt-4 border-t border-gray-100 dark:border-zinc-800">
+          <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Page Link</span>
+          <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg">
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm text-gray-600 truncate whitespace-nowrap">{url}</p>
+              <p className="text-sm text-gray-600 dark:text-zinc-300 truncate whitespace-nowrap">{url}</p>
             </div>
             <button
               onClick={handleCopy}
-              className="px-4 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors shrink-0"
+              className="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md text-sm font-medium text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-700 flex items-center gap-2 transition-colors shrink-0"
             >
               {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
               {copied ? 'Copied!' : 'Copy'}

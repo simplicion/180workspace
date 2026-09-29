@@ -16,9 +16,9 @@ interface InvoiceModalProps {
 export function InvoiceModal({
   transaction,
   onClose,
-  userName = 'Sovereign Creator',
-  userEmail = 'creator@180workspace.com',
-  userPhone = '+91 98765 43210',
+  userName = 'Verified User',
+  userEmail = '',
+  userPhone = '',
 }: InvoiceModalProps) {
   if (!transaction) return null;
 
@@ -39,11 +39,11 @@ export function InvoiceModal({
       title="Tax Invoice & Digital Receipt"
       maxWidthClass="max-w-xl"
     >
-      <div className="space-y-6 text-slate-800 text-xs pt-1">
+      <div className="space-y-6 text-slate-800 text-xs pt-1 font-sans">
         {/* Invoice Header Badge */}
         <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center font-bold">
               <Receipt className="w-5 h-5" />
             </div>
             <div>
@@ -119,14 +119,14 @@ export function InvoiceModal({
           </div>
           <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-sm font-extrabold text-slate-900">
             <span>Total Amount Paid:</span>
-            <span className="text-base text-purple-700">₹{totalAmount.toFixed(2)} INR</span>
+            <span className="text-base text-blue-700">₹{totalAmount.toFixed(2)} INR</span>
           </div>
         </div>
 
         {/* Modal Actions */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-200">
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-            <ShieldCheck className="w-4 h-4 text-purple-600" />
+            <ShieldCheck className="w-4 h-4 text-blue-600" />
             <span>Cryptographically Verified on 180 Ledger</span>
           </div>
 
@@ -135,7 +135,7 @@ export function InvoiceModal({
               <Printer className="w-3.5 h-3.5" />
               <span>Print</span>
             </Button>
-            <Button variant="default" onClick={onClose} className="min-h-[38px] text-xs cursor-pointer">
+            <Button variant="default" onClick={onClose} className="min-h-[38px] text-xs cursor-pointer bg-blue-600 hover:bg-blue-700 text-white">
               Done
             </Button>
           </div>

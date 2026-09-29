@@ -16,7 +16,7 @@ import OtpVerification from '@/app/(auth)/_components/OtpVerification';
 import PasswordSetup from '@/app/(auth)/_components/PasswordSetup';
 import BasicProfile from '@/app/(auth)/_components/BasicProfile';
 import { Rocket, Shield, Clock, Users, Bot, FolderKanban, MessageSquare, Cloud, BarChart3, ArrowLeft, Sparkles, ArrowRight } from 'lucide-react';
-import { use180Identity } from '@workspace/identity-sdk';
+import { use180Identity, OneEightyIdentityButton } from '@workspace/identity-sdk';
 
 export default function SignupFlow() {
     const router = useRouter();
@@ -71,6 +71,30 @@ export default function SignupFlow() {
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
     }, [step]);
+
+    const handleIdentitySuccess = async (res: any) => {
+        const token = res?.token || (typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null);
+        if (token) {
+            setLoading(true);
+            try {
+                localStorage.setItem('platform_auth_token', token);
+                document.cookie = `platform_auth_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`;
+                api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+                const result = await signIn('platform-token', { token, redirect: false });
+                if (result?.ok) {
+                    toast.success('Signed in successfully!');
+                    window.location.href = '/';
+                } else {
+                    window.location.href = '/';
+                }
+            } catch (_) {
+                window.location.href = '/';
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
 
     const handleGoogleSuccess = async (credentialResponse: any) => {
         if (!credentialResponse.credential) return;
@@ -255,16 +279,16 @@ export default function SignupFlow() {
             </div>
 
             {/* ── Back to Landing Page Button ─────────────────────────── */}
-            <Link href={process.env.NEXT_PUBLIC_MARKETING_URL || '/'} className="absolute top-6 left-6 z-50">
+            <a href={process.env.NEXT_PUBLIC_MARKETING_URL || 'https://180workspace.com'} className="absolute top-6 left-6 z-50">
                 <motion.button 
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="flex items-center justify-center gap-2 bg-white/80 backdrop-blur-md border border-slate-200 text-slate-700 px-4 py-2.5 rounded-full shadow-sm hover:shadow text-sm font-bold transition-all duration-300 group"
+                    className="flex items-center justify-center gap-2 bg-white/80 backdrop-blur-md border border-slate-200 text-slate-700 px-4 py-2.5 rounded-full shadow-sm hover:shadow text-sm font-bold transition-all duration-300 group cursor-pointer"
                 >
                     <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:-translate-x-1 transition-transform" />
                     <span>Back</span>
                 </motion.button>
-            </Link>
+            </a>
 
             {/* Floating Workspace Icons */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
@@ -275,7 +299,7 @@ export default function SignupFlow() {
                     <Bot className="w-16 h-16 text-indigo-600" />
                 </motion.div>
                 <motion.div animate={{ y: [0, -15, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }} className="absolute bottom-[25%] left-[20%] opacity-30">
-                    <FolderKanban className="w-14 h-14 text-purple-600" />
+                    <FolderKanban className="w-14 h-14 text-blue-600" />
                 </motion.div>
                 <motion.div animate={{ y: [0, 20, 0] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 0.5 }} className="absolute bottom-[20%] right-[15%] opacity-25">
                     <BarChart3 className="w-12 h-12 text-blue-500" />
@@ -284,7 +308,7 @@ export default function SignupFlow() {
                     <MessageSquare className="w-10 h-10 text-indigo-500" />
                 </motion.div>
                 <motion.div animate={{ y: [0, 15, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2.5 }} className="absolute top-[60%] right-[8%] opacity-30">
-                    <Cloud className="w-14 h-14 text-purple-500" />
+                    <Cloud className="w-14 h-14 text-sky-500" />
                 </motion.div>
             </div>
 
@@ -316,32 +340,11 @@ export default function SignupFlow() {
                 <div className="w-full max-w-md relative z-10">
                     {step === 1 && (
                         <div className="mb-6">
-                            <button
-                                type="button"
-                                disabled={isOpeningIdentity}
-                                onClick={launch180Identity}
-                                className="w-full relative group overflow-hidden rounded-2xl p-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-600 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/35 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer"
-                            >
-                                <div className="w-full bg-slate-950/95 group-hover:bg-slate-950/90 rounded-[14px] px-5 py-3.5 flex items-center justify-between transition-colors">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-xs shadow-md">
-                                            180
-                                        </div>
-                                        <div className="text-left">
-                                            <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                                                Continue with 180 Identity
-                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                                            </div>
-                                            <div className="text-[11px] text-slate-400 font-medium">
-                                                Fast 1-tap onboarding with WhatsApp / Email
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="w-8 h-8 rounded-full bg-white/10 group-hover:bg-white/20 flex items-center justify-center text-white transition-colors">
-                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                                    </div>
-                                </div>
-                            </button>
+                            <OneEightyIdentityButton 
+                                isProcessing={loading}
+                                disabled={isOpeningIdentity || loading} 
+                                onSuccess={handleIdentitySuccess}
+                            />
 
                             <div className="relative my-6 flex items-center justify-center">
                                 <div className="absolute inset-0 flex items-center">

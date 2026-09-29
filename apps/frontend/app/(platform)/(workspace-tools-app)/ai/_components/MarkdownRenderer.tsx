@@ -26,17 +26,17 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
                 const payload = parsed.payload || {};
                 const targetName = payload.name || payload.title || payload.clientName || payload.description || '';
                 return (
-                    <div className="my-1.5 p-3.5 rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/40 text-white shadow-md flex items-center justify-between gap-3">
+                    <div className="my-1.5 p-3.5 rounded-xl bg-gradient-to-r from-zinc-900 via-indigo-950 to-zinc-900 border border-indigo-500/40 text-white shadow-md flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-300">
                                 <Sparkles className="w-4 h-4" />
                             </div>
                             <div>
-                                <div className="text-xs font-bold capitalize text-slate-100 flex items-center gap-1.5">
+                                <div className="text-xs font-bold capitalize text-zinc-100 flex items-center gap-1.5">
                                     <span>{actionName}</span>
                                     {targetName && <span className="text-indigo-300 font-semibold">"{targetName}"</span>}
                                 </div>
-                                <div className="text-[11px] text-slate-400">
+                                <div className="text-[11px] text-zinc-400">
                                     Autonomous Action Processed
                                 </div>
                             </div>
@@ -55,7 +55,7 @@ export function MarkdownRenderer({ content, isUser = false }: MarkdownRendererPr
     const parts = content.split(/(```[\s\S]*?```)/g);
 
     return (
-        <div className="space-y-2.5 text-sm leading-relaxed text-slate-800">
+        <div className="space-y-2.5 text-sm leading-relaxed text-gray-800 dark:text-zinc-100">
             {parts.map((part, index) => {
                 if (part.startsWith('```')) {
                     return <CodeBlock key={index} codeText={part} />;
@@ -81,17 +81,17 @@ function CodeBlock({ codeText }: { codeText: string }) {
                 const payload = parsed.payload || {};
                 const targetName = payload.name || payload.title || payload.clientName || payload.description || '';
                 return (
-                    <div className="my-2.5 p-3.5 rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/40 text-white shadow-md flex items-center justify-between gap-3">
+                    <div className="my-2.5 p-3.5 rounded-xl bg-gradient-to-r from-zinc-900 via-indigo-950 to-zinc-900 border border-indigo-500/40 text-white shadow-md flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-300">
                                 <Sparkles className="w-4 h-4" />
                             </div>
                             <div>
-                                <div className="text-xs font-bold capitalize text-slate-100 flex items-center gap-1.5">
+                                <div className="text-xs font-bold capitalize text-zinc-100 flex items-center gap-1.5">
                                     <span>{actionName}</span>
                                     {targetName && <span className="text-indigo-300 font-semibold">"{targetName}"</span>}
                                 </div>
-                                <div className="text-[11px] text-slate-400">
+                                <div className="text-[11px] text-zinc-400">
                                     Autonomous Action Processed
                                 </div>
                             </div>
@@ -115,11 +115,11 @@ function CodeBlock({ codeText }: { codeText: string }) {
     };
 
     return (
-        <div className="my-3 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 text-slate-100 font-mono text-xs shadow-md">
-            <div className="flex items-center justify-between px-3.5 py-1.5 bg-slate-800/80 border-b border-slate-700 text-slate-400 text-[11px]">
+        <div className="my-3 rounded-xl overflow-hidden border border-zinc-700 dark:border-zinc-800 bg-zinc-900 text-zinc-100 font-mono text-xs shadow-md">
+            <div className="flex items-center justify-between px-3.5 py-1.5 bg-zinc-800/80 border-b border-zinc-700 dark:border-zinc-800 text-zinc-400 text-[11px]">
                 <div className="flex items-center gap-1.5">
                     <Code2 className="w-3.5 h-3.5 text-indigo-400" />
-                    <span className="uppercase tracking-wider font-semibold text-[10px] text-slate-300">{language}</span>
+                    <span className="uppercase tracking-wider font-semibold text-[10px] text-zinc-300">{language}</span>
                 </div>
                 <button
                     onClick={handleCopy}
@@ -139,7 +139,7 @@ function CodeBlock({ codeText }: { codeText: string }) {
                     )}
                 </button>
             </div>
-            <pre className="p-3.5 overflow-x-auto text-slate-200 custom-scrollbar leading-relaxed">
+            <pre className="p-3.5 overflow-x-auto text-zinc-200 custom-scrollbar leading-relaxed">
                 <code>{code}</code>
             </pre>
         </div>
@@ -157,7 +157,7 @@ function MarkdownSection({ text }: { text: string }) {
                 elements.push(
                     <ul key={`ul-${elements.length}`} className="my-2 space-y-1.5 pl-1">
                         {currentList.items.map((item, i) => (
-                            <li key={i} className="flex items-start gap-2 text-slate-700">
+                            <li key={i} className="flex items-start gap-2 text-gray-700 dark:text-zinc-200">
                                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 shrink-0"></span>
                                 <div className="flex-1">{item}</div>
                             </li>
@@ -168,8 +168,8 @@ function MarkdownSection({ text }: { text: string }) {
                 elements.push(
                     <ol key={`ol-${elements.length}`} className="my-2 space-y-1.5 pl-1 list-none counter-reset">
                         {currentList.items.map((item, i) => (
-                            <li key={i} className="flex items-start gap-2 text-slate-700">
-                                <span className="font-semibold text-indigo-600 text-xs mt-0.5 shrink-0 min-w-[16px]">{i + 1}.</span>
+                            <li key={i} className="flex items-start gap-2 text-gray-700 dark:text-zinc-200">
+                                <span className="font-semibold text-indigo-600 dark:text-indigo-400 text-xs mt-0.5 shrink-0 min-w-[16px]">{i + 1}.</span>
                                 <div className="flex-1">{item}</div>
                             </li>
                         ))}
@@ -192,7 +192,7 @@ function MarkdownSection({ text }: { text: string }) {
         if (trimmed.startsWith('#### ')) {
             flushList();
             elements.push(
-                <h5 key={`h4-${lineIndex}`} className="font-bold text-slate-900 text-xs mt-3 mb-1 tracking-tight">
+                <h5 key={`h4-${lineIndex}`} className="font-bold text-gray-900 dark:text-zinc-100 text-xs mt-3 mb-1 tracking-tight">
                     {formatInline(trimmed.slice(5))}
                 </h5>
             );
@@ -201,7 +201,7 @@ function MarkdownSection({ text }: { text: string }) {
         if (trimmed.startsWith('### ')) {
             flushList();
             elements.push(
-                <h4 key={`h3-${lineIndex}`} className="font-bold text-slate-900 text-sm mt-3.5 mb-1.5 tracking-tight">
+                <h4 key={`h3-${lineIndex}`} className="font-bold text-gray-900 dark:text-zinc-100 text-sm mt-3.5 mb-1.5 tracking-tight">
                     {formatInline(trimmed.slice(4))}
                 </h4>
             );
@@ -210,7 +210,7 @@ function MarkdownSection({ text }: { text: string }) {
         if (trimmed.startsWith('## ')) {
             flushList();
             elements.push(
-                <h3 key={`h2-${lineIndex}`} className="font-bold text-slate-900 text-base mt-4 mb-2 tracking-tight">
+                <h3 key={`h2-${lineIndex}`} className="font-bold text-gray-900 dark:text-zinc-100 text-base mt-4 mb-2 tracking-tight">
                     {formatInline(trimmed.slice(3))}
                 </h3>
             );
@@ -219,7 +219,7 @@ function MarkdownSection({ text }: { text: string }) {
         if (trimmed.startsWith('# ')) {
             flushList();
             elements.push(
-                <h2 key={`h1-${lineIndex}`} className="font-extrabold text-slate-900 text-lg mt-4 mb-2 tracking-tight">
+                <h2 key={`h1-${lineIndex}`} className="font-extrabold text-gray-900 dark:text-zinc-100 text-lg mt-4 mb-2 tracking-tight">
                     {formatInline(trimmed.slice(2))}
                 </h2>
             );
@@ -230,7 +230,7 @@ function MarkdownSection({ text }: { text: string }) {
         if (trimmed.startsWith('> ')) {
             flushList();
             elements.push(
-                <div key={`quote-${lineIndex}`} className="my-2 p-3 border-l-3 border-indigo-500 bg-indigo-50/50 rounded-r-lg text-slate-700 italic text-xs">
+                <div key={`quote-${lineIndex}`} className="my-2 p-3 border-l-3 border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-r-lg text-gray-700 dark:text-zinc-300 italic text-xs">
                     {formatInline(trimmed.slice(2))}
                 </div>
             );
@@ -289,7 +289,7 @@ function formatInline(text: string): React.ReactNode {
         if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
             const inner = part.slice(2, -2);
             return (
-                <strong key={i} className="font-bold text-slate-900">
+                <strong key={i} className="font-bold text-gray-900 dark:text-zinc-100">
                     {formatInline(inner)}
                 </strong>
             );
@@ -299,7 +299,7 @@ function formatInline(text: string): React.ReactNode {
         if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
             const inner = part.slice(1, -1);
             return (
-                <code key={i} className="px-1.5 py-0.5 mx-0.5 rounded bg-slate-100 text-indigo-700 font-mono text-xs border border-slate-200/80 font-medium">
+                <code key={i} className="px-1.5 py-0.5 mx-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-indigo-700 dark:text-indigo-400 font-mono text-xs border border-gray-200 dark:border-zinc-700 font-medium">
                     {inner}
                 </code>
             );
@@ -309,7 +309,7 @@ function formatInline(text: string): React.ReactNode {
         if (part.startsWith('*') && part.endsWith('*') && part.length >= 2 && !part.startsWith('**')) {
             const inner = part.slice(1, -1);
             return (
-                <em key={i} className="italic text-slate-800">
+                <em key={i} className="italic text-gray-800 dark:text-zinc-200">
                     {formatInline(inner)}
                 </em>
             );

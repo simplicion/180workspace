@@ -158,12 +158,12 @@ export default function GlobalSearch() {
                 onClick={() => setIsOpen(true)}
                 aria-label="Open search"
                 title="Search (Ctrl+K)"
-                className="flex items-center gap-3 px-3 sm:px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-white hover:shadow-sm transition-all group w-full sm:w-64"
+                className="flex items-center gap-3 px-3 sm:px-4 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-gray-400 dark:text-zinc-400 hover:text-gray-600 dark:hover:text-zinc-200 hover:bg-white dark:hover:bg-zinc-800/80 hover:shadow-sm transition-all group w-full sm:w-64"
             >
-                <Search className="w-4 h-4 text-gray-400 group-hover:text-indigo-500 transition-colors" aria-hidden="true" />
+                <Search className="w-4 h-4 text-gray-400 dark:text-zinc-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" aria-hidden="true" />
                 <span className="text-sm font-medium flex-1 text-left hidden sm:block">Quick Search...</span>
                 <span className="text-sm font-medium flex-1 text-left sm:hidden">Search...</span>
-                <div className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 bg-gray-200/50 rounded text-[10px] font-bold text-gray-500" aria-hidden="true">
+                <div className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 bg-gray-200/50 dark:bg-zinc-800 rounded text-[10px] font-bold text-gray-500 dark:text-zinc-400" aria-hidden="true">
                     <Command className="w-2.5 h-2.5" />
                     <span>K</span>
                 </div>
@@ -179,7 +179,7 @@ export default function GlobalSearch() {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.2 }}
-                                className="absolute inset-0 bg-gray-900/5 backdrop-blur-md"
+                                className="absolute inset-0 bg-gray-900/20 dark:bg-black/80 backdrop-blur-md"
                                 onClick={() => setIsOpen(false)}
                                 aria-hidden="true"
                             />
@@ -190,22 +190,22 @@ export default function GlobalSearch() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
                             transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-                            className="relative w-full sm:max-w-2xl h-full sm:h-auto bg-white/95 backdrop-blur-3xl sm:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] border border-white/50 flex flex-col overflow-hidden"
+                            className="relative w-full sm:max-w-2xl h-full sm:h-auto bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl sm:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] dark:shadow-[0_25px_70px_rgba(0,0,0,0.9)] border border-white/50 dark:border-zinc-800 flex flex-col overflow-hidden text-gray-900 dark:text-zinc-100"
                         >
                             <h2 id="search-modal-title" className="sr-only">Global Search</h2>
                             
                             {/* Search Input Area */}
-                            <div className="flex items-center px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 bg-gray-50/80 backdrop-blur-xl shrink-0 sticky top-0 z-10">
+                            <div className="flex items-center px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-900/80 backdrop-blur-xl shrink-0 sticky top-0 z-10">
                                 <Search className={clsx(
                                     "w-5 h-5 transition-colors duration-300",
-                                    loading ? "text-indigo-500" : "text-gray-400"
+                                    loading ? "text-indigo-500" : "text-gray-400 dark:text-zinc-500"
                                 )} aria-hidden="true" />
                                 <input
                                     ref={inputRef}
                                     type="text"
                                     placeholder="Search your company (projects, tasks, leads...)"
                                     aria-label="Search term"
-                                    className="flex-1 bg-transparent border-none focus:ring-0 outline-none focus:outline-none text-gray-900 text-lg sm:text-base ml-4 placeholder:text-gray-400 font-medium w-full"
+                                    className="flex-1 bg-transparent border-none focus:ring-0 outline-none focus:outline-none text-gray-900 dark:text-zinc-100 text-lg sm:text-base ml-4 placeholder:text-gray-400 dark:placeholder:text-zinc-500 font-medium w-full"
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
                                     onKeyDown={handleKeyDown}
@@ -217,7 +217,7 @@ export default function GlobalSearch() {
                                     <button
                                         onClick={() => setIsOpen(false)}
                                         aria-label="Close search"
-                                        className="p-1.5 hover:bg-gray-200 text-gray-500 rounded-xl transition-colors ml-3"
+                                        className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-xl transition-colors ml-3"
                                     >
                                         <X className="w-5 h-5" aria-hidden="true" />
                                     </button>
@@ -350,22 +350,22 @@ export default function GlobalSearch() {
                             </div>
 
                             {/* Footer instructions */}
-                            <div className="hidden sm:flex px-6 py-4 bg-gray-50/80 backdrop-blur-md border-t border-gray-100 items-center justify-between shrink-0">
+                            <div className="hidden sm:flex px-6 py-4 bg-gray-50/80 dark:bg-zinc-900/80 backdrop-blur-md border-t border-gray-100 dark:border-zinc-800 items-center justify-between shrink-0">
                                 <div className="flex items-center gap-5">
                                     <div className="flex items-center gap-2">
-                                        <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded-md text-[9px] font-bold text-gray-500 shadow-sm font-sans">ESC</kbd>
-                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Close</span>
+                                        <kbd className="px-1.5 py-0.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md text-[9px] font-bold text-gray-500 dark:text-zinc-300 shadow-sm font-sans">ESC</kbd>
+                                        <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Close</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded-md text-[9px] font-bold text-gray-500 shadow-sm font-sans">↑↓</kbd>
-                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Navigate</span>
+                                        <kbd className="px-1.5 py-0.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md text-[9px] font-bold text-gray-500 dark:text-zinc-300 shadow-sm font-sans">↑↓</kbd>
+                                        <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Navigate</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded-md text-[9px] font-bold text-gray-500 shadow-sm font-sans">↵</kbd>
-                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Select</span>
+                                        <kbd className="px-1.5 py-0.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md text-[9px] font-bold text-gray-500 dark:text-zinc-300 shadow-sm font-sans">↵</kbd>
+                                        <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Select</span>
                                     </div>
                                 </div>
-                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                <div className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
                                     <Sparkles className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" />
                                     <span>Powered by {platform?.platformName || 'System'} Search</span>
                                 </div>

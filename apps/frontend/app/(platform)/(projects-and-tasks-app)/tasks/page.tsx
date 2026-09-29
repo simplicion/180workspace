@@ -25,12 +25,12 @@ function getInitials(name?: string) {
 }
 
 const COLUMNS = [
-    { id: 'todo', label: 'To Do', color: 'border-gray-300', bg: 'bg-gray-50', badge: 'badge-gray' },
-    { id: 'in_progress', label: 'In Progress', color: 'border-blue-400', bg: 'bg-blue-50', badge: 'badge-blue' },
-    { id: 'in_review', label: 'In Review', color: 'border-orange-400', bg: 'bg-orange-50', badge: 'badge-orange' },
-    { id: 'done', label: 'Done', color: 'border-green-400', bg: 'bg-green-50', badge: 'badge-green' },
-    { id: 'backlog', label: 'Backlog', color: 'border-purple-400', bg: 'bg-purple-50', badge: 'badge-purple' },
-    { id: 'custom', label: 'Custom', color: 'border-indigo-400', bg: 'bg-indigo-50', badge: 'badge-indigo' },
+    { id: 'todo', label: 'To Do', color: 'border-gray-300 dark:border-zinc-700', bg: 'bg-gray-50/50 dark:bg-zinc-900/40', badge: 'badge-gray' },
+    { id: 'in_progress', label: 'In Progress', color: 'border-blue-400 dark:border-blue-700', bg: 'bg-blue-50/50 dark:bg-blue-950/20', badge: 'badge-blue' },
+    { id: 'in_review', label: 'In Review', color: 'border-orange-400 dark:border-orange-700', bg: 'bg-orange-50/50 dark:bg-orange-950/20', badge: 'badge-orange' },
+    { id: 'done', label: 'Done', color: 'border-green-400 dark:border-green-700', bg: 'bg-green-50/50 dark:bg-green-950/20', badge: 'badge-green' },
+    { id: 'backlog', label: 'Backlog', color: 'border-purple-400 dark:border-purple-700', bg: 'bg-purple-50/50 dark:bg-purple-950/20', badge: 'badge-purple' },
+    { id: 'custom', label: 'Custom', color: 'border-indigo-400 dark:border-indigo-700', bg: 'bg-indigo-50/50 dark:bg-indigo-950/20', badge: 'badge-indigo' },
 ];
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -398,13 +398,13 @@ export default function TasksPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     {/* View toggle */}
-                    <div className="flex bg-gray-100 dark:bg-slate-800 rounded-xl p-1 border border-gray-200/60 dark:border-slate-700">
+                    <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-xl p-1 border border-gray-200/60 dark:border-zinc-700">
                         <button 
                             onClick={() => setView('kanban')} 
                             className={clsx(
                                 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 cursor-pointer', 
                                 view === 'kanban' 
-                                    ? 'bg-white dark:bg-slate-900 shadow-xs text-gray-900 dark:text-gray-100 font-bold' 
+                                    ? 'bg-white dark:bg-zinc-900 shadow-xs text-gray-900 dark:text-gray-100 font-bold' 
                                     : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
                             )}
                         >
@@ -415,7 +415,7 @@ export default function TasksPage() {
                             className={clsx(
                                 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 cursor-pointer', 
                                 view === 'list' 
-                                    ? 'bg-white dark:bg-slate-900 shadow-xs text-gray-900 dark:text-gray-100 font-bold' 
+                                    ? 'bg-white dark:bg-zinc-900 shadow-xs text-gray-900 dark:text-gray-100 font-bold' 
                                     : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
                             )}
                         >
@@ -434,7 +434,7 @@ export default function TasksPage() {
             <TaskMonthAnalytics />
 
             {/* ── ✨ INDUSTRY-STANDARD FILTER & SEARCH COMMAND HUB ✨ ── */}
-            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-2xl border border-gray-200/80 dark:border-slate-800 p-3 shadow-2xs space-y-2.5 mb-5 relative z-30">
+            <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-2xl border border-gray-200/80 dark:border-zinc-800 p-3 shadow-2xs space-y-2.5 mb-5 relative z-30">
                 {/* Upper Command Row: Live Search + Quick Presets + Active Filter Status / Reset */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
                     {/* Search Input */}
@@ -445,13 +445,13 @@ export default function TasksPage() {
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Search tasks by title, project, assignee..."
-                            className="w-full bg-gray-50/80 dark:bg-slate-800/80 border border-gray-200/90 dark:border-slate-700/90 rounded-xl pl-8 pr-8 py-1.5 text-xs text-gray-900 dark:text-gray-100 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all h-9"
+                            className="w-full bg-gray-50/80 dark:bg-zinc-800/80 border border-gray-200/90 dark:border-zinc-700/90 rounded-xl pl-8 pr-8 py-1.5 text-xs text-gray-900 dark:text-gray-100 placeholder:text-gray-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all h-9"
                         />
                         {searchQuery && (
                             <button
                                 type="button"
                                 onClick={() => setSearchQuery('')}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-slate-700 cursor-pointer"
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-zinc-700 cursor-pointer"
                                 title="Clear search"
                             >
                                 <X className="w-3.5 h-3.5" />
@@ -461,14 +461,14 @@ export default function TasksPage() {
 
                     {/* Quick Presets & Active Badges */}
                     <div className="flex items-center gap-1.5 flex-wrap">
-                        <div className="flex items-center bg-gray-100/90 dark:bg-slate-800/90 p-0.5 rounded-xl border border-gray-200/60 dark:border-slate-700/60 text-xs">
+                        <div className="flex items-center bg-gray-100/90 dark:bg-zinc-800/90 p-0.5 rounded-xl border border-gray-200/60 dark:border-zinc-700/60 text-xs">
                             <button
                                 type="button"
                                 onClick={() => setQuickPreset('all')}
                                 className={clsx(
                                     "px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer",
                                     quickPreset === 'all'
-                                        ? "bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 shadow-2xs font-semibold"
+                                        ? "bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 shadow-2xs font-semibold"
                                         : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
                                 )}
                             >
@@ -480,7 +480,7 @@ export default function TasksPage() {
                                 className={clsx(
                                     "px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1",
                                     quickPreset === 'my_tasks'
-                                        ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
+                                        ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
                                         : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
                                 )}
                             >
@@ -492,7 +492,7 @@ export default function TasksPage() {
                                 className={clsx(
                                     "px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1",
                                     quickPreset === 'in_review'
-                                        ? "bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs font-semibold"
+                                        ? "bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-2xs font-semibold"
                                         : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
                                 )}
                             >
@@ -504,7 +504,7 @@ export default function TasksPage() {
                                 className={clsx(
                                     "px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1",
                                     quickPreset === 'high_priority'
-                                        ? "bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 shadow-2xs font-semibold"
+                                        ? "bg-white dark:bg-zinc-900 text-red-600 dark:text-red-400 shadow-2xs font-semibold"
                                         : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
                                 )}
                             >
@@ -532,7 +532,7 @@ export default function TasksPage() {
                 </div>
 
                 {/* Lower Row: Compact Horizontal Dropdown Pills */}
-                <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-100 dark:border-slate-800/80">
+                <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-100 dark:border-zinc-800/80">
                     {/* Status Dropdown */}
                     <div className="w-[130px] shrink-0">
                         <CustomSelect 
@@ -639,13 +639,13 @@ export default function TasksPage() {
 
                     {/* Custom Date Range Inline Inputs */}
                     {filterDateRange === 'custom' && (
-                        <div className="flex items-center gap-1.5 bg-indigo-50/60 dark:bg-slate-800/80 px-2 py-1 rounded-xl border border-indigo-200 dark:border-indigo-800 shrink-0 animate-in fade-in duration-150">
+                        <div className="flex items-center gap-1.5 bg-indigo-50/60 dark:bg-zinc-800/80 px-2 py-1 rounded-xl border border-indigo-200 dark:border-indigo-800 shrink-0 animate-in fade-in duration-150">
                             <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">From:</span>
                             <input 
                                 type="date" 
                                 value={customStartDate}
                                 onChange={e => setCustomStartDate(e.target.value)}
-                                className="input text-xs py-1 px-1.5 h-7 w-[115px] bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700"
+                                className="input text-xs py-1 px-1.5 h-7 w-[115px] bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700"
                                 title="Start Date"
                             />
                             <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">To:</span>
@@ -653,7 +653,7 @@ export default function TasksPage() {
                                 type="date" 
                                 value={customEndDate}
                                 onChange={e => setCustomEndDate(e.target.value)}
-                                className="input text-xs py-1 px-1.5 h-7 w-[115px] bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700"
+                                className="input text-xs py-1 px-1.5 h-7 w-[115px] bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700"
                                 title="End Date"
                             />
                         </div>
@@ -710,7 +710,7 @@ export default function TasksPage() {
                                             >
                                                 <span className={clsx(
                                                     "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                                    allInColSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInColSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 bg-white dark:bg-slate-800"
+                                                    allInColSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInColSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 bg-white dark:bg-zinc-800"
                                                 )}>
                                                     {allInColSelected ? (
                                                         <Check className="w-3 h-3 stroke-[3]" />
@@ -737,10 +737,10 @@ export default function TasksPage() {
                                                 onClick={() => setSelectedTask(task.id)}
                                                 title={task.status === 'in_review' ? 'Task is in review (status locked until reviewed)' : undefined}
                                                 className={clsx(
-                                                    'bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-2xs border transition-all select-none relative group cursor-pointer',
+                                                    'bg-white dark:bg-zinc-900 rounded-2xl p-3.5 shadow-2xs border transition-all select-none relative group cursor-pointer',
                                                     isSelected
                                                         ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-xs'
-                                                        : 'border-gray-200/80 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 hover:shadow-md',
+                                                        : 'border-gray-200/80 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 hover:shadow-md',
                                                     draggedId === task.id && 'opacity-40 scale-95',
                                                     task.status === 'in_review' && 'border-amber-200/80 dark:border-amber-900/40'
                                                 )}
@@ -750,8 +750,8 @@ export default function TasksPage() {
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleToggleSelectTask(task.id);
+                                                             e.stopPropagation();
+                                                             handleToggleSelectTask(task.id);
                                                         }}
                                                         className={clsx(
                                                             "mt-0.5 p-0.5 -ml-0.5 -mt-0.5 rounded cursor-pointer transition-opacity",
@@ -763,7 +763,7 @@ export default function TasksPage() {
                                                             "w-4 h-4 rounded border flex items-center justify-center transition-all",
                                                             isSelected 
                                                                 ? "bg-indigo-600 border-indigo-600 text-white shadow-xs" 
-                                                                : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-indigo-500"
+                                                                : "border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-indigo-500"
                                                         )}>
                                                             {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                                                         </span>
@@ -783,7 +783,7 @@ export default function TasksPage() {
                                                     </p>
                                                 )}
 
-                                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-slate-800 text-[10px]">
+                                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-zinc-800 text-[10px]">
                                                     {task.dueDate ? (
                                                         <span className="text-gray-400 dark:text-gray-500 font-medium">
                                                             {format(new Date(task.dueDate), 'MMM d')}
@@ -838,7 +838,7 @@ export default function TasksPage() {
                                     })}
 
                                     {colTasks.length === 0 && (
-                                        <div className="text-center py-12 text-gray-300 dark:text-gray-600 text-xs select-none border-2 border-dashed border-gray-200/70 dark:border-slate-800 rounded-2xl">
+                                        <div className="text-center py-12 text-gray-300 dark:text-gray-600 text-xs select-none border-2 border-dashed border-gray-200/70 dark:border-zinc-800 rounded-2xl">
                                             Drop tasks here
                                         </div>
                                     )}
@@ -851,7 +851,7 @@ export default function TasksPage() {
                 /* ── LIST VIEW WITH MULTI-SELECTION ── */
                 <div className="space-y-2">
                     {displayedTasks.length > 0 && (
-                        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 text-xs text-gray-600 dark:text-gray-300 font-semibold shadow-2xs">
+                        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 text-xs text-gray-600 dark:text-gray-300 font-semibold shadow-2xs">
                             <div className="flex items-center gap-2.5">
                                 <button
                                     type="button"
@@ -865,7 +865,7 @@ export default function TasksPage() {
                                             ? "bg-indigo-600 border-indigo-600 text-white" 
                                             : selectedTaskIds.length > 0 
                                                 ? "bg-indigo-100 border-indigo-400 text-indigo-700" 
-                                                : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                                                : "border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"
                                     )}>
                                         {selectedTaskIds.length === displayedTasks.length ? (
                                             <Check className="w-3 h-3 stroke-[3]" />
@@ -891,10 +891,10 @@ export default function TasksPage() {
                                 key={task.id}
                                 onClick={() => setSelectedTask(task.id)}
                                 className={clsx(
-                                    "card p-3.5 flex items-center gap-3.5 hover:shadow-md transition-all cursor-pointer group rounded-2xl border bg-white dark:bg-slate-900",
+                                    "card p-3.5 flex items-center gap-3.5 hover:shadow-md transition-all cursor-pointer group rounded-2xl border bg-white dark:bg-zinc-900",
                                     isSelected
                                         ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20"
-                                        : "border-gray-200/80 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/80"
+                                        : "border-gray-200/80 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-700/80"
                                 )}
                             >
                                 <button
@@ -913,7 +913,7 @@ export default function TasksPage() {
                                         "w-4 h-4 rounded border flex items-center justify-center transition-all",
                                         isSelected 
                                             ? "bg-indigo-600 border-indigo-600 text-white" 
-                                            : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-indigo-500"
+                                            : "border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-indigo-500"
                                     )}>
                                         {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                                     </span>
@@ -960,7 +960,7 @@ export default function TasksPage() {
                         );
                     })}
                     {displayedTasks.length === 0 && (
-                        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800">
+                        <div className="text-center py-20 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800">
                             <CheckSquare className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
                             <p className="text-gray-400 font-medium">No tasks found</p>
                         </div>
@@ -987,7 +987,7 @@ export default function TasksPage() {
                         type="button"
                         onClick={() => setIsMoveStatusMenuOpen(prev => !prev)}
                         disabled={isBulkMoving}
-                        className="px-3 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-100 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all border border-gray-200 dark:border-slate-700 shadow-sm cursor-pointer disabled:opacity-50"
+                        className="px-3 py-1.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-800 dark:text-gray-100 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all border border-gray-200 dark:border-zinc-700 shadow-sm cursor-pointer disabled:opacity-50"
                     >
                         <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                         <span>Move Status</span>
@@ -995,7 +995,7 @@ export default function TasksPage() {
                     </button>
 
                     {isMoveStatusMenuOpen && (
-                        <div className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-gray-100 dark:border-zinc-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
                             <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                                 Move to Status
                             </div>

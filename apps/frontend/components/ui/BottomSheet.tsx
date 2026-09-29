@@ -44,15 +44,15 @@ export default function BottomSheet({ isOpen, onClose, title, children }: Bottom
       {/* Sheet */}
       <div 
         className={clsx(
-          "relative w-full max-w-md bg-white dark:bg-gray-900 rounded-t-3xl shadow-xl transition-transform duration-300 transform z-10 border-t border-gray-100 dark:border-gray-800", 
+          "relative w-full max-w-md bg-white dark:bg-zinc-950 rounded-t-3xl shadow-xl transition-transform duration-300 transform z-10 border-t border-gray-100 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100", 
           isOpen ? "translate-y-0" : "translate-y-full"
         )}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-zinc-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">{title}</h2>
           <button 
             onClick={onClose} 
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

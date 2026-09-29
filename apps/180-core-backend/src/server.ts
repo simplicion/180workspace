@@ -2,6 +2,7 @@
 
 import path from 'path';
 import dotenv from 'dotenv';
+// Reloaded: Sovereign token issuance (decoupled companyId)
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 

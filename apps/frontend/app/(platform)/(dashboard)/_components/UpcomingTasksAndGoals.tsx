@@ -335,7 +335,7 @@ export default function UpcomingTasksAndGoals({ isLocked }: UpcomingTasksAndGoal
             </div>
 
             {/* Filter Tabs */}
-            <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/30 dark:bg-zinc-850/20 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-none">
+            <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-950/60 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-none">
                 <button
                     onClick={() => setActiveTab('all')}
                     className={clsx(
@@ -503,7 +503,7 @@ export default function UpcomingTasksAndGoals({ isLocked }: UpcomingTasksAndGoal
                             return (
                                 <div
                                     key={goal.id}
-                                    className="p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-850/50 hover:bg-white dark:hover:bg-zinc-850 hover:border-indigo-300 dark:hover:border-indigo-800 transition-all group"
+                                    className="p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/60 hover:bg-white dark:hover:bg-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-800 transition-all group"
                                 >
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex items-start gap-2.5 min-w-0">
@@ -682,7 +682,7 @@ export default function UpcomingTasksAndGoals({ isLocked }: UpcomingTasksAndGoal
                 maxWidthClass="max-w-lg"
                 onSubmit={handleSubmit}
                 subHeader={
-                    <div className="px-6 py-2.5 bg-zinc-50 dark:bg-zinc-850 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2">
+                    <div className="px-6 py-2.5 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2">
                         <span className="text-xs font-bold text-zinc-500">Create:</span>
                         <div className="flex items-center bg-zinc-200/70 dark:bg-zinc-800 p-0.5 rounded-lg text-xs font-bold">
                             <button

@@ -70,8 +70,8 @@ const MODE_CONFIG: Record<AIMode, { title: string; shortTitle: string; icon: any
         title: 'Orbit Copilot',
         shortTitle: 'Orbit',
         icon: Sparkles,
-        color: 'text-indigo-600',
-        bg: 'bg-indigo-50 border-indigo-200 text-indigo-700',
+        color: 'text-indigo-600 dark:text-indigo-400',
+        bg: 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300',
         welcome: "**Welcome to Orbit Copilot! ⚡**\n\nI have real-time awareness across your entire organization — projects, sprint health, CRM leads, invoices, team members, and documents.\n\nAsk me anything or pick a quick action below to get started.",
         placeholder: "Ask Orbit Copilot about projects, leads, documents, financial stats, or team metrics...",
         suggestions: [
@@ -85,8 +85,8 @@ const MODE_CONFIG: Record<AIMode, { title: string; shortTitle: string; icon: any
         title: 'Document Architect',
         shortTitle: 'Docs',
         icon: FileText,
-        color: 'text-emerald-600',
-        bg: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+        color: 'text-emerald-600 dark:text-emerald-400',
+        bg: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300',
         welcome: "**Welcome to Document Architect Studio! 📄**\n\nI can draft commercial contracts, tax invoices, milestone schedules, NDAs, and proposals with complete AST schema elements.\n\nTell me what type of document you need, and we'll refine the details together before sending it to the canvas!",
         placeholder: "Describe the document to draft (e.g. Contract for 4 months of 80k INR to client)...",
         suggestions: [
@@ -100,8 +100,8 @@ const MODE_CONFIG: Record<AIMode, { title: string; shortTitle: string; icon: any
         title: 'Business Radar & Insights',
         shortTitle: 'Radar',
         icon: TrendingUp,
-        color: 'text-blue-600',
-        bg: 'bg-blue-50 border-blue-200 text-blue-700',
+        color: 'text-blue-600 dark:text-blue-400',
+        bg: 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300',
         welcome: "**Executive Insights & Business Radar 📊**\n\nI analyze real-time company telemetry to provide actionable intelligence on cashflow, project delivery velocity, team bandwidth, and pipeline forecasts.",
         placeholder: "Request business KPIs, cash flow forecasts, or delivery velocity reports...",
         suggestions: [
@@ -115,8 +115,8 @@ const MODE_CONFIG: Record<AIMode, { title: string; shortTitle: string; icon: any
         title: 'Sales & Deal Intelligence',
         shortTitle: 'CRM',
         icon: Users,
-        color: 'text-amber-600',
-        bg: 'bg-amber-50 border-amber-200 text-amber-700',
+        color: 'text-amber-600 dark:text-amber-400',
+        bg: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60 text-amber-700 dark:text-amber-300',
         welcome: "**CRM & Deal Copilot 💼**\n\nI assist with lead scoring, deal pipelines, customer relationship history, client outreach, and meeting transcripts.",
         placeholder: "Ask about leads, high-value deals, client history, or draft sales emails...",
         suggestions: [
@@ -130,8 +130,8 @@ const MODE_CONFIG: Record<AIMode, { title: string; shortTitle: string; icon: any
         title: 'Legal & Compliance Counsel',
         shortTitle: 'Legal',
         icon: Scale,
-        color: 'text-purple-600',
-        bg: 'bg-purple-50 border-purple-200 text-purple-700',
+        color: 'text-purple-600 dark:text-purple-400',
+        bg: 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800/60 text-purple-700 dark:text-purple-300',
         welcome: "**Legal & Compliance Assistant ⚖️**\n\nI review agreements, audit contract terms, detect risky indemnification clauses, and ensure compliance standards.",
         placeholder: "Paste contract terms, audit NDA risks, or draft bilateral liability clauses...",
         suggestions: [
@@ -145,8 +145,8 @@ const MODE_CONFIG: Record<AIMode, { title: string; shortTitle: string; icon: any
         title: 'People & HR Policy',
         shortTitle: 'HR',
         icon: ShieldAlert,
-        color: 'text-rose-600',
-        bg: 'bg-rose-50 border-rose-200 text-rose-700',
+        color: 'text-rose-600 dark:text-rose-400',
+        bg: 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300',
         welcome: "**HR & People Operations Assistant 👥**\n\nI help team members with leave requests, compensation policies, onboarding workflows, and performance review preparation.",
         placeholder: "Ask about leave rules, benefits, onboarding, or workplace policies...",
         suggestions: [
@@ -612,22 +612,22 @@ export default function AIAssistantPage() {
     const CurrentModeIcon = MODE_CONFIG[mode].icon;
 
     return (
-        <div className="flex -m-4 lg:-m-6 h-[calc(100vh-64px)] bg-slate-50 overflow-hidden relative">
+        <div className="flex -m-4 lg:-m-6 h-[calc(100vh-64px)] bg-slate-50 dark:bg-zinc-950 overflow-hidden relative">
             {/* Left Chat History & Sessions Sidebar */}
             <aside className={clsx(
-                "border-r border-slate-200 bg-white flex flex-col h-full shrink-0 transition-all duration-300 z-20",
+                "border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col h-full shrink-0 transition-all duration-300 z-20",
                 isSidebarOpen ? "w-72" : "w-0 overflow-hidden border-r-0"
             )}>
                 {/* Sidebar Header & New Chat Button */}
-                <div className="p-4 border-b border-slate-100 flex flex-col gap-3">
+                <div className="p-4 border-b border-slate-100 dark:border-zinc-800/80 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <MessageSquare className="w-4 h-4 text-indigo-600" />
-                            <h3 className="font-bold text-slate-900 text-sm">Chat History</h3>
+                            <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                            <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-sm">Chat History</h3>
                         </div>
                         <button
                             onClick={() => setIsSidebarOpen(false)}
-                            className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 lg:hidden cursor-pointer"
+                            className="p-1 rounded-md text-slate-400 dark:text-zinc-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 lg:hidden cursor-pointer"
                             title="Close Sidebar"
                         >
                             <X className="w-4 h-4" />
@@ -645,18 +645,18 @@ export default function AIAssistantPage() {
 
                     {/* Search Input Filter */}
                     <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        <Search className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 absolute left-2.5 top-2.5" />
                         <input
                             type="text"
                             value={searchSessionQuery}
                             onChange={(e) => setSearchSessionQuery(e.target.value)}
                             placeholder="Search chats..."
-                            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 text-xs text-slate-800 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         />
                         {searchSessionQuery && (
                             <button 
                                 onClick={() => setSearchSessionQuery('')}
-                                className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                                className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
                             >
                                 <X className="w-3.5 h-3.5" />
                             </button>
@@ -667,22 +667,22 @@ export default function AIAssistantPage() {
                 {/* Chat Sessions List Grouped by Date */}
                 <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
                     {loadingSessions && sessions.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
+                        <div className="p-4 text-center text-xs text-slate-400 dark:text-zinc-500 flex flex-col items-center gap-2">
                             <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
                             <span>Loading past chats...</span>
                         </div>
                     ) : sessions.length === 0 ? (
-                        <div className="p-6 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
-                            <MessageCircle className="w-8 h-8 text-slate-200" />
-                            <p className="font-medium text-slate-600">No conversations yet</p>
-                            <p className="text-[11px] text-slate-400">Start asking questions or drafting documents to build your chat log!</p>
+                        <div className="p-6 text-center text-xs text-slate-400 dark:text-zinc-500 flex flex-col items-center gap-2">
+                            <MessageCircle className="w-8 h-8 text-slate-200 dark:text-zinc-700" />
+                            <p className="font-medium text-slate-600 dark:text-zinc-300">No conversations yet</p>
+                            <p className="text-[11px] text-slate-400 dark:text-zinc-500">Start asking questions or drafting documents to build your chat log!</p>
                         </div>
                     ) : (
                         Object.entries(groupedSessions).map(([groupTitle, groupItems]) => {
                             if (groupItems.length === 0) return null;
                             return (
                                 <div key={groupTitle} className="space-y-1">
-                                    <h4 className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                    <h4 className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
                                         {groupTitle}
                                     </h4>
                                     <div className="space-y-0.5">
@@ -695,21 +695,21 @@ export default function AIAssistantPage() {
                                                     className={clsx(
                                                         "group relative w-full px-2.5 py-2 rounded-lg text-left text-xs transition-all flex items-center justify-between cursor-pointer",
                                                         isActive
-                                                            ? "bg-indigo-50/80 text-indigo-950 font-semibold border-l-2 border-indigo-600"
-                                                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                                                            ? "bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 font-semibold border-l-2 border-indigo-600"
+                                                            : "text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100"
                                                     )}
                                                 >
                                                     <div className="flex items-center gap-2 min-w-0 pr-6">
                                                         <MessageSquare className={clsx(
                                                             "w-3.5 h-3.5 shrink-0",
-                                                            isActive ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                                                            isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300"
                                                         )} />
                                                         <span className="truncate">{session.title || 'Untitled Chat'}</span>
                                                     </div>
 
                                                     <button
                                                         onClick={(e) => handleDeleteSession(session.id, e)}
-                                                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-all cursor-pointer shrink-0"
+                                                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition-all cursor-pointer shrink-0"
                                                         title="Delete chat"
                                                     >
                                                         <Trash2 className="w-3.5 h-3.5" />
@@ -725,11 +725,11 @@ export default function AIAssistantPage() {
                 </div>
 
                 {/* Sidebar Footer */}
-                <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-[11px] text-slate-500">
+                <div className="p-3 border-t border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/50 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
                     <span className="truncate">{sessions.length} Saved Chats</span>
                     <button
                         onClick={fetchSessions}
-                        className="p-1 hover:text-slate-900 hover:bg-slate-200/60 rounded transition-colors"
+                        className="p-1 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800 rounded transition-colors"
                         title="Refresh chat history"
                     >
                         <RefreshCw className={clsx("w-3.5 h-3.5", loadingSessions && "animate-spin")} />
@@ -740,12 +740,12 @@ export default function AIAssistantPage() {
             {/* Main Content & Chat Area */}
             <div className="flex-1 flex flex-col h-full overflow-hidden">
                 {/* Top Command Header */}
-                <header className="h-16 border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-10 shrink-0">
+                <header className="h-16 border-b border-slate-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-10 shrink-0">
                     <div className="flex items-center gap-3">
                         {/* Sidebar Toggle Button */}
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                            className="p-2 rounded-lg text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                             title={isSidebarOpen ? "Hide Chat History" : "Show Chat History"}
                         >
                             {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
@@ -753,8 +753,8 @@ export default function AIAssistantPage() {
 
                         <AILogo size={38} className="rounded-xl shadow-md shadow-indigo-500/20" />
                         <div>
-                            <h1 className="text-base font-bold text-slate-900 tracking-tight">Orbit Copilot</h1>
-                            <p className="text-xs text-slate-500 hidden sm:block">
+                            <h1 className="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-tight">Orbit Copilot</h1>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 hidden sm:block">
                                 {isAdmin ? 'Autonomous Executive Operating System · Powered by Orbit AI' : 'Workplace Companion & Interactive Feature Walkthrough Guide'}
                             </p>
                         </div>
@@ -762,16 +762,16 @@ export default function AIAssistantPage() {
 
                     {/* Telemetry & Actions */}
                     <div className="flex items-center gap-3">
-                        <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-600">
+                        <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs text-slate-600 dark:text-zinc-300">
                             <Database className="w-3.5 h-3.5 text-indigo-500" />
                             <span>Mem0 Memory Active</span>
-                            <span className="text-slate-300">|</span>
-                            <span className="text-emerald-600 font-medium">⚡ 90% Cost Optimized</span>
+                            <span className="text-slate-300 dark:text-zinc-600">|</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">⚡ 90% Cost Optimized</span>
                         </div>
 
                         <button 
                             onClick={handleNewChat}
-                            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs shadow-2xs transition-colors cursor-pointer"
+                            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-medium text-xs shadow-2xs transition-colors cursor-pointer"
                         >
                             <Plus className="w-3.5 h-3.5" />
                             <span>New Chat</span>
@@ -779,10 +779,10 @@ export default function AIAssistantPage() {
 
                         <button
                             onClick={() => setIsAgentDrawerOpen(true)}
-                            className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-800 font-semibold text-xs shadow-2xs transition-all cursor-pointer"
+                            className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/70 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 font-semibold text-xs shadow-2xs transition-all cursor-pointer"
                             title="Internal Agent Requests from Voiceforce"
                         >
-                            <Bot className="w-3.5 h-3.5 text-indigo-600" />
+                            <Bot className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                             <span>Agent Requests</span>
                             {agentRequestsCount > 0 && (
                                 <span className="ml-1 px-1.5 py-0.2 rounded-full bg-indigo-600 text-white font-bold text-[10px] animate-pulse">
@@ -792,9 +792,13 @@ export default function AIAssistantPage() {
                         </button>
 
                         <button 
-                            onClick={() => router.push('/settings/ai')}
-                            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                            title="AI Settings"
+                            onClick={() => {
+                                if (typeof window !== 'undefined') {
+                                    window.dispatchEvent(new CustomEvent('180_open_ai_credits_drawer'));
+                                }
+                            }}
+                            className="p-2 rounded-lg text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                            title="AI Credits & Settings"
                         >
                             <Settings className="w-4 h-4" />
                         </button>
@@ -804,21 +808,25 @@ export default function AIAssistantPage() {
                 {/* Messages Chat Area with Sleek Scrollbar */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
                     {!isCheckingConfig && !aiConfig.isConfigured && (
-                        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start justify-between gap-4">
+                        <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 flex items-start justify-between gap-4">
                             <div className="flex items-start gap-3">
-                                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                                 <div>
-                                    <h4 className="text-xs font-bold text-amber-900">AI API Key Not Configured</h4>
-                                    <p className="text-xs text-amber-700 mt-0.5">
+                                    <h4 className="text-xs font-bold text-amber-900 dark:text-amber-200">AI API Key Not Configured</h4>
+                                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
                                         Please configure your Google Gemini, OpenAI, Claude, or Custom AI API Key in Company Settings to unlock full intelligence capabilities.
                                     </p>
                                 </div>
                             </div>
                             <button 
-                                onClick={() => router.push('/settings/ai')}
-                                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs rounded-lg transition-colors shrink-0"
+                                onClick={() => {
+                                    if (typeof window !== 'undefined') {
+                                        window.dispatchEvent(new CustomEvent('180_open_ai_credits_drawer'));
+                                    }
+                                }}
+                                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs rounded-lg transition-colors shrink-0 cursor-pointer"
                             >
-                                Configure AI in Settings &rarr;
+                                AI Credits &amp; Engine &rarr;
                             </button>
                         </div>
                     )}
@@ -831,7 +839,7 @@ export default function AIAssistantPage() {
                                 className={clsx("flex gap-3 max-w-3xl", isUser ? "ml-auto flex-row-reverse" : "mr-auto")}
                             >
                                 {isUser ? (
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 text-white shadow-xs overflow-hidden border border-slate-200 dark:border-slate-700 mt-0.5">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 text-white shadow-xs overflow-hidden border border-gray-200 dark:border-zinc-700 mt-0.5">
                                         {userPhoto ? (
                                             <img src={userPhoto} alt={userName} className="w-full h-full object-cover" />
                                         ) : (
@@ -843,12 +851,12 @@ export default function AIAssistantPage() {
                                 )}
 
                                 <div className={clsx("flex flex-col min-w-0 flex-1", isUser ? "items-end" : "items-start")}>
-                                    <div className={clsx("flex items-center gap-1.5 mb-1 px-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400", isUser ? "flex-row-reverse" : "")}>
-                                        <span className="font-bold text-slate-700 dark:text-slate-200">
+                                    <div className={clsx("flex items-center gap-1.5 mb-1 px-1 text-[11px] font-semibold text-slate-500 dark:text-zinc-400", isUser ? "flex-row-reverse" : "")}>
+                                        <span className="font-bold text-slate-700 dark:text-zinc-200">
                                             {isUser ? userName : 'Orbit Copilot'}
                                         </span>
                                         {msg.timestamp && (
-                                            <span className="text-[10px] text-slate-400">
+                                            <span className="text-[10px] text-slate-400 dark:text-zinc-500">
                                                 • {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         )}
@@ -857,15 +865,15 @@ export default function AIAssistantPage() {
                                     <div className={clsx(
                                         "rounded-2xl p-4 text-sm leading-relaxed shadow-xs w-fit max-w-full",
                                         isUser 
-                                            ? "bg-slate-900 text-white rounded-tr-xs" 
-                                            : "bg-white border border-slate-200 text-slate-800 rounded-tl-xs"
+                                            ? "bg-slate-900 dark:bg-indigo-600 text-white rounded-tr-xs" 
+                                            : "bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-800 dark:text-zinc-100 rounded-tl-xs"
                                     )}>
                                     {/* Attachment Pill if User uploaded file */}
                                     {msg.attachment && (
-                                        <div className="mb-2.5 p-2 bg-slate-800/80 rounded-lg border border-slate-700 flex items-center gap-2 text-xs text-indigo-200">
+                                        <div className="mb-2.5 p-2 bg-slate-800/80 dark:bg-zinc-800 rounded-lg border border-slate-700 dark:border-zinc-700 flex items-center gap-2 text-xs text-indigo-200 dark:text-indigo-300">
                                             <FileText className="w-3.5 h-3.5 text-indigo-400" />
                                             <span className="font-medium truncate max-w-[200px]">{msg.attachment.name}</span>
-                                            <span className="text-[10px] text-slate-400">({formatBytes(msg.attachment.size)})</span>
+                                            <span className="text-[10px] text-slate-400 dark:text-zinc-400">({formatBytes(msg.attachment.size)})</span>
                                         </div>
                                     )}
 
@@ -914,8 +922,8 @@ export default function AIAssistantPage() {
 
                                     {/* Algorithms-First Telemetry Pill */}
                                     {msg.algorithmsStats && (
-                                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-                                            <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                                        <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-400 dark:text-zinc-500">
+                                            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
                                                 <CheckCircle2 className="w-3 h-3" />
                                                 {msg.algorithmsStats.tokensSavedPercentage}% Token Optimized
                                             </span>
@@ -925,13 +933,13 @@ export default function AIAssistantPage() {
 
                                     {/* Footer actions */}
                                     {!isUser && (
-                                        <div className="mt-2 flex items-center justify-end gap-2 text-slate-400">
+                                        <div className="mt-2 flex items-center justify-end gap-2 text-slate-400 dark:text-zinc-500">
                                             <button 
                                                 onClick={() => handleCopy(msg.id, msg.content)}
-                                                className="hover:text-slate-600 p-1 cursor-pointer"
+                                                className="hover:text-slate-600 dark:hover:text-zinc-300 p-1 cursor-pointer"
                                                 title="Copy to clipboard"
                                             >
-                                                {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                                {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                                             </button>
                                         </div>
                                     )}
@@ -944,7 +952,7 @@ export default function AIAssistantPage() {
                     {loading && (
                         <div className="flex gap-3 max-w-3xl mr-auto">
                             <AILogo size={32} className="rounded-lg shadow-xs animate-pulse" />
-                            <div className="rounded-2xl rounded-tl-xs p-4 bg-white border border-slate-200 shadow-xs flex items-center gap-3 text-sm text-slate-500">
+                            <div className="rounded-2xl rounded-tl-xs p-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs flex items-center gap-3 text-sm text-slate-500 dark:text-zinc-400">
                                 <div className="flex items-center gap-1">
                                     <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce"></span>
                                     <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce [animation-delay:0.2s]"></span>
@@ -958,12 +966,12 @@ export default function AIAssistantPage() {
                 </div>
 
                 {/* Bottom Input Area with Attached Document Preview & Mode Selector */}
-                <div className="p-4 sm:p-6 bg-white border-t border-slate-200 shrink-0">
+                <div className="p-4 sm:p-6 bg-white dark:bg-zinc-950 border-t border-slate-200 dark:border-zinc-800 shrink-0">
                     <div className="max-w-4xl mx-auto space-y-3">
                         {/* Quick Prompts Suggestions */}
                         {messages.length <= 2 && (
                             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 text-xs">
-                                <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1">
+                                <span className="text-slate-400 dark:text-zinc-500 font-medium shrink-0 flex items-center gap-1">
                                     <Lightbulb className="w-3.5 h-3.5 text-amber-500" /> {isAdmin ? 'Executive Prompts:' : 'Quick Help & Self-Service:'}
                                 </span>
                                 {(isAdmin ? MODE_CONFIG[mode].suggestions : [
@@ -976,7 +984,7 @@ export default function AIAssistantPage() {
                                     <button
                                         key={i}
                                         onClick={() => handleSendMessage(sug)}
-                                        className="shrink-0 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors border border-slate-200 cursor-pointer text-xs"
+                                        className="shrink-0 px-3 py-1 rounded-full bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition-colors border border-slate-200 dark:border-zinc-800 cursor-pointer text-xs"
                                     >
                                         {sug}
                                     </button>
@@ -986,13 +994,13 @@ export default function AIAssistantPage() {
 
                         {/* File Attachment Pill Preview */}
                         {attachedDoc && (
-                            <div className="flex items-center gap-2 p-2 bg-indigo-50/80 border border-indigo-200 rounded-xl text-xs text-indigo-900 max-w-fit">
-                                <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <div className="flex items-center gap-2 p-2 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 rounded-xl text-xs text-indigo-900 dark:text-indigo-200 max-w-fit">
+                                <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                                 <span className="font-semibold truncate max-w-xs">{attachedDoc.name}</span>
-                                <span className="text-slate-500">({formatBytes(attachedDoc.size)})</span>
+                                <span className="text-slate-500 dark:text-zinc-400">({formatBytes(attachedDoc.size)})</span>
                                 <button 
                                     onClick={() => setAttachedDoc(null)}
-                                    className="p-1 text-slate-400 hover:text-rose-600 rounded-full transition-colors cursor-pointer"
+                                    className="p-1 text-slate-400 dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-full transition-colors cursor-pointer"
                                     title="Remove attachment"
                                 >
                                     <X className="w-3.5 h-3.5" />
@@ -1006,7 +1014,7 @@ export default function AIAssistantPage() {
                                 e.preventDefault();
                                 handleSendMessage();
                             }}
-                            className="relative flex items-center gap-2 bg-slate-50 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 rounded-2xl p-1.5 transition-all shadow-xs"
+                            className="relative flex items-center gap-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 dark:focus-within:ring-indigo-950/40 rounded-2xl p-1.5 transition-all shadow-xs"
                         >
                             {/* Mode Switcher Dropdown (Beside Text Field) */}
                             <div className="relative" ref={dropdownRef}>
@@ -1025,8 +1033,8 @@ export default function AIAssistantPage() {
                                 </button>
 
                                 {showModeDropdown && (
-                                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 text-xs">
-                                        <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-slate-200 dark:border-zinc-800 py-1.5 z-50 text-xs">
+                                        <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                                             Select Intelligence Mode
                                         </div>
                                         {(Object.keys(MODE_CONFIG) as AIMode[]).map((mKey) => {
@@ -1039,8 +1047,8 @@ export default function AIAssistantPage() {
                                                     type="button"
                                                     onClick={() => handleSelectMode(mKey)}
                                                     className={clsx(
-                                                        "w-full px-3 py-2 text-left flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer",
-                                                        isSelected ? "bg-slate-50 font-bold text-slate-900" : "text-slate-600"
+                                                        "w-full px-3 py-2 text-left flex items-center justify-between hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer",
+                                                        isSelected ? "bg-slate-50 dark:bg-zinc-800 font-bold text-slate-900 dark:text-zinc-100" : "text-slate-600 dark:text-zinc-400"
                                                     )}
                                                 >
                                                     <div className="flex items-center gap-2.5">
@@ -1049,10 +1057,10 @@ export default function AIAssistantPage() {
                                                         </div>
                                                         <div>
                                                             <p className="font-semibold">{cfg.title}</p>
-                                                            <p className="text-[10px] text-slate-400 font-normal">{cfg.shortTitle} Engine</p>
+                                                            <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-normal">{cfg.shortTitle} Engine</p>
                                                         </div>
                                                     </div>
-                                                    {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    {isSelected && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
                                                 </button>
                                             );
                                         })}
@@ -1073,7 +1081,7 @@ export default function AIAssistantPage() {
                             <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                                className="p-2 text-slate-400 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer"
                                 title="Attach text-based document (Max 25 MB)"
                             >
                                 <Paperclip className="w-4 h-4" />
@@ -1085,7 +1093,7 @@ export default function AIAssistantPage() {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder={MODE_CONFIG[mode].placeholder}
-                                className="flex-1 bg-transparent border-none text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none px-2"
+                                className="flex-1 bg-transparent border-none text-xs sm:text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none px-2"
                                 disabled={loading}
                             />
 
@@ -1097,7 +1105,7 @@ export default function AIAssistantPage() {
                                     "p-2 rounded-xl text-white shadow-xs transition-all flex items-center justify-center shrink-0",
                                     input.trim() || attachedDoc
                                         ? "bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
-                                        : "bg-slate-300 cursor-not-allowed"
+                                        : "bg-slate-300 dark:bg-zinc-800 dark:text-zinc-600 cursor-not-allowed"
                                 )}
                             >
                                 <Send className="w-4 h-4" />

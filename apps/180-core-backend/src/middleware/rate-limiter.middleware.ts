@@ -8,9 +8,10 @@ import rateLimit from 'express-rate-limit';
  */
 export const otpRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 6,
+  max: process.env.NODE_ENV === 'production' ? 10 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req: any) => process.env.NODE_ENV !== 'production',
   message: {
     success: false,
     error: 'Too many OTP attempts. Please wait 10 minutes before requesting a new code.',
@@ -19,9 +20,10 @@ export const otpRateLimiter = rateLimit({
 
 export const authRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 15,
+  max: process.env.NODE_ENV === 'production' ? 30 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req: any) => process.env.NODE_ENV !== 'production',
   message: {
     success: false,
     error: 'Too many authentication attempts. Please try again in 1 minute.',

@@ -1,6 +1,6 @@
 'use strict';
 
-import { developersPrisma as prisma } from '@workspace/db-180developers';
+import { developersPrisma as prisma } from '@workspace/db-180core';
 import { generateRandomToken, hashSecret } from '../oauth/oauth.service';
 
 export class DeveloperController {
@@ -155,12 +155,6 @@ export class DeveloperController {
             const clientSecretHint = `...${rawSecret.slice(-4)}`;
             const webhookSecret = generateRandomToken('whsec', 24);
 
-            // Check if user has a company to link
-            const user = await prisma.user.findUnique({
-                where: { id: userId },
-                select: { companyId: true }
-            });
-
             const app = await prisma.oAuthApp.create({
                 data: {
                     name: String(name).trim(),
@@ -177,8 +171,7 @@ export class DeveloperController {
                     enablePay: Boolean(enablePay),
                     webhookUrl: String(webhookUrl || '').trim(),
                     webhookSecret,
-                    userId,
-                    companyId: user?.companyId || null
+                    userId
                 } as any
             });
 

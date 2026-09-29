@@ -83,6 +83,31 @@ const nextConfig = {
                 destination: '/social-projects',
                 permanent: false,
             },
+            {
+                source: '/settings/email',
+                destination: '/emails?tab=settings',
+                permanent: false,
+            },
+            {
+                source: '/settings/ai',
+                destination: '/?drawer=ai-credits',
+                permanent: false,
+            },
+            {
+                source: '/settings/finance',
+                destination: '/settings/platform-billing',
+                permanent: false,
+            },
+            {
+                source: '/download',
+                destination: '/',
+                permanent: false,
+            },
+            {
+                source: '/settings/company-legals',
+                destination: '/documents/settings',
+                permanent: false,
+            },
         ];
     },
     async rewrites() {

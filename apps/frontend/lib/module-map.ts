@@ -14,7 +14,10 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   // CRM & Sales
   '/sales': { appId: 'crm', moduleId: 'sales' },
   '/leads': { appId: 'crm', moduleId: 'leads' },
+  // Advertising
   '/advertising': { appId: 'advertising', moduleId: 'ad-websites' },
+  '/forms': { appId: 'advertising', moduleId: 'forms' },
+  '/company': { appId: 'advertising', moduleId: 'company-hub' },
   '/pipeline': { appId: 'crm', moduleId: 'pipeline' },
   '/accounts': { appId: 'crm', moduleId: 'accounts' },
   '/contacts': { appId: 'crm', moduleId: 'contacts' },
@@ -155,12 +158,13 @@ export const APPS_CONFIG: AppConfig[] = [
         name: 'Advertising',
         icon: Megaphone,
         tag: 'Marketing',
-        description: 'Dynamic landing pages and tracking configurations',
+        description: 'Dynamic landing pages, forms, and company hub branding',
         modules: [
             { id: 'ad-websites', name: 'Ad Websites' },
             { id: 'pixels', name: 'Pixel Tracking' },
             { id: 'campaigns', name: 'Campaign Stats' },
-            { id: 'forms', name: 'Form Builder' }
+            { id: 'forms', name: 'Form Builder' },
+            { id: 'company-hub', name: 'Company Hub' },
         ]
     },
     { 
@@ -287,7 +291,8 @@ export const STARTER_SET = {
         'analytics', 'reports', 'website-analytics',
         'chat', 'meeting', 'emails', 
         'calendar', 'documents', 'assets', 'ai-assistant',
-        'content-calendar', 'social-media-assets', 'social-inbox'
+        'content-calendar', 'social-media-assets', 'social-inbox',
+        'ad-websites', 'forms', 'company-hub'
     ]
 };
 

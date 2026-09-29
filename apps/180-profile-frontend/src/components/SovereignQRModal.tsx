@@ -55,7 +55,7 @@ export function SovereignQRModal({ isOpen, onClose, userId, userName }: Sovereig
               <rect x="52" y="10" width="8" height="8" rx="1" />
               <rect x="38" y="24" width="8" height="8" rx="1" />
               <rect x="52" y="24" width="8" height="8" rx="1" />
-              <rect x="38" y="38" width="24" height="24" rx="2" fill="#7c3aed" />
+              <rect x="38" y="38" width="24" height="24" rx="2" fill="#2563eb" />
               <rect x="10" y="44" width="18" height="8" rx="1" />
               <rect x="72" y="44" width="18" height="8" rx="1" />
               <rect x="38" y="72" width="14" height="14" rx="1" />
@@ -80,7 +80,7 @@ export function SovereignQRModal({ isOpen, onClose, userId, userName }: Sovereig
         </div>
 
         <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-          <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+          <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
           <span>Valid for 15 minutes • End-to-end encrypted</span>
         </div>
       </div>

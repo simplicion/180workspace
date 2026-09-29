@@ -5,22 +5,16 @@ import Link from "next/link";
 import {
   Film,
   Sparkles,
-  Download,
-  ExternalLink,
-  Laptop,
   Clock,
   Plus,
   X,
   ArrowRight,
   AlertTriangle,
-  ChevronDown,
   Globe,
-  Smartphone,
 } from "lucide-react";
 import api from "@/lib/api";
 import { useSubscription } from "@/lib/useSubscription";
 import { useAuth } from "@/lib/auth-context";
-import { useNativeEngine } from "@/lib/useNativeEngine";
 import { MediaStudioWorkspace } from "./components/MediaStudioWorkspace";
 import { UniversalSkeleton, FeatureLock } from "@workspace/ui";
 import toast from "react-hot-toast";
@@ -39,7 +33,6 @@ interface VideoStudioProject {
 export default function MediaEditorDashboardPage() {
   const { companyConfig, loading: subLoading } = useSubscription();
   const { user, company, token } = useAuth();
-  const { isNativeDesktop, launchNativeApp, getDownloadUrl, specs: nativeSpecs } = useNativeEngine();
 
   const [projects, setProjects] = useState<VideoStudioProject[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
@@ -48,15 +41,6 @@ export default function MediaEditorDashboardPage() {
   const [isEmbeddedStudioOpen, setIsEmbeddedStudioOpen] = useState(false);
   const [activeStudioProject, setActiveStudioProject] = useState<string | null>(null);
   const [activeStudioTemplate, setActiveStudioTemplate] = useState<string | null>(null);
-
-  // Launch & Download Modal State
-  const [isLaunchModalOpen, setIsLaunchModalOpen] = useState(false);
-  const [targetProjectId, setTargetProjectId] = useState<string | undefined>(undefined);
-  const [targetPreset, setTargetPreset] = useState<string | undefined>(undefined);
-  const [appNotInstalled, setAppNotInstalled] = useState(false);
-  const [isLaunchingNative, setIsLaunchingNative] = useState(false);
-  const [detectedOS, setDetectedOS] = useState<"windows" | "macos" | "linux" | "android" | "ios">("windows");
-  const [openDropdownProjectId, setOpenDropdownProjectId] = useState<string | null>(null);
 
   // Project Creation Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -89,12 +73,6 @@ export default function MediaEditorDashboardPage() {
   useEffect(() => {
     fetchProjects();
     if (typeof window !== "undefined") {
-      const ua = window.navigator.userAgent.toLowerCase();
-      if (ua.includes("android")) setDetectedOS("android");
-      else if (ua.includes("iphone") || ua.includes("ipad") || ua.includes("ipod")) setDetectedOS("ios");
-      else if (ua.includes("mac")) setDetectedOS("macos");
-      else if (ua.includes("linux")) setDetectedOS("linux");
-      else setDetectedOS("windows");
 
       const params = new URLSearchParams(window.location.search);
       const proj = params.get("project") || params.get("projectId");
@@ -102,13 +80,13 @@ export default function MediaEditorDashboardPage() {
       const template = params.get("template");
       const postId = params.get("postId");
       const taskId = params.get("taskId");
-      if (proj || mode === "studio" || isNativeDesktop || postId || taskId) {
+      if (proj || mode === "studio" || postId || taskId) {
         if (proj) setActiveStudioProject(proj);
         if (template) setActiveStudioTemplate(template);
         setIsEmbeddedStudioOpen(true);
       }
     }
-  }, [isNativeDesktop]);
+  }, []);
 
   const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
   const hasApp =
@@ -152,95 +130,10 @@ export default function MediaEditorDashboardPage() {
     );
   }
 
-  const buildLaunchQuery = (projectId?: string, preset?: string) => {
-    const authParams = new URLSearchParams();
-    if (projectId) authParams.set("project", projectId);
-    if (preset) authParams.set("template", preset);
-    if (token) authParams.set("token", token);
-    if (company?.id) authParams.set("companyId", company.name || company.id);
-    if (user?.name || user?.firstName) {
-      authParams.set("user", user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim());
-    }
-    if (user?.email) authParams.set("email", user.email);
-
-    return authParams.toString() ? `?${authParams.toString()}` : "";
-  };
-
-  const triggerDownload = (targetPlatform?: string) => {
-    const plat = targetPlatform || detectedOS;
-    let fileName = "180Workspace-Setup-x64.exe";
-    let downloadUrl = "/downloads/180Workspace-Setup-x64.exe";
-
-    if (plat === "macos" || plat === "mac") {
-      fileName = "180Workspace-Universal.dmg";
-      downloadUrl = "/api/download/mac";
-    } else if (plat === "linux") {
-      fileName = "180Workspace-x86_64.AppImage";
-      downloadUrl = "/api/download/linux";
-    } else if (plat === "android") {
-      fileName = "180Workspace-v1.0.apk";
-      downloadUrl = "/api/download/android";
-    }
-
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`Downloading 180 Workspace for ${plat === "macos" ? "macOS" : plat.charAt(0).toUpperCase() + plat.slice(1)}...`);
-  };
-
   const handleOpenWebStudio = (projectId?: string, preset?: string) => {
-    const pId = projectId || targetProjectId || null;
-    const pPreset = preset || targetPreset || null;
-    setActiveStudioProject(pId);
-    setActiveStudioTemplate(pPreset);
+    setActiveStudioProject(projectId || null);
+    setActiveStudioTemplate(preset || null);
     setIsEmbeddedStudioOpen(true);
-    setIsLaunchModalOpen(false);
-    setOpenDropdownProjectId(null);
-  };
-
-  const handleOpenInAppClick = async (projectId?: string, preset?: string) => {
-    setOpenDropdownProjectId(null);
-    const pId = projectId || targetProjectId;
-    const pPreset = preset || targetPreset;
-    setTargetProjectId(pId);
-    setTargetPreset(pPreset);
-
-    if (isNativeDesktop) {
-      // In native desktop app, open studio directly
-      setActiveStudioProject(pId || null);
-      setActiveStudioTemplate(pPreset || null);
-      setIsEmbeddedStudioOpen(true);
-      return;
-    }
-
-    // Try opening native app via deep link
-    setIsLaunchingNative(true);
-    toast.loading("Connecting to 180 Workspace App...", { id: "native-launch" });
-
-    let hasBlurred = false;
-    const onWindowBlur = () => {
-      hasBlurred = true;
-    };
-    window.addEventListener("blur", onWindowBlur);
-
-    const query = buildLaunchQuery(pId, pPreset);
-    await launchNativeApp(query);
-
-    setTimeout(() => {
-      window.removeEventListener("blur", onWindowBlur);
-      setIsLaunchingNative(false);
-      toast.dismiss("native-launch");
-
-      if (hasBlurred) {
-        toast.success("Opened project in 180 Workspace Desktop!");
-      } else {
-        // App is not installed! Automatically show the lightweight download prompt
-        setIsLaunchModalOpen(true);
-      }
-    }, 1500);
   };
 
   const handleCreateNewProject = async (e: React.FormEvent) => {
@@ -335,8 +228,8 @@ export default function MediaEditorDashboardPage() {
             onClick={() => handleOpenWebStudio()}
             className="flex items-center space-x-1.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 shadow-sm transition active:scale-95"
           >
-            <Globe className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Open Web Studio</span>
+            <Film className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Open Studio</span>
           </button>
           <button
             onClick={() => setIsCreateModalOpen(true)}
@@ -400,102 +293,14 @@ export default function MediaEditorDashboardPage() {
                     {new Date(proj.updatedAt).toLocaleDateString()}
                   </span>
 
-                  {/* Split Button: Open in App + Dropdown Menu */}
-                  <div className="relative inline-flex items-center rounded-lg shadow-sm">
-                    <button
-                      onClick={() => handleOpenInAppClick(proj.id, proj.templatePreset)}
-                      disabled={isLaunchingNative && targetProjectId === proj.id}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-l-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition active:scale-95 disabled:opacity-60"
-                      title="Open in native desktop app (auto-detects installation)"
-                    >
-                      {isLaunchingNative && targetProjectId === proj.id ? (
-                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Laptop className="w-3.5 h-3.5" />
-                      )}
-                      <span>Open in App</span>
-                    </button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenDropdownProjectId(openDropdownProjectId === proj.id ? null : proj.id);
-                      }}
-                      className="px-2 py-1.5 rounded-r-lg border-l border-indigo-500/40 text-white bg-indigo-600 hover:bg-indigo-700 transition"
-                      title="More launch options"
-                    >
-                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openDropdownProjectId === proj.id ? "rotate-180" : ""}`} />
-                    </button>
-
-                    {/* Anchored Dropdown Menu */}
-                    {openDropdownProjectId === proj.id && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setOpenDropdownProjectId(null)}
-                        />
-                        <div className="absolute right-0 bottom-full mb-1.5 w-56 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl py-1.5 z-20 animate-in fade-in zoom-in-95 duration-100">
-                          <button
-                            onClick={() => {
-                              setOpenDropdownProjectId(null);
-                              handleOpenWebStudio(proj.id);
-                            }}
-                            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800 flex items-start space-x-2.5 transition"
-                          >
-                            <Globe className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-                            <div>
-                              <span className="text-xs font-semibold text-gray-900 dark:text-white block">
-                                Open in Web Studio
-                              </span>
-                              <span className="text-[10px] text-gray-500 dark:text-gray-400 block">
-                                Edit in browser • No install
-                              </span>
-                            </div>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setOpenDropdownProjectId(null);
-                              handleOpenInAppClick(proj.id, proj.templatePreset);
-                            }}
-                            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800 flex items-start space-x-2.5 transition"
-                          >
-                            <Laptop className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
-                            <div>
-                              <span className="text-xs font-semibold text-gray-900 dark:text-white block">
-                                Open in Native App
-                              </span>
-                              <span className="text-[10px] text-gray-500 dark:text-gray-400 block">
-                                Launch installed desktop app
-                              </span>
-                            </div>
-                          </button>
-
-                          <div className="my-1 border-t border-gray-100 dark:border-gray-800" />
-
-                          <button
-                            onClick={() => {
-                              setOpenDropdownProjectId(null);
-                              setTargetProjectId(proj.id);
-                              setTargetPreset(proj.templatePreset);
-                              setIsLaunchModalOpen(true);
-                            }}
-                            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800 flex items-start space-x-2.5 transition"
-                          >
-                            <Download className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                            <div>
-                              <span className="text-xs font-semibold text-gray-900 dark:text-white block">
-                                Download Desktop App
-                              </span>
-                              <span className="text-[10px] text-gray-500 dark:text-gray-400 block">
-                                For {detectedOS === "windows" ? "Windows" : detectedOS === "macos" ? "macOS" : detectedOS === "linux" ? "Linux" : "mobile"}
-                              </span>
-                            </div>
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => handleOpenWebStudio(proj.id, proj.templatePreset)}
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition active:scale-95 shadow-xs"
+                    title="Open in Studio"
+                  >
+                    <Film className="w-3.5 h-3.5" />
+                    <span>Open Studio</span>
+                  </button>
                 </div>
               </div>
             ))}
@@ -503,145 +308,6 @@ export default function MediaEditorDashboardPage() {
         )}
       </div>
 
-      {/* Clean Lightweight Download Dialog (Only shown if app not installed or requested) */}
-      {isLaunchModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="fixed inset-0" onClick={() => setIsLaunchModalOpen(false)} />
-
-          <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#0E1017] border border-gray-200 dark:border-gray-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150 z-10">
-            <button
-              onClick={() => setIsLaunchModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {/* One Title & Icon */}
-            <div className="flex items-center space-x-3 pr-8">
-              <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 shrink-0">
-                <Laptop className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                  Download 180 Media Studio
-                </h3>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  {detectedOS === "windows"
-                    ? "Windows 10 / 11 (64-bit)"
-                    : detectedOS === "macos"
-                    ? "macOS Apple Silicon & Intel"
-                    : detectedOS === "linux"
-                    ? "Linux AppImage"
-                    : detectedOS === "android"
-                    ? "Android APK Package"
-                    : "iOS Web App"}
-                </p>
-              </div>
-            </div>
-
-            {/* One Description */}
-            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-              Install the native desktop app to unlock <strong>&gt;500 FPS NVENC GPU rendering</strong>, zero cloud upload wait times, and a 100% offline workflow.
-            </p>
-
-            {/* Single Primary OS Download Button */}
-            <div className="space-y-3 pt-1">
-              {detectedOS === "windows" && (
-                <button
-                  onClick={() => triggerDownload("windows")}
-                  className="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/25 flex items-center justify-center space-x-2 transition active:scale-95"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download for Windows (.exe)</span>
-                </button>
-              )}
-
-              {detectedOS === "macos" && (
-                <button
-                  onClick={() => triggerDownload("macos")}
-                  className="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/25 flex items-center justify-center space-x-2 transition active:scale-95"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download for macOS (.dmg)</span>
-                </button>
-              )}
-
-              {detectedOS === "linux" && (
-                <button
-                  onClick={() => triggerDownload("linux")}
-                  className="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/25 flex items-center justify-center space-x-2 transition active:scale-95"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download for Linux (.AppImage)</span>
-                </button>
-              )}
-
-              {detectedOS === "android" && (
-                <button
-                  onClick={() => triggerDownload("android")}
-                  className="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/25 flex items-center justify-center space-x-2 transition active:scale-95"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download APK for Android (.apk)</span>
-                </button>
-              )}
-
-              {detectedOS === "ios" && (
-                <button
-                  onClick={() => handleOpenWebStudio(targetProjectId)}
-                  className="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/25 flex items-center justify-center space-x-2 transition active:scale-95"
-                >
-                  <Smartphone className="w-4 h-4" />
-                  <span>Open in Mobile Safari (PWA)</span>
-                </button>
-              )}
-
-              {/* Other Platforms Selector */}
-              <div className="flex items-center justify-center space-x-2 text-[11px] text-gray-500 dark:text-gray-400 pt-1">
-                <span>Other platforms:</span>
-                <button
-                  onClick={() => triggerDownload("windows")}
-                  className={`hover:text-indigo-600 dark:hover:text-indigo-400 font-medium ${detectedOS === "windows" ? "underline text-indigo-500" : ""}`}
-                >
-                  Windows
-                </button>
-                <span>•</span>
-                <button
-                  onClick={() => triggerDownload("macos")}
-                  className={`hover:text-indigo-600 dark:hover:text-indigo-400 font-medium ${detectedOS === "macos" ? "underline text-indigo-500" : ""}`}
-                >
-                  Mac
-                </button>
-                <span>•</span>
-                <button
-                  onClick={() => triggerDownload("linux")}
-                  className={`hover:text-indigo-600 dark:hover:text-indigo-400 font-medium ${detectedOS === "linux" ? "underline text-indigo-500" : ""}`}
-                >
-                  Linux
-                </button>
-                <span>•</span>
-                <button
-                  onClick={() => triggerDownload("android")}
-                  className={`hover:text-indigo-600 dark:hover:text-indigo-400 font-medium ${detectedOS === "android" ? "underline text-indigo-500" : ""}`}
-                >
-                  Android
-                </button>
-              </div>
-
-              {/* Instant Web Studio fallback */}
-              <div className="pt-3 border-t border-gray-100 dark:border-gray-800 text-center">
-                <button
-                  onClick={() => handleOpenWebStudio(targetProjectId)}
-                  className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center justify-center space-x-1 mx-auto"
-                >
-                  <span>Or continue editing in Web Studio (No install needed)</span>
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 8. New Project Modal */}
       {isCreateModalOpen && (

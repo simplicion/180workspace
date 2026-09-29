@@ -1,13 +1,10 @@
 import { prisma } from '@workspace/db';
 import { CompanyPaymentProviderInterface } from './company-payment-provider.interface';
-import { RazorpayCompanyProvider } from '../providers/razorpay-company.provider';
 import { StripeCompanyProvider } from '../providers/stripe-company.provider';
 
 export class CompanyPaymentService {
     static getProviderAdapter(providerName: string, config: any): CompanyPaymentProviderInterface {
         switch (providerName) {
-            case 'razorpay':
-                return new RazorpayCompanyProvider(config.razorpay);
             case 'stripe':
                 return new StripeCompanyProvider(config.stripe);
             default:
@@ -47,8 +44,6 @@ export class CompanyPaymentService {
         }
 
         switch (providerName) {
-            case 'razorpay':
-                return paymentConfig.razorpay?.webhookSecret;
             case 'stripe':
                 return paymentConfig.stripe?.webhookSecret;
             default:

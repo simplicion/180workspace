@@ -29,7 +29,7 @@ export const FeatureGuideCard: React.FC<FeatureGuideCardProps> = ({
     };
 
     return (
-        <div className="my-3 w-full max-w-2xl rounded-2xl border border-sky-500/30 bg-gradient-to-br from-slate-900/90 via-sky-950/20 to-slate-900/90 p-5 shadow-xl backdrop-blur-md transition-all duration-300 hover:border-sky-500/50 hover:shadow-sky-500/10">
+        <div className="my-3 w-full max-w-2xl rounded-2xl border border-sky-500/30 bg-gradient-to-br from-zinc-900/90 via-sky-950/20 to-zinc-900/90 p-5 shadow-xl backdrop-blur-md transition-all duration-300 hover:border-sky-500/50 hover:shadow-sky-500/10">
             {/* Header */}
             <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
                 <div className="flex items-center gap-3">
@@ -41,7 +41,7 @@ export const FeatureGuideCard: React.FC<FeatureGuideCardProps> = ({
                             <span className="rounded-full bg-sky-500/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-300 border border-sky-500/30">
                                 {app}
                             </span>
-                            <span className="text-xs text-slate-400">Step-by-Step Walkthrough</span>
+                            <span className="text-xs text-zinc-400">Step-by-Step Walkthrough</span>
                         </div>
                         <h4 className="mt-0.5 text-sm font-bold text-white tracking-tight">{title}</h4>
                     </div>
@@ -49,7 +49,7 @@ export const FeatureGuideCard: React.FC<FeatureGuideCardProps> = ({
 
                 <button
                     onClick={handleCopy}
-                    className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+                    className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
                     title="Copy guide steps"
                 >
                     {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
@@ -64,7 +64,7 @@ export const FeatureGuideCard: React.FC<FeatureGuideCardProps> = ({
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-500/30 text-[10px] font-bold text-sky-200">
                             {idx + 1}
                         </span>
-                        <p className="text-xs leading-relaxed text-slate-200 font-normal">
+                        <p className="text-xs leading-relaxed text-zinc-200 font-normal">
                             {step}
                         </p>
                     </div>

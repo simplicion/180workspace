@@ -77,13 +77,13 @@ export function DataSourcesPanel() {
     ];
 
     return (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
                 <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                         <Database className="w-4 h-4" />
                     </div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">
+                    <span className="text-xs font-bold text-zinc-800 dark:text-zinc-100 uppercase tracking-wider">
                         Document Data Sources
                     </span>
                 </div>
@@ -94,14 +94,14 @@ export function DataSourcesPanel() {
 
             {/* CRM Client Selection */}
             <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Users className="w-3 h-3 text-emerald-600" /> CRM Client Source
+                <label className="block text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Users className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> CRM Client Source
                 </label>
                 <div className="relative">
                     <select
                         value={documentDetails.clientId || ''}
                         onChange={(e) => handleClientChange(e.target.value)}
-                        className="w-full pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 appearance-none"
+                        className="w-full pl-3 pr-8 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-medium text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 appearance-none"
                     >
                         <option value="">-- Select Client from CRM --</option>
                         {clients.map((c: any) => (
@@ -110,19 +110,19 @@ export function DataSourcesPanel() {
                             </option>
                         ))}
                     </select>
-                    <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
                 </div>
                 {documentDetails.clientName && (
-                    <p className="mt-1 text-[11px] text-slate-500">
-                        Populating tags for: <span className="font-semibold text-slate-700 dark:text-slate-300">{documentDetails.clientName}</span> ({documentDetails.clientEmail || 'No email'})
+                    <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                        Populating tags for: <span className="font-semibold text-zinc-700 dark:text-zinc-300">{documentDetails.clientName}</span> ({documentDetails.clientEmail || 'No email'})
                     </p>
                 )}
             </div>
 
             {/* Payment Terms Chips */}
             <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-emerald-600" /> Commercial Payment Terms
+                <label className="block text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Commercial Payment Terms
                 </label>
                 <div className="grid grid-cols-2 gap-1.5">
                     {termsPresets.map((t) => {
@@ -135,7 +135,7 @@ export function DataSourcesPanel() {
                                 className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all ${
                                     isSelected
                                         ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-500 text-emerald-800 dark:text-emerald-200 shadow-2xs'
-                                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+                                        : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
                                 }`}
                             >
                                 {t.label}
@@ -148,24 +148,24 @@ export function DataSourcesPanel() {
             {/* Due Date & Currency */}
             <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider mb-1">
                         Due Date
                     </label>
                     <input
                         type="date"
                         value={documentDetails.dueDate ? documentDetails.dueDate.split('T')[0] : ''}
                         onChange={(e) => dispatch(updateDocumentDetails({ dueDate: e.target.value }))}
-                        className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-medium text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
                 </div>
                 <div>
-                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider mb-1">
                         Currency
                     </label>
                     <select
                         value={documentDetails.currency || 'INR'}
                         onChange={(e) => dispatch(updateDocumentDetails({ currency: e.target.value }))}
-                        className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-medium text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     >
                         {currencies.map(c => (
                             <option key={c} value={c}>
@@ -178,15 +178,15 @@ export function DataSourcesPanel() {
 
             {/* Linked Project (Optional) */}
             <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <FolderGit2 className="w-3 h-3 text-emerald-600" /> Linked Project Source
+                <label className="block text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <FolderGit2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Linked Project Source
                 </label>
                 <input
                     type="text"
                     placeholder="e.g. Website Redesign Q3"
                     value={documentDetails.projectName || ''}
                     onChange={(e) => dispatch(updateDocumentDetails({ projectName: e.target.value }))}
-                    className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
             </div>
         </div>

@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
-    "@workspace/identity-client": "workspace:*",
+    "@workspace/identity-sdk": "workspace:*",
     "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {

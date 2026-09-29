@@ -906,7 +906,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
 
         {/* Optional Footer Note / Disclaimer / Privacy Note */}
         {footerText && (
-          <div className="px-5 py-4 sm:px-8 sm:py-4 bg-zinc-50/70 dark:bg-zinc-850/50 border-t border-zinc-100 dark:border-zinc-800/80 text-center">
+          <div className="px-5 py-4 sm:px-8 sm:py-4 bg-zinc-50/70 dark:bg-zinc-900/60 border-t border-zinc-100 dark:border-zinc-800/80 text-center">
             <p className="text-xs text-zinc-500 dark:text-zinc-400 whitespace-pre-wrap leading-relaxed">
               {footerText}
             </p>

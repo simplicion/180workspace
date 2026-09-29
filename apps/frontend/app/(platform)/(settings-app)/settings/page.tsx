@@ -11,13 +11,11 @@ export default function SettingsIndexPage() {
     useEffect(() => {
         const tab = searchParams.get('tab');
         if (tab === 'ai') {
-            router.replace('/settings/ai');
+            router.replace('/?drawer=ai-credits');
         } else if (tab === 'wallet' || tab === 'billing') {
             router.replace('/settings/wallet');
-        } else if (tab) {
-            router.replace(`/settings/system-configs?tab=${tab}`);
         } else {
-            router.replace('/settings/system-configs');
+            router.replace('/settings/apps');
         }
     }, [router, searchParams]);
 

@@ -350,15 +350,15 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
 
   return createPortal(
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative z-10 animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative z-10 animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
               <Globe className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                 Domain Settings
                 {activeDomainData?.status === 'ACTIVE' && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">
@@ -366,12 +366,12 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
                   </span>
                 )}
               </h2>
-              <p className="text-[11px] text-slate-500">{targetName}</p>
+              <p className="text-[11px] text-zinc-500">{targetName}</p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition-colors"
+            className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-white rounded-lg transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -396,14 +396,14 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
           {!activeDomainData ? (
             <div className="space-y-4">
               {/* Option Selector Toggle */}
-              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+              <div className="grid grid-cols-2 gap-1 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl">
                 <button
                   type="button"
                   onClick={() => { setDomainMode('subdomain'); setErrorMessage(null); }}
                   className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
                     domainMode === 'subdomain'
-                      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                      : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
                   }`}
                 >
                   <Zap className="w-3.5 h-3.5 text-amber-500" />
@@ -415,8 +415,8 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
                   onClick={() => { setDomainMode('custom_domain'); setErrorMessage(null); }}
                   className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
                     domainMode === 'custom_domain'
-                      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                      : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
                   }`}
                 >
                   <Globe className="w-3.5 h-3.5 text-indigo-500" />
@@ -429,25 +429,25 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
                 <form onSubmit={handleConnectSubdomain} className="space-y-3 pt-1">
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                      <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
                         Subdomain Prefix
                       </label>
                       {checkingAvailability && (
-                        <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                        <span className="flex items-center gap-1 text-[11px] text-zinc-400">
                           <LogoLoader className="w-3 h-3 animate-spin text-indigo-500" />
                           Checking...
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                    <div className="flex items-center rounded-xl border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
                       <input
                         type="text"
                         value={subdomainSlug}
                         onChange={(e) => setSubdomainSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                         placeholder="mybrand"
-                        className="flex-1 px-3 py-2.5 bg-transparent text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none font-mono text-xs"
+                        className="flex-1 px-3 py-2.5 bg-transparent text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none font-mono text-xs"
                       />
-                      <span className="px-3 py-2.5 bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-mono text-xs border-l border-slate-200 dark:border-slate-700 select-none">
+                      <span className="px-3 py-2.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-300 font-mono text-xs border-l border-zinc-200 dark:border-zinc-700 select-none">
                         .{platformRoot}
                       </span>
                     </div>
@@ -489,7 +489,7 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
               {domainMode === 'custom_domain' && (
                 <form onSubmit={handleConnectCustomDomain} className="space-y-3 pt-1">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                       Domain Name
                     </label>
                     <input
@@ -497,7 +497,7 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
                       value={customDomainInput}
                       onChange={(e) => setCustomDomainInput(e.target.value)}
                       placeholder="go.yourbrand.com or yourbrand.com"
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-xs"
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-xs"
                     />
                   </div>
 
@@ -516,10 +516,10 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
             /* Connected Domain View */
             <div className="space-y-4">
               {/* Domain Header Card */}
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+              <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Connected Host</span>
-                  <div className="text-sm font-bold text-slate-900 dark:text-white font-mono">
+                  <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Connected Host</span>
+                  <div className="text-sm font-bold text-zinc-900 dark:text-white font-mono">
                     {activeDomainData.domain}
                   </div>
                 </div>
@@ -538,7 +538,7 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
                   <button
                     onClick={handleDisconnect}
                     disabled={loading}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                    className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
                     title="Disconnect"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -567,36 +567,36 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
               {/* DNS Records Table (Only for External Domains) */}
               {platformRoot && !activeDomainData.domain.includes(platformRoot) && (
                 <div className="space-y-2">
-                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                  <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
                     Required DNS Configuration
                   </span>
 
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                  <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
                     <table className="w-full text-left text-[11px] border-collapse">
                       <thead>
-                        <tr className="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold">
-                          <th className="py-2 px-2.5 border-b border-slate-200 dark:border-slate-800">Type</th>
-                          <th className="py-2 px-2.5 border-b border-slate-200 dark:border-slate-800">Name</th>
-                          <th className="py-2 px-2.5 border-b border-slate-200 dark:border-slate-800">Target</th>
-                          <th className="py-2 px-2.5 border-b border-slate-200 dark:border-slate-800 text-right"></th>
+                        <tr className="bg-zinc-100 dark:bg-zinc-900/80 text-zinc-600 dark:text-zinc-400 font-semibold">
+                          <th className="py-2 px-2.5 border-b border-zinc-200 dark:border-zinc-800">Type</th>
+                          <th className="py-2 px-2.5 border-b border-zinc-200 dark:border-zinc-800">Name</th>
+                          <th className="py-2 px-2.5 border-b border-zinc-200 dark:border-zinc-800">Target</th>
+                          <th className="py-2 px-2.5 border-b border-zinc-200 dark:border-zinc-800 text-right"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono">
+                      <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 font-mono">
                         {activeDomainData.records?.map((record, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                          <tr key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
                             <td className="py-2 px-2.5 font-bold text-indigo-600 dark:text-indigo-400">
                               {record.type}
                             </td>
-                            <td className="py-2 px-2.5 text-slate-700 dark:text-slate-300">
+                            <td className="py-2 px-2.5 text-zinc-700 dark:text-zinc-300">
                               {record.name}
                             </td>
-                            <td className="py-2 px-2.5 text-slate-700 dark:text-slate-300 truncate max-w-[150px]">
+                            <td className="py-2 px-2.5 text-zinc-700 dark:text-zinc-300 truncate max-w-[150px]">
                               {record.value}
                             </td>
                             <td className="py-2 px-2.5 text-right">
                               <button
                                 onClick={() => copyToClipboard(record.value, `rec-${idx}`)}
-                                className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                className="p-1 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                 title="Copy Value"
                               >
                                 {copiedKey === `rec-${idx}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
@@ -614,10 +614,10 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-100 dark:border-slate-800 flex justify-end bg-slate-50/50 dark:bg-slate-800/30">
+        <div className="p-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end bg-zinc-50/50 dark:bg-zinc-900/30">
           <button
             onClick={onClose}
-            className="px-3.5 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold text-xs rounded-lg hover:opacity-90 transition-opacity"
+            className="px-3.5 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-semibold text-xs rounded-lg hover:opacity-90 transition-opacity"
           >
             Done
           </button>

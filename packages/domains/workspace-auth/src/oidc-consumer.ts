@@ -6,7 +6,7 @@ import {
     UserInfoClient,
     VerifiedTokenResult,
     OneEightyUserProfile,
-} from '@workspace/identity-client';
+} from '@workspace/identity-sdk';
 
 export interface WorkspaceAuthConfig {
     identityServerUrl: string;

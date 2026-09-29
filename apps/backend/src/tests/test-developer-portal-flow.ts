@@ -57,7 +57,7 @@ async function runDeveloperPortalTestSuite() {
     assert(pkg.scripts.dev.includes('3008'), 'dev script must specify port 3008');
   });
 
-  // ─── Test 2: Dedicated Database Package (@workspace/db-180developers) ──────
+  // ─── Test 2: Dedicated Database Package (@workspace/db-180core) ──────
   await test('packages/db-180developers schema and client exist and are valid', () => {
     const dbDir = path.resolve(__dirname, '../../../../packages/db-180developers');
     const pkgPath = path.join(dbDir, 'package.json');
@@ -69,7 +69,7 @@ async function runDeveloperPortalTestSuite() {
     assert(fs.existsSync(clientPath), 'db-180developers compiled client dist/index.js must exist');
 
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-    assert.strictEqual(pkg.name, '@workspace/db-180developers');
+    assert.strictEqual(pkg.name, '@workspace/db-180core');
 
     const schemaContent = fs.readFileSync(schemaPath, 'utf8');
     assert(schemaContent.includes('model OAuthApp'), 'schema must contain OAuthApp');

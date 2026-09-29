@@ -43,7 +43,7 @@
     }
   },
   "dependencies": {
-    "@workspace/db-180developers": "workspace:*",
+    "@workspace/db-180core": "workspace:*",
     "proxy-from-env": "^1.1.0"
   },
   "prisma": {

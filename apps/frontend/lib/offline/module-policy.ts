@@ -90,9 +90,9 @@ export const OFFLINE_MODULES: OfflineModule[] = [
     note: 'Messages are live conversations and are not stored on this device.',
   },
   {
-    id: 'advertising', label: 'Advertising & Forms', routes: ['/advertising', '/forms'], tier: 'read',
-    readApi: ['/api/websites', '/api/forms'],
-    note: 'Browse your sites and forms; publishing needs a connection.',
+    id: 'advertising', label: 'Advertising, Forms & Company Hub', routes: ['/advertising', '/forms', '/company'], tier: 'read',
+    readApi: ['/api/websites', '/api/forms', '/api/company-config', '/api/company'],
+    note: 'Browse your sites, forms, and company hub; publishing needs a connection.',
   },
   {
     id: 'traffic-director', label: 'Traffic Director', routes: ['/traffic-director'], tier: 'read',
@@ -132,7 +132,7 @@ const NEVER_CACHE: RegExp[] = [
   /\/wallet(\/|$)/i,
   /\/vaults?(\/|$)/i,
   /\/(auth|tokens?|secrets?|passwords?|api-keys?|credentials?)(\/|$)/i,
-  /\/(integrations|system-configs|superadmin)(\/|$)/i,
+  /\/(integrations|superadmin)(\/|$)/i,
   /\/(platform-billing|billing|invoices|expenses|bills|vendors)(\/|$)/i,
   /\/analytics\/financial(\/|$)/i,
   /\/(inbox|chat|messages|voiceforce|meeting)(\/|$)/i,

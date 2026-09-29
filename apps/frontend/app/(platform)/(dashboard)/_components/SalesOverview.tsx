@@ -709,7 +709,7 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
                   {/* Dual Donut Charts Side-by-Side */}
                   <div className="grid grid-cols-2 gap-2 h-44 items-center">
                     {/* 1. LEADS DONUT */}
-                    <div className="flex flex-col items-center justify-center p-1.5 rounded-xl bg-white/60 dark:bg-zinc-850/60 border border-zinc-200/60 dark:border-zinc-800/60 h-full">
+                    <div className="flex flex-col items-center justify-center p-1.5 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/80 h-full">
                       <div className="flex items-center justify-between w-full px-1">
                         <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                           Lead
@@ -761,7 +761,7 @@ export default function SalesOverview({ isLocked }: { isLocked?: boolean }) {
                     </div>
 
                     {/* 2. DEALS DONUT */}
-                    <div className="flex flex-col items-center justify-center p-1.5 rounded-xl bg-white/60 dark:bg-zinc-850/60 border border-zinc-200/60 dark:border-zinc-800/60 h-full">
+                    <div className="flex flex-col items-center justify-center p-1.5 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/80 h-full">
                       <div className="flex items-center justify-between w-full px-1">
                         <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                           Deal

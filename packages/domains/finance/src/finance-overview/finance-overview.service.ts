@@ -139,7 +139,6 @@ export class FinanceOverviewService {
 
     let publicConfig = {
         activeProvider: null,
-        razorpay: { isConfigured: false },
         stripe: { isConfigured: false },
         reminderSettings: {}
     };
@@ -150,10 +149,7 @@ export class FinanceOverviewService {
             : config.companyPaymentConfig;
         
         publicConfig = {
-            activeProvider: parsed.activeProvider || null,
-            razorpay: {
-                isConfigured: !!(parsed.razorpay?.keyId && parsed.razorpay?.keySecret)
-            },
+            activeProvider: parsed.activeProvider === 'razorpay' ? null : (parsed.activeProvider || null),
             stripe: {
                 isConfigured: !!(parsed.stripe?.secretKey)
             },
@@ -173,15 +169,14 @@ export class FinanceOverviewService {
         ? JSON.parse(config.companyPaymentConfig) 
         : (config.companyPaymentConfig || {});
 
-    if (!currentConfig.razorpay) currentConfig.razorpay = {};
     if (!currentConfig.stripe) currentConfig.stripe = {};
     if (!currentConfig.reminderSettings) currentConfig.reminderSettings = {};
+    delete currentConfig.razorpay;
 
-    if (newConfig.activeProvider) {
+    if (newConfig.activeProvider && newConfig.activeProvider !== 'razorpay') {
         currentConfig.activeProvider = newConfig.activeProvider;
-    }
-    if (newConfig.razorpay) {
-        Object.assign(currentConfig.razorpay, newConfig.razorpay);
+    } else if (currentConfig.activeProvider === 'razorpay') {
+        currentConfig.activeProvider = 'manual';
     }
     if (newConfig.stripe) {
         Object.assign(currentConfig.stripe, newConfig.stripe);
@@ -375,7 +370,7 @@ export class FinanceOverviewService {
         deductions: s.deductions || 0,
         bonuses: s.bonuses || 0,
         status: s.status,
-        provider: 'RazorpayX Payroll',
+        provider: 'Automated Payroll',
         date: s.paidAt ? s.paidAt.toISOString() : s.createdAt.toISOString()
       });
     }
@@ -648,7 +643,7 @@ export class FinanceOverviewService {
       const txCategory = meta.category || tx.referenceModel || (isCredit ? 'Client Settlement' : 'Disbursement');
       const txDesc = meta.description || `${txCategory} Ledger Entry`;
       const txParty = meta.party || meta.counterparty || '';
-      const txMethod = meta.paymentMethod || tx.provider || 'RazorpayX Rail';
+      const txMethod = meta.paymentMethod || tx.provider || 'Direct Settlement Rail';
       const entity = txParty || resolvePartyCompanyName(tx.client, null, tx.user?.name || 'Commercial Partner');
       ledger.push({
         id: `TX-${tx.id.slice(0, 8).toUpperCase()}`,
@@ -692,7 +687,7 @@ export class FinanceOverviewService {
         amount: s.netSalary || s.amount || s.baseSalary || 0,
         currency: 'INR',
         status: isPaid ? 'completed' : 'pending',
-        provider: 'RazorpayX Payroll',
+        provider: 'Automated Payroll',
         referenceModel: 'Salary',
         referenceId: `Month: ${s.month || 'Current'}`,
         description: `Payroll Disbursement - ${empName} (${s.month || 'Current'})`,
@@ -708,7 +703,7 @@ export class FinanceOverviewService {
           netAmount: s.netSalary || s.amount || 0,
           debitAccount: '5030 - Employee Payroll Expense',
           creditAccount: '1010 - Operating Bank Account',
-          settlementRail: 'RazorpayX Automated Payroll',
+          settlementRail: 'Direct Automated Payroll',
           auditNotes: `Salary disbursement for ${empName}`
         }
       });
@@ -787,7 +782,7 @@ export class FinanceOverviewService {
           amount: updated.netSalary || updated.amount || updated.baseSalary || 0,
           type: 'debit',
           status: 'completed',
-          provider: 'RazorpayX Payroll',
+          provider: 'Automated Payroll',
           referenceModel: 'Salary',
           referenceId: salary.id,
           userId: salary.employee?.id,
@@ -796,7 +791,7 @@ export class FinanceOverviewService {
             description: `Automated Salary Payout to ${salary.employee?.name || 'Employee'}`,
             counterparty: salary.employee?.name || 'Employee',
             party: salary.employee?.name || 'Employee',
-            paymentMethod: 'RazorpayX Payroll',
+            paymentMethod: 'Automated Payroll',
             doubleEntryDebit: '5030 - Payroll Expense',
             doubleEntryCredit: '1010 - Operating Bank Account'
           }
@@ -869,7 +864,7 @@ export class FinanceOverviewService {
         amount: Number(data.amount),
         type: 'debit',
         status: 'completed',
-        provider: data.paymentMethod || 'RazorpayX Direct Payout',
+        provider: data.paymentMethod || 'Direct Payout',
         referenceModel: 'Expense',
         referenceId: data.referenceId || `PAYOUT-${Date.now()}`,
         userId: data.userId,
@@ -878,7 +873,7 @@ export class FinanceOverviewService {
           description: data.description || `Payout to ${data.counterparty}`,
           party: data.counterparty,
           counterparty: data.counterparty,
-          paymentMethod: data.paymentMethod || 'RazorpayX Direct Payout',
+          paymentMethod: data.paymentMethod || 'Direct Payout',
           doubleEntryDebit: '5010 - Operational Outflow',
           doubleEntryCredit: '1010 - Operating Bank Account'
         }

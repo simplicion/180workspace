@@ -338,8 +338,8 @@ export default function AppConfigPage() {
                                             <p className="text-[10px] text-gray-400 mt-1 italic">Using Global Configuration</p>
                                         </div>
                                     ) : (
-                                        <Link href='/settings/system-configs' className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors">
-                                            Setup Globally
+                                        <Link href='/emails?tab=settings' className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors">
+                                            Setup Email
                                         </Link>
                                     )}
                                 </div>
@@ -375,7 +375,7 @@ export default function AppConfigPage() {
                                                 <CheckCircle2 className="w-3 h-3" /> Configured
                                             </span>
                                         ) : (
-                                            <Link href='/settings?tab=finance' className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all">
+                                            <Link href='/settings/platform-billing' className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all">
                                                 Configure Finance
                                             </Link>
                                         )}
@@ -384,8 +384,8 @@ export default function AppConfigPage() {
                             </div>
 
                             <div className="pt-4 text-center">
-                                <Link href='/settings/system-configs' className="text-sm font-bold text-indigo-600 hover:underline underline-offset-2">
-                                    View all System Configs →
+                                <Link href='/settings/apps' className="text-sm font-bold text-indigo-600 hover:underline underline-offset-2">
+                                    View all Installed Apps →
                                 </Link>
                             </div>
                         </motion.div>

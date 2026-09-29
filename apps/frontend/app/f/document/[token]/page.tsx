@@ -205,16 +205,16 @@ export default function PublicDocumentPortalView() {
     const currencySymbol = doc.currency === 'USD' ? '$' : '₹';
 
     return (
-        <div className="min-h-screen bg-slate-100 dark:bg-slate-950 print:bg-white flex flex-col">
+        <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 print:bg-white flex flex-col">
             {/* Top Security Banner */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 sm:px-6 py-3 sm:py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 print:hidden sticky top-0 z-20 shadow-xs gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 sm:px-6 py-3 sm:py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 print:hidden sticky top-0 z-20 shadow-xs gap-3">
                 <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                     <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 shrink-0">
                         <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0">
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                            <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">Secure E-Sign & Review Portal</span>
+                            <span className="font-bold text-xs sm:text-sm text-zinc-900 dark:text-white truncate">Secure E-Sign & Review Portal</span>
                             {doc.accessType === 'client_only' ? (
                                 <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
                                     <Lock className="w-2.5 h-2.5" /> Client Only
@@ -225,7 +225,7 @@ export default function PublicDocumentPortalView() {
                                 </span>
                             )}
                         </div>
-                        <p className="text-[10px] sm:text-[11px] text-slate-400">256-bit Encrypted Document</p>
+                        <p className="text-[10px] sm:text-[11px] text-zinc-400">256-bit Encrypted Document</p>
                     </div>
                 </div>
                 
@@ -233,14 +233,14 @@ export default function PublicDocumentPortalView() {
                     <button 
                         onClick={handleDownloadPDF} 
                         disabled={isDownloading} 
-                        className="flex items-center gap-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl transition-colors disabled:opacity-50"
                     >
                         <Download className="w-3.5 h-3.5" /> {isDownloading ? 'Downloading...' : 'PDF'}
                     </button>
                     
                     <button 
                         onClick={() => window.print()} 
-                        className="flex items-center gap-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition-colors"
+                        className="flex items-center gap-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl transition-colors"
                     >
                         <Printer className="w-3.5 h-3.5" /> Print
                     </button>

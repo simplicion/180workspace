@@ -153,17 +153,17 @@ export default function CreateWithAIModal({ isOpen, onClose }: CreateWithAIModal
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] relative">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] relative">
                 
                 {/* Header */}
-                <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent flex items-center justify-between">
+                <div className="px-6 py-5 border-b border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
                             <Sparkles className="w-5 h-5 animate-pulse" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <h2 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                                     Create with AI
                                 </h2>
                                 <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1">
@@ -171,54 +171,56 @@ export default function CreateWithAIModal({ isOpen, onClose }: CreateWithAIModal
                                     {isConfigured ? providerModel : 'Key Required'}
                                 </span>
                             </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Describe any document, invoice, or agreement in plain English</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Describe any document, invoice, or agreement in plain English</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-1">
                         <button 
                             type="button" 
                             onClick={() => setShowInfo(!showInfo)} 
-                            className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-colors cursor-pointer"
+                            className="p-2 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-colors cursor-pointer"
                             title="AI Provider Information"
                         >
                             <Info className="w-5 h-5" />
                         </button>
-                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                        <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
                             <X className="w-5 h-5" />
                         </button>
                     </div>
 
                     {/* Info Popover */}
                     {showInfo && (
-                        <div className="absolute top-16 right-6 z-50 w-72 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 p-4 animate-in fade-in zoom-in-95 duration-200 text-xs space-y-2">
-                            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                        <div className="absolute top-16 right-6 z-50 w-72 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-4 animate-in fade-in zoom-in-95 duration-200 text-xs space-y-2">
+                            <div className="flex items-center justify-between pb-1.5 border-b border-zinc-100 dark:border-zinc-800">
                                 <span className="font-bold flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
                                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> AI Provider Info
                                 </span>
-                                <button onClick={() => setShowInfo(false)} className="text-slate-400 hover:text-slate-600">
+                                <button onClick={() => setShowInfo(false)} className="text-zinc-400 hover:text-zinc-600">
                                     <X className="w-3 h-3" />
                                 </button>
                             </div>
                             <div>
-                                <span className="text-[10px] text-slate-400 uppercase font-bold block">Engine Model</span>
-                                <span className="font-medium text-slate-700 dark:text-slate-200">{providerModel}</span>
+                                <span className="text-[10px] text-zinc-400 uppercase font-bold block">Engine Model</span>
+                                <span className="font-medium text-zinc-700 dark:text-zinc-200">{providerModel}</span>
                             </div>
                             <div>
-                                <span className="text-[10px] text-slate-400 uppercase font-bold block">Configuration</span>
-                                <span className="text-slate-600 dark:text-slate-400">
+                                <span className="text-[10px] text-zinc-400 uppercase font-bold block">Configuration</span>
+                                <span className="text-zinc-600 dark:text-zinc-400">
                                     {isConfigured ? 'Active and ready to draft documents' : 'Not configured. API Key needed.'}
                                 </span>
                             </div>
-                            <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800">
+                            <div className="pt-1.5 border-t border-zinc-100 dark:border-zinc-800">
                                 <button
                                     onClick={() => {
                                         setShowInfo(false);
                                         onClose();
-                                        router.push('/settings/ai');
+                                        if (typeof window !== 'undefined') {
+                                            window.dispatchEvent(new CustomEvent('180_open_ai_credits_drawer'));
+                                        }
                                     }}
-                                    className="w-full py-1 text-center text-indigo-600 hover:text-indigo-700 font-medium flex items-center justify-center gap-1"
+                                    className="w-full py-1 text-center text-indigo-600 hover:text-indigo-700 font-medium flex items-center justify-center gap-1 cursor-pointer"
                                 >
-                                    <span>Settings</span>
+                                    <span>AI Credits &amp; Engine</span>
                                     <ExternalLink className="w-3 h-3" />
                                 </button>
                             </div>
@@ -233,10 +235,10 @@ export default function CreateWithAIModal({ isOpen, onClose }: CreateWithAIModal
                             <Lock className="w-8 h-8" />
                         </div>
                         <div>
-                            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">
+                            <h3 className="text-base font-bold text-zinc-900 dark:text-white mb-1.5">
                                 AI Document Builder Locked
                             </h3>
-                            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
                                 To draft and generate smart documents with AI, please configure your company&apos;s AI API Key (Google Gemini, OpenAI, Claude, or Custom) in Company Settings.
                             </p>
                         </div>
@@ -245,9 +247,9 @@ export default function CreateWithAIModal({ isOpen, onClose }: CreateWithAIModal
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                className="px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                             >
-                                Close
+                                Cancel
                             </button>
                             <button
                                 type="button"
@@ -267,7 +269,7 @@ export default function CreateWithAIModal({ isOpen, onClose }: CreateWithAIModal
                     <form onSubmit={handleGenerate} className="p-6 overflow-y-auto space-y-5">
                         {/* Prompt Presets */}
                         <div>
-                            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 block">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 block">
                                 Quick Templates & Presets
                             </label>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -279,7 +281,7 @@ export default function CreateWithAIModal({ isOpen, onClose }: CreateWithAIModal
                                         className={`flex items-center gap-2 p-2.5 rounded-xl border text-left text-xs font-medium transition-all ${
                                             documentType === preset.type
                                                 ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 shadow-sm'
-                                                : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
+                                                : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 text-zinc-700 dark:text-zinc-300'
                                         }`}
                                     >
                                         <span className="text-base">{preset.icon}</span>
@@ -291,30 +293,30 @@ export default function CreateWithAIModal({ isOpen, onClose }: CreateWithAIModal
 
                         {/* Natural Language Prompt */}
                         <div>
-                            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center justify-between">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 flex items-center justify-between">
                                 <span>Your Instructions / Context</span>
-                                <span className="text-xs font-normal text-slate-400">Be as specific as you like</span>
+                                <span className="text-xs font-normal text-zinc-400">Be as specific as you like</span>
                             </label>
                             <textarea
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 rows={4}
                                 placeholder="e.g. Create a milestone invoice for $5,000 for building a Next.js app for Acme Corp with 18% GST and Net 15 days payment terms..."
-                                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
+                                className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
                             />
                         </div>
 
                         {/* Metadata Context Linkages */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                                <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-1.5 flex items-center gap-1.5">
                                     <Building className="w-3.5 h-3.5 text-indigo-500" />
                                     Target Client (Optional)
                                 </label>
                                 <select
                                     value={clientId}
                                     onChange={(e) => setClientId(e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                                 >
                                     <option value="">-- No Client Linked --</option>
                                     {clients.map((c: any) => (
@@ -326,14 +328,14 @@ export default function CreateWithAIModal({ isOpen, onClose }: CreateWithAIModal
                             </div>
 
                             <div>
-                                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                                <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-1.5 flex items-center gap-1.5">
                                     <User className="w-3.5 h-3.5 text-purple-500" />
                                     Target Employee (Optional)
                                 </label>
                                 <select
                                     value={employeeId}
                                     onChange={(e) => setEmployeeId(e.target.value)}
-                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                                 >
                                     <option value="">-- No Employee Linked --</option>
                                     {employees.map((u: any) => (
@@ -346,12 +348,12 @@ export default function CreateWithAIModal({ isOpen, onClose }: CreateWithAIModal
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
+                        <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-3">
                             <button
                                 type="button"
                                 onClick={onClose}
                                 disabled={isGenerating}
-                                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                className="px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                             >
                                 Cancel
                             </button>

@@ -37,11 +37,11 @@ export default function SystemSetupStatus() {
         <div ref={ref} className="relative">
             <button
                 onClick={() => setOpen(!open)}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors relative"
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-400 dark:hover:bg-orange-900/60 dark:border dark:border-orange-900/50 transition-colors relative"
                 title="System Setup Pending"
             >
                 <AlertCircle className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900">
                     {unconfiguredServices.length}
                 </span>
             </button>
@@ -54,7 +54,7 @@ export default function SystemSetupStatus() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 sm:hidden"
+                            className="fixed inset-0 bg-gray-900/40 dark:bg-black/70 backdrop-blur-sm z-40 sm:hidden"
                             onClick={() => setOpen(false)}
                         />
 
@@ -63,27 +63,27 @@ export default function SystemSetupStatus() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
                             transition={{ duration: 0.2 }}
-                            className="fixed bottom-0 left-0 right-0 z-50 p-5 bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] sm:absolute sm:bottom-auto sm:top-full sm:right-0 sm:left-auto sm:mt-3 sm:w-80 sm:rounded-2xl sm:shadow-xl sm:border sm:border-gray-100"
+                            className="fixed bottom-0 left-0 right-0 z-50 p-5 bg-white dark:bg-zinc-950 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] sm:absolute sm:bottom-auto sm:top-full sm:right-0 sm:left-auto sm:mt-3 sm:w-80 sm:rounded-2xl sm:shadow-xl sm:border sm:border-gray-100 dark:sm:border-zinc-800"
                         >
                             <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 hidden sm:flex">
+                                <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 hidden sm:flex">
                                     <Info className="w-5 h-5" />
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex items-center justify-between mb-1">
-                                        <h3 className="text-sm font-bold text-gray-900">Complete System Setup</h3>
-                                        <button onClick={() => setOpen(false)} className="sm:hidden p-1 text-gray-400 hover:bg-gray-100 rounded-lg">
+                                        <h3 className="text-sm font-bold text-gray-900 dark:text-zinc-100">Complete System Setup</h3>
+                                        <button onClick={() => setOpen(false)} className="sm:hidden p-1 text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg">
                                             <X className="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <p className="text-[12px] text-gray-500 mb-3">To unlock full capabilities like automated reporting, AI analysis, and cloud storage, please configure:</p>
+                                    <p className="text-[12px] text-gray-500 dark:text-zinc-400 mb-3">To unlock full capabilities like automated reporting, AI analysis, and cloud storage, please configure:</p>
                                     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                                         {unconfiguredServices.map(s => (
                                             <Link 
                                                 key={s.key} 
-                                                href='/settings' 
+                                                href={s.key === 'email' ? '/emails?tab=settings' : '/settings'} 
                                                 onClick={() => setOpen(false)}
-                                                className="text-[12px] font-bold text-gray-700 bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all text-center"
+                                                className="text-[12px] font-bold text-gray-700 dark:text-zinc-300 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 px-3 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700 transition-all text-center"
                                             >
                                                 {s.label}
                                             </Link>

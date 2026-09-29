@@ -43,33 +43,37 @@ export default function ProfilePage() {
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/api/oauth/userinfo', { credentials: 'include' })
-      .then((res) => res.json())
+    const token =
+      localStorage.getItem('platform_auth_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('accessToken') ||
+      '';
+
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    fetch('/api/oauth/userinfo', { headers, credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data.success && data.user) {
-          setUser(data.user);
+        if (data && (data.user || data.id)) {
+          const u = data.user || data;
+          setUser(u);
+          localStorage.setItem('user', JSON.stringify(u));
         } else {
-          setUser({
-            id: '180-usr-8f92a10c99',
-            name: 'Sovereign Creator',
-            email: 'creator@180workspace.com',
-            phone: '+91 98765 43210',
-            username: 'creator_180',
-            dob: '1998-05-14',
-            createdAt: '2026-01-15T09:00:00Z',
-          });
+          const stored = localStorage.getItem('user');
+          if (stored) {
+            try {
+              setUser(JSON.parse(stored));
+            } catch (_) {}
+          }
         }
       })
       .catch(() => {
-        setUser({
-          id: '180-usr-8f92a10c99',
-          name: 'Sovereign Creator',
-          email: 'creator@180workspace.com',
-          phone: '+91 98765 43210',
-          username: 'creator_180',
-          dob: '1998-05-14',
-          createdAt: '2026-01-15T09:00:00Z',
-        });
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          try {
+            setUser(JSON.parse(stored));
+          } catch (_) {}
+        }
       })
       .finally(() => setLoading(false));
   }, []);
@@ -100,14 +104,25 @@ export default function ProfilePage() {
     );
   }
 
-  const currentUser = user || {
-    id: '180-usr-8f92a10c99',
-    name: 'Sovereign Creator',
-    email: 'creator@180workspace.com',
-    phone: '+91 98765 43210',
-    username: 'creator_180',
-    dob: '1998-05-14',
-  };
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100 shadow-xs">
+          <User className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">Sign in to view your profile</h2>
+        <p className="text-xs text-slate-500">You need an active 180 Profile session to manage your identity & security settings.</p>
+        <Link
+          href="/auth/login"
+          className="inline-flex items-center justify-center px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20"
+        >
+          Sign In with 180
+        </Link>
+      </div>
+    );
+  }
+
+  const currentUser = user;
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
@@ -115,7 +130,7 @@ export default function ProfilePage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Link href="/" className="text-xs text-purple-600 hover:text-purple-700 font-medium">
+            <Link href="/" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
               ← Overview
             </Link>
             <span className="text-slate-400">•</span>
@@ -123,7 +138,7 @@ export default function ProfilePage() {
           </div>
           <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
             <span>Profile & Security</span>
-            <span className="px-2.5 py-0.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-full">
+            <span className="px-2.5 py-0.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
               Sovereign Passport
             </span>
           </h1>
@@ -136,7 +151,7 @@ export default function ProfilePage() {
           <Button
             variant="default"
             onClick={() => setIsEditModalOpen(true)}
-            className="min-h-[40px] px-5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs flex items-center gap-2 cursor-pointer"
+            className="min-h-[40px] px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-2 cursor-pointer"
           >
             <Edit3 className="w-3.5 h-3.5" />
             <span>Edit Profile</span>
@@ -148,7 +163,7 @@ export default function ProfilePage() {
             className="min-h-[40px] px-3.5 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
             title="Pair Companion Device"
           >
-            <QrCode className="w-4 h-4 text-purple-600" />
+            <QrCode className="w-4 h-4 text-blue-600" />
           </Button>
         </div>
       </div>
@@ -160,7 +175,7 @@ export default function ProfilePage() {
           <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center">
                   <User className="w-5 h-5" />
                 </div>
                 <div>
@@ -183,17 +198,17 @@ export default function ProfilePage() {
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Sovereign Username</span>
-                <div className="text-sm font-bold text-purple-700 font-mono">@{currentUser.username || 'creator_180'}</div>
+                <div className="text-sm font-bold text-blue-700 font-mono">@{currentUser.username || (currentUser.email ? currentUser.email.split('@')[0] : 'user')}</div>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Verified Email Address</span>
-                <div className="text-sm font-semibold text-slate-900">{currentUser.email}</div>
+                <div className="text-sm font-semibold text-slate-900">{currentUser.email || 'Not provided'}</div>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">WhatsApp Phone Number</span>
-                <div className="text-sm font-semibold text-slate-900">{currentUser.phone || '+91 98765 43210'}</div>
+                <div className="text-sm font-semibold text-slate-900">{currentUser.phone || 'Not linked'}</div>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
@@ -252,7 +267,7 @@ export default function ProfilePage() {
         <div className="space-y-6">
           <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-5">
             <div className="flex items-center gap-2 text-slate-900 font-bold text-sm pb-3 border-b border-slate-100">
-              <ShieldCheck className="w-4 h-4 text-purple-600" />
+              <ShieldCheck className="w-4 h-4 text-blue-600" />
               <span>Wallet & Security Policies</span>
             </div>
 
@@ -266,7 +281,7 @@ export default function ProfilePage() {
                   type="checkbox"
                   checked={requirePinForDebit}
                   onChange={(e) => setRequirePinForDebit(e.target.checked)}
-                  className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500 cursor-pointer"
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                 />
               </div>
 
@@ -279,7 +294,7 @@ export default function ProfilePage() {
                   type="checkbox"
                   checked={highValueAlerts}
                   onChange={(e) => setHighValueAlerts(e.target.checked)}
-                  className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500 cursor-pointer"
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                 />
               </div>
 
@@ -292,7 +307,7 @@ export default function ProfilePage() {
                   type="checkbox"
                   checked={instantLogin}
                   onChange={(e) => setInstantLogin(e.target.checked)}
-                  className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500 cursor-pointer"
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                 />
               </div>
             </div>
@@ -302,7 +317,7 @@ export default function ProfilePage() {
                 variant="outline"
                 onClick={handleSaveSecurityPolicies}
                 disabled={saving}
-                className="w-full min-h-[40px] rounded-xl text-xs font-bold text-purple-700 border-purple-200 hover:bg-purple-50 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[40px] rounded-xl text-xs font-bold text-blue-700 border-blue-200 hover:bg-blue-50 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>{saving ? 'Updating...' : 'Save Security Policies'}</span>
@@ -313,7 +328,7 @@ export default function ProfilePage() {
           {/* Cryptographic Proof card */}
           <div className="p-6 rounded-3xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-2.5">
             <div className="font-bold text-slate-900 flex items-center gap-1.5">
-              <Lock className="w-3.5 h-3.5 text-purple-600" />
+              <Lock className="w-3.5 h-3.5 text-blue-600" />
               <span>Sovereign Security Guarantee</span>
             </div>
             <p className="leading-relaxed text-[11px] text-slate-500">

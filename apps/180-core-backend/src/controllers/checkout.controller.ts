@@ -2,19 +2,18 @@
 
 import { Request, Response } from 'express';
 import { CheckoutService } from '@workspace/identity-provider';
+import { developersPrisma as prisma } from '@workspace/db-180core';
 
 export class CheckoutApiController {
   /**
    * POST /api/v1/checkout/sessions
-   * 3rd-Party Developer API to initiate checkout
+   * 3rd-Party Developer API or Authenticated User checkout initiation
    */
   static async createCheckoutSession(req: Request, res: Response) {
     try {
       const {
-        clientId,
-        clientSecret,
         amount,
-        currency,
+        currency = 'INR',
         title,
         description,
         returnUrl,
@@ -22,26 +21,120 @@ export class CheckoutApiController {
         metadata,
       } = req.body;
 
-      if (!clientId || !clientSecret) {
+      const clientId = req.body.clientId;
+      const clientSecret = req.body.clientSecret;
+
+      if (!amount || Number(amount) <= 0) {
         return res.status(400).json({
           success: false,
-          error: 'clientId and clientSecret are required',
+          error: 'Payment amount must be greater than zero',
         });
       }
 
-      const session = await CheckoutService.createSession({
-        clientId,
-        clientSecret,
-        amount: Number(amount),
-        currency,
-        title,
-        description,
-        returnUrl,
-        cancelUrl,
-        metadata,
+      // If client credentials provided, use standard 3rd-party developer flow
+      if (clientId && clientSecret) {
+        const session = await CheckoutService.createSession({
+          clientId,
+          clientSecret,
+          amount: Number(amount),
+          currency,
+          title: title || '180 Pay Sovereign Checkout',
+          description,
+          returnUrl,
+          cancelUrl,
+          metadata,
+        });
+
+        return res.status(200).json({
+          success: true,
+          sessionId: session.sessionId,
+          session: {
+            id: session.sessionId,
+            amount: session.amount,
+            currency: session.currency,
+            expiresAt: session.expiresAt,
+          },
+          data: session,
+          checkoutUrl: session.checkoutUrl,
+        });
+      }
+
+      // Otherwise, create session under first-party / authenticated app context
+      const userId = (req as any).user?.id || null;
+      let app = await prisma.oAuthApp.findFirst({
+        where: { clientId: clientId || '180-workspace-platform' },
+      }) || await prisma.oAuthApp.findFirst({
+        where: { isActive: true },
       });
 
-      return res.status(201).json({ success: true, data: session });
+      if (!app) {
+        const sysUser = await prisma.user.findFirst();
+        if (sysUser) {
+          app = await prisma.oAuthApp.create({
+            data: {
+              clientId: '180-workspace-platform',
+              clientSecretHash: 'first_party_app_hash',
+              clientSecretHint: 'hash',
+              name: '180 Workspace',
+              description: '180 Workspace Platform App',
+              redirectUris: ['http://localhost:3008/oauth/callback', 'http://localhost:3009/oauth/callback'],
+              allowedOrigins: ['http://localhost:3008', 'http://localhost:3009'],
+              allowedScopes: ['openid', 'identity:read'],
+              isVerified: true,
+              isActive: true,
+              userId: sysUser.id,
+            },
+          });
+        }
+      }
+
+      if (!app) {
+        throw new Error('No active OAuth application found to associate with checkout session');
+      }
+
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+      const checkoutSession = await prisma.checkoutSession.create({
+        data: {
+          appId: app.id,
+          amount: Math.round(Number(amount) * 100) / 100,
+          currency: (currency || 'INR').toUpperCase(),
+          status: 'PENDING',
+          title: title || '180 Pay Sovereign Checkout',
+          description: description || '',
+          returnUrl: returnUrl || '',
+          cancelUrl: cancelUrl || '',
+          metadata: metadata || {},
+          expiresAt,
+          userId,
+        },
+        include: {
+          app: {
+            select: {
+              id: true,
+              name: true,
+              logoUrl: true,
+              isVerified: true,
+            },
+          },
+        },
+      });
+
+      const sessionData = {
+        success: true,
+        sessionId: checkoutSession.id,
+        amount: checkoutSession.amount,
+        currency: checkoutSession.currency,
+        expiresAt: checkoutSession.expiresAt,
+        checkoutUrl: `${process.env.PROFILE_FRONTEND_URL || 'http://localhost:3009'}/checkout/${checkoutSession.id}`,
+      };
+
+      return res.status(200).json({
+        success: true,
+        sessionId: checkoutSession.id,
+        session: checkoutSession,
+        data: sessionData,
+        checkoutUrl: sessionData.checkoutUrl,
+      });
     } catch (err: any) {
       console.error('[CheckoutApiController:createCheckoutSession] Error:', err);
       return res.status(400).json({ success: false, error: err.message });
@@ -56,7 +149,7 @@ export class CheckoutApiController {
     try {
       const id = String(req.params.id);
       const session = await CheckoutService.getSession(id);
-      return res.json({ success: true, data: session });
+      return res.json({ success: true, session, data: session });
     } catch (err: any) {
       console.error('[CheckoutApiController:getCheckoutSession] Error:', err);
       return res.status(404).json({ success: false, error: err.message });

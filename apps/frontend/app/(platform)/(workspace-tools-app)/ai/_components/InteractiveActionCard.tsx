@@ -71,9 +71,9 @@ export function InteractiveActionCard({ data }: { data: ActionCardData }) {
     };
 
     return (
-        <div className="mt-3.5 p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 text-white shadow-xl max-w-xl">
+        <div className="mt-3.5 p-4 rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-950 border border-zinc-800 text-white shadow-xl max-w-xl">
             {/* Header / Meta */}
-            <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-800/80">
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-zinc-800/80">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shrink-0 shadow-md">
                         {isDoc && <FileText className="w-5 h-5 text-white" />}
@@ -82,12 +82,12 @@ export function InteractiveActionCard({ data }: { data: ActionCardData }) {
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h5 className="font-bold text-sm text-slate-100 tracking-tight">{data.title}</h5>
+                            <h5 className="font-bold text-sm text-zinc-100 tracking-tight">{data.title}</h5>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                                 {sent ? 'Sent' : 'Draft Ready'}
                             </span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
+                        <p className="text-xs text-zinc-400 mt-0.5">
                             {isDoc && `${data.blocksCount ? `${data.blocksCount} AST blocks • ` : ''}${data.grandTotal ? `₹${Number(data.grandTotal).toLocaleString('en-IN')} • ` : ''}Saved in 180 Documents`}
                             {isForm && 'Published in 180 Forms • Lead Capture Active'}
                             {isWebsite && 'Layout ready in 180 Sites'}
@@ -115,7 +115,7 @@ export function InteractiveActionCard({ data }: { data: ActionCardData }) {
                         className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                             sent 
                                 ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 cursor-default'
-                                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:text-white'
+                                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 hover:text-white'
                         }`}
                     >
                         {sent ? (
@@ -136,7 +136,7 @@ export function InteractiveActionCard({ data }: { data: ActionCardData }) {
                 {data.shareUrl && (
                     <button
                         onClick={handleCopyShare}
-                        className="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 border border-slate-700/80 transition-colors cursor-pointer"
+                        className="px-3 py-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-medium flex items-center gap-1.5 border border-zinc-700/80 transition-colors cursor-pointer"
                         title="Copy Public Link"
                     >
                         {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}

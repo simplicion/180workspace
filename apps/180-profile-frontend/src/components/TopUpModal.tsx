@@ -56,7 +56,7 @@ export function TopUpModal({ isOpen, onClose, onSuccess }: TopUpModalProps) {
         name: '180 Workspace Profile',
         description: 'Universal Prepaid Wallet Recharge',
         order_id: orderId,
-        theme: { color: '#7c3aed' },
+        theme: { color: '#2563eb' },
         handler: async function (response: any) {
           const verifyToast = toast.loading('Verifying transaction...');
           try {
@@ -119,7 +119,7 @@ export function TopUpModal({ isOpen, onClose, onSuccess }: TopUpModalProps) {
       title="Top-Up Prepaid Wallet"
       maxWidthClass="max-w-md"
     >
-      <div className="space-y-5 text-xs text-slate-700 pt-1">
+      <div className="space-y-5 text-xs text-slate-700 pt-1 font-sans">
         <p className="text-slate-500 text-xs">
           Add balance to your 180 Profile wallet. Usable for 1-click checkout across all 180 Workspace apps.
         </p>
@@ -138,7 +138,7 @@ export function TopUpModal({ isOpen, onClose, onSuccess }: TopUpModalProps) {
                 }}
                 className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-purple-600 text-white shadow-xs'
+                    ? 'bg-blue-600 text-white shadow-xs'
                     : 'bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100'
                 }`}
               >
@@ -159,15 +159,15 @@ export function TopUpModal({ isOpen, onClose, onSuccess }: TopUpModalProps) {
               placeholder="e.g. 1500"
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 min-h-[40px] text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 min-h-[40px] text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
             />
           </div>
         </div>
 
         {/* Summary */}
-        <div className="p-3.5 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-between text-xs">
-          <span className="text-purple-700 font-semibold">Total to Recharge:</span>
-          <span className="text-sm font-bold text-purple-900">
+        <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-between text-xs">
+          <span className="text-blue-700 font-semibold">Total to Recharge:</span>
+          <span className="text-sm font-bold text-blue-950">
             ₹{customAmount ? (parseFloat(customAmount) || 0).toFixed(2) : selectedAmount.toFixed(2)} INR
           </span>
         </div>
@@ -181,7 +181,7 @@ export function TopUpModal({ isOpen, onClose, onSuccess }: TopUpModalProps) {
             variant="default"
             onClick={handleRecharge}
             disabled={loading}
-            className="min-h-[40px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2 cursor-pointer"
+            className="min-h-[40px] bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 cursor-pointer shadow-md shadow-blue-600/20"
           >
             {loading ? <LogoLoader size={16} className="w-4 h-4 text-white" /> : <CreditCard className="w-3.5 h-3.5" />}
             <span>{loading ? 'Processing...' : 'Pay via UPI / Card'}</span>

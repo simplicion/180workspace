@@ -1,7 +1,7 @@
 'use strict';
 
 import assert from 'assert';
-import { developersPrisma } from '@workspace/db-180developers';
+import { developersPrisma } from '@workspace/db-180core';
 import {
   generateRandomToken,
   hashSecret,
@@ -12,7 +12,7 @@ import {
 
 async function runDedicatedIdentityDbSuite() {
   console.log('\n================================================================');
-  console.log('  PHASE 2: DEDICATED IDENTITY DB (@workspace/db-180developers)');
+  console.log('  PHASE 2: DEDICATED IDENTITY DB (@workspace/db-180core)');
   console.log('           & DOMAIN PROVIDER WIRING VERIFICATION SUITE');
   console.log('================================================================\n');
 
@@ -89,7 +89,7 @@ async function runDedicatedIdentityDbSuite() {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
     assert(!pkg.dependencies['@workspace/db'], 'Must NOT have @workspace/db in dependencies');
-    assert(pkg.dependencies['@workspace/db-180developers'], 'Must have @workspace/db-180developers in dependencies');
+    assert(pkg.dependencies['@workspace/db-180core'], 'Must have @workspace/db-180core in dependencies');
   });
 
   console.log('\n----------------------------------------------------------------');

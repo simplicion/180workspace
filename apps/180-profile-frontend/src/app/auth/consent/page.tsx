@@ -63,53 +63,97 @@ function ConsentForm() {
     clientId,
     isVerified: true,
   });
-  const [user, setUser] = useState<any>({
-    name: 'Sovereign Creator',
-    username: 'creator_180',
-    email: 'creator@180workspace.com',
-  });
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    fetch('/api/oauth/userinfo', { credentials: 'include' })
-      .then((res) => res.json())
+    const token =
+      localStorage.getItem('platform_auth_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('accessToken');
+
+    fetch('/api/oauth/userinfo', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+    })
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data.success && data.user) {
-          setUser(data.user);
+        if (data && (data.user || data.id || data.email)) {
+          setUser(data.user || data);
+        } else {
+          // If not authenticated, redirect to login with query params
+          const currentQuery = window.location.search;
+          router.replace(`/auth/login${currentQuery}`);
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          try {
+            setUser(JSON.parse(stored));
+          } catch (_) {}
+        }
+      })
       .finally(() => setLoading(false));
 
     if (clientId) {
       setAppInfo({
-        name: clientId
-          .replace(/-/g, ' ')
-          .replace(/\b\w/g, (l) => l.toUpperCase()),
+        name:
+          clientId === '180-workspace-platform'
+            ? '180 Workspace'
+            : clientId === '180-developer-portal'
+            ? '180 Developers'
+            : clientId
+                .replace(/-/g, ' ')
+                .replace(/\b\w/g, (l) => l.toUpperCase()),
         clientId,
         isVerified: true,
       });
     }
-  }, [clientId]);
+  }, [clientId, router]);
 
   const handleAuthorize = async () => {
     setAuthorizing(true);
     try {
+      const token =
+        localStorage.getItem('platform_auth_token') ||
+        localStorage.getItem('token') ||
+        localStorage.getItem('accessToken') ||
+        '';
+
       const res = await fetch('/api/oauth/authorize/consent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          clientId,
-          redirectUri,
-          scopes,
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          scope: rawScopes,
           state,
-          decision: 'ALLOW',
+          action: 'allow',
         }),
       });
 
       const data = await res.json();
-      const authCode = data.code || '180_auth_code_' + Math.random().toString(36).substring(2, 12);
+      if (!res.ok || !data.success || !data.code) {
+        throw new Error(data.error_description || data.message || 'Authorization failed');
+      }
+
+      const authCode = data.code;
+      const idToken = data.id_token || '';
 
       if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(
+          {
+            type: '180_IDENTITY_SUCCESS',
+            code: authCode,
+            token: idToken || token,
+            state,
+            user,
+          },
+          '*'
+        );
         window.opener.postMessage(
           {
             type: '180_AUTH_SUCCESS',
@@ -127,7 +171,7 @@ function ConsentForm() {
       } else {
         router.push('/');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Consent authorization failed:', err);
     } finally {
       setAuthorizing(false);
@@ -156,14 +200,14 @@ function ConsentForm() {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl text-slate-900 space-y-6">
+    <div className="w-full space-y-5 text-slate-900 font-sans relative">
       {/* Header / Brand Connection Visual */}
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center gap-3 pt-2">
           {/* 180 Profile Logo */}
-          <div className="w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 p-[1px] shadow-sm shrink-0 overflow-hidden">
+          <div className="w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[1px] shadow-sm shrink-0 overflow-hidden">
             <div className="w-full h-full bg-white rounded-2xl flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-purple-600" />
+              <Sparkles className="w-5 h-5 text-blue-600" />
             </div>
           </div>
 
@@ -177,7 +221,7 @@ function ConsentForm() {
 
         <div className="space-y-1">
           <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-            Authorize <span className="text-purple-600">{appInfo.name}</span>
+            Authorize <span className="text-blue-600">{appInfo.name}</span>
           </h1>
           <p className="text-xs text-slate-500">
             Wants access to your universal <strong className="text-slate-900">180 Profile</strong>.
@@ -186,14 +230,14 @@ function ConsentForm() {
       </div>
 
       {/* Logged in User Bar */}
-      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+      <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/90 flex items-center justify-between text-xs">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-bold text-xs text-white shadow-xs">
-            {user.name ? user.name[0].toUpperCase() : 'U'}
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-xs text-white shadow-xs">
+            {user?.name ? user.name[0].toUpperCase() : 'U'}
           </div>
           <div>
-            <div className="font-bold text-slate-900">{user.name}</div>
-            <div className="text-[11px] text-slate-500 font-mono">@{user.username || 'user_180'}</div>
+            <div className="font-bold text-slate-900">{user?.name || '180 User'}</div>
+            <div className="text-[11px] text-slate-500 font-mono">@{user?.username || 'user_180'}</div>
           </div>
         </div>
 
@@ -207,7 +251,7 @@ function ConsentForm() {
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
           Requested Permissions
         </h2>
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {scopes.map((scope) => {
             const info = SCOPE_DESCRIPTIONS[scope] || {
               title: scope,
@@ -219,9 +263,9 @@ function ConsentForm() {
             return (
               <div
                 key={scope}
-                className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3 text-xs"
+                className="p-3 rounded-xl bg-slate-50/80 border border-slate-200/90 flex items-start gap-3 text-xs"
               >
-                <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 shrink-0 mt-0.5">
+                <div className="p-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 shrink-0 mt-0.5">
                   <Icon className="w-3.5 h-3.5" />
                 </div>
                 <div>
@@ -237,37 +281,45 @@ function ConsentForm() {
       </div>
 
       {/* Actions (Min 44x44px touch targets) */}
-      <div className="space-y-2.5 pt-2">
-        <Button
+      <div className="space-y-2 pt-2">
+        <button
           type="button"
           onClick={handleAuthorize}
           disabled={authorizing}
-          className="w-full py-3 min-h-[44px] rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+          className="w-full min-h-[44px] py-2.5 px-4 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.99] disabled:opacity-50 shadow-md shadow-blue-600/20"
         >
           {authorizing ? (
             <LogoLoader size={16} className="w-4 h-4 text-white" />
           ) : (
             <>
+              <img
+                src="/black icon.svg"
+                alt=""
+                className="w-3.5 h-3.5 object-contain brightness-0 invert"
+                onError={(e) => {
+                  const target = e.currentTarget as HTMLImageElement;
+                  if (!target.src.includes('black-icon')) target.src = '/black-icon.svg';
+                }}
+              />
               <span>Authorize & Continue</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5 text-white" />
             </>
           )}
-        </Button>
+        </button>
 
-        <Button
+        <button
           type="button"
-          variant="outline"
           onClick={handleDeny}
           disabled={authorizing}
-          className="w-full py-3 min-h-[44px] rounded-xl bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+          className="w-full py-2.5 min-h-[44px] rounded-xl bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 border border-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
         >
           <span>Cancel & Deny</span>
-        </Button>
+        </button>
       </div>
 
       {/* Security Footer */}
-      <div className="pt-2 border-t border-slate-100 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
-        <Lock className="w-3.5 h-3.5 text-emerald-600" />
+      <div className="pt-2 border-t border-slate-100 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+        <Lock className="w-3 h-3 text-emerald-600" />
         <span>End-to-End Cryptographic RS256 Verification</span>
       </div>
     </div>
@@ -279,7 +331,7 @@ export default function ConsentPage() {
     <Suspense
       fallback={
         <div className="flex flex-col items-center justify-center min-h-[300px] space-y-3 text-slate-500 text-xs">
-          <LogoLoader size={32} className="w-8 h-8 text-purple-600 animate-spin" />
+          <LogoLoader size={32} className="w-8 h-8 text-blue-600 animate-spin" />
           <p>Loading consent screen...</p>
         </div>
       }

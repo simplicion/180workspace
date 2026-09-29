@@ -72,13 +72,13 @@ export default function CommentsBottomSheet({ isOpen, onClose, postId }: Comment
                 {reply.authorPhotoUrl ? (
                   <img src={reply.authorPhotoUrl} alt={reply.authorName} className="w-8 h-8 rounded-full object-cover" />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-gray-500 dark:text-zinc-400 shrink-0">
                     <UserCircle2 className="w-5 h-5" />
                   </div>
                 )}
-                <div className="flex flex-col bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-2">
-                  <span className="text-[13px] font-semibold text-gray-900">{reply.authorName}</span>
-                  <p className="text-sm text-gray-700 mt-1">{reply.content}</p>
+                <div className="flex flex-col bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl rounded-tl-sm px-4 py-2">
+                  <span className="text-[13px] font-semibold text-gray-900 dark:text-zinc-100">{reply.authorName}</span>
+                  <p className="text-sm text-gray-700 dark:text-zinc-300 mt-1">{reply.content}</p>
                 </div>
               </div>
             ))
@@ -86,14 +86,14 @@ export default function CommentsBottomSheet({ isOpen, onClose, postId }: Comment
         </div>
 
         {/* Comment Input */}
-        <div className="p-4 border-t border-gray-100 bg-white">
+        <div className="p-4 border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-950">
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
             <input
               type="text"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder={session ? "Write a comment..." : "Login to comment"}
-              className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="flex-1 bg-gray-100 dark:bg-zinc-900 border border-transparent dark:border-zinc-800 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
             <button
               type="submit"

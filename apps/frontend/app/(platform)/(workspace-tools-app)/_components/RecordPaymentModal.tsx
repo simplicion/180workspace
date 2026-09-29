@@ -61,19 +61,19 @@ export default function RecordPaymentModal({ isOpen, onClose, document: doc, onS
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden flex flex-col">
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 w-full max-w-lg overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center text-emerald-600">
                             <CheckCircle2 className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-base font-bold text-slate-900 dark:text-white">Record Payment Received</h2>
-                            <p className="text-xs text-slate-400">Post transaction to ledger & sync Client CLV</p>
+                            <h2 className="text-base font-bold text-zinc-900 dark:text-white">Record Payment Received</h2>
+                            <p className="text-xs text-zinc-400">Post transaction to ledger & sync Client CLV</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
@@ -83,12 +83,12 @@ export default function RecordPaymentModal({ isOpen, onClose, document: doc, onS
                     {/* Document summary badge */}
                     <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-bold text-slate-900 dark:text-white">{docTitle}</p>
+                            <p className="text-xs font-bold text-zinc-900 dark:text-white">{docTitle}</p>
                             <p className="text-[11px] text-indigo-600 dark:text-indigo-400">{doc.clientName || 'Valued Client'}</p>
                         </div>
                         <div className="text-right">
-                            <span className="text-xs text-slate-400">Invoice Total</span>
-                            <p className="text-sm font-black text-slate-900 dark:text-white">
+                            <span className="text-xs text-zinc-400">Invoice Total</span>
+                            <p className="text-sm font-black text-zinc-900 dark:text-white">
                                 {currency}{Number(doc?.grandTotal || doc?.subtotal || 0).toLocaleString()}
                             </p>
                         </div>
@@ -96,11 +96,11 @@ export default function RecordPaymentModal({ isOpen, onClose, document: doc, onS
 
                     {/* Amount Received Input */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
                             Amount Received ({currency})
                         </label>
                         <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{currency}</span>
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">{currency}</span>
                             <input
                                 type="number"
                                 required
@@ -108,14 +108,14 @@ export default function RecordPaymentModal({ isOpen, onClose, document: doc, onS
                                 step="any"
                                 value={amountReceived}
                                 onChange={(e) => setAmountReceived(Number(e.target.value))}
-                                className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm font-bold text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                             />
                         </div>
                     </div>
 
                     {/* Payment Method Selector */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
                             Payment Method
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -127,10 +127,10 @@ export default function RecordPaymentModal({ isOpen, onClose, document: doc, onS
                                     className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-semibold text-left transition-all ${
                                         paymentMethod === m.id
                                             ? 'border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-500 ring-2 ring-emerald-500/20'
-                                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                            : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
                                     }`}
                                 >
-                                    <m.icon className={`w-4 h-4 ${paymentMethod === m.id ? 'text-emerald-600' : 'text-slate-400'}`} />
+                                    <m.icon className={`w-4 h-4 ${paymentMethod === m.id ? 'text-emerald-600' : 'text-zinc-400'}`} />
                                     <span className="truncate">{m.label}</span>
                                 </button>
                             ))}
@@ -140,7 +140,7 @@ export default function RecordPaymentModal({ isOpen, onClose, document: doc, onS
                     {/* Reference / UTR # and Payment Date */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                            <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
                                 Reference / UTR # (Optional)
                             </label>
                             <input
@@ -148,11 +148,11 @@ export default function RecordPaymentModal({ isOpen, onClose, document: doc, onS
                                 placeholder="e.g. UTR-98234190"
                                 value={referenceNumber}
                                 onChange={(e) => setReferenceNumber(e.target.value)}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                            <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
                                 Payment Date
                             </label>
                             <input
@@ -160,14 +160,14 @@ export default function RecordPaymentModal({ isOpen, onClose, document: doc, onS
                                 required
                                 value={paymentDate}
                                 onChange={(e) => setPaymentDate(e.target.value)}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                             />
                         </div>
                     </div>
 
                     {/* Notes */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
                             Notes / Remarks (Optional)
                         </label>
                         <input
@@ -175,16 +175,16 @@ export default function RecordPaymentModal({ isOpen, onClose, document: doc, onS
                             placeholder="e.g. Received via HDFC corporate account"
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                            className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                         />
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
+                    <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-2.5">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                         >
                             Cancel
                         </button>

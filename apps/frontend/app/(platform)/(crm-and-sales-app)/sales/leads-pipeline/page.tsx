@@ -57,10 +57,10 @@ const STAGE_LABELS: Record<string, string> = {
 
 const STAGE_STYLES: Record<string, { color: string, bg: string, badge: string, valueBadge: string, dot: string }> = {
     'Lead': { 
-        color: 'border-gray-300', 
-        bg: 'bg-gray-50/60 dark:bg-slate-900/40', 
+        color: 'border-gray-300 dark:border-zinc-700', 
+        bg: 'bg-gray-50/60 dark:bg-zinc-900/40', 
         badge: 'badge-gray',
-        valueBadge: 'text-gray-700 dark:text-gray-300 bg-gray-100/80 dark:bg-slate-800/80 border-gray-200 dark:border-slate-700',
+        valueBadge: 'text-gray-700 dark:text-gray-300 bg-gray-100/80 dark:bg-zinc-800/80 border-gray-200 dark:border-zinc-700',
         dot: 'bg-gray-400'
     },
     'Contacted': { 
@@ -474,7 +474,7 @@ export default function LeadPipelinesKanbanPage() {
     return (
         <div className="flex flex-col gap-4 pb-20">
             {/* Top Bar with Title, KPIs and Main Actions */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 shrink-0 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 shrink-0 bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800">
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl">
@@ -486,22 +486,22 @@ export default function LeadPipelinesKanbanPage() {
                         </div>
                     </div>
 
-                    <div className="hidden lg:flex items-center gap-4 pl-6 border-l border-gray-100 dark:border-slate-800 h-10">
+                    <div className="hidden lg:flex items-center gap-4 pl-6 border-l border-gray-100 dark:border-zinc-800 h-10">
                         <div className="flex flex-col items-center">
                             <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500">Open</span>
                             <span className="text-sm font-black text-gray-900 dark:text-gray-100">{openLeads}</span>
                         </div>
-                        <div className="w-px h-6 bg-gray-100 dark:bg-slate-800" />
+                        <div className="w-px h-6 bg-gray-100 dark:bg-zinc-800" />
                         <div className="flex flex-col items-center">
                             <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500">Pipeline</span>
                             <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">{currencySymbol}{pipelineValue.toLocaleString()}</span>
                         </div>
-                        <div className="w-px h-6 bg-gray-100 dark:bg-slate-800" />
+                        <div className="w-px h-6 bg-gray-100 dark:bg-zinc-800" />
                         <div className="flex flex-col items-center">
                             <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500">Won / mo</span>
                             <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{wonLeads}</span>
                         </div>
-                        <div className="w-px h-6 bg-gray-100 dark:bg-slate-800" />
+                        <div className="w-px h-6 bg-gray-100 dark:bg-zinc-800" />
                         <div className="flex flex-col items-center">
                             <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500">Win Rate</span>
                             <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{winRate}%</span>
@@ -532,14 +532,14 @@ export default function LeadPipelinesKanbanPage() {
                         <input
                             type="text"
                             placeholder="Search leads..."
-                            className="input pl-9 w-full bg-white dark:bg-slate-900 text-sm py-2"
+                            className="input pl-9 w-full bg-white dark:bg-zinc-900 text-sm py-2"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
 
                     {/* Lead Category Filter */}
-                    <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300">
                         <ListFilter className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                         <select
                             value={selectedCategory}
@@ -558,14 +558,14 @@ export default function LeadPipelinesKanbanPage() {
                 
                 <div className="flex items-center gap-2 flex-wrap">
                     {/* Quick Select Buttons */}
-                    <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-0.5">
+                    <div className="flex items-center gap-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-0.5">
                         <button
                             onClick={selectedLeadIds.length === filteredOpps.length && filteredOpps.length > 0 ? handleDeselectAllLeads : handleSelectAllLeads}
                             className={clsx(
                                 "px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 cursor-pointer",
                                 selectedLeadIds.length === filteredOpps.length && filteredOpps.length > 0
                                      ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
-                                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800"
+                                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
                             )}
                             title={selectedLeadIds.length === filteredOpps.length ? "Deselect all" : "Select all matching leads"}
                         >
@@ -574,13 +574,13 @@ export default function LeadPipelinesKanbanPage() {
                         </button>
                     </div>
 
-                    <button className="btn btn-secondary px-3 py-2 bg-white dark:bg-slate-900 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer" onClick={() => toast('Import dialog opened')}>
+                    <button className="btn btn-secondary px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer" onClick={() => toast('Import dialog opened')}>
                         <Upload className="w-3.5 h-3.5" /> Import
                     </button>
-                    <button className="btn btn-secondary px-3 py-2 bg-white dark:bg-slate-900 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer" onClick={handleExportCSV}>
+                    <button className="btn btn-secondary px-3 py-2 bg-white dark:bg-zinc-900 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer" onClick={handleExportCSV}>
                         <Download className="w-3.5 h-3.5" /> {selectedLeadIds.length > 0 ? `Export (${selectedLeadIds.length})` : 'Export'}
                     </button>
-                    <div className="px-3 py-2 bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    <div className="px-3 py-2 bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-800 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400">
                         Active leads <span className="text-gray-900 dark:text-gray-100 font-bold ml-1">{openLeads}</span>
                     </div>
                 </div>
@@ -595,7 +595,7 @@ export default function LeadPipelinesKanbanPage() {
             {loading ? (
                 <div className="flex gap-4 overflow-x-auto pb-4 items-stretch flex-1 min-h-[calc(100vh-220px)]">
                     {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800 rounded-2xl flex flex-col min-h-[calc(100vh-220px)] border-dashed p-4 gap-4">
+                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 rounded-2xl flex flex-col min-h-[calc(100vh-220px)] border-dashed p-4 gap-4">
                             <Skeleton variant="text" height={24} width="120px" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
@@ -679,7 +679,7 @@ export default function LeadPipelinesKanbanPage() {
                     </button>
 
                     {isMoveStageMenuOpen && (
-                        <div className="absolute left-0 bottom-full mb-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="absolute left-0 bottom-full mb-2 w-52 bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-gray-100 dark:border-zinc-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
                             <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                                 Move Selected To
                             </div>
@@ -791,7 +791,7 @@ function Column({
                         >
                             <span className={clsx(
                                 "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                allInStageSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInStageSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                                allInStageSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInStageSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800"
                             )}>
                                 {allInStageSelected ? (
                                     <Check className="w-3 h-3 stroke-[3]" />
@@ -830,7 +830,7 @@ function Column({
                         "flex-1 flex flex-col items-center justify-center text-xs select-none py-12 border-2 border-dashed rounded-2xl transition-all duration-150 m-1 min-h-[140px]",
                         isOver 
                             ? "border-indigo-400 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold" 
-                            : "border-gray-200/80 dark:border-slate-800 text-gray-400 dark:text-gray-500"
+                            : "border-gray-200/80 dark:border-zinc-800 text-gray-400 dark:text-zinc-500"
                     )}>
                         <span className="text-xl mb-1 opacity-60">📥</span>
                         <span className="font-medium">{isOver ? "Drop leads here" : "No leads in this stage"}</span>
@@ -899,10 +899,10 @@ function DealCard({ opp, isSelected, onToggleSelect, dragHandleProps, isDragging
     return (
         <div 
             className={clsx(
-                "p-3.5 hover:shadow-lg transition-all cursor-default relative group flex flex-col gap-2.5 bg-white dark:bg-slate-900 border rounded-2xl",
+                "p-3.5 hover:shadow-lg transition-all cursor-default relative group flex flex-col gap-2.5 bg-white dark:bg-zinc-900 border rounded-2xl",
                 isSelected 
                     ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-xs" 
-                    : "border-gray-200/90 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 shadow-2xs",
+                    : "border-gray-200/90 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 shadow-2xs",
                 isDragging && "shadow-2xl ring-2 ring-indigo-500/40 cursor-grabbing rotate-1 scale-[1.02]"
             )}
             {...dragHandleProps}
@@ -923,7 +923,7 @@ function DealCard({ opp, isSelected, onToggleSelect, dragHandleProps, isDragging
                         "w-4 h-4 rounded border flex items-center justify-center transition-all",
                         isSelected 
                             ? "bg-indigo-600 border-indigo-600 text-white shadow-xs" 
-                            : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-indigo-500"
+                            : "border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-indigo-500"
                     )}>
                         {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                     </span>
@@ -953,7 +953,7 @@ function DealCard({ opp, isSelected, onToggleSelect, dragHandleProps, isDragging
                     </span>
                 )}
                 {!isFormLead && opp.source && (!opp.category || !opp.category.toLowerCase().includes(opp.source.toLowerCase())) && (
-                    <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400">
+                    <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400">
                         {opp.source}
                     </span>
                 )}
@@ -989,7 +989,7 @@ function DealCard({ opp, isSelected, onToggleSelect, dragHandleProps, isDragging
             </div>
 
             {/* Single Cohesive Footer Row: Assignee + WhatsApp Button + Formatted Value */}
-            <div className="flex items-center justify-between mt-1 pt-2.5 border-t border-gray-100 dark:border-slate-800/80">
+            <div className="flex items-center justify-between mt-1 pt-2.5 border-t border-gray-100 dark:border-zinc-800/80">
                 <div className="flex items-center gap-2 min-w-0">
                     {opp.phone ? (
                         <button 
@@ -1013,7 +1013,7 @@ function DealCard({ opp, isSelected, onToggleSelect, dragHandleProps, isDragging
                     </div>
                 </div>
 
-                <div className="text-xs font-bold text-gray-800 dark:text-gray-100 bg-gray-50 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-gray-100 dark:border-slate-700/80 shadow-2xs shrink-0">
+                <div className="text-xs font-bold text-gray-800 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-800/80 px-2.5 py-1 rounded-lg border border-gray-100 dark:border-zinc-700/80 shadow-2xs shrink-0">
                     {currencySymbol}{opp.value?.toLocaleString() || '0'}
                 </div>
             </div>

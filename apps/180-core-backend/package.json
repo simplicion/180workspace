@@ -9,7 +9,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@workspace/db-180developers": "workspace:*",
+    "@workspace/db-180core": "workspace:*",
     "@workspace/identity-provider": "workspace:*",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",

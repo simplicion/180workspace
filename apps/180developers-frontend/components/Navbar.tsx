@@ -73,11 +73,21 @@ export default function Navbar() {
 
     const handleAuthChange = () => checkAuth();
     window.addEventListener('storage', handleAuthChange);
-    window.addEventListener('message', (e) => {
-      if (e.data && e.data.type === '180_IDENTITY_SUCCESS') {
-        setTimeout(checkAuth, 300);
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data && (e.data.type === '180_IDENTITY_SUCCESS' || e.data.type === '180_AUTH_SUCCESS')) {
+        if (e.data.token) {
+          localStorage.setItem('platform_auth_token', e.data.token);
+          document.cookie = `platform_auth_token=${e.data.token}; path=/; max-age=604800; SameSite=Lax`;
+        }
+        if (e.data.user) {
+          localStorage.setItem('user', JSON.stringify(e.data.user));
+          setUserProfile(e.data.user);
+          setIsAuthenticated(true);
+        }
+        setTimeout(checkAuth, 100);
       }
-    });
+    };
+    window.addEventListener('message', handleMessage);
 
     return () => {
       window.removeEventListener('storage', handleAuthChange);
@@ -232,70 +242,61 @@ export default function Navbar() {
           {/* Theme Toggle */}
           <ThemeToggle />
 
-          {/* Action Button: Dashboard if logged in, Get Started if not */}
+          {/* Action Button: Profile avatar if logged in, Authenticate if not */}
           {isAuthenticated ? (
-            <div className="flex items-center gap-2" ref={userDropdownRef}>
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all active:scale-95 cursor-pointer min-h-[38px]"
+            <div className="relative" ref={userDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 hover:bg-zinc-200/70 dark:hover:bg-zinc-800 transition-all cursor-pointer min-h-[38px] shadow-2xs"
+                title="Account Menu & Dashboard"
+                aria-label="User Profile Menu"
               >
-                <Terminal className="w-3.5 h-3.5" />
-                <span>Dashboard</span>
-              </Link>
+                <div className="w-6 h-6 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                  {(userProfile?.name || userProfile?.email || 'D')[0].toUpperCase()}
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-              {/* User Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 hover:bg-zinc-200/70 dark:hover:bg-zinc-800 transition-all cursor-pointer min-h-[38px]"
-                >
-                  <div className="w-6 h-6 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
-                    {(userProfile?.name || userProfile?.email || 'D')[0].toUpperCase()}
+              {userDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-60 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/10 shadow-2xl p-2 space-y-1 z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 border-b border-zinc-100 dark:border-white/10">
+                    <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">
+                      {userProfile?.name || 'Developer'}
+                    </p>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                      {userProfile?.email || 'Sovereign Account'}
+                    </p>
                   </div>
-                  <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
 
-                {userDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-60 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/10 shadow-2xl p-2 space-y-1 z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
-                    <div className="px-3 py-2 border-b border-zinc-100 dark:border-white/10">
-                      <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">
-                        {userProfile?.name || 'Developer'}
-                      </p>
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
-                        {userProfile?.email || 'Sovereign Account'}
-                      </p>
-                    </div>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    <Terminal className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>Applications Dashboard</span>
+                  </Link>
 
-                    <Link
-                      href="/"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
-                    >
-                      <Terminal className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <span>Applications Dashboard</span>
-                    </Link>
+                  <Link
+                    href="/docs"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    <Code2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <span>Documentation</span>
+                  </Link>
 
-                    <Link
-                      href="/docs"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
-                    >
-                      <Code2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                      <span>Documentation</span>
-                    </Link>
-
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer text-left"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer text-left"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <Button
@@ -304,7 +305,7 @@ export default function Navbar() {
               size="sm"
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer min-h-[38px]"
             >
-              <span>{isOpeningIdentity ? 'Connecting...' : 'Get Started with 180'}</span>
+              <span>{isOpeningIdentity ? 'Connecting...' : 'Sign In with 180 ID'}</span>
               <ArrowRight className="w-3.5 h-3.5 opacity-80" />
             </Button>
           )}
@@ -366,19 +367,34 @@ export default function Navbar() {
           {/* Auth Action on Mobile */}
           <div className="pt-3 border-t border-zinc-200 dark:border-white/10">
             {isAuthenticated ? (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-3 px-3 py-2.5 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-white/10">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+                    {(userProfile?.name || userProfile?.email || 'D')[0].toUpperCase()}
+                  </div>
+                  <div className="truncate">
+                    <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">
+                      {userProfile?.name || 'Developer'}
+                    </p>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                      {userProfile?.email || 'Sovereign Account'}
+                    </p>
+                  </div>
+                </div>
+
                 <Link
-                  href="/"
+                  href="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md cursor-pointer"
                 >
                   <Terminal className="w-4 h-4" />
-                  <span>Open Dashboard</span>
+                  <span>Applications Dashboard</span>
                 </Link>
+
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/30"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/30 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Sign Out</span>
@@ -391,9 +407,9 @@ export default function Navbar() {
                   launch180Identity(() => checkAuth());
                 }}
                 disabled={isOpeningIdentity}
-                className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Get Started with 180</span>
+                <span>{isOpeningIdentity ? 'Connecting...' : 'Sign In with 180 ID'}</span>
                 <ArrowRight className="w-4 h-4" />
               </Button>
             )}

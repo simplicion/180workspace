@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { UserProfile } from '@/types';
@@ -12,73 +13,72 @@ export default function DashboardLayout({
 }) {
   const [balance, setBalance] = useState<number | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchProfileAndWallet = async () => {
-      // 1. Fetch User Profile with safe fallback
-      try {
-        const res = await fetch('/api/oauth/userinfo', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json().catch(() => null);
-          if (data && data.user) {
-            setUser(data.user);
-          } else {
-            setUser({
-              id: '180-usr-8f92a10c99',
-              name: 'Sovereign Creator',
-              email: 'creator@180workspace.com',
-              phone: '+91 98765 43210',
-              username: 'creator_180',
-              dob: '1998-05-14',
-              createdAt: '2026-01-15T09:00:00Z',
-            });
-          }
-        } else {
-          setUser({
-            id: '180-usr-8f92a10c99',
-            name: 'Sovereign Creator',
-            email: 'creator@180workspace.com',
-            phone: '+91 98765 43210',
-            username: 'creator_180',
-            dob: '1998-05-14',
-            createdAt: '2026-01-15T09:00:00Z',
-          });
-        }
-      } catch (_) {
-        setUser({
-          id: '180-usr-8f92a10c99',
-          name: 'Sovereign Creator',
-          email: 'creator@180workspace.com',
-          phone: '+91 98765 43210',
-          username: 'creator_180',
-          dob: '1998-05-14',
-          createdAt: '2026-01-15T09:00:00Z',
-        });
+      const token =
+        localStorage.getItem('platform_auth_token') ||
+        localStorage.getItem('token') ||
+        localStorage.getItem('accessToken');
+
+      if (!token) {
+        setUser(null);
+        setBalance(null);
+        return;
       }
 
-      // 2. Fetch Wallet Balance with safe fallback
+      // 1. Fetch User Profile
       try {
-        const res = await fetch('/api/oauth/wallet', { credentials: 'include' });
+        const res = await fetch('/api/oauth/userinfo', {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data && (data.user || data.id)) {
+            const validUser = data.user || data;
+            setUser(validUser);
+            localStorage.setItem('user', JSON.stringify(validUser));
+          } else {
+            setUser(null);
+          }
+        } else {
+          localStorage.removeItem('platform_auth_token');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+        }
+      } catch (_) {
+        setUser(null);
+      }
+
+      // 2. Fetch Wallet Balance
+      try {
+        const res = await fetch('/api/oauth/wallet', {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        });
         if (res.ok) {
           const data = await res.json().catch(() => null);
           if (data && data.data && typeof data.data.balance === 'number') {
             setBalance(data.data.balance);
           } else {
-            setBalance(1000.0);
+            setBalance(0.0);
           }
         } else {
-          setBalance(1000.0);
+          setBalance(0.0);
         }
       } catch (_) {
-        setBalance(1000.0);
+        setBalance(0.0);
       }
     };
 
     fetchProfileAndWallet();
-  }, []);
+  }, [router]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 selection:bg-purple-500/20 selection:text-purple-900 relative">
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 selection:bg-blue-500/20 selection:text-blue-950 font-sans relative">
       {/* Background Soft Dot-Matrix Pattern */}
       <div className="fixed inset-0 marketing-grid-bg pointer-events-none z-0 opacity-80" />
 

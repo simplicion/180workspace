@@ -317,18 +317,18 @@ export function QuickSupportDrawer({
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 className={clsx(
-                    "w-[420px] max-w-[calc(100vw-32px)] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200",
-                    isDragging ? "border-indigo-500 ring-2 ring-indigo-500/20" : "border-slate-200 dark:border-slate-800"
+                    "w-[420px] max-w-[calc(100vw-32px)] bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl border flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200",
+                    isDragging ? "border-indigo-500 ring-2 ring-indigo-500/20" : "border-zinc-200 dark:border-zinc-800"
                 )}
             >
                 {/* Header */}
-                <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex items-center justify-between">
+                <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/80 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-rose-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 border border-white/20 shrink-0">
                             <LifeBuoy className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                            <h4 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">
+                            <h4 className="text-sm font-black text-zinc-900 dark:text-white tracking-tight">
                                 Quick Support
                             </h4>
                         </div>
@@ -337,7 +337,7 @@ export function QuickSupportDrawer({
                     <button
                         onClick={handleClose}
                         disabled={submitting}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-colors"
                         aria-label="Close"
                     >
                         <X className="w-4 h-4" />
@@ -353,24 +353,24 @@ export function QuickSupportDrawer({
                                 <CheckCircle2 className="w-6 h-6" />
                             </div>
                             <div className="space-y-1">
-                                <h5 className="text-sm font-bold text-slate-900 dark:text-white">Incident Reported</h5>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                <h5 className="text-sm font-bold text-zinc-900 dark:text-white">Incident Reported</h5>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
                                     Transmitted directly to platform engineering with telemetry.
                                 </p>
                             </div>
-                            <div className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 font-mono text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <div className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 font-mono text-xs font-bold text-zinc-700 dark:text-zinc-300">
                                 Ref: #{submittedTicket.id}
                             </div>
                             <div className="pt-2 flex items-center gap-2">
                                 <button
                                     onClick={resetForm}
-                                    className="px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold shadow-xs hover:bg-slate-800 transition-all"
+                                    className="px-3.5 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold shadow-xs hover:bg-zinc-800 transition-all"
                                 >
                                     New Report
                                 </button>
                                 <button
                                     onClick={handleClose}
-                                    className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                                    className="px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
                                 >
                                     Close
                                 </button>
@@ -394,8 +394,8 @@ export function QuickSupportDrawer({
                                             className={clsx(
                                                 'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border shrink-0',
                                                 isSelected
-                                                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
-                                                    : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                                                    ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-white shadow-xs'
+                                                    : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-zinc-400'
                                             )}
                                         >
                                             {cat.label}
@@ -411,10 +411,10 @@ export function QuickSupportDrawer({
                                     onChange={(e) => setDescription(e.target.value.slice(0, 5000))}
                                     placeholder="Describe what happened in detail... (Tip: paste screenshot directly anywhere with Ctrl+V or Cmd+V)"
                                     rows={5}
-                                    className="w-full text-xs min-h-[140px] bg-slate-50/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all resize-y leading-relaxed font-sans"
+                                    className="w-full text-xs min-h-[140px] bg-zinc-50/70 dark:bg-zinc-900/70 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition-all resize-y leading-relaxed font-sans"
                                     required
                                 />
-                                <div className="text-[10px] font-mono font-medium text-slate-400 text-right mt-1">
+                                <div className="text-[10px] font-mono font-medium text-zinc-400 text-right mt-1">
                                     {description.length.toLocaleString()} / 5,000
                                 </div>
                             </div>
@@ -422,7 +422,7 @@ export function QuickSupportDrawer({
                             {/* Attached Screenshots Thumbnails */}
                             {attachments.length > 0 && (
                                 <div className="space-y-1">
-                                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                    <div className="flex items-center justify-between text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
                                         <span>Attached Screenshots ({attachments.length}/{MAX_IMAGES})</span>
                                         <span>{formatFileSize(totalSize)} / 25MB</span>
                                     </div>
@@ -430,7 +430,7 @@ export function QuickSupportDrawer({
                                         {attachments.map((file) => (
                                             <div
                                                 key={file.id}
-                                                className="relative group rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 w-14 h-14 shrink-0 shadow-xs"
+                                                className="relative group rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 w-14 h-14 shrink-0 shadow-xs"
                                             >
                                                 <img 
                                                     src={file.dataUrl} 
@@ -444,7 +444,7 @@ export function QuickSupportDrawer({
                                                         e.stopPropagation();
                                                         removeAttachment(file.id);
                                                     }}
-                                                    className="absolute top-1 right-1 p-0.5 rounded-full bg-slate-900/90 text-white hover:bg-rose-600 transition-colors shadow-xs"
+                                                    className="absolute top-1 right-1 p-0.5 rounded-full bg-zinc-900/90 text-white hover:bg-rose-600 transition-colors shadow-xs"
                                                     title="Remove"
                                                 >
                                                     <X className="w-2.5 h-2.5" />
@@ -456,7 +456,7 @@ export function QuickSupportDrawer({
                             )}
 
                             {/* Action Bar (Upload + Submit) */}
-                            <div className="pt-1 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800">
+                            <div className="pt-1 flex items-center justify-between gap-2 border-t border-zinc-100 dark:border-zinc-800">
                                 <input
                                     ref={fileInputRef}
                                     type="file"
@@ -472,7 +472,7 @@ export function QuickSupportDrawer({
                                 <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 text-[11px] font-semibold flex items-center gap-1.5 transition-all"
+                                    className="px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[11px] font-semibold flex items-center gap-1.5 transition-all"
                                     title="Attach screenshot or paste directly (Ctrl+V)"
                                 >
                                     <Paperclip className="w-3.5 h-3.5" />
@@ -482,7 +482,7 @@ export function QuickSupportDrawer({
                                 <button
                                     type="submit"
                                     disabled={submitting || !description.trim()}
-                                    className="px-4 py-1.5 rounded-lg bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs shadow-xs disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 active:scale-95"
+                                    className="px-4 py-1.5 rounded-lg bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-100 text-white dark:text-zinc-900 font-bold text-xs shadow-xs disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 active:scale-95"
                                 >
                                     {submitting ? (
                                         <>

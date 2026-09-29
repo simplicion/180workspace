@@ -134,14 +134,14 @@ export function VoiceRecorder({ onRecordingComplete, onDiscard }: VoiceRecorderP
 
     if (audioBlob) {
         return (
-            <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-full py-1.5 px-3">
+            <div className="flex items-center gap-3 bg-indigo-50 dark:bg-zinc-900 border border-indigo-100 dark:border-zinc-800 rounded-full py-1.5 px-3">
                 <button type="button" onClick={togglePlay} className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors">
                     {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
                 </button>
-                <div className="flex-1 h-1.5 bg-indigo-200 rounded-full overflow-hidden">
+                <div className="flex-1 h-1.5 bg-indigo-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                     <div className="h-full bg-indigo-600 rounded-full" style={{ width: '100%' }} />
                 </div>
-                <span className="text-xs font-semibold text-indigo-700 w-10">{formatTime(recordingTime)}</span>
+                <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 w-10">{formatTime(recordingTime)}</span>
                 <button type="button" onClick={discardRecording} className="text-gray-400 hover:text-red-500 transition-colors">
                     <Trash2 className="w-4 h-4" />
                 </button>
@@ -161,15 +161,15 @@ export function VoiceRecorder({ onRecordingComplete, onDiscard }: VoiceRecorderP
                 )}
             >
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-sm font-semibold text-gray-700 min-w-[40px]">
+                <span className="text-sm font-semibold text-gray-700 dark:text-zinc-300 min-w-[40px]">
                     {formatTime(recordingTime)}
                 </span>
                 {isLocked ? (
-                    <button type="button" onClick={stopRecording} className="w-8 h-8 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-colors">
+                    <button type="button" onClick={stopRecording} className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 flex items-center justify-center transition-colors">
                         <Square className="w-4 h-4" />
                     </button>
                 ) : (
-                    <div className="flex items-center gap-2 text-xs text-gray-400 font-medium animate-bounce pr-4">
+                    <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-zinc-500 font-medium animate-bounce pr-4">
                         <Lock className="w-3 h-3" /> Swipe up to lock
                     </div>
                 )}
@@ -185,7 +185,7 @@ export function VoiceRecorder({ onRecordingComplete, onDiscard }: VoiceRecorderP
                     "w-10 h-10 rounded-full flex items-center justify-center transition-all touch-none select-none",
                     isRecording && !isLocked ? "bg-red-500 text-white scale-125 shadow-xl ml-4" : 
                     isRecording && isLocked ? "bg-indigo-600 text-white ml-4" : 
-                    "bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600"
+                    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-indigo-50 dark:hover:bg-zinc-700 hover:text-indigo-600 dark:hover:text-zinc-100"
                 )}
                 title="Hold to record voice message"
             >

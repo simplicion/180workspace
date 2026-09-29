@@ -16,6 +16,7 @@ interface DrawerProps {
     icon?: React.ReactNode;
     description?: React.ReactNode;
     noPadding?: boolean;
+    zIndex?: string;
 }
 
 export function Drawer({ 
@@ -30,7 +31,8 @@ export function Drawer({
     position = 'right',
     icon,
     description,
-    noPadding = false
+    noPadding = false,
+    zIndex
 }: DrawerProps) {
     const [mounted, setMounted] = useState(false);
     const show = isOpen ?? open;
@@ -63,7 +65,7 @@ export function Drawer({
     return createPortal(
         <AnimatePresence>
             {show && (
-                <div className={`fixed inset-0 z-[99999] flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
+                <div className={`fixed inset-0 ${zIndex || 'z-[99999]'} flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
                     <motion.div
                         className="fixed inset-0 bg-black/40 backdrop-blur-[2px]"
                         initial={{ opacity: 0 }}
@@ -73,30 +75,30 @@ export function Drawer({
                         onClick={onClose}
                     />
                     <motion.div 
-                        className={`relative bg-white dark:bg-gray-900 w-full ${widthClass} h-full shadow-2xl flex flex-col z-10`}
+                        className={`relative bg-white dark:bg-zinc-950 w-full ${widthClass} h-full shadow-2xl flex flex-col z-10 border-l border-transparent dark:border-zinc-800 text-zinc-900 dark:text-zinc-100`}
                         variants={slideVariants}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                     >
-                        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between shrink-0">
+                        <div className="p-6 border-b border-gray-100 dark:border-zinc-800 flex items-start justify-between shrink-0">
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
                                     {(() => {
                                         if (!icon) return null;
-                                        if (React.isValidElement(icon)) return <span className="text-gray-500 dark:text-gray-400">{icon}</span>;
+                                        if (React.isValidElement(icon)) return <span className="text-gray-500 dark:text-zinc-400">{icon}</span>;
                                         if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null && 'render' in icon)) {
                                             const IconComp = icon as any;
-                                            return <span className="text-gray-500 dark:text-gray-400"><IconComp className="w-5 h-5" /></span>;
+                                            return <span className="text-gray-500 dark:text-zinc-400"><IconComp className="w-5 h-5" /></span>;
                                         }
                                         return null;
                                     })()}
-                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">{title}</h2>
                                 </div>
-                                {description && <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>}
+                                {description && <p className="text-sm text-gray-500 dark:text-zinc-400">{description}</p>}
                             </div>
-                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors shrink-0" title="Close">
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-900 transition-colors shrink-0" title="Close">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
@@ -106,7 +108,7 @@ export function Drawer({
                         </div>
 
                         {footer && (
-                            <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 shrink-0">
+                            <div className="p-6 border-t border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/80 shrink-0">
                                 {footer}
                             </div>
                         )}

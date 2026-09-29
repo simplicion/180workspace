@@ -521,7 +521,7 @@ export default function HRPage() {
                     </div>
 
                     {/* Chart Side Insights */}
-                    <div className="space-y-3 bg-zinc-50/60 dark:bg-zinc-850/60 rounded-xl p-3.5 border border-zinc-200/60 dark:border-zinc-800">
+                    <div className="space-y-3 bg-zinc-50/60 dark:bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-200/60 dark:border-zinc-800">
                         <div>
                             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Avg. Compensation</p>
                             <p className="text-lg font-black text-zinc-900 dark:text-white mt-0.5">

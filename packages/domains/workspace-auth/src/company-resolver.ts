@@ -1,7 +1,7 @@
 'use strict';
 
 import { prisma } from '@workspace/db';
-import { OneEightyUserProfile } from '@workspace/identity-client';
+import { OneEightyUserProfile } from '@workspace/identity-sdk';
 
 export interface CompanyResolutionResult {
     userId: string;

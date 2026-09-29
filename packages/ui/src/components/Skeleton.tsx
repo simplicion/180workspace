@@ -220,15 +220,15 @@ export function SkeletonFocusCard({ width = 'w-[280px] sm:w-[310px]' }: { width?
             <div>
                 <div className="flex items-center justify-between gap-2 mb-2.5 mt-0.5">
                     <div className="h-4 w-20 bg-zinc-200 dark:bg-zinc-800 rounded-md" />
-                    <div className="h-3 w-16 bg-zinc-100 dark:bg-zinc-850 rounded" />
+                    <div className="h-3 w-16 bg-zinc-100 dark:bg-zinc-800 rounded" />
                 </div>
                 <div className="h-4 w-3/4 bg-zinc-200 dark:bg-zinc-800 rounded mb-1.5" />
-                <div className="h-3 w-1/2 bg-zinc-100 dark:bg-zinc-850 rounded" />
+                <div className="h-3 w-1/2 bg-zinc-100 dark:bg-zinc-800 rounded" />
             </div>
             <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                     <div className="w-5 h-5 rounded-full bg-zinc-200 dark:bg-zinc-800" />
-                    <div className="h-3 w-16 bg-zinc-100 dark:bg-zinc-850 rounded" />
+                    <div className="h-3 w-16 bg-zinc-100 dark:bg-zinc-800 rounded" />
                 </div>
                 <div className="h-5 w-14 bg-zinc-200 dark:bg-zinc-800 rounded-md" />
             </div>
@@ -382,7 +382,7 @@ export function SkeletonTable({ rows = 5, columns = 5 }: { rows?: number; column
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-left">
-                    <thead className="bg-zinc-50 dark:bg-zinc-850/50 border-b border-zinc-100 dark:border-zinc-800">
+                    <thead className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800">
                         <tr>
                             {Array.from({ length: columns }).map((_, i) => (
                                 <th key={i} className="py-3 px-4">
@@ -437,7 +437,7 @@ export function SkeletonActivityFeed({ count = 5 }: { count?: number }) {
             <div className="h-5 w-32 bg-zinc-200 dark:bg-zinc-700 rounded-md mb-2" />
             <div className="space-y-3">
                 {Array.from({ length: count }).map((_, i) => (
-                    <div key={i} className="flex items-start gap-3 p-2.5 rounded-xl bg-zinc-50/50 dark:bg-zinc-850/50 border border-zinc-100 dark:border-zinc-800">
+                    <div key={i} className="flex items-start gap-3 p-2.5 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800">
                         <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 shrink-0" />
                         <div className="flex-1 space-y-1.5 min-w-0">
                             <div className="h-3.5 w-4/5 bg-zinc-200 dark:bg-zinc-700 rounded" />
@@ -532,7 +532,7 @@ export function SkeletonCalendarView() {
                 {Array.from({ length: 35 }).map((_, j) => (
                     <div
                         key={j}
-                        className="h-20 sm:h-24 p-1.5 rounded-xl border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-850/50 flex flex-col justify-between"
+                        className="h-20 sm:h-24 p-1.5 rounded-xl border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/50 flex flex-col justify-between"
                     >
                         <div className="h-3 w-4 bg-zinc-200 dark:bg-zinc-700 rounded" />
                         {j % 3 === 0 && (
@@ -631,7 +631,7 @@ export function SkeletonDetailModal() {
 
             <div className="grid grid-cols-2 gap-4">
                 {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="p-3 bg-zinc-50 dark:bg-zinc-850 rounded-xl space-y-1.5">
+                    <div key={i} className="p-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl space-y-1.5">
                         <Skeleton variant="text" width={60} height={10} />
                         <Skeleton variant="text" width={110} height={14} />
                     </div>
@@ -716,7 +716,7 @@ export function SkeletonWorkspace() {
                         <div className="h-4 w-20 bg-zinc-100 dark:bg-zinc-800 rounded" />
                     </div>
                     {[1, 2, 3, 4].map((j) => (
-                        <div key={j} className="p-3.5 rounded-xl border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-850/50 flex items-center justify-between gap-3">
+                        <div key={j} className="p-3.5 rounded-xl border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/50 flex items-center justify-between gap-3">
                             <div className="space-y-1.5 flex-1">
                                 <div className="h-4 w-2/3 bg-zinc-200 dark:bg-zinc-700 rounded" />
                                 <div className="h-3 w-1/3 bg-zinc-100 dark:bg-zinc-800 rounded" />
@@ -728,7 +728,7 @@ export function SkeletonWorkspace() {
 
                 <div className="p-5 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 space-y-4">
                     <div className="h-5 w-32 bg-zinc-200 dark:bg-zinc-700 rounded" />
-                    <div className="h-40 bg-zinc-100 dark:bg-zinc-850 rounded-xl" />
+                    <div className="h-40 bg-zinc-100 dark:bg-zinc-800 rounded-xl" />
                     <div className="space-y-2 pt-2">
                         <div className="h-3 w-full bg-zinc-100 dark:bg-zinc-800 rounded" />
                         <div className="h-3 w-4/5 bg-zinc-100 dark:bg-zinc-800 rounded" />
