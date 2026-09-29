@@ -53,11 +53,9 @@ const nextConfig = {
           ];
         },
       }
-    : (process.env.CF_PAGES === 'true' || process.env.NEXT_EXPORT === 'true')
-    ? {
+    : {
         output: 'export',
-      }
-    : {}),
+      }),
 };
 
 module.exports = nextConfig;

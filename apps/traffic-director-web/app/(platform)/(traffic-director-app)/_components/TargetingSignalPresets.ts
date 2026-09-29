@@ -25,6 +25,11 @@ export const CONDITION_TYPE_OPTIONS = [
   // Security, Bot & Network
   { value: 'bot_status', label: 'Bot / Human Classification', group: 'Security & Network' },
   { value: 'network_type', label: 'Network Type (Residential/Datacenter/Cellular)', group: 'Security & Network' },
+  { value: 'isp_provider', label: 'ISP & Telecom Carrier (Jio/Airtel/Verizon/AT&T)', group: 'Security & Network' },
+  { value: 'spy_service', label: 'Spy Service Detector (AdPlexity/SpyOver/Anstrex)', group: 'Security & Network' },
+  { value: 'vpn_status', label: 'VPN / Proxy / Tor Anonymizer', group: 'Security & Network' },
+  { value: 'threat_list', label: 'Threat & Blacklist Intelligence', group: 'Security & Network' },
+  { value: 'timezone_delta', label: 'Geo-Timezone Anomaly (IP vs Device Clock)', group: 'Security & Network' },
   { value: 'asn_provider', label: 'Cloud Hosting ASN (AWS/Meta/GCP/Azure)', group: 'Security & Network' },
   { value: 'ip_address', label: 'IP Address or CIDR Subnet', group: 'Security & Network' },
 
@@ -257,6 +262,49 @@ export const TARGET_VALUE_PRESETS: Record<string, PresetOption[]> = {
     { value: 'cellular', label: 'Mobile Cellular (4G / 5G Carrier)', badge: 'Safe' },
     { value: 'datacenter', label: 'Cloud Datacenter (AWS/GCP/Meta/Azure)', badge: 'Bot Traffic' },
     { value: 'vpn', label: 'Commercial VPN / Anonymous Proxy' },
+  ],
+
+  isp_provider: [
+    { value: 'Jio', label: 'Reliance Jio Infocomm (IN)', badge: 'Top 4G/5G' },
+    { value: 'Airtel', label: 'Bharti Airtel (IN/Africa)', badge: 'Major Carrier' },
+    { value: 'Vodafone', label: 'Vodafone Idea / Vi (IN/EU)', badge: 'Major Carrier' },
+    { value: 'Comcast', label: 'Comcast Cable / Xfinity (US)', badge: 'Top US Broadband' },
+    { value: 'Verizon', label: 'Verizon Wireless / Fios (US)', badge: 'Top US Carrier' },
+    { value: 'AT&T', label: 'AT&T Internet Services (US)', badge: 'Top US Carrier' },
+    { value: 'Charter', label: 'Charter Spectrum (US)', badge: 'Top US Broadband' },
+    { value: 'T-Mobile', label: 'T-Mobile / Deutsche Telekom (US/EU)', badge: 'Major 5G' },
+    { value: 'Orange', label: 'Orange SA (FR/EU)', badge: 'Top EU Carrier' },
+    { value: 'BT', label: 'BT Group / EE (UK)', badge: 'Top UK Carrier' },
+    { value: 'Virgin', label: 'Virgin Media (UK)', badge: 'Top UK Broadband' },
+    { value: 'Telstra', label: 'Telstra Corporation (AU)', badge: 'Top AU Carrier' },
+    { value: 'Rogers', label: 'Rogers Communications (CA)', badge: 'Top CA Carrier' },
+    { value: 'Bell', label: 'Bell Canada (CA)', badge: 'Top CA Carrier' },
+  ],
+
+  spy_service: [
+    { value: 'clean', label: 'Clean Traffic (Not a Spy Service)', badge: 'Recommended' },
+    { value: 'spy_detected', label: 'Any Ad Spy Intelligence Scraper', badge: 'Block' },
+    { value: 'AdPlexity', label: 'AdPlexity Intelligence Crawler', badge: 'Ad Spy' },
+    { value: 'SpyOver', label: 'SpyOver Native & Push Monitor', badge: 'Ad Spy' },
+    { value: 'Anstrex', label: 'Anstrex Push/Native Scraper', badge: 'Ad Spy' },
+    { value: 'Dropispy', label: 'Dropispy Social Ad Scraper', badge: 'Ad Spy' },
+    { value: 'BigSpy', label: 'BigSpy Multi-Platform Monitor', badge: 'Ad Spy' },
+  ],
+
+  vpn_status: [
+    { value: 'clean', label: 'Clean Residential / Mobile (No VPN)', badge: 'Safe' },
+    { value: 'vpn', label: 'Commercial or Residential VPN Detected', badge: 'VPN' },
+    { value: 'tor', label: 'Tor Anonymity Network Exit Node', badge: 'High Risk' },
+  ],
+
+  threat_list: [
+    { value: 'clean', label: 'Clean Visitor (Passed Global Threat Feeds)', badge: 'Safe' },
+    { value: 'threat_detected', label: 'Blacklisted IP / Threat Detected', badge: 'Threat' },
+  ],
+
+  timezone_delta: [
+    { value: 'match', label: 'Clock Synchronized (Browser TZ == IP Geo)', badge: 'Authentic' },
+    { value: 'mismatch', label: 'Timezone Mismatch (Spoofed Location / Geo-VPN)', badge: 'Suspicious' },
   ],
 
   asn_provider: [
