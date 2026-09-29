@@ -35,6 +35,8 @@
     "typescript": "^5.0.0"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./agent-runs": "./src/agent-runs/index.ts",
+    "./content/autopilot": "./src/content/autopilot/index.ts"
   }
 }

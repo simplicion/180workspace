@@ -30,7 +30,7 @@ export interface AgentOsDeps {
 
 export function defaultAgentOsDeps(): AgentOsDeps {
     const sm = require('@workspace/social-media');
-    const runs = require('@workspace/ai/dist/agent-runs');
+    const runs = require('@workspace/ai/agent-runs');
     const { prisma } = require('@workspace/db');
     return {
         db: prisma,

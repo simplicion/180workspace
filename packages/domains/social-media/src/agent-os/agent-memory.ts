@@ -11,7 +11,7 @@
  * person typed (feedback notes) is fenced as untrusted data. Every query filters by companyId AND projectId.
  */
 import { prisma } from '@workspace/db';
-import { fenceUntrusted, sanitizeInlineUntrusted } from '@workspace/ai/dist/agent-runs';
+import { fenceUntrusted, sanitizeInlineUntrusted } from '@workspace/ai/agent-runs';
 
 export const MEMORY_KINDS = ['preference', 'proposal_accepted', 'proposal_rejected', 'performance'] as const;
 export type MemoryKind = (typeof MEMORY_KINDS)[number];

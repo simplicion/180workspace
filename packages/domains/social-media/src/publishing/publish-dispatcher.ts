@@ -18,7 +18,7 @@ import { PublishPlatform, intEnv, isPlatformConfigured, isSimulationMode, normal
 import { PublishError, isPublishError, toPublishError } from './errors';
 import { getDb, guessMime, isPdfUrl, isVideoUrl, timing } from './http';
 import { SocialTokenVault } from './token-vault';
-import { PrismaAgentEventStore, createAgentRunEmitter } from '@workspace/ai/dist/agent-runs';
+import { PrismaAgentEventStore, createAgentRunEmitter } from '@workspace/ai/agent-runs';
 
 export type PublishTrigger = 'manual' | 'retry' | 'scheduler';
 

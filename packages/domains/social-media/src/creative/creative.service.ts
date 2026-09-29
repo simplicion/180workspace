@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { AgentEventStore, createAgentRunEmitter, getDefaultAgentEventStore } from '@workspace/ai/dist/agent-runs';
+import { AgentEventStore, createAgentRunEmitter, getDefaultAgentEventStore } from '@workspace/ai/agent-runs';
 import { z } from 'zod';
 import type { CreativeBrand } from './brand';
 import { toCreativeBrand } from './brand';

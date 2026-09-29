@@ -14,7 +14,7 @@ async function runSsm(commands) {
   try {
     const sendResRaw = execSync(
       `aws ssm send-command --instance-ids "${INSTANCE_ID}" --document-name "AWS-RunShellScript" --parameters "file://${tmpParamsFile}" --region ${REGION} --profile ${PROFILE} --output json`,
-      { encoding: 'utf-8' }
+      { encoding: 'utf-8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } }
     );
     const sendRes = JSON.parse(sendResRaw);
     const commandId = sendRes.Command.CommandId;
@@ -27,7 +27,7 @@ async function runSsm(commands) {
       await new Promise(r => setTimeout(r, 2000));
       try {
         const checkCmd = `aws ssm get-command-invocation --command-id "${commandId}" --instance-id "${INSTANCE_ID}" --region ${REGION} --profile ${PROFILE} --output json`;
-        const checkRes = JSON.parse(execSync(checkCmd, { encoding: 'utf-8' }));
+        const checkRes = JSON.parse(execSync(checkCmd, { encoding: 'utf-8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } }));
         status = checkRes.Status;
         output = checkRes.StandardOutputContent || '';
         const errorOutput = checkRes.StandardErrorContent || '';
@@ -50,27 +50,17 @@ async function runSsm(commands) {
 }
 
 async function main() {
-  console.log('=== AUDITING EC2 SERVER ENVIRONMENT (180workspace-backend) ===');
   const res = await runSsm([
-    'echo "=== DOCKER CONTAINERS ==="',
-    'docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"',
-    'echo ""',
-    'echo "=== DISK USAGE ==="',
-    'df -h /',
-    'echo ""',
-    'echo "=== MEMORY USAGE ==="',
-    'free -m',
-    'echo ""',
-    'echo "=== NGINX SITES ENABLED ==="',
-    'ls -la /etc/nginx/sites-enabled/ 2>/dev/null || ls -la /home/ubuntu/app/nginx 2>/dev/null || true',
-    'echo ""',
-    'echo "=== RUNNING PROCESSES (NON-DOCKER) ==="',
-    'ps aux | grep -E "node|redis|livekit|pm2" | grep -v grep || true',
-    'echo ""',
-    'echo "=== ENV VARIABLE KEYS CONFIGURED ON HOST ==="',
-    'cat /home/ubuntu/app/.env 2>/dev/null | grep -v "^#" | grep -v "^$" | cut -d= -f1 || echo "No .env found in /home/ubuntu/app"'
+    'cd /home/ubuntu/app',
+    'echo "=== PULLING LATEST CODE ==="',
+    'git pull origin main || true',
+    'echo "=== BUILDING DOCKER BACKEND ON EC2 ==="',
+    'docker build -t ghcr.io/simplicion/180workspace:latest -f Dockerfile .',
+    'echo "=== RECREATING BACKEND & WORKER CONTAINERS ==="',
+    'docker compose up -d --force-recreate backend worker',
+    'sleep 5',
+    'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
   ]);
-
   console.log(res);
 }
 
