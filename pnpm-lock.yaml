@@ -394,9 +394,6 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@workspace/db-180core':
-        specifier: workspace:*
-        version: link:../../packages/db-180core
       '@workspace/engine':
         specifier: workspace:*
         version: link:../../packages/domains/engine
@@ -409,9 +406,6 @@ importers:
       '@workspace/identity':
         specifier: workspace:*
         version: link:../../packages/domains/identity
-      '@workspace/identity-provider':
-        specifier: workspace:*
-        version: link:../../packages/domains/identity-provider
       '@workspace/identity-sdk':
         specifier: workspace:*
         version: link:../../packages/identity-sdk
