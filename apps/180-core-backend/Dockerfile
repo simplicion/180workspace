@@ -14,7 +14,7 @@ FROM base AS installer
 WORKDIR /app
 COPY --from=builder /app/out/json/ .
 # Copy prisma schemas to ensure postinstall (prisma generate) succeeds
-COPY --from=builder /app/packages/db-180developers/prisma ./packages/db-180developers/prisma
+COPY --from=builder /app/packages/db-180core/prisma ./packages/db-180core/prisma
 RUN pnpm install --prefer-frozen-lockfile
 COPY --from=builder /app/out/full/ .
 RUN pnpm turbo run build --filter=180-core-backend...

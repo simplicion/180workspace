@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../apps/180-core-backend/.env') });
 
-import { PrismaClient } from '../packages/db-180developers/generated/client/index.js';
+import { PrismaClient } from '../packages/db-180core/generated/client/index.js';
 
 const devDbUrl =
   process.env.DEVELOPERS_DATABASE_URL ||

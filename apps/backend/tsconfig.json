@@ -17,7 +17,7 @@
       "@workspace/ai": ["../../packages/domains/ai/dist"],
       "@workspace/video-contracts": ["../../packages/video-contracts/dist/index.d.ts"],
       "@workspace/video-contracts/*": ["../../packages/video-contracts/dist/*"],
-      "@workspace/db-180core": ["../../packages/db-180developers/dist"],
+      "@workspace/db-180core": ["../../packages/db-180core/dist"],
       "@workspace/identity-provider": ["../../packages/domains/identity-provider/dist"],
       "@workspace/identity-sdk": ["../../packages/identity-sdk/dist/index.js", "../../packages/identity-sdk/src/index.tsx"],
       "@workspace/identity-sdk/*": ["../../packages/identity-sdk/*"],
