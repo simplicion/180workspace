@@ -68,6 +68,12 @@ jobs:
           NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
         run: pnpm turbo run build --filter=180-profile-frontend...
 
+      - name: Ensure Cloudflare Pages Project Exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler pages project create 180workspace-profile --production-branch=main || true
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
@@ -101,6 +107,12 @@ jobs:
           NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
         run: pnpm turbo run build --filter=180developers-frontend...
 
+      - name: Ensure Cloudflare Pages Project Exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler pages project create 180workspace-developer --production-branch=main || true
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
@@ -131,6 +143,12 @@ jobs:
 
       - name: Build 180 Documentation Site
         run: pnpm turbo run build --filter=apps-docs...
+
+      - name: Ensure Cloudflare Pages Project Exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler pages project create 180workspace-docs --production-branch=main || true
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
