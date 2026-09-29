@@ -806,7 +806,7 @@ export default function DeveloperDashboardPage() {
         icon={Plus}
         iconBgClass="bg-blue-500/10"
         iconColorClass="text-blue-600 dark:text-blue-400"
-        maxWidthClass="max-w-lg"
+        maxWidthClass="max-w-xl"
       >
         <form onSubmit={handleCreateApp} className="space-y-4">
           <div className="space-y-1.5">
@@ -958,7 +958,15 @@ export default function DeveloperDashboardPage() {
             />
           </div>
 
-          <div className="pt-4 flex items-center justify-end">
+          <div className="pt-4 flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowCreateModal(false)}
+              className="px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white min-h-[44px]"
+            >
+              Cancel
+            </Button>
             <Button
               type="submit"
               disabled={isCreating}
