@@ -125,6 +125,7 @@ export const FIRST_PARTY_APPS = [
             'http://localhost:3006/callback',
             'http://localhost:3009/callback',
             'http://localhost:3002/callback',
+            'https://traffic-director.180workspace.com/callback',
             'https://trafficdirector.180workspace.com/callback',
             'https://*.180workspace.com/callback'
         ],
@@ -135,6 +136,7 @@ export const FIRST_PARTY_APPS = [
             'http://localhost:3009',
             'http://127.0.0.1:3009',
             'http://localhost:3002',
+            'https://traffic-director.180workspace.com',
             'https://trafficdirector.180workspace.com',
             'https://*.180workspace.com'
         ],
