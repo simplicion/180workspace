@@ -271,9 +271,9 @@ export class OAuthController {
                 app = null;
             }
 
-            if (!app) {
-                const fp = FIRST_PARTY_APPS.find(a => a.clientId === String(client_id));
-                if (fp) {
+            const fp = FIRST_PARTY_APPS.find(a => a.clientId === String(client_id));
+            if (fp) {
+                if (!app) {
                     app = {
                         id: fp.clientId,
                         name: fp.name,
@@ -287,6 +287,9 @@ export class OAuthController {
                         isVerified: true,
                         isActive: true
                     } as any;
+                } else {
+                    app.redirectUris = Array.from(new Set([...(app.redirectUris || []), ...fp.redirectUris]));
+                    app.allowedOrigins = Array.from(new Set([...(app.allowedOrigins || []), ...fp.allowedOrigins]));
                 }
             }
 

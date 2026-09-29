@@ -244,6 +244,16 @@ export function CheckoutClient() {
         },
       };
 
+      if (!window.Razorpay) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Razorpay payment engine'));
+          document.head.appendChild(script);
+        });
+      }
+
       const rzp = new window.Razorpay(options);
       rzp.open();
       toast.dismiss(toastId);

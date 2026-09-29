@@ -11,6 +11,12 @@ export const FIRST_PARTY_APPS = [
         redirectUris: [
             'http://localhost:3000/callback',
             'http://localhost:3000/oauth/callback',
+            'http://localhost:3001/callback',
+            'http://localhost:3001/oauth/callback',
+            'http://localhost:3002/callback',
+            'http://localhost:3002/oauth/callback',
+            'http://localhost:3003/callback',
+            'http://localhost:3003/oauth/callback',
             'http://localhost:3008/callback',
             'http://localhost:3008/oauth/callback',
             'http://localhost:3009/callback',
@@ -23,6 +29,60 @@ export const FIRST_PARTY_APPS = [
         allowedOrigins: [
             'http://localhost:3000',
             'http://127.0.0.1:3000',
+            'http://localhost:3001',
+            'http://127.0.0.1:3001',
+            'http://localhost:3002',
+            'http://127.0.0.1:3002',
+            'http://localhost:3003',
+            'http://127.0.0.1:3003',
+            'http://localhost:3008',
+            'http://127.0.0.1:3008',
+            'http://localhost:3009',
+            'http://127.0.0.1:3009',
+            'https://180workspace.com',
+            'https://*.180workspace.com'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email',
+            'identity:phone'
+        ],
+        isVerified: true,
+        isActive: true,
+        logoUrl: '/icon.svg'
+    },
+    {
+        clientId: '180_client_5cc136397553836e34eb37ce22d13a53',
+        name: '180 Workspace Core Client',
+        description: 'First-party application client for 180 Workspace web platform',
+        redirectUris: [
+            'http://localhost:3000/callback',
+            'http://localhost:3000/oauth/callback',
+            'http://localhost:3001/callback',
+            'http://localhost:3001/oauth/callback',
+            'http://localhost:3002/callback',
+            'http://localhost:3002/oauth/callback',
+            'http://localhost:3003/callback',
+            'http://localhost:3003/oauth/callback',
+            'http://localhost:3008/callback',
+            'http://localhost:3008/oauth/callback',
+            'http://localhost:3009/callback',
+            'http://localhost:3009/oauth/callback',
+            'https://180workspace.com/callback',
+            'https://180workspace.com/oauth/callback',
+            'https://*.180workspace.com/callback',
+            'https://*.180workspace.com/oauth/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:3001',
+            'http://127.0.0.1:3001',
+            'http://localhost:3002',
+            'http://127.0.0.1:3002',
+            'http://localhost:3003',
+            'http://127.0.0.1:3003',
             'http://localhost:3008',
             'http://127.0.0.1:3008',
             'http://localhost:3009',
@@ -138,6 +198,21 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                     }
                 });
                 console.log(`[SeedFirstParty] Created first-party OAuth app: ${app.name} (${app.clientId})`);
+            } else {
+                // Ensure redirect URIs and allowed origins stay up-to-date
+                const mergedUris = Array.from(new Set([...(existing.redirectUris || []), ...app.redirectUris]));
+                const mergedOrigins = Array.from(new Set([...(existing.allowedOrigins || []), ...app.allowedOrigins]));
+                if (mergedUris.length !== (existing.redirectUris || []).length || mergedOrigins.length !== (existing.allowedOrigins || []).length) {
+                    await prisma.oAuthApp.update({
+                        where: { id: existing.id },
+                        data: {
+                            redirectUris: mergedUris,
+                            allowedOrigins: mergedOrigins,
+                            isActive: true
+                        }
+                    });
+                    console.log(`[SeedFirstParty] Updated redirect URIs and origins for: ${app.name} (${app.clientId})`);
+                }
             }
         }
     } catch (e: any) {
