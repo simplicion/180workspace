@@ -132,7 +132,7 @@ async function main() {
     isActive: true,
     enableAuth: true,
     enablePay: true,
-    webhookSecret: '180whsec_live_9f83a8b27c194e8293701a2f4',
+    webhookSecret: process.env.ONE_EIGHTY_WEBHOOK_SECRET || `whsec_${crypto.randomBytes(20).toString('hex')}`,
   };
 
   if (existingApp) {

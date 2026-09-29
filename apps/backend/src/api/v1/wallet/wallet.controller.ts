@@ -302,7 +302,7 @@ export class WalletController {
       const timestamp = (req.headers['x-180-timestamp'] || '') as string;
       const eventType = (req.headers['x-180-event'] || req.body?.event || 'payment.succeeded') as string;
 
-      const webhookSecret = process.env.ONE_EIGHTY_WEBHOOK_SECRET || process.env.WORKSPACE_WEBHOOK_SECRET || 'whsec_91b1a44cd792ff88dc268110c139107af96d70ea';
+      const webhookSecret = process.env.ONE_EIGHTY_WEBHOOK_SECRET || process.env.WORKSPACE_WEBHOOK_SECRET;
 
       let rawBody = (req as any).rawBody;
       if (rawBody instanceof Buffer) {

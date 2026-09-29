@@ -68,6 +68,9 @@ export interface CheckoutOptions {
 
 const getAuthServerUrl = (customUrl?: string): string => {
   if (customUrl) return customUrl;
+  if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_AUTH_URL) {
+    return process.env.NEXT_PUBLIC_180_AUTH_URL;
+  }
   if (typeof window !== 'undefined') {
     const isProd = window.location.hostname.endsWith('180workspace.com') || window.location.protocol === 'https:';
     return isProd ? 'https://profile.180workspace.com' : 'http://localhost:3009';
@@ -77,9 +80,12 @@ const getAuthServerUrl = (customUrl?: string): string => {
 
 const getPayServerUrl = (customUrl?: string): string => {
   if (customUrl) return customUrl;
+  if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_PAY_URL) {
+    return process.env.NEXT_PUBLIC_180_PAY_URL;
+  }
   if (typeof window !== 'undefined') {
     const isProd = window.location.hostname.endsWith('180workspace.com') || window.location.protocol === 'https:';
-    return isProd ? 'https://profile.180workspace.com' : 'http://localhost:3009';
+    return isProd ? 'https://pay.180workspace.com' : 'http://localhost:3009';
   }
   return 'http://localhost:3009';
 };
@@ -547,7 +553,10 @@ export function use180Identity() {
       try {
         const opts: Partial<OpenPopupOptions> =
           typeof options === 'function' ? { onSuccess: options } : options || {};
-        const clientId = opts.clientId || (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_CLIENT_ID) || '180_client_5cc136397553836e34eb37ce22d13a53';
+        const clientId = opts.clientId || (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_180_CLIENT_ID : undefined) || '';
+        if (!clientId) {
+          throw new Error('[180 Identity] Missing required parameter: clientId (or NEXT_PUBLIC_180_CLIENT_ID environment variable)');
+        }
         const res = await OneEightyIdentity.openPopup({
           clientId,
           ...opts,
@@ -704,7 +713,7 @@ if (typeof window !== 'undefined') {
 }
 
 export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = ({
-  clientId = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_CLIENT_ID) || '180_client_5cc136397553836e34eb37ce22d13a53',
+  clientId = (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_180_CLIENT_ID : undefined) || '',
   redirectUri,
   scope,
   state,

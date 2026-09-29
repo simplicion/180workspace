@@ -421,15 +421,20 @@ export class AuthController {
                 return res.status(400).json({ error: 'Missing authorization code' });
             }
 
-            const identityServerUrl = process.env.ONE_EIGHTY_API_URL || process.env.IDENTITY_SERVER_URL || 'http://localhost:4003';
-            const clientId = process.env.ONE_EIGHTY_CLIENT_ID || process.env.WORKSPACE_CLIENT_ID || process.env.ONE_EIGHTY_IDENTITY_CLIENT_ID || '180_client_5cc136397553836e34eb37ce22d13a53';
-            const clientSecret = process.env.ONE_EIGHTY_CLIENT_SECRET || process.env.WORKSPACE_CLIENT_SECRET || process.env.ONE_EIGHTY_IDENTITY_CLIENT_SECRET || '180_secret_41b2bd23a7a978f197c16958ea14b4de6af9abe14ec13c9c';
+            const identityServerUrl = process.env.ONE_EIGHTY_API_URL || process.env.IDENTITY_SERVER_URL;
+            const clientId = process.env.ONE_EIGHTY_CLIENT_ID || process.env.WORKSPACE_CLIENT_ID || process.env.ONE_EIGHTY_IDENTITY_CLIENT_ID;
+            const clientSecret = process.env.ONE_EIGHTY_CLIENT_SECRET || process.env.WORKSPACE_CLIENT_SECRET || process.env.ONE_EIGHTY_IDENTITY_CLIENT_SECRET;
+
+            if (!identityServerUrl || !clientId || !clientSecret) {
+                console.error('[180 Identity Callback Error]: Missing ONE_EIGHTY_CLIENT_ID, ONE_EIGHTY_CLIENT_SECRET, or IDENTITY_SERVER_URL in environment');
+                return res.status(500).json({ error: 'Server authentication configuration missing' });
+            }
 
             const oidcConsumer = new OidcConsumer({
                 identityServerUrl,
                 clientId,
                 clientSecret,
-                redirectUri: redirectUri || 'http://localhost:3000/callback',
+                redirectUri: redirectUri || process.env.OAUTH_REDIRECT_URI || (process.env.CLIENT_URL ? `${process.env.CLIENT_URL.split(',')[0].trim()}/callback` : '') || '',
                 jwksUrl: `${identityServerUrl}/oauth/jwks.json`,
             });
 

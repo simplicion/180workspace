@@ -20,10 +20,6 @@ COPY --from=builder /app/packages/db-180core/prisma ./packages/db-180core/prisma
 RUN pnpm install --prefer-frozen-lockfile
 COPY --from=builder /app/out/full/ .
 ENV BUILD_STANDALONE="true"
-ENV NEXT_PUBLIC_API_URL="https://api.180workspace.com"
-ENV NEXT_PUBLIC_ROOT_DOMAIN="180workspace.com"
-ENV NEXT_PUBLIC_MAIN_DOMAIN="180workspace.com"
-ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID="188560578303-2bih1dg5qhbq5uao9q451r6db3986e6f.apps.googleusercontent.com"
 RUN mkdir -p /app/apps/frontend/public
 # A throw-away random value: it exists only so the build has *a* secret and is never a known/guessable string. The real
 # NEXTAUTH_SECRET is supplied at runtime (see .github/workflows/production-deploy.yml) and is not part of the image.

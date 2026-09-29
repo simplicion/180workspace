@@ -27,7 +27,7 @@ export class DomainsService {
   private static VERCEL_ANYCAST_IP = process.env.VERCEL_ANYCAST_IP || '76.76.21.21';
   private static VERCEL_CNAME_TARGET = process.env.VERCEL_CNAME_TARGET || 'cname.vercel-dns.com';
   private static CLOUDFLARE_CNAME_TARGET = process.env.CUSTOM_DOMAIN_CNAME_TARGET || 'cname.180workspace.com';
-  private static SERVER_PUBLIC_IP = process.env.EC2_PUBLIC_IP || process.env.SERVER_PUBLIC_IP || '44.214.118.213';
+  private static SERVER_PUBLIC_IP = process.env.EC2_PUBLIC_IP || process.env.SERVER_PUBLIC_IP || '';
 
   /**
    * Normalizes domain name (lowercase, trim, strip protocol and paths)

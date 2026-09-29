@@ -10,11 +10,6 @@ import { signIn, useSession } from 'next-auth/react';
 import { jwtDecode } from 'jwt-decode';
 import api from '@/lib/api';
 
-// Steps
-import AuthChoice from '@/app/(auth)/_components/AuthChoice';
-import OtpVerification from '@/app/(auth)/_components/OtpVerification';
-import PasswordSetup from '@/app/(auth)/_components/PasswordSetup';
-import BasicProfile from '@/app/(auth)/_components/BasicProfile';
 import { Rocket, Shield, Clock, Users, Bot, FolderKanban, MessageSquare, Cloud, BarChart3, ArrowLeft, Sparkles, ArrowRight } from 'lucide-react';
 import { use180Identity, OneEightyIdentityButton } from '@workspace/identity-sdk';
 
@@ -329,43 +324,23 @@ export default function SignupFlow() {
                     )}
                 </div>
 
-                {/* Progress Indicators */}
-                <div className="w-full max-w-md mb-8 flex justify-center gap-2">
-                    {[1, 2, 3, 4].map(s => (
-                        <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${s === step ? 'w-8 bg-blue-600' : s < step ? 'w-4 bg-blue-300' : 'w-4 bg-gray-200'}`} />
-                    ))}
-                </div>
+                {/* ─── 1-CLICK 180 IDENTITY BUTTON (PRIMARY SOVEREIGN AUTH) ─── */}
+                <div className="w-full max-w-md relative z-10 space-y-4">
+                    <OneEightyIdentityButton 
+                        clientId={process.env.NEXT_PUBLIC_180_CLIENT_ID}
+                        isProcessing={loading}
+                        disabled={isOpeningIdentity || loading} 
+                        text="Create Workspace with 180 Profile"
+                        subtitle="Sovereign Auth · WhatsApp OTP · SSO"
+                        processingText="Setting up your sovereign account…"
+                        onSuccess={handleIdentitySuccess}
+                    />
 
-                {/* Render Current Step */}
-                <div className="w-full max-w-md relative z-10">
-                    {step === 1 && (
-                        <div className="mb-6">
-                            <OneEightyIdentityButton 
-                                clientId={process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_5cc136397553836e34eb37ce22d13a53'}
-                                isProcessing={loading}
-                                disabled={isOpeningIdentity || loading} 
-                                onSuccess={handleIdentitySuccess}
-                            />
-
-                            <div className="relative my-6 flex items-center justify-center">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-gray-200"></div>
-                                </div>
-                                <div className="relative flex justify-center text-xs">
-                                    <span className="px-3 bg-white text-gray-400 font-semibold uppercase tracking-wider text-[10px]">
-                                        Or create workspace account manually
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    <AnimatePresence mode="wait">
-                        {step === 1 && <AuthChoice key="step1" onGoogleSuccess={handleGoogleSuccess} onEmailSubmit={handleEmailSubmit} googleLoading={loading} />}
-                        {step === 2 && <OtpVerification key="step2" email={email} onVerify={handleVerifyOtp} isVerifying={loading} onBack={() => setStep(1)} onResend={() => handleEmailSubmit(email)} isResending={loading} />}
-                        {step === 3 && <PasswordSetup key="step3" onSubmit={handleSetPassword} isSubmitting={loading} onBack={() => setStep(2)} />}
-                        {step === 4 && <BasicProfile key="step4" onSubmit={handleProfileSubmit} isSubmitting={loading} onBack={() => setStep(3)} />}
-                    </AnimatePresence>
+                    <div className="text-center">
+                        <p className="text-xs text-gray-500">
+                            By continuing, you agree to our Terms of Service & Privacy Policy. Powered by 180 Core Sovereign Identity.
+                        </p>
+                    </div>
                 </div>
 
                 {step === 1 && (

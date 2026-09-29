@@ -410,7 +410,7 @@ export class LiveKitRoomWorker {
     if (isOutbound && recipientPhone) {
       const trunkId = (sipTrunkId && sipTrunkId.startsWith('ST_'))
         ? sipTrunkId
-        : (process.env.LIVEKIT_SIP_TRUNK_ID || 'ST_FFXV3xAMx44y');
+        : (process.env.LIVEKIT_SIP_TRUNK_ID || '');
       
       let fromNumber = this.options.callerIdNumber;
 
@@ -447,7 +447,7 @@ export class LiveKitRoomWorker {
       }
 
       if (!fromNumber) {
-        fromNumber = process.env.TELNYX_CALLER_ID || '+919381420546';
+        fromNumber = process.env.TELNYX_CALLER_ID || '';
       }
 
       try {

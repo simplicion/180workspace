@@ -93,7 +93,7 @@ export function setupVoiceforceWorker(customRedis?: Redis | any) {
               voiceAgentId: session.voiceAgentId,
               recipientPhone: session.recipientPhone,
               callerIdNumber: session.phoneNumber?.e164Number || session.structuredData?.callerIdNumber || (session as any).callerIdNumber || null,
-              sipTrunkId: process.env.LIVEKIT_SIP_TRUNK_ID || 'ST_FFXV3xAMx44y',
+              sipTrunkId: process.env.LIVEKIT_SIP_TRUNK_ID || '',
               isOutbound: session.direction === 'outbound'
             });
 
