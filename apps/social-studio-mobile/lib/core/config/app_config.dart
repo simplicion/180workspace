@@ -31,7 +31,7 @@ class AppConfig {
   /// the backend accepts. A public identifier, not a secret.
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
-    defaultValue: '188560578303-2bih1dg5qhbq5uao9q451r6db3986e6f.apps.googleusercontent.com',
+    defaultValue: '',
   );
 
   /// Custom scheme the OS hands back to the app after a browser OAuth hop.

@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useSubscription } from '@/lib/useSubscription';
 import { useSettings } from '@/lib/settings-context';
 import { useOfflineSync } from '@/lib/offline/useOfflineSync';
+import { OneEightyPay } from '@workspace/identity-sdk';
 
 declare global { interface Window { Razorpay: any; } }
 
@@ -159,6 +160,34 @@ function CheckoutContent() {
                     apps: plan.addonType === 'app' ? plan.quantity || 1 : undefined
                 });
 
+                if (order.providerName === '180pay' || !order.providerName) {
+                    await OneEightyPay.checkout({
+                        amount: plan.price,
+                        currency: order.currency || platform?.currency || 'INR',
+                        title: plan.planName || 'Workspace Add-on',
+                        description: `Add-on purchase for ${user?.name || 'Workspace'}`,
+                        couponCode: couponResult?.code || coupon,
+                        metadata: {
+                            companyId: (user as any)?.companyId || (user as any)?.company?._id,
+                            addonType: plan.addonType,
+                            quantity: plan.quantity || 1,
+                        },
+                        onSuccess: async () => {
+                            toast.success('Add-on activated successfully!');
+                            refresh();
+                            router.push(`/settings/platform-billing/success?planId=${plan.id || ''}`);
+                        },
+                        onError: (err) => {
+                            toast.error(err.message || 'Payment failed');
+                            setPaymentLoading(false);
+                        },
+                        onCancel: () => {
+                            setPaymentLoading(false);
+                        }
+                    });
+                    return;
+                }
+
                 if (order.providerName === 'razorpay') {
                     if (typeof window !== 'undefined' && !window.Razorpay) {
                         toast.error('Payment gateway SDK not loaded');
@@ -225,6 +254,34 @@ function CheckoutContent() {
                 } else {
                     throw new Error('Missing redirect URL from Stripe provider.');
                 }
+                return;
+            }
+
+            if (order.providerName === '180pay' || !order.providerName) {
+                await OneEightyPay.checkout({
+                    amount: plan.price,
+                    currency: order.currency || platform?.currency || 'INR',
+                    title: plan.planName || '180 Workspace Plan',
+                    description: `Subscription upgrade for ${user?.name || 'Workspace'}`,
+                    couponCode: couponResult?.code || coupon,
+                    metadata: {
+                        companyId: (user as any)?.companyId || (user as any)?.company?._id,
+                        planId: plan.id,
+                        orderId: order.orderId,
+                    },
+                    onSuccess: async () => {
+                        toast.success('Plan activated successfully!');
+                        refresh();
+                        router.push(`/settings/platform-billing/success?planId=${plan.id || ''}`);
+                    },
+                    onError: (err) => {
+                        toast.error(err.message || 'Payment failed');
+                        setPaymentLoading(false);
+                    },
+                    onCancel: () => {
+                        setPaymentLoading(false);
+                    }
+                });
                 return;
             }
 
@@ -383,7 +440,7 @@ function CheckoutContent() {
                                 </div>
                                 <div className="flex items-center gap-2.5 text-zinc-600 dark:text-zinc-300">
                                     <Lock className="w-4 h-4 text-primary" />
-                                    <span className="text-sm font-medium">Powered by Razorpay Secure</span>
+                                    <span className="text-sm font-medium">Powered by 180 Pay Sovereign Gateway</span>
                                 </div>
                             </div>
                         </div>

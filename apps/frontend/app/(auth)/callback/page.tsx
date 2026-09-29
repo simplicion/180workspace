@@ -69,7 +69,7 @@ function OAuthCallbackContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           grant_type: 'authorization_code',
-          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_5cc136397553836e34eb37ce22d13a53',
+          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || '',
           code: authCode,
           redirect_uri: window.location.origin + '/callback',
         }),

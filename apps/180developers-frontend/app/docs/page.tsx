@@ -330,28 +330,16 @@ export default function DeveloperDocsPage() {
             <div className="p-3 rounded-2xl bg-white/70 dark:bg-black/60 border border-zinc-200 dark:border-white/5 space-y-1">
               <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-sans font-bold">Client ID</span>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-emerald-600 dark:text-emerald-400 truncate select-all">180_client_5cc136397553836e34eb37ce22d13a53</span>
-                <button
-                  onClick={() => copyToClipboard('180_client_5cc136397553836e34eb37ce22d13a53', 'spotlight-cid')}
-                  className="p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
-                  title="Copy Client ID"
-                >
-                  {copiedKey === 'spotlight-cid' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
+                <span className="text-emerald-600 dark:text-emerald-400 truncate select-all">180_client_••••••••••••••••••••••••</span>
+                <span className="text-[10px] text-zinc-400 font-sans">See App Console</span>
               </div>
             </div>
 
             <div className="p-3 rounded-2xl bg-white/70 dark:bg-black/60 border border-zinc-200 dark:border-white/5 space-y-1">
               <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-sans font-bold">Webhook Secret</span>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-purple-600 dark:text-purple-400 truncate select-all">whsec_91b1a44cd792ff88dc268110c139107af96d70ea</span>
-                <button
-                  onClick={() => copyToClipboard('whsec_91b1a44cd792ff88dc268110c139107af96d70ea', 'spotlight-whsec')}
-                  className="p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
-                  title="Copy Webhook Secret"
-                >
-                  {copiedKey === 'spotlight-whsec' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
+                <span className="text-purple-600 dark:text-purple-400 truncate select-all">whsec_••••••••••••••••••••••••</span>
+                <span className="text-[10px] text-zinc-400 font-sans">See App Console</span>
               </div>
             </div>
           </div>
@@ -380,37 +368,37 @@ export default function DeveloperDocsPage() {
               <tbody className="divide-y divide-zinc-200 dark:divide-white/5 font-mono text-zinc-700 dark:text-zinc-300 text-xs">
                 <tr>
                   <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Application Name</td>
-                  <td className="py-3 px-5 text-purple-600 dark:text-purple-400 font-mono">180workspace</td>
+                  <td className="py-3 px-5 text-purple-600 dark:text-purple-400 font-mono">My App</td>
                   <td className="py-3 px-5 font-sans text-zinc-500">App Header, Consent Screen</td>
                   <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Public name of your application displayed to users on the 180 Identity consent dialog and transaction invoice.</td>
                 </tr>
                 <tr>
                   <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Owner Account</td>
-                  <td className="py-3 px-5 text-blue-600 dark:text-blue-400 font-mono">simplicion (simplicion.com@gmail.com)</td>
+                  <td className="py-3 px-5 text-blue-600 dark:text-blue-400 font-mono">developer@example.com</td>
                   <td className="py-3 px-5 font-sans text-zinc-500">Developer Session</td>
                   <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">The verified 180 Profile user who owns, configures, and receives payouts for this app.</td>
                 </tr>
                 <tr>
                   <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Client ID</td>
-                  <td className="py-3 px-5 text-emerald-600 dark:text-emerald-400 font-mono">180_client_5cc136397553836e34eb37ce22d13a53</td>
+                  <td className="py-3 px-5 text-emerald-600 dark:text-emerald-400 font-mono">180_client_xxxxxxxxxxxx</td>
                   <td className="py-3 px-5 font-sans text-zinc-500"><code className="font-mono text-zinc-700 dark:text-zinc-300">NEXT_PUBLIC_180_CLIENT_ID</code></td>
                   <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400"><strong>Public identifier.</strong> Safe to expose in frontend HTML, Flutter apps, and browser scripts to trigger popups.</td>
                 </tr>
                 <tr>
                   <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Client Secret</td>
-                  <td className="py-3 px-5 text-amber-600 dark:text-amber-400 font-mono">180_secret_41b2bd23a7a978f197c1...</td>
+                  <td className="py-3 px-5 text-amber-600 dark:text-amber-400 font-mono">180_secret_xxxxxxxxxxxx</td>
                   <td className="py-3 px-5 font-sans text-zinc-500"><code className="font-mono text-zinc-700 dark:text-zinc-300">ONE_EIGHTY_CLIENT_SECRET</code></td>
                   <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400"><strong>Confidential backend secret.</strong> Never expose in client code. Displayed once at creation, hashed with bcrypt in DB. Used in server-to-server token exchange.</td>
                 </tr>
                 <tr>
                   <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Webhook Signing Secret</td>
-                  <td className="py-3 px-5 text-purple-600 dark:text-purple-400 font-mono">whsec_91b1a44cd792ff88dc26811...</td>
+                  <td className="py-3 px-5 text-purple-600 dark:text-purple-400 font-mono">whsec_xxxxxxxxxxxx</td>
                   <td className="py-3 px-5 font-sans text-zinc-500"><code className="font-mono text-zinc-700 dark:text-zinc-300">ONE_EIGHTY_WEBHOOK_SECRET</code></td>
                   <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Used by your backend to verify HMAC-SHA256 signatures in the <code className="text-emerald-500 font-mono">X-180-Signature</code> header on incoming payment captures.</td>
                 </tr>
                 <tr>
                   <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Payment Webhook URL</td>
-                  <td className="py-3 px-5 text-blue-600 dark:text-blue-400 font-mono">https://api.180workspace.com/api/v1/wallet/webhooks/180-pay</td>
+                  <td className="py-3 px-5 text-blue-600 dark:text-blue-400 font-mono">https://api.yourdomain.com/webhooks/180-pay</td>
                   <td className="py-3 px-5 font-sans text-zinc-500">App Settings / Console</td>
                   <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">The public HTTPS endpoint where 180 Pay dispatches real-time capture and refund event payloads.</td>
                 </tr>
@@ -1148,11 +1136,11 @@ const envTemplateString = `# ─────────────────
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Public Client ID (Safe for frontend Next.js, React, Flutter, HTML)
-NEXT_PUBLIC_180_CLIENT_ID="180_client_5cc136397553836e34eb37ce22d13a53"
+NEXT_PUBLIC_180_CLIENT_ID="180_client_your_client_id"
 
 # Confidential Secrets (Keep strictly on server-side / backend)
-ONE_EIGHTY_CLIENT_SECRET="180_secret_41b2bd23a7a978f197c16958ea14b4de6af9abe14ec13c9c"
-ONE_EIGHTY_WEBHOOK_SECRET="whsec_91b1a44cd792ff88dc268110c139107af96d70ea"
+ONE_EIGHTY_CLIENT_SECRET="180_secret_your_client_secret"
+ONE_EIGHTY_WEBHOOK_SECRET="whsec_your_webhook_secret"
 
 # Gateway Endpoints
 NEXT_PUBLIC_180_AUTH_URL="https://profile.180workspace.com"
@@ -1172,8 +1160,8 @@ const webhookPayloadExampleString = `{
     "status": "COMPLETED",
     "customer": {
       "id": "290aeceb-4af1-4d20-b190-a0853f177779",
-      "username": "simplicion",
-      "email": "simplicion.com@gmail.com"
+      "username": "founder",
+      "email": "customer@example.com"
     },
     "metadata": {
       "planId": "pro_monthly",
@@ -1229,13 +1217,14 @@ app.post('/api/v1/wallet/webhooks/180-pay', (req, res) => {
   res.status(200).json({ received: true });
 });`;
 
-const webhookVerificationPythonString = `import hmac
+const webhookVerificationPythonString = `import os
+import hmac
 import hashlib
 import time
 from fastapi import FastAPI, Request, Header, HTTPException
 
 app = FastAPI()
-WEBHOOK_SECRET = "whsec_91b1a44cd792ff88dc268110c139107af96d70ea"
+WEBHOOK_SECRET = os.getenv("ONE_EIGHTY_WEBHOOK_SECRET", "")
 
 @app.post("/api/v1/wallet/webhooks/180-pay")
 async def handle_180_pay_webhook(
