@@ -3,7 +3,7 @@ import {
   Copy, Check, Shield, Globe, 
   Sparkles, CheckCircle2, AlertCircle,
   Terminal, MonitorSmartphone, Settings2,
-  Code2, ChevronDown, Zap, Server
+  Code2, ChevronDown, Zap, Server, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
@@ -31,7 +31,7 @@ export default function EmbedTagModal({
   shieldMode = 'server',
   onDomainUpdated
 }: EmbedTagModalProps) {
-  type SnippetFormat = 'vercel_edge' | 'node_express' | 'wordpress_php' | 'html_script' | 'inline_shield';
+  type SnippetFormat = 'vercel_edge' | 'node_express' | 'standalone_php' | 'wordpress_php' | 'html_script' | 'inline_shield';
   const [snippetType, setSnippetType] = useState<SnippetFormat>('vercel_edge');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [copiedType, setCopiedType] = useState<string | null>(null);

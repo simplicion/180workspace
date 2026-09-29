@@ -67,6 +67,7 @@ jobs:
       - name: Build 180 Profile Frontend
         env:
           NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
+          NEXT_EXPORT: 'true'
         run: pnpm turbo run build --filter=180-profile-frontend...
 
       - name: Ensure Cloudflare Pages Project Exists
@@ -107,6 +108,7 @@ jobs:
       - name: Build 180 Developer Portal
         env:
           NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
+          NEXT_EXPORT: 'true'
         run: pnpm turbo run build --filter=180developers-frontend...
 
       - name: Ensure Cloudflare Pages Project Exists
@@ -147,6 +149,7 @@ jobs:
       - name: Build Traffic Director
         env:
           NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
+          NEXT_EXPORT: 'true'
         run: pnpm turbo run build --filter=traffic-director-web...
 
       - name: Ensure Cloudflare Pages Project Exists
