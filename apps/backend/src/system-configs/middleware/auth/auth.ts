@@ -116,6 +116,7 @@ export async function protect(req: any, res: Response, next: NextFunction) {
             // Cross-domain fallback: If token was signed by 180 Core / Sovereign Identity (db-180core),
             // resolve user in 180 Workspace DB by email, phone, googleId or username, or auto-provision workspace record.
             if (!user) {
+                try {
                     // Decoupled Core OIDC User Resolution: Fetch userinfo over HTTP without direct database access
                     let coreUser: any = null;
                     try {

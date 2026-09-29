@@ -341,6 +341,7 @@ export default function SignupFlow() {
                     {step === 1 && (
                         <div className="mb-6">
                             <OneEightyIdentityButton 
+                                clientId={process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_5cc136397553836e34eb37ce22d13a53'}
                                 isProcessing={loading}
                                 disabled={isOpeningIdentity || loading} 
                                 onSuccess={handleIdentitySuccess}

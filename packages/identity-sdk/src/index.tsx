@@ -547,7 +547,7 @@ export function use180Identity() {
       try {
         const opts: Partial<OpenPopupOptions> =
           typeof options === 'function' ? { onSuccess: options } : options || {};
-        const clientId = opts.clientId || '180-workspace-platform';
+        const clientId = opts.clientId || (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_CLIENT_ID) || '180_client_5cc136397553836e34eb37ce22d13a53';
         const res = await OneEightyIdentity.openPopup({
           clientId,
           ...opts,
@@ -704,7 +704,7 @@ if (typeof window !== 'undefined') {
 }
 
 export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = ({
-  clientId = '180-workspace-platform',
+  clientId = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_CLIENT_ID) || '180_client_5cc136397553836e34eb37ce22d13a53',
   redirectUri,
   scope,
   state,
