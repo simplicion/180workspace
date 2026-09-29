@@ -20,6 +20,7 @@ import { UniversalSkeleton, Button } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { LedgerEntry } from '@/types';
 import { InvoiceModal } from '@/components/InvoiceModal';
+import { getCoreApiUrl } from '@/lib/api';
 
 export default function TransactionsPage() {
   const [balance, setBalance] = useState<number>(0);
@@ -44,8 +45,8 @@ export default function TransactionsPage() {
 
     try {
       const [walletRes, ledgerRes] = await Promise.all([
-        fetch('/api/oauth/wallet', { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
-        fetch('/api/oauth/wallet/ledger', { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch(getCoreApiUrl('/api/oauth/wallet'), { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch(getCoreApiUrl('/api/oauth/wallet/ledger'), { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
       ]);
 
       if (walletRes?.success && walletRes.data) {
@@ -85,7 +86,7 @@ export default function TransactionsPage() {
     const toastId = toast.loading('Initializing secure Razorpay order...');
 
     try {
-      const res = await fetch('/api/oauth/wallet/topup/order', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -110,7 +111,7 @@ export default function TransactionsPage() {
         handler: async function (response: any) {
           const verifyToast = toast.loading('Verifying transaction on 180 Core...');
           try {
-            const verifyRes = await fetch('/api/oauth/wallet/topup/verify', {
+            const verifyRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',

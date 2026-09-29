@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import { Toaster } from 'react-hot-toast';
 import './globals.css';
+import '@/lib/api';
 
 export const metadata: Metadata = {
   title: '180 Profile — Universal Identity, Security & Wallet',

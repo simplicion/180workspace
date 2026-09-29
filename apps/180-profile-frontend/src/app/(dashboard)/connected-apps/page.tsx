@@ -18,6 +18,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { Button, UniversalSkeleton } from '@workspace/ui';
+import { getCoreApiUrl } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { ConnectedApp } from '@/types';
 import { RevokeAppModal } from '@/components/RevokeAppModal';
@@ -39,7 +40,7 @@ export default function ConnectedAppsPage() {
         setApps([]);
         return;
       }
-      const res = await fetch('/api/oauth/authorized-apps', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/authorized-apps'), {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
@@ -73,7 +74,7 @@ export default function ConnectedAppsPage() {
         localStorage.getItem('token') ||
         localStorage.getItem('accessToken');
 
-      const res = await fetch(`/api/oauth/authorized-apps/${revokingApp.clientId}`, {
+      const res = await fetch(getCoreApiUrl(`/api/oauth/authorized-apps/${revokingApp.clientId}`), {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',

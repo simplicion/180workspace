@@ -1,6 +1,7 @@
 'use strict';
 
 import toast from 'react-hot-toast';
+import { getCoreApiUrl } from '@/lib/api';
 
 export interface OAuthParams {
   clientId: string;
@@ -64,12 +65,13 @@ export async function dispatchOAuthSuccess(
   let idToken = '';
 
   try {
-    const consentRes = await fetch('/api/oauth/authorize/consent', {
+    const consentRes = await fetch(getCoreApiUrl('/api/oauth/authorize/consent'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${authToken}`,
       },
+      credentials: 'include',
       body: JSON.stringify({
         client_id: params.clientId,
         redirect_uri: params.redirectUri,

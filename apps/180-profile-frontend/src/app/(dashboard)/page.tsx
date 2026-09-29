@@ -23,6 +23,7 @@ import {
 import { Button, UniversalSkeleton } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { UserProfile, ConnectedApp, LedgerEntry } from '@/types';
+import { getCoreApiUrl } from '@/lib/api';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { TopUpModal } from '@/components/TopUpModal';
 import { SovereignQRModal } from '@/components/SovereignQRModal';
@@ -61,10 +62,10 @@ export default function HomePage() {
 
     try {
       const [userRes, walletRes, ledgerRes, appsRes] = await Promise.all([
-        fetch('/api/oauth/userinfo', { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
-        fetch('/api/oauth/wallet', { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
-        fetch('/api/oauth/wallet/ledger', { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
-        fetch('/api/oauth/authorized-apps', { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch(getCoreApiUrl('/api/oauth/userinfo'), { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch(getCoreApiUrl('/api/oauth/wallet'), { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch(getCoreApiUrl('/api/oauth/wallet/ledger'), { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch(getCoreApiUrl('/api/oauth/authorized-apps'), { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
       ]);
 
       if (userRes && (userRes.user || userRes.id)) {

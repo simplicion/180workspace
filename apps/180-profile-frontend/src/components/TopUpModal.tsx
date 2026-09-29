@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { PlatformModal, Button, LogoLoader } from '@workspace/ui';
 import { CreditCard, Sparkles, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getCoreApiUrl } from '@/lib/api';
 
 interface TopUpModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ export function TopUpModal({ isOpen, onClose, onSuccess }: TopUpModalProps) {
     const toastId = toast.loading('Creating secure Razorpay order...');
 
     try {
-      const res = await fetch('/api/oauth/wallet/topup/order', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -60,7 +61,7 @@ export function TopUpModal({ isOpen, onClose, onSuccess }: TopUpModalProps) {
         handler: async function (response: any) {
           const verifyToast = toast.loading('Verifying transaction...');
           try {
-            const verifyRes = await fetch('/api/oauth/wallet/topup/verify', {
+            const verifyRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',

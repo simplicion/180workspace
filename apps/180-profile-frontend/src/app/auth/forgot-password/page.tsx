@@ -10,6 +10,7 @@ import {
   extractOAuthParams,
   buildOAuthQueryString,
 } from '@/components/auth/OAuthDispatchHelper';
+import { getCoreApiUrl } from '@/lib/api';
 
 function ForgotPasswordContent() {
   const searchParams = useSearchParams();
@@ -33,9 +34,10 @@ function ForgotPasswordContent() {
     const toastId = toast.loading('Sending verification code...');
 
     try {
-      const res = await fetch('/api/oauth/forgot-password', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/forgot-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ emailOrPhone: cleanInput }),
       });
 

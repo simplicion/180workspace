@@ -16,6 +16,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { AILogoIcon, LogoLoader, Button } from '@workspace/ui';
+import { getCoreApiUrl } from '@/lib/api';
 
 const SCOPE_DESCRIPTIONS: Record<string, { title: string; description: string; icon: any }> = {
   openid: {
@@ -71,7 +72,7 @@ function ConsentForm() {
       localStorage.getItem('token') ||
       localStorage.getItem('accessToken');
 
-    fetch('/api/oauth/userinfo', {
+    fetch(getCoreApiUrl('/api/oauth/userinfo'), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       credentials: 'include',
     })
@@ -120,12 +121,13 @@ function ConsentForm() {
         localStorage.getItem('accessToken') ||
         '';
 
-      const res = await fetch('/api/oauth/authorize/consent', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/authorize/consent'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           client_id: clientId,
           redirect_uri: redirectUri,
