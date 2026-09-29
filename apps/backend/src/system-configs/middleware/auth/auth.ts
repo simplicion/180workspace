@@ -116,11 +116,21 @@ export async function protect(req: any, res: Response, next: NextFunction) {
             // Cross-domain fallback: If token was signed by 180 Core / Sovereign Identity (db-180core),
             // resolve user in 180 Workspace DB by email, phone, googleId or username, or auto-provision workspace record.
             if (!user) {
-                try {
-                    const { developersPrisma } = require('@workspace/db-180core');
-                    const coreUser = await developersPrisma.user.findUnique({
-                        where: { id: decoded.id }
-                    });
+                    // Decoupled Core OIDC User Resolution: Fetch userinfo over HTTP without direct database access
+                    let coreUser: any = null;
+                    try {
+                        const coreBackendUrl =
+                            process.env.CORE_BACKEND_INTERNAL_URL ||
+                            process.env.CORE_BACKEND_URL ||
+                            (process.env.NODE_ENV === 'production' ? 'http://core-backend:4003' : 'http://localhost:4003');
+                        const coreRes = await fetch(`${coreBackendUrl}/api/oauth/userinfo`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        if (coreRes.ok) {
+                            const coreData: any = await coreRes.json();
+                            coreUser = coreData.user || coreData.data || coreData;
+                        }
+                    } catch (_) {}
 
                     if (coreUser) {
                         const orConditions: any[] = [];

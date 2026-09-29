@@ -164,7 +164,7 @@ export default function DeveloperDocsPage() {
               <tr>
                 <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">180 Identity & Payments API</td>
                 <td className="py-3 px-5 text-purple-600 dark:text-purple-400">:4003</td>
-                <td className="py-3 px-5 text-blue-600 dark:text-blue-400">api.180workspace.com</td>
+                <td className="py-3 px-5 text-blue-600 dark:text-blue-400">services.180workspace.com</td>
                 <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">OAuth2/OIDC Engine, Sovereign Double-Entry Ledger, Payment Processing, Webhook Dispatcher</td>
               </tr>
               <tr>

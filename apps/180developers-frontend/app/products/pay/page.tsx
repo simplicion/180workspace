@@ -296,7 +296,7 @@ const app = express();
 app.post('/api/create-checkout-session', async (req, res) => {
   const { amount, currency, title } = req.body;
 
-  const response = await fetch('https://api.180workspace.com/api/v1/identity/checkout/sessions', {
+  const response = await fetch('https://services.180workspace.com/api/v1/checkout/sessions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

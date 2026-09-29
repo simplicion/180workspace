@@ -392,6 +392,7 @@ model User {
   avatarUrl                             String?               @default("")
   age                                   Int?
   isOnboarded                           Boolean               @default(false)
+  isVerified                            Boolean               @default(false)
   isEmailVerified                       Boolean               @default(false)
   isPhoneVerified                       Boolean               @default(false)
   otpExpiresAt                          DateTime?

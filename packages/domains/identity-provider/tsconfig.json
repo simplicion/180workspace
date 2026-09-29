@@ -13,9 +13,7 @@
     "baseUrl": ".",
     "paths": {
       "@workspace/db-180core": ["../../db-180core/dist/index.d.ts"],
-      "@workspace/db-180core/*": ["../../db-180core/*"],
-      "@workspace/db": ["../../db/dist/index.d.ts"],
-      "@workspace/db/*": ["../../db/*"]
+      "@workspace/db-180core/*": ["../../db-180core/*"]
     }
   },
   "include": [

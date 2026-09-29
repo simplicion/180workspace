@@ -112,7 +112,7 @@ export default function SmartLinkRuleCanvasPage() {
       setSavingFallback(true);
       await api.put(`/api/v1/traffic-director/links/${linkId}`, { 
         fallbackUrl,
-        safePageProxyMode: true
+        safePageProxyMode
       });
       toast.success('Safe page settings saved!');
       fetchLinkDetails();
@@ -600,6 +600,41 @@ export default function SmartLinkRuleCanvasPage() {
               <span>Save Safe Page URL</span>
             )}
           </button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-gray-200/80 dark:border-white/10">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Bot & Fallback Delivery:</span>
+            <div className="flex items-center p-0.5 bg-gray-200/80 dark:bg-gray-800 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setSafePageProxyMode(true)}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
+                  safePageProxyMode
+                    ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                    : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                Reverse Proxy (200 OK - Cloaked)
+              </button>
+              <button
+                type="button"
+                onClick={() => setSafePageProxyMode(false)}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
+                  !safePageProxyMode
+                    ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                    : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                302 Redirect
+              </button>
+            </div>
+          </div>
+          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+            {safePageProxyMode
+              ? 'Mirrors HTML from Safe Page on your link domain with HTTP 200 (URL stays clean).'
+              : 'Issues standard HTTP 302 redirect header to the Safe Page URL.'}
+          </span>
         </div>
       </div>
 

@@ -367,6 +367,22 @@ jobs:
               printf '\nLINKEDIN_API_VERSION=202507\n' >> .env
             fi
 
+            # 4e. CORE_DATABASE_URL — Ensure dedicated Postgres schema namespace isolation for 180 Core
+            if ! grep -q '^CORE_DATABASE_URL=.\+' .env; then
+              DB_BASE=$(grep '^DATABASE_URL=' .env | head -n1 | cut -d= -f2- | tr -d '"' | tr -d "'")
+              if [ -n "$DB_BASE" ]; then
+                if echo "$DB_BASE" | grep -q 'schema='; then
+                  CORE_DB=$(echo "$DB_BASE" | sed 's/schema=[^&]*/schema=180core/')
+                elif echo "$DB_BASE" | grep -q '\?'; then
+                  CORE_DB="${DB_BASE}&schema=180core"
+                else
+                  CORE_DB="${DB_BASE}?schema=180core"
+                fi
+                printf '\nCORE_DATABASE_URL="%s"\n' "$CORE_DB" >> .env
+                echo "==> CORE_DATABASE_URL isolated with 180core schema namespace."
+              fi
+            fi
+
             # 5. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
             sudo chown -R $(whoami):$(whoami) /home/ubuntu/app
             if [ ! -d ".git" ]; then
@@ -391,7 +407,7 @@ jobs:
             # 8b. Apply pending Prisma migrations for both core DB and 180core DB
             echo "==> Applying database migrations (packages/db & packages/db-180core)..."
             docker compose run --rm --no-deps -T -w /app backend sh -c "npx prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss"
-            docker compose run --rm --no-deps -T -w /app core-backend sh -c "export CORE_DATABASE_URL=\${CORE_DATABASE_URL:-\$DATABASE_URL} && (npx prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || true)"
+            docker compose run --rm --no-deps -T -w /app core-backend sh -c "(npx prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || true)"
 
             # 9. Stop host-level services / processes binding to port 80 or 443
             sudo systemctl stop nginx apache2 2>/dev/null || true
