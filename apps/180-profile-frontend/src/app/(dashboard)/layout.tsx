@@ -7,6 +7,7 @@ import { Footer } from '@/components/Footer';
 import { DesktopSidebar } from '@/components/DesktopSidebar';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { UserProfile } from '@/types';
+import { getCoreApiUrl } from '@/lib/api';
 
 export default function DashboardLayout({
   children,
@@ -32,7 +33,7 @@ export default function DashboardLayout({
 
       // 1. Fetch User Profile
       try {
-        const res = await fetch('/api/oauth/userinfo', {
+        const res = await fetch(getCoreApiUrl('/api/oauth/userinfo'), {
           headers: { Authorization: `Bearer ${token}` },
           credentials: 'include',
         });
@@ -57,7 +58,7 @@ export default function DashboardLayout({
 
       // 2. Fetch Wallet Balance
       try {
-        const res = await fetch('/api/oauth/wallet', {
+        const res = await fetch(getCoreApiUrl('/api/oauth/wallet'), {
           headers: { Authorization: `Bearer ${token}` },
           credentials: 'include',
         });

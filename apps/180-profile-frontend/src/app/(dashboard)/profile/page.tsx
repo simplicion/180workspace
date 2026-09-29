@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button, UniversalSkeleton } from '@workspace/ui';
 import toast from 'react-hot-toast';
+import { getCoreApiUrl } from '@/lib/api';
 import { UserProfile } from '@/types';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { SovereignQRModal } from '@/components/SovereignQRModal';
@@ -51,7 +52,7 @@ export default function ProfilePage() {
 
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    fetch('/api/oauth/userinfo', { headers, credentials: 'include' })
+    fetch(getCoreApiUrl('/api/oauth/userinfo'), { headers, credentials: 'include' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && (data.user || data.id)) {

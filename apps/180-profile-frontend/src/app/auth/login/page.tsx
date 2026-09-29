@@ -27,6 +27,7 @@ import {
 } from '@/components/auth/OAuthDispatchHelper';
 import { OAuthAppHeader } from '@/components/auth/OAuthAppHeader';
 import { GoogleSSOButton } from '@/components/auth/GoogleSSOButton';
+import { getCoreApiUrl } from '@/lib/api';
 
 type AuthScreenMode = 'login' | 'signup' | 'otp' | 'password' | 'onboarding';
 
@@ -96,7 +97,7 @@ function LoginFormContent() {
       localStorage.getItem('accessToken');
 
     if (token) {
-      fetch('/api/oauth/userinfo', {
+      fetch(getCoreApiUrl('/api/oauth/userinfo'), {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => (res.ok ? res.json() : null))
@@ -189,9 +190,10 @@ function LoginFormContent() {
     const toastId = toast.loading('Signing in to 180 Profile...');
 
     try {
-      const res = await fetch('/api/oauth/login', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           emailOrPhone: loginEmailOrPhone.trim(),
           password: loginPassword,
@@ -247,9 +249,10 @@ function LoginFormContent() {
     );
 
     try {
-      const res = await fetch('/api/oauth/register/initiate', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/register/initiate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: cleanName,
           emailOrPhone: cleanInput,
@@ -294,9 +297,10 @@ function LoginFormContent() {
     const toastId = toast.loading('Verifying code with 180 Identity...');
 
     try {
-      const res = await fetch('/api/oauth/register/verify-otp', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/register/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           emailOrPhone: signupEmailOrPhone.trim(),
           otp: otp.trim(),
@@ -337,9 +341,10 @@ function LoginFormContent() {
     try {
       // If user came from Google continuation, update their password directly
       if (currentUser?.id && !signupTempToken) {
-        const res = await fetch('/api/oauth/google-continue', {
+        const res = await fetch(getCoreApiUrl('/api/oauth/google-continue'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             email: currentUser.email,
             password: newPassword,
@@ -359,9 +364,10 @@ function LoginFormContent() {
       }
 
       // Normal signup flow
-      const res = await fetch('/api/oauth/register/set-password', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/register/set-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: signupName.trim(),
           emailOrPhone: signupEmailOrPhone.trim(),
@@ -446,9 +452,10 @@ function LoginFormContent() {
         setOnboardLongitude(lng);
 
         try {
-          const res = await fetch('/api/oauth/resolve-location', {
+          const res = await fetch(getCoreApiUrl('/api/oauth/resolve-location'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ latitude: lat, longitude: lng }),
           });
 
@@ -490,12 +497,13 @@ function LoginFormContent() {
     try {
       const isEmailPrimary = Boolean(currentUser?.email);
 
-      const res = await fetch('/api/oauth/onboarding', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/onboarding'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${currentAuthToken}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           userId: currentUser?.id,
           username: onboardUsername.trim().replace(/^@/, ''),

@@ -17,6 +17,11 @@ export type ConditionType =
   | 'language'
   | 'network_type'       // residential, datacenter, cellular, vpn
   | 'asn_provider'       // AWS, GOOGLE_CLOUD, AZURE, DIGITALOCEAN, HETZNER, ORACLE, etc.
+  | 'isp_provider'       // Jio, Airtel, Comcast, Verizon, AT&T, Vodafone, etc.
+  | 'spy_service'        // AdPlexity, SpyOver, Anstrex, Dropispy, BigSpy, etc.
+  | 'vpn_status'         // vpn, proxy, tor, clean
+  | 'threat_list'        // system or custom threat blacklist/whitelist
+  | 'timezone_delta'     // browser vs IP timezone mismatch
   | 'touch_support'      // boolean (mobile with touchpoints vs emulated)
   | 'gpu_renderer'       // checks against SwiftShader software renderer
   | 'battery_valid';     // checks against static 100% cloud test runners
@@ -47,6 +52,8 @@ export interface ExtractedSignals {
   postalCode?: string;
   region?: string;
   timezone?: string;
+  clientTimezone?: string;
+  hasTimezoneDelta?: boolean;
   deviceType: 'mobile' | 'tablet' | 'desktop' | 'unknown';
   os: string;
   browser: string;
@@ -54,6 +61,12 @@ export interface ExtractedSignals {
   referrer: string;
   isBot: boolean;
   botName?: string;
+  isSpyService?: boolean;
+  spyServiceName?: string;
+  isVpn?: boolean;
+  vpnReason?: string;
+  isTor?: boolean;
+  isp?: string;
   language: string;
   networkType: 'residential' | 'datacenter' | 'cellular' | 'vpn' | 'unknown';
   asn?: string;
@@ -62,6 +75,9 @@ export interface ExtractedSignals {
   gpuRenderer?: string;
   batteryLevel?: number;
   isEmulated?: boolean;
+  secFetchSite?: string;
+  secFetchMode?: string;
+  secFetchDest?: string;
   headers: Record<string, string | string[] | undefined>;
   queryParams: Record<string, any>;
   timestamp: Date;

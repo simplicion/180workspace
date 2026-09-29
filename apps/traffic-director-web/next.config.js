@@ -37,6 +37,27 @@ const nextConfig = {
     }
     return config;
   },
+  async rewrites() {
+    const backendUrl = process.env.BACKEND_INTERNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4002';
+    return [
+      {
+        source: '/r/:path*',
+        destination: `${backendUrl}/r/:path*`,
+      },
+      {
+        source: '/tag/:path*',
+        destination: `${backendUrl}/tag/:path*`,
+      },
+      {
+        source: '/shield/:path*',
+        destination: `${backendUrl}/shield/:path*`,
+      },
+      {
+        source: '/evaluate/:path*',
+        destination: `${backendUrl}/evaluate/:path*`,
+      },
+    ];
+  },
   outputFileTracingRoot: path.join(__dirname, '../../'),
 };
 

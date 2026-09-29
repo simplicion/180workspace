@@ -19,6 +19,7 @@ import {
   extractOAuthParams,
   buildOAuthQueryString,
 } from '@/components/auth/OAuthDispatchHelper';
+import { getCoreApiUrl } from '@/lib/api';
 
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
@@ -97,9 +98,10 @@ function ResetPasswordContent() {
     const toastId = toast.loading('Sending verification code...');
 
     try {
-      const res = await fetch('/api/oauth/forgot-password', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/forgot-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ emailOrPhone: cleanInput }),
       });
 
@@ -137,9 +139,10 @@ function ResetPasswordContent() {
     const toastId = toast.loading('Verifying code with 180 Identity...');
 
     try {
-      const res = await fetch('/api/oauth/reset-password/verify-otp', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/reset-password/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           emailOrPhone: emailOrPhone.trim(),
           otp: cleanOtp,
@@ -178,9 +181,10 @@ function ResetPasswordContent() {
     const toastId = toast.loading('Updating your sovereign password...');
 
     try {
-      const res = await fetch('/api/oauth/reset-password', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/reset-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           emailOrPhone: emailOrPhone.trim(),
           otp: otp.trim(),

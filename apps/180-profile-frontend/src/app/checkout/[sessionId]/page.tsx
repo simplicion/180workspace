@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button, LogoLoader, AILogoIcon } from '@workspace/ui';
 import toast from 'react-hot-toast';
+import { getCoreApiUrl } from '@/lib/api';
 
 declare global {
   interface Window {
@@ -36,8 +37,8 @@ export default function StandaloneCheckoutPage() {
   const fetchSessionAndWallet = async () => {
     try {
       const [sessionRes, walletRes] = await Promise.all([
-        fetch(`/api/oauth/checkout/sessions/${sessionId}`),
-        fetch('/api/oauth/wallet', { credentials: 'include' }),
+        fetch(getCoreApiUrl(`/api/oauth/checkout/sessions/${sessionId}`), { credentials: 'include' }),
+        fetch(getCoreApiUrl('/api/oauth/wallet'), { credentials: 'include' }),
       ]);
 
       let sessionInfo: any = null;
@@ -124,7 +125,7 @@ export default function StandaloneCheckoutPage() {
         }, 1500);
         return;
       }
-      const res = await fetch(`/api/oauth/checkout/sessions/${sessionId}/pay`, {
+      const res = await fetch(getCoreApiUrl(`/api/oauth/checkout/sessions/${sessionId}/pay`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -173,7 +174,7 @@ export default function StandaloneCheckoutPage() {
     const toastId = toast.loading('Initializing Razorpay top-up...');
 
     try {
-      const res = await fetch('/api/oauth/wallet/topup/order', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -196,7 +197,7 @@ export default function StandaloneCheckoutPage() {
         handler: async function (response: any) {
           toast.loading('Crediting wallet balance...', { id: toastId });
           try {
-            const verifyRes = await fetch('/api/oauth/wallet/topup/verify', {
+            const verifyRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',

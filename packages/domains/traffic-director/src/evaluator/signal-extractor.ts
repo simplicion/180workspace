@@ -25,6 +25,22 @@ const BOT_PATTERNS = [
   { name: 'SemrushBot', regex: /semrushbot/i }
 ];
 
+const SPY_SERVICE_PATTERNS = [
+  { name: 'AdPlexity', regex: /adplexity/i },
+  { name: 'SpyOver', regex: /spyover/i },
+  { name: 'Anstrex', regex: /anstrex/i },
+  { name: 'Dropispy', regex: /dropispy/i },
+  { name: 'BigSpy', regex: /bigspy/i },
+  { name: 'PowerAdSpy', regex: /poweradspy/i },
+  { name: 'AdHeart', regex: /adheart/i },
+  { name: 'Advault', regex: /advault/i },
+  { name: 'WhatRunsWhere', regex: /whatrunswhere/i },
+  { name: 'NativeAdBuzz', regex: /nativeadbuzz/i },
+  { name: 'Adbeat', regex: /adbeat/i },
+  { name: 'PikassoScraper', regex: /pikasso|adscraper/i },
+  { name: 'PuppeteerStealth', regex: /puppeteer-extra|stealth/i }
+];
+
 const CLOUD_ASN_PATTERNS = [
   { org: 'META', regex: /facebook|meta.*platforms/i, asns: ['32934', '63293'] },
   { org: 'BYTEDANCE', regex: /bytedance|tiktok/i, asns: ['138699'] },
@@ -35,13 +51,50 @@ const CLOUD_ASN_PATTERNS = [
   { org: 'HETZNER', regex: /hetzner/i, asns: ['24940', '213230'] },
   { org: 'OVH', regex: /ovh/i, asns: ['16276'] },
   { org: 'ORACLE', regex: /oracle/i, asns: ['31898'] },
-  { org: 'CLOUDFLARE', regex: /cloudflare/i, asns: ['13335'] }
+  { org: 'CLOUDFLARE', regex: /cloudflare/i, asns: ['13335'] },
+  // Common scraper and proxy aggregation networks
+  { org: 'PACKETHUB_SPY', regex: /packethub/i, asns: ['209242'] },
+  { org: 'M247_PROXY', regex: /m247/i, asns: ['9009'] },
+  { org: 'DATACAMP_PROXY', regex: /datacamp/i, asns: ['212238'] },
+  { org: 'CLOUVIDER_PROXY', regex: /clouvider/i, asns: ['62240'] },
+  { org: 'CHOOPA_VULTR', regex: /choopa|vultr/i, asns: ['20473'] },
+  { org: 'COGENT', regex: /cogent/i, asns: ['174'] },
+  { org: 'QUADRANET', regex: /quadranet/i, asns: ['8100'] },
+  { org: 'LEASEWEB', regex: /leaseweb/i, asns: ['16265', '60781'] },
+  { org: 'HOSTINGER', regex: /hostinger/i, asns: ['47583'] }
+];
+
+const ISP_PATTERNS = [
+  { name: 'Jio', regex: /reliance.*jio|jio\s*infocomm/i },
+  { name: 'Airtel', regex: /bharti.*airtel|airtel/i },
+  { name: 'Vodafone', regex: /vodafone|vi\s*india/i },
+  { name: 'BSNL', regex: /bharat.*sanchar|bsnl/i },
+  { name: 'ACT Fibernet', regex: /atria.*convergence|act.*corp/i },
+  { name: 'Comcast', regex: /comcast/i },
+  { name: 'Verizon', regex: /verizon|cellco/i },
+  { name: 'AT&T', regex: /at&t|att.*services/i },
+  { name: 'Charter Spectrum', regex: /charter|spectrum/i },
+  { name: 'T-Mobile', regex: /t-mobile/i },
+  { name: 'Deutsche Telekom', regex: /deutsche.*telekom/i },
+  { name: 'Orange', regex: /orange/i },
+  { name: 'Telefonica', regex: /telefonica|o2/i },
+  { name: 'BT', regex: /british.*telecom|bt\s*group/i },
+  { name: 'Virgin Media', regex: /virgin.*media/i },
+  { name: 'Rogers', regex: /rogers.*comm/i },
+  { name: 'Bell', regex: /bell.*canada/i },
+  { name: 'Telstra', regex: /telstra/i },
+  { name: 'Optus', regex: /optus/i },
+  { name: 'Starlink', regex: /starlink|spacex/i },
+  { name: 'Cox', regex: /cox.*communications/i },
+  { name: 'CenturyLink', regex: /centurylink|lumen/i },
 ];
 
 export class SignalExtractor {
   static extractFromRequest(req: any): ExtractedSignals {
     const headers = req.headers || {};
     const query = req.query || {};
+    const body = req.body || {};
+
     const rawIp = 
       (typeof headers['cf-connecting-ip'] === 'string' ? headers['cf-connecting-ip'] : '') ||
       (typeof headers['true-client-ip'] === 'string' ? headers['true-client-ip'] : '') ||
@@ -68,7 +121,12 @@ export class SignalExtractor {
     const timezone = (typeof headers['cf-timezone'] === 'string' ? headers['cf-timezone'] : '') || (typeof headers['x-timezone'] === 'string' ? headers['x-timezone'] : '') || (typeof query.tz === 'string' ? query.tz : undefined);
     const language = typeof headers['accept-language'] === 'string' ? headers['accept-language'].split(',')[0]?.split(';')[0]?.trim() || 'en' : 'en';
 
-    // Bot detection
+    // Fetch Metadata headers (Detect direct scrapers mimicking ad clicks)
+    const secFetchSite = (headers['sec-fetch-site'] as string) || undefined;
+    const secFetchMode = (headers['sec-fetch-mode'] as string) || undefined;
+    const secFetchDest = (headers['sec-fetch-dest'] as string) || undefined;
+
+    // Bot & Crawler detection
     let isBot = false;
     let botName: string | undefined;
 
@@ -76,6 +134,20 @@ export class SignalExtractor {
       if (bot.regex.test(userAgent)) {
         isBot = true;
         botName = bot.name;
+        break;
+      }
+    }
+
+    // Spy Service & Competitive Scraper detection
+    let isSpyService = false;
+    let spyServiceName: string | undefined;
+
+    for (const spy of SPY_SERVICE_PATTERNS) {
+      if (spy.regex.test(userAgent)) {
+        isSpyService = true;
+        spyServiceName = spy.name;
+        isBot = true;
+        botName = `Spy Tool: ${spy.name}`;
         break;
       }
     }
@@ -92,8 +164,34 @@ export class SignalExtractor {
         networkType = 'datacenter';
         asnOrg = cloud.org;
         isBot = true; // Flag cloud datacenter traffic as automated review/scanner traffic
+        if (cloud.org.includes('SPY') || cloud.org.includes('PROXY')) {
+          isSpyService = true;
+          if (!spyServiceName) spyServiceName = cloud.org;
+        }
         break;
       }
+    }
+
+    // Normalize Consumer ISP name
+    let isp: string | undefined;
+    if (rawAsnOrg) {
+      for (const ispPattern of ISP_PATTERNS) {
+        if (ispPattern.regex.test(rawAsnOrg)) {
+          isp = ispPattern.name;
+          break;
+        }
+      }
+      if (!isp) {
+        isp = rawAsnOrg;
+      }
+    }
+
+    // Tor Network detection (Cloudflare marks Tor with country T1 or specific header)
+    let isTor = false;
+    if (country === 'T1' || headers['cf-threat-score'] === '100' || rawIp.startsWith('185.220.') || rawIp.startsWith('185.246.')) {
+      isTor = true;
+      networkType = 'vpn';
+      isBot = true;
     }
 
     // Heuristic datacenter detection for common cloud hosting IP ranges
@@ -118,7 +216,6 @@ export class SignalExtractor {
     const { deviceType, os, browser } = this.parseClientCharacteristics(userAgent);
 
     // Optional telemetry parameters passed from client probe (query or JSON body)
-    const body = req.body || {};
     const finalPostal = postalCode || (body.postalCode as string) || (body.zip as string) || undefined;
     const finalRegion = region || (body.region as string) || undefined;
     const finalTimezone = timezone || (body.timezone as string) || undefined;
@@ -133,17 +230,47 @@ export class SignalExtractor {
       : (typeof body.batteryLevel === 'number' ? body.batteryLevel : undefined);
     
     let isEmulated = false;
-    if (gpuRenderer && /swiftshader|llvmpipe|software rasterizer|virtualbox/i.test(gpuRenderer)) {
+    if (gpuRenderer && /swiftshader|llvmpipe|software rasterizer|virtualbox|vmware/i.test(gpuRenderer)) {
       isEmulated = true;
+      isBot = true;
     }
     if (deviceType === 'mobile' && touchPoints === 0) {
       isEmulated = true;
+      isBot = true;
     }
 
     // Client Hints verification (Detect desktop pretending to be mobile)
     const secChUaMobile = headers['sec-ch-ua-mobile'] as string;
     if (secChUaMobile === '?0' && deviceType === 'mobile') {
       isEmulated = true; // User-Agent spoofing detected!
+      isBot = true;
+    }
+
+    // VPN Heuristics: Client Timezone vs Geo Timezone Delta Anomaly
+    const clientTimezone = (body.clientTimezone as string) || (query.ctz as string) || undefined;
+    let hasTimezoneDelta = false;
+    let isVpn = isTor || networkType === 'vpn';
+    let vpnReason: string | undefined = isTor ? 'Tor Exit Node' : undefined;
+
+    if (clientTimezone && finalTimezone) {
+      const cTz = clientTimezone.toLowerCase();
+      const gTz = finalTimezone.toLowerCase();
+      // If client reports Asia timezone while IP is in America or Europe, flag proxy/VPN
+      const clientRegion = cTz.split('/')[0];
+      const geoRegion = gTz.split('/')[0];
+      if (clientRegion && geoRegion && clientRegion !== geoRegion && clientRegion !== 'etc') {
+        hasTimezoneDelta = true;
+        isVpn = true;
+        networkType = 'vpn';
+        vpnReason = `Timezone mismatch (IP: ${finalTimezone} vs Client: ${clientTimezone})`;
+      }
+    }
+
+    // WebRTC Leak detection flag passed from client
+    if (body.isWebRtcLeak === true || query.webrtc_leak === '1') {
+      isVpn = true;
+      networkType = 'vpn';
+      vpnReason = 'WebRTC Interface Leak Detected';
     }
 
     return {
@@ -153,6 +280,8 @@ export class SignalExtractor {
       postalCode: finalPostal,
       region: finalRegion,
       timezone: finalTimezone,
+      clientTimezone,
+      hasTimezoneDelta,
       deviceType,
       os,
       browser,
@@ -160,6 +289,12 @@ export class SignalExtractor {
       referrer,
       isBot,
       botName,
+      isSpyService,
+      spyServiceName,
+      isVpn,
+      vpnReason,
+      isTor,
+      isp,
       language,
       networkType,
       asn: rawAsn,
@@ -168,6 +303,9 @@ export class SignalExtractor {
       gpuRenderer,
       batteryLevel,
       isEmulated,
+      secFetchSite,
+      secFetchMode,
+      secFetchDest,
       headers,
       queryParams: query,
       timestamp: new Date()

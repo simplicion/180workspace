@@ -19,6 +19,8 @@ export interface EvaluatableLink {
   rampUpEnabled?: boolean;
   rampUpDurationHours?: number;
   datacenterBlocked?: boolean;
+  blockSpyServices?: boolean;
+  blockVpn?: boolean;
   safePageProxyMode?: boolean;
   createdAt?: Date | string | null;
   rules: EvaluatableRule[];
@@ -77,7 +79,35 @@ export class DecisionEngine {
       };
     }
 
-    // 3. Stealth Traffic Ramp-Up Weight Calculation
+    // 3. 1-Click Spy Service Firewall (Instantly drop AdPlexity, SpyOver, Anstrex, Dropispy, etc.)
+    if (link.blockSpyServices && signals.isSpyService) {
+      const elapsed = Math.round(performance.now() - startTime);
+      return {
+        matchedRuleId: null,
+        matchedRuleName: `Spy Service Block (${signals.spyServiceName || 'Ad Intelligence'})`,
+        destinationUrl: link.fallbackUrl,
+        actionType: fallbackAction,
+        isFallback: true,
+        evaluationLatencyMs: elapsed,
+        signals
+      };
+    }
+
+    // 4. 1-Click VPN / Proxy / Tor Firewall
+    if (link.blockVpn && (signals.isVpn || signals.isTor)) {
+      const elapsed = Math.round(performance.now() - startTime);
+      return {
+        matchedRuleId: null,
+        matchedRuleName: `VPN / Proxy Firewall (${signals.vpnReason || 'VPN Detected'})`,
+        destinationUrl: link.fallbackUrl,
+        actionType: fallbackAction,
+        isFallback: true,
+        evaluationLatencyMs: elapsed,
+        signals
+      };
+    }
+
+    // 5. Stealth Traffic Ramp-Up Weight Calculation
     let rampFactor = 1.0;
     if (link.rampUpEnabled) {
       const rampStartTime = link.warmupUntil 
@@ -196,6 +226,60 @@ export class DecisionEngine {
       case 'asn_provider':
         actualValue = signals.asnOrg || signals.asn;
         break;
+      case 'isp_provider':
+        actualValue = signals.isp || signals.asnOrg || '';
+        break;
+      case 'spy_service': {
+        const isSpy = Boolean(signals.isSpyService);
+        const exp = String(cond.value || '').toLowerCase().trim();
+        if (exp === 'false' || exp === 'clean' || exp === 'no' || exp === '0') {
+          return cond.operator === 'equals' ? !isSpy : isSpy;
+        }
+        if (exp === 'true' || exp === 'detected' || exp === 'spy_detected' || exp === 'yes' || exp === '1') {
+          return cond.operator === 'equals' ? isSpy : !isSpy;
+        }
+        actualValue = signals.spyServiceName || (isSpy ? 'spy_detected' : 'clean');
+        break;
+      }
+      case 'vpn_status': {
+        const isVpnOrTor = Boolean(signals.isVpn || signals.isTor);
+        const exp = String(cond.value || '').toLowerCase().trim();
+        if (exp === 'false' || exp === 'clean' || exp === 'no' || exp === 'residential') {
+          return cond.operator === 'equals' ? !isVpnOrTor : isVpnOrTor;
+        }
+        if (exp === 'true' || exp === 'vpn' || exp === 'detected' || exp === 'yes') {
+          return cond.operator === 'equals' ? isVpnOrTor : !isVpnOrTor;
+        }
+        if (exp === 'tor') {
+          return cond.operator === 'equals' ? Boolean(signals.isTor) : !signals.isTor;
+        }
+        actualValue = signals.isTor ? 'tor' : (signals.isVpn ? 'vpn' : 'clean');
+        break;
+      }
+      case 'timezone_delta': {
+        const hasDelta = Boolean(signals.hasTimezoneDelta);
+        const exp = String(cond.value || '').toLowerCase().trim();
+        if (exp === 'false' || exp === 'match' || exp === 'clean' || exp === 'no') {
+          return cond.operator === 'equals' ? !hasDelta : hasDelta;
+        }
+        if (exp === 'true' || exp === 'mismatch' || exp === 'delta' || exp === 'yes') {
+          return cond.operator === 'equals' ? hasDelta : !hasDelta;
+        }
+        actualValue = hasDelta ? 'mismatch' : 'match';
+        break;
+      }
+      case 'threat_list': {
+        const isThreat = Boolean(signals.isBot || signals.isSpyService || signals.isTor || signals.networkType === 'datacenter');
+        const exp = String(cond.value || '').toLowerCase().trim();
+        if (exp === 'clean' || exp === 'false' || exp === 'safe') {
+          return cond.operator === 'equals' ? !isThreat : isThreat;
+        }
+        if (exp === 'threat' || exp === 'threat_detected' || exp === 'true' || exp === 'blocked') {
+          return cond.operator === 'equals' ? isThreat : !isThreat;
+        }
+        actualValue = isThreat ? 'threat_detected' : 'clean';
+        break;
+      }
       case 'touch_support':
         actualValue = signals.touchPoints !== undefined ? signals.touchPoints > 0 : (signals.deviceType === 'mobile');
         break;

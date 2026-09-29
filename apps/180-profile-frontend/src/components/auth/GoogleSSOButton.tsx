@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { LogoLoader } from '@workspace/ui';
 import { OAuthParams, dispatchOAuthSuccess } from './OAuthDispatchHelper';
+import { getCoreApiUrl } from '@/lib/api';
 
 interface GoogleSSOButtonProps {
   oauthParams: OAuthParams;
@@ -77,9 +78,10 @@ export function GoogleSSOButton({
 
     try {
       // Send access token to backend for server-side verification and user sync
-      const res = await fetch('/api/oauth/google-continue', {
+      const res = await fetch(getCoreApiUrl('/api/oauth/google-continue'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ accessToken }),
       });
 

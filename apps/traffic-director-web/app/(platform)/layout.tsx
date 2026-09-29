@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   GitFork, Link as LinkIcon, Activity, BarChart3, 
   Layers, Terminal, LogOut, User, Plus, Sun, Moon,
-  ExternalLink, ShieldCheck, ChevronRight
+  ExternalLink, ShieldCheck, ChevronRight, Sparkles
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getAuthToken } from '@/lib/api';
@@ -129,6 +129,25 @@ export default function PlatformLayout({
                 </Link>
               );
             })}
+
+            <div className="pt-3 px-3 py-1.5 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+              AI Tools
+            </div>
+            <a
+              href={typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000/advertising' : 'https://app.180workspace.com/advertising'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20 transition-all border border-transparent hover:border-indigo-200/50 dark:hover:border-indigo-800/40 group"
+              title="Generate AI White Page with 180 Visual Website & Landing Page Builder"
+            >
+              <div className="flex items-center space-x-3">
+                <Sparkles className="h-4 w-4 text-indigo-500 group-hover:scale-110 transition-transform" />
+                <span>AI White Pages</span>
+              </div>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                Builder ↗
+              </span>
+            </a>
           </nav>
         </div>
 
