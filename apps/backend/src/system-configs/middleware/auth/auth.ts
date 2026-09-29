@@ -113,6 +113,51 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                 where: { id: decoded.id }
             });
 
+            // Cross-domain fallback: If token was signed by 180 Core / Sovereign Identity (db-180core),
+            // resolve user in 180 Workspace DB by email, phone, googleId or username, or auto-provision workspace record.
+            if (!user) {
+                try {
+                    const { developersPrisma } = require('@workspace/db-180core');
+                    const coreUser = await developersPrisma.user.findUnique({
+                        where: { id: decoded.id }
+                    });
+
+                    if (coreUser) {
+                        const orConditions: any[] = [];
+                        if (coreUser.email) orConditions.push({ email: { equals: coreUser.email, mode: 'insensitive' } });
+                        if (coreUser.googleId) orConditions.push({ googleId: coreUser.googleId });
+                        if (coreUser.phone) orConditions.push({ phone: coreUser.phone });
+                        if (coreUser.username) orConditions.push({ username: { equals: coreUser.username, mode: 'insensitive' } });
+
+                        if (orConditions.length > 0) {
+                            user = await req.prisma.user.findFirst({
+                                where: { OR: orConditions }
+                            });
+                        }
+
+                        // If user is authenticated in 180 Profile but does not have a Workspace DB record yet, auto-provision
+                        if (!user) {
+                            user = await req.prisma.user.create({
+                                data: {
+                                    id: coreUser.id,
+                                    email: coreUser.email || `${coreUser.username || coreUser.id}@180workspace.internal`,
+                                    name: coreUser.name || coreUser.username || '180 User',
+                                    username: coreUser.username || null,
+                                    phone: coreUser.phone || null,
+                                    photoUrl: coreUser.avatarUrl || null,
+                                    role: 'admin',
+                                    isActive: true,
+                                    isFirstLogin: true,
+                                    googleId: coreUser.googleId || null
+                                }
+                            });
+                        }
+                    }
+                } catch (coreLookupErr) {
+                    console.warn('[Auth] Core user fallback lookup note:', coreLookupErr);
+                }
+            }
+
             if (user) {
                 try {
                     if (redis) {
