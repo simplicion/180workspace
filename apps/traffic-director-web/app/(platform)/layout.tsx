@@ -70,6 +70,7 @@ export default function PlatformLayout({
     { name: 'Analytics', href: '/traffic-director/analytics', icon: BarChart3 },
     { name: 'Traffic Logs', href: '/traffic-director/logs', icon: Layers },
     { name: 'Edge Simulator', href: '/traffic-director/simulator', icon: Terminal },
+    { name: 'Threat Intelligence', href: '/traffic-director/threats', icon: ShieldCheck },
   ];
 
   const currentNav = navItems.find((n) => 

@@ -1,4 +1,5 @@
 import { ExtractedSignals } from '../types';
+import { TorExitSyncService } from '../services/tor-exit-sync.service';
 
 const BOT_PATTERNS = [
   { name: 'Googlebot', regex: /googlebot/i },
@@ -53,11 +54,11 @@ const CLOUD_ASN_PATTERNS = [
   { org: 'ORACLE', regex: /oracle/i, asns: ['31898'] },
   { org: 'CLOUDFLARE', regex: /cloudflare/i, asns: ['13335'] },
   // Common scraper and proxy aggregation networks
-  { org: 'PACKETHUB_SPY', regex: /packethub/i, asns: ['209242'] },
-  { org: 'M247_PROXY', regex: /m247/i, asns: ['9009'] },
-  { org: 'DATACAMP_PROXY', regex: /datacamp/i, asns: ['212238'] },
-  { org: 'CLOUVIDER_PROXY', regex: /clouvider/i, asns: ['62240'] },
-  { org: 'CHOOPA_VULTR', regex: /choopa|vultr/i, asns: ['20473'] },
+  { org: 'PACKETHUB_SPY', name: 'PacketHub Proxy Network', regex: /packethub/i, asns: ['209242'] },
+  { org: 'M247_PROXY', name: 'M247 Proxy Network', regex: /m247/i, asns: ['9009'] },
+  { org: 'DATACAMP_PROXY', name: 'DataCamp Proxy Pool', regex: /datacamp/i, asns: ['212238'] },
+  { org: 'CLOUVIDER_PROXY', name: 'Clouvider Proxy Pool', regex: /clouvider/i, asns: ['62240'] },
+  { org: 'CHOOPA_VULTR', name: 'Choopa/Vultr Proxy', regex: /choopa|vultr/i, asns: ['20473'] },
   { org: 'COGENT', regex: /cogent/i, asns: ['174'] },
   { org: 'QUADRANET', regex: /quadranet/i, asns: ['8100'] },
   { org: 'LEASEWEB', regex: /leaseweb/i, asns: ['16265', '60781'] },
@@ -90,6 +91,10 @@ const ISP_PATTERNS = [
 ];
 
 export class SignalExtractor {
+  static extract(req: any): ExtractedSignals {
+    return this.extractFromRequest(req);
+  }
+
   static extractFromRequest(req: any): ExtractedSignals {
     const headers = req.headers || {};
     const query = req.query || {};
@@ -154,7 +159,13 @@ export class SignalExtractor {
 
     // Datacenter & ASN classification
     const rawAsn = (headers['cf-ipasn'] as string) || (headers['x-asn'] as string) || '';
-    const rawAsnOrg = (headers['cf-as-organization'] as string) || (headers['x-asn-org'] as string) || '';
+    const rawAsnOrg = 
+      (headers['cf-as-organization'] as string) || 
+      (headers['cf-iporganization'] as string) ||
+      (headers['x-asn-org'] as string) || 
+      (headers['x-ip-org'] as string) ||
+      (headers['x-organization'] as string) ||
+      '';
     
     let networkType: 'residential' | 'datacenter' | 'cellular' | 'vpn' | 'unknown' = 'residential';
     let asnOrg: string | undefined = undefined;
@@ -166,7 +177,7 @@ export class SignalExtractor {
         isBot = true; // Flag cloud datacenter traffic as automated review/scanner traffic
         if (cloud.org.includes('SPY') || cloud.org.includes('PROXY')) {
           isSpyService = true;
-          if (!spyServiceName) spyServiceName = cloud.org;
+          if (!spyServiceName) spyServiceName = (cloud as any).name || cloud.org;
         }
         break;
       }
@@ -186,9 +197,15 @@ export class SignalExtractor {
       }
     }
 
-    // Tor Network detection (Cloudflare marks Tor with country T1 or specific header)
+    // Tor Network detection (Cloudflare marks Tor with country T1 or via Tor Project exit directory)
     let isTor = false;
-    if (country === 'T1' || headers['cf-threat-score'] === '100' || rawIp.startsWith('185.220.') || rawIp.startsWith('185.246.')) {
+    if (
+      country === 'T1' || 
+      headers['cf-threat-score'] === '100' || 
+      TorExitSyncService.isTorExitNode(rawIp) ||
+      rawIp.startsWith('185.220.') || 
+      rawIp.startsWith('185.246.')
+    ) {
       isTor = true;
       networkType = 'vpn';
       isBot = true;

@@ -3,7 +3,9 @@ import {
   TrafficLinksService, 
   TrafficRulesService, 
   TrafficAnalyticsService, 
-  TrafficSimulatorService 
+  TrafficSimulatorService,
+  ThreatIntelligenceService,
+  TorExitSyncService
 } from '@workspace/traffic-director';
 
 export class TrafficDirectorController {
@@ -510,6 +512,90 @@ export class TrafficDirectorController {
     } catch (error: any) {
       console.error('[TrafficDirectorController.simulate]', error);
       return res.status(400).json({ success: false, error: error.message || 'Simulation failed' });
+    }
+  }
+
+  // ─── Threat Intelligence & Blacklists ──────────────────────────────
+  static async getThreatIntelligence(req: Request, res: Response) {
+    try {
+      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const feeds = ThreatIntelligenceService.getSystemFeeds(companyId);
+      const torStats = TorExitSyncService.getStats();
+      const customEntries = ThreatIntelligenceService.getCustomEntries(companyId);
+
+      return res.json({
+        success: true,
+        data: {
+          feeds,
+          torStats,
+          customEntries
+        }
+      });
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.getThreatIntelligence]', error);
+      return res.status(500).json({ success: false, error: error.message || 'Failed to fetch threat intelligence' });
+    }
+  }
+
+  static async toggleThreatFeed(req: Request, res: Response) {
+    try {
+      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const { feedKey, enabled } = req.body;
+      if (!feedKey) {
+        return res.status(400).json({ success: false, error: 'feedKey is required' });
+      }
+
+      const result = ThreatIntelligenceService.toggleSystemFeed(companyId, String(feedKey), Boolean(enabled));
+      return res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.toggleThreatFeed]', error);
+      return res.status(400).json({ success: false, error: error.message || 'Failed to toggle threat feed' });
+    }
+  }
+
+  static async syncTorExitNodes(req: Request, res: Response) {
+    try {
+      const stats = await TorExitSyncService.syncTorExitNodes();
+      return res.json({ success: true, data: stats });
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.syncTorExitNodes]', error);
+      return res.status(500).json({ success: false, error: error.message || 'Failed to sync Tor exit nodes' });
+    }
+  }
+
+  static async createCustomThreatEntry(req: Request, res: Response) {
+    try {
+      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const { name, type, value, mode, description } = req.body;
+      if (!name || !type || !value) {
+        return res.status(400).json({ success: false, error: 'Name, type, and value are required' });
+      }
+
+      const entry = ThreatIntelligenceService.addCustomEntry(companyId, {
+        name,
+        type,
+        value,
+        mode: mode || 'blacklist',
+        description
+      });
+
+      return res.status(201).json({ success: true, data: entry });
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.createCustomThreatEntry]', error);
+      return res.status(400).json({ success: false, error: error.message || 'Failed to create threat entry' });
+    }
+  }
+
+  static async deleteCustomThreatEntry(req: Request, res: Response) {
+    try {
+      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const entryId = String(req.params.entryId);
+
+      const success = ThreatIntelligenceService.deleteCustomEntry(companyId, entryId);
+      return res.json({ success: true, message: 'Threat entry deleted' });
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.deleteCustomThreatEntry]', error);
+      return res.status(400).json({ success: false, error: error.message || 'Failed to delete threat entry' });
     }
   }
 }

@@ -100,6 +100,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
         fallbackUrl: fallbackUrl.trim(),
         description: description.trim() || undefined,
         datacenterBlocked: true,
+        tags: ['block_spy', 'block_vpn'],
         shieldMode,
         safePageProxyMode,
         rampUpEnabled: true,
