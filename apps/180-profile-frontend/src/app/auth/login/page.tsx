@@ -510,6 +510,7 @@ function LoginFormContent() {
           avatarUrl: onboardAvatarUrl,
           age: onboardAge ? parseInt(onboardAge, 10) : null,
           headline: onboardHeadline.trim(),
+          tagline: onboardHeadline.trim(),
           latitude: onboardLatitude,
           longitude: onboardLongitude,
           city: onboardCity.trim(),
@@ -531,6 +532,38 @@ function LoginFormContent() {
       await dispatchOAuthSuccess(finalUser, finalToken, oauthParams);
     } catch (err: any) {
       toast.error(err.message || 'Onboarding failed', { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickComplete = async () => {
+    setLoading(true);
+    try {
+      const usernameCandidate = onboardUsername.trim().replace(/^@/, '') || currentUser?.username || currentUser?.name?.toLowerCase().replace(/[^a-z0-9_]/g, '') || `user_${Date.now().toString(36)}`;
+      const res = await fetch(getCoreApiUrl('/api/oauth/onboarding'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${currentAuthToken}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId: currentUser?.id,
+          username: usernameCandidate,
+          avatarUrl: onboardAvatarUrl,
+          headline: onboardHeadline.trim(),
+          tagline: onboardHeadline.trim(),
+          city: onboardCity.trim(),
+          country: onboardCountry.trim(),
+        }),
+      });
+      const { ok, data } = await parseApiResponse(res);
+      const finalUser = (ok && data?.user) ? data.user : currentUser;
+      const finalToken = (ok && data?.token) ? data.token : currentAuthToken;
+      await dispatchOAuthSuccess(finalUser, finalToken, oauthParams);
+    } catch (_) {
+      await dispatchOAuthSuccess(currentUser, currentAuthToken, oauthParams);
     } finally {
       setLoading(false);
     }
@@ -1110,18 +1143,29 @@ function LoginFormContent() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading || !onboardUsername.trim()}
-              className="w-full min-h-[44px] py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.005] active:scale-[0.99] disabled:opacity-50"
-            >
-              {loading ? (
-                <LogoLoader size={16} className="w-4 h-4 text-white" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 text-white" />
-              )}
-              <span>Complete Profile & Enter Platform</span>
-            </button>
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                type="submit"
+                disabled={loading || !onboardUsername.trim()}
+                className="w-full min-h-[44px] py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.005] active:scale-[0.99] disabled:opacity-50"
+              >
+                {loading ? (
+                  <LogoLoader size={16} className="w-4 h-4 text-white" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 text-white" />
+                )}
+                <span>Complete Profile & Enter Platform</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleQuickComplete}
+                disabled={loading}
+                className="w-full py-2 px-3 rounded-xl font-medium text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer text-center"
+              >
+                Skip optional fields & continue with defaults
+              </button>
+            </div>
           </form>
         </div>
       )}

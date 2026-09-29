@@ -14,8 +14,8 @@ import path from 'path';
 import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
-import { prisma } from '@workspace/db';
-import { generateRandomToken, hashSecret, RsaKeysService } from '@workspace/identity';
+import { corePrisma as prisma } from '@workspace/db-180core';
+import { generateRandomToken, hashSecret, RsaKeysService } from '@workspace/identity-provider';
 
 async function listClients() {
     console.log('\n=== 180 IDENTITY REGISTERED CLIENT APPLICATIONS ===\n');

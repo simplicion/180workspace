@@ -12,6 +12,7 @@ import {
     ISSUER
 } from './oauth.service';
 import { FIRST_PARTY_APPS } from './seed-first-party';
+import { UsernameService } from '../user/username.service';
 
 /**
  * Architectural Best Practice: First-Party Ecosystem Auto-Whitelisting
@@ -362,8 +363,23 @@ export class OAuthController {
                 }
             });
 
+            // Provision isolated app-scoped username
+            let appScopedUsername = user.username || '';
+            try {
+                const appIdentity = await UsernameService.provisionAppUsername(app.id, userId, user.username);
+                if (appIdentity && appIdentity.username) {
+                    appScopedUsername = appIdentity.username;
+                }
+            } catch (e: any) {
+                console.warn('[OAuthController:submitConsent] Error provisioning app username:', e.message);
+            }
+
             // Generate signed RS256 JWT ID Token
-            const idToken = signIdToken(user, app.clientId, nonce);
+            const userWithAppScope = {
+                ...user,
+                appScopedUsername
+            };
+            const idToken = signIdToken(userWithAppScope, app.clientId, nonce);
 
             let allowRedirectUrl = '';
             if (targetRedirectUri) {
@@ -473,7 +489,22 @@ export class OAuthController {
                     }
                 });
 
-                const idToken = signIdToken(authCode.user, authCode.app.clientId);
+                let appScopedUsername = authCode.user.username || '';
+                try {
+                    const appUser = await prisma.appUserIdentity.findUnique({
+                        where: {
+                            appId_userId: {
+                                appId: authCode.app.id,
+                                userId: authCode.user.id
+                            }
+                        }
+                    });
+                    if (appUser && appUser.username) {
+                        appScopedUsername = appUser.username;
+                    }
+                } catch (_) {}
+
+                const idToken = signIdToken({ ...authCode.user, appScopedUsername }, authCode.app.clientId);
 
                 return res.json({
                     access_token: accessToken,

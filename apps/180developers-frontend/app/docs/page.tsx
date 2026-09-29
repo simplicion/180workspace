@@ -1577,10 +1577,10 @@ curl -X POST https://services.180workspace.com/api/oauth/token \\
   }'
 
 # Step 2: Fetch Verified User Profile using Bearer Token
-curl -X GET https://services.180workspace.com/api/oauth/userinfo \\
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"\`;
+curl -X GET https://services.180workspace.com/api/oauth/userinfo \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"`;
 
-const buttonCode = \`// ============================================================================
+const buttonCode = `// ============================================================================
 // 180 Profile Embeddable Button (React / Next.js & Plain HTML)
 // ============================================================================
 

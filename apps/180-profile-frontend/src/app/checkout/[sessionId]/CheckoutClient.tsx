@@ -105,22 +105,28 @@ export function CheckoutClient() {
         await new Promise((r) => setTimeout(r, 600));
         const demoTxId = 'tx_sandbox_' + Math.random().toString(36).substring(2, 10);
         toast.success('Payment completed successfully!', { id: toastId });
-        setCompleted(true);
-        if (window.opener) {
-          window.opener.postMessage(
-            {
-              type: '180_PAYMENT_SUCCESS',
-              sessionId,
-              transactionId: demoTxId,
-              amount: session?.amount || 499.0,
-              currency: session?.currency || 'INR',
-            },
-            '*'
-          );
+        const successPayload = {
+          type: '180_PAYMENT_SUCCESS',
+          sessionId,
+          transactionId: demoTxId,
+          amount: session?.amount || 499.0,
+          currency: session?.currency || 'INR',
+        };
+        if (typeof window !== 'undefined') {
+          if (window.opener) {
+            window.opener.postMessage(successPayload, '*');
+          }
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(successPayload, '*');
+          }
         }
         setTimeout(() => {
-          if (window.opener) {
-            window.close();
+          if (typeof window !== 'undefined') {
+            if (window.opener) {
+              window.close();
+            } else if (window.parent && window.parent !== window) {
+              window.parent.postMessage({ type: '180_PAYMENT_CLOSE', sessionId }, '*');
+            }
           }
         }, 1500);
         return;
@@ -139,24 +145,34 @@ export function CheckoutClient() {
       toast.success('Payment completed successfully!', { id: toastId });
       setCompleted(true);
 
-      // Notify opener window if opened in a popup
-      if (window.opener) {
-        window.opener.postMessage(
-          {
-            type: '180_PAYMENT_SUCCESS',
-            sessionId,
-            transactionId: data.data.transactionId,
-          },
-          '*'
-        );
+      const liveSuccessPayload = {
+        type: '180_PAYMENT_SUCCESS',
+        sessionId,
+        transactionId: data.data?.transactionId,
+        amount: session?.amount,
+        currency: session?.currency,
+      };
+
+      // Notify opener window if opened in a popup or parent window if in bottom sheet
+      if (typeof window !== 'undefined') {
+        if (window.opener) {
+          window.opener.postMessage(liveSuccessPayload, '*');
+        }
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(liveSuccessPayload, '*');
+        }
       }
 
       // Auto redirect or close after 2 seconds
       setTimeout(() => {
-        if (data.data.returnUrl) {
+        if (data.data?.returnUrl) {
           window.location.href = data.data.returnUrl;
-        } else if (window.opener) {
-          window.close();
+        } else if (typeof window !== 'undefined') {
+          if (window.opener) {
+            window.close();
+          } else if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: '180_PAYMENT_CLOSE', sessionId }, '*');
+          }
         }
       }, 2000);
     } catch (err: any) {

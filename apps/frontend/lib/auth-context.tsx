@@ -144,6 +144,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 disconnectSocket();
             }
             // For non-401s, we still clear the loading state but don't wipe tokens
+        } finally {
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('platform_init_ready', { detail: null }));
+            }
         }
     }
 

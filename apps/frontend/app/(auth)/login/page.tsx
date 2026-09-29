@@ -25,7 +25,48 @@ function LoginForm() {
     // ── Handle 180 Profile Identity Success ──────────────────────────────
     const handleIdentitySuccess = async (res: any) => {
         setIsLoggingIn(true);
-        const token = res?.token || (typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null);
+        let token = res?.token || (typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null);
+        let nextDestination: string | null = null;
+        
+        // If an OAuth authorization code was provided, exchange it for a valid Workspace session token
+        if (res?.code) {
+            try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002';
+                // Call POST /api/v1/auth/180-identity/callback on the workspace backend first
+                let callbackRes = await fetch(`${apiUrl}/api/v1/auth/180-identity/callback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: res.code,
+                        redirectUri: typeof window !== 'undefined' ? window.location.origin + '/oauth/callback' : undefined,
+                    }),
+                });
+
+                if (!callbackRes.ok) {
+                    callbackRes = await fetch(`${apiUrl}/api/auth/180-identity/callback`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            code: res.code,
+                            redirectUri: typeof window !== 'undefined' ? window.location.origin + '/oauth/callback' : undefined,
+                        }),
+                    });
+                }
+
+                if (callbackRes.ok) {
+                    const data = await callbackRes.json();
+                    if (data?.accessToken) {
+                        token = data.accessToken;
+                    }
+                    if (data?.redirectUrl) {
+                        nextDestination = data.redirectUrl;
+                    }
+                }
+            } catch (exchangeErr) {
+                console.warn('[180 Identity] Code exchange failed, falling back to sovereign token:', exchangeErr);
+            }
+        }
+
         if (token) {
             try {
                 if (typeof window !== 'undefined') {
@@ -38,20 +79,15 @@ function LoginForm() {
                 }
 
                 const result = await signIn('platform-token', { token, redirect: false });
-                if (result?.ok) {
-                    const rawReturnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
-                    const target = rawReturnUrl ? decodeURIComponent(rawReturnUrl) : '/';
-                    if (target === '/login' || target.startsWith('/login?')) {
-                        window.location.href = '/';
-                    } else {
-                        window.location.href = target;
-                    }
-                } else {
-                    window.location.href = '/';
-                }
+                const rawReturnUrl = searchParams?.get('returnUrl') || searchParams?.get('from');
+                const fallbackTarget = rawReturnUrl ? decodeURIComponent(rawReturnUrl) : (nextDestination || '/');
+                const target = (fallbackTarget === '/login' || fallbackTarget.startsWith('/login?')) ? '/' : fallbackTarget;
+                window.location.href = target;
             } catch (_) {
                 window.location.href = '/';
             }
+        } else {
+            setIsLoggingIn(false);
         }
     };
 

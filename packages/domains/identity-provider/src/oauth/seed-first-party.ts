@@ -46,9 +46,13 @@ export const FIRST_PARTY_APPS = [
         description: 'Multi-Channel Social Media Automation & Analytics',
         redirectUris: [
             '180social://oauth-callback',
+            'http://localhost:3007/#/oauth-callback',
+            'http://localhost:3007/oauth-callback',
             'http://localhost:3000/social/callback'
         ],
         allowedOrigins: [
+            'http://localhost:3007',
+            'http://127.0.0.1:3007',
             'http://localhost:3000'
         ],
         allowedScopes: [

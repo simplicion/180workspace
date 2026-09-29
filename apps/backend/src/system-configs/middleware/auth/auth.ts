@@ -37,26 +37,35 @@ export async function protect(req: any, res: Response, next: NextFunction) {
         try {
             decoded = jwt.verify(token, secret);
         } catch (jwtErr: any) {
-            // Check if this is an OAuth access token or an RS256 token from 180 Identity
+            // Check if this is an OAuth access token from 180 Identity or an RS256 token
             try {
+                let dbToken: any = null;
+                try {
+                    const { corePrisma } = require('@workspace/db-180core');
+                    dbToken = await corePrisma.oAuthToken.findUnique({
+                        where: { accessToken: token },
+                        include: { user: true, app: true }
+                    });
+                } catch (_) {}
+
                 const { prisma: globalPrisma } = require('@workspace/db');
-                const dbToken = await globalPrisma.oAuthToken.findUnique({
-                    where: { accessToken: token },
-                    include: { user: true, app: true }
-                });
 
                 if (dbToken && !dbToken.revokedAt && dbToken.expiresAt > new Date() && dbToken.user) {
                     isOAuthToken = true;
-                    oAuthUser = dbToken.user;
+                    // Resolve user in local workspace database
+                    const localUser = await globalPrisma.user.findUnique({
+                        where: { id: dbToken.userId }
+                    });
+                    oAuthUser = localUser || dbToken.user;
                     decoded = {
                         id: dbToken.userId,
-                        companyId: dbToken.user.companyId || dbToken.app?.companyId || null,
+                        companyId: localUser?.companyId || null,
                         scopes: dbToken.scopes
                     };
                 } else {
                     // Try verifying as RS256 ID Token
                     const { verifyIdToken } = require('@workspace/identity');
-                    const verified = verifyIdToken(token);
+                    const verified = typeof verifyIdToken === 'function' ? verifyIdToken(token) : { valid: false };
                     if (verified.valid && verified.payload?.sub) {
                         const userFromSub = await globalPrisma.user.findUnique({
                             where: { id: verified.payload.sub }
