@@ -55,6 +55,8 @@ export class PublicRoutingController {
           rampUpEnabled: link.rampUpEnabled,
           rampUpDurationHours: link.rampUpDurationHours,
           datacenterBlocked: link.datacenterBlocked,
+          blockSpyServices: (link as any).blockSpyServices,
+          blockVpn: (link as any).blockVpn,
           safePageProxyMode: (link as any).safePageProxyMode,
           createdAt: (link as any).createdAt,
           rules: link.rules
@@ -226,6 +228,9 @@ export class PublicRoutingController {
           rampUpEnabled: link.rampUpEnabled,
           rampUpDurationHours: link.rampUpDurationHours,
           datacenterBlocked: link.datacenterBlocked,
+          blockSpyServices: (link as any).blockSpyServices,
+          blockVpn: (link as any).blockVpn,
+          safePageProxyMode: (link as any).safePageProxyMode,
           createdAt: (link as any).createdAt,
           rules: link.rules
         },
@@ -333,13 +338,33 @@ export class PublicRoutingController {
       const effectiveTouchPoints = typeof clientBody.touchPoints === 'number' ? clientBody.touchPoints : serverSignals.touchPoints;
       const effectiveGpuRenderer = clientBody.gpuRenderer || serverSignals.gpuRenderer;
 
+      const clientTz = clientBody.clientTimezone;
+      let hasTimezoneDelta = serverSignals.hasTimezoneDelta;
+      let isVpn = serverSignals.isVpn;
+      let vpnReason = serverSignals.vpnReason;
+
+      if (clientTz && serverSignals.timezone) {
+        const normalizeTz = (t: string) => t.toLowerCase().replace(/_/g, '/').split('/')[0];
+        const sRegion = normalizeTz(serverSignals.timezone);
+        const cRegion = normalizeTz(clientTz);
+        if (sRegion !== cRegion) {
+          hasTimezoneDelta = true;
+          isVpn = true;
+          vpnReason = `Timezone mismatch (IP: ${serverSignals.timezone} vs Client: ${clientTz})`;
+        }
+      }
+
       const mergedSignals = {
         ...serverSignals,
         ipAddress: effectiveIp,
         userAgent: effectiveUserAgent,
         referrer: clientBody.referrer || serverSignals.referrer,
         touchPoints: effectiveTouchPoints,
-        gpuRenderer: effectiveGpuRenderer
+        gpuRenderer: effectiveGpuRenderer,
+        clientTimezone: clientTz || serverSignals.clientTimezone,
+        hasTimezoneDelta,
+        isVpn,
+        vpnReason
       };
 
       // Re-evaluate bot patterns on effective user-agent if provided in client body
@@ -376,6 +401,9 @@ export class PublicRoutingController {
           rampUpEnabled: link.rampUpEnabled,
           rampUpDurationHours: link.rampUpDurationHours,
           datacenterBlocked: link.datacenterBlocked,
+          blockSpyServices: (link as any).blockSpyServices,
+          blockVpn: (link as any).blockVpn,
+          safePageProxyMode: (link as any).safePageProxyMode,
           createdAt: (link as any).createdAt,
           rules: link.rules
         },

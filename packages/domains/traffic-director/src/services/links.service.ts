@@ -123,6 +123,10 @@ export class TrafficLinksService {
     });
 
     if (link) {
+      if (link.tags && Array.isArray(link.tags)) {
+        (link as any).blockSpyServices = link.tags.includes('block_spy');
+        (link as any).blockVpn = link.tags.includes('block_vpn');
+      }
       try {
         const raw = await db.$queryRawUnsafe(
           `SELECT "safePageProxyMode" FROM "TrafficLink" WHERE "id" = $1`,
@@ -183,6 +187,10 @@ export class TrafficLinksService {
     }
 
     if (link) {
+      if (link.tags && Array.isArray(link.tags)) {
+        (link as any).blockSpyServices = link.tags.includes('block_spy');
+        (link as any).blockVpn = link.tags.includes('block_vpn');
+      }
       try {
         const raw = await db.$queryRawUnsafe(
           `SELECT "safePageProxyMode" FROM "TrafficLink" WHERE "id" = $1`,

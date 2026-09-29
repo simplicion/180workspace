@@ -388,6 +388,13 @@ model User {
   emailVerified                         DateTime?
   googleId                              String?               @unique
   password                              String?
+  passwordHash                          String?
+  avatarUrl                             String?               @default("")
+  age                                   Int?
+  isOnboarded                           Boolean               @default(false)
+  isEmailVerified                       Boolean               @default(false)
+  isPhoneVerified                       Boolean               @default(false)
+  otpExpiresAt                          DateTime?
   role                                  String                @default("employee")
   designationId                         String?
   permissions                           String[]              @default([])

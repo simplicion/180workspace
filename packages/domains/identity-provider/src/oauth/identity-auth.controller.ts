@@ -105,7 +105,7 @@ export class IdentityAuthController {
                 });
             }
 
-            const passwordToCompare = user.passwordHash || '';
+            const passwordToCompare = user.passwordHash || (user as any).password || '';
             const isMatch = await bcrypt.compare(password, passwordToCompare);
 
             if (!isMatch) {

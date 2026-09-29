@@ -391,7 +391,7 @@ jobs:
             # 8b. Apply pending Prisma migrations for both core DB and 180core DB
             echo "==> Applying database migrations (packages/db & packages/db-180core)..."
             docker compose run --rm --no-deps -T -w /app backend sh -c "npx prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss"
-            docker compose run --rm --no-deps -T -w /app core-backend sh -c "npx prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || true"
+            docker compose run --rm --no-deps -T -w /app core-backend sh -c "export CORE_DATABASE_URL=\${CORE_DATABASE_URL:-\$DATABASE_URL} && (npx prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || true)"
 
             # 9. Stop host-level services / processes binding to port 80 or 443
             sudo systemctl stop nginx apache2 2>/dev/null || true

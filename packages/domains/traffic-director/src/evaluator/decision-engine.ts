@@ -1,4 +1,5 @@
 import { EvaluationResult, ExtractedSignals, RuleCondition } from '../types';
+import { ThreatIntelligenceService } from '../services/threat-intelligence.service';
 
 export interface EvaluatableRule {
   id: string;
@@ -107,7 +108,22 @@ export class DecisionEngine {
       };
     }
 
-    // 5. Stealth Traffic Ramp-Up Weight Calculation
+    // 5. Global Threat Intelligence Check (Meta Dublin QA, Google Policy Scanners, TikTok QA, Custom Blacklists)
+    const threatCheck = ThreatIntelligenceService.checkThreat(signals);
+    if (threatCheck.isThreat) {
+      const elapsed = Math.round(performance.now() - startTime);
+      return {
+        matchedRuleId: null,
+        matchedRuleName: `Global Threat Defense (${threatCheck.matchedFeed || 'Blacklisted Threat'})`,
+        destinationUrl: link.fallbackUrl,
+        actionType: fallbackAction,
+        isFallback: true,
+        evaluationLatencyMs: elapsed,
+        signals
+      };
+    }
+
+    // 6. Stealth Traffic Ramp-Up Weight Calculation
     let rampFactor = 1.0;
     if (link.rampUpEnabled) {
       const rampStartTime = link.warmupUntil 
@@ -269,7 +285,8 @@ export class DecisionEngine {
         break;
       }
       case 'threat_list': {
-        const isThreat = Boolean(signals.isBot || signals.isSpyService || signals.isTor || signals.networkType === 'datacenter');
+        const threatCheck = ThreatIntelligenceService.checkThreat(signals);
+        const isThreat = Boolean(threatCheck.isThreat || signals.isBot || signals.isSpyService || signals.isTor || signals.networkType === 'datacenter');
         const exp = String(cond.value || '').toLowerCase().trim();
         if (exp === 'clean' || exp === 'false' || exp === 'safe') {
           return cond.operator === 'equals' ? !isThreat : isThreat;

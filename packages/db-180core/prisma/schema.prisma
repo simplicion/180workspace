@@ -17,6 +17,7 @@ model User {
   email            String?                  @unique
   phone            String?                  @unique
   passwordHash     String?
+  password         String?
   username         String                   @unique
   name             String
   avatarUrl        String?                  @default("")

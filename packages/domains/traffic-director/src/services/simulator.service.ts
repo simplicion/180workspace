@@ -12,6 +12,14 @@ export interface SimulationInput {
   simulatedReferrer?: string;
   simulatedNetworkType?: 'residential' | 'datacenter' | 'cellular' | 'vpn';
   simulatedAsnOrg?: string;
+  simulatedIsp?: string;
+  simulatedIsSpyService?: boolean;
+  simulatedSpyServiceName?: string;
+  simulatedIsVpn?: boolean;
+  simulatedIsTor?: boolean;
+  simulatedClientTimezone?: string;
+  simulatedTimezone?: string;
+  simulatedHasTimezoneDelta?: boolean;
   simulatedTouchPoints?: number;
   simulatedGpuRenderer?: string;
   simulatedBatteryLevel?: number;
@@ -59,6 +67,14 @@ export class TrafficSimulatorService {
       isEmulated = true;
     }
 
+    const isTor = Boolean(input.simulatedIsTor);
+    const isSpyService = Boolean(input.simulatedIsSpyService);
+    const hasTimezoneDelta = Boolean(
+      input.simulatedHasTimezoneDelta || 
+      (input.simulatedClientTimezone && input.simulatedTimezone && input.simulatedClientTimezone !== input.simulatedTimezone)
+    );
+    const isVpn = Boolean(input.simulatedIsVpn || isTor || hasTimezoneDelta);
+
     const signals: ExtractedSignals = {
       ipAddress: input.simulatedIp || '198.51.100.1',
       country: (input.simulatedCountry || 'US').toUpperCase(),
@@ -71,8 +87,17 @@ export class TrafficSimulatorService {
       isBot,
       botName: isBot ? 'SimulatedBot' : undefined,
       language: 'en',
-      networkType: input.simulatedNetworkType || 'residential',
+      networkType: input.simulatedNetworkType || (isVpn ? 'vpn' : 'residential'),
       asnOrg: input.simulatedAsnOrg || (input.simulatedNetworkType === 'datacenter' ? 'AWS' : undefined),
+      isp: input.simulatedIsp || (input.simulatedAsnOrg ? SignalExtractor.normalizeIspName(input.simulatedAsnOrg) : undefined),
+      isSpyService,
+      spyServiceName: isSpyService ? (input.simulatedSpyServiceName || 'AdPlexity') : undefined,
+      isVpn,
+      isTor,
+      vpnReason: isTor ? 'tor_exit_node' : (hasTimezoneDelta ? 'timezone_mismatch' : (isVpn ? 'commercial_vpn' : undefined)),
+      clientTimezone: input.simulatedClientTimezone,
+      timezone: input.simulatedTimezone,
+      hasTimezoneDelta,
       touchPoints,
       gpuRenderer,
       batteryLevel: input.simulatedBatteryLevel !== undefined ? input.simulatedBatteryLevel : 0.85,
@@ -91,6 +116,8 @@ export class TrafficSimulatorService {
         rampUpEnabled: link.rampUpEnabled,
         rampUpDurationHours: link.rampUpDurationHours,
         datacenterBlocked: link.datacenterBlocked,
+        blockSpyServices: link.tags?.includes('block_spy') ?? true,
+        blockVpn: link.tags?.includes('block_vpn') ?? true,
         rules: link.rules
       },
       signals

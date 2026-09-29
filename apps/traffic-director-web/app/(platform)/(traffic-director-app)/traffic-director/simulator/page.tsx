@@ -12,7 +12,24 @@ import toast from 'react-hot-toast';
 import { LogoLoader } from '@workspace/ui';
 import CustomSelect from '@/components/ui/CustomSelect';
 
-const PRESETS = [
+const PRESETS: Array<{
+  name: string;
+  ip: string;
+  country: string;
+  city: string;
+  userAgent: string;
+  networkType: 'residential' | 'datacenter' | 'cellular' | 'vpn';
+  asnOrg?: string;
+  isp?: string;
+  isSpyService?: boolean;
+  isVpn?: boolean;
+  isTor?: boolean;
+  clientTimezone?: string;
+  timezone?: string;
+  touchPoints: number;
+  gpuRenderer: string;
+  batteryLevel: number;
+}> = [
   {
     name: 'Real iPhone 15 (Human Touch)',
     ip: '104.28.19.45',
@@ -21,9 +38,83 @@ const PRESETS = [
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
     networkType: 'residential',
     asnOrg: undefined,
+    isp: 'Comcast',
+    isSpyService: false,
+    isVpn: false,
+    isTor: false,
+    clientTimezone: 'America/Los_Angeles',
+    timezone: 'America/Los_Angeles',
     touchPoints: 5,
     gpuRenderer: 'Apple GPU (A16 Bionic)',
     batteryLevel: 0.68
+  },
+  {
+    name: 'AdPlexity Spy Scraper (PacketHub ASN 209242)',
+    ip: '194.26.29.15',
+    country: 'DE',
+    city: 'Frankfurt',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AdPlexity-Intelligence-Scraper/2.4',
+    networkType: 'datacenter',
+    asnOrg: 'PacketHub S.A. ASN 209242',
+    isp: 'PacketHub',
+    isSpyService: true,
+    isVpn: false,
+    isTor: false,
+    touchPoints: 0,
+    gpuRenderer: 'Google SwiftShader (CPU Software Rasterizer)',
+    batteryLevel: 1.0
+  },
+  {
+    name: 'Residential VPN (US IP vs Asia/Kolkata Clock)',
+    ip: '104.28.19.45',
+    country: 'US',
+    city: 'Los Angeles',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    networkType: 'residential',
+    asnOrg: 'Comcast Cable',
+    isp: 'Comcast',
+    isSpyService: false,
+    isVpn: true,
+    isTor: false,
+    clientTimezone: 'Asia/Kolkata',
+    timezone: 'America/Los_Angeles',
+    touchPoints: 0,
+    gpuRenderer: 'NVIDIA GeForce RTX 4080',
+    batteryLevel: 0.82
+  },
+  {
+    name: 'Tor Network Exit Node (Anonymous)',
+    ip: '185.220.101.5',
+    country: 'T1',
+    city: 'Unknown',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0',
+    networkType: 'vpn',
+    asnOrg: 'Tor Exit Relay',
+    isp: 'Tor Network',
+    isSpyService: false,
+    isVpn: true,
+    isTor: true,
+    touchPoints: 0,
+    gpuRenderer: 'llvmpipe (LLVM 15.0.7, 256 bits)',
+    batteryLevel: 1.0
+  },
+  {
+    name: 'Jio 5G Mobile Carrier (Authentic India)',
+    ip: '49.44.64.12',
+    country: 'IN',
+    city: 'Mumbai',
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+    networkType: 'cellular',
+    asnOrg: 'Reliance Jio Infocomm Limited',
+    isp: 'Jio',
+    isSpyService: false,
+    isVpn: false,
+    isTor: false,
+    clientTimezone: 'Asia/Kolkata',
+    timezone: 'Asia/Kolkata',
+    touchPoints: 5,
+    gpuRenderer: 'Qualcomm Adreno 750',
+    batteryLevel: 0.74
   },
   {
     name: 'AWS Headless Bot (SwiftShader & No Touch)',
@@ -33,32 +124,12 @@ const PRESETS = [
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
     networkType: 'datacenter',
     asnOrg: 'AWS',
+    isp: 'Amazon AWS',
+    isSpyService: false,
+    isVpn: false,
+    isTor: false,
     touchPoints: 0,
     gpuRenderer: 'Google SwiftShader (CPU Software Rasterizer)',
-    batteryLevel: 1.0
-  },
-  {
-    name: 'GCP Scraper / Cloud Runner',
-    ip: '34.102.136.1',
-    country: 'US',
-    city: 'Council Bluffs',
-    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/122.0.0.0 Safari/537.36',
-    networkType: 'datacenter',
-    asnOrg: 'GOOGLE_CLOUD',
-    touchPoints: 0,
-    gpuRenderer: 'llvmpipe (LLVM 15.0.7, 256 bits)',
-    batteryLevel: 1.0
-  },
-  {
-    name: 'UK Desktop Chrome (NVIDIA GPU)',
-    ip: '82.165.197.1',
-    country: 'GB',
-    city: 'London',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    networkType: 'residential',
-    asnOrg: undefined,
-    touchPoints: 0,
-    gpuRenderer: 'NVIDIA GeForce RTX 4080',
     batteryLevel: 1.0
   }
 ];
@@ -80,6 +151,12 @@ function TrafficSimulatorContent() {
   const [simulatedReferrer, setSimulatedReferrer] = useState('https://google.com');
   const [simulatedNetworkType, setSimulatedNetworkType] = useState<string>('residential');
   const [simulatedAsnOrg, setSimulatedAsnOrg] = useState<string>('');
+  const [simulatedIsp, setSimulatedIsp] = useState<string>('Comcast');
+  const [simulatedIsSpyService, setSimulatedIsSpyService] = useState<boolean>(false);
+  const [simulatedIsVpn, setSimulatedIsVpn] = useState<boolean>(false);
+  const [simulatedIsTor, setSimulatedIsTor] = useState<boolean>(false);
+  const [simulatedClientTimezone, setSimulatedClientTimezone] = useState<string>('America/Los_Angeles');
+  const [simulatedTimezone, setSimulatedTimezone] = useState<string>('America/Los_Angeles');
   const [simulatedTouchPoints, setSimulatedTouchPoints] = useState<number>(5);
   const [simulatedGpuRenderer, setSimulatedGpuRenderer] = useState<string>('Apple GPU (A16 Bionic)');
   const [simulatedBatteryLevel, setSimulatedBatteryLevel] = useState<number>(0.68);
@@ -117,6 +194,12 @@ function TrafficSimulatorContent() {
     setSimulatedUserAgent(preset.userAgent);
     setSimulatedNetworkType(preset.networkType);
     setSimulatedAsnOrg(preset.asnOrg || '');
+    setSimulatedIsp(preset.isp || '');
+    setSimulatedIsSpyService(Boolean(preset.isSpyService));
+    setSimulatedIsVpn(Boolean(preset.isVpn));
+    setSimulatedIsTor(Boolean(preset.isTor));
+    setSimulatedClientTimezone(preset.clientTimezone || 'America/Los_Angeles');
+    setSimulatedTimezone(preset.timezone || 'America/Los_Angeles');
     setSimulatedTouchPoints(preset.touchPoints);
     setSimulatedGpuRenderer(preset.gpuRenderer);
     setSimulatedBatteryLevel(preset.batteryLevel);
@@ -146,6 +229,12 @@ function TrafficSimulatorContent() {
         simulatedReferrer,
         simulatedNetworkType,
         simulatedAsnOrg: simulatedAsnOrg || undefined,
+        simulatedIsp: simulatedIsp || undefined,
+        simulatedIsSpyService,
+        simulatedIsVpn,
+        simulatedIsTor,
+        simulatedClientTimezone: simulatedClientTimezone || undefined,
+        simulatedTimezone: simulatedTimezone || undefined,
         simulatedTouchPoints: Number(simulatedTouchPoints),
         simulatedGpuRenderer,
         simulatedBatteryLevel: Number(simulatedBatteryLevel),
@@ -365,7 +454,79 @@ function TrafficSimulatorContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                  Telecom ISP / Carrier
+                </label>
+                <input
+                  type="text"
+                  value={simulatedIsp}
+                  onChange={(e) => setSimulatedIsp(e.target.value)}
+                  placeholder="e.g. Jio, Airtel, Comcast, Verizon, AT&T"
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-zinc-800 text-xs text-gray-900 dark:text-white"
+                />
+              </div>
+
+              {/* Threat & Anomaly Toggles */}
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-purple-100 dark:border-purple-900/30">
+                <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 dark:text-zinc-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={simulatedIsSpyService}
+                    onChange={(e) => setSimulatedIsSpyService(e.target.checked)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>Spy Scraper</span>
+                </label>
+                <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 dark:text-zinc-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={simulatedIsVpn}
+                    onChange={(e) => setSimulatedIsVpn(e.target.checked)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>VPN Tunnel</span>
+                </label>
+                <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 dark:text-zinc-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={simulatedIsTor}
+                    onChange={(e) => setSimulatedIsTor(e.target.checked)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>Tor Node</span>
+                </label>
+              </div>
+
+              {/* Timezone Delta Controls */}
+              <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-purple-100 dark:border-purple-900/30">
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                    Browser Timezone
+                  </label>
+                  <input
+                    type="text"
+                    value={simulatedClientTimezone}
+                    onChange={(e) => setSimulatedClientTimezone(e.target.value)}
+                    placeholder="e.g. Asia/Kolkata"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-zinc-800 text-[11px] text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                    IP Geo Timezone
+                  </label>
+                  <input
+                    type="text"
+                    value={simulatedTimezone}
+                    onChange={(e) => setSimulatedTimezone(e.target.value)}
+                    placeholder="e.g. America/Los_Angeles"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-zinc-800 text-[11px] text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-purple-100 dark:border-purple-900/30">
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-600 dark:text-gray-400 mb-1">
                     Touch Points
@@ -497,6 +658,29 @@ function TrafficSimulatorContent() {
                   <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800">
                     <span className="text-gray-400 block">Country & City</span>
                     <span className="font-bold text-gray-900 dark:text-white">{result.extractedSignals?.country} · {result.extractedSignals?.city}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800">
+                    <span className="text-gray-400 block">Telecom ISP / Brand</span>
+                    <span className="font-bold text-gray-900 dark:text-white">{result.extractedSignals?.isp || result.extractedSignals?.asnOrg || 'Unknown ISP'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800">
+                    <span className="text-gray-400 block">Spy Service Status</span>
+                    <span className={`font-bold ${result.extractedSignals?.isSpyService ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      {result.extractedSignals?.isSpyService ? `🚨 ${result.extractedSignals?.spyServiceName || 'Spy Scraper'}` : '✅ Clean Traffic'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800">
+                    <span className="text-gray-400 block">VPN & Tor Anonymizer</span>
+                    <span className={`font-bold ${result.extractedSignals?.isVpn || result.extractedSignals?.isTor ? 'text-amber-500' : 'text-emerald-500'}`}>
+                      {result.extractedSignals?.isTor ? '🚨 Tor Exit Node' : (result.extractedSignals?.isVpn ? `⚠️ ${result.extractedSignals?.vpnReason || 'VPN Tunnel'}` : '✅ Direct ISP')}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800">
+                    <span className="text-gray-400 block">Geo-Clock Delta</span>
+                    <span className={`font-bold ${result.extractedSignals?.hasTimezoneDelta ? 'text-rose-500' : 'text-gray-900 dark:text-white'}`}>
+                      {result.extractedSignals?.hasTimezoneDelta ? '⚠️ Mismatch' : '✅ Sync'}
+                      {result.extractedSignals?.clientTimezone ? ` (${result.extractedSignals.clientTimezone.split('/')[1] || result.extractedSignals.clientTimezone})` : ''}
+                    </span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800">
                     <span className="text-gray-400 block">Network & ASN</span>
