@@ -421,15 +421,16 @@ export class AuthController {
                 return res.status(400).json({ error: 'Missing authorization code' });
             }
 
-            const identityServerUrl = process.env.IDENTITY_SERVER_URL || 'http://localhost:4002';
-            const clientId = process.env.WORKSPACE_CLIENT_ID || process.env.ONE_EIGHTY_IDENTITY_CLIENT_ID || '180-workspace-platform';
-            const clientSecret = process.env.WORKSPACE_CLIENT_SECRET || process.env.ONE_EIGHTY_IDENTITY_CLIENT_SECRET;
+            const identityServerUrl = process.env.ONE_EIGHTY_API_URL || process.env.IDENTITY_SERVER_URL || 'http://localhost:4003';
+            const clientId = process.env.ONE_EIGHTY_CLIENT_ID || process.env.WORKSPACE_CLIENT_ID || process.env.ONE_EIGHTY_IDENTITY_CLIENT_ID || '180_client_5cc136397553836e34eb37ce22d13a53';
+            const clientSecret = process.env.ONE_EIGHTY_CLIENT_SECRET || process.env.WORKSPACE_CLIENT_SECRET || process.env.ONE_EIGHTY_IDENTITY_CLIENT_SECRET || '180_secret_41b2bd23a7a978f197c16958ea14b4de6af9abe14ec13c9c';
 
             const oidcConsumer = new OidcConsumer({
                 identityServerUrl,
                 clientId,
                 clientSecret,
                 redirectUri: redirectUri || 'http://localhost:3000/callback',
+                jwksUrl: `${identityServerUrl}/oauth/jwks.json`,
             });
 
             // Perform back-channel exchange and verification

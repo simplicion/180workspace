@@ -8,6 +8,7 @@ const router: Router = Router();
 
 // ─── Public Webhooks (Cryptographically verified by HMAC SHA-256) ─────────────
 router.post('/webhooks/razorpay', WalletController.handleRazorpayWebhook);
+router.post('/webhooks/180-pay', WalletController.handle180PayWebhook);
 
 // ─── Superadmin Platform Observability ─────────────────────────────────────────
 router.get('/platform/summary', superAdminAuth, WalletController.getPlatformSummary);
