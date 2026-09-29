@@ -108,6 +108,10 @@ export class TrafficLinksService {
       }
     } catch (e) {}
 
+    const tags = Array.isArray(link.tags) ? link.tags : [];
+    (link as any).blockSpyServices = tags.length === 0 ? true : tags.includes('block_spy');
+    (link as any).blockVpn = tags.length === 0 ? true : tags.includes('block_vpn');
+
     return { link };
   }
 
@@ -123,10 +127,9 @@ export class TrafficLinksService {
     });
 
     if (link) {
-      if (link.tags && Array.isArray(link.tags)) {
-        (link as any).blockSpyServices = link.tags.includes('block_spy');
-        (link as any).blockVpn = link.tags.includes('block_vpn');
-      }
+      const tags = Array.isArray(link.tags) ? link.tags : [];
+      (link as any).blockSpyServices = tags.length === 0 ? true : tags.includes('block_spy');
+      (link as any).blockVpn = tags.length === 0 ? true : tags.includes('block_vpn');
       try {
         const raw = await db.$queryRawUnsafe(
           `SELECT "safePageProxyMode" FROM "TrafficLink" WHERE "id" = $1`,
@@ -187,10 +190,9 @@ export class TrafficLinksService {
     }
 
     if (link) {
-      if (link.tags && Array.isArray(link.tags)) {
-        (link as any).blockSpyServices = link.tags.includes('block_spy');
-        (link as any).blockVpn = link.tags.includes('block_vpn');
-      }
+      const tags = Array.isArray(link.tags) ? link.tags : [];
+      (link as any).blockSpyServices = tags.length === 0 ? true : tags.includes('block_spy');
+      (link as any).blockVpn = tags.length === 0 ? true : tags.includes('block_vpn');
       try {
         const raw = await db.$queryRawUnsafe(
           `SELECT "safePageProxyMode" FROM "TrafficLink" WHERE "id" = $1`,

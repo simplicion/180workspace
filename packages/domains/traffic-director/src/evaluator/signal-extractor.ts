@@ -184,18 +184,7 @@ export class SignalExtractor {
     }
 
     // Normalize Consumer ISP name
-    let isp: string | undefined;
-    if (rawAsnOrg) {
-      for (const ispPattern of ISP_PATTERNS) {
-        if (ispPattern.regex.test(rawAsnOrg)) {
-          isp = ispPattern.name;
-          break;
-        }
-      }
-      if (!isp) {
-        isp = rawAsnOrg;
-      }
-    }
+    const isp = rawAsnOrg ? SignalExtractor.normalizeIspName(rawAsnOrg) : undefined;
 
     // Tor Network detection (Cloudflare marks Tor with country T1 or via Tor Project exit directory)
     let isTor = false;
@@ -327,6 +316,16 @@ export class SignalExtractor {
       queryParams: query,
       timestamp: new Date()
     };
+  }
+
+  static normalizeIspName(rawAsnOrg: string): string {
+    if (!rawAsnOrg) return '';
+    for (const ispPattern of ISP_PATTERNS) {
+      if (ispPattern.regex.test(rawAsnOrg)) {
+        return ispPattern.name;
+      }
+    }
+    return rawAsnOrg;
   }
 
   static parseClientCharacteristics(ua: string): { deviceType: 'mobile' | 'tablet' | 'desktop' | 'unknown'; os: string; browser: string } {
