@@ -45,6 +45,7 @@ jobs:
   deploy-profile-cloudflare:
     name: Deploy 180 Profile Frontend (profile, auth, pay) to Cloudflare Pages
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -84,6 +85,7 @@ jobs:
   deploy-developer-cloudflare:
     name: Deploy 180 Developer Portal to Cloudflare Pages
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
