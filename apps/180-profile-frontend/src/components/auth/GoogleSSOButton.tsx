@@ -85,9 +85,16 @@ export function GoogleSSOButton({
         body: JSON.stringify({ accessToken }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { success: false, message: `Server returned HTTP ${res.status}` };
+      }
+
       if (!res.ok || !data.success) {
-        throw new Error(data.message || data.error || 'Google authentication failed');
+        throw new Error(data.message || data.error || `Server returned HTTP ${res.status}`);
       }
 
       toast.success('Signed in with Google!', { id: toastId });
