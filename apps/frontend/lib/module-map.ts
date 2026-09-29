@@ -80,6 +80,7 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/traffic-director/simulator': { appId: 'traffic-director', moduleId: 'simulator' },
   '/traffic-director/logs': { appId: 'traffic-director', moduleId: 'logs' },
   '/traffic-director/analytics': { appId: 'traffic-director', moduleId: 'analytics' },
+  '/traffic-director/threats': { appId: 'traffic-director', moduleId: 'threats' },
 
   // 180 Voiceforce (Autonomous AI Voice Calling Engine)
   '/voiceforce': { appId: 'voiceforce', moduleId: 'dashboard' },
@@ -150,7 +151,8 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'links', name: 'Smart Links & Rules' },
             { id: 'simulator', name: 'Routing Simulator' },
             { id: 'logs', name: 'Live Stream Logs' },
-            { id: 'analytics', name: 'Traffic Analytics' }
+            { id: 'analytics', name: 'Traffic Analytics' },
+            { id: 'threats', name: 'Threat Intelligence' }
         ]
     },
     {

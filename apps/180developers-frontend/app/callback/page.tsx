@@ -41,7 +41,7 @@ export default function CallbackPage() {
         const isLocal =
           window.location.hostname === 'localhost' ||
           window.location.hostname === '127.0.0.1';
-        const apiBase = isLocal ? (process.env.NEXT_PUBLIC_CORE_BACKEND_URL || 'http://localhost:4003') : 'https://api.180workspace.com';
+        const apiBase = isLocal ? (process.env.NEXT_PUBLIC_CORE_BACKEND_URL || 'http://localhost:4003') : (process.env.NEXT_PUBLIC_CORE_BACKEND_URL || 'https://services.180workspace.com');
         const redirectUri = window.location.origin + '/callback';
 
         const tokenPayload = {

@@ -1,4 +1,9 @@
-# Comprehensive Technical Research: Web Cloaking & Conditional Content Delivery
+---
+sidebar_position: 2
+title: Web Cloaking & Delivery Research
+---
+
+# Web Cloaking & Conditional Content Delivery Research
 
 ## 1. Fundamental Definition
 
@@ -11,7 +16,7 @@ Historically, the term "cloaking" originated in the context of Search Engine Opt
 ### Cloaking vs. Conditional Content Delivery
 The underlying mechanism for cloaking is identical to **conditional content delivery** (e.g., personalization, localization, responsive design). The distinction is primarily intent and transparency:
 - **Legitimate Conditional Delivery**: Aims to improve user experience based on context (e.g., showing a mobile layout to a phone, translating text for a French IP).
-- **Cloaking**: Aims to deceive a specific class of requester (like a crawler, a security scanner, or an ad reviewer) by showing them a compliant or optimized version of a resource while showing a different (often non-compliant or malicious) version to the target audience.
+- **Cloaking**: Aims to deceive a specific class of requester (like a crawler, a security scanner, or an ad reviewer) by showing them a compliant or optimized version of a resource while showing a different (often non-compliant or restricted) version to the target audience.
 
 ### Dimensions of Cloaking
 - **Server-side vs. Client-side**: 
@@ -31,24 +36,34 @@ The underlying mechanism for cloaking is identical to **conditional content deli
 
 ## 2. Core Mathematical Model
 
-A web application's behavior can be modeled as a function:
-
-$$Response = F(Request, Environment, State, Configuration)$$
+```text
+Response = F(Request, Environment, State, Configuration)
+```
 
 ### Components
-1. **Request ($R$)**: The explicit data sent by the client. Includes URL, HTTP method, headers (User-Agent, Accept), and body.
-2. **Environment ($E$)**: Contextual data derived from the network. Includes IP address, inferred geolocation, ISP/ASN, and TCP/IP stack fingerprints.
-3. **State ($S$)**: Data persisting across requests. Includes session identifiers, cookies, user account data, and database records of past behavior.
-4. **Configuration ($C$)**: The server's internal rules, routing logic, feature flags, and deployment state.
-5. **Decision Logic ($F$)**: The algorithm processing $R, E, S, C$ to map to an output.
-6. **Response ($Res$)**: The resulting HTTP status code, headers, and body payload.
+1. **Request (R)**: The explicit data sent by the client. Includes URL, HTTP method, headers (User-Agent, Accept), and body.
+2. **Environment (E)**: Contextual data derived from the network. Includes IP address, inferred geolocation, ISP/ASN, and TCP/IP stack fingerprints.
+3. **State (S)**: Data persisting across requests. Includes session identifiers, cookies, user account data, and database records of past behavior.
+4. **Configuration (C)**: The server's internal rules, routing logic, feature flags, and deployment state.
+5. **Decision Logic (F)**: The algorithm processing R, E, S, C to map to an output.
+6. **Response (Res)**: The resulting HTTP status code, headers, and body payload.
 
 ### Conditional Response Functions
 A conditional response function has decision boundaries. For example:
-$$ F(R, E) = \begin{cases} Res_{mobile} & \text{if } R_{UA} \text{ matches mobile regex} \\ Res_{desktop} & \text{otherwise} \end{cases} $$
 
-By changing the environment ($E_{ip}$ from US to France), the output shifts from $Res_{english}$ to $Res_{french}$. If a system models scanners separately, the boundary becomes:
-$$ F(R, E) = \begin{cases} Res_{clean} & \text{if } E_{ASN} \in \{CloudProviders\} \\ Res_{payload} & \text{otherwise} \end{cases} $$
+```text
+F(R, E) = 
+  Res_mobile   if R_UA matches mobile regex
+  Res_desktop  otherwise
+```
+
+By changing the environment (E_ip from US to France), the output shifts from Res_english to Res_french. If a system models scanners separately, the boundary becomes:
+
+```text
+F(R, E) = 
+  Res_clean    if E_ASN in CloudProviders
+  Res_payload  otherwise
+```
 
 ---
 
@@ -56,29 +71,39 @@ $$ F(R, E) = \begin{cases} Res_{clean} & \text{if } E_{ASN} \in \{CloudProviders
 
 Conditional content selection can occur at multiple layers:
 
+```
 Internet
-↓
-**DNS**: Can return different IP addresses based on the requester's subnet (GeoDNS).
-↓
-**CDN / Edge**: Can route requests, serve different cached objects based on headers, or run edge compute scripts (e.g., Cloudflare Workers) to modify requests/responses.
-↓
-**Load Balancer**: Can route traffic to different backend clusters based on rules (e.g., path or IP).
-↓
-**Reverse Proxy / WAF**: Inspects payloads. Can block, redirect, or rewrite requests based on threat intelligence or rate limits.
-↓
-**Application Server**: Executes business logic.
-↓
-**Decision Layer (Feature Flags/Rules Engine)**: Evaluates $F(R, E, S, C)$.
-↓
-**Database/API**: Provides data needed for the decision (user profiles).
-↓
-**HTML Generation**: Renders the server-side response.
-↓
-**JavaScript (Browser)**: Executes client-side logic.
-↓
-**DOM**: The in-memory representation of the page.
-↓
-**Final User Experience**: What the user actually sees.
+  │
+  ▼
+DNS: Can return different IP addresses based on the requester's subnet (GeoDNS)
+  │
+  ▼
+CDN / Edge: Can route requests, serve different cached objects, or run edge compute
+  │
+  ▼
+Load Balancer: Can route traffic to different backend clusters based on rules (path or IP)
+  │
+  ▼
+Reverse Proxy / WAF: Inspects payloads. Can block, redirect, or rewrite requests
+  │
+  ▼
+Application Server: Executes business logic
+  │
+  ▼
+Decision Layer (Rules Engine): Evaluates F(R, E, S, C)
+  │
+  ▼
+Database / Cache: Provides data needed for the decision (rules, IP threat feeds)
+  │
+  ▼
+HTML Generation: Renders server-side response (or prepares reverse proxy stream)
+  │
+  ▼
+JavaScript (Browser): Executes client-side logic and DOM updates
+  │
+  ▼
+Final User Experience: What the user actually sees
+```
 
 Each layer has its own visibility. DNS only sees IP subnets. The application server sees HTTP headers. JavaScript sees the local device environment.
 
@@ -87,25 +112,27 @@ Each layer has its own visibility. DNS only sees IP subnets. The application ser
 ## 4. Server-Side Cloaking
 
 ### Lifecycle
-`Client Request → Request Parsing → Signal Extraction → Classification → Rule Evaluation → Content Selection → Response Generation → Caching → Delivery`
+```
+Client Request ➔ Request Parsing ➔ Signal Extraction ➔ Classification ➔ Rule Evaluation ➔ Content Selection ➔ Response Generation ➔ Caching / Streaming ➔ Delivery
+```
 
 ### Decision Inputs (Signals)
 
 1. **IP Address & ASN**:
    - *What*: Network origin.
    - *Legitimate use*: Geo-blocking for compliance, localized pricing.
-   - *Limitations*: IP databases are often outdated. NAT means thousands of users share one IP.
+   - *Limitations*: IP databases require frequent updates. NAT means multiple users can share one IP.
 2. **User-Agent (UA)**:
    - *What*: String identifying the browser/OS.
-   - *Legitimate use*: Serving polyfills to old browsers, mobile layouts.
+   - *Legitimate use*: Serving polyfills to older browsers, mobile layouts.
    - *Limitations*: Easily spoofed; client hints are replacing it.
-3. **HTTP Headers (Accept-Language)**:
-   - *What*: Client preferences.
-   - *Legitimate use*: Auto-translating pages.
+3. **HTTP Headers (Accept-Language, Sec-CH-UA)**:
+   - *What*: Client preferences and browser security hints.
+   - *Legitimate use*: Auto-translating pages, fine-grained device optimization.
 4. **Referrer**:
    - *What*: The URL the user clicked from.
    - *Legitimate use*: Analytics, customized landing page greetings.
-   - *Limitations*: Often stripped by privacy features (Referrer-Policy).
+   - *Limitations*: Often stripped by privacy features (`Referrer-Policy: strict-origin-when-cross-origin`).
 5. **Cookies / Session State**:
    - *What*: Tokens indicating previous interactions or authentication.
    - *Legitimate use*: Showing a user's dashboard vs. a login screen.
@@ -117,7 +144,9 @@ Each layer has its own visibility. DNS only sees IP subnets. The application ser
 Instead of the server deciding, the server sends a generic HTML page equipped with JavaScript that evaluates the environment *after* delivery.
 
 ### Flow
-`Initial HTML → JavaScript Execution → API Request → Data → DOM Modification → Final Rendered Page`
+```
+Initial HTML ➔ JavaScript Execution ➔ Fingerprint / API Request ➔ Response Payload ➔ DOM Modification ➔ Final Rendered Page
+```
 
 ### Mechanisms
 - **DOM Manipulation**: JavaScript reads browser properties (e.g., `navigator.language`, `screen.width`) and alters the DOM.
@@ -139,7 +168,9 @@ Techniques to determine the exact client context:
 ### Browser Fingerprinting
 Instead of relying on declared identifiers (User-Agent), fingerprinting relies on intrinsic physical and software characteristics.
 
-`Signals (Fonts, Canvas hash, Audio API hash) → Feature Collection → Feature Vector → Classification`
+```
+Signals (Fonts, Canvas hash, Audio API hash) ➔ Feature Collection ➔ Feature Vector ➔ Classification
+```
 
 **Limitations**: Fingerprints drift over time as users update browsers. Privacy extensions (e.g., Brave browser, Tor) intentionally randomize or normalize fingerprints, reducing accuracy.
 
@@ -147,10 +178,10 @@ Instead of relying on declared identifiers (User-Agent), fingerprinting relies o
 
 ## 7. IP and Network-Level Concepts
 
-Network information is a primary input for conditional delivery.
+Network information is a primary input for conditional delivery:
 - **IP Addresses**: Logical network addresses.
 - **Proxies / VPNs / Tor**: Conceal the true origin IP. A request from a VPN IP implies the user's geographic intent is masked.
-- **Datacenter vs. Residential**: Datacenter IPs (AWS, DigitalOcean) are typically used by servers, bots, and corporate VPNs. Residential IPs (Comcast, AT&T) are used by human consumers. 
+- **Datacenter vs. Residential**: Datacenter IPs (AWS, DigitalOcean, Hetzner) are typically used by servers, bots, and corporate VPNs. Residential IPs (Comcast, AT&T, Deutsche Telekom) are used by human consumers.
 
 Classification relies on mapping IPs to Autonomous Systems (ASNs) and Geo-IP databases. It is imperfect because IPs change hands, and corporate networks blend with consumer endpoints.
 
@@ -162,16 +193,16 @@ Different responses can be legitimately produced using HTTP semantics:
 - **Content Negotiation**: Client sends `Accept: application/json` vs `Accept: text/html`. Server responds accordingly.
 - **Vary Header**: `Vary: User-Agent` tells downstream caches that the response is conditional on the UA.
 - **Authorization**: `401 Unauthorized` vs `200 OK` based on the `Authorization` header.
-- **Status Codes**: Redirects (`301`, `302`) send users to localized sites.
+- **Status Codes**: Redirects (`301`, `302`, `307`) send users to localized or tailored destinations.
 
 ---
 
 ## 9. Redirect-Based Architecture
 
-Concept: `URL A → HTTP Redirect → URL B → Application Logic → Final URL`
+Concept: `URL A ➔ HTTP Redirect ➔ URL B ➔ Application Logic ➔ Final URL`
 
-- **301/308**: Permanent redirects. Caches remember these.
-- **302/307**: Temporary redirects. Good for logic that changes frequently (e.g., A/B tests).
+- **301/308**: Permanent redirects. Caches remember these permanently.
+- **302/307**: Temporary redirects. Essential for logic that changes frequently (e.g., A/B tests, dynamic offer rotation).
 - **JavaScript Navigation**: `window.location.href = '...'`. Invisible to HTTP-only clients, requires JS execution.
 
 Redirect chains allow state to be accumulated (e.g., passing affiliate IDs as URL parameters) and logic to be evaluated at different physical servers before landing the user.
@@ -180,7 +211,7 @@ Redirect chains allow state to be accumulated (e.g., passing affiliate IDs as UR
 
 ## 10. CDN and Edge-Level Conditional Delivery
 
-Modern CDNs (Cloudflare, Fastly, Akamai) operate at the network edge.
+Modern CDNs (Cloudflare, Fastly, Akamai) operate at the network edge:
 - **Edge Computing**: Execution of V8 isolates or WebAssembly at the CDN layer. They can intercept a request, check a fast key-value store, and return a response without hitting the origin server.
 - **Cache Keys**: Normally, `URL = Cache Key`. Edge functions can rewrite the cache key. For example, creating a key `URL + CountryCode` to cache different versions per country.
 
@@ -190,8 +221,10 @@ Because the edge intercepts traffic before the origin, CDN behavior can resemble
 
 ## 11. Database and Application-Level Decisions
 
-The application layer makes deep context decisions.
-`Request → User/Context Lookup → Business Rules → Selected Representation`
+The application layer makes deep context decisions:
+```
+Request ➔ User/Context Lookup ➔ Business Rules ➔ Selected Representation
+```
 
 Examples:
 - **Feature Flags**: Enabling a new UI for 10% of users.
@@ -216,8 +249,8 @@ While the *math* is the same ($F(R)$ yields different outputs), the *semantics* 
 ## 13. SEO Cloaking
 
 **Model**:
-- Search-engine crawler → Representation A (Keyword stuffed, fast text)
-- Ordinary visitor → Representation B (Flashy UI, image heavy)
+- Search-engine crawler ➔ Representation A (Keyword stuffed, fast text)
+- Ordinary visitor ➔ Representation B (Flashy UI, image heavy)
 
 Search engines mandate content consistency because their goal is to index the web *as a user experiences it*. If the index doesn't match the user experience, search quality degrades. As search engines evolved to render JavaScript and look at layout, SEO cloaking became harder, shifting from simple UA-sniffing to complex IP and behavioral classification.
 
@@ -226,7 +259,9 @@ Search engines mandate content consistency because their goal is to index the we
 ## 14. Advertising Context
 
 In online ads, consistency is required between:
-`Ad Creative → Landing URL → Landing Page → Checkout`
+```
+Ad Creative ➔ Landing URL ➔ Landing Page ➔ Checkout
+```
 
 Platforms enforce this to prevent bait-and-switch tactics (e.g., advertising a family product but landing on a restricted-age product). If the landing page conditional logic detects the Ad Reviewer's IP/bot and serves a compliant page, while serving the real ad traffic the restricted product, it constitutes advertising cloaking.
 
@@ -236,8 +271,8 @@ Platforms enforce this to prevent bait-and-switch tactics (e.g., advertising a f
 
 Detection is a problem of **differential observation**.
 Given:
-- Environment A (Clean residential IP, standard browser) → Response A
-- Environment B (Datacenter IP, headless browser) → Response B
+- Environment A (Clean residential IP, standard browser) ➔ Response A
+- Environment B (Datacenter IP, headless browser) ➔ Response B
 
 If $Response A \neq Response B$, conditional logic exists.
 Comparison dimensions include:
@@ -250,7 +285,9 @@ Comparison dimensions include:
 
 ## 16. Differential Testing
 
-`Baseline → Controlled Variable Change → Second Observation → Comparison → Attribution`
+```
+Baseline ➔ Controlled Variable Change ➔ Second Observation ➔ Comparison ➔ Attribution
+```
 
 If you change the User-Agent *and* the IP address simultaneously and observe a change, you cannot attribute the change to a specific variable (Ambiguity). Controlled experimental design isolates variables (e.g., same IP, different UA) to map the decision boundaries of the target server's $F(R, E, S, C)$.
 
@@ -258,17 +295,17 @@ If you change the User-Agent *and* the IP address simultaneously and observe a c
 
 ## 17. State and Temporal Behavior
 
-Web applications are stateful over time.
-- **Time T1** → Response A (Out of stock)
-- **Time T2** → Response B (In stock)
+Web applications are stateful over time:
+- **Time T1** ➔ Response A (Out of stock)
+- **Time T2** ➔ Response B (In stock)
 
 **Temporal Cloaking**: Changing content based on the time of day, or the time relative to an ad campaign's approval status. A single observation cannot establish the complete behavior of a web application; longitudinal observation is required.
 
 ---
 
-## 18. Caching
+## 18. Caching Considerations
 
-Caching can mimic cloaking.
+Caching can mimic cloaking:
 If User A requests a page while the server is throwing a 500 Error, the CDN might cache the 500 error.
 User B (the scanner) requests the page and gets the cached 500 error. The server is now fixed. User C requests a different URL and gets a 200 OK. 
 Without understanding cache keys, `Cache-Control`, and `ETag`, differential observations might yield false positives for cloaking.
@@ -277,7 +314,7 @@ Without understanding cache keys, `Cache-Control`, and `ETag`, differential obse
 
 ## 19. Multi-Layer Cloaking
 
-Complex systems stack conditional logic.
+Complex systems stack conditional logic:
 1. **CDN (Layer 1)**: Routes traffic to a US server or an EU server based on Geo-IP.
 2. **Reverse Proxy (Layer 2)**: Blocks known bad bots (Datacenter IPs).
 3. **Application (Layer 3)**: Serves a localized layout.
@@ -289,7 +326,7 @@ If an observer tries to map the system, they must account for combinations of al
 
 ## 20. Limitations of Detection
 
-Detecting conditional behavior is fundamentally an **attribution problem**.
+Detecting conditional behavior is fundamentally an **attribution problem**:
 - **False Positives**: A/B tests, geographic localized pricing, or a CDN cache hit vs. miss can look like cloaking.
 - **Dynamic Websites**: No two requests to a modern social media feed are identical. Differentiating structural cloaking from expected dynamic content variation is mathematically complex.
 - **Asynchronous Execution**: The DOM settles at different times depending on network speed, making visual comparisons flaky.
@@ -308,10 +345,10 @@ Detecting conditional behavior is fundamentally an **attribution problem**.
 
 ## 22. Real-World Architecture Patterns
 
-- **Pattern A (Geo-Localization)**: Client IP → Geo-IP Database → If EU, serve GDPR banner and EUR currency; Else serve USD.
-- **Pattern B (Adaptive Delivery)**: Client Hints → Edge determines mobile device → Proxies to `m.domain.com` or rewrites HTML to mobile-optimized variant.
-- **Pattern C (A/B Testing)**: Client requests → Application generates random assignment → Sets cookie `experiment=B` → Returns variant B. Future requests read cookie.
-- **Pattern D (Bot Management)**: Reverse Proxy inspects TLS fingerprint and IP reputation → High risk triggers CAPTCHA challenge; Low risk passes to application.
+- **Pattern A (Geo-Localization)**: Client IP ➔ Geo-IP Database ➔ If EU, serve GDPR banner and EUR currency; Else serve USD.
+- **Pattern B (Adaptive Delivery)**: Client Hints ➔ Edge determines mobile device ➔ Proxies to `m.domain.com` or rewrites HTML to mobile-optimized variant.
+- **Pattern C (A/B Testing)**: Client requests ➔ Application generates random assignment ➔ Sets cookie `experiment=B` ➔ Returns variant B. Future requests read cookie.
+- **Pattern D (Bot Management)**: Reverse Proxy inspects TLS fingerprint and IP reputation ➔ High risk triggers challenge; Low risk passes to application.
 
 ---
 
@@ -340,12 +377,33 @@ Detecting conditional behavior is fundamentally an **attribution problem**.
 
 **The Unified Model of Web Delivery:**
 
-`Inputs (Request, Network, Client Context) → Signal Extraction → Classification (Is Bot? Is Mobile? Is France?) → Decision Engine (Apply Rules) → Representation Selection → Delivery Layer (CDN/Cache) → Client Execution (JS/DOM) → Final Experience`
+```
+Inputs (Request, Network, Client Context)
+  │
+  ▼
+Signal Extraction
+  │
+  ▼
+Classification (Is Bot? Is Mobile? Is France?)
+  │
+  ▼
+Decision Engine (Apply Rules)
+  │
+  ▼
+Representation Selection
+  │
+  ▼
+Delivery Layer (CDN / Cache / Stream)
+  │
+  ▼
+Client Execution (JS / DOM)
+  │
+  ▼
+Final Experience
+```
 
 **Mapping to Use Cases:**
 1. **Traditional Websites**: The Decision Engine is minimal. Delivery relies heavily on caching.
 2. **Modern SPAs**: Representation Selection returns an empty shell. Client Execution does the heavy lifting via API calls.
 3. **SEO Cloaking**: Classification identifies "Googlebot". Decision Engine bypasses SPA logic and returns pre-rendered, optimized HTML.
 4. **Advertising**: Classification identifies ad review systems. Decision Engine returns compliant content, while Client Execution for real users alters the DOM to show the actual offer.
-
-This conceptual framework isolates *how* the web operates from *why* it operates, treating all conditional delivery as a function of environmental evaluation and response mapping.

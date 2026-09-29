@@ -19,7 +19,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
   const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
   const [slugMessage, setSlugMessage] = useState('');
   const [fallbackUrl, setFallbackUrl] = useState('');
-  const [safePageProxyMode, setSafePageProxyMode] = useState(false);
+  const [safePageProxyMode, setSafePageProxyMode] = useState(true);
   const [description, setDescription] = useState('');
   const [shieldMode, setShieldMode] = useState<'server' | 'client_shield'>('server');
   const [loading, setLoading] = useState(false);
@@ -116,7 +116,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
       setSlugStatus('idle');
       setSlugMessage('');
       setFallbackUrl('');
-      setSafePageProxyMode(false);
+      setSafePageProxyMode(true);
       setDescription('');
       setShieldMode('server');
     } catch (error: any) {

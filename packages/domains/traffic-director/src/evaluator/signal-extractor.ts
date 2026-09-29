@@ -253,7 +253,7 @@ export class SignalExtractor {
     }
 
     // VPN Heuristics: Client Timezone vs Geo Timezone Delta Anomaly
-    const clientTimezone = (body.clientTimezone as string) || (query.ctz as string) || undefined;
+    const clientTimezone = (body.clientTimezone as string) || (body.client_tz as string) || (query.ctz as string) || (query.client_tz as string) || (query.clientTimezone as string) || undefined;
     let hasTimezoneDelta = false;
     let isVpn = isTor || networkType === 'vpn';
     let vpnReason: string | undefined = isTor ? 'Tor Exit Node' : undefined;

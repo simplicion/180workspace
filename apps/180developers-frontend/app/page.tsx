@@ -192,7 +192,7 @@ export default function DeveloperPortalPage() {
   const getApiBase = () => {
     if (typeof window === 'undefined') return process.env.NEXT_PUBLIC_CORE_BACKEND_URL || 'http://localhost:4003';
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    return isLocal ? 'http://localhost:4003' : 'https://api.180workspace.com';
+    return isLocal ? 'http://localhost:4003' : (process.env.NEXT_PUBLIC_CORE_BACKEND_URL || 'https://services.180workspace.com');
   };
 
   const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 1800): Promise<Response | null> => {
@@ -885,7 +885,7 @@ app.post('/api/webhooks/180-pay', (req, res) => {
               {landingCodeTab === 'node' && `// Node.js Express Back-Channel Token Exchange
 app.post('/auth/180/callback', async (req, res) => {
   const { code } = req.body;
-  const response = await fetch('https://api.180workspace.com/api/v1/identity/oauth/token', {
+  const response = await fetch('https://services.180workspace.com/api/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -909,7 +909,7 @@ app = FastAPI()
 async def exchange_token(code: str):
     async with httpx.AsyncClient() as client:
         res = await client.post(
-            "https://api.180workspace.com/api/v1/identity/oauth/token",
+            "https://services.180workspace.com/api/oauth/token",
             json={
                 "grant_type": "authorization_code",
                 "client_id": "YOUR_CLIENT_ID",
