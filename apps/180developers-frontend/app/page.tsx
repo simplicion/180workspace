@@ -33,6 +33,7 @@ import {
   Button,
   UniversalSkeleton,
   PlatformModal,
+  PlatformDrawer,
   FavoriteButton,
   LogoLoader,
   HelpIcon,
@@ -1432,16 +1433,16 @@ Future<void> signInWith180() async {
       )}
 
       {/* ─────────────────────────────────────────────────────────────────────────────
-          CENTRALIZED MODAL: CREATE NEW APPLICATION
+          CENTRALIZED DRAWER: CREATE NEW APPLICATION
           ───────────────────────────────────────────────────────────────────────────── */}
-      <PlatformModal
+      <PlatformDrawer
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         title="Register New OAuth Application"
         icon={Plus}
         iconBgClass="bg-blue-500/10"
         iconColorClass="text-blue-600 dark:text-blue-400"
-        maxWidthClass="max-w-lg"
+        maxWidthClass="max-w-xl"
       >
         <form onSubmit={handleCreateApp} className="space-y-4">
           <div className="space-y-1.5">
@@ -1647,7 +1648,7 @@ Future<void> signInWith180() async {
             </Button>
           </div>
         </form>
-      </PlatformModal>
+      </PlatformDrawer>
 
       {/* ─────────────────────────────────────────────────────────────────────────────
           CENTRALIZED MODAL: ONE-TIME SECRET REVEAL
