@@ -27,6 +27,7 @@ import {
 } from '@/components/auth/OAuthDispatchHelper';
 import { OAuthAppHeader } from '@/components/auth/OAuthAppHeader';
 import { GoogleSSOButton } from '@/components/auth/GoogleSSOButton';
+import { OAuthErrorCard, OAuthErrorDetails } from '@/components/auth/OAuthErrorCard';
 import { getCoreApiUrl } from '@/lib/api';
 
 type AuthScreenMode = 'login' | 'signup' | 'otp' | 'password' | 'onboarding';
@@ -39,6 +40,14 @@ function LoginFormContent() {
   // Screen State Machine
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
   const [mode, setMode] = useState<AuthScreenMode>(initialMode);
+
+  // OAuth Pre-Validation & Diagnostics State
+  const [oauthValidationError, setOauthValidationError] = useState<{
+    error: string;
+    errorDescription: string;
+    details?: OAuthErrorDetails;
+  } | null>(null);
+  const [isValidatingOAuth, setIsValidatingOAuth] = useState(false);
 
   // Cached User Session (for 1-click return)
   const [cachedUser, setCachedUser] = useState<any>(null);
@@ -118,6 +127,53 @@ function LoginFormContent() {
     }
   }, []);
 
+  // Validate OAuth Parameters (client_id, redirect_uri, allowed origins) on load
+  const validateOAuthParams = React.useCallback(async () => {
+    if (!oauthParams.clientId) return;
+
+    let callerOrigin = searchParams.get('origin') || '';
+    if (!callerOrigin && typeof document !== 'undefined' && document.referrer) {
+      try { callerOrigin = new URL(document.referrer).origin; } catch (_) {}
+    }
+    if (!callerOrigin && typeof window !== 'undefined' && window.opener) {
+      if (oauthParams.redirectUri) {
+        try { callerOrigin = new URL(oauthParams.redirectUri).origin; } catch (_) {}
+      }
+    }
+
+    const query = new URLSearchParams();
+    query.set('client_id', oauthParams.clientId);
+    if (oauthParams.redirectUri) query.set('redirect_uri', oauthParams.redirectUri);
+    if (oauthParams.scope) query.set('scope', oauthParams.scope);
+    if (oauthParams.state) query.set('state', oauthParams.state);
+    if (callerOrigin) query.set('origin', callerOrigin);
+
+    try {
+      setIsValidatingOAuth(true);
+      const res = await fetch(getCoreApiUrl(`/api/oauth/authorize/validate?${query.toString()}`), {
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setOauthValidationError({
+          error: data.error || 'invalid_request',
+          errorDescription: data.error_description || 'OAuth parameters validation failed.',
+          details: data.details,
+        });
+      } else {
+        setOauthValidationError(null);
+      }
+    } catch (e: any) {
+      console.warn('[180 Identity] OAuth pre-validation note:', e.message);
+    } finally {
+      setIsValidatingOAuth(false);
+    }
+  }, [oauthParams.clientId, oauthParams.redirectUri, oauthParams.scope, oauthParams.state, searchParams]);
+
+  useEffect(() => {
+    validateOAuthParams();
+  }, [validateOAuthParams]);
+
   // Handle redirected credentials and reset password notifications
   useEffect(() => {
     const cred = searchParams.get('credential');
@@ -142,6 +198,13 @@ function LoginFormContent() {
       toast.success('Session verified!', { id: toastId });
       await dispatchOAuthSuccess(cachedUser, token, oauthParams);
     } catch (err: any) {
+      if (err.data && (err.data.error || err.data.error_description)) {
+        setOauthValidationError({
+          error: err.data.error || 'invalid_request',
+          errorDescription: err.data.error_description || err.message,
+          details: err.data.details,
+        });
+      }
       toast.error(err.message || 'Quick login failed', { id: toastId });
       setShowFullLogin(true);
     } finally {
@@ -221,6 +284,13 @@ function LoginFormContent() {
         await dispatchOAuthSuccess(data.user, data.token, oauthParams);
       }
     } catch (err: any) {
+      if (err.data && (err.data.error || err.data.error_description)) {
+        setOauthValidationError({
+          error: err.data.error || 'invalid_request',
+          errorDescription: err.data.error_description || err.message,
+          details: err.data.details,
+        });
+      }
       toast.error(err.message || 'Login failed', { id: toastId });
     } finally {
       setLoading(false);
@@ -415,7 +485,18 @@ function LoginFormContent() {
     }
 
     // Fully ready -> dispatch
-    await dispatchOAuthSuccess(user, token, oauthParams);
+    try {
+      await dispatchOAuthSuccess(user, token, oauthParams);
+    } catch (err: any) {
+      if (err.data && (err.data.error || err.data.error_description)) {
+        setOauthValidationError({
+          error: err.data.error || 'invalid_request',
+          errorDescription: err.data.error_description || err.message,
+          details: err.data.details,
+        });
+      }
+      toast.error(err.message || 'Google authorization failed');
+    }
   };
 
   // Helper to initialize onboarding fields
@@ -561,9 +642,29 @@ function LoginFormContent() {
       const { ok, data } = await parseApiResponse(res);
       const finalUser = (ok && data?.user) ? data.user : currentUser;
       const finalToken = (ok && data?.token) ? data.token : currentAuthToken;
-      await dispatchOAuthSuccess(finalUser, finalToken, oauthParams);
+      try {
+        await dispatchOAuthSuccess(finalUser, finalToken, oauthParams);
+      } catch (err: any) {
+        if (err.data && (err.data.error || err.data.error_description)) {
+          setOauthValidationError({
+            error: err.data.error || 'invalid_request',
+            errorDescription: err.data.error_description || err.message,
+            details: err.data.details,
+          });
+        }
+      }
     } catch (_) {
-      await dispatchOAuthSuccess(currentUser, currentAuthToken, oauthParams);
+      try {
+        await dispatchOAuthSuccess(currentUser, currentAuthToken, oauthParams);
+      } catch (err: any) {
+        if (err.data && (err.data.error || err.data.error_description)) {
+          setOauthValidationError({
+            error: err.data.error || 'invalid_request',
+            errorDescription: err.data.error_description || err.message,
+            details: err.data.details,
+          });
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -571,7 +672,19 @@ function LoginFormContent() {
 
   return (
     <div className="w-full space-y-5 text-slate-900 relative">
-
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          OAUTH CONFIGURATION / VALIDATION ERROR SCREEN
+      ───────────────────────────────────────────────────────────────────────────── */}
+      {oauthValidationError ? (
+        <OAuthErrorCard
+          error={oauthValidationError.error}
+          errorDescription={oauthValidationError.errorDescription}
+          details={oauthValidationError.details}
+          onRetry={validateOAuthParams}
+          onClose={() => setOauthValidationError(null)}
+        />
+      ) : (
+        <>
       {/* ─────────────────────────────────────────────────────────────────────────────
           SCREEN A: 1-CLICK QUICK SESSION RESUME
       ───────────────────────────────────────────────────────────────────────────── */}
@@ -1168,6 +1281,8 @@ function LoginFormContent() {
             </div>
           </form>
         </div>
+      )}
+        </>
       )}
     </div>
   );

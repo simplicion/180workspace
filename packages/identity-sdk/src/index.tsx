@@ -399,6 +399,13 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
 
     const messageListener = (event: MessageEvent) => {
       if (!event.data) return;
+      if (event.data.type === '180_IDENTITY_ERROR' || event.data.type === '180_AUTH_ERROR') {
+        const errMessage = event.data.error_description || event.data.error || 'Authentication failed';
+        const err = new Error(errMessage);
+        (err as any).data = event.data;
+        opts.onError?.(err);
+        return;
+      }
       if (opts.closeTypes && opts.closeTypes.includes(event.data.type)) {
         closeSheet(false);
         return;
@@ -582,7 +589,17 @@ export const OneEightyIdentity = {
       let isResolved = false;
 
       const messageListener = (event: MessageEvent) => {
-        if (!event.data || (event.data.type !== '180_IDENTITY_SUCCESS' && event.data.type !== '180_AUTH_SUCCESS')) {
+        if (!event.data) return;
+
+        if (event.data.type === '180_IDENTITY_ERROR' || event.data.type === '180_AUTH_ERROR') {
+          const errMessage = event.data.error_description || event.data.error || 'Authentication failed';
+          const err = new Error(errMessage);
+          (err as any).data = event.data;
+          options.onError?.(err);
+          return;
+        }
+
+        if (event.data.type !== '180_IDENTITY_SUCCESS' && event.data.type !== '180_AUTH_SUCCESS') {
           return;
         }
 

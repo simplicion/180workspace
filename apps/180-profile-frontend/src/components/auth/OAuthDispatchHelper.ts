@@ -88,9 +88,33 @@ export async function dispatchOAuthSuccess(
       const consentData = await consentRes.json();
       authCode = consentData.code || '';
       idToken = consentData.id_token || consentData.credential || '';
+    } else {
+      const errorData = await consentRes.json().catch(() => ({}));
+      const errorDesc = errorData.error_description || errorData.message || 'Authorization failed: Invalid redirect URI or origin.';
+      
+      const errorPayload = {
+        type: '180_IDENTITY_ERROR',
+        error: errorData.error || 'invalid_request',
+        error_description: errorDesc,
+        details: errorData.details,
+      };
+
+      if (typeof window !== 'undefined') {
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(errorPayload, '*');
+        }
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(errorPayload, '*');
+        }
+      }
+
+      const err: any = new Error(errorDesc);
+      err.data = errorData;
+      throw err;
     }
-  } catch (err) {
-    console.warn('[180 Identity] Consent dispatch note:', err);
+  } catch (err: any) {
+    console.warn('[180 Identity] Consent dispatch error:', err);
+    throw err;
   }
 
   // Cross-window popup and embedded iframe bottom sheet communication
