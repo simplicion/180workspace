@@ -57,7 +57,7 @@ class DeviceRegistration {
 
     final deviceId = await tokens.deviceId;
     final r = await _api.post('/api/desktop/devices/register', body: compact({
-      'label': '180 Manager ($platform)',
+      'label': '180 Social Studio ($platform)',
       'platform': platform,
       'deviceId': deviceId,
       'installKey': await installKey(),

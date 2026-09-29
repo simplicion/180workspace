@@ -191,7 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   SizedBox(height: 20),
                   Text(
-                    '180 Manager',
+                    '180 Social Studio',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontSize: 26,
@@ -202,7 +202,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     _step == _Step.mfa
                         ? 'Enter the 6-digit code from your authenticator app.'
-                        : 'Your Autonomous AI Social Media Manager.\nSign in to manage & automate your channels.',
+                        : 'Your Autonomous AI 180 Social Studio.\nSign in to manage & automate your channels.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
                   ),
