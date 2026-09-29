@@ -26,6 +26,17 @@ import {
   TrendingUp,
   Clock,
   ArrowUpRight,
+  Smartphone,
+  Monitor,
+  Layout,
+  Sliders,
+  Search,
+  Filter,
+  Play,
+  Trash2,
+  UserX,
+  Receipt,
+  Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -37,6 +48,7 @@ import {
   HelpIcon,
   AILogoIcon,
 } from '@workspace/ui';
+import { OneEightyIdentity, OneEightyPay } from '@workspace/identity-sdk';
 
 interface DeveloperAppDetail {
   id: string;
@@ -53,6 +65,12 @@ interface DeveloperAppDetail {
   enablePay: boolean;
   webhookUrl: string;
   webhookSecret: string;
+  authUxModes?: string[];
+  payUxModes?: string[];
+  authDesktopDefault?: string;
+  authMobileDefault?: string;
+  payDesktopDefault?: string;
+  payMobileDefault?: string;
   createdAt: string;
 }
 
@@ -78,6 +96,14 @@ export default function AppDetailPage() {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [webhookSecret, setWebhookSecret] = useState('');
   const [isRotatingWebhook, setIsRotatingWebhook] = useState(false);
+
+  // UX Display Modes & Device Defaults State
+  const [authUxModes, setAuthUxModes] = useState<string[]>(['popup']);
+  const [payUxModes, setPayUxModes] = useState<string[]>(['bottom_sheet']);
+  const [authDesktopDefault, setAuthDesktopDefault] = useState<string>('popup');
+  const [authMobileDefault, setAuthMobileDefault] = useState<string>('bottom_sheet');
+  const [payDesktopDefault, setPayDesktopDefault] = useState<string>('bottom_sheet');
+  const [payMobileDefault, setPayMobileDefault] = useState<string>('bottom_sheet');
 
   // Test Webhook Dispatcher State
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
@@ -145,6 +171,25 @@ export default function AppDetailPage() {
   } | null>(null);
   const [showBankModal, setShowBankModal] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
+
+  // Connected Users Search & Filtering
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userStatusFilter, setUserStatusFilter] = useState<'ALL' | 'ACTIVE_SESSION' | 'SESSION_EXPIRED'>('ALL');
+  const [revokingUserId, setRevokingUserId] = useState<string | null>(null);
+
+  // Payment Transactions Search & Filtering
+  const [txSearchQuery, setTxSearchQuery] = useState('');
+  const [txStatusFilter, setTxStatusFilter] = useState<'ALL' | 'CAPTURED' | 'PENDING' | 'FAILED'>('ALL');
+  const [selectedTx, setSelectedTx] = useState<any | null>(null);
+
+  // Admin Payout Review
+  const [showAdminPayoutModal, setShowAdminPayoutModal] = useState(false);
+  const [adminPayouts, setAdminPayouts] = useState<any[]>([]);
+  const [adminAnalytics, setAdminAnalytics] = useState<any | null>(null);
+  const [loadingAdminPayouts, setLoadingAdminPayouts] = useState(false);
+  const [updatingPayoutId, setUpdatingPayoutId] = useState<string | null>(null);
+  const [payoutAdminNote, setPayoutAdminNote] = useState('');
+  const [payoutTxRef, setPayoutTxRef] = useState('');
 
   const getApiBase = () => {
     if (typeof window === 'undefined') return process.env.NEXT_PUBLIC_CORE_BACKEND_URL || 'http://localhost:4003';
@@ -275,6 +320,116 @@ export default function AppDetailPage() {
     setShowPayoutModal(true);
   };
 
+  const handleRevokeUserSession = async (targetUserId: string, userName: string) => {
+    if (!confirm(`Revoke active token session for ${userName}? The user will be required to re-authenticate with 180 Identity.`)) {
+      return;
+    }
+    setRevokingUserId(targetUserId);
+    try {
+      const token = localStorage.getItem('platform_auth_token');
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/api/v1/developer/apps/${appId}/users/${targetUserId}/revoke`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to revoke user session');
+      toast.success(`Session for ${userName} has been terminated`);
+      fetchAuthLogs();
+    } catch (err: any) {
+      toast.error(err.message || 'Error revoking session');
+    } finally {
+      setRevokingUserId(null);
+    }
+  };
+
+  const fetchAdminPayoutsAndAnalytics = async () => {
+    setLoadingAdminPayouts(true);
+    try {
+      const token = localStorage.getItem('platform_auth_token');
+      const apiBase = getApiBase();
+      const [payoutsRes, analyticsRes] = await Promise.all([
+        fetch(`${apiBase}/api/v1/developer/admin/payouts`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${apiBase}/api/v1/developer/admin/analytics`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (payoutsRes.ok) {
+        const data = await payoutsRes.json();
+        if (data.success) setAdminPayouts(data.data || []);
+      }
+      if (analyticsRes.ok) {
+        const data = await analyticsRes.json();
+        if (data.success) setAdminAnalytics(data.data || null);
+      }
+    } catch (_) {}
+    finally { setLoadingAdminPayouts(false); }
+  };
+
+  const handleOpenAdminPayoutModal = () => {
+    setShowAdminPayoutModal(true);
+    fetchAdminPayoutsAndAnalytics();
+  };
+
+  const handleUpdateAdminPayoutStatus = async (payoutId: string, status: string) => {
+    setUpdatingPayoutId(payoutId);
+    try {
+      const token = localStorage.getItem('platform_auth_token');
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/api/v1/developer/admin/payouts/${payoutId}/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status,
+          adminNote: payoutAdminNote || undefined,
+          transactionRef: payoutTxRef || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to update payout status');
+      toast.success(`Payout marked as ${status}!`);
+      fetchAdminPayoutsAndAnalytics();
+      setPayoutAdminNote('');
+      setPayoutTxRef('');
+    } catch (err: any) {
+      toast.error(err.message || 'Error updating payout status');
+    } finally {
+      setUpdatingPayoutId(null);
+    }
+  };
+
+  const handleTestAuthModal = () => {
+    if (!app) return;
+    OneEightyIdentity.openPopup({
+      clientId: app.clientId,
+      uxMode: 'popup',
+      onSuccess: (res) => toast.success(`Auth modal test passed! Code: ${res.code.slice(0, 10)}...`),
+      onCancel: () => toast('Auth modal closed', { icon: 'ℹ️' }),
+    });
+  };
+
+  const handleTestAuthBottomSheet = () => {
+    if (!app) return;
+    OneEightyIdentity.openBottomSheet({
+      clientId: app.clientId,
+      uxMode: 'bottom_sheet',
+      onSuccess: (res) => toast.success(`Auth bottom sheet test passed! User: ${res.user?.name || res.code.slice(0, 8)}`),
+      onCancel: () => toast('Auth bottom sheet closed', { icon: 'ℹ️' }),
+    });
+  };
+
+  const handleTestPayBottomSheet = () => {
+    OneEightyPay.openBottomSheet({
+      amount: 499,
+      currency: 'INR',
+      title: `${app?.name || 'Developer App'} Premium Checkout`,
+      description: 'Sandbox verification session',
+      onSuccess: (res) => toast.success(`Payment test passed! TxID: ${res.transactionId || res.sessionId}`),
+      onCancel: () => toast('Pay checkout closed', { icon: 'ℹ️' }),
+    });
+  };
+
   useEffect(() => {
     fetchAppDetails();
     fetchPayouts();
@@ -387,6 +542,12 @@ export default function AppDetailPage() {
       setEnablePay(appData.enablePay ?? true);
       setWebhookUrl(appData.webhookUrl || '');
       setWebhookSecret(appData.webhookSecret || '');
+      setAuthUxModes(appData.authUxModes || ['popup']);
+      setPayUxModes(appData.payUxModes || ['bottom_sheet']);
+      setAuthDesktopDefault(appData.authDesktopDefault || 'popup');
+      setAuthMobileDefault(appData.authMobileDefault || 'bottom_sheet');
+      setPayDesktopDefault(appData.payDesktopDefault || 'bottom_sheet');
+      setPayMobileDefault(appData.payMobileDefault || 'bottom_sheet');
     } catch (err: any) {
       toast.error(err.message || 'Error loading application');
     } finally {
@@ -448,6 +609,12 @@ export default function AppDetailPage() {
           enableAuth,
           enablePay,
           webhookUrl: webhookUrl.trim(),
+          authUxModes,
+          payUxModes,
+          authDesktopDefault,
+          authMobileDefault,
+          payDesktopDefault,
+          payMobileDefault,
         }),
       });
 
@@ -467,6 +634,12 @@ export default function AppDetailPage() {
             enableAuth,
             enablePay,
             webhookUrl: webhookUrl.trim(),
+            authUxModes,
+            payUxModes,
+            authDesktopDefault,
+            authMobileDefault,
+            payDesktopDefault,
+            payMobileDefault,
           }),
         });
       }
@@ -878,16 +1051,16 @@ export default function AppDetailPage() {
         </div>
       </div>
 
-      {/* Real-Time Authentication Logs & Active Users Card */}
+      {/* Connected Users & Sovereign Identities Console */}
       <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
           <div>
             <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
               <Users className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span>Real-Time Authentication Logs & Live Users</span>
+              <span>Connected Users & Sovereign Identities</span>
             </h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Live audit stream of users who have authorized and logged into this application via 180 Identity.
+              Real-time directory of users who have authorized and connected to this application via 180 Identity.
             </p>
           </div>
 
@@ -901,7 +1074,7 @@ export default function AppDetailPage() {
               onClick={fetchAuthLogs}
               disabled={loadingAuthLogs}
               className="p-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
-              title="Refresh auth logs"
+              title="Refresh connected users"
             >
               <RotateCw className={`w-3.5 h-3.5 ${loadingAuthLogs ? 'animate-spin' : ''}`} />
             </button>
@@ -911,7 +1084,7 @@ export default function AppDetailPage() {
         {/* Telemetry Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
-            <span className="text-[11px] font-medium text-zinc-500">Total Authenticated Users</span>
+            <span className="text-[11px] font-medium text-zinc-500">Total Connected Users</span>
             <p className="text-xl font-extrabold text-zinc-950 dark:text-white font-mono">{authLogs?.totalUsers || 0}</p>
           </div>
           <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
@@ -919,70 +1092,222 @@ export default function AppDetailPage() {
             <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">{authLogs?.activeSessionsCount || 0}</p>
           </div>
           <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1 col-span-2 sm:col-span-1">
-            <span className="text-[11px] font-medium text-zinc-500">Protocol Security</span>
+            <span className="text-[11px] font-medium text-zinc-500">App-Scoped Username Isolation</span>
             <p className="text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1 pt-1">
               <Shield className="w-3.5 h-3.5" />
-              <span>OIDC 2.0 PKCE Verified</span>
+              <span>Isolated Per-App Registry</span>
             </p>
           </div>
         </div>
 
-        {/* Auth Stream Table */}
+        {/* Search & Filter Controls */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Search by name, email, username or user ID..."
+              value={userSearchQuery}
+              onChange={(e) => setUserSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500 transition-colors"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 self-end sm:self-auto">
+            {(['ALL', 'ACTIVE_SESSION', 'SESSION_EXPIRED'] as const).map((filter) => {
+              const isActive = userStatusFilter === filter;
+              const label = filter === 'ALL' ? 'All' : filter === 'ACTIVE_SESSION' ? 'Active' : 'Expired';
+              return (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setUserStatusFilter(filter)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                      : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:border-zinc-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Connected Users Table */}
         <div className="space-y-3">
-          <h3 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-            Live User Activity Stream
-          </h3>
           {loadingAuthLogs ? (
-            <div className="py-8 text-center text-xs text-zinc-400">Loading telemetry stream...</div>
+            <div className="py-8 text-center text-xs text-zinc-400">Loading connected users...</div>
           ) : authLogs && authLogs.logs.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
-                <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase">
-                  <tr>
-                    <th className="pb-2">User Profile</th>
-                    <th className="pb-2">Auth Channel</th>
-                    <th className="pb-2">Session Status</th>
-                    <th className="pb-2 text-right">Authorized At</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
-                  {authLogs.logs.map((log) => (
-                    <tr key={log.id}>
-                      <td className="py-2.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center font-bold text-purple-600 text-xs overflow-hidden">
-                            {log.user.avatar ? (
-                              <img src={log.user.avatar} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              log.user.name?.charAt(0) || 'U'
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-zinc-950 dark:text-white leading-tight">{log.user.name}</div>
-                            <div className="text-[10px] text-zinc-400 font-mono">{log.user.email || log.user.username || '180 Identity'}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-2.5 font-medium">{log.authMethod}</td>
-                      <td className="py-2.5">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            log.status === 'ACTIVE_SESSION'
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
-                          }`}
-                        >
-                          {log.status === 'ACTIVE_SESSION' ? 'Active Token' : 'Expired'}
-                        </span>
-                      </td>
-                      <td className="py-2.5 text-right font-mono text-[11px] text-zinc-500">
-                        {new Date(log.grantedAt).toLocaleDateString()} {new Date(log.grantedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            (() => {
+              const query = userSearchQuery.trim().toLowerCase();
+              const filteredLogs = authLogs.logs.filter((log) => {
+                if (userStatusFilter !== 'ALL' && log.status !== userStatusFilter) return false;
+                if (!query) return true;
+                const name = (log.user?.name || '').toLowerCase();
+                const email = (log.user?.email || '').toLowerCase();
+                const username = (log.user?.username || '').toLowerCase();
+                const appUsername = (log.user?.appScopedUsername || '').toLowerCase();
+                const userId = (log.userId || '').toLowerCase();
+                return (
+                  name.includes(query) ||
+                  email.includes(query) ||
+                  username.includes(query) ||
+                  appUsername.includes(query) ||
+                  userId.includes(query)
+                );
+              });
+
+              if (filteredLogs.length === 0) {
+                return (
+                  <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-center text-xs text-zinc-400">
+                    No users match your search and filter criteria.
+                  </div>
+                );
+              }
+
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
+                    <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase">
+                      <tr>
+                        <th className="pb-2.5">User Profile</th>
+                        <th className="pb-2.5">App-Scoped Username</th>
+                        <th className="pb-2.5">Email</th>
+                        <th className="pb-2.5">User ID</th>
+                        <th className="pb-2.5">Session Status</th>
+                        <th className="pb-2.5">Connected Since</th>
+                        <th className="pb-2.5">Last Login</th>
+                        <th className="pb-2.5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
+                      {filteredLogs.map((log) => {
+                        const appUsername = log.user.appScopedUsername || log.user.username;
+                        const isRevokingThis = revokingUserId === log.userId;
+
+                        return (
+                          <tr key={log.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors">
+                            <td className="py-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center font-bold text-purple-600 text-xs overflow-hidden flex-shrink-0">
+                                  {log.user.avatar ? (
+                                    <img src={log.user.avatar} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    log.user.name?.charAt(0) || 'U'
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-zinc-950 dark:text-white flex items-center gap-1 truncate">
+                                    <span>{log.user.name}</span>
+                                    {log.user.isVerified && (
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-zinc-400 font-mono truncate">{log.authMethod}</div>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-3">
+                              {appUsername ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-mono font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                  @{appUsername}
+                                </span>
+                              ) : (
+                                <span className="text-zinc-400 italic text-[11px]">—</span>
+                              )}
+                            </td>
+
+                            <td className="py-3 font-mono text-[11px]">
+                              {log.user.email ? (
+                                <div className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300">
+                                  <span>{log.user.email}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => copyToClipboard(log.user.email, `email_${log.id}`)}
+                                    className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
+                                  >
+                                    {copiedKey === `email_${log.id}` ? (
+                                      <Check className="w-3 h-3 text-emerald-500" />
+                                    ) : (
+                                      <Copy className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-zinc-400 italic">Not shared</span>
+                              )}
+                            </td>
+
+                            <td className="py-3 font-mono text-[11px] text-zinc-500">
+                              <div className="flex items-center gap-1.5">
+                                <span>{log.userId.slice(0, 10)}...</span>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(log.userId, `uid_${log.id}`)}
+                                  className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
+                                  title="Copy User ID"
+                                >
+                                  {copiedKey === `uid_${log.id}` ? (
+                                    <Check className="w-3 h-3 text-emerald-500" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+
+                            <td className="py-3">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  log.status === 'ACTIVE_SESSION'
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
+                                }`}
+                              >
+                                {log.status === 'ACTIVE_SESSION' ? 'Active Token' : 'Expired'}
+                              </span>
+                            </td>
+
+                            <td className="py-3 font-mono text-[11px] text-zinc-500">
+                              {new Date(log.connectedSince || log.grantedAt).toLocaleDateString()}
+                            </td>
+
+                            <td className="py-3 font-mono text-[11px] text-zinc-500">
+                              {new Date(log.lastLogin || log.updatedAt).toLocaleDateString()}{' '}
+                              {new Date(log.lastLogin || log.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+
+                            <td className="py-3 text-right">
+                              {log.status === 'ACTIVE_SESSION' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRevokeUserSession(log.userId, log.user.name)}
+                                  disabled={isRevokingThis}
+                                  className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                                  title="Revoke active user session"
+                                >
+                                  {isRevokingThis ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <UserX className="w-3 h-3" />
+                                  )}
+                                  <span>Revoke</span>
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-zinc-400 italic">None</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()
           ) : (
             <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-center space-y-2">
               <p className="text-xs text-zinc-500">No users have signed into this app yet.</p>
@@ -1178,11 +1503,11 @@ export default function AppDetailPage() {
           </div>
 
           <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
-            <span className="text-[11px] font-medium text-zinc-500">Last Month's Volume</span>
+            <span className="text-[11px] font-medium text-zinc-500">Completed Payments</span>
             <p className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">
-              ₹{(paymentAnalytics?.lastMonthVolume || 0).toFixed(2)}
+              {paymentAnalytics?.totalTransactionsCount || 0}
             </p>
-            <span className="text-[10px] text-zinc-400">Previous calendar month</span>
+            <span className="text-[10px] text-indigo-500 font-semibold">Captured checkouts</span>
           </div>
 
           <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
@@ -1190,7 +1515,7 @@ export default function AppDetailPage() {
             <p className="text-xl font-extrabold text-amber-600 dark:text-amber-400 font-mono">
               ₹{(paymentAnalytics?.pendingSettlements || 0).toFixed(2)}
             </p>
-            <span className="text-[10px] text-amber-500">Pending capture/settle</span>
+            <span className="text-[10px] text-amber-500">Pending settlement</span>
           </div>
 
           <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/20 space-y-1">
@@ -1202,64 +1527,148 @@ export default function AppDetailPage() {
           </div>
         </div>
 
+        {/* Search & Status Filter Controls */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Search transactions by title, customer, or ID..."
+              value={txSearchQuery}
+              onChange={(e) => setTxSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 self-end sm:self-auto">
+            {(['ALL', 'CAPTURED', 'PENDING', 'FAILED'] as const).map((filter) => {
+              const isActive = txStatusFilter === filter;
+              return (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setTxStatusFilter(filter)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                      : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:border-zinc-300'
+                  }`}
+                >
+                  {filter}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Recent Transactions Ledger */}
-        <div className="space-y-3 pt-2">
-          <h3 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-            Incoming Payments Ledger
-          </h3>
+        <div className="space-y-3">
           {paymentAnalytics && paymentAnalytics.transactions.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
-                <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase">
-                  <tr>
-                    <th className="pb-2">Session ID / Title</th>
-                    <th className="pb-2">Customer</th>
-                    <th className="pb-2">Amount</th>
-                    <th className="pb-2">Status</th>
-                    <th className="pb-2 text-right">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
-                  {paymentAnalytics.transactions.map((tx) => (
-                    <tr key={tx.id}>
-                      <td className="py-2.5">
-                        <div className="font-semibold text-zinc-950 dark:text-white">{tx.title || 'Checkout'}</div>
-                        <div className="text-[10px] text-zinc-400 font-mono">{tx.id.slice(0, 16)}...</div>
-                      </td>
-                      <td className="py-2.5">
-                        {tx.customer ? (
-                          <div>
-                            <div className="font-medium text-zinc-900 dark:text-zinc-200">{tx.customer.name}</div>
-                            <div className="text-[10px] text-zinc-400">{tx.customer.email || '180 User'}</div>
-                          </div>
-                        ) : (
-                          <span className="text-zinc-400 italic">Guest</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 font-bold text-zinc-950 dark:text-white font-mono">
-                        ₹{tx.amount.toFixed(2)}
-                      </td>
-                      <td className="py-2.5">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            tx.status === 'CAPTURED'
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                              : tx.status === 'PENDING'
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
-                          }`}
-                        >
-                          {tx.status}
-                        </span>
-                      </td>
-                      <td className="py-2.5 text-right font-mono text-[11px] text-zinc-500">
-                        {new Date(tx.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            (() => {
+              const query = txSearchQuery.trim().toLowerCase();
+              const filteredTxs = paymentAnalytics.transactions.filter((tx) => {
+                if (txStatusFilter !== 'ALL' && tx.status !== txStatusFilter) return false;
+                if (!query) return true;
+                const id = (tx.id || '').toLowerCase();
+                const title = (tx.title || '').toLowerCase();
+                const customerName = (tx.customer?.name || '').toLowerCase();
+                const customerEmail = (tx.customer?.email || '').toLowerCase();
+                return (
+                  id.includes(query) ||
+                  title.includes(query) ||
+                  customerName.includes(query) ||
+                  customerEmail.includes(query)
+                );
+              });
+
+              if (filteredTxs.length === 0) {
+                return (
+                  <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-center text-xs text-zinc-400">
+                    No transactions match your search and filter criteria.
+                  </div>
+                );
+              }
+
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
+                    <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase">
+                      <tr>
+                        <th className="pb-2.5">Session ID / Title</th>
+                        <th className="pb-2.5">Customer</th>
+                        <th className="pb-2.5">Amount</th>
+                        <th className="pb-2.5">Status</th>
+                        <th className="pb-2.5">Date</th>
+                        <th className="pb-2.5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
+                      {filteredTxs.map((tx) => (
+                        <tr key={tx.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors">
+                          <td className="py-3">
+                            <div className="font-semibold text-zinc-950 dark:text-white">{tx.title || '180 Checkout'}</div>
+                            <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-mono mt-0.5">
+                              <span>{tx.id.slice(0, 16)}...</span>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(tx.id, `tx_${tx.id}`)}
+                                className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
+                                title="Copy Transaction ID"
+                              >
+                                {copiedKey === `tx_${tx.id}` ? (
+                                  <Check className="w-3 h-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="w-3 h-3" />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="py-3">
+                            {tx.customer ? (
+                              <div>
+                                <div className="font-medium text-zinc-900 dark:text-zinc-200">{tx.customer.name}</div>
+                                <div className="text-[10px] text-zinc-400 font-mono">{tx.customer.email || '180 Profile'}</div>
+                              </div>
+                            ) : (
+                              <span className="text-zinc-400 italic">Guest Checkout</span>
+                            )}
+                          </td>
+                          <td className="py-3 font-bold text-zinc-950 dark:text-white font-mono">
+                            ₹{tx.amount.toFixed(2)}
+                          </td>
+                          <td className="py-3">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                tx.status === 'CAPTURED'
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                  : tx.status === 'PENDING'
+                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                              }`}
+                            >
+                              {tx.status}
+                            </span>
+                          </td>
+                          <td className="py-3 font-mono text-[11px] text-zinc-500">
+                            {new Date(tx.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedTx(tx)}
+                              className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-semibold inline-flex items-center gap-1 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                            >
+                              <Receipt className="w-3 h-3" />
+                              <span>Receipt</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()
           ) : (
             <p className="text-xs text-zinc-400 italic py-2">No incoming payments recorded yet for this app.</p>
           )}
@@ -1276,13 +1685,23 @@ export default function AppDetailPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenPayoutModal}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <span>Request Payout</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleOpenAdminPayoutModal}
+              className="px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Shield className="w-3.5 h-3.5 text-purple-500" />
+              <span>Admin Settlement Review</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenPayoutModal}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>Request Payout</span>
+            </button>
+          </div>
         </div>
 
         {/* Linked Settlement Bank Details */}
@@ -1429,6 +1848,245 @@ export default function AppDetailPage() {
             onChange={(e) => setAllowedOriginsInput(e.target.value)}
             className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
           />
+        </div>
+
+        {/* UX Display Modes & Device Defaults Card */}
+        <div className="pt-5 border-t border-zinc-200 dark:border-white/10 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-indigo-500" />
+                <span>UX Display Modes & Device Defaults</span>
+              </h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Define the presentation styles supported by your application and customize device defaults for desktop vs mobile.
+              </p>
+            </div>
+            <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 font-semibold">
+              Responsive Experience
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 180 Identity Auth UX */}
+            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-zinc-200 dark:border-white/5">
+                <Shield className="w-3.5 h-3.5 text-blue-500" />
+                <span className="text-xs font-bold text-zinc-900 dark:text-white">180 Identity Auth UX</span>
+              </div>
+
+              {/* Supported Modes (Multi-select) */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 block">
+                  Supported Display Modes
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'popup', label: 'Popup Window' },
+                    { id: 'modal', label: 'Centered Modal' },
+                    { id: 'bottom_sheet', label: 'Bottom Sheet' },
+                    { id: 'full_page', label: 'Full Page Redirect' },
+                  ].map((mode) => {
+                    const isSelected = authUxModes.includes(mode.id);
+                    return (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            if (authUxModes.length > 1) {
+                              setAuthUxModes(authUxModes.filter((m) => m !== mode.id));
+                            } else {
+                              toast.error('At least one display mode must remain enabled');
+                            }
+                          } else {
+                            setAuthUxModes([...authUxModes, mode.id]);
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:border-zinc-300'
+                        }`}
+                      >
+                        {mode.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Device Defaults */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-zinc-500 flex items-center gap-1">
+                    <Monitor className="w-3 h-3 text-zinc-400" />
+                    <span>Desktop Default</span>
+                  </label>
+                  <select
+                    value={authDesktopDefault}
+                    onChange={(e) => setAuthDesktopDefault(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="popup">Popup Window (Recommended)</option>
+                    <option value="modal">Centered Modal</option>
+                    <option value="bottom_sheet">Bottom Sheet</option>
+                    <option value="full_page">Full Page Redirect</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-zinc-500 flex items-center gap-1">
+                    <Smartphone className="w-3 h-3 text-zinc-400" />
+                    <span>Mobile Default</span>
+                  </label>
+                  <select
+                    value={authMobileDefault}
+                    onChange={(e) => setAuthMobileDefault(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="bottom_sheet">Bottom Sheet (Recommended)</option>
+                    <option value="modal">Centered Modal</option>
+                    <option value="popup">Popup Window</option>
+                    <option value="full_page">Full Page Redirect</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 180 Pay Checkout UX */}
+            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-zinc-200 dark:border-white/5">
+                <CreditCard className="w-3.5 h-3.5 text-purple-500" />
+                <span className="text-xs font-bold text-zinc-900 dark:text-white">180 Pay Checkout UX</span>
+              </div>
+
+              {/* Supported Modes (Multi-select) */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 block">
+                  Supported Display Modes
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'bottom_sheet', label: 'Bottom Sheet' },
+                    { id: 'modal', label: 'Centered Modal' },
+                    { id: 'popup', label: 'Popup Window' },
+                    { id: 'full_page', label: 'Full Page Redirect' },
+                  ].map((mode) => {
+                    const isSelected = payUxModes.includes(mode.id);
+                    return (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            if (payUxModes.length > 1) {
+                              setPayUxModes(payUxModes.filter((m) => m !== mode.id));
+                            } else {
+                              toast.error('At least one display mode must remain enabled');
+                            }
+                          } else {
+                            setPayUxModes([...payUxModes, mode.id]);
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                            : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:border-zinc-300'
+                        }`}
+                      >
+                        {mode.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Device Defaults */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-zinc-500 flex items-center gap-1">
+                    <Monitor className="w-3 h-3 text-zinc-400" />
+                    <span>Desktop Default</span>
+                  </label>
+                  <select
+                    value={payDesktopDefault}
+                    onChange={(e) => setPayDesktopDefault(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="bottom_sheet">Bottom Sheet (Recommended)</option>
+                    <option value="modal">Centered Modal</option>
+                    <option value="popup">Popup Window</option>
+                    <option value="full_page">Full Page Redirect</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-zinc-500 flex items-center gap-1">
+                    <Smartphone className="w-3 h-3 text-zinc-400" />
+                    <span>Mobile Default</span>
+                  </label>
+                  <select
+                    value={payMobileDefault}
+                    onChange={(e) => setPayMobileDefault(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="bottom_sheet">Bottom Sheet (Recommended)</option>
+                    <option value="modal">Centered Modal</option>
+                    <option value="popup">Popup Window</option>
+                    <option value="full_page">Full Page Redirect</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Live Sandbox Previews */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5 border border-indigo-500/20 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h4 className="text-xs font-bold text-zinc-950 dark:text-white flex items-center gap-1.5">
+                  <Play className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Interactive Live Sandbox Preview</span>
+                </h4>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Test your configured auth and payment UX flows instantly in real time using the sovereign 180 SDK.
+                </p>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-semibold self-start sm:self-auto">
+                SDK v2.0.0
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={handleTestAuthModal}
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                <span>Test Popup Modal</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestAuthBottomSheet}
+                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Test Bottom Sheet</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestPayBottomSheet}
+                className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Test 180 Pay Drawer</span>
+              </button>
+            </div>
+          </div>
         </div>
       </form>
 
@@ -1807,6 +2465,221 @@ export default function AppDetailPage() {
             </button>
           </div>
         </form>
+      </PlatformModal>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          CENTRALIZED MODAL: TRANSACTION RECEIPT & AUDIT
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <PlatformModal
+        isOpen={Boolean(selectedTx)}
+        onClose={() => setSelectedTx(null)}
+        title="Transaction Receipt & Audit"
+        icon={Receipt}
+        iconBgClass="bg-emerald-500/10"
+        iconColorClass="text-emerald-600 dark:text-emerald-400"
+        maxWidthClass="max-w-lg"
+      >
+        {selectedTx && (
+          <div className="space-y-4 text-zinc-900 dark:text-white">
+            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-white/5">
+                <div>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block">Session Title</span>
+                  <div className="font-bold text-sm text-zinc-950 dark:text-white">{selectedTx.title || '180 Pay Checkout'}</div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block">Amount</span>
+                  <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                    ₹{selectedTx.amount?.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-[10px] text-zinc-400 block">Status</span>
+                  <span
+                    className={`inline-block px-2 py-0.5 mt-0.5 rounded text-[10px] font-bold ${
+                      selectedTx.status === 'CAPTURED'
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                        : selectedTx.status === 'PENDING'
+                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                    }`}
+                  >
+                    {selectedTx.status}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-400 block">Timestamp</span>
+                  <span className="font-mono text-zinc-700 dark:text-zinc-300">
+                    {new Date(selectedTx.createdAt).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1 pt-1 text-xs">
+                <span className="text-[10px] text-zinc-400 block">Transaction Session ID</span>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/5 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
+                  <span className="truncate flex-1">{selectedTx.id}</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(selectedTx.id, 'receipt_id')}
+                    className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
+                  >
+                    {copiedKey === 'receipt_id' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {selectedTx.customer && (
+                <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/5 space-y-1 text-xs">
+                  <span className="text-[10px] text-zinc-400 font-semibold block">Customer Details</span>
+                  <div className="font-medium text-zinc-900 dark:text-white">{selectedTx.customer.name}</div>
+                  <div className="text-[11px] font-mono text-zinc-500">{selectedTx.customer.email}</div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setSelectedTx(null)}
+                className="px-4 py-2 min-h-[44px] text-xs text-zinc-600 dark:text-zinc-300"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </PlatformModal>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          CENTRALIZED MODAL: ADMIN SETTLEMENT REVIEW CONSOLE
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <PlatformModal
+        isOpen={showAdminPayoutModal}
+        onClose={() => setShowAdminPayoutModal(false)}
+        title="Admin Settlement & Payout Management"
+        icon={Shield}
+        iconBgClass="bg-purple-500/10"
+        iconColorClass="text-purple-600 dark:text-purple-400"
+        maxWidthClass="max-w-2xl"
+      >
+        <div className="space-y-4 text-zinc-900 dark:text-white">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Review incoming developer payout requests, verify bank/UPI details, and update settlement status.
+          </p>
+
+          {/* Admin Note & Tx Ref Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10">
+            <div>
+              <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 mb-1">
+                Settlement Reference / UTR
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. UTR1234567890"
+                value={payoutTxRef}
+                onChange={(e) => setPayoutTxRef(e.target.value)}
+                className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:border-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 mb-1">
+                Admin Audit Note
+              </label>
+              <input
+                type="text"
+                placeholder="Optional audit notes"
+                value={payoutAdminNote}
+                onChange={(e) => setPayoutAdminNote(e.target.value)}
+                className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
+              />
+            </div>
+          </div>
+
+          {loadingAdminPayouts ? (
+            <div className="py-8 text-center text-xs text-zinc-400">Loading settlement requests...</div>
+          ) : adminPayouts.length > 0 ? (
+            <div className="overflow-x-auto max-h-72 overflow-y-auto">
+              <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
+                <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase sticky top-0 bg-white dark:bg-zinc-950">
+                  <tr>
+                    <th className="pb-2">Developer / App</th>
+                    <th className="pb-2">Amount</th>
+                    <th className="pb-2">Method</th>
+                    <th className="pb-2">Status</th>
+                    <th className="pb-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
+                  {adminPayouts.map((p) => (
+                    <tr key={p.id}>
+                      <td className="py-2.5">
+                        <div className="font-semibold text-zinc-950 dark:text-white">{p.app?.name || 'App'}</div>
+                        <div className="text-[10px] text-zinc-400">{p.developer?.email || 'Developer'}</div>
+                      </td>
+                      <td className="py-2.5 font-bold font-mono text-zinc-950 dark:text-white">
+                        ₹{p.amount.toFixed(2)}
+                      </td>
+                      <td className="py-2.5 font-mono text-[11px]">
+                        {p.payoutMethod === 'UPI' ? `UPI: ${p.upiId}` : `A/C: ${p.bankAccNumber}`}
+                      </td>
+                      <td className="py-2.5">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            p.status === 'PAID'
+                              ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                              : p.status === 'REJECTED'
+                              ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
+                              : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                          }`}
+                        >
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right space-x-1">
+                        {p.status === 'PENDING' && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={updatingPayoutId === p.id}
+                              onClick={() => handleUpdateAdminPayoutStatus(p.id, 'PAID')}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors cursor-pointer"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              disabled={updatingPayoutId === p.id}
+                              onClick={() => handleUpdateAdminPayoutStatus(p.id, 'REJECTED')}
+                              className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] transition-colors cursor-pointer"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-xs text-zinc-400 italic py-4 text-center">No pending settlement requests found.</p>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setShowAdminPayoutModal(false)}
+              className="px-4 py-2 min-h-[44px] text-xs text-zinc-600 dark:text-zinc-300"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
       </PlatformModal>
     </div>
   );

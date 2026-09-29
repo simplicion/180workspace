@@ -8,7 +8,7 @@ import {
   generateRandomToken,
   hashSecret,
   DeveloperController,
-} from '@workspace/identity';
+} from '@workspace/identity-provider';
 
 async function runDeveloperPortalTestSuite() {
   console.log('\n================================================================');
@@ -58,8 +58,8 @@ async function runDeveloperPortalTestSuite() {
   });
 
   // ─── Test 2: Dedicated Database Package (@workspace/db-180core) ──────
-  await test('packages/db-180developers schema and client exist and are valid', () => {
-    const dbDir = path.resolve(__dirname, '../../../../packages/db-180developers');
+  await test('packages/db-180core schema and client exist and are valid', () => {
+    const dbDir = path.resolve(__dirname, '../../../../packages/db-180core');
     const pkgPath = path.join(dbDir, 'package.json');
     const schemaPath = path.join(dbDir, 'prisma/schema.prisma');
     const clientPath = path.join(dbDir, 'dist/index.js');
@@ -189,6 +189,20 @@ async function runDeveloperPortalTestSuite() {
     assert.strictEqual(typeof DeveloperController.updateApp, 'function');
     assert.strictEqual(typeof DeveloperController.rotateSecret, 'function');
     assert.strictEqual(typeof DeveloperController.deleteApp, 'function');
+  });
+
+  // ─── Test 9: UX Display Modes & Device Defaults ─────────────────────────────
+  await test('AppDetailClient and schema contain UX display modes & device defaults', () => {
+    const detailClientPath = path.resolve(__dirname, '../../../180developers-frontend/app/apps/[id]/AppDetailClient.tsx');
+    const content = fs.readFileSync(detailClientPath, 'utf8');
+
+    assert(content.includes('authUxModes'), 'Must manage authUxModes state');
+    assert(content.includes('payUxModes'), 'Must manage payUxModes state');
+    assert(content.includes('authDesktopDefault'), 'Must manage authDesktopDefault state');
+    assert(content.includes('authMobileDefault'), 'Must manage authMobileDefault state');
+    assert(content.includes('payDesktopDefault'), 'Must manage payDesktopDefault state');
+    assert(content.includes('payMobileDefault'), 'Must manage payMobileDefault state');
+    assert(content.includes('UX Display Modes & Device Defaults'), 'Must render dedicated UX Display Modes section');
   });
 
   console.log('\n----------------------------------------------------------------');

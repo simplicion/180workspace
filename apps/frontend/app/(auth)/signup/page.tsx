@@ -68,7 +68,47 @@ export default function SignupFlow() {
     }, [step]);
 
     const handleIdentitySuccess = async (res: any) => {
-        const token = res?.token || (typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null);
+        let token = res?.token || (typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null);
+        let nextDestination: string | null = null;
+        
+        // If an OAuth authorization code was provided, exchange it for a valid Workspace session token
+        if (res?.code) {
+            try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002';
+                let callbackRes = await fetch(`${apiUrl}/api/v1/auth/180-identity/callback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: res.code,
+                        redirectUri: typeof window !== 'undefined' ? window.location.origin + '/oauth/callback' : undefined,
+                    }),
+                });
+
+                if (!callbackRes.ok) {
+                    callbackRes = await fetch(`${apiUrl}/api/auth/180-identity/callback`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            code: res.code,
+                            redirectUri: typeof window !== 'undefined' ? window.location.origin + '/oauth/callback' : undefined,
+                        }),
+                    });
+                }
+
+                if (callbackRes.ok) {
+                    const data = await callbackRes.json();
+                    if (data?.accessToken) {
+                        token = data.accessToken;
+                    }
+                    if (data?.redirectUrl) {
+                        nextDestination = data.redirectUrl;
+                    }
+                }
+            } catch (exchangeErr) {
+                console.warn('[180 Identity] Code exchange failed, falling back to sovereign token:', exchangeErr);
+            }
+        }
+
         if (token) {
             setLoading(true);
             try {
@@ -79,12 +119,12 @@ export default function SignupFlow() {
                 const result = await signIn('platform-token', { token, redirect: false });
                 if (result?.ok) {
                     toast.success('Signed in successfully!');
-                    window.location.href = '/';
+                    window.location.href = nextDestination || '/';
                 } else {
-                    window.location.href = '/';
+                    window.location.href = nextDestination || '/';
                 }
             } catch (_) {
-                window.location.href = '/';
+                window.location.href = nextDestination || '/';
             } finally {
                 setLoading(false);
             }

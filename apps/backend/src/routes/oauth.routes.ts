@@ -9,7 +9,7 @@ import {
     UsernameService,
     LocationService,
     IdentityAuthController
-} from '@workspace/identity';
+} from '@workspace/identity-provider';
 
 const router = express.Router();
 

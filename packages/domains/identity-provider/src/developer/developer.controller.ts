@@ -44,6 +44,12 @@ export class DeveloperController {
                 webhookUrl: app.webhookUrl || '',
                 webhookSecret: app.webhookSecret || '',
                 allowedScopes: app.allowedScopes,
+                authUxModes: (app as any).authUxModes || ['popup'],
+                payUxModes: (app as any).payUxModes || ['bottom_sheet'],
+                authDesktopDefault: (app as any).authDesktopDefault || 'popup',
+                authMobileDefault: (app as any).authMobileDefault || 'bottom_sheet',
+                payDesktopDefault: (app as any).payDesktopDefault || 'bottom_sheet',
+                payMobileDefault: (app as any).payMobileDefault || 'bottom_sheet',
                 metrics: {
                     activeTokens: app._count.tokens,
                     authorizedUsers: app._count.consents
@@ -107,6 +113,12 @@ export class DeveloperController {
                     webhookUrl: (app as any).webhookUrl || '',
                     webhookSecret: (app as any).webhookSecret || '',
                     allowedScopes: app.allowedScopes,
+                    authUxModes: (app as any).authUxModes || ['popup'],
+                    payUxModes: (app as any).payUxModes || ['bottom_sheet'],
+                    authDesktopDefault: (app as any).authDesktopDefault || 'popup',
+                    authMobileDefault: (app as any).authMobileDefault || 'bottom_sheet',
+                    payDesktopDefault: (app as any).payDesktopDefault || 'bottom_sheet',
+                    payMobileDefault: (app as any).payMobileDefault || 'bottom_sheet',
                     metrics: {
                         activeTokens: app._count.tokens,
                         authorizedUsers: app._count.consents
@@ -141,7 +153,13 @@ export class DeveloperController {
                 allowedScopes,
                 enableAuth = true,
                 enablePay = true,
-                webhookUrl = ''
+                webhookUrl = '',
+                authUxModes = ['popup'],
+                payUxModes = ['bottom_sheet'],
+                authDesktopDefault = 'popup',
+                authMobileDefault = 'bottom_sheet',
+                payDesktopDefault = 'bottom_sheet',
+                payMobileDefault = 'bottom_sheet'
             } = req.body;
 
             if (!name || String(name).trim().length < 2) {
@@ -171,6 +189,12 @@ export class DeveloperController {
                     enablePay: Boolean(enablePay),
                     webhookUrl: String(webhookUrl || '').trim(),
                     webhookSecret,
+                    authUxModes: Array.isArray(authUxModes) ? authUxModes : ['popup'],
+                    payUxModes: Array.isArray(payUxModes) ? payUxModes : ['bottom_sheet'],
+                    authDesktopDefault: String(authDesktopDefault || 'popup'),
+                    authMobileDefault: String(authMobileDefault || 'bottom_sheet'),
+                    payDesktopDefault: String(payDesktopDefault || 'bottom_sheet'),
+                    payMobileDefault: String(payMobileDefault || 'bottom_sheet'),
                     userId
                 } as any
             });
@@ -188,7 +212,13 @@ export class DeveloperController {
                     enablePay: (app as any).enablePay,
                     webhookUrl: (app as any).webhookUrl,
                     redirectUris: app.redirectUris,
-                    allowedScopes: app.allowedScopes
+                    allowedScopes: app.allowedScopes,
+                    authUxModes: (app as any).authUxModes,
+                    payUxModes: (app as any).payUxModes,
+                    authDesktopDefault: (app as any).authDesktopDefault,
+                    authMobileDefault: (app as any).authMobileDefault,
+                    payDesktopDefault: (app as any).payDesktopDefault,
+                    payMobileDefault: (app as any).payMobileDefault
                 }
             });
         } catch (err: any) {
@@ -215,7 +245,13 @@ export class DeveloperController {
                 isActive,
                 enableAuth,
                 enablePay,
-                webhookUrl
+                webhookUrl,
+                authUxModes,
+                payUxModes,
+                authDesktopDefault,
+                authMobileDefault,
+                payDesktopDefault,
+                payMobileDefault
             } = req.body;
 
             const app = await prisma.oAuthApp.findFirst({
@@ -239,7 +275,13 @@ export class DeveloperController {
                     ...(isActive !== undefined && { isActive: Boolean(isActive) }),
                     ...(enableAuth !== undefined && { enableAuth: Boolean(enableAuth) }),
                     ...(enablePay !== undefined && { enablePay: Boolean(enablePay) }),
-                    ...(webhookUrl !== undefined && { webhookUrl: String(webhookUrl).trim() })
+                    ...(webhookUrl !== undefined && { webhookUrl: String(webhookUrl).trim() }),
+                    ...(authUxModes !== undefined && { authUxModes: Array.isArray(authUxModes) ? authUxModes : [] }),
+                    ...(payUxModes !== undefined && { payUxModes: Array.isArray(payUxModes) ? payUxModes : [] }),
+                    ...(authDesktopDefault !== undefined && { authDesktopDefault: String(authDesktopDefault) }),
+                    ...(authMobileDefault !== undefined && { authMobileDefault: String(authMobileDefault) }),
+                    ...(payDesktopDefault !== undefined && { payDesktopDefault: String(payDesktopDefault) }),
+                    ...(payMobileDefault !== undefined && { payMobileDefault: String(payMobileDefault) })
                 } as any
             });
 
@@ -255,7 +297,13 @@ export class DeveloperController {
                     webhookUrl: (updated as any).webhookUrl,
                     redirectUris: updated.redirectUris,
                     allowedScopes: updated.allowedScopes,
-                    isActive: updated.isActive
+                    isActive: updated.isActive,
+                    authUxModes: (updated as any).authUxModes,
+                    payUxModes: (updated as any).payUxModes,
+                    authDesktopDefault: (updated as any).authDesktopDefault,
+                    authMobileDefault: (updated as any).authMobileDefault,
+                    payDesktopDefault: (updated as any).payDesktopDefault,
+                    payMobileDefault: (updated as any).payMobileDefault
                 }
             });
         } catch (err: any) {

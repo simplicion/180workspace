@@ -576,7 +576,7 @@ export default function DeveloperPortalPage() {
                   <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
                     <span className="font-bold text-xs text-white">180</span>
                   </div>
-                  <span>Get Started with 180</span>
+                  <span>Get started with 180 Identity</span>
                   <ArrowRight className="w-4 h-4 text-blue-200" />
                 </>
               )}
@@ -593,7 +593,7 @@ export default function DeveloperPortalPage() {
               className="w-full sm:w-auto rounded-2xl px-8 py-4 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-zinc-800 dark:text-zinc-200 font-semibold text-base shadow-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Play className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>Try Interactive Sandbox</span>
+              <span>Try Interactive Demo</span>
             </Button>
           </div>
         </section>

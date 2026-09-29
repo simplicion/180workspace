@@ -2,7 +2,7 @@
 
 import assert from 'assert';
 import crypto from 'crypto';
-import { prisma } from '@workspace/db';
+import { corePrisma as prisma } from '@workspace/db-180core';
 import {
     RsaKeysService,
     getJwks,

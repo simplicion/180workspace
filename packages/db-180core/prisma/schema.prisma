@@ -22,7 +22,14 @@ model User {
   name             String
   avatarUrl        String?                  @default("")
   headline         String?                  @default("")
+  tagline          String?                  @default("")
+  languages        String[]                 @default([])
   age              Int?
+  dob              DateTime?
+  bio              String?                  @default("")
+  gender           String?                  @default("")
+  address          String?                  @default("")
+  securityPreferences Json?                 @default("{}")
   latitude         Float?
   longitude        Float?
   city             String?                  @default("")
@@ -46,6 +53,7 @@ model User {
   securityKeys     SecurityKey[]            @relation("UserSecurityKeys")
   wallet           Wallet?                  @relation("UserWallet")
   checkoutSessions CheckoutSession[]        @relation("UserCheckoutSessions")
+  appUserIdentities AppUserIdentity[]       @relation("UserAppIdentities")
 
   @@index([username])
   @@index([email])
@@ -71,6 +79,17 @@ model OAuthApp {
   webhookSecret    String?                  @default("")
   allowedScopes    String[]                 @default(["identity:read"])
   bankDetails      Json?
+
+  // ─── UX Display Mode Preferences ───────────────────────────────────────────
+  // Stores which display modes the developer has enabled for Auth & Pay
+  authUxModes         String[]              @default(["popup"])
+  payUxModes          String[]              @default(["bottom_sheet"])
+  // Device-specific default mode overrides
+  authDesktopDefault  String?               @default("popup")
+  authMobileDefault   String?               @default("bottom_sheet")
+  payDesktopDefault   String?               @default("bottom_sheet")
+  payMobileDefault    String?               @default("bottom_sheet")
+
   userId           String
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
@@ -84,6 +103,7 @@ model OAuthApp {
   wallet           Wallet?                  @relation("AppWallet")
   checkoutSessions CheckoutSession[]        @relation("AppCheckoutSessions")
   payoutRequests   PayoutRequest[]          @relation("AppPayoutRequests")
+  appUsers         AppUserIdentity[]        @relation("AppUserIdentities")
 
   @@index([userId])
   @@index([clientId])
@@ -262,6 +282,7 @@ model CheckoutSession {
   status           String        @default("PENDING") // PENDING, AUTHORIZED, CAPTURED, EXPIRED, CANCELLED
   title            String
   description      String?       @default("")
+  displayMode      String?       @default("bottom_sheet") // popup, modal, bottom_sheet, full_page, embedded
   returnUrl        String?       @default("")
   cancelUrl        String?       @default("")
   metadata         Json?
@@ -297,3 +318,28 @@ model PayoutRequest {
   @@index([appId, status])
   @@index([userId])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PER-APP USERNAME ISOLATION
+// Guarantees that usernames are uniquely scoped per application.
+// e.g., "prince" in 180 Workspace ≠ "prince" in a third-party developer app.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AppUserIdentity {
+  id        String   @id @default(uuid())
+  appId     String
+  userId    String
+  username  String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  app       OAuthApp @relation("AppUserIdentities", fields: [appId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserAppIdentities", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, username])
+  @@unique([appId, userId])
+  @@index([appId])
+  @@index([userId])
+}
+

@@ -34,9 +34,17 @@ function sanitizeUser(user: any) {
         username: user.username || '',
         email: user.email || null,
         phone: user.phone || null,
-        avatarUrl: user.avatarUrl || '',
-        headline: user.headline || '',
+        avatar: user.avatarUrl || user.avatar || '',
+        avatarUrl: user.avatarUrl || user.avatar || '',
+        headline: user.headline || user.tagline || '',
+        tagline: user.tagline || user.headline || '',
+        bio: user.bio || '',
+        languages: user.languages || [],
+        gender: user.gender || '',
+        address: user.address || '',
         age: user.age || null,
+        dob: user.dob ? user.dob.toISOString() : null,
+        securityPreferences: user.securityPreferences || {},
         latitude: user.latitude ?? null,
         longitude: user.longitude ?? null,
         city: user.city || '',
@@ -471,10 +479,18 @@ export class IdentityAuthController {
             }
 
             const {
+                name,
                 username,
                 avatarUrl,
                 age,
+                dob,
+                bio,
+                gender,
+                address,
+                securityPreferences,
                 headline,
+                tagline,
+                languages,
                 latitude,
                 longitude,
                 city,
@@ -570,13 +586,21 @@ export class IdentityAuthController {
                 }
             }
 
-            const updatedUser = await prisma.user.update({
+            const updatedUser: any = await (prisma.user as any).update({
                 where: { id: userId },
                 data: {
+                    name: name && String(name).trim() ? String(name).trim() : (existingUser as any).name,
                     username: finalUsername,
-                    avatarUrl: avatarUrl || existingUser.avatarUrl || '',
-                    age: age ? Number(age) : existingUser.age,
-                    headline: headline !== undefined ? String(headline).trim() : existingUser.headline,
+                    avatarUrl: avatarUrl || (existingUser as any).avatarUrl || '',
+                    age: age ? Number(age) : (existingUser as any).age,
+                    dob: dob ? new Date(dob) : (existingUser as any).dob,
+                    bio: bio !== undefined ? String(bio).trim() : ((existingUser as any).bio || ''),
+                    gender: gender !== undefined ? String(gender).trim() : ((existingUser as any).gender || ''),
+                    address: address !== undefined ? String(address).trim() : ((existingUser as any).address || ''),
+                    securityPreferences: securityPreferences !== undefined ? securityPreferences : ((existingUser as any).securityPreferences || {}),
+                    headline: headline !== undefined ? String(headline).trim() : ((tagline !== undefined ? String(tagline).trim() : (existingUser as any).headline) || ''),
+                    tagline: tagline !== undefined ? String(tagline).trim() : ((headline !== undefined ? String(headline).trim() : (existingUser as any).tagline) || ''),
+                    languages: Array.isArray(languages) ? languages : ((existingUser as any).languages || []),
                     latitude: latNum,
                     longitude: lngNum,
                     city: finalCity,
@@ -584,7 +608,7 @@ export class IdentityAuthController {
                     phone: finalPhone,
                     email: finalEmail,
                     isOnboarded: true
-                }
+                } as any
             });
 
             const token = signToken(updatedUser.id);

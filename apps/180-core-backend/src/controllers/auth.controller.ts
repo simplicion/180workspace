@@ -129,15 +129,18 @@ export class AuthApiController {
 
   static async checkUsername(req: Request, res: Response) {
     try {
-      const { username, name } = req.query;
+      const { username, name, clientId, client_id, excludeUserId } = req.query;
+      const targetApp = (clientId || client_id) ? String(clientId || client_id) : undefined;
+      const excludeUser = excludeUserId ? String(excludeUserId) : undefined;
+
       if (name && !username) {
-        const generated = await UsernameService.generateUniqueUsername(String(name));
+        const generated = await UsernameService.generateUniqueUsername(String(name), targetApp);
         return res.json({ success: true, username: generated });
       }
       if (!username) {
         return res.status(400).json({ success: false, message: 'Username is required' });
       }
-      const result = await UsernameService.checkAvailability(String(username));
+      const result = await UsernameService.checkAvailability(String(username), excludeUser, targetApp);
       return res.json({ success: true, ...result });
     } catch (err: any) {
       console.error('[AuthApiController:checkUsername] Error:', err);

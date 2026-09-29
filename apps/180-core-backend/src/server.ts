@@ -18,6 +18,7 @@ import walletRoutes from './routes/wallet.routes';
 import checkoutRoutes from './routes/checkout.routes';
 import developerRoutes from './routes/developer.routes';
 import { generalApiLimiter } from './middleware/rate-limiter.middleware';
+import { RsaKeysService, seedFirstPartyOAuthApps } from '@workspace/identity-provider';
 
 const app = express();
 const server = http.createServer(app);
@@ -102,9 +103,16 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 const PORT = process.env.PORT || process.env.CORE_BACKEND_PORT || 4003;
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`🚀 180 Core Dedicated Backend running on http://localhost:${PORT}`);
   console.log(`💳 Domains active: Identity / OAuth2, Prepaid Wallet (Razorpay), 1-Click Checkout, Developer Payouts`);
+  try {
+    await RsaKeysService.ensureKeys();
+    await seedFirstPartyOAuthApps();
+    console.log('[180-core-backend] 180 Identity RSA keys and first-party apps verified.');
+  } catch (err: any) {
+    console.warn('[180-core-backend] Bootstrapping note:', err.message);
+  }
 });
 
 // Graceful Shutdown on zero-downtime deploy

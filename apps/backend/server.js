@@ -208,15 +208,15 @@ const oauthRoutes = require('./src/routes/oauth.routes').default || require('./s
 
 // 180 Identity: OpenID Connect Discovery & OAuth 2.0 Provider
 app.get('/.well-known/openid-configuration', (req, res, next) => {
-    const { OAuthController } = require('@workspace/identity');
+    const { OAuthController } = require('@workspace/identity-provider');
     return OAuthController.getOpenIdConfiguration(req, res);
 });
 app.get('/.well-known/jwks.json', (req, res, next) => {
-    const { OAuthController } = require('@workspace/identity');
+    const { OAuthController } = require('@workspace/identity-provider');
     return OAuthController.getJwks(req, res);
 });
 app.get('/certs/jwks.json', (req, res, next) => {
-    const { OAuthController } = require('@workspace/identity');
+    const { OAuthController } = require('@workspace/identity-provider');
     return OAuthController.getJwks(req, res);
 });
 app.get('/oauth/authorize', (req, res) => {
@@ -279,7 +279,7 @@ async function bootstrap() {
         prisma.$connect().then(async () => {
             console.log('[Bootstrap] Database connected.');
             try {
-                const { RsaKeysService, seedFirstPartyOAuthApps } = require('@workspace/identity');
+                const { RsaKeysService, seedFirstPartyOAuthApps } = require('@workspace/identity-provider');
                 await RsaKeysService.ensureKeys();
                 await seedFirstPartyOAuthApps();
                 console.log('[Bootstrap] 180 Identity RSA keys and first-party apps verified.');

@@ -22,6 +22,9 @@ export interface AuthResponse {
   user?: any;
 }
 
+export type AuthUxMode = 'popup' | 'bottom_sheet' | 'fullscreen' | 'redirect' | 'auto';
+export type PayUxMode = 'bottom_sheet' | 'full_page' | 'popup' | 'redirect' | 'auto';
+
 export interface OpenPopupOptions {
   clientId: string;
   authServerUrl?: string;
@@ -29,11 +32,13 @@ export interface OpenPopupOptions {
   scope?: string;
   state?: string;
   responseType?: 'code' | 'token';
-  uxMode?: 'popup' | 'redirect';
+  uxMode?: AuthUxMode;
   onSuccess?: (response: AuthResponse) => void;
   onError?: (error: Error) => void;
   onCancel?: () => void;
 }
+
+export type OpenAuthOptions = OpenPopupOptions;
 
 export interface RenderButtonOptions extends OpenPopupOptions {
   theme?: 'obsidian' | 'dark' | 'light' | 'gradient';
@@ -57,6 +62,7 @@ export interface CheckoutOptions {
   couponCode?: string;
   metadata?: Record<string, any>;
   checkoutServerUrl?: string;
+  uxMode?: PayUxMode;
   onSuccess?: (response: CheckoutResponse) => void;
   onError?: (error: Error) => void;
   onCancel?: () => void;
@@ -118,6 +124,307 @@ if (typeof window !== 'undefined') {
   preconnectAuthServer();
 }
 
+/**
+ * Detects whether the current client is on a mobile device or screen
+ */
+export const isMobileDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return window.innerWidth < 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+};
+
+/* ── Bottom Sheet CSS & Layout Injector ─────────────────────────────────── */
+
+const BOTTOM_SHEET_STYLE_ID = '__180_bottom_sheet_styles__';
+
+const injectBottomSheetCSS = () => {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById(BOTTOM_SHEET_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = BOTTOM_SHEET_STYLE_ID;
+  style.textContent = `
+    @keyframes one-eighty-fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes one-eighty-fade-out {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    @keyframes one-eighty-slide-up {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    @keyframes one-eighty-slide-down {
+      from { transform: translateY(0); }
+      to { transform: translateY(100%); }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+};
+
+interface BottomSheetRunnerOptions<T> {
+  url: string;
+  title: string;
+  successTypes: string[];
+  closeTypes?: string[];
+  mapSuccess: (data: any) => T;
+  onSuccess?: (res: T) => void;
+  onError?: (err: Error) => void;
+  onCancel?: () => void;
+  onDefaultCancelResult: () => T;
+}
+
+function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return Promise.reject(new Error('[180 SDK] Bottom sheet can only be rendered in a browser environment'));
+  }
+
+  // Remove any stale sheet instances
+  const existingSheet = document.getElementById('__180_bottom_sheet_container__');
+  if (existingSheet) {
+    existingSheet.remove();
+  }
+
+  injectBottomSheetCSS();
+
+  return new Promise((resolve, reject) => {
+    let isResolved = false;
+
+    // Outer root container
+    const root = document.createElement('div');
+    root.id = '__180_bottom_sheet_container__';
+    root.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      pointer-events: auto;
+      font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    `;
+
+    // Backdrop
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      animation: one-eighty-fade-in 0.25s ease-out forwards;
+      cursor: pointer;
+    `;
+
+    // Sheet Modal Window
+    const isMobile = isMobileDevice();
+    const sheet = document.createElement('div');
+    sheet.style.cssText = `
+      position: relative;
+      z-index: 1000000;
+      width: 100%;
+      max-width: ${isMobile ? '100%' : '480px'};
+      height: ${isMobile ? '90vh' : '700px'};
+      max-height: 94vh;
+      margin: ${isMobile ? '0' : '0 0 24px 0'};
+      background: #09090b;
+      color: #fafafa;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: ${isMobile ? '24px 24px 0 0' : '24px'};
+      box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.65), 0 20px 48px rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: one-eighty-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    `;
+
+    // Header with grab handle, title, close button
+    const header = document.createElement('div');
+    header.style.cssText = `
+      flex-shrink: 0;
+      padding: 10px 16px 8px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: #09090b;
+      position: relative;
+    `;
+
+    // Grab handle for mobile touch ergonomics
+    const grabBar = document.createElement('div');
+    grabBar.style.cssText = `
+      width: 44px;
+      height: 4px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.22);
+      margin-bottom: 8px;
+    `;
+    header.appendChild(grabBar);
+
+    // Header content bar
+    const bar = document.createElement('div');
+    bar.style.cssText = `
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    `;
+
+    const titleWrap = document.createElement('div');
+    titleWrap.style.cssText = 'display: flex; align-items: center; gap: 8px; min-width: 0;';
+    titleWrap.innerHTML = `
+      <img src="/black icon.svg" alt="180" style="width: 18px; height: 18px; object-fit: contain; filter: invert(1);" onerror="this.src='/black-icon.svg';" />
+      <div style="font-size: 13px; font-weight: 700; color: #f4f4f5; letter-spacing: -0.01em;">${opts.title}</div>
+    `;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.style.cssText = `
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #a1a1aa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      outline: none;
+      padding: 0;
+    `;
+    closeBtn.innerHTML = `
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    `;
+    closeBtn.onmouseenter = () => {
+      closeBtn.style.background = 'rgba(255, 255, 255, 0.18)';
+      closeBtn.style.color = '#ffffff';
+    };
+    closeBtn.onmouseleave = () => {
+      closeBtn.style.background = 'rgba(255, 255, 255, 0.08)';
+      closeBtn.style.color = '#a1a1aa';
+    };
+
+    bar.appendChild(titleWrap);
+    bar.appendChild(closeBtn);
+    header.appendChild(bar);
+
+    // Iframe container
+    const iframeWrapper = document.createElement('div');
+    iframeWrapper.style.cssText = `
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: #09090b;
+      overflow: hidden;
+    `;
+
+    // Skeleton loader
+    const skeleton = document.createElement('div');
+    skeleton.style.cssText = `
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #71717a;
+      font-size: 12px;
+      background: #09090b;
+      z-index: 1;
+      transition: opacity 0.25s ease;
+    `;
+    skeleton.innerHTML = `
+      <div style="width: 24px; height: 24px; border: 2.5px solid rgba(255, 255, 255, 0.15); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+      <span>Connecting to Sovereign Protocol…</span>
+    `;
+
+    const iframe = document.createElement('iframe');
+    iframe.src = opts.url;
+    iframe.title = opts.title;
+    iframe.allow = 'clipboard-write; payment';
+    iframe.style.cssText = `
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    `;
+    iframe.onload = () => {
+      iframe.style.opacity = '1';
+      skeleton.style.opacity = '0';
+      setTimeout(() => skeleton.remove(), 250);
+    };
+
+    iframeWrapper.appendChild(skeleton);
+    iframeWrapper.appendChild(iframe);
+
+    sheet.appendChild(header);
+    sheet.appendChild(iframeWrapper);
+
+    root.appendChild(backdrop);
+    root.appendChild(sheet);
+    document.body.appendChild(root);
+
+    const closeSheet = (dismissedByUser = false) => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('message', messageListener);
+        window.removeEventListener('keydown', keydownListener);
+      }
+      sheet.style.animation = 'one-eighty-slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+      backdrop.style.animation = 'one-eighty-fade-out 0.25s ease-in forwards';
+      setTimeout(() => {
+        root.remove();
+      }, 250);
+
+      if (dismissedByUser && !isResolved) {
+        opts.onCancel?.();
+        resolve(opts.onDefaultCancelResult());
+      }
+    };
+
+    const messageListener = (event: MessageEvent) => {
+      if (!event.data) return;
+      if (opts.closeTypes && opts.closeTypes.includes(event.data.type)) {
+        closeSheet(false);
+        return;
+      }
+      if (opts.successTypes.includes(event.data.type)) {
+        isResolved = true;
+        const result = opts.mapSuccess(event.data);
+        opts.onSuccess?.(result);
+        resolve(result);
+        closeSheet(false);
+      }
+    };
+
+    const keydownListener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeSheet(true);
+      }
+    };
+
+    backdrop.onclick = () => closeSheet(true);
+    closeBtn.onclick = () => closeSheet(true);
+    window.addEventListener('message', messageListener);
+    window.addEventListener('keydown', keydownListener);
+  });
+}
+
 // ============================================================================
 // 3. Core JavaScript Vanilla API: OneEightyIdentity
 // ============================================================================
@@ -130,11 +437,12 @@ export const OneEightyIdentity = {
   generatePkcePair,
   preconnect: preconnectAuthServer,
   prefetch: preconnectAuthServer,
+  isMobileDevice,
 
   /**
-   * Opens 180 Identity Dynamic Sovereign Auth in a centered modal popup
+   * Opens 180 Identity Sovereign Auth with the configured UX mode (bottom_sheet, popup, or fullscreen/redirect)
    */
-  openPopup(options: OpenPopupOptions): Promise<AuthResponse> {
+  openAuth(options: OpenAuthOptions): Promise<AuthResponse> {
     const { clientId } = options;
     if (!clientId) {
       throw new Error('[180 Identity] Missing required parameter: clientId');
@@ -147,19 +455,78 @@ export const OneEightyIdentity = {
     const state = options.state || Math.random().toString(36).substring(2, 15);
     const responseType = options.responseType || 'code';
 
-    const authUrl = `${authServer}/auth/login?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}&response_type=${encodeURIComponent(responseType)}&ux_mode=popup`;
+    // Resolve UX mode: 'bottom_sheet' | 'popup' | 'fullscreen' | 'redirect' | 'auto'
+    const isMobile = isMobileDevice();
+    let effectiveMode: 'bottom_sheet' | 'popup' | 'fullscreen' = 'popup';
 
+    if (options.uxMode === 'bottom_sheet') {
+      effectiveMode = 'bottom_sheet';
+    } else if (options.uxMode === 'fullscreen' || options.uxMode === 'redirect') {
+      effectiveMode = 'fullscreen';
+    } else if (options.uxMode === 'popup') {
+      effectiveMode = 'popup';
+    } else {
+      // 'auto' or undefined: Mobile gets bottom_sheet, Desktop gets popup
+      effectiveMode = isMobile ? 'bottom_sheet' : 'popup';
+    }
+
+    const authUrl = `${authServer}/auth/login?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}&response_type=${encodeURIComponent(responseType)}&ux_mode=${effectiveMode}`;
+
+    // 1. Fullscreen / Redirect Mode
+    if (effectiveMode === 'fullscreen') {
+      if (typeof window !== 'undefined') {
+        window.location.href = authUrl;
+      }
+      return Promise.resolve({ code: '', state });
+    }
+
+    // 2. Bottom Sheet Mode
+    if (effectiveMode === 'bottom_sheet') {
+      return openInBottomSheet<AuthResponse>({
+        url: authUrl,
+        title: '180 Sovereign Identity',
+        successTypes: ['180_IDENTITY_SUCCESS', '180_AUTH_SUCCESS'],
+        closeTypes: ['180_IDENTITY_CLOSE'],
+        mapSuccess: (data) => {
+          const result: AuthResponse = {
+            code: data.code,
+            state: data.state || state,
+            token: data.token || data.accessToken || null,
+            id_token: data.id_token || null,
+            user: data.user || null,
+          };
+          if (typeof window !== 'undefined') {
+            try {
+              if (result.token) {
+                localStorage.setItem('platform_auth_token', result.token);
+                localStorage.setItem('token', result.token);
+                document.cookie = `platform_auth_token=${result.token}; path=/; max-age=604800; SameSite=Lax`;
+              }
+              if (result.user) {
+                localStorage.setItem('user', JSON.stringify(result.user));
+              }
+            } catch (_) {}
+          }
+          return result;
+        },
+        onSuccess: options.onSuccess,
+        onError: options.onError,
+        onCancel: options.onCancel,
+        onDefaultCancelResult: () => ({
+          code: '',
+          state,
+          token: null,
+          id_token: null,
+          user: null,
+        }),
+      });
+    }
+
+    // 3. Popup Mode
     const width = 450;
     const height = 680;
     const left = typeof window !== 'undefined' && window.screen.width ? (window.screen.width - width) / 2 : 100;
     const top = typeof window !== 'undefined' && window.screen.height ? (window.screen.height - height) / 2 : 100;
-
-    if (options.uxMode === 'redirect') {
-      if (typeof window !== 'undefined') {
-        window.location.href = authUrl.replace('ux_mode=popup', 'ux_mode=redirect');
-      }
-      return Promise.resolve({ code: '', state });
-    }
 
     const popup = typeof window !== 'undefined'
       ? window.open(
@@ -170,12 +537,45 @@ export const OneEightyIdentity = {
       : null;
 
     if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      if (typeof window !== 'undefined') {
-        window.location.href = authUrl.replace('ux_mode=popup', 'ux_mode=redirect');
-      }
-      const err = new Error('Popup blocked by browser. Redirecting directly to 180 Identity.');
-      options.onError?.(err);
-      return Promise.reject(err);
+      // Fallback: If popup is blocked by browser, degrade seamlessly to bottom sheet
+      return openInBottomSheet<AuthResponse>({
+        url: authUrl.replace('ux_mode=popup', 'ux_mode=bottom_sheet'),
+        title: '180 Sovereign Identity',
+        successTypes: ['180_IDENTITY_SUCCESS', '180_AUTH_SUCCESS'],
+        closeTypes: ['180_IDENTITY_CLOSE'],
+        mapSuccess: (data) => {
+          const result: AuthResponse = {
+            code: data.code,
+            state: data.state || state,
+            token: data.token || data.accessToken || null,
+            id_token: data.id_token || null,
+            user: data.user || null,
+          };
+          if (typeof window !== 'undefined') {
+            try {
+              if (result.token) {
+                localStorage.setItem('platform_auth_token', result.token);
+                localStorage.setItem('token', result.token);
+                document.cookie = `platform_auth_token=${result.token}; path=/; max-age=604800; SameSite=Lax`;
+              }
+              if (result.user) {
+                localStorage.setItem('user', JSON.stringify(result.user));
+              }
+            } catch (_) {}
+          }
+          return result;
+        },
+        onSuccess: options.onSuccess,
+        onError: options.onError,
+        onCancel: options.onCancel,
+        onDefaultCancelResult: () => ({
+          code: '',
+          state,
+          token: null,
+          id_token: null,
+          user: null,
+        }),
+      });
     }
 
     return new Promise((resolve, reject) => {
@@ -240,6 +640,20 @@ export const OneEightyIdentity = {
         }
       }, 500);
     });
+  },
+
+  /**
+   * Opens 180 Identity Dynamic Sovereign Auth in a centered modal popup (delegates to openAuth)
+   */
+  openPopup(options: OpenPopupOptions): Promise<AuthResponse> {
+    return OneEightyIdentity.openAuth({ ...options, uxMode: options.uxMode || 'popup' });
+  },
+
+  /**
+   * Opens 180 Identity directly in an in-DOM slide-up bottom sheet
+   */
+  openBottomSheet(options: OpenPopupOptions): Promise<AuthResponse> {
+    return OneEightyIdentity.openAuth({ ...options, uxMode: 'bottom_sheet' });
   },
 
   /**
@@ -385,22 +799,79 @@ export const OneEightyPay = {
   version: '1.0.0',
 
   /**
-   * Opens 180 Profile Sovereign Checkout in modal popup
+   * Opens 180 Profile Sovereign Checkout with the configured UX mode (bottom_sheet, popup, or full_page/redirect)
    */
   checkout(options: CheckoutOptions): Promise<CheckoutResponse> {
     const sessionId = options.sessionId || `sess_${Math.random().toString(36).substring(2, 12)}_${Date.now()}`;
 
     const payServer = getPayServerUrl(options.checkoutServerUrl);
+    const isMobile = isMobileDevice();
+
+    let effectiveMode: 'bottom_sheet' | 'full_page' | 'popup' = 'bottom_sheet';
+    if (options.uxMode === 'full_page' || options.uxMode === 'redirect') {
+      effectiveMode = 'full_page';
+    } else if (options.uxMode === 'popup') {
+      effectiveMode = 'popup';
+    } else if (options.uxMode === 'bottom_sheet') {
+      effectiveMode = 'bottom_sheet';
+    } else {
+      // 'auto' or default: Bottom sheet offers the premier, modern Stripe-like embedded experience
+      effectiveMode = isMobile ? 'bottom_sheet' : 'bottom_sheet';
+    }
+
     const query = [
       options.amount ? `amount=${encodeURIComponent(options.amount)}` : '',
       options.currency ? `currency=${encodeURIComponent(options.currency)}` : '',
       options.title ? `title=${encodeURIComponent(options.title)}` : '',
       options.description ? `description=${encodeURIComponent(options.description)}` : '',
       options.couponCode ? `coupon=${encodeURIComponent(options.couponCode)}` : '',
+      `ux_mode=${encodeURIComponent(effectiveMode)}`,
     ].filter(Boolean).join('&');
 
     const checkoutUrl = `${payServer}/checkout/${encodeURIComponent(sessionId)}${query ? `?${query}` : ''}`;
 
+    // 1. Full Page Redirect Mode
+    if (effectiveMode === 'full_page') {
+      if (typeof window !== 'undefined') {
+        window.location.href = checkoutUrl;
+      }
+      return Promise.resolve({
+        sessionId,
+        transactionId: undefined,
+        amount: options.amount,
+        currency: options.currency,
+        isFree: false,
+      });
+    }
+
+    // 2. Bottom Sheet Mode
+    if (effectiveMode === 'bottom_sheet') {
+      return openInBottomSheet<CheckoutResponse>({
+        url: checkoutUrl,
+        title: options.title || '180 Sovereign Pay',
+        successTypes: ['180_PAYMENT_SUCCESS', '180_PAY_SUCCESS'],
+        closeTypes: ['180_PAYMENT_CLOSE'],
+        mapSuccess: (data) => ({
+          sessionId: data.sessionId || sessionId,
+          transactionId: data.transactionId,
+          amount: data.amount ?? options.amount,
+          currency: data.currency || options.currency,
+          isFree: Boolean(data.isFree),
+        }),
+        onSuccess: options.onSuccess,
+        onError: options.onError,
+        onCancel: options.onCancel,
+        onDefaultCancelResult: () => ({
+          sessionId,
+          transactionId: undefined,
+          amount: options.amount,
+          currency: options.currency,
+          isFree: false,
+        }),
+      });
+    }
+
+    // 3. Popup Mode
     const width = 460;
     const height = 700;
     const left = typeof window !== 'undefined' && window.screen.width ? (window.screen.width - width) / 2 : 100;
@@ -415,12 +886,30 @@ export const OneEightyPay = {
       : null;
 
     if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      if (typeof window !== 'undefined') {
-        window.location.href = checkoutUrl;
-      }
-      const err = new Error('Popup blocked by browser. Redirecting directly to 180 Pay.');
-      options.onError?.(err);
-      return Promise.reject(err);
+      // Fallback: Degrade gracefully to bottom sheet if popup is blocked
+      return openInBottomSheet<CheckoutResponse>({
+        url: checkoutUrl.replace('ux_mode=popup', 'ux_mode=bottom_sheet'),
+        title: options.title || '180 Sovereign Pay',
+        successTypes: ['180_PAYMENT_SUCCESS', '180_PAY_SUCCESS'],
+        closeTypes: ['180_PAYMENT_CLOSE'],
+        mapSuccess: (data) => ({
+          sessionId: data.sessionId || sessionId,
+          transactionId: data.transactionId,
+          amount: data.amount ?? options.amount,
+          currency: data.currency || options.currency,
+          isFree: Boolean(data.isFree),
+        }),
+        onSuccess: options.onSuccess,
+        onError: options.onError,
+        onCancel: options.onCancel,
+        onDefaultCancelResult: () => ({
+          sessionId,
+          transactionId: undefined,
+          amount: options.amount,
+          currency: options.currency,
+          isFree: false,
+        }),
+      });
     }
 
     return new Promise((resolve, reject) => {
@@ -472,6 +961,13 @@ export const OneEightyPay = {
         }
       }, 500);
     });
+  },
+
+  /**
+   * Opens 180 Profile Sovereign Checkout directly in an in-DOM slide-up bottom sheet
+   */
+  openBottomSheet(options: CheckoutOptions): Promise<CheckoutResponse> {
+    return OneEightyPay.checkout({ ...options, uxMode: 'bottom_sheet' });
   },
 
   /**
@@ -557,7 +1053,7 @@ export function use180Identity() {
         if (!clientId) {
           throw new Error('[180 Identity] Missing required parameter: clientId (or NEXT_PUBLIC_180_CLIENT_ID environment variable)');
         }
-        const res = await OneEightyIdentity.openPopup({
+        const res = await OneEightyIdentity.openAuth({
           clientId,
           ...opts,
         });
@@ -643,6 +1139,8 @@ export interface OneEightyIdentityButtonProps {
   onError?: (err: Error) => void;
   onCancel?: () => void;
   disabled?: boolean;
+  /** UX mode to open auth: 'popup' | 'bottom_sheet' | 'fullscreen' | 'redirect' | 'auto' */
+  uxMode?: AuthUxMode;
   /** Manually control the processing / logging-in state */
   isProcessing?: boolean;
 }
@@ -727,6 +1225,7 @@ export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = (
   onError,
   onCancel,
   disabled = false,
+  uxMode,
   isProcessing: controlledProcessing,
 }) => {
   const [internalProcessing, setInternalProcessing] = useState(false);
@@ -743,6 +1242,7 @@ export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = (
         redirectUri,
         scope,
         state,
+        uxMode,
         onSuccess: async (res) => {
           setInternalProcessing(true);
           setIsProcessing(true);

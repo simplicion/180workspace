@@ -93,24 +93,59 @@ export async function dispatchOAuthSuccess(
     console.warn('[180 Identity] Consent dispatch note:', err);
   }
 
-  // Cross-window popup communication
-  if (window.opener && !window.opener.closed) {
-    const payload = {
-      type: '180_IDENTITY_SUCCESS',
-      code: authCode,
-      token: idToken || authToken,
-      state: params.state,
-      user: userData,
-    };
-    window.opener.postMessage(payload, '*');
-    window.opener.postMessage({ ...payload, type: '180_AUTH_SUCCESS' }, '*');
+  // Cross-window popup and embedded iframe bottom sheet communication
+  const fullUser = userData ? {
+    id: userData.id || userData.sub || '',
+    email: userData.email || null,
+    name: userData.name || '',
+    username: userData.username || '',
+    phone: userData.phone || null,
+    avatar: userData.avatarUrl || userData.avatar || '',
+    avatarUrl: userData.avatarUrl || userData.avatar || '',
+    headline: userData.headline || userData.tagline || '',
+    tagline: userData.tagline || userData.headline || '',
+    bio: userData.bio || '',
+    languages: userData.languages || [],
+    gender: userData.gender || '',
+    dob: userData.dob || null,
+    age: userData.age || null,
+    address: userData.address || '',
+    city: userData.city || '',
+    country: userData.country || '',
+    role: userData.role || 'USER',
+    isVerified: Boolean(userData.isVerified),
+    isOnboarded: Boolean(userData.isOnboarded),
+    isEmailVerified: Boolean(userData.isEmailVerified),
+    isPhoneVerified: Boolean(userData.isPhoneVerified),
+    securityPreferences: userData.securityPreferences || {},
+  } : userData;
+
+  const payload = {
+    type: '180_IDENTITY_SUCCESS',
+    code: authCode,
+    token: idToken || authToken,
+    state: params.state,
+    user: fullUser,
+  };
+
+  if (typeof window !== 'undefined') {
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage(payload, '*');
+      window.opener.postMessage({ ...payload, type: '180_AUTH_SUCCESS' }, '*');
+    }
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage(payload, '*');
+      window.parent.postMessage({ ...payload, type: '180_AUTH_SUCCESS' }, '*');
+    }
   }
 
   toast.success(`Welcome, ${userData.name || userData.username || '180 User'}!`);
 
   setTimeout(() => {
-    if (window.opener && !window.opener.closed) {
+    if (typeof window !== 'undefined' && window.opener && !window.opener.closed) {
       window.close();
+    } else if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: '180_IDENTITY_CLOSE' }, '*');
     } else if (params.redirectUri && authCode) {
       const url = new URL(params.redirectUri);
       url.searchParams.set('code', authCode);

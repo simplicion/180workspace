@@ -45,44 +45,60 @@ export class DeveloperApiController {
               email: true,
               username: true,
               avatarUrl: true,
+              isVerified: true,
               createdAt: true,
             },
           },
         },
         orderBy: { updatedAt: 'desc' },
-        take: 30,
+        take: 50,
       });
 
-      const tokens = await prisma.oAuthToken.findMany({
-        where: { appId },
-        orderBy: { createdAt: 'desc' },
-        take: 30,
-      });
+      const [tokens, appUserIdentities] = await Promise.all([
+        prisma.oAuthToken.findMany({
+          where: { appId },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        }),
+        prisma.appUserIdentity.findMany({
+          where: { appId },
+        }),
+      ]);
 
       const tokenMap = new Map<string, any>();
       tokens.forEach((t) => {
         if (!tokenMap.has(t.userId)) tokenMap.set(t.userId, t);
       });
 
+      const appUserMap = new Map<string, string>();
+      appUserIdentities.forEach((au) => {
+        appUserMap.set(au.userId, au.username);
+      });
+
       const logs = consents.map((c: any) => {
         const latestToken = tokenMap.get(c.userId);
         const isTokenActive = latestToken ? (!latestToken.revokedAt && new Date(latestToken.expiresAt) > new Date()) : false;
+        const appScopedUsername = appUserMap.get(c.userId) || c.user?.username || '';
 
         return {
           id: c.id,
           userId: c.userId,
           user: {
-            id: c.user?.id,
+            id: c.user?.id || c.userId,
             name: c.user?.name || 'Anonymous User',
             email: c.user?.email || null,
             username: c.user?.username || null,
+            appScopedUsername,
             avatar: c.user?.avatarUrl || '',
+            isVerified: Boolean(c.user?.isVerified),
           },
           scopes: c.scopes,
           authMethod: c.user?.email ? 'Email / SSO' : 'WhatsApp OTP',
           status: isTokenActive ? 'ACTIVE_SESSION' : 'SESSION_EXPIRED',
           grantedAt: c.grantedAt,
           updatedAt: c.updatedAt,
+          connectedSince: c.grantedAt,
+          lastLogin: c.updatedAt,
         };
       });
 
@@ -96,6 +112,46 @@ export class DeveloperApiController {
       });
     } catch (err: any) {
       console.error('[DeveloperApiController:getAuthLogs] Error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/developer/apps/:id/users/:targetUserId/revoke
+   * Revokes active tokens and sessions for a specific user in this application
+   */
+  static async revokeUserSession(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      const appId = String(req.params.id);
+      const targetUserId = String(req.params.targetUserId);
+
+      // Verify app ownership
+      const app = await prisma.oAuthApp.findFirst({
+        where: { id: appId, ...(userId ? { userId } : {}) },
+      });
+      if (!app) {
+        return res.status(404).json({ success: false, error: 'App not found' });
+      }
+
+      // Revoke all active tokens for this user in this app
+      await prisma.oAuthToken.updateMany({
+        where: {
+          appId,
+          userId: targetUserId,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: 'User session revoked successfully',
+      });
+    } catch (err: any) {
+      console.error('[DeveloperApiController:revokeUserSession] Error:', err);
       return res.status(500).json({ success: false, error: err.message });
     }
   }
