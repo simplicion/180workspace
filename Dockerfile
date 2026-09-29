@@ -3,7 +3,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 RUN apk add --no-cache libc6-compat gcompat openssl
-RUN npm install -g tsx turbo
+RUN npm install -g tsx turbo esbuild
 
 FROM base AS builder
 WORKDIR /app
@@ -18,7 +18,8 @@ COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 COPY --from=builder /app/packages/db-180core/prisma ./packages/db-180core/prisma
 RUN pnpm install --prefer-frozen-lockfile
 COPY --from=builder /app/out/full/ .
-RUN pnpm --filter @workspace/db-180core build || true
+RUN pnpm --filter @workspace/db build || (cd packages/db && npx esbuild src/index.ts --platform=node --target=node18 --outfile=dist/index.js)
+RUN pnpm --filter @workspace/db-180core build || (cd packages/db-180core && npx esbuild src/index.ts --platform=node --target=node18 --outfile=dist/index.js)
 
 FROM base AS runner
 WORKDIR /app
