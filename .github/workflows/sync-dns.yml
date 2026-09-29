@@ -18,7 +18,8 @@ jobs:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CF_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
-          TARGET_IP: ${{ github.event.inputs.target_ip || '3.209.45.49' }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TARGET_IP: ${{ github.event.inputs.target_ip || '32.198.110.99' }}
         run: |
           node << 'EOF'
           const https = require('https');
@@ -26,9 +27,11 @@ jobs:
           const token = process.env.CF_TOKEN;
           const key = process.env.CF_KEY;
           const email = process.env.CF_EMAIL;
+          const accountId = process.env.CF_ACCOUNT_ID;
           const targetIp = process.env.TARGET_IP;
 
           console.log(`==> Target IP: ${targetIp}`);
+          console.log(`==> Account ID: ${accountId}`);
 
           function cfRequest(path, method = 'GET', body = null) {
             return new Promise((resolve, reject) => {
@@ -49,7 +52,7 @@ jobs:
                   try {
                     const parsed = JSON.parse(data);
                     if (!parsed.success) {
-                      return reject(new Error(`CF API Error: ${JSON.stringify(parsed.errors)}`));
+                      return reject(new Error(`CF API Error on ${path}: ${JSON.stringify(parsed.errors)}`));
                     }
                     resolve(parsed.result);
                   } catch (e) {
@@ -72,16 +75,152 @@ jobs:
               throw new Error('Zone 180workspace.com not found in Cloudflare account');
             }
             const zoneId = zones[0].id;
-            console.log(`==> Found Zone ID: ${zoneId}`);
+            const actualAccountId = accountId || zones[0].account?.id;
+            console.log(`==> Found Zone ID: ${zoneId}, Account ID: ${actualAccountId}`);
 
-            // 2. List all DNS records
-            console.log('==> Listing DNS records...');
+            // 2. Inspect Cloudflare Access Applications (Zero Trust)
+            console.log('\n--- CLOUDFLARE ACCESS APPLICATIONS ---');
+            try {
+              const zoneApps = await cfRequest(`/zones/${zoneId}/access/apps`);
+              console.log(`Zone Access Apps count: ${zoneApps?.length || 0}`);
+              zoneApps?.forEach(a => console.log(`  - [Zone App] ${a.name} (domain: ${a.domain}) -> type: ${a.type}`));
+            } catch (e) {
+              console.log(`Could not fetch zone access apps: ${e.message}`);
+            }
+
+            if (actualAccountId) {
+              try {
+                const accountApps = await cfRequest(`/accounts/${actualAccountId}/access/apps`);
+                console.log(`Account Access Apps count: ${accountApps?.length || 0}`);
+                accountApps?.forEach(a => console.log(`  - [Account App] ${a.name} (domain: ${a.domain}) -> type: ${a.type}`));
+              } catch (e) {
+                console.log(`Could not fetch account access apps: ${e.message}`);
+              }
+            }
+
+            // 3. Inspect WAF / Firewall Rules
+            console.log('\n--- CLOUDFLARE FIREWALL & WAF RULES ---');
+            try {
+              const firewallRules = await cfRequest(`/zones/${zoneId}/firewall/rules`);
+              console.log(`Firewall rules count: ${firewallRules?.length || 0}`);
+              firewallRules?.forEach(r => console.log(`  - Rule: ${r.description} | Action: ${r.action} | Filter: ${JSON.stringify(r.filter)}`));
+            } catch (e) {
+              console.log(`Could not fetch firewall rules: ${e.message}`);
+            }
+
+            try {
+              const ipAccess = await cfRequest(`/zones/${zoneId}/firewall/access_rules/rules`);
+              console.log(`IP Access rules count: ${ipAccess?.length || 0}`);
+              ipAccess?.forEach(r => console.log(`  - IP Rule: ${r.mode} | Target: ${r.configuration?.target} = ${r.configuration?.value} | Notes: ${r.notes}`));
+            } catch (e) {
+              console.log(`Could not fetch IP access rules: ${e.message}`);
+            }
+
+            // 4. Inspect Cloudflare Pages Projects & Domains
+            console.log('\n--- CLOUDFLARE PAGES PROJECTS ---');
+            if (actualAccountId) {
+              try {
+                const pagesProjects = await cfRequest(`/accounts/${actualAccountId}/pages/projects`);
+                console.log(`Pages projects found: ${pagesProjects?.length || 0}`);
+                for (const p of pagesProjects || []) {
+                  console.log(`  Project: ${p.name} (subdomain: ${p.subdomain})`);
+                  try {
+                    const domains = await cfRequest(`/accounts/${actualAccountId}/pages/projects/${p.name}/domains`);
+                    console.log(`    Custom domains for ${p.name}: ${domains.map(d => `${d.name} (${d.status})`).join(', ') || 'none'}`);
+                  } catch (err) {
+                    console.log(`    Could not fetch domains for ${p.name}: ${err.message}`);
+                  }
+                }
+
+                // Add traffic-director.180workspace.com to 180workspace-traffic
+                console.log('\n==> Ensuring traffic-director.180workspace.com is bound to 180workspace-traffic Pages project...');
+                try {
+                  const addDomainRes = await cfRequest(`/accounts/${actualAccountId}/pages/projects/180workspace-traffic/domains`, 'POST', {
+                    name: 'traffic-director.180workspace.com'
+                  });
+                  console.log(`✓ Added traffic-director.180workspace.com to 180workspace-traffic:`, addDomainRes);
+                } catch (e) {
+                  console.log(`Notice for traffic-director.180workspace.com domain: ${e.message}`);
+                }
+
+                // Add profile.180workspace.com to 180workspace-profile
+                console.log('==> Ensuring profile.180workspace.com is bound to 180workspace-profile Pages project...');
+                try {
+                  const addProfileRes = await cfRequest(`/accounts/${actualAccountId}/pages/projects/180workspace-profile/domains`, 'POST', {
+                    name: 'profile.180workspace.com'
+                  });
+                  console.log(`✓ Added profile.180workspace.com to 180workspace-profile:`, addProfileRes);
+                } catch (e) {
+                  console.log(`Notice for profile.180workspace.com domain: ${e.message}`);
+                }
+
+                // Add pay.180workspace.com to 180workspace-profile
+                console.log('==> Ensuring pay.180workspace.com is bound to 180workspace-profile Pages project...');
+                try {
+                  const addPayRes = await cfRequest(`/accounts/${actualAccountId}/pages/projects/180workspace-profile/domains`, 'POST', {
+                    name: 'pay.180workspace.com'
+                  });
+                  console.log(`✓ Added pay.180workspace.com to 180workspace-profile:`, addPayRes);
+                } catch (e) {
+                  console.log(`Notice for pay.180workspace.com domain: ${e.message}`);
+                }
+              } catch (e) {
+                console.error(`Error querying Pages projects: ${e.message}`);
+              }
+            }
+
+            // 5. List all DNS records
+            console.log('\n==> Listing all DNS records...');
             const records = await cfRequest(`/zones/${zoneId}/dns_records?per_page=100`);
             console.log(`==> Found ${records.length} DNS records:`);
             records.forEach(r => console.log(`  - ${r.type} ${r.name} -> ${r.content} (proxied: ${r.proxied}) [ID: ${r.id}]`));
 
-            // 3. Targets to update
-            const subdomainsToUpdate = [
+            // 6. Ensure CNAMEs for Pages frontends
+            const pagesBindings = [
+              { name: 'traffic-director.180workspace.com', target: '180workspace-traffic.pages.dev' },
+              { name: 'traffic.180workspace.com', target: '180workspace-traffic.pages.dev' },
+              { name: 'profile.180workspace.com', target: '180workspace-profile.pages.dev' },
+              { name: 'pay.180workspace.com', target: '180workspace-profile.pages.dev' },
+              { name: 'developers.180workspace.com', target: '180workspace-developer.pages.dev' },
+              { name: 'docs.180workspace.com', target: '180workspace-docs.pages.dev' },
+              { name: '180workspace.com', target: '180workspace-marketing.pages.dev' },
+              { name: 'www.180workspace.com', target: '180workspace-marketing.pages.dev' }
+            ];
+
+            for (const binding of pagesBindings) {
+              const existing = records.find(r => r.name === binding.name);
+              if (existing) {
+                if (existing.type === 'CNAME' && existing.content === binding.target) {
+                  console.log(`==> Record ${binding.name} already points to ${binding.target}`);
+                } else if (existing.type === 'A') {
+                  console.log(`==> Converting ${binding.name} from A (${existing.content}) to CNAME -> ${binding.target}...`);
+                  await cfRequest(`/zones/${zoneId}/dns_records/${existing.id}`, 'PUT', {
+                    type: 'CNAME',
+                    name: binding.name,
+                    content: binding.target,
+                    proxied: true
+                  });
+                  console.log(`✓ Converted ${binding.name} -> ${binding.target}`);
+                }
+              } else {
+                console.log(`==> Creating CNAME record for ${binding.name} -> ${binding.target}...`);
+                try {
+                  await cfRequest(`/zones/${zoneId}/dns_records`, 'POST', {
+                    type: 'CNAME',
+                    name: binding.name,
+                    content: binding.target,
+                    ttl: 1,
+                    proxied: true
+                  });
+                  console.log(`✓ Created CNAME ${binding.name} -> ${binding.target}`);
+                } catch (e) {
+                  console.log(`Note creating CNAME ${binding.name}: ${e.message}`);
+                }
+              }
+            }
+
+            // 7. EC2 Services targets to update
+            const ec2Subdomains = [
               'api.180workspace.com',
               'services.180workspace.com',
               'api.auth.180workspace.com',
@@ -92,7 +231,7 @@ jobs:
               '*.180workspace.com'
             ];
 
-            for (const sub of subdomainsToUpdate) {
+            for (const sub of ec2Subdomains) {
               const existing = records.find(r => r.name === sub && (r.type === 'A' || r.type === 'CNAME'));
               if (existing) {
                 if (existing.content === targetIp) {
@@ -120,7 +259,7 @@ jobs:
               }
             }
 
-            console.log('==> Cloudflare DNS sync completed successfully!');
+            console.log('==> Cloudflare DNS & Pages sync completed successfully!');
           }
 
           main().catch(err => {

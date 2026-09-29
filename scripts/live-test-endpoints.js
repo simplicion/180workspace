@@ -7,6 +7,7 @@ const endpoints = [
   { name: '180 Admin Console (3003)', url: 'https://admin.180workspace.com' },
   { name: '180 Docs Portal (3005)', url: 'https://docs.180workspace.com' },
   { name: '180 Traffic Director (3006)', url: 'https://traffic.180workspace.com' },
+  { name: '180 Traffic Director Primary (traffic-director.)', url: 'https://traffic-director.180workspace.com' },
   { name: '180 Developers Portal (3008)', url: 'https://developers.180workspace.com' },
   { name: '180 Profile Frontend (3009)', url: 'https://profile.180workspace.com' },
   { name: '180 Pay Checkout (pay.)', url: 'https://pay.180workspace.com' },
