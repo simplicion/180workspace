@@ -21,6 +21,15 @@ import {
   Lock,
   ExternalLink,
   Server,
+  ShieldCheck,
+  Users,
+  Webhook,
+  AlertTriangle,
+  ArrowUpRight,
+  CheckCircle,
+  Hash,
+  Info,
+  RefreshCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, OneEightyAuthButton } from '@workspace/ui';
@@ -71,7 +80,7 @@ export default function DeveloperDocsPage() {
   return (
     <div className="space-y-12 max-w-5xl mx-auto pb-16">
       {/* Page Header */}
-      <div className="space-y-3 pb-8 border-b border-zinc-200 dark:border-white/10">
+      <div className="space-y-4 pb-6 border-b border-zinc-200 dark:border-white/10">
         <div className="flex items-center gap-2">
           <Link
             href="/"
@@ -81,20 +90,97 @@ export default function DeveloperDocsPage() {
             <span>Back to Applications</span>
           </Link>
           <span className="text-zinc-400">•</span>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">Integration Guides, Port Maps & AI Copilot Prompt</span>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">Developer Master Documentation & Reference</span>
         </div>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-zinc-950 dark:text-white tracking-tight">
-          180 Identity & 180 Pay Integration Master Guide
-        </h1>
-        <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-3xl leading-relaxed">
-          The exact, zero-download developer blueprint for integrating <strong>Universal Authentication (180 Identity)</strong> and <strong>1-Click Sovereign Payments (180 Pay)</strong> into any web or mobile application in fewer than 35 lines of code.
-        </p>
+        
+        <div className="space-y-2">
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-zinc-950 dark:text-white tracking-tight">
+            180 Identity & 180 Pay Integration Master Guide
+          </h1>
+          <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-3xl leading-relaxed">
+            The complete, zero-download developer blueprint for integrating <strong>Universal Authentication (180 Identity)</strong> and <strong>1-Click Sovereign Payments (180 Pay)</strong> into any web or mobile application in fewer than 35 lines of code.
+          </p>
+        </div>
+
+        {/* Quick-Jump Section Navigation Bar */}
+        <div className="flex items-center gap-2 overflow-x-auto pt-3 pb-1 text-xs border-t border-zinc-100 dark:border-white/5 scrollbar-none">
+          <a
+            href="#blueprint"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium transition-colors shrink-0 flex items-center gap-1"
+          >
+            <Server className="w-3.5 h-3.5 text-purple-500" />
+            <span>Blueprint & Ports</span>
+          </a>
+          <a
+            href="#credentials"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors shrink-0 flex items-center gap-1"
+          >
+            <Key className="w-3.5 h-3.5 text-blue-500" />
+            <span>Credentials Master Spec</span>
+          </a>
+          <a
+            href="#properties-deepdive"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-400 font-medium transition-colors shrink-0 flex items-center gap-1"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Properties Deep Dive</span>
+          </a>
+          <a
+            href="#lifecycle"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:text-amber-600 dark:hover:text-amber-400 font-medium transition-colors shrink-0 flex items-center gap-1"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-500" />
+            <span>6-Step Lifecycle</span>
+          </a>
+          <a
+            href="#webhook-spec"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium transition-colors shrink-0 flex items-center gap-1"
+          >
+            <Webhook className="w-3.5 h-3.5 text-purple-500" />
+            <span>Webhook Spec & HMAC</span>
+          </a>
+          <a
+            href="#security-cors"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 font-medium transition-colors shrink-0 flex items-center gap-1"
+          >
+            <Globe className="w-3.5 h-3.5 text-rose-500" />
+            <span>Redirect URIs & CORS</span>
+          </a>
+          <a
+            href="#env-template"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors shrink-0 flex items-center gap-1"
+          >
+            <Terminal className="w-3.5 h-3.5 text-blue-500" />
+            <span>.env.local Template</span>
+          </a>
+          <a
+            href="#ai-prompt"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 font-semibold transition-colors shrink-0 flex items-center gap-1"
+          >
+            <Bot className="w-3.5 h-3.5" />
+            <span>AI Copilot Prompt</span>
+          </a>
+          <a
+            href="#quickstarts"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-400 font-medium transition-colors shrink-0 flex items-center gap-1"
+          >
+            <Code2 className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Code Quickstarts</span>
+          </a>
+          <a
+            href="#playground"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 font-semibold transition-colors shrink-0 flex items-center gap-1"
+          >
+            <Play className="w-3.5 h-3.5" />
+            <span>Playground</span>
+          </a>
+        </div>
       </div>
 
       {/* ─────────────────────────────────────────────────────────────────────────────
           SECTION 0: ZERO-DOWNLOAD MASTER BLUEPRINT & ARCHITECTURE
           ───────────────────────────────────────────────────────────────────────────── */}
-      <section className="space-y-6">
+      <section id="blueprint" className="space-y-6 pt-2">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
             <Zap className="w-4 h-4" />
@@ -197,7 +283,536 @@ export default function DeveloperDocsPage() {
       </section>
 
       {/* ─────────────────────────────────────────────────────────────────────────────
-          SECTION 1: AI AGENT / COPILOT ECCENTRIC PROMPT
+          SECTION 1: APPLICATION REGISTRATION & CREDENTIALS SPECIFICATION
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="credentials" className="space-y-6 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <Key className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
+              Application Registration & Credentials Guide
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              The complete reference for application registration properties, client credentials, and webhook endpoints.
+            </p>
+          </div>
+        </div>
+
+        {/* Live App Spotlight Card */}
+        <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-900/20 via-purple-900/20 to-black/40 border border-blue-500/20 shadow-md relative overflow-hidden space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  Active Reference Implementation
+                </span>
+              </div>
+              <h3 className="text-lg font-bold text-zinc-950 dark:text-white">
+                Application: <span className="font-mono text-blue-600 dark:text-purple-400">180workspace</span>
+              </h3>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                Created and managed directly under owner account <strong className="text-zinc-900 dark:text-white">simplicion</strong> (<code className="text-xs font-mono text-zinc-700 dark:text-zinc-300">simplicion.com@gmail.com</code>).
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                <span>Verified in 180 Core DB</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-xs font-mono">
+            <div className="p-3 rounded-2xl bg-white/70 dark:bg-black/60 border border-zinc-200 dark:border-white/5 space-y-1">
+              <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-sans font-bold">Client ID</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-emerald-600 dark:text-emerald-400 truncate select-all">180_client_5cc136397553836e34eb37ce22d13a53</span>
+                <button
+                  onClick={() => copyToClipboard('180_client_5cc136397553836e34eb37ce22d13a53', 'spotlight-cid')}
+                  className="p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                  title="Copy Client ID"
+                >
+                  {copiedKey === 'spotlight-cid' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-white/70 dark:bg-black/60 border border-zinc-200 dark:border-white/5 space-y-1">
+              <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-sans font-bold">Webhook Secret</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-purple-600 dark:text-purple-400 truncate select-all">whsec_91b1a44cd792ff88dc268110c139107af96d70ea</span>
+                <button
+                  onClick={() => copyToClipboard('whsec_91b1a44cd792ff88dc268110c139107af96d70ea', 'spotlight-whsec')}
+                  className="p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                  title="Copy Webhook Secret"
+                >
+                  {copiedKey === 'spotlight-whsec' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Credentials Breakdown Table */}
+        <div className="rounded-3xl overflow-hidden border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#101012] text-xs shadow-sm">
+          <div className="p-4 sm:p-5 border-b border-zinc-200 dark:border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <span className="font-bold text-zinc-950 dark:text-white">Credentials & App Properties Specification</span>
+            </div>
+            <span className="text-[11px] font-mono text-zinc-400">Zero-Trust Key Management</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 font-semibold">
+                <tr>
+                  <th className="py-3 px-5">Property</th>
+                  <th className="py-3 px-5">Example / Format</th>
+                  <th className="py-3 px-5">Where It Lives</th>
+                  <th className="py-3 px-5">Purpose & Security Rule</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200 dark:divide-white/5 font-mono text-zinc-700 dark:text-zinc-300 text-xs">
+                <tr>
+                  <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Application Name</td>
+                  <td className="py-3 px-5 text-purple-600 dark:text-purple-400 font-mono">180workspace</td>
+                  <td className="py-3 px-5 font-sans text-zinc-500">App Header, Consent Screen</td>
+                  <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Public name of your application displayed to users on the 180 Identity consent dialog and transaction invoice.</td>
+                </tr>
+                <tr>
+                  <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Owner Account</td>
+                  <td className="py-3 px-5 text-blue-600 dark:text-blue-400 font-mono">simplicion (simplicion.com@gmail.com)</td>
+                  <td className="py-3 px-5 font-sans text-zinc-500">Developer Session</td>
+                  <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">The verified 180 Profile user who owns, configures, and receives payouts for this app.</td>
+                </tr>
+                <tr>
+                  <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Client ID</td>
+                  <td className="py-3 px-5 text-emerald-600 dark:text-emerald-400 font-mono">180_client_5cc136397553836e34eb37ce22d13a53</td>
+                  <td className="py-3 px-5 font-sans text-zinc-500"><code className="font-mono text-zinc-700 dark:text-zinc-300">NEXT_PUBLIC_180_CLIENT_ID</code></td>
+                  <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400"><strong>Public identifier.</strong> Safe to expose in frontend HTML, Flutter apps, and browser scripts to trigger popups.</td>
+                </tr>
+                <tr>
+                  <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Client Secret</td>
+                  <td className="py-3 px-5 text-amber-600 dark:text-amber-400 font-mono">180_secret_41b2bd23a7a978f197c1...</td>
+                  <td className="py-3 px-5 font-sans text-zinc-500"><code className="font-mono text-zinc-700 dark:text-zinc-300">ONE_EIGHTY_CLIENT_SECRET</code></td>
+                  <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400"><strong>Confidential backend secret.</strong> Never expose in client code. Displayed once at creation, hashed with bcrypt in DB. Used in server-to-server token exchange.</td>
+                </tr>
+                <tr>
+                  <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Webhook Signing Secret</td>
+                  <td className="py-3 px-5 text-purple-600 dark:text-purple-400 font-mono">whsec_91b1a44cd792ff88dc26811...</td>
+                  <td className="py-3 px-5 font-sans text-zinc-500"><code className="font-mono text-zinc-700 dark:text-zinc-300">ONE_EIGHTY_WEBHOOK_SECRET</code></td>
+                  <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Used by your backend to verify HMAC-SHA256 signatures in the <code className="text-emerald-500 font-mono">X-180-Signature</code> header on incoming payment captures.</td>
+                </tr>
+                <tr>
+                  <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Payment Webhook URL</td>
+                  <td className="py-3 px-5 text-blue-600 dark:text-blue-400 font-mono">https://api.180workspace.com/api/v1/wallet/webhooks/180-pay</td>
+                  <td className="py-3 px-5 font-sans text-zinc-500">App Settings / Console</td>
+                  <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">The public HTTPS endpoint where 180 Pay dispatches real-time capture and refund event payloads.</td>
+                </tr>
+                <tr>
+                  <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Allowed Redirect URIs</td>
+                  <td className="py-3 px-5 text-zinc-600 dark:text-zinc-400 font-mono">http://localhost:3000/callback&#10;https://180workspace.com/callback&#10;https://*.180workspace.com/callback</td>
+                  <td className="py-3 px-5 font-sans text-zinc-500">App Settings / Console</td>
+                  <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Whitelisted OAuth 2.0 callback URLs. Prevents open redirect attacks. Supports wildcard subdomains (<code className="font-mono">https://*.180workspace.com/callback</code>).</td>
+                </tr>
+                <tr>
+                  <td className="py-3 px-5 font-sans font-bold text-zinc-950 dark:text-white">Allowed Origins (CORS)</td>
+                  <td className="py-3 px-5 text-zinc-600 dark:text-zinc-400 font-mono">http://localhost:3000&#10;https://180workspace.com&#10;https://*.180workspace.com</td>
+                  <td className="py-3 px-5 font-sans text-zinc-500">App Settings / Console</td>
+                  <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Whitelisted web domains permitted to make client-side requests and receive cross-window postMessage events.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          SECTION 2: PROPERTY DEEP-DIVE & SECURITY MODEL
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="properties-deepdive" className="space-y-6 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
+              Property Deep-Dive & Security Architecture
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Clear rules explaining how each credential behaves and how zero-trust security is guaranteed.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          {/* Card 1: Client ID vs Client Secret */}
+          <div className="p-5 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Key className="w-4 h-4 text-emerald-500" />
+              <h3 className="font-bold text-zinc-950 dark:text-white">Client ID vs. Client Secret</h3>
+            </div>
+            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              <strong>Client ID</strong> is a public identifier prefixed with <code className="font-mono text-zinc-800 dark:text-zinc-200">180_client_</code>. It is completely safe to embed in your React/Next.js frontend code or mobile builds.
+            </p>
+            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              <strong>Client Secret</strong> is a confidential key prefixed with <code className="font-mono text-zinc-800 dark:text-zinc-200">180_secret_</code>. It is shown <em>only once</em> upon app creation and is cryptographically hashed with bcrypt in the 180 Core database. You must store it strictly on your server backend.
+            </p>
+          </div>
+
+          {/* Card 2: Webhook Secret & HMAC Verification */}
+          <div className="p-5 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Webhook className="w-4 h-4 text-purple-500" />
+              <h3 className="font-bold text-zinc-950 dark:text-white">Webhook Signing Secret (`whsec_...`)</h3>
+            </div>
+            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Every payment captured by 180 Pay sends an HTTP POST to your webhook endpoint with an <code className="font-mono text-emerald-500">X-180-Signature</code> header.
+            </p>
+            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Your server computes an HMAC-SHA256 hash of the <strong>raw request body</strong> using your <code className="font-mono text-zinc-800 dark:text-zinc-200">whsec_...</code> secret. If the signatures match in constant time, you know the event originated genuinely from 180 Platform.
+            </p>
+          </div>
+
+          {/* Card 3: Allowed Redirect URIs */}
+          <div className="p-5 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <ArrowUpRight className="w-4 h-4 text-blue-500" />
+              <h3 className="font-bold text-zinc-950 dark:text-white">Allowed Redirect URIs & Wildcards</h3>
+            </div>
+            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Strict OAuth 2.0 (RFC 6749) rules require pre-registering callback URLs. The 180 Identity engine rejects any authorization request targeting an unlisted URL.
+            </p>
+            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Supports wildcard subdomains such as <code className="font-mono text-zinc-800 dark:text-zinc-200">https://*.180workspace.com/callback</code> to seamlessly support preview deployments, Vercel branches, and micro-frontends without breaking security.
+            </p>
+          </div>
+
+          {/* Card 4: Allowed Origins & CORS */}
+          <div className="p-5 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-amber-500" />
+              <h3 className="font-bold text-zinc-950 dark:text-white">Allowed Origins (CORS & PostMessage)</h3>
+            </div>
+            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Controls cross-origin browser communication. When the 180 Profile or 180 Pay popup window completes an operation, it emits a cross-window <code className="font-mono text-zinc-800 dark:text-zinc-200">postMessage</code> event.
+            </p>
+            <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              By whitelisting origins like <code className="font-mono text-zinc-800 dark:text-zinc-200">https://180workspace.com</code> and <code className="font-mono text-zinc-800 dark:text-zinc-200">https://*.180workspace.com</code>, unauthorized websites cannot frame your popup or eavesdrop on authentication tokens.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          SECTION 3: 6-STEP IMPLEMENTATION LIFECYCLE
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="lifecycle" className="space-y-6 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+            <Zap className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
+              6-Step Implementation Lifecycle
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              The end-to-end journey from developer registration to automated revenue payouts.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-5 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">1</span>
+              <h3 className="font-bold text-xs text-zinc-950 dark:text-white">Register in Developer Console</h3>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              Open the <strong>"+ Register New App"</strong> slide drawer. Provide your App Name, Redirect URIs, Allowed Origins, and choose Confidential or Public PKCE client type.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs">2</span>
+              <h3 className="font-bold text-xs text-zinc-950 dark:text-white">Save Secrets (One-Time Reveal)</h3>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              Copy your <code className="font-mono text-zinc-700 dark:text-zinc-300">Client Secret</code> and <code className="font-mono text-zinc-700 dark:text-zinc-300">Webhook Secret</code> into your <code className="font-mono text-zinc-700 dark:text-zinc-300">.env</code>. For zero-trust security, raw secrets are never displayed again.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">3</span>
+              <h3 className="font-bold text-xs text-zinc-950 dark:text-white">Trigger 180 Identity Popup</h3>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              Call <code className="font-mono text-zinc-700 dark:text-zinc-300">use180Identity()</code> or embed <code className="font-mono text-zinc-700 dark:text-zinc-300">&lt;OneEightyAuthButton /&gt;</code> in your UI. Users log in with WhatsApp OTP, Google, or @usernames.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">4</span>
+              <h3 className="font-bold text-xs text-zinc-950 dark:text-white">Server-Side Token Exchange</h3>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              Your backend exchanges the authorization code for an RS256 JWT access token via <code className="font-mono text-zinc-700 dark:text-zinc-300">POST /api/oauth/token</code> using your Client ID & Secret.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">5</span>
+              <h3 className="font-bold text-xs text-zinc-950 dark:text-white">2-Way 180 Pay Webhook Capture</h3>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              When customers complete payments in 180 Pay, our gateway dispatches a webhook to your URL. Verify the HMAC signature with <code className="font-mono text-zinc-700 dark:text-zinc-300">whsec_...</code> before unlocking digital assets.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-xs">6</span>
+              <h3 className="font-bold text-xs text-zinc-950 dark:text-white">Telemetry & Instant Payouts</h3>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              Monitor active users in the Real-Time Auth Stream, inspect webhook latency logs, and withdraw your sovereign wallet revenue directly to your linked bank account or UPI ID.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          SECTION 4: WEBHOOK SPECIFICATION & HMAC SIGNATURE VERIFICATION
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="webhook-spec" className="space-y-6 pt-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+              <Webhook className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
+                2-Way Webhook Delivery & Cryptographic Verification
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                180 Pay dispatches real-time event payloads signed with HMAC-SHA256 to guarantee order fulfillment.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* HTTP Headers Table */}
+        <div className="rounded-3xl overflow-hidden border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#101012] text-xs shadow-sm">
+          <div className="p-4 sm:p-5 border-b border-zinc-200 dark:border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-purple-500" />
+              <span className="font-bold text-zinc-950 dark:text-white">Incoming Webhook HTTP Headers</span>
+            </div>
+            <span className="text-[11px] font-mono text-zinc-400">POST Request</span>
+          </div>
+
+          <table className="w-full text-left">
+            <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 font-semibold">
+              <tr>
+                <th className="py-3 px-5">Header</th>
+                <th className="py-3 px-5">Example Value</th>
+                <th className="py-3 px-5">Description & Security Purpose</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200 dark:divide-white/5 font-mono text-zinc-700 dark:text-zinc-300 text-xs">
+              <tr>
+                <td className="py-3 px-5 text-purple-600 dark:text-purple-400 font-bold">X-180-Signature</td>
+                <td className="py-3 px-5 text-zinc-500">8f4a13d70b5e4c2...</td>
+                <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Hex-encoded HMAC-SHA256 signature generated across the raw request body using your Webhook Secret.</td>
+              </tr>
+              <tr>
+                <td className="py-3 px-5 text-blue-600 dark:text-blue-400 font-bold">X-180-Timestamp</td>
+                <td className="py-3 px-5 text-zinc-500">1727623200</td>
+                <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Unix epoch timestamp when the webhook was generated. Used to reject replay attacks (&gt; 300s drift).</td>
+              </tr>
+              <tr>
+                <td className="py-3 px-5 text-emerald-600 dark:text-emerald-400 font-bold">X-180-Event-Id</td>
+                <td className="py-3 px-5 text-zinc-500">evt_98f12a34b5c6</td>
+                <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Unique event identifier. Store in database for strict idempotency to prevent duplicate fulfillment.</td>
+              </tr>
+              <tr>
+                <td className="py-3 px-5 text-zinc-900 dark:text-white font-bold">Content-Type</td>
+                <td className="py-3 px-5 text-zinc-500">application/json</td>
+                <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Standard UTF-8 encoded JSON payload format.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* JSON Payload & Verification Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Sample JSON Payload */}
+          <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#101012] p-6 space-y-3 shadow-sm flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-white/5">
+                <div className="flex items-center gap-2 text-xs font-bold text-zinc-950 dark:text-white">
+                  <Code2 className="w-4 h-4 text-purple-500" />
+                  <span>Webhook Event Payload (`payment.captured`)</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyToClipboard(webhookPayloadExampleString, 'webhook-payload')}
+                  className="px-3 py-1 min-h-[32px] rounded-xl text-xs font-semibold flex items-center gap-1"
+                >
+                  {copiedKey === 'webhook-payload' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedKey === 'webhook-payload' ? 'Copied' : 'Copy JSON'}</span>
+                </Button>
+              </div>
+              <pre className="text-xs text-zinc-700 dark:text-zinc-300 font-mono bg-zinc-50 dark:bg-black/60 p-4 rounded-2xl border border-zinc-200 dark:border-white/5 overflow-x-auto select-all max-h-[380px]">
+                {webhookPayloadExampleString}
+              </pre>
+            </div>
+            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-300 text-[11px] leading-relaxed">
+              <strong>Idempotency Rule:</strong> Check whether <code className="font-mono font-bold">data.transactionId</code> has already been fulfilled in your database before granting access.
+            </div>
+          </div>
+
+          {/* Node.js Verification Snippet */}
+          <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#101012] p-6 space-y-3 shadow-sm flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-white/5">
+                <div className="flex items-center gap-2 text-xs font-bold text-zinc-950 dark:text-white">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <span>Node.js Express Verification Handler</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyToClipboard(webhookVerificationNodeString, 'webhook-node-verify')}
+                  className="px-3 py-1 min-h-[32px] rounded-xl text-xs font-semibold flex items-center gap-1"
+                >
+                  {copiedKey === 'webhook-node-verify' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedKey === 'webhook-node-verify' ? 'Copied' : 'Copy Node.js'}</span>
+                </Button>
+              </div>
+              <pre className="text-xs text-zinc-700 dark:text-zinc-300 font-mono bg-zinc-50 dark:bg-black/60 p-4 rounded-2xl border border-zinc-200 dark:border-white/5 overflow-x-auto select-all max-h-[380px]">
+                {webhookVerificationNodeString}
+              </pre>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] leading-relaxed">
+              <strong>Raw Body Required:</strong> Never run HMAC against a re-serialized <code className="font-mono">JSON.stringify(req.body)</code>. The signature must be computed on the untouched raw byte buffer.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          SECTION 5: ALLOWED REDIRECT URIS, WILDCARDS & CORS ORIGINS MATRIX
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="security-cors" className="space-y-6 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+            <Globe className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
+              Allowed Redirect URIs & CORS Security Matrix
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Prevent authorization code theft, open redirect exploits, and malicious cross-origin window eavesdropping.
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-3xl overflow-hidden border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#101012] text-xs shadow-sm">
+          <div className="p-4 sm:p-5 border-b border-zinc-200 dark:border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-rose-500" />
+              <span className="font-bold text-zinc-950 dark:text-white">Pattern Matching & Wildcard Rules</span>
+            </div>
+            <span className="text-[11px] font-mono text-zinc-400">RFC 6749 Compliant</span>
+          </div>
+
+          <table className="w-full text-left">
+            <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 font-semibold">
+              <tr>
+                <th className="py-3 px-5">Configured Pattern</th>
+                <th className="py-3 px-5">Permitted Examples</th>
+                <th className="py-3 px-5">Blocked Examples</th>
+                <th className="py-3 px-5">Security Enforcement Note</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200 dark:divide-white/5 font-mono text-zinc-700 dark:text-zinc-300 text-xs">
+              <tr>
+                <td className="py-3 px-5 text-emerald-600 dark:text-emerald-400 font-bold">http://localhost:3000/callback</td>
+                <td className="py-3 px-5 font-mono text-zinc-600 dark:text-zinc-400">http://localhost:3000/callback</td>
+                <td className="py-3 px-5 text-rose-500">http://localhost:8080/callback<br />http://127.0.0.1:3000/callback</td>
+                <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Exact match on host & port. Only allowed in development environments.</td>
+              </tr>
+              <tr>
+                <td className="py-3 px-5 text-blue-600 dark:text-blue-400 font-bold">https://180workspace.com/callback</td>
+                <td className="py-3 px-5 font-mono text-zinc-600 dark:text-zinc-400">https://180workspace.com/callback</td>
+                <td className="py-3 px-5 text-rose-500">http://180workspace.com/callback<br />https://180workspace.com/login</td>
+                <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Production requires HTTPS. Path must match precisely.</td>
+              </tr>
+              <tr>
+                <td className="py-3 px-5 text-purple-600 dark:text-purple-400 font-bold">https://*.180workspace.com/callback</td>
+                <td className="py-3 px-5 font-mono text-zinc-600 dark:text-zinc-400">https://app.180workspace.com/callback<br />https://staging.180workspace.com/callback<br />https://pr-42.180workspace.com/callback</td>
+                <td className="py-3 px-5 text-rose-500">https://evil-180workspace.com/callback<br />https://sub.sub.180workspace.com/callback</td>
+                <td className="py-3 px-5 font-sans text-zinc-600 dark:text-zinc-400">Wildcard matches single-level subdomains. Protects against domain squatting.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          SECTION 6: STANDARD ENVIRONMENT FILE TEMPLATE (.env.local)
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="env-template" className="space-y-6 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <Terminal className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
+              Standard Environment Configuration (.env.local)
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Drop these variables directly into your root `.env.local` to connect to 180 Core services.
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#101012] p-6 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-white/5">
+            <div className="flex items-center gap-2 text-xs font-bold text-zinc-950 dark:text-white">
+              <Terminal className="w-4 h-4 text-purple-500" />
+              <span>Standard Environment File Template (.env.local)</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => copyToClipboard(envTemplateString, 'env-template')}
+              className="px-3 py-1.5 min-h-[36px] rounded-xl text-xs font-semibold flex items-center gap-1.5"
+            >
+              {copiedKey === 'env-template' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedKey === 'env-template' ? 'Copied' : 'Copy .env Template'}</span>
+            </Button>
+          </div>
+          <pre className="text-xs text-zinc-700 dark:text-zinc-300 font-mono bg-zinc-50 dark:bg-black/60 p-4 rounded-2xl border border-zinc-200 dark:border-white/5 overflow-x-auto select-all">
+            {envTemplateString}
+          </pre>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          SECTION 2: AI AGENT / COPILOT ECCENTRIC PROMPT
           ───────────────────────────────────────────────────────────────────────────── */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
@@ -528,6 +1143,131 @@ export default function DeveloperDocsPage() {
 // CODE CONSTANTS & AI PROMPTS
 // ─────────────────────────────────────────────────────────────────────────────
 
+const envTemplateString = `# ─────────────────────────────────────────────────────────────────────────────
+# 180 PLATFORM OFFICIAL INTEGRATION CREDENTIALS (.env.local)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Public Client ID (Safe for frontend Next.js, React, Flutter, HTML)
+NEXT_PUBLIC_180_CLIENT_ID="180_client_5cc136397553836e34eb37ce22d13a53"
+
+# Confidential Secrets (Keep strictly on server-side / backend)
+ONE_EIGHTY_CLIENT_SECRET="180_secret_41b2bd23a7a978f197c16958ea14b4de6af9abe14ec13c9c"
+ONE_EIGHTY_WEBHOOK_SECRET="whsec_91b1a44cd792ff88dc268110c139107af96d70ea"
+
+# Gateway Endpoints
+NEXT_PUBLIC_180_AUTH_URL="https://profile.180workspace.com"
+ONE_EIGHTY_API_URL="https://services.180workspace.com"
+NEXT_PUBLIC_180_PAY_URL="https://pay.180workspace.com"
+`;
+
+const webhookPayloadExampleString = `{
+  "event": "payment.captured",
+  "eventId": "evt_98f12a34b5c6",
+  "timestamp": "2026-09-29T14:30:00.000Z",
+  "data": {
+    "transactionId": "txn_89104b2c",
+    "orderId": "order_77192",
+    "amount": 499.00,
+    "currency": "INR",
+    "status": "COMPLETED",
+    "customer": {
+      "id": "290aeceb-4af1-4d20-b190-a0853f177779",
+      "username": "simplicion",
+      "email": "simplicion.com@gmail.com"
+    },
+    "metadata": {
+      "planId": "pro_monthly",
+      "companyId": "workspace_corp"
+    }
+  }
+}`;
+
+const webhookVerificationNodeString = `import crypto from 'crypto';
+import express from 'express';
+
+const app = express();
+
+// CRITICAL: Preserve raw body buffer for HMAC-SHA256 signature verification
+app.use(express.json({
+  verify: (req, res, buf) => {
+    (req as any).rawBody = buf;
+  }
+}));
+
+app.post('/api/v1/wallet/webhooks/180-pay', (req, res) => {
+  const signature = req.headers['x-180-signature'] as string;
+  const timestamp = req.headers['x-180-timestamp'] as string;
+  const webhookSecret = process.env.ONE_EIGHTY_WEBHOOK_SECRET!; // whsec_...
+
+  // 1. Prevent Replay Attacks: Enforce 5-minute (300s) maximum drift
+  const currentTime = Math.floor(Date.now() / 1000);
+  if (!timestamp || Math.abs(currentTime - parseInt(timestamp, 10)) > 300) {
+    return res.status(400).send('Webhook timestamp out of tolerance');
+  }
+
+  // 2. Compute expected HMAC-SHA256 signature
+  const rawBody = (req as any).rawBody;
+  const expected = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
+
+  // 3. Constant-time comparison to prevent timing side-channel attacks
+  const isValid = signature && signature.length === expected.length && 
+    crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
+
+  if (!isValid) {
+    return res.status(400).send('Invalid webhook HMAC signature');
+  }
+
+  // 4. Idempotently fulfill customer purchase
+  const event = req.body;
+  if (event.event === 'payment.captured') {
+    const { transactionId, amount, customer, metadata } = event.data;
+    console.log(\`[180 Pay] Captured ₹\${amount} for \${customer.email} (Txn: \${transactionId})\`);
+    // Upgrade database record or grant credits
+  }
+
+  // Acknowledge receipt within 2 seconds
+  res.status(200).json({ received: true });
+});`;
+
+const webhookVerificationPythonString = `import hmac
+import hashlib
+import time
+from fastapi import FastAPI, Request, Header, HTTPException
+
+app = FastAPI()
+WEBHOOK_SECRET = "whsec_91b1a44cd792ff88dc268110c139107af96d70ea"
+
+@app.post("/api/v1/wallet/webhooks/180-pay")
+async def handle_180_pay_webhook(
+    request: Request,
+    x_180_signature: str = Header(None),
+    x_180_timestamp: str = Header(None)
+):
+    raw_body = await request.body()
+    
+    # 1. Prevent replay attacks (5 minute threshold)
+    if not x_180_timestamp or abs(time.time() - int(x_180_timestamp)) > 300:
+        raise HTTPException(status_code=400, detail="Timestamp expired or missing")
+
+    # 2. Compute expected HMAC-SHA256 signature
+    expected_sig = hmac.new(
+        WEBHOOK_SECRET.encode('utf-8'),
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+
+    # 3. Constant-time comparison
+    if not x_180_signature or not hmac.compare_digest(x_180_signature, expected_sig):
+        raise HTTPException(status_code=400, detail="Invalid HMAC signature")
+
+    # 4. Fulfill order idempotently
+    payload = await request.json()
+    if payload.get("event") == "payment.captured":
+        data = payload.get("data", {})
+        print(f"Verified payment: {data.get('transactionId')} for {data.get('customer')}")
+
+    return {"received": True}`;
+
 const eccentricAiPrompt = `# AI INSTRUCTION PROMPT: Integrate 180 Identity & 180 Pay in Fullstack App
 
 You are an expert fullstack software engineer. Integrate 180 Workspace's Sovereign Identity (OAuth2 / 180 Identity) and 1-Click Payments (180 Pay) into this application.
@@ -610,29 +1350,8 @@ export async function buyWith180Pay(amount: number) {
       window.location.href = '/dashboard/success';
     },
   });
-}`;
+`;
 
-const buttonCode = `// Embeddable 180 Workspace Auth Button
-import { OneEightyAuthButton } from '@workspace/ui';
-
-export function LoginWidget() {
-  return (
-    <OneEightyAuthButton
-      clientId={process.env.NEXT_PUBLIC_180_CLIENT_ID!}
-      text="Continue with 180"
-      variant="dark"
-      scope="openid identity:read identity:email identity:phone"
-      onSuccess={async (code) => {
-        await fetch('/api/auth/callback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code }),
-        });
-        window.location.reload();
-      }}
-    />
-  );
-}`;
 
 const payCheckoutCode = `// Frontend: Trigger 1-Click 180 Pay Sovereign Checkout Modal
 import { OneEightyPay } from '@180workspace/identity-sdk';
