@@ -1,11 +1,10 @@
 const path = require('path');
 
+const isExport = process.env.NEXT_EXPORT === 'true' || process.env.CF_PAGES === 'true';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  images: {
-    unoptimized: true,
-  },
+  ...(isExport ? { output: 'export', images: { unoptimized: true } } : {}),
   transpilePackages: ['@workspace/ui', '@workspace/identity-sdk'],
   reactStrictMode: true,
   poweredByHeader: false,
