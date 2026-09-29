@@ -6,6 +6,7 @@
   "scripts": {
     "start": "cross-env PORT=4000 tsx server.js",
     "dev": "cross-env PORT=4002 nodemon --exec tsx server.js",
+    "build": "echo 'Backend ready for production tsx runtime'",
     "seed": "node src/utils/seed.js",
     "migrate": "node src/utils/migrate-from-sqlite.js",
     "test": "jest",
