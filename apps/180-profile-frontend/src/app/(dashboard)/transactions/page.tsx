@@ -22,7 +22,7 @@ import { LedgerEntry } from '@/types';
 import { InvoiceModal } from '@/components/InvoiceModal';
 
 export default function TransactionsPage() {
-  const [balance, setBalance] = useState<number>(1000);
+  const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [topupLoading, setTopupLoading] = useState<boolean>(false);
   const [selectedAmount, setSelectedAmount] = useState<number>(1000);
@@ -36,72 +36,28 @@ export default function TransactionsPage() {
 
   const fetchWalletData = async () => {
     setLoading(true);
+    const token =
+      localStorage.getItem('platform_auth_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('accessToken');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
     try {
       const [walletRes, ledgerRes] = await Promise.all([
-        fetch('/api/oauth/wallet', { credentials: 'include' }).then((r) => r.json()).catch(() => null),
-        fetch('/api/oauth/wallet/ledger', { credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch('/api/oauth/wallet', { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
+        fetch('/api/oauth/wallet/ledger', { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
       ]);
 
       if (walletRes?.success && walletRes.data) {
-        setBalance(walletRes.data.balance);
+        setBalance(walletRes.data.balance || 0);
+      } else {
+        setBalance(0);
       }
 
-      if (ledgerRes?.success && ledgerRes.data?.entries) {
+      if (ledgerRes?.success && Array.isArray(ledgerRes.data?.entries)) {
         setLedger(ledgerRes.data.entries);
       } else {
-        // High quality fallback sample ledger entries
-        setLedger([
-          {
-            id: 'tx_101',
-            userId: '180-usr-8f92a10c99',
-            amount: 1000.0,
-            type: 'TOPUP',
-            description: 'Prepaid Wallet Initial Top-Up (Razorpay UPI)',
-            referenceId: 'pay_RZP9812491',
-            balanceAfter: 1000.0,
-            createdAt: '2026-09-28T09:30:00Z',
-          },
-          {
-            id: 'tx_102',
-            userId: '180-usr-8f92a10c99',
-            amount: -45.0,
-            type: 'DEBIT',
-            description: 'Voiceforce AI Outbound Call Session (3.2 min)',
-            referenceId: 'vf_call_981241',
-            balanceAfter: 955.0,
-            createdAt: '2026-09-27T18:15:00Z',
-          },
-          {
-            id: 'tx_103',
-            userId: '180-usr-8f92a10c99',
-            amount: -120.0,
-            type: 'PURCHASE',
-            description: 'Traffic Director API Monthly Provisioning',
-            referenceId: 'td_sub_41029',
-            balanceAfter: 835.0,
-            createdAt: '2026-09-26T14:10:00Z',
-          },
-          {
-            id: 'tx_104',
-            userId: '180-usr-8f92a10c99',
-            amount: 2500.0,
-            type: 'TOPUP',
-            description: 'Prepaid Balance Recharge (Corporate Card)',
-            referenceId: 'pay_RZP391024',
-            balanceAfter: 3335.0,
-            createdAt: '2026-09-20T11:00:00Z',
-          },
-          {
-            id: 'tx_105',
-            userId: '180-usr-8f92a10c99',
-            amount: -350.0,
-            type: 'CHECKOUT_PAY',
-            description: '180 Developer Portal Metered Webhook Subscriptions',
-            referenceId: 'dev_mfg_88192',
-            balanceAfter: 2985.0,
-            createdAt: '2026-09-18T16:40:00Z',
-          },
-        ]);
+        setLedger([]);
       }
     } finally {
       setLoading(false);
@@ -150,7 +106,7 @@ export default function TransactionsPage() {
         name: '180 Workspace Profile',
         description: 'Universal Prepaid Wallet Recharge',
         order_id: orderId,
-        theme: { color: '#7c3aed' },
+        theme: { color: '#2563eb' },
         handler: async function (response: any) {
           const verifyToast = toast.loading('Verifying transaction on 180 Core...');
           try {
@@ -227,7 +183,7 @@ export default function TransactionsPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Link href="/" className="text-xs text-purple-600 hover:text-purple-700 font-medium">
+            <Link href="/" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
               ← Overview
             </Link>
             <span className="text-slate-400">•</span>
@@ -235,7 +191,7 @@ export default function TransactionsPage() {
           </div>
           <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
             <span>Wallet & Transactions</span>
-            <span className="px-2.5 py-0.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-full">
+            <span className="px-2.5 py-0.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
               Live Balance
             </span>
           </h1>
@@ -249,7 +205,7 @@ export default function TransactionsPage() {
           aria-label="Refresh Balance"
           className="flex items-center gap-2 px-4 py-2.5 min-h-[40px] rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-xs transition-all cursor-pointer shrink-0"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-purple-600' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-blue-600' : ''}`} />
           <span>Refresh Balance</span>
         </button>
       </div>
@@ -288,7 +244,7 @@ export default function TransactionsPage() {
                 </div>
 
                 <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
-                  <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0" />
+                  <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
                   <span>Double-Entry Cryptographic Balance</span>
                 </div>
               </div>
@@ -312,7 +268,7 @@ export default function TransactionsPage() {
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 tracking-tight">
-                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    <Sparkles className="w-4 h-4 text-blue-600" />
                     <span>Recharge Prepaid Wallet</span>
                   </h2>
                   <span className="text-xs text-slate-500">Instant UPI & Card Settlement</span>
@@ -332,7 +288,7 @@ export default function TransactionsPage() {
                         }}
                         className={`py-3 px-4 min-h-[44px] rounded-xl text-center font-bold text-sm transition-all duration-200 cursor-pointer ${
                           isSelected
-                            ? 'bg-purple-600 text-white shadow-xs border border-purple-600'
+                            ? 'bg-blue-600 text-white shadow-xs border border-blue-600'
                             : 'bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100'
                         }`}
                       >
@@ -359,7 +315,7 @@ export default function TransactionsPage() {
                       onChange={(e) => {
                         setCustomAmount(e.target.value);
                       }}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 min-h-[44px] text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 min-h-[44px] text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
                     />
                   </div>
                 </div>
@@ -377,7 +333,7 @@ export default function TransactionsPage() {
                 <Button
                   onClick={handleTopup}
                   disabled={topupLoading}
-                  className="w-full sm:w-auto px-8 py-3 min-h-[44px] rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                  className="w-full sm:w-auto px-8 py-3 min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   <CreditCard className="w-4 h-4" />
                   <span>{topupLoading ? 'Processing Order...' : 'Recharge via 180 Pay'}</span>
@@ -424,7 +380,7 @@ export default function TransactionsPage() {
                     placeholder="Search description or ref..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 min-h-[38px] text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-purple-500/30"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 min-h-[38px] text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30"
                   />
                 </div>
               </div>
@@ -491,7 +447,7 @@ export default function TransactionsPage() {
                             <button
                               type="button"
                               onClick={() => setSelectedInvoice(tx)}
-                              className="px-2.5 py-1 rounded-lg hover:bg-purple-50 text-purple-700 font-semibold text-[11px] border border-transparent hover:border-purple-200 transition-colors cursor-pointer"
+                              className="px-2.5 py-1 rounded-lg hover:bg-blue-50 text-blue-700 font-semibold text-[11px] border border-transparent hover:border-blue-200 transition-colors cursor-pointer"
                             >
                               Tax Invoice
                             </button>

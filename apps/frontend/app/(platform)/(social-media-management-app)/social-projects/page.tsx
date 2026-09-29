@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
     FolderKanban, Plus, Search, Filter, Calendar, CheckCircle2, Clock, 
     AlertCircle, Sparkles, Layers, ArrowRight, Instagram, Linkedin, 
     Youtube, MessageSquare, ShieldCheck, ChevronRight, User, Users, Share2,
-    Zap, Download, Monitor, Smartphone, X, Trash2, Info, ExternalLink, RefreshCw
+    Zap, X, Trash2, Info, ExternalLink, RefreshCw
 } from 'lucide-react';
 import { socialProjectService, SocialProject } from '@/lib/services/social-project.service';
 import { UniversalSkeleton, SkeletonBoundary } from '@workspace/ui';
@@ -20,7 +21,6 @@ export default function SocialProjectsListPage() {
     const [statusFilter, setStatusFilter] = useState('all');
 
     // Modals state
-    const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [projectToDelete, setProjectToDelete] = useState<SocialProject | null>(null);
     const [projectForDetails, setProjectForDetails] = useState<SocialProject | null>(null);
@@ -100,9 +100,7 @@ export default function SocialProjectsListPage() {
         }
     };
 
-    const handleLaunchStudio = (projectId: string) => {
-        window.location.href = `one80://projects/${projectId}`;
-    };
+
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -123,7 +121,7 @@ export default function SocialProjectsListPage() {
     const totalPending = projects.reduce((acc, p) => acc + (p.metrics?.pendingApprovals || 0), 0);
 
     return (
-        <div className="min-h-screen p-6 md:p-10 space-y-8 bg-slate-50/50 dark:bg-slate-950/50">
+        <div className="min-h-screen p-6 md:p-10 space-y-8 bg-zinc-50/50 dark:bg-black">
             {/* Top Navigation Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -131,26 +129,18 @@ export default function SocialProjectsListPage() {
                         <Share2 className="w-4 h-4" />
                         <span>180 Workspace Suite</span>
                     </div>
-                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
                         180 Social Media Manager
                     </h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                        Centralized project dashboard. Manage client engagements and launch full AI video editing and social publishing in our native desktop and mobile app.
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
+                        Centralized project dashboard. Manage client engagements, campaigns, and launch full AI video editing and social publishing.
                     </p>
                 </div>
 
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => setIsDownloadModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 rounded-xl shadow-sm transition active:scale-95"
-                    >
-                        <Download className="w-4 h-4 text-indigo-500" />
-                        <span>Download 180 Studio</span>
-                    </button>
-
-                    <button
                         onClick={() => setIsCreateModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl shadow-lg shadow-indigo-600/20 transition-all duration-200 active:scale-95"
+                        className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl shadow-lg shadow-indigo-600/20 transition-all duration-200 active:scale-95 cursor-pointer"
                     >
                         <Plus className="w-4 h-4" />
                         <span>Create Project</span>
@@ -160,44 +150,38 @@ export default function SocialProjectsListPage() {
 
             {/* Quick Metrics Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-md">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Projects</p>
-                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">{projects.length}</p>
+                <div className="p-5 rounded-2xl bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-zinc-800/80 backdrop-blur-md">
+                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Projects</p>
+                    <p className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mt-1">{projects.length}</p>
                     <p className="text-xs text-indigo-500 mt-1">Managed workspaces</p>
                 </div>
-                <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-md">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Scheduled Posts</p>
+                <div className="p-5 rounded-2xl bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-zinc-800/80 backdrop-blur-md">
+                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Scheduled Posts</p>
                     <p className="text-2xl font-black text-emerald-500 mt-1">{totalScheduled}</p>
-                    <p className="text-xs text-slate-400 mt-1">Across all campaigns</p>
+                    <p className="text-xs text-zinc-400 mt-1">Across all campaigns</p>
                 </div>
-                <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-md">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pending Approvals</p>
+                <div className="p-5 rounded-2xl bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-zinc-800/80 backdrop-blur-md">
+                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Pending Approvals</p>
                     <p className="text-2xl font-black text-amber-500 mt-1">{totalPending}</p>
-                    <p className="text-xs text-slate-400 mt-1">Awaiting client review</p>
+                    <p className="text-xs text-zinc-400 mt-1">Awaiting client review</p>
                 </div>
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/20 rounded-2xl backdrop-blur-md">
-                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Native Studio App</p>
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1">Windows • macOS • Android</p>
-                    <button
-                        onClick={() => setIsDownloadModalOpen(true)}
-                        className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 underline hover:no-underline mt-2 inline-flex items-center gap-1"
-                    >
-                        <span>Get App Downloads</span>
-                        <ChevronRight className="w-3 h-3" />
-                    </button>
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/20 backdrop-blur-md">
+                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Active Campaigns</p>
+                    <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{projects.filter(p => p.status === 'active' || p.status === 'in_progress').length}</p>
+                    <p className="text-xs text-zinc-400 mt-1">In production & review</p>
                 </div>
             </div>
 
             {/* Filter & Search Bar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800/80 shadow-sm">
                 <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-96">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                     <input
                         type="text"
                         placeholder="Search projects by name or client..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 text-sm bg-slate-100/70 dark:bg-slate-800/70 border border-transparent focus:border-indigo-500 rounded-xl outline-none transition text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                        className="w-full pl-10 pr-4 py-2 text-sm bg-zinc-100/70 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 rounded-xl outline-none transition text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
                     />
                 </form>
 
@@ -206,10 +190,10 @@ export default function SocialProjectsListPage() {
                         <button
                             key={status}
                             onClick={() => setStatusFilter(status)}
-                            className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg capitalize whitespace-nowrap transition ${
+                            className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg capitalize whitespace-nowrap transition cursor-pointer ${
                                 statusFilter === status
                                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
                             }`}
                         >
                             {status.replace('_', ' ')}
@@ -218,7 +202,7 @@ export default function SocialProjectsListPage() {
                     <button
                         onClick={loadProjects}
                         title="Refresh projects"
-                        className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                        className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition cursor-pointer"
                     >
                         <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                     </button>
@@ -229,17 +213,17 @@ export default function SocialProjectsListPage() {
             {loading ? (
                 <UniversalSkeleton type="projects" />
             ) : projects.length === 0 ? (
-                <div className="text-center py-16 px-4 bg-white/40 dark:bg-slate-900/40 rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 backdrop-blur-md">
+                <div className="text-center py-16 px-4 bg-white/40 dark:bg-zinc-900/40 rounded-3xl border border-dashed border-zinc-300 dark:border-zinc-800 backdrop-blur-md">
                     <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-4 shadow-inner">
                         <FolderKanban className="w-8 h-8" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">No Social Projects Found</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1 mb-6">
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">No Social Projects Found</h3>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto mt-1 mb-6">
                         Create your first social media project to link client content calendars, video editing tasks, approvals, and multi-platform publishing.
                     </p>
                     <button
                         onClick={() => setIsCreateModalOpen(true)}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition shadow-lg shadow-indigo-600/25"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition shadow-lg shadow-indigo-600/25 cursor-pointer"
                     >
                         <Plus className="w-4 h-4" />
                         <span>Create Social Project</span>
@@ -258,7 +242,7 @@ export default function SocialProjectsListPage() {
                         return (
                             <div
                                 key={project.id}
-                                className="group relative flex flex-col justify-between p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5"
+                                className="group relative flex flex-col justify-between p-6 rounded-3xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800/80 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5"
                             >
                                 <div>
                                     {/* Card Header: Client Badge, Status & Actions */}
@@ -272,7 +256,7 @@ export default function SocialProjectsListPage() {
                                             </span>
                                             <button
                                                 onClick={() => setProjectToDelete(project)}
-                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition"
+                                                className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition"
                                                 title="Delete Project"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
@@ -281,49 +265,49 @@ export default function SocialProjectsListPage() {
                                     </div>
 
                                     {/* Title & Description */}
-                                    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                                    <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
                                         {project.name}
                                     </h3>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 mb-5">
+                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 mt-1 mb-5">
                                         {project.description || 'Comprehensive social media growth and content production engagement.'}
                                     </p>
 
                                     {/* Connected Platforms Row */}
                                     <div className="flex items-center gap-1.5 mb-6">
-                                        <span className="text-xs text-slate-400 mr-1">Platforms:</span>
+                                        <span className="text-xs text-zinc-400 mr-1">Platforms:</span>
                                         {project.socialAccounts && project.socialAccounts.length > 0 ? (
                                             project.socialAccounts.map((acc: any) => (
                                                 <div
                                                     key={acc.id}
                                                     title={`${acc.platform} (@${acc.username})`}
-                                                    className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300"
+                                                    className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-300"
                                                 >
                                                     {getPlatformIcon(acc.platform)}
                                                 </div>
                                             ))
                                         ) : (
-                                            <span className="text-xs text-slate-400 italic">No accounts linked</span>
+                                            <span className="text-xs text-zinc-400 italic">No accounts linked</span>
                                         )}
                                     </div>
                                 </div>
 
                                 {/* Micro-Metrics Footer */}
-                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
                                     <div className="grid grid-cols-3 gap-2 text-center mb-4">
-                                        <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                                            <p className="text-xs text-slate-400">Scheduled</p>
-                                            <p className="text-base font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+                                        <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                                            <p className="text-xs text-zinc-400">Scheduled</p>
+                                            <p className="text-base font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">
                                                 {metrics.scheduledPosts}
                                             </p>
                                         </div>
-                                        <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                                            <p className="text-xs text-slate-400">Pending</p>
+                                        <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                                            <p className="text-xs text-zinc-400">Pending</p>
                                             <p className="text-base font-bold text-amber-500 mt-0.5">
                                                 {metrics.pendingApprovals}
                                             </p>
                                         </div>
-                                        <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                                            <p className="text-xs text-slate-400">Tasks</p>
+                                        <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                                            <p className="text-xs text-zinc-400">Tasks</p>
                                             <p className="text-base font-bold text-indigo-500 mt-0.5">
                                                 {metrics.outstandingTasks}
                                             </p>
@@ -335,21 +319,20 @@ export default function SocialProjectsListPage() {
                                         <button
                                             type="button"
                                             onClick={() => setProjectForDetails(project)}
-                                            className="flex items-center text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-medium transition"
+                                            className="flex items-center text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 font-medium transition"
                                         >
                                             <Info className="w-3.5 h-3.5 mr-1" />
                                             <span>Details</span>
                                         </button>
 
-                                        <button
-                                            type="button"
-                                            onClick={() => handleLaunchStudio(project.id)}
+                                        <Link
+                                            href={`/media-editor?project=${project.id}`}
                                             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl shadow-md shadow-indigo-600/20 transition active:scale-95"
-                                            title="Launch in 180 Social Media Manager (Desktop / Mobile App)"
+                                            title="Open in 180 Media Studio"
                                         >
                                             <Zap className="w-3.5 h-3.5 text-amber-300" />
-                                            <span>Launch in 180 Studio</span>
-                                        </button>
+                                            <span>Open Media Studio</span>
+                                        </Link>
                                     </div>
                                 </div>
                             </div>
@@ -361,22 +344,22 @@ export default function SocialProjectsListPage() {
             {/* In-Place Create Project Modal */}
             {isCreateModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                                 <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600">
                                     <Plus className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                                    <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                                         Create Social Project
                                     </h3>
-                                    <p className="text-xs text-slate-400">Start a new social campaign engagement</p>
+                                    <p className="text-xs text-zinc-400">Start a new social campaign engagement</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setIsCreateModalOpen(false)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                             >
                                 <X className="w-4 h-4" />
                             </button>
@@ -384,7 +367,7 @@ export default function SocialProjectsListPage() {
 
                         <form onSubmit={handleCreateProject} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                                     Project Name *
                                 </label>
                                 <input
@@ -393,12 +376,12 @@ export default function SocialProjectsListPage() {
                                     placeholder="e.g. Acme Q3 TikTok Growth"
                                     value={newProjectName}
                                     onChange={(e) => setNewProjectName(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                                    className="w-full px-3.5 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-indigo-500 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                                     Client Name (Optional)
                                 </label>
                                 <input
@@ -406,12 +389,12 @@ export default function SocialProjectsListPage() {
                                     placeholder="e.g. Acme Corp"
                                     value={newClientName}
                                     onChange={(e) => setNewClientName(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                                    className="w-full px-3.5 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-indigo-500 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                                     Description (Optional)
                                 </label>
                                 <textarea
@@ -419,15 +402,15 @@ export default function SocialProjectsListPage() {
                                     placeholder="Brief summary of creative direction and social targets..."
                                     value={newProjectDesc}
                                     onChange={(e) => setNewProjectDesc(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100 placeholder-slate-400 resize-none"
+                                    className="w-full px-3.5 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-indigo-500 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 resize-none"
                                 />
                             </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
                                 <button
                                     type="button"
                                     onClick={() => setIsCreateModalOpen(false)}
-                                    className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
+                                    className="px-4 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition"
                                 >
                                     Cancel
                                 </button>
@@ -447,23 +430,23 @@ export default function SocialProjectsListPage() {
             {/* Delete Project Confirmation Modal */}
             {projectToDelete && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
                         <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/60 text-red-500 flex items-center justify-center mx-auto">
                             <Trash2 className="w-6 h-6" />
                         </div>
                         <div className="text-center">
-                            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                                 Delete Project?
                             </h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                Are you sure you want to delete <span className="font-semibold text-slate-800 dark:text-slate-200">"{projectToDelete.name}"</span>? This will archive the project workspace and associated media files.
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                Are you sure you want to delete <span className="font-semibold text-zinc-800 dark:text-zinc-200">"{projectToDelete.name}"</span>? This will archive the project workspace and associated media files.
                             </p>
                         </div>
                         <div className="flex items-center gap-3 pt-2">
                             <button
                                 type="button"
                                 onClick={() => setProjectToDelete(null)}
-                                className="flex-1 px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                                className="flex-1 px-4 py-2.5 text-xs font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
                             >
                                 Cancel
                             </button>
@@ -483,135 +466,57 @@ export default function SocialProjectsListPage() {
             {/* Project Details Modal */}
             {projectForDetails && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="w-full max-w-md rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <FolderKanban className="w-5 h-5 text-indigo-500" />
-                                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                                     {projectForDetails.name}
                                 </h3>
                             </div>
                             <button
                                 onClick={() => setProjectForDetails(null)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                             >
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
 
                         <div className="space-y-3 text-xs">
-                            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-1.5">
+                            <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 space-y-1.5">
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Client:</span>
-                                    <span className="font-semibold text-slate-800 dark:text-slate-200">{projectForDetails.client?.name || 'Internal'}</span>
+                                    <span className="text-zinc-400">Client:</span>
+                                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">{projectForDetails.client?.name || 'Internal'}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Status:</span>
-                                    <span className="font-semibold capitalize text-slate-800 dark:text-slate-200">{projectForDetails.status.replace('_', ' ')}</span>
+                                    <span className="text-zinc-400">Status:</span>
+                                    <span className="font-semibold capitalize text-zinc-800 dark:text-zinc-200">{projectForDetails.status.replace('_', ' ')}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Project ID:</span>
-                                    <span className="font-mono text-[10px] text-slate-500">{projectForDetails.id}</span>
+                                    <span className="text-zinc-400">Project ID:</span>
+                                    <span className="font-mono text-[10px] text-zinc-500">{projectForDetails.id}</span>
                                 </div>
                             </div>
 
                             {projectForDetails.description && (
                                 <div>
-                                    <span className="text-slate-400 block mb-1">Description:</span>
-                                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40">
+                                    <span className="text-zinc-400 block mb-1">Description:</span>
+                                    <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/40">
                                         {projectForDetails.description}
                                     </p>
                                 </div>
                             )}
 
                             <div className="pt-2">
-                                <button
-                                    onClick={() => {
-                                        handleLaunchStudio(projectForDetails.id);
-                                        setProjectForDetails(null);
-                                    }}
+                                <Link
+                                    href={`/media-editor?project=${projectForDetails.id}`}
+                                    onClick={() => setProjectForDetails(null)}
                                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-md shadow-indigo-600/20 transition active:scale-95"
                                 >
                                     <Zap className="w-4 h-4 text-amber-300" />
-                                    <span>Open in 180 Social Media Manager App</span>
-                                </button>
+                                    <span>Open in Media Studio</span>
+                                </Link>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Native App Download Modal */}
-            {isDownloadModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600">
-                                    <Download className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                                        180 Social Media Manager
-                                    </h3>
-                                    <p className="text-xs text-slate-400">Native High-Performance Creative Suite</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setIsDownloadModalOpen(false)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                            For heavy 4K video editing, CapCut-style viral captions, teleprompter recording, and seamless cross-platform publishing, download our native app for your device:
-                        </p>
-
-                        <div className="space-y-2.5">
-                            <a
-                                href="/downloads/180-social-media-manager-windows-x64.exe"
-                                className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition group"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Monitor className="w-5 h-5 text-indigo-500" />
-                                    <div className="text-left">
-                                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">Windows (64-bit)</p>
-                                        <p className="text-[10px] text-slate-400">Windows 10 / 11 Native Installer (.exe)</p>
-                                    </div>
-                                </div>
-                                <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform">Download</span>
-                            </a>
-
-                            <a
-                                href="/downloads/180-social-media-manager-macos-universal.dmg"
-                                className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition group"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Monitor className="w-5 h-5 text-indigo-500" />
-                                    <div className="text-left">
-                                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">macOS (Universal)</p>
-                                        <p className="text-[10px] text-slate-400">Apple Silicon M1-M4 & Intel (.dmg)</p>
-                                    </div>
-                                </div>
-                                <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform">Download</span>
-                            </a>
-
-                            <a
-                                href="/downloads/app-release.apk"
-                                download="180-social-media-manager.apk"
-                                className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition group"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Smartphone className="w-5 h-5 text-indigo-500" />
-                                    <div className="text-left">
-                                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">Android APK</p>
-                                        <p className="text-[10px] text-slate-400">Direct phone package (.apk - 112 MB)</p>
-                                    </div>
-                                </div>
-                                <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform">Download</span>
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -639,6 +544,6 @@ function getPlatformIcon(platform: string) {
         case 'tiktok':
             return <span className="text-[10px] font-black">TT</span>;
         default:
-            return <ShareIcon className="w-3.5 h-3.5 text-slate-400" />;
+            return <ShareIcon className="w-3.5 h-3.5 text-zinc-400" />;
     }
 }

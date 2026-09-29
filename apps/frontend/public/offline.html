@@ -32,34 +32,13 @@
     </div>
     <h1>You're offline</h1>
     <p>180 Workspace can't reach the internet right now. We'll reload this page automatically as soon as you're back online.</p>
-    <p>Want to keep working without a connection? Install the <strong>180 Workspace desktop app</strong>: your tasks, projects and clients stay available offline, changes sync when you reconnect, and it's the only place video editing runs.</p>
-
     <div class="actions">
-      <a id="download" class="btn primary" href="/api/download/windows">Download the desktop app</a>
-      <button class="btn secondary" type="button" onclick="location.reload()">Try again</button>
+      <button class="btn primary" type="button" onclick="location.reload()">Try again</button>
     </div>
-    <p class="note">Downloading needs an internet connection. Already installed? <a href="workspace180://" style="color:var(--accent)">Open the desktop app</a>.</p>
-    <p id="mobile" class="note hidden">The desktop app is for Windows, macOS and Linux computers.</p>
   </main>
 
   <script>
-    (function () {
-      var ua = navigator.userAgent.toLowerCase();
-      var link = document.getElementById('download');
-      if (/android|iphone|ipad|ipod/.test(ua)) {
-        link.classList.add('hidden');
-        document.getElementById('mobile').classList.remove('hidden');
-      } else if (ua.indexOf('mac os') !== -1 || ua.indexOf('macintosh') !== -1) {
-        link.href = '/api/download/mac';
-        link.textContent = 'Download for macOS';
-      } else if (ua.indexOf('linux') !== -1 && ua.indexOf('windows') === -1) {
-        link.href = '/api/download/linux';
-        link.textContent = 'Download for Linux';
-      } else {
-        link.textContent = 'Download for Windows';
-      }
-      window.addEventListener('online', function () { location.reload(); });
-    })();
+    window.addEventListener('online', function () { location.reload(); });
   </script>
 </body>
 </html>

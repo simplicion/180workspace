@@ -6,7 +6,7 @@ import {
     MoreHorizontal, Edit, Mail, Calendar
 } from 'lucide-react';
 import clsx from 'clsx';
-import { ManageAccessDrawer } from './ManageAccessDrawer';
+import { ManageAccessDrawer } from '@/components/shared/ManageAccessDrawer';
 
 export interface UserRoleData {
     id: string;

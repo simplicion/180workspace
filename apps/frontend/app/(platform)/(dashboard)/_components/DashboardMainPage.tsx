@@ -147,21 +147,21 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
             {/* Header */}
             <div className="flex items-start justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         {getGreeting()}, {user?.name?.split(' ')[0] || 'Founder'} <span className="text-xl">👋</span>
                     </h1>
                     <div className="flex items-center gap-2 mt-1.5">
-                        <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
-                        <p className="text-xs text-gray-400 font-medium">{getFormattedDate()}</p>
-                        <span className="text-gray-200">•</span>
-                        <span className="text-gray-200">•</span>
-                        <p className="text-xs text-gray-500 font-semibold">{company?.name || 'Your Company'}</p>
+                        <CalendarDays className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
+                        <p className="text-xs text-gray-400 dark:text-zinc-500 font-medium">{getFormattedDate()}</p>
+                        <span className="text-gray-200 dark:text-zinc-700">•</span>
+                        <span className="text-gray-200 dark:text-zinc-700">•</span>
+                        <p className="text-xs text-gray-500 dark:text-zinc-400 font-semibold">{company?.name || 'Your Company'}</p>
                     </div>
                 </div>
             </div>
 
             {error && (
-                <div className="mb-6 p-4 bg-amber-50 text-amber-700 rounded-xl border border-amber-200 text-sm flex items-center gap-2">
+                <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-xl border border-amber-200 dark:border-amber-900/50 text-sm flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     {error} — showing cached data
                 </div>

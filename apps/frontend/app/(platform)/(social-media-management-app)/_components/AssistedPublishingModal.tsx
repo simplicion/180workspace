@@ -75,11 +75,11 @@ export function AssistedPublishingModal({
         return builder ? builder(caption, title) : '#';
     };
 
-    const pColor = PLATFORM_COLORS[platform.toLowerCase()] || 'bg-slate-800 text-white';
+    const pColor = PLATFORM_COLORS[platform.toLowerCase()] || 'bg-zinc-800 text-white';
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                 {/* Header */}
                 <div className={`px-6 py-4 flex items-center justify-between ${pColor}`}>
                     <h2 className="text-lg font-bold capitalize flex items-center gap-2">
@@ -92,7 +92,7 @@ export function AssistedPublishingModal({
                 </div>
 
                 <div className="p-6 overflow-y-auto space-y-6">
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
                         This platform requires manual confirmation. We've prepared everything you need. Just copy your content, download the media, and open the web composer to post.
                     </p>
 
@@ -100,14 +100,14 @@ export function AssistedPublishingModal({
                     <div className="space-y-4">
                         {title && (
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Title</label>
+                                <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Title</label>
                                 <div className="relative group">
-                                    <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 text-sm text-slate-800 dark:text-slate-200 pr-12">
+                                    <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-800 dark:text-zinc-200 pr-12">
                                         {title}
                                     </div>
                                     <button 
                                         onClick={handleCopyTitle}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white dark:bg-slate-700 shadow-sm border border-slate-200 dark:border-slate-600 rounded-lg text-slate-500 hover:text-indigo-600 transition"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white dark:bg-zinc-700 shadow-sm border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
                                         title="Copy Title"
                                     >
                                         {copiedTitle ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
@@ -117,14 +117,14 @@ export function AssistedPublishingModal({
                         )}
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Caption</label>
+                            <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Caption</label>
                             <div className="relative group">
-                                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 text-sm text-slate-800 dark:text-slate-200 pr-12 min-h-[100px] whitespace-pre-wrap">
+                                <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-800 dark:text-zinc-200 pr-12 min-h-[100px] whitespace-pre-wrap">
                                     {caption}
                                 </div>
                                 <button 
                                     onClick={handleCopyCaption}
-                                    className="absolute right-2 top-2 p-2 bg-white dark:bg-slate-700 shadow-sm border border-slate-200 dark:border-slate-600 rounded-lg text-slate-500 hover:text-indigo-600 transition"
+                                    className="absolute right-2 top-2 p-2 bg-white dark:bg-zinc-700 shadow-sm border border-zinc-200 dark:border-zinc-600 rounded-lg text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
                                     title="Copy Caption"
                                 >
                                     {copiedCaption ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
@@ -134,20 +134,20 @@ export function AssistedPublishingModal({
                     </div>
 
                     {/* Media Download & Web Composer */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                         {mediaUrl ? (
                             <a 
                                 href={mediaUrl}
                                 download
                                 target="_blank"
                                 rel="noreferrer"
-                                className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-bold rounded-xl transition"
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-sm font-bold rounded-xl transition"
                             >
                                 {mediaType === 'video' ? <Video className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
                                 <span>Download {mediaType === 'video' ? 'Video' : 'Image'}</span>
                             </a>
                         ) : (
-                            <div className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 text-slate-400 text-sm font-medium rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                            <div className="flex items-center justify-center gap-2 px-4 py-3 bg-zinc-50 dark:bg-zinc-900 text-zinc-400 text-sm font-medium rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
                                 No media attached
                             </div>
                         )}
@@ -156,7 +156,7 @@ export function AssistedPublishingModal({
                             href={getWebComposerUrl()}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 text-sm font-bold rounded-xl transition"
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 text-sm font-bold rounded-xl transition"
                         >
                             <ExternalLink className="w-4 h-4" />
                             <span>Open Web Composer</span>
@@ -165,10 +165,10 @@ export function AssistedPublishingModal({
                 </div>
 
                 {/* Footer Action */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
+                <div className="p-4 bg-zinc-50 dark:bg-zinc-950/60 border-t border-zinc-100 dark:border-zinc-800">
                     <button 
                         onClick={onConfirmPublished}
-                        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-sm font-black rounded-xl shadow-lg shadow-emerald-500/20 transition active:scale-95"
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-sm font-black rounded-xl shadow-lg shadow-emerald-500/20 transition active:scale-95 cursor-pointer"
                     >
                         <CheckCircle className="w-5 h-5" />
                         <span>Yes, I Published It</span>

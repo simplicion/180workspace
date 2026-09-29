@@ -36,29 +36,29 @@ interface Chat { id?: string;
 
 function IncomingCallOverlay({ call, onAccept, onReject }: { call: any; onAccept: () => void; onReject: () => void }) {
     return (
-        <div className="fixed inset-0 z-[100] bg-indigo-900/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center space-y-6 transform animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center space-y-6 transform animate-in zoom-in-95 duration-300">
                 <div className="relative mx-auto w-24 h-24">
                     <div className="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-20" />
                     <Avatar user={call.caller} size="lg" />
-                    <div className="absolute -bottom-1 -right-1 bg-emerald-500 rounded-full p-1.5 border-4 border-white">
+                    <div className="absolute -bottom-1 -right-1 bg-emerald-500 rounded-full p-1.5 border-4 border-white dark:border-zinc-900">
                         {call.type === 'video' ? <Video className="w-4 h-4 text-white" /> : <Phone className="w-4 h-4 text-white" />}
                     </div>
                 </div>
                 <div>
-                    <h3 className="text-xl font-bold text-gray-900">{call.caller.name}</h3>
-                    <p className="text-gray-500 mt-1">Incoming {call.type} call...</p>
-                    {call.chatName && <p className="text-xs text-indigo-500 font-medium mt-2 bg-indigo-50 inline-block px-3 py-1 rounded-full">{call.chatName}</p>}
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-zinc-100">{call.caller.name}</h3>
+                    <p className="text-gray-500 dark:text-zinc-400 mt-1">Incoming {call.type} call...</p>
+                    {call.chatName && <p className="text-xs text-indigo-500 font-medium mt-2 bg-indigo-50 dark:bg-indigo-950/50 inline-block px-3 py-1 rounded-full">{call.chatName}</p>}
                 </div>
                 <div className="flex gap-4 pt-4">
-                    <button onClick={onReject} className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-4 rounded-2xl transition-all flex flex-col items-center gap-2">
-                        <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-red-200">
+                    <button onClick={onReject} className="flex-1 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold py-4 rounded-2xl transition-all flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-red-200 dark:shadow-none">
                             <X className="w-6 h-6" />
                         </div>
                         <span className="text-xs uppercase tracking-wider">Decline</span>
                     </button>
-                    <button onClick={onAccept} className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold py-4 rounded-2xl transition-all flex flex-col items-center gap-2">
-                        <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-emerald-200 animate-bounce">
+                    <button onClick={onAccept} className="flex-1 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 font-bold py-4 rounded-2xl transition-all flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-emerald-200 dark:shadow-none animate-bounce">
                             {call.type === 'video' ? <Video className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
                         </div>
                         <span className="text-xs uppercase tracking-wider">Accept</span>
@@ -192,22 +192,22 @@ function NewChatModal({ onClose, onChatCreated, currentUser, existingChats }: { 
     }
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                    <h2 className="font-bold text-gray-900">New Conversation</h2>
-                    <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center" aria-label="Close modal"><X className="w-4 h-4" /></button>
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between flex-shrink-0">
+                    <h2 className="font-bold text-gray-900 dark:text-zinc-100">New Conversation</h2>
+                    <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 flex items-center justify-center" aria-label="Close modal"><X className="w-4 h-4" /></button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
                     {/* DM / Group toggle */}
                     {isAdminOrHR && (
-                        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-                            <button onClick={() => { setMode('dm'); setSelected([]); }} className={clsx('flex-1 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2', mode === 'dm' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700')}>
+                        <div className="flex gap-1 bg-gray-100 dark:bg-zinc-800 p-1 rounded-xl">
+                            <button onClick={() => { setMode('dm'); setSelected([]); }} className={clsx('flex-1 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2', mode === 'dm' ? 'bg-white dark:bg-zinc-900 shadow-sm text-gray-900 dark:text-zinc-100' : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200')}>
                                 <MessageSquare className="w-4 h-4" /> Direct Message
                             </button>
-                            <button onClick={() => { setMode('group'); setSelected([]); }} className={clsx('flex-1 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2', mode === 'group' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700')}>
+                            <button onClick={() => { setMode('group'); setSelected([]); }} className={clsx('flex-1 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2', mode === 'group' ? 'bg-white dark:bg-zinc-900 shadow-sm text-gray-900 dark:text-zinc-100' : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200')}>
                                 <Users className="w-4 h-4" /> Create Group
                             </button>
                         </div>
@@ -217,36 +217,36 @@ function NewChatModal({ onClose, onChatCreated, currentUser, existingChats }: { 
                     {mode === 'group' && (
                         <div className="space-y-3">
                             <div>
-                                <label className="label">Group Icon</label>
+                                <label className="label text-gray-700 dark:text-zinc-300">Group Icon</label>
                                 <div className="flex flex-wrap gap-2">
                                     {GROUP_ICONS.map(e => (
                                         <button key={e.id} type="button" onClick={() => setGroupIconStr(e.id)}
                                             aria-label={`Select ${e.id} icon`}
-                                            className={clsx('w-9 h-9 text-indigo-600 rounded-xl text-xl flex items-center justify-center border-2 transition-all', groupIconStr === e.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300')}>
+                                            className={clsx('w-9 h-9 text-indigo-600 dark:text-indigo-400 rounded-xl text-xl flex items-center justify-center border-2 transition-all', groupIconStr === e.id ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-950/50' : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600')}>
                                             <e.icon className="w-4 h-4" />
                                         </button>
                                     ))}
                                 </div>
                             </div>
                              <div>
-                                <label htmlFor="groupName" className="label">Group Name *</label>
-                                <input id="groupName" className="input" placeholder="e.g. Design Team, Sprint 12..." value={groupName} onChange={e => setGroupName(e.target.value)} />
+                                <label htmlFor="groupName" className="label text-gray-700 dark:text-zinc-300">Group Name *</label>
+                                <input id="groupName" className="input bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500" placeholder="e.g. Design Team, Sprint 12..." value={groupName} onChange={e => setGroupName(e.target.value)} />
                             </div>
                             <div>
-                                <label htmlFor="groupDesc" className="label">Description</label>
-                                <input id="groupDesc" className="input" placeholder="What's this group about?" value={groupDesc} onChange={e => setGroupDesc(e.target.value)} />
+                                <label htmlFor="groupDesc" className="label text-gray-700 dark:text-zinc-300">Description</label>
+                                <input id="groupDesc" className="input bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500" placeholder="What's this group about?" value={groupDesc} onChange={e => setGroupDesc(e.target.value)} />
                             </div>
                         </div>
                     )}
 
                     {/* Search */}
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                        <input aria-label="Search users" className="input pl-8 text-sm" placeholder="Search by name, email, or role..." value={search} onChange={e => setSearch(e.target.value)} />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
+                        <input aria-label="Search users" className="input pl-8 text-sm bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500" placeholder="Search by name, email, or role..." value={search} onChange={e => setSearch(e.target.value)} />
                     </div>
 
                     {mode === 'group' && selected.length > 0 && (
-                        <p className="text-xs text-indigo-600 font-medium">{selected.length} member{selected.length > 1 ? 's' : ''} selected</p>
+                        <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">{selected.length} member{selected.length > 1 ? 's' : ''} selected</p>
                     )}
 
                     {/* User list */}
@@ -254,19 +254,19 @@ function NewChatModal({ onClose, onChatCreated, currentUser, existingChats }: { 
                         {fetching ? (
                             <div className="flex items-center justify-center py-6"><LogoLoader className="w-5 h-5 animate-spin text-indigo-400" /></div>
                         ) : filtered.length === 0 ? (
-                            <p className="text-center text-gray-400 text-sm py-6">No users found</p>
+                            <p className="text-center text-gray-400 dark:text-zinc-500 text-sm py-6">No users found</p>
                         ) : filtered.map(u => {
                             const isSelected = selected.includes(((u._id || u.id) as string));
                             return (
                                 <button key={((u._id || u.id) as string)} onClick={() => toggle(((u._id || u.id) as string))}
-                                    className={clsx('w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all', isSelected ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-gray-50 border border-transparent')}>
-                                    <div className="w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-all">
-                                        {isSelected && <CheckCheck className="w-3 h-3 text-white" />}
+                                    className={clsx('w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all', isSelected ? 'bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800' : 'hover:bg-gray-50 dark:hover:bg-zinc-800/60 border border-transparent')}>
+                                    <div className="w-5 h-5 rounded flex items-center justify-center border-2 border-gray-300 dark:border-zinc-600 flex-shrink-0 transition-all">
+                                        {isSelected && <CheckCheck className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />}
                                     </div>
                                     <Avatar user={u} size="sm" />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-gray-800 truncate">{u.name}</p>
-                                        <p className="text-xs text-gray-400 truncate">{(u.email || "")}</p>
+                                        <p className="text-sm font-medium text-gray-800 dark:text-zinc-200 truncate">{u.name}</p>
+                                        <p className="text-xs text-gray-400 dark:text-zinc-500 truncate">{(u.email || "")}</p>
                                     </div>
                                     <RoleBadge role={u.role || 'user'} />
                                 </button>
@@ -275,7 +275,7 @@ function NewChatModal({ onClose, onChatCreated, currentUser, existingChats }: { 
                     </div>
                 </div>
 
-                <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0">
+                <div className="px-5 py-4 border-t border-gray-100 dark:border-zinc-800 flex-shrink-0">
                     <button onClick={handleCreate} disabled={loading || selected.length === 0} className="btn-primary w-full">
                         {loading ? <LogoLoader className="w-4 h-4 animate-spin" /> : mode === 'dm' ? <MessageSquare className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                         {loading ? 'Creating...' : mode === 'dm' ? 'Open Chat' : `Create Group (${selected.length})`}
@@ -327,13 +327,13 @@ function GroupInfoPanel({ chat, currentUser, onClose, onUpdated }: { chat: Chat;
     }
 
     return (
-        <div className="w-72 border-l border-gray-100 flex flex-col bg-white">
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="font-semibold text-sm text-gray-900">Group Info</h3>
-                <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100" aria-label="Close group info"><X className="w-3.5 h-3.5" /></button>
+        <div className="w-72 border-l border-gray-100 dark:border-zinc-800 flex flex-col bg-white dark:bg-zinc-950">
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between">
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-zinc-100">Group Info</h3>
+                <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400" aria-label="Close group info"><X className="w-3.5 h-3.5" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-6 shadow-lg shadow-indigo-200">
+                <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-6 shadow-lg shadow-indigo-200 dark:shadow-none">
                     <div className="w-20 h-20 rounded-full border-4 border-white/20 bg-white/10 flex items-center justify-center mb-3 shadow-inner">
                         <Avatar iconName={chat.avatar || 'messagesquare'} size="lg" />
                     </div>
@@ -344,20 +344,20 @@ function GroupInfoPanel({ chat, currentUser, onClose, onUpdated }: { chat: Chat;
 
                 {/* Members */}
                 <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Members</p>
+                    <p className="text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Members</p>
                     <div className="space-y-1">
                         {chat.members.map(m => (
-                            <div key={((m._id || m.id) as string)} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 group">
+                            <div key={((m._id || m.id) as string)} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-900 group">
                                 <Avatar user={m} size="sm" />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-gray-800 truncate">{m.name}{((m._id || m.id) as string) === (currentUser._id || currentUser.id) && ' (You)'}</p>
-                                    <p className="text-[10px] text-gray-400">{m.role}</p>
+                                    <p className="text-xs font-medium text-gray-800 dark:text-zinc-200 truncate">{m.name}{((m._id || m.id) as string) === (currentUser._id || currentUser.id) && ' (You)'}</p>
+                                    <p className="text-[10px] text-gray-400 dark:text-zinc-500">{m.role}</p>
                                 </div>
                                 {chat.admins?.some(a => a.id === ((m._id || m.id) as string)) && (
-                                    <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full font-bold">Admin</span>
+                                    <span className="text-[9px] bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-full font-bold">Admin</span>
                                 )}
                                 {isAdmin && ((m._id || m.id) as string) !== (currentUser._id || currentUser.id) && (
-                                    <button onClick={() => setMemberToRemove(((m._id || m.id) as string))} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-600" aria-label={`Remove ${m.name}`}>
+                                    <button onClick={() => setMemberToRemove(((m._id || m.id) as string))} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 dark:hover:bg-red-950/50 rounded text-red-400 hover:text-red-600" aria-label={`Remove ${m.name}`}>
                                         <X className="w-3 h-3" />
                                     </button>
                                 )}
@@ -370,16 +370,16 @@ function GroupInfoPanel({ chat, currentUser, onClose, onUpdated }: { chat: Chat;
                 {isAdmin && (
                     <div>
                         {!adding ? (
-                            <button onClick={() => setAdding(true)} className="w-full flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium py-2">
+                            <button onClick={() => setAdding(true)} className="w-full flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium py-2">
                                 <UserPlus className="w-4 h-4" /> Add Members
                             </button>
                         ) : (
                             <div className="space-y-2">
-                                <input aria-label="Search users to add" className="input text-xs py-1.5" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} />
+                                <input aria-label="Search users to add" className="input text-xs py-1.5 bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} />
                                 <div className="max-h-32 overflow-y-auto space-y-1">
                                     {users.filter(u => (u.name || "")?.toLowerCase().includes(search.toLowerCase())).map(u => (
                                         <button key={((u._id || u.id) as string)} onClick={() => setSelectedToAdd(p => p.includes(((u._id || u.id) as string)) ? p.filter(x => x !== ((u._id || u.id) as string)) : [...p, ((u._id || u.id) as string)])}
-                                            className={clsx('w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs', selectedToAdd.includes(((u._id || u.id) as string)) ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50 text-gray-700')}>
+                                            className={clsx('w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs', selectedToAdd.includes(((u._id || u.id) as string)) ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-300')}>
                                             <Avatar user={u} size="sm" />
                                             <span className="truncate">{u.name}</span>
                                             <RoleBadge role={u.role || 'user'} />
@@ -398,17 +398,17 @@ function GroupInfoPanel({ chat, currentUser, onClose, onUpdated }: { chat: Chat;
 
             {/* Remove Member Confirmation Modal */}
             {memberToRemove && (
-                <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden transform transition-all">
+                <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden transform transition-all">
                         <div className="p-6">
-                            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4 mx-auto">
+                            <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/40 flex items-center justify-center mb-4 mx-auto">
                                 <Trash2 className="w-6 h-6 text-red-500" />
                             </div>
-                            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Remove Member?</h3>
-                            <p className="text-sm text-gray-500 text-center">Are you sure you want to remove this user from the group? They will no longer see new messages.</p>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-zinc-100 text-center mb-2">Remove Member?</h3>
+                            <p className="text-sm text-gray-500 dark:text-zinc-400 text-center">Are you sure you want to remove this user from the group? They will no longer see new messages.</p>
                         </div>
-                        <div className="bg-gray-50 px-6 py-4 flex gap-3">
-                            <button onClick={() => setMemberToRemove(null)} className="btn-secondary flex-1 py-2 rounded-xl text-gray-700 bg-white border-gray-200">
+                        <div className="bg-gray-50 dark:bg-zinc-800/50 border-t border-gray-100 dark:border-zinc-800 px-6 py-4 flex gap-3">
+                            <button onClick={() => setMemberToRemove(null)} className="btn-secondary flex-1 py-2 rounded-xl text-gray-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700">
                                 Cancel
                             </button>
                             <button onClick={removeMember} className="btn-primary flex-1 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white border-transparent">
@@ -792,8 +792,8 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
 
                     {/* Reply preview */}
                     {msg.replyTo && (
-                        <div className="text-xs bg-gray-100 border-l-2 border-indigo-400 px-2 py-1 rounded mb-0.5 max-w-full truncate text-gray-500">
-                            <span className="font-semibold text-indigo-500">{msg.replyTo.senderId.name}</span>: {msg.replyTo.content}
+                        <div className="text-xs bg-gray-100 dark:bg-zinc-800 border-l-2 border-indigo-400 px-2 py-1 rounded mb-0.5 max-w-full truncate text-gray-500 dark:text-zinc-400">
+                            <span className="font-semibold text-indigo-500 dark:text-indigo-400">{msg.replyTo.senderId.name}</span>: {msg.replyTo.content}
                         </div>
                     )}
 
@@ -801,7 +801,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                         'px-3.5 py-2.5 rounded-2xl text-[14.5px] leading-relaxed break-words shadow-sm border',
                         isMine
                             ? 'bg-indigo-600 text-white rounded-tr-none border-indigo-700'
-                            : 'bg-white text-gray-900 rounded-tl-none border-gray-100',
+                            : 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 rounded-tl-none border-gray-100 dark:border-zinc-800',
                         isDeleted && 'opacity-60 italic'
                     )}>
                         {/* Highlight @mentions and links */}
@@ -814,7 +814,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                             {Object.entries(reactions).map(([emoji, uids]) => (
                                 <button key={emoji} onClick={() => react(msg._id, emoji)}
                                     className={clsx('flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full border transition-all',
-                                        (uids as string[]).includes((user?._id || user?.id) || '') ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300')}>
+                                        (uids as string[]).includes((user?._id || user?.id) || '') ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-300 hover:border-gray-300 dark:hover:border-zinc-700')}>
                                     {emoji} <span>{(uids as string[]).length}</span>
                                 </button>
                             ))}
@@ -830,15 +830,15 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                 {/* Message actions */}
                 {hoveredMsg === msg._id && !isDeleted && (
                     <div className={clsx('flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-center', isMine ? 'mr-1' : 'ml-1')}>
-                        <button onClick={() => setReplyTo(msg)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600" title="Reply">
+                        <button onClick={() => setReplyTo(msg)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300" title="Reply">
                             <Reply className="w-3.5 h-3.5" />
                         </button>
                         <div className="relative">
-                            <button onClick={() => setEmojiPicker(emojiPicker === msg._id ? null : msg._id)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600" title="React">
+                            <button onClick={() => setEmojiPicker(emojiPicker === msg._id ? null : msg._id)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300" title="React">
                                 <Smile className="w-3.5 h-3.5" />
                             </button>
                             {emojiPicker === msg._id && (
-                                <div className={clsx('absolute bottom-full mb-1 bg-white border border-gray-100 shadow-lg rounded-xl p-2 flex gap-1 z-10', isMine ? 'right-0' : 'left-0')}>
+                                <div className={clsx('absolute bottom-full mb-1 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 shadow-lg rounded-xl p-2 flex gap-1 z-10', isMine ? 'right-0' : 'left-0')}>
                                     {EMOJI_LIST.map(e => (
                                         <button key={e} onClick={() => react(msg._id, e)} className="text-lg hover:scale-125 transition-transform">{e}</button>
                                     ))}
@@ -846,7 +846,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                             )}
                         </div>
                         {(isMine || isAdmin) && (
-                            <button onClick={() => deleteMsg(msg._id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500" title="Delete">
+                            <button onClick={() => deleteMsg(msg._id)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-500" title="Delete">
                                 <Trash2 className="w-3.5 h-3.5" />
                             </button>
                         )}
@@ -864,7 +864,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             if (part.startsWith('@')) {
                 const name = part.slice(1).trim();
                 const mentioned = mentions?.find(m => content.includes(`@${m.name}`));
-                if (mentioned) return <span key={i} className="font-semibold text-indigo-300 cursor-pointer">@{name}</span>;
+                if (mentioned) return <span key={i} className="font-semibold text-indigo-400 cursor-pointer">@{name}</span>;
             }
             const linkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)$/);
             if (linkMatch) {
@@ -875,43 +875,43 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
     }
 
     return (
-        <div className={clsx("flex overflow-hidden bg-[#f0f2f5] w-full relative", mobileLayout ? "h-full" : "h-full md:h-[calc(100vh-7rem)] md:card")}>
+        <div className={clsx("flex overflow-hidden bg-[#f0f2f5] dark:bg-zinc-950 w-full relative", mobileLayout ? "h-full" : "h-full md:h-[calc(100vh-7rem)] md:rounded-2xl md:border md:border-gray-100 dark:md:border-zinc-800/80 md:shadow-sm")}>
             {/* ── Sidebar ─────────────────────────────────────────────────────── */}
             <div className={clsx(
-                "border-r border-gray-200 flex flex-col flex-shrink-0 transition-all duration-300 bg-white",
+                "border-r border-gray-200 dark:border-zinc-800 flex flex-col flex-shrink-0 transition-all duration-300 bg-white dark:bg-zinc-950",
                 mobileLayout 
                     ? (activeChat ? "hidden" : "w-full") 
                     : (sidebarMinimized ? "w-[80px] hidden md:flex" : "w-full md:w-[300px]"),
                 !mobileLayout && activeChat ? "hidden md:flex" : "flex"
             )}>
-                <div className="p-4 border-b border-gray-100 space-y-3">
+                <div className="p-4 border-b border-gray-100 dark:border-zinc-800 space-y-3">
                     <div className={clsx("flex items-center", sidebarMinimized ? "justify-center flex-col gap-2" : "justify-between")}>
                         <div className="flex gap-2 items-center">
-                            <button onClick={() => setSidebarMinimized(!sidebarMinimized)} className={clsx("p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors", mobileLayout ? "hidden" : "")} aria-label={sidebarMinimized ? "Expand sidebar" : "Minimize sidebar"}>
+                            <button onClick={() => setSidebarMinimized(!sidebarMinimized)} className={clsx("p-1.5 text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors", mobileLayout ? "hidden" : "")} aria-label={sidebarMinimized ? "Expand sidebar" : "Minimize sidebar"}>
                                 <Menu className="w-5 h-5" />
                             </button>
-                            {!sidebarMinimized && <h2 className="font-bold text-gray-900">Messages</h2>}
+                            {!sidebarMinimized && <h2 className="font-bold text-gray-900 dark:text-zinc-100">Messages</h2>}
                         </div>
                         <div className={clsx("flex gap-1", sidebarMinimized && "flex-col")}>
                             {isAdmin && (
                                 <button onClick={toggleClientChat} title={clientChatAllowed ? 'Disable client-employee chat' : 'Enable client-employee chat'} aria-label={clientChatAllowed ? 'Disable client-employee chat' : 'Enable client-employee chat'}
-                                    className={clsx('w-8 h-8 rounded-lg flex items-center justify-center transition-colors', clientChatAllowed ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-rose-50 text-rose-500 hover:bg-rose-100')}>
+                                    className={clsx('w-8 h-8 rounded-lg flex items-center justify-center transition-colors', clientChatAllowed ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50' : 'bg-rose-50 dark:bg-rose-950/50 text-rose-500 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50')}>
                                     <Shield className="w-3.5 h-3.5" />
                                 </button>
                             )}
-                            <button onClick={() => setShowNewChat(true)} className="w-8 h-8 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition-colors" title="New conversation" aria-label="New conversation">
+                            <button onClick={() => setShowNewChat(true)} className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center transition-colors" title="New conversation" aria-label="New conversation">
                                 <Plus className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
                     {!sidebarMinimized && (
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                            <input aria-label="Search chats" placeholder="Search chats..." className="input pl-8 text-xs py-1.5" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
+                            <input aria-label="Search chats" placeholder="Search chats..." className="input pl-8 text-xs py-1.5 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                         </div>
                     )}
                     {isAdmin && !sidebarMinimized && (
-                        <p className={clsx('text-[10px] font-medium flex items-center gap-1', clientChatAllowed ? 'text-emerald-600' : 'text-rose-500')}>
+                        <p className={clsx('text-[10px] font-medium flex items-center gap-1', clientChatAllowed ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400')}>
                             <Shield className="w-3 h-3" />
                             Employee–Client chat: {clientChatAllowed ? 'Allowed' : 'Blocked'}
                         </p>
@@ -923,9 +923,9 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                         <div className="flex items-center justify-center py-10"><LogoLoader className="w-5 h-5 animate-spin text-indigo-500" /></div>
                     ) : filteredChats.length === 0 ? (
                         <div className="text-center py-10">
-                            <MessageSquare className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                            <p className="text-xs text-gray-400">No conversations yet</p>
-                            <button onClick={() => setShowNewChat(true)} className="mt-3 text-xs text-indigo-600 hover:underline">Start one</button>
+                            <MessageSquare className="w-8 h-8 text-gray-200 dark:text-zinc-700 mx-auto mb-2" />
+                            <p className="text-xs text-gray-400 dark:text-zinc-500">No conversations yet</p>
+                            <button onClick={() => setShowNewChat(true)} className="mt-3 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">Start one</button>
                         </div>
                     ) : filteredChats.map(chat => {
                         const other = getChatOther(chat);
@@ -933,20 +933,20 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                         const isActive = activeChat?._id === chat._id;
                         return (
                             <button key={chat._id} onClick={() => selectChat(chat)}
-                                className={clsx('w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left', isActive && 'bg-indigo-50/70 border-l-2 border-indigo-500', sidebarMinimized && 'justify-center px-2')}>
+                                className={clsx('w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors text-left', isActive && 'bg-indigo-50/70 dark:bg-indigo-950/40 border-l-2 border-indigo-500', sidebarMinimized && 'justify-center px-2')}>
                                 <div className="relative flex-shrink-0">
                                     {chat.isGroup ? <Avatar iconName={chat.avatar} /> : <Avatar user={other} />}
                                     {!chat.isGroup && (
-                                        <span className={clsx('absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white', online ? 'bg-emerald-400' : 'bg-gray-300')} />
+                                        <span className={clsx('absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white dark:border-zinc-900', online ? 'bg-emerald-400' : 'bg-gray-300 dark:bg-zinc-600')} />
                                     )}
                                 </div>
                                 {!sidebarMinimized && (
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between">
-                                            <p className="text-sm font-semibold text-gray-900 truncate">{getChatName(chat)}</p>
-                                            {chat.lastActivity && <span className="text-xs text-gray-400 flex-shrink-0">{formatTime(chat.lastActivity)}</span>}
+                                            <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100 truncate">{getChatName(chat)}</p>
+                                            {chat.lastActivity && <span className="text-xs text-gray-400 dark:text-zinc-500 flex-shrink-0">{formatTime(chat.lastActivity)}</span>}
                                         </div>
-                                        <p className="text-xs text-gray-400 truncate mt-0.5">
+                                        <p className="text-xs text-gray-400 dark:text-zinc-400 truncate mt-0.5">
                                             {chat.lastMessage?.isSystem ? <span className="italic">{chat.lastMessage.content}</span> : chat.lastMessage?.content || 'No messages yet'}
                                         </p>
                                     </div>
@@ -959,21 +959,21 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
 
             {/* ── Main area ───────────────────────────────────────────────────── */}
             {activeChat ? (
-                <div className={clsx("flex-1 flex-col min-w-0 bg-white", mobileLayout ? "flex absolute inset-0 z-50 h-full" : (activeChat ? "flex" : "hidden md:flex"))}>
+                <div className={clsx("flex-1 flex-col min-w-0 bg-white dark:bg-zinc-950", mobileLayout ? "flex absolute inset-0 z-50 h-full" : (activeChat ? "flex" : "hidden md:flex"))}>
                     {/* Chat header */}
-                    <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3 bg-white">
-                        <button onClick={() => setActiveChat(null)} className={clsx("p-2 -ml-3 mr-1 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors", !mobileLayout && "md:hidden")}>
+                    <div className="px-5 py-3 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3 bg-white dark:bg-zinc-950">
+                        <button onClick={() => setActiveChat(null)} className={clsx("p-2 -ml-3 mr-1 text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-xl transition-colors", !mobileLayout && "md:hidden")}>
                             <ChevronLeft className="w-5 h-5" />
                         </button>
                         <div className="relative">
                             {activeChat.isGroup ? <Avatar iconName={activeChat.avatar} size="lg" /> : <Avatar user={getChatOther(activeChat)} size="lg" />}
                             {!activeChat.isGroup && (
-                                <span className={clsx('absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white', isOtherOnline(activeChat) ? 'bg-emerald-400' : 'bg-gray-300')} />
+                                <span className={clsx('absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900', isOtherOnline(activeChat) ? 'bg-emerald-400' : 'bg-gray-300 dark:bg-zinc-600')} />
                             )}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 text-sm">{getChatName(activeChat)}</p>
-                            <div className="text-xs text-gray-400">
+                            <p className="font-semibold text-gray-900 dark:text-zinc-100 text-sm">{getChatName(activeChat)}</p>
+                            <div className="text-xs text-gray-400 dark:text-zinc-400">
                                 {!activeChat.isGroup && (isOtherOnline(activeChat) ? <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Online</span> : 'Offline')}
                                 {activeChat.isGroup && <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {activeChat.members.length} members</span>}
                                 {typingUsers.length > 0 && <span className="text-indigo-500 ml-2 animate-pulse">typing...</span>}
@@ -982,19 +982,19 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                         <div className="flex items-center gap-1">
                             {!activeChat.isGroup && (
                                 <>
-                                    <button onClick={() => initiateCall('audio')} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors" title="Audio Call" aria-label="Audio Call">
+                                    <button onClick={() => initiateCall('audio')} className="p-2 rounded-xl text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors" title="Audio Call" aria-label="Audio Call">
                                         <Phone className="w-4 h-4" />
                                     </button>
-                                    <button onClick={() => initiateCall('video')} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors" title="Video Call" aria-label="Video Call">
+                                    <button onClick={() => initiateCall('video')} className="p-2 rounded-xl text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors" title="Video Call" aria-label="Video Call">
                                         <Video className="w-4 h-4" />
                                     </button>
                                 </>
                             )}
-                            <button onClick={startAdHocMeeting} className="p-2 rounded-xl text-indigo-600 hover:bg-indigo-50 transition-colors" title="Start Meeting" aria-label="Start Meeting">
+                            <button onClick={startAdHocMeeting} className="p-2 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors" title="Start Meeting" aria-label="Start Meeting">
                                 <Plus className="w-4 h-4" />
                             </button>
                             {activeChat.isGroup && (
-                                <button onClick={() => setShowGroupInfo(p => !p)} className={clsx('p-2 rounded-xl hover:bg-gray-100 transition-colors', showGroupInfo && 'bg-indigo-50 text-indigo-600')} aria-label="Toggle group info">
+                                <button onClick={() => setShowGroupInfo(p => !p)} className={clsx('p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors', showGroupInfo && 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400')} aria-label="Toggle group info">
                                     <Users className="w-4 h-4" />
                                 </button>
                             )}
@@ -1005,7 +1005,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                         {/* Messages */}
                         <div className="flex-1 flex flex-col min-w-0 relative">
                             {/* Theme styling background layer */}
-                            <div className="absolute inset-0 z-0 bg-slate-50/80 pointer-events-none" />
+                            <div className="absolute inset-0 z-0 bg-zinc-50/80 dark:bg-black/60 pointer-events-none" />
                             <div className="flex-1 overflow-y-auto p-5 space-y-4 relative z-10">
                                 {loadingMessages ? (
                                     <div className="flex items-center justify-center py-10"><LogoLoader className="w-6 h-6 animate-spin text-indigo-500" /></div>
@@ -1014,9 +1014,9 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                                 )}
                                 {typingUsers.length > 0 && (
                                     <div className="flex gap-2 items-center">
-                                        <div className="bg-white border border-gray-100 shadow-sm rounded-2xl px-4 py-2.5">
+                                        <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 shadow-sm rounded-2xl px-4 py-2.5">
                                             <div className="flex gap-1">
-                                                {[0, 1, 2].map(i => <span key={i} className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.9s' }} />)}
+                                                {[0, 1, 2].map(i => <span key={i} className="w-1.5 h-1.5 bg-gray-400 dark:bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.9s' }} />)}
                                             </div>
                                         </div>
                                     </div>
@@ -1025,36 +1025,36 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                             </div>
 
                             {/* Input area */}
-                            <div className="border-t border-gray-100 bg-white">
+                            <div className="border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-950">
                                 {/* Reply bar */}
                                 {replyTo && (
-                                    <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border-b border-indigo-100">
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-950/50 border-b border-indigo-100 dark:border-indigo-900/50">
                                         <Reply className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-semibold text-indigo-600">{replyTo.senderId.name}</p>
-                                            <p className="text-xs text-gray-500 truncate">{replyTo.content}</p>
-                                            <p className="text-[10px] text-gray-400 mt-1">This room is for general discussions across {platform?.platformName || 'the system'}.</p>
+                                            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{replyTo.senderId.name}</p>
+                                            <p className="text-xs text-gray-500 dark:text-zinc-400 truncate">{replyTo.content}</p>
+                                            <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">This room is for general discussions across {platform?.platformName || 'the system'}.</p>
                                         </div>
-                                        <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-white rounded text-gray-400" aria-label="Cancel reply"><X className="w-3 h-3" /></button>
+                                        <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-white dark:hover:bg-zinc-800 rounded text-gray-400 dark:text-zinc-500" aria-label="Cancel reply"><X className="w-3 h-3" /></button>
                                     </div>
                                 )}
 
                                 {/* @mention suggestions */}
                                 {showMentions && mentionSuggestions.length > 0 && (
-                                    <div className="mx-4 mb-0 border border-gray-200 rounded-xl shadow-lg bg-white overflow-hidden">
+                                    <div className="mx-4 mb-0 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-lg bg-white dark:bg-zinc-900 overflow-hidden">
                                         {mentionSuggestions.slice(0, 5).map(u => (
-                                            <button key={((u._id || u.id) as string)} onClick={() => insertMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 text-left text-sm">
+                                            <button key={((u._id || u.id) as string)} onClick={() => insertMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 dark:hover:bg-zinc-800 text-left text-sm">
                                                 <Avatar user={u} size="sm" />
-                                                <span className="font-medium text-gray-800">{u.name}</span>
+                                                <span className="font-medium text-gray-800 dark:text-zinc-200">{u.name}</span>
                                                 <RoleBadge role={u.role || 'user'} />
                                             </button>
                                         ))}
                                     </div>
                                 )}
 
-                                <form onSubmit={sendMessage} className="p-3 bg-white border-t border-gray-100">
-                                    <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-full border border-gray-200 focus-within:bg-white focus-within:border-indigo-300 focus-within:ring-2 focus-within:ring-indigo-100 transition-all shadow-sm">
-                                        <button type="button" onClick={() => { setText(t => t + '@'); inputRef.current?.focus(); handleTyping(text + '@'); }} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 hover:text-indigo-600 transition-colors" title="Mention someone" aria-label="Mention someone">
+                                <form onSubmit={sendMessage} className="p-3 bg-white dark:bg-zinc-950 border-t border-gray-100 dark:border-zinc-800">
+                                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-zinc-900 p-1 rounded-full border border-gray-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-900 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 dark:focus-within:ring-indigo-950/50 transition-all shadow-sm">
+                                        <button type="button" onClick={() => { setText(t => t + '@'); inputRef.current?.focus(); handleTyping(text + '@'); }} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Mention someone" aria-label="Mention someone">
                                             <AtSign className="w-4 h-4" />
                                         </button>
                                         <input
@@ -1064,12 +1064,12 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                                             onChange={handleTyping}
                                             placeholder="Type a message..."
                                             aria-label="Message content"
-                                            className="flex-1 bg-transparent text-[15px] py-2 px-1 outline-none text-gray-800 placeholder-gray-400"
+                                            className="flex-1 bg-transparent text-[15px] py-2 px-1 outline-none text-gray-800 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500"
                                             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(e as any)}
                                         />
                                         <button type="submit" disabled={!text.trim()} aria-label="Send message" className={clsx(
                                             "w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200",
-                                            text.trim() ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 active:scale-95" : "bg-gray-200 text-gray-400"
+                                            text.trim() ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 active:scale-95" : "bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-600"
                                         )}>
                                             <Send className={clsx("w-4 h-4", text.trim() && "ml-0.5")} />
                                         </button>
@@ -1096,12 +1096,12 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                     </div>
                 </div>
             ) : (
-                <div className={clsx("flex-1 flex-col items-center justify-center text-center p-8 bg-[#f0f2f5]", mobileLayout ? "hidden" : "hidden md:flex")}>
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4 shadow-sm">
+                <div className={clsx("flex-1 flex-col items-center justify-center text-center p-8 bg-[#f0f2f5] dark:bg-zinc-950", mobileLayout ? "hidden" : "hidden md:flex")}>
+                    <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100/50 dark:border-indigo-900/50 flex items-center justify-center mb-4 shadow-sm">
                         <MessageSquare className="w-8 h-8 text-indigo-400" />
                     </div>
-                    <h3 className="font-semibold text-gray-900 mb-1 text-lg">{platform?.platformName || 'System'} Chat</h3>
-                    <p className="text-sm text-gray-500 max-w-xs mb-6">Send and receive messages seamlessly within 180workspace.</p>
+                    <h3 className="font-semibold text-gray-900 dark:text-zinc-100 mb-1 text-lg">{platform?.platformName || 'System'} Chat</h3>
+                    <p className="text-sm text-gray-500 dark:text-zinc-400 max-w-xs mb-6">Send and receive messages seamlessly within 180workspace.</p>
                     <button onClick={() => setShowNewChat(true)} className="btn-primary rounded-full px-6 shadow-md">
                         <Plus className="w-4 h-4 mr-1" /> Start New Conversation
                     </button>
@@ -1124,10 +1124,10 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
 
             {/* ── Delete Message Modal ───────────────────────────────────────── */}
             {messageToDelete && (
-                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-                        <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Message?</h3>
-                        <p className="text-sm text-gray-500 mb-6">This action cannot be undone. The message will be replaced with a deletion note.</p>
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-zinc-100 mb-2">Delete Message?</h3>
+                        <p className="text-sm text-gray-500 dark:text-zinc-400 mb-6">This action cannot be undone. The message will be replaced with a deletion note.</p>
                         <div className="flex gap-3">
                             <button onClick={() => setMessageToDelete(null)} className="btn-secondary flex-1">Cancel</button>
                             <button onClick={confirmDeleteMsg} className="btn-danger flex-1">Delete</button>

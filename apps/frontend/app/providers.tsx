@@ -14,6 +14,7 @@ import DesktopBootstrap from '@/components/shared/DesktopBootstrap';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '../redux/store';
+import { ThemeProvider } from '@/lib/theme-context';
 
 export function Providers({ children, session }: { children: ReactNode, session?: any }) {
     // Safely get the client id, handle cases where it might not be defined during build
@@ -22,22 +23,24 @@ export function Providers({ children, session }: { children: ReactNode, session?
     return (
         <Provider store={store}>
             <PersistGate loading={null} persistor={persistor}>
-                <SessionProvider session={session} refetchOnWindowFocus={false} refetchInterval={0} refetchWhenOffline={false}>
-                    <GoogleOAuthProvider clientId={clientId}>
-                        <AuthProvider>
-                            <SettingsProvider>
-                                <ModalProvider>
-                                    <SocketProvider>
-                                        {children}
-                                        <OfflineDownloadBanner />
-                                        <ServiceWorkerRegister />
-                                        <DesktopBootstrap />
-                                    </SocketProvider>
-                                </ModalProvider>
-                            </SettingsProvider>
-                        </AuthProvider>
-                    </GoogleOAuthProvider>
-                </SessionProvider>
+                <ThemeProvider>
+                    <SessionProvider session={session} refetchOnWindowFocus={false} refetchInterval={0} refetchWhenOffline={false}>
+                        <GoogleOAuthProvider clientId={clientId}>
+                            <AuthProvider>
+                                <SettingsProvider>
+                                    <ModalProvider>
+                                        <SocketProvider>
+                                            {children}
+                                            <OfflineDownloadBanner />
+                                            <ServiceWorkerRegister />
+                                            <DesktopBootstrap />
+                                        </SocketProvider>
+                                    </ModalProvider>
+                                </SettingsProvider>
+                            </AuthProvider>
+                        </GoogleOAuthProvider>
+                    </SessionProvider>
+                </ThemeProvider>
             </PersistGate>
         </Provider>
     );

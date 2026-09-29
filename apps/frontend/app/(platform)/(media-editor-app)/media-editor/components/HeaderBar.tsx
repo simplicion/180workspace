@@ -177,7 +177,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </div>
         ) : (
           <button
-            onClick={() => window.open("http://localhost:3002/settings/system-configs", "_blank")}
+            onClick={() => window.open("/?drawer=ai-credits", "_blank")}
             className="flex items-center space-x-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-[#111114] hover:bg-[#18181E] px-2.5 py-1 rounded-md border border-[#1C1C22] transition active:scale-95"
             title="Configure Cloud Intelligence in Platform Settings"
           >

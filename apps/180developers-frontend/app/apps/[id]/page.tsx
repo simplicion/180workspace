@@ -20,6 +20,12 @@ import {
   AlertCircle,
   Zap,
   ExternalLink,
+  Users,
+  Landmark,
+  Activity,
+  TrendingUp,
+  Clock,
+  ArrowUpRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -112,13 +118,41 @@ export default function AppDetailPage() {
   const [bankHolder, setBankHolder] = useState('');
   const [isRequestingPayout, setIsRequestingPayout] = useState(false);
 
+  // Real-Time Auth Logs & Live Users Telemetry
+  const [authLogs, setAuthLogs] = useState<{ logs: any[]; totalUsers: number; activeSessionsCount: number } | null>(null);
+  const [loadingAuthLogs, setLoadingAuthLogs] = useState(false);
+
+  // Financial Analytics & Transactions Ledger
+  const [paymentAnalytics, setPaymentAnalytics] = useState<{
+    grossVolume: number;
+    thisMonthVolume: number;
+    lastMonthVolume: number;
+    pendingSettlements: number;
+    withdrawableBalance: number;
+    currency: string;
+    totalTransactionsCount: number;
+    transactions: any[];
+  } | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+
+  // Settlement Bank Details State
+  const [bankDetails, setBankDetails] = useState<{
+    accountHolderName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    bankName?: string;
+    upiId?: string;
+  } | null>(null);
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+
   const getApiBase = () => {
     if (typeof window === 'undefined') return process.env.NEXT_PUBLIC_CORE_BACKEND_URL || 'http://localhost:4003';
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     return isLocal ? 'http://localhost:4003' : 'https://api.180workspace.com';
   };
 
-  const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 2000): Promise<Response | null> => {
+  const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 3000): Promise<Response | null> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -131,9 +165,122 @@ export default function AppDetailPage() {
     }
   };
 
+  const fetchAuthLogs = async () => {
+    setLoadingAuthLogs(true);
+    try {
+      const token = localStorage.getItem('platform_auth_token');
+      const apiBase = getApiBase();
+      const res = await fetchWithTimeout(`${apiBase}/api/v1/developer/apps/${appId}/auth-logs`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data.success) setAuthLogs(data.data);
+      }
+    } catch (_) {}
+    finally { setLoadingAuthLogs(false); }
+  };
+
+  const fetchPaymentAnalytics = async () => {
+    setLoadingAnalytics(true);
+    try {
+      const token = localStorage.getItem('platform_auth_token');
+      const apiBase = getApiBase();
+      const res = await fetchWithTimeout(`${apiBase}/api/v1/developer/apps/${appId}/payment-analytics`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setPaymentAnalytics(data.data);
+          if (data.data.withdrawableBalance !== undefined) {
+            setPayoutBalance(data.data.withdrawableBalance);
+          }
+        }
+      }
+    } catch (_) {}
+    finally { setLoadingAnalytics(false); }
+  };
+
+  const fetchBankDetails = async () => {
+    try {
+      const token = localStorage.getItem('platform_auth_token');
+      const apiBase = getApiBase();
+      const res = await fetchWithTimeout(`${apiBase}/api/v1/developer/apps/${appId}/bank-details`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          setBankDetails(data.data);
+          if (data.data.accountHolderName) setBankHolder(data.data.accountHolderName);
+          if (data.data.accountNumber) setBankAccNumber(data.data.accountNumber);
+          if (data.data.ifscCode) setBankIfsc(data.data.ifscCode);
+          if (data.data.upiId) setUpiId(data.data.upiId);
+        }
+      }
+    } catch (_) {}
+  };
+
+  const handleSaveBankDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bankHolder || (!bankAccNumber && !upiId)) {
+      toast.error('Account holder name and Account Number or UPI ID are required');
+      return;
+    }
+    setSavingBank(true);
+    try {
+      const token = localStorage.getItem('platform_auth_token');
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/api/v1/developer/apps/${appId}/bank-details`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          accountHolderName: bankHolder,
+          accountNumber: bankAccNumber,
+          ifscCode: bankIfsc,
+          upiId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to save bank details');
+      toast.success('Settlement bank account saved successfully!');
+      setBankDetails(data.data);
+      setShowBankModal(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Error saving bank details');
+    } finally {
+      setSavingBank(false);
+    }
+  };
+
+  const handleOpenPayoutModal = () => {
+    if (!bankDetails || (!bankDetails.accountNumber && !bankDetails.upiId)) {
+      toast('Please set up your settlement bank details first', { icon: '🏦' });
+      setShowBankModal(true);
+      return;
+    }
+    if (bankDetails.upiId) {
+      setPayoutMethod('UPI');
+      setUpiId(bankDetails.upiId);
+    } else {
+      setPayoutMethod('BANK_TRANSFER');
+      setBankHolder(bankDetails.accountHolderName || '');
+      setBankAccNumber(bankDetails.accountNumber || '');
+      setBankIfsc(bankDetails.ifscCode || '');
+    }
+    setShowPayoutModal(true);
+  };
+
   useEffect(() => {
     fetchAppDetails();
     fetchPayouts();
+    fetchAuthLogs();
+    fetchPaymentAnalytics();
+    fetchBankDetails();
   }, [appId]);
 
   const fetchPayouts = async () => {
@@ -731,6 +878,122 @@ export default function AppDetailPage() {
         </div>
       </div>
 
+      {/* Real-Time Authentication Logs & Active Users Card */}
+      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
+          <div>
+            <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+              <Users className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              <span>Real-Time Authentication Logs & Live Users</span>
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Live audit stream of users who have authorized and logged into this application via 180 Identity.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{authLogs?.activeSessionsCount || 0} Active Sessions</span>
+            </span>
+            <button
+              type="button"
+              onClick={fetchAuthLogs}
+              disabled={loadingAuthLogs}
+              className="p-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+              title="Refresh auth logs"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${loadingAuthLogs ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Telemetry Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
+            <span className="text-[11px] font-medium text-zinc-500">Total Authenticated Users</span>
+            <p className="text-xl font-extrabold text-zinc-950 dark:text-white font-mono">{authLogs?.totalUsers || 0}</p>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
+            <span className="text-[11px] font-medium text-zinc-500">Active Token Sessions</span>
+            <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">{authLogs?.activeSessionsCount || 0}</p>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1 col-span-2 sm:col-span-1">
+            <span className="text-[11px] font-medium text-zinc-500">Protocol Security</span>
+            <p className="text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1 pt-1">
+              <Shield className="w-3.5 h-3.5" />
+              <span>OIDC 2.0 PKCE Verified</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Auth Stream Table */}
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+            Live User Activity Stream
+          </h3>
+          {loadingAuthLogs ? (
+            <div className="py-8 text-center text-xs text-zinc-400">Loading telemetry stream...</div>
+          ) : authLogs && authLogs.logs.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
+                <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase">
+                  <tr>
+                    <th className="pb-2">User Profile</th>
+                    <th className="pb-2">Auth Channel</th>
+                    <th className="pb-2">Session Status</th>
+                    <th className="pb-2 text-right">Authorized At</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
+                  {authLogs.logs.map((log) => (
+                    <tr key={log.id}>
+                      <td className="py-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center font-bold text-purple-600 text-xs overflow-hidden">
+                            {log.user.avatar ? (
+                              <img src={log.user.avatar} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              log.user.name?.charAt(0) || 'U'
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-zinc-950 dark:text-white leading-tight">{log.user.name}</div>
+                            <div className="text-[10px] text-zinc-400 font-mono">{log.user.email || log.user.username || '180 Identity'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-2.5 font-medium">{log.authMethod}</td>
+                      <td className="py-2.5">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            log.status === 'ACTIVE_SESSION'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
+                          }`}
+                        >
+                          {log.status === 'ACTIVE_SESSION' ? 'Active Token' : 'Expired'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right font-mono text-[11px] text-zinc-500">
+                        {new Date(log.grantedAt).toLocaleDateString()} {new Date(log.grantedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-center space-y-2">
+              <p className="text-xs text-zinc-500">No users have signed into this app yet.</p>
+              <p className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
+                Embed the &lt;OneEightyAuthButton /&gt; or script to start authenticating users.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Webhook & 2-Way Payment Verification Engine Card */}
       <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
@@ -876,6 +1139,133 @@ export default function AppDetailPage() {
         )}
       </div>
 
+      {/* 180 Pay Revenue & Payment Analytics Card */}
+      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
+          <div>
+            <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-emerald-500" />
+              <span>180 Pay Revenue & Payment Analytics</span>
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Comprehensive analytics on collections, monthly volume, settlements, and incoming transaction receipts.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchPaymentAnalytics}
+              disabled={loadingAnalytics}
+              className="p-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+              title="Refresh payment analytics"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${loadingAnalytics ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Financial KPI Blocks */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
+            <span className="text-[11px] font-medium text-zinc-500">Total Lifetime Volume</span>
+            <p className="text-xl font-extrabold text-zinc-950 dark:text-white font-mono">
+              ₹{(paymentAnalytics?.grossVolume || 0).toFixed(2)}
+            </p>
+            <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
+              <TrendingUp className="w-3 h-3" /> Gross captured
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
+            <span className="text-[11px] font-medium text-zinc-500">Last Month's Volume</span>
+            <p className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">
+              ₹{(paymentAnalytics?.lastMonthVolume || 0).toFixed(2)}
+            </p>
+            <span className="text-[10px] text-zinc-400">Previous calendar month</span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
+            <span className="text-[11px] font-medium text-zinc-500">In-Flight Settlements</span>
+            <p className="text-xl font-extrabold text-amber-600 dark:text-amber-400 font-mono">
+              ₹{(paymentAnalytics?.pendingSettlements || 0).toFixed(2)}
+            </p>
+            <span className="text-[10px] text-amber-500">Pending capture/settle</span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/20 space-y-1">
+            <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">Withdrawable Balance</span>
+            <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+              ₹{(payoutBalance || 0).toFixed(2)}
+            </p>
+            <span className="text-[10px] text-emerald-600 font-bold">Ready for withdrawal</span>
+          </div>
+        </div>
+
+        {/* Recent Transactions Ledger */}
+        <div className="space-y-3 pt-2">
+          <h3 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+            Incoming Payments Ledger
+          </h3>
+          {paymentAnalytics && paymentAnalytics.transactions.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
+                <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase">
+                  <tr>
+                    <th className="pb-2">Session ID / Title</th>
+                    <th className="pb-2">Customer</th>
+                    <th className="pb-2">Amount</th>
+                    <th className="pb-2">Status</th>
+                    <th className="pb-2 text-right">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
+                  {paymentAnalytics.transactions.map((tx) => (
+                    <tr key={tx.id}>
+                      <td className="py-2.5">
+                        <div className="font-semibold text-zinc-950 dark:text-white">{tx.title || 'Checkout'}</div>
+                        <div className="text-[10px] text-zinc-400 font-mono">{tx.id.slice(0, 16)}...</div>
+                      </td>
+                      <td className="py-2.5">
+                        {tx.customer ? (
+                          <div>
+                            <div className="font-medium text-zinc-900 dark:text-zinc-200">{tx.customer.name}</div>
+                            <div className="text-[10px] text-zinc-400">{tx.customer.email || '180 User'}</div>
+                          </div>
+                        ) : (
+                          <span className="text-zinc-400 italic">Guest</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 font-bold text-zinc-950 dark:text-white font-mono">
+                        ₹{tx.amount.toFixed(2)}
+                      </td>
+                      <td className="py-2.5">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            tx.status === 'CAPTURED'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : tx.status === 'PENDING'
+                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
+                          }`}
+                        >
+                          {tx.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right font-mono text-[11px] text-zinc-500">
+                        {new Date(tx.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-xs text-zinc-400 italic py-2">No incoming payments recorded yet for this app.</p>
+          )}
+        </div>
+      </div>
+
       {/* Earnings & Manual Payouts Card */}
       <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
@@ -888,10 +1278,42 @@ export default function AppDetailPage() {
 
           <button
             type="button"
-            onClick={() => setShowPayoutModal(true)}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5"
+            onClick={handleOpenPayoutModal}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <span>Request Payout</span>
+          </button>
+        </div>
+
+        {/* Linked Settlement Bank Details */}
+        <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Landmark className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              <span className="text-xs font-bold text-zinc-900 dark:text-white">Settlement Account Configuration</span>
+              {bankDetails?.accountNumber || bankDetails?.upiId ? (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">Verified</span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">Setup Required</span>
+              )}
+            </div>
+            {bankDetails?.accountNumber || bankDetails?.upiId ? (
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+                {bankDetails.accountHolderName} • {bankDetails.upiId ? `UPI: ${bankDetails.upiId}` : `A/C: ••••••${bankDetails.accountNumber?.slice(-4)} (${bankDetails.ifscCode})`}
+              </p>
+            ) : (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                You must link your bank account or UPI ID to withdraw funds to your account.
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowBankModal(true)}
+            className="px-3.5 py-1.5 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-white dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-800 dark:text-zinc-200 transition-colors self-start sm:self-auto cursor-pointer"
+          >
+            {bankDetails?.accountNumber || bankDetails?.upiId ? 'Update Bank Account' : 'Set Up Settlement Account'}
           </button>
         </div>
 
@@ -1290,6 +1712,98 @@ export default function AppDetailPage() {
             >
               {isRequestingPayout ? <LogoLoader className="w-4 h-4 animate-spin text-white" /> : null}
               <span>Submit Request</span>
+            </button>
+          </div>
+        </form>
+      </PlatformModal>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          CENTRALIZED MODAL: BANK SETTLEMENT SETUP
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <PlatformModal
+        isOpen={showBankModal}
+        onClose={() => setShowBankModal(false)}
+        title="Settlement Bank Information"
+        icon={Landmark}
+        iconBgClass="bg-purple-500/10"
+        iconColorClass="text-purple-600 dark:text-purple-400"
+        maxWidthClass="max-w-md"
+      >
+        <form onSubmit={handleSaveBankDetails} className="space-y-4 text-zinc-900 dark:text-white">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Configure your registered bank account or UPI ID to receive automatic & manual revenue withdrawals.
+          </p>
+
+          <div>
+            <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
+              Account Holder Full Name *
+            </label>
+            <input
+              type="text"
+              placeholder="Full Name as per Bank"
+              value={bankHolder}
+              onChange={(e) => setBankHolder(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
+                Bank Account Number
+              </label>
+              <input
+                type="text"
+                placeholder="000123456789"
+                value={bankAccNumber}
+                onChange={(e) => setBankAccNumber(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
+                IFSC Code
+              </label>
+              <input
+                type="text"
+                placeholder="HDFC0001234"
+                value={bankIfsc}
+                onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
+                className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white uppercase focus:outline-none focus:border-purple-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
+              UPI ID (Optional for Instant Payouts)
+            </label>
+            <input
+              type="text"
+              placeholder="developer@okhdfcbank"
+              value={upiId}
+              onChange={(e) => setUpiId(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3">
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setShowBankModal(false)}
+              className="px-4 py-2 min-h-[44px] text-xs text-zinc-600 dark:text-zinc-300"
+            >
+              Cancel
+            </Button>
+            <button
+              type="submit"
+              disabled={savingBank}
+              className="px-5 py-2 min-h-[44px] rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs cursor-pointer transition-colors shadow-md flex items-center gap-2"
+            >
+              {savingBank ? <LogoLoader className="w-4 h-4 animate-spin text-white" /> : null}
+              <span>Save Settlement Account</span>
             </button>
           </div>
         </form>

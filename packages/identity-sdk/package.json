@@ -2,10 +2,19 @@
   "name": "@workspace/identity-sdk",
   "version": "1.0.0",
   "description": "Universal Client SDK for 180 Identity Single Sign-On and 180 Pay Sovereign Checkout",
-  "main": "./src/index.tsx",
-  "types": "./src/index.tsx",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.8",
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.0",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

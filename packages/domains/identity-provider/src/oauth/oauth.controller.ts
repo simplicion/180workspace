@@ -1,6 +1,7 @@
 'use strict';
 
-import { developersPrisma as prisma } from '@workspace/db-180developers';
+import jwt from 'jsonwebtoken';
+import { developersPrisma as prisma } from '@workspace/db-180core';
 import {
     generateRandomToken,
     hashSecret,
@@ -76,9 +77,9 @@ export class OAuthController {
                 app = null;
             }
 
-            if (!app) {
-                const fp = FIRST_PARTY_APPS.find(a => a.clientId === String(client_id));
-                if (fp) {
+            const fp = FIRST_PARTY_APPS.find(a => a.clientId === String(client_id));
+            if (fp) {
+                if (!app) {
                     app = {
                         id: fp.clientId,
                         name: fp.name,
@@ -94,6 +95,9 @@ export class OAuthController {
                         company: null,
                         user: null
                     } as any;
+                } else {
+                    app.redirectUris = Array.from(new Set([...(app.redirectUris || []), ...fp.redirectUris]));
+                    app.allowedOrigins = Array.from(new Set([...(app.allowedOrigins || []), ...fp.allowedOrigins]));
                 }
             }
 
@@ -185,7 +189,7 @@ export class OAuthController {
                         family_name: nameParts.slice(1).join(' ') || '',
                         username: userRecord.username || '',
                         email: userRecord.email,
-                        photoUrl: userRecord.photoUrl || userRecord.image || '',
+                        avatarUrl: userRecord.avatarUrl || '',
                         headline: userRecord.headline || ''
                     };
                 }
@@ -207,17 +211,23 @@ export class OAuthController {
                 }
             }
 
+            const clientPayload = {
+                id: app.id,
+                clientId: app.clientId,
+                name: app.name,
+                description: app.description,
+                logoUrl: app.logoUrl || app.company?.logoUrl || '',
+                developerName: app.company?.name || app.user?.name || '180 Developer',
+                isVerified: app.isVerified,
+                homepageUrl: app.homepageUrl || '',
+                redirectUris: app.redirectUris,
+                allowedScopes: app.allowedScopes
+            };
+
             return res.json({
                 success: true,
-                app: {
-                    id: app.id,
-                    name: app.name,
-                    description: app.description,
-                    logoUrl: app.logoUrl || app.company?.logoUrl || '',
-                    developerName: app.company?.name || app.user?.name || '180 Developer',
-                    isVerified: app.isVerified,
-                    homepageUrl: app.homepageUrl || ''
-                },
+                app: clientPayload,
+                client: clientPayload,
                 client_id,
                 redirect_uri: targetRedirectUri,
                 scopes: requestedScopes,
@@ -381,7 +391,7 @@ export class OAuthController {
                     name: user.name || '',
                     username: user.username || '',
                     email: user.email,
-                    photoUrl: user.photoUrl || user.image || ''
+                    avatarUrl: user.avatarUrl || ''
                 }
             });
         } catch (err: any) {
@@ -530,28 +540,45 @@ export class OAuthController {
      */
     static async getUserInfo(req: any, res: any) {
         try {
-            const authHeader = req.headers.authorization || '';
-            const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+            let user = req.user;
 
-            if (!token) {
-                return res.status(401).json({ error: 'invalid_token', error_description: 'Missing Bearer token' });
-            }
-
-            // Check if token is an access token from DB
-            const dbToken = await prisma.oAuthToken.findUnique({
-                where: { accessToken: token },
-                include: { user: true }
-            });
-
-            let user = dbToken?.user;
-
-            // If not found in DB, check if it's a signed JWT ID token
             if (!user) {
-                const verified = verifyIdToken(token);
-                if (verified.valid && verified.payload?.sub) {
-                    user = await prisma.user.findUnique({
-                        where: { id: verified.payload.sub }
-                    });
+                const authHeader = req.headers.authorization || '';
+                const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+                if (!token) {
+                    return res.status(401).json({ error: 'invalid_token', error_description: 'Missing Bearer token' });
+                }
+
+                // Check if token is an access token from DB
+                const dbToken = await prisma.oAuthToken.findUnique({
+                    where: { accessToken: token },
+                    include: { user: true }
+                });
+
+                user = dbToken?.user;
+
+                // Check if token is platform JWT
+                if (!user) {
+                    try {
+                        const JWT_SECRET = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '180-identity-jwt-secret-key-prod-super-secure';
+                        const decoded: any = jwt.verify(token, JWT_SECRET);
+                        const targetUserId = decoded.id || decoded.sub || decoded.userId;
+                        if (targetUserId) {
+                            user = await prisma.user.findUnique({ where: { id: targetUserId } });
+                        }
+                    } catch (e) {}
+                }
+
+                // If not found in DB, check if it's a signed JWT ID token
+                if (!user) {
+                    const verified = verifyIdToken(token);
+                    const targetUserId = verified.payload?.sub || verified.payload?.id || verified.payload?.userId;
+                    if (verified.valid && targetUserId) {
+                        user = await prisma.user.findUnique({
+                            where: { id: targetUserId }
+                        });
+                    }
                 }
             }
 
@@ -563,16 +590,27 @@ export class OAuthController {
 
             return res.json({
                 sub: user.id,
+                id: user.id,
                 name: user.name || '',
                 given_name: nameParts[0] || '',
                 family_name: nameParts.slice(1).join(' ') || '',
                 username: user.username || '',
                 email: user.email,
-                email_verified: Boolean(user.emailVerified),
+                email_verified: Boolean(user.isEmailVerified),
                 phone: user.phone || null,
-                picture: user.photoUrl || user.image || '',
+                picture: user.avatarUrl || '',
+                avatarUrl: user.avatarUrl || '',
                 headline: user.headline || '',
-                bio: user.bio || '',
+                age: user.age || null,
+                isOnboarded: Boolean(user.isOnboarded),
+                user: {
+                    id: user.id,
+                    sub: user.id,
+                    name: user.name || '',
+                    email: user.email,
+                    username: user.username || '',
+                    avatarUrl: user.avatarUrl || '',
+                },
                 location: (user.latitude && user.longitude) ? {
                     latitude: user.latitude,
                     longitude: user.longitude,
@@ -625,8 +663,10 @@ export class OAuthController {
                 'email_verified',
                 'phone',
                 'picture',
+                'avatarUrl',
                 'headline',
-                'bio',
+                'age',
+                'isOnboarded',
                 'location'
             ]
         });

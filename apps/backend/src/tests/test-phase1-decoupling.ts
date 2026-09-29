@@ -13,7 +13,7 @@ import {
     JwksVerifier,
     TokenExchangeClient,
     UserInfoClient,
-} from '@workspace/identity-client';
+} from '@workspace/identity-sdk';
 import {
     OidcConsumer,
     CompanyResolver,
@@ -74,10 +74,10 @@ async function runDecouplingSuite() {
         assert.strictEqual(parts.length, 3, 'JWT must have 3 dot-separated parts');
     });
 
-    // ─── 2. Zero-Dependency OIDC Client SDK (@workspace/identity-client) ─────
+    // ─── 2. Zero-Dependency OIDC Client SDK (@workspace/identity-sdk) ─────
     console.log('\n2. Auditing Zero-Dependency Relying Party Client SDK...');
 
-    await test('@workspace/identity-client verifies RS256 token against IdP JWKS', async () => {
+    await test('@workspace/identity-sdk verifies RS256 token against IdP JWKS', async () => {
         const verifier = new JwksVerifier();
         // Seed verifier with public keys from IdP
         verifier.setKeys(getJwks());
@@ -89,7 +89,7 @@ async function runDecouplingSuite() {
         assert.strictEqual(result.payload?.username, testClaims.username);
     });
 
-    await test('@workspace/identity-client rejects forged or tampered token signatures', async () => {
+    await test('@workspace/identity-sdk rejects forged or tampered token signatures', async () => {
         const verifier = new JwksVerifier();
         verifier.setKeys(getJwks());
 
@@ -100,7 +100,7 @@ async function runDecouplingSuite() {
         assert.strictEqual(result.valid, false, 'Forged token must be rejected');
     });
 
-    await test('@workspace/identity-client rejects audience mismatch attacks', async () => {
+    await test('@workspace/identity-sdk rejects audience mismatch attacks', async () => {
         const verifier = new JwksVerifier();
         verifier.setKeys(getJwks());
 

@@ -2,27 +2,56 @@
 
 
 
-import { LogoLoader } from "@workspace/ui";
-import { useState, useEffect, useCallback } from 'react';
+import { LogoLoader, FeatureLock } from "@workspace/ui";
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
+import { useSubscription } from '@/lib/useSubscription';
 import { format } from 'date-fns';
-import { Mail, History, Send, Search, CheckCircle, XCircle, RefreshCw, Users, BarChart3, Zap, ChevronLeft, ChevronRight, Filter, Eye, AlertTriangle, TrendingUp, Mailbox, Clock, Sparkles } from 'lucide-react';
+import { 
+    Mail, History, Send, Search, CheckCircle, XCircle, RefreshCw, 
+    Users, BarChart3, Zap, ChevronLeft, ChevronRight, Filter, Eye, 
+    AlertTriangle, TrendingUp, Mailbox, Clock, Sparkles, Settings as SettingsIcon,
+    ShieldAlert, ShieldCheck
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import AIEmailDraftDrawer from '@/app/(platform)/(communications-app)/_components/AIEmailDraftDrawer';
+import EmailTab from '@/app/(platform)/(settings-app)/_components/EmailTab';
 import CustomSelect from '@/components/ui/CustomSelect';
 
-type Tab = 'dashboard' | 'history' | 'compose' | 'bulk';
+type Tab = 'dashboard' | 'history' | 'compose' | 'bulk' | 'settings';
 
 const STATUS_COLORS: Record<string, string> = {
     sent: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
     failed: 'bg-rose-50 text-rose-700 ring-rose-100',
 };
 
-export default function EmailManagementPage() {
+function EmailManagementContent() {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+    const searchParams = useSearchParams();
+    const tabParam = searchParams.get('tab') as Tab | null;
+    const [activeTab, setActiveTab] = useState<Tab>(
+        (tabParam && ['dashboard', 'history', 'compose', 'bulk', 'settings'].includes(tabParam)) 
+            ? tabParam 
+            : 'dashboard'
+    );
+
+    const { settings, refreshSettings } = useSettings();
+    const isSmtpConfigured = Boolean(settings?.smtpHost && settings?.smtpUser);
+    const isSmtpFailed = settings?.lastEmailTestStatus === 'failure';
+
+    const { companyConfig, isPaidPlan, hasApp: checkHasApp, loading: subLoading } = useSubscription();
+    const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
+    const hasApp = isPaidPlan || enabledApps.includes('communications') || enabledApps.includes('email') || (checkHasApp && checkHasApp('communications'));
+
+    useEffect(() => {
+        if (tabParam && ['dashboard', 'history', 'compose', 'bulk', 'settings'].includes(tabParam)) {
+            setActiveTab(tabParam);
+        }
+    }, [tabParam]);
 
     // ── History state ──────────────────────────────────────────────────────────
     const [logs, setLogs] = useState<any[]>([]);
@@ -112,6 +141,17 @@ export default function EmailManagementPage() {
         }
     }
 
+    const handleEmailError = (err: any, defaultMsg: string) => {
+        const errorMsg = err?.response?.data?.error || defaultMsg;
+        if (errorMsg.toLowerCase().includes('smtp') || errorMsg.toLowerCase().includes('not configured')) {
+            toast.error('SMTP Error: Outgoing email is not configured. Please open Settings tab to set up SMTP.', {
+                duration: 6000,
+            });
+        } else {
+            toast.error(errorMsg);
+        }
+    };
+
     async function handleSendEditedTemplate() {
         if (!templatePreview) return;
         setSending(true);
@@ -127,7 +167,7 @@ export default function EmailManagementPage() {
             setActiveTab('history');
             fetchLogs();
         } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Failed to send email');
+            handleEmailError(err, 'Failed to send email');
         } finally { setSending(false); }
     }
 
@@ -141,7 +181,7 @@ export default function EmailManagementPage() {
             setActiveTab('history');
             fetchLogs();
         } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Failed to send email');
+            handleEmailError(err, 'Failed to send email');
         } finally { setSending(false); }
     }
 
@@ -155,7 +195,7 @@ export default function EmailManagementPage() {
             setActiveTab('history');
             fetchLogs();
         } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Failed to send email');
+            handleEmailError(err, 'Failed to send email');
         } finally { setSending(false); }
     }
 
@@ -169,7 +209,7 @@ export default function EmailManagementPage() {
             toast.success(res.data.message);
             setBulkForm({ role: 'all', subject: '', message: '' });
         } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Bulk send failed');
+            handleEmailError(err, 'Bulk send failed');
         } finally { setSendingBulk(false); }
     }
 
@@ -195,6 +235,18 @@ export default function EmailManagementPage() {
     const totalCount = sentCount + failedCount;
     const deliveryRate = totalCount > 0 ? Math.round((sentCount / totalCount) * 100) : 0;
 
+    if (subLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <LogoLoader className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!hasApp) {
+        return <FeatureLock requiredApp="Communications" />;
+    }
+
     if (!isHR) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -212,6 +264,7 @@ export default function EmailManagementPage() {
         { key: 'history', label: 'Email History', icon: History },
         { key: 'compose', label: 'Compose', icon: Send },
         { key: 'bulk', label: 'Bulk Send', icon: Users },
+        { key: 'settings', label: 'Settings', icon: SettingsIcon },
     ];
 
     return (
@@ -222,13 +275,13 @@ export default function EmailManagementPage() {
                     <h1 className="page-title">Email Management</h1>
                     <p className="page-subtitle">Send, track, and analyze all system emails in one place.</p>
                 </div>
-                <button onClick={() => { fetchStats(); fetchLogs(); }} className="btn-secondary flex items-center gap-2 text-sm">
+                <button onClick={() => { fetchStats(); fetchLogs(); refreshSettings(); }} className="btn-secondary flex items-center gap-2 text-sm">
                     <RefreshCw className="w-4 h-4" /> Refresh
                 </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+            <div className="flex flex-wrap gap-1 bg-gray-100 dark:bg-zinc-800/60 p-1 rounded-xl w-fit">
                 {TABS.map(t => {
                     const Icon = t.icon;
                     const active = activeTab === t.key;
@@ -238,15 +291,75 @@ export default function EmailManagementPage() {
                             onClick={() => setActiveTab(t.key)}
                             className={clsx(
                                 'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all',
-                                active ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                                active ? 'bg-white dark:bg-zinc-900 shadow-sm text-gray-900 dark:text-zinc-100 font-bold' : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
                             )}
                         >
                             <Icon className="w-4 h-4" />
-                            {t.label}
+                            <span>{t.label}</span>
+                            {t.key === 'settings' && (
+                                <>
+                                    {isSmtpFailed && (
+                                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse ml-0.5" title="SMTP Connection Failed" />
+                                    )}
+                                    {!isSmtpConfigured && !isSmtpFailed && (
+                                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse ml-0.5" title="SMTP Setup Required" />
+                                    )}
+                                    {isSmtpConfigured && settings?.lastEmailTestStatus === 'success' && (
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500 ml-0.5" title="SMTP Connected" />
+                                    )}
+                                </>
+                            )}
                         </button>
                     );
                 })}
             </div>
+
+            {/* Error / Setup Required Notice */}
+            {(!isSmtpConfigured || isSmtpFailed) && activeTab !== 'settings' && (
+                <div className={clsx(
+                    "p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-sm",
+                    isSmtpFailed 
+                        ? "bg-rose-50/90 border-rose-200 text-rose-900 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-200" 
+                        : "bg-amber-50/90 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-900/60 dark:text-amber-200"
+                )}>
+                    <div className="flex items-start gap-3.5">
+                        <div className={clsx(
+                            "p-2.5 rounded-xl shrink-0 mt-0.5",
+                            isSmtpFailed ? "bg-rose-100 text-rose-600 dark:bg-rose-900/60 dark:text-rose-300" : "bg-amber-100 text-amber-600 dark:bg-amber-900/60 dark:text-amber-300"
+                        )}>
+                            <AlertTriangle className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-bold flex items-center gap-2">
+                                {isSmtpFailed ? 'Email SMTP Connection Failed' : 'Email Setup Required'}
+                                <span className={clsx(
+                                    "text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full tracking-wider",
+                                    isSmtpFailed ? "bg-rose-200 text-rose-800 dark:bg-rose-900 dark:text-rose-200" : "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                                )}>
+                                    {isSmtpFailed ? 'Action Required' : 'Configuration Missing'}
+                                </span>
+                            </h4>
+                            <p className="text-xs mt-1 opacity-90 leading-relaxed max-w-2xl">
+                                {isSmtpFailed 
+                                    ? (settings?.lastEmailTestError ? `The mail server reported an error: "${settings.lastEmailTestError}". Outgoing emails cannot be sent until credentials are fixed.` : 'SMTP connection failed. Check your host, port, or app password in Settings to enable email delivery.')
+                                    : 'Your outgoing email server is not configured yet. Outgoing notifications, transactional alerts, and campaigns cannot be delivered until SMTP credentials are configured.'}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setActiveTab('settings')}
+                        className={clsx(
+                            "px-4 py-2.5 rounded-xl text-xs font-bold shrink-0 flex items-center justify-center gap-2 transition-all shadow-sm whitespace-nowrap self-start sm:self-auto",
+                            isSmtpFailed
+                                ? "bg-rose-600 text-white hover:bg-rose-700 active:scale-95"
+                                : "bg-amber-600 text-white hover:bg-amber-700 active:scale-95"
+                        )}
+                    >
+                        <SettingsIcon className="w-4 h-4" />
+                        {isSmtpFailed ? 'Fix Email Settings' : 'Configure Email Now'}
+                    </button>
+                </div>
+            )}
 
             {/* ── DASHBOARD TAB ─────────────────────────────────────────────────── */}
             {activeTab === 'dashboard' && (
@@ -457,6 +570,29 @@ export default function EmailManagementPage() {
             {/* ── COMPOSE TAB ───────────────────────────────────────────────────── */}
             {activeTab === 'compose' && (
                 <div className="max-w-2xl mx-auto space-y-4">
+                    {(!isSmtpConfigured || isSmtpFailed) && (
+                        <div className={clsx(
+                            "p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs mb-2",
+                            isSmtpFailed ? "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-200" : "bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-900/60 dark:text-amber-200"
+                        )}>
+                            <div className="flex items-center gap-2">
+                                <AlertTriangle className={clsx("w-4 h-4 shrink-0", isSmtpFailed ? "text-rose-600" : "text-amber-600")} />
+                                <span>
+                                    {isSmtpFailed
+                                        ? 'SMTP connection failed. Sending will likely fail until credentials are corrected.'
+                                        : 'SMTP credentials are not configured. Configure email settings first.'}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('settings')}
+                                className="font-bold underline hover:opacity-80 shrink-0 text-xs flex items-center gap-1"
+                            >
+                                <SettingsIcon className="w-3.5 h-3.5" /> Setup Settings
+                            </button>
+                        </div>
+                    )}
+
                     {/* Mode toggle */}
                     <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
                         {[{ key: 'template', label: 'Template Email' }, { key: 'custom', label: 'Custom Email' }].map(m => (
@@ -635,6 +771,29 @@ export default function EmailManagementPage() {
             {/* ── BULK SEND TAB ─────────────────────────────────────────────────── */}
             {activeTab === 'bulk' && (
                 <div className="max-w-2xl mx-auto space-y-4">
+                    {(!isSmtpConfigured || isSmtpFailed) && (
+                        <div className={clsx(
+                            "p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs mb-2",
+                            isSmtpFailed ? "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-200" : "bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-900/60 dark:text-amber-200"
+                        )}>
+                            <div className="flex items-center gap-2">
+                                <AlertTriangle className={clsx("w-4 h-4 shrink-0", isSmtpFailed ? "text-rose-600" : "text-amber-600")} />
+                                <span>
+                                    {isSmtpFailed
+                                        ? 'SMTP connection failed. Bulk emails will fail until settings are fixed.'
+                                        : 'SMTP credentials are not configured. Bulk emails cannot be dispatched.'}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('settings')}
+                                className="font-bold underline hover:opacity-80 shrink-0 text-xs flex items-center gap-1"
+                            >
+                                <SettingsIcon className="w-3.5 h-3.5" /> Setup Settings
+                            </button>
+                        </div>
+                    )}
+
                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
                         <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                         <div>
@@ -734,6 +893,16 @@ export default function EmailManagementPage() {
                             </form>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* ── SETTINGS TAB ─────────────────────────────────────────────────── */}
+            {activeTab === 'settings' && (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                    <EmailTab 
+                        title="Platform Email Services"
+                        description="Configure SMTP credentials used for system-wide emails, transactional alerts, and automated reporting."
+                    />
                 </div>
             )}
 
@@ -881,6 +1050,18 @@ export default function EmailManagementPage() {
                 />
             )}
         </div>
+    );
+}
+
+export default function EmailManagementPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-[400px]">
+                <LogoLoader className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        }>
+            <EmailManagementContent />
+        </Suspense>
     );
 }
 

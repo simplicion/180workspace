@@ -69,7 +69,8 @@ export const navigation = [
         roles: ['admin'],
         items: [
             { id: 'ad-websites', name: 'Ad Websites', href: '/advertising', icon: Globe, roles: ['admin'] },
-            { name: 'Form Builder', href: '/forms', icon: FileText, roles: ['admin'] },
+            { id: 'forms', name: 'Form Builder', href: '/forms', icon: FileText, roles: ['admin'] },
+            { id: 'company-hub', name: 'Company Hub', href: '/company', icon: Building2, roles: ['admin'] },
         ]
     },
 
@@ -143,11 +144,7 @@ export const navigation = [
         icon: Settings,
         roles: ['admin', 'employee', 'client'],
         items: [
-            { id: 'company-hub', name: 'Company Hub', href: '/company', icon: Building2, roles: ['admin'] },
-            { id: 'roles', name: 'Roles & Access', href: '/settings/roles-access', icon: UserSquare, roles: ['admin'] },
             { id: 'apps', name: 'Apps', href: '/settings/apps', icon: LayoutGrid, roles: ['admin'] },
-            { id: 'ai-config', name: 'AI Configurations', href: '/settings/ai', icon: Bot, roles: ['admin'] },
-            { id: 'system-configs', name: 'System Configs', href: '/settings/system-configs', icon: Settings, roles: ['admin'] },
             { id: 'platform-billing', name: 'Platform Billing', href: '/settings/platform-billing', icon: CreditCard, roles: ['admin'] },
             { id: 'wallet', name: 'Prepaid Wallet', href: '/settings/wallet', icon: Wallet, roles: ['admin'] },
             { id: 'help-support', name: 'Help & Support', href: '/help-support', icon: LifeBuoy, roles: ['admin', 'employee', 'client'] },

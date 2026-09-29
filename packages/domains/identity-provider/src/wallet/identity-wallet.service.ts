@@ -2,7 +2,7 @@
 
 import crypto from 'crypto';
 import axios from 'axios';
-import { developersPrisma as prisma } from '@workspace/db-180developers';
+import { developersPrisma as prisma } from '@workspace/db-180core';
 
 export interface WalletTopupOrderResult {
   success: boolean;

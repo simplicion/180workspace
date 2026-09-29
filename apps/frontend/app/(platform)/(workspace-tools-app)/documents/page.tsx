@@ -8,7 +8,7 @@ import api from '@/lib/api';
 import { useGet180DocumentsQuery, useDeleteArticleMutation, useApproveDocumentMutation, useConvertToInvoiceMutation, useSendPaymentReminderMutation } from '@/redux/api/knowledgeApi';
 import { useGetContractsQuery } from '@/redux/api/contractApi';
 import { useRouter } from 'next/navigation';
-import { FileText, Upload, Search, Plus, Download, Trash2, File, FolderOpen, Image, Video, X, ExternalLink, Tags, Mail, LayoutTemplate, Link2, Users, CheckCircle, AlertCircle, FileIcon, ImageIcon, ChevronDown, Bot, ShieldAlert, FileEdit, Receipt, Sparkles, CheckCircle2, ArrowRightCircle, Share2, CheckSquare, Square, MinusSquare, Layers, LayoutGrid, Check, HardDrive, Cloud, Database } from 'lucide-react';
+import { FileText, Upload, Search, Plus, Download, Trash2, File, FolderOpen, Image, Video, X, ExternalLink, Tags, Mail, LayoutTemplate, Link2, Users, CheckCircle, AlertCircle, FileIcon, ImageIcon, ChevronDown, Bot, ShieldAlert, FileEdit, Receipt, Sparkles, CheckCircle2, ArrowRightCircle, Share2, CheckSquare, Square, MinusSquare, Layers, LayoutGrid, Check, HardDrive, Cloud, Database, Settings } from 'lucide-react';
 import clsx from 'clsx';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -599,6 +599,26 @@ export default function DocumentsPage() {
                         <p className="page-subtitle">Centralized document engine, 50MB RAG memory vaults, e-signatures & commercial workflows</p>
                     </div>
                     <div className="flex items-center gap-2.5 flex-wrap">
+                        {/* Settings Action */}
+                        <Link
+                            href="/documents/settings"
+                            className="flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 border border-gray-200 dark:border-gray-700 rounded-xl transition-colors cursor-pointer shadow-xs"
+                            title="System & Invoicing Settings"
+                        >
+                            <Settings className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                            <span>Settings</span>
+                        </Link>
+
+                        {/* AI Consumption Rates Action */}
+                        <Link
+                            href="/documents/settings#ai-rates"
+                            className="flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-purple-700 dark:text-purple-300 bg-purple-50/70 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200/80 dark:border-purple-800 rounded-xl transition-colors cursor-pointer shadow-xs"
+                            title="Platform AI Consumption Rates"
+                        >
+                            <Layers className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            <span>AI Rates</span>
+                        </Link>
+
                         {/* RAG Memory Vaults Action */}
                         <button
                             onClick={() => setShowVaultsDrawer(true)}

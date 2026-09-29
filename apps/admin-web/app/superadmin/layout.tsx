@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
-    LayoutDashboard, Building2, Users, CreditCard, Tag, Receipt,
+    LayoutDashboard, Building2, Users, CreditCard, Tag, Receipt, Wallet,
     Settings, FileText, Megaphone, LifeBuoy, Database, Bug,
     LogOut, Bell, Shield, ChevronRight, Rocket, Globe, ToggleRight, Sparkles, Menu, X, ArrowLeft,
     CheckCircle2, Activity, ExternalLink, Newspaper, PhoneCall
@@ -43,6 +43,7 @@ const NAV_SECTIONS: NavSection[] = [
             { href: '/superadmin/subscriptions', label: 'Subscriptions', icon: Receipt },
             { href: '/superadmin/plans', label: 'Plans & Pricing', icon: CreditCard },
             { href: '/superadmin/coupons', label: 'Discount Coupons', icon: Tag },
+            { href: '/superadmin/core-payments', label: '180 Core Payments & Payouts', icon: Wallet, badge: 'Core' },
         ]
     },
     {

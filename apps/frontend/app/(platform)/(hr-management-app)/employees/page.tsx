@@ -3,12 +3,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Users, Search, Plus, Trash2, Eye, Edit } from 'lucide-react';
+import { Users, Search, Plus, Trash2, Eye, Edit, Shield } from 'lucide-react';
 import { Skeleton, SkeletonTable, BulkActionBar, ConfirmModal } from "@workspace/ui";
 import clsx from 'clsx';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import AddEmployeeDrawer from '@/app/(platform)/(hr-management-app)/_components/AddEmployeeDrawer';
+import { ManageAccessDrawer } from '@/components/shared/ManageAccessDrawer';
 import ContextActions from '@/app/(platform)/(dashboard)/_components/ContextActions';
 import toast from 'react-hot-toast';
 import { useAccess } from '@/hooks/useAccess';
@@ -30,6 +31,7 @@ export default function EmployeesPage() {
     const [role, setRole] = useState('');
     const [showAdd, setShowAdd] = useState(false);
     const [editEmployee, setEditEmployee] = useState<any>(null);
+    const [manageAccessUser, setManageAccessUser] = useState<any>(null);
     const [confirmDelete, setConfirmDelete] = useState<any>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
@@ -152,6 +154,23 @@ export default function EmployeesPage() {
                         setEditEmployee(null); 
                         swrCacheRef.current.clear();
                         loadEmployees(true); 
+                    }}
+                />
+            )}
+
+            {manageAccessUser && (
+                <ManageAccessDrawer
+                    user={{
+                        id: manageAccessUser.id || manageAccessUser._id,
+                        name: manageAccessUser.name,
+                        email: manageAccessUser.email,
+                        role: manageAccessUser.role,
+                        permissions: manageAccessUser.permissions || [],
+                    }}
+                    onClose={() => setManageAccessUser(null)}
+                    onUpdated={() => {
+                        swrCacheRef.current.clear();
+                        loadEmployees(true);
                     }}
                 />
             )}
@@ -311,6 +330,12 @@ export default function EmployeesPage() {
                                                                 label: 'Edit',
                                                                 icon: Edit,
                                                                 onClick: () => setEditEmployee(emp),
+                                                                variant: 'secondary'
+                                                            },
+                                                            {
+                                                                label: 'Role & Access',
+                                                                icon: Shield,
+                                                                onClick: () => setManageAccessUser(emp),
                                                                 variant: 'secondary'
                                                             },
                                                             {

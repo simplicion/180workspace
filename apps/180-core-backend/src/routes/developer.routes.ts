@@ -17,8 +17,19 @@ router.post('/apps/:id/rotate-webhook-secret', protect, DeveloperApiController.r
 router.post('/apps/:id/test-webhook', protect, DeveloperApiController.testWebhook);
 router.delete('/apps/:id', protect, DeveloperApiController.deleteApp);
 
+// ─── App Real-Time Telemetry & Financial Analytics ───────────────────────────
+router.get('/apps/:id/auth-logs', protect, DeveloperApiController.getAuthLogs);
+router.get('/apps/:id/payment-analytics', protect, DeveloperApiController.getPaymentAnalytics);
+router.get('/apps/:id/bank-details', protect, DeveloperApiController.getBankDetails);
+router.put('/apps/:id/bank-details', protect, DeveloperApiController.saveBankDetails);
+
 // ─── Earnings & Manual Payouts ───────────────────────────────────────────────
 router.post('/apps/:appId/payouts', protect, DeveloperApiController.requestPayout);
 router.get('/apps/:appId/payouts', protect, DeveloperApiController.listPayouts);
+
+// ─── Super Admin Vendor Payouts & Global Intelligence ────────────────────────
+router.get('/admin/payouts', DeveloperApiController.listAdminPayouts);
+router.post('/admin/payouts/:id/status', DeveloperApiController.updateAdminPayoutStatus);
+router.get('/admin/analytics', DeveloperApiController.getAdminAnalytics);
 
 export default router;

@@ -117,9 +117,9 @@ export function BulkActionBar({
                 className={clsx(
                     "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
                     "w-[95%] max-w-4xl",
-                    "backdrop-blur-xl bg-white/95 dark:bg-slate-900/95",
-                    "border border-indigo-100 dark:border-indigo-900/60",
-                    "shadow-[0_20px_50px_rgba(79,70,229,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)]",
+                    "backdrop-blur-xl bg-white/95 dark:bg-zinc-950/95",
+                    "border border-indigo-100 dark:border-zinc-800",
+                    "shadow-[0_20px_50px_rgba(79,70,229,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)]",
                     "rounded-2xl p-3 sm:px-5 sm:py-3.5",
                     "flex flex-wrap items-center justify-between gap-3 sm:gap-4",
                     "animate-in slide-in-from-bottom-6 fade-in duration-300",
@@ -133,7 +133,7 @@ export function BulkActionBar({
                             {selectedCount}
                         </span>
                         <div>
-                            <p className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 leading-none">
+                            <p className="text-xs sm:text-sm font-bold text-gray-900 dark:text-zinc-100 leading-none">
                                 {selectedCount} of {totalCount} {itemLabel} selected
                             </p>
                             {sublabel && (
@@ -152,7 +152,7 @@ export function BulkActionBar({
                                     setIsMenuOpen(prev => !prev);
                                     setIsCustomAmountOpen(false);
                                 }}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 text-xs font-semibold rounded-lg transition-colors border border-gray-200/80 dark:border-slate-700"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-200 text-xs font-semibold rounded-lg transition-colors border border-gray-200/80 dark:border-zinc-700"
                                 title="Select a specific quantity of items"
                             >
                                 <ListFilter className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
@@ -162,8 +162,8 @@ export function BulkActionBar({
 
                             {/* Presets Popover Dropdown */}
                             {isMenuOpen && (
-                                <div className="absolute left-0 bottom-full mb-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                                    <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                <div className="absolute left-0 bottom-full mb-2 w-56 bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-gray-100 dark:border-zinc-800 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                                    <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
                                         Selection Presets
                                     </div>
                                     
@@ -173,7 +173,7 @@ export function BulkActionBar({
                                                 onSelectAll();
                                                 setIsMenuOpen(false);
                                             }}
-                                            className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 rounded-lg flex items-center justify-between transition-colors"
+                                            className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-zinc-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 rounded-lg flex items-center justify-between transition-colors"
                                         >
                                             <span>Select All ({totalCount})</span>
                                             <Check className={clsx("w-3.5 h-3.5 text-indigo-600", selectedCount === totalCount ? "opacity-100" : "opacity-0")} />
@@ -190,7 +190,7 @@ export function BulkActionBar({
                                                     onSelectAmount(amt);
                                                     setIsMenuOpen(false);
                                                 }}
-                                                className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 rounded-lg flex items-center justify-between transition-colors"
+                                                className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-zinc-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 rounded-lg flex items-center justify-between transition-colors"
                                             >
                                                 <span>First {amt} {itemLabel}</span>
                                                 <Check className={clsx("w-3.5 h-3.5 text-indigo-600", isMatch ? "opacity-100" : "opacity-0")} />
@@ -198,7 +198,7 @@ export function BulkActionBar({
                                         );
                                     })}
 
-                                    <div className="my-1 border-t border-gray-100 dark:border-slate-700" />
+                                    <div className="my-1 border-t border-gray-100 dark:border-zinc-800" />
 
                                     {/* Custom Amount Option */}
                                     {!isCustomAmountOpen ? (
@@ -219,7 +219,7 @@ export function BulkActionBar({
                                                 placeholder={`1 - ${totalCount}`}
                                                 value={customAmountInput}
                                                 onChange={(e) => setCustomAmountInput(e.target.value)}
-                                                className="w-full px-2 py-1 text-xs bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
+                                                className="w-full px-2 py-1 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
                                             />
                                             <button
                                                 type="submit"
@@ -230,14 +230,14 @@ export function BulkActionBar({
                                         </form>
                                     )}
 
-                                    <div className="my-1 border-t border-gray-100 dark:border-slate-700" />
+                                    <div className="my-1 border-t border-gray-100 dark:border-zinc-800" />
 
                                     <button
                                         onClick={() => {
                                             onDeselectAll();
                                             setIsMenuOpen(false);
                                         }}
-                                        className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2 transition-colors"
+                                        className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg flex items-center gap-2 transition-colors"
                                     >
                                         <X className="w-3.5 h-3.5" />
                                         <span>Deselect All</span>
@@ -265,7 +265,7 @@ export function BulkActionBar({
                                     "px-3 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50",
                                     action.variant === 'primary' && "bg-indigo-600 hover:bg-indigo-700 text-white",
                                     action.variant === 'success' && "bg-emerald-600 hover:bg-emerald-700 text-white",
-                                    (!action.variant || action.variant === 'secondary') && "bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-slate-700"
+                                    (!action.variant || action.variant === 'secondary') && "bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-100 border border-gray-200 dark:border-zinc-700"
                                 )}
                             >
                                 {Icon && <Icon className="w-3.5 h-3.5" />}
@@ -294,7 +294,7 @@ export function BulkActionBar({
                     <button
                         onClick={onDeselectAll}
                         title="Clear selection"
-                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
                         <X className="w-4 h-4" />
                     </button>

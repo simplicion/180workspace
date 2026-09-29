@@ -1,6 +1,6 @@
 'use strict';
 
-import { developersPrisma as prisma } from '@workspace/db-180developers';
+import { developersPrisma as prisma } from '@workspace/db-180core';
 import { hashSecret } from './oauth.service';
 
 export const FIRST_PARTY_APPS = [
@@ -11,6 +11,10 @@ export const FIRST_PARTY_APPS = [
         redirectUris: [
             'http://localhost:3000/callback',
             'http://localhost:3000/oauth/callback',
+            'http://localhost:3008/callback',
+            'http://localhost:3008/oauth/callback',
+            'http://localhost:3009/callback',
+            'http://localhost:3009/oauth/callback',
             'https://180workspace.com/callback',
             'https://180workspace.com/oauth/callback',
             'https://*.180workspace.com/callback',
@@ -19,6 +23,10 @@ export const FIRST_PARTY_APPS = [
         allowedOrigins: [
             'http://localhost:3000',
             'http://127.0.0.1:3000',
+            'http://localhost:3008',
+            'http://127.0.0.1:3008',
+            'http://localhost:3009',
+            'http://127.0.0.1:3009',
             'https://180workspace.com',
             'https://*.180workspace.com'
         ],

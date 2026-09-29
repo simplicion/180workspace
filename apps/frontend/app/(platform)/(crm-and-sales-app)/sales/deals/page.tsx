@@ -431,7 +431,7 @@ export default function DealsPage() {
     return (
         <div className="flex flex-col gap-4 pb-20">
             {/* Header / Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800">
                 <div>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                         <span>Active Client Pipeline</span>
@@ -445,7 +445,7 @@ export default function DealsPage() {
                         <input
                             type="text"
                             placeholder="Search deals..."
-                            className="input pl-9 w-full bg-gray-50 dark:bg-slate-800 text-sm py-1.5"
+                            className="input pl-9 w-full bg-gray-50 dark:bg-zinc-800 text-sm py-1.5"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
@@ -471,7 +471,7 @@ export default function DealsPage() {
             {/* Executive Pipeline Metrics & Financial Valuation Bar */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 shrink-0">
                 {/* 1. Total Active Pipeline */}
-                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+                <div className="bg-white dark:bg-zinc-900 border border-gray-200/90 dark:border-zinc-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-bl-full pointer-events-none" />
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Pipeline</span>
@@ -492,7 +492,7 @@ export default function DealsPage() {
                 </div>
 
                 {/* 2. Weighted Pipeline Forecast */}
-                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+                <div className="bg-white dark:bg-zinc-900 border border-gray-200/90 dark:border-zinc-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-bl-full pointer-events-none" />
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Weighted Forecast</span>
@@ -513,7 +513,7 @@ export default function DealsPage() {
                 </div>
 
                 {/* 3. In Fulfillment / Delivery */}
-                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+                <div className="bg-white dark:bg-zinc-900 border border-gray-200/90 dark:border-zinc-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-bl-full pointer-events-none" />
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">In Execution</span>
@@ -534,7 +534,7 @@ export default function DealsPage() {
                 </div>
 
                 {/* 4. Realized / Invoiced */}
-                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+                <div className="bg-white dark:bg-zinc-900 border border-gray-200/90 dark:border-zinc-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-bl-full pointer-events-none" />
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Realized / Invoiced</span>
@@ -555,7 +555,7 @@ export default function DealsPage() {
                 </div>
 
                 {/* 5. Average Deal Size (ACV) */}
-                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group col-span-2 md:col-span-1 lg:col-span-1">
+                <div className="bg-white dark:bg-zinc-900 border border-gray-200/90 dark:border-zinc-800 rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group col-span-2 md:col-span-1 lg:col-span-1">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-purple-500/10 to-transparent rounded-bl-full pointer-events-none" />
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Avg Deal Size</span>
@@ -578,7 +578,7 @@ export default function DealsPage() {
 
             {/* Visual Stage Distribution Bar */}
             {totalPipelineValue > 0 && (
-                <div className="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xs flex flex-col gap-2 shrink-0">
+                <div className="bg-white dark:bg-zinc-900 border border-gray-200/90 dark:border-zinc-800 rounded-2xl p-3.5 shadow-2xs flex flex-col gap-2 shrink-0">
                     <div className="flex items-center justify-between text-xs font-semibold text-gray-700 dark:text-gray-300">
                         <span className="flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
@@ -589,7 +589,7 @@ export default function DealsPage() {
                         </span>
                     </div>
 
-                    <div className="w-full h-3 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden flex shadow-inner">
+                    <div className="w-full h-3 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
                         {STAGES.map(stage => {
                             const stageDeals = grouped[stage] || [];
                             const stageValue = stageDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
@@ -655,7 +655,7 @@ export default function DealsPage() {
             {loading ? (
                 <div className="flex gap-4 overflow-x-auto pb-4 items-stretch flex-1 min-h-[calc(100vh-220px)]">
                     {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800 rounded-2xl flex flex-col min-h-[calc(100vh-220px)] border-dashed p-4 gap-4">
+                        <div key={i} className="min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] bg-gray-50/50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 rounded-2xl flex flex-col min-h-[calc(100vh-220px)] border-dashed p-4 gap-4">
                             <Skeleton variant="text" height={24} width="120px" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
                             <Skeleton variant="rectangular" height={100} className="rounded-xl w-full" />
@@ -726,7 +726,7 @@ export default function DealsPage() {
                     </button>
 
                     {isMoveStageMenuOpen && (
-                        <div className="absolute left-0 bottom-full mb-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-100 dark:border-slate-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="absolute left-0 bottom-full mb-2 w-52 bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-gray-100 dark:border-zinc-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
                             <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                                 Move Selected Deals To
                             </div>
@@ -801,7 +801,7 @@ function Column({
                 'rounded-2xl border-t-4 p-3 min-w-[280px] w-[280px] lg:min-w-[300px] lg:w-[300px] shrink-0 min-h-[calc(100vh-220px)] flex flex-col self-stretch transition-all duration-150',
                 styles.bg,
                 styles.color,
-                isOver && 'ring-2 ring-indigo-500 bg-indigo-50/80 shadow-md'
+                isOver && 'ring-2 ring-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/40 shadow-md'
             )}
         >
             <div className="flex items-center justify-between mb-3 shrink-0 gap-1.5">
@@ -818,7 +818,7 @@ function Column({
                         >
                             <span className={clsx(
                                 "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                allInStageSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInStageSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                                allInStageSelected ? "bg-indigo-600 border-indigo-600 text-white" : someInStageSelected ? "bg-indigo-100 border-indigo-400 text-indigo-700" : "border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"
                             )}>
                                 {allInStageSelected ? (
                                     <Check className="w-3 h-3 stroke-[3]" />
@@ -908,10 +908,10 @@ function DealCard({ deal, isSelected, onToggleSelect, dragHandleProps, isDraggin
     return (
         <div 
             className={clsx(
-                "p-3.5 hover:shadow-lg transition-all select-none group border rounded-2xl bg-white dark:bg-slate-900 relative flex flex-col gap-2.5 cursor-default",
+                "p-3.5 hover:shadow-lg transition-all select-none group border rounded-2xl bg-white dark:bg-zinc-900 relative flex flex-col gap-2.5 cursor-default",
                 isSelected 
                     ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-xs" 
-                    : "border-gray-200/90 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 shadow-2xs",
+                    : "border-gray-200/90 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 shadow-2xs",
                 isDragging && "shadow-2xl ring-2 ring-indigo-500/40 cursor-grabbing rotate-1 scale-[1.02]"
             )}
             {...dragHandleProps}
@@ -931,7 +931,7 @@ function DealCard({ deal, isSelected, onToggleSelect, dragHandleProps, isDraggin
                         "w-4 h-4 rounded border flex items-center justify-center transition-all",
                         isSelected 
                             ? "bg-indigo-600 border-indigo-600 text-white shadow-xs" 
-                            : "border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-indigo-500"
+                            : "border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-indigo-500"
                     )}>
                         {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                     </span>
@@ -991,7 +991,7 @@ function DealCard({ deal, isSelected, onToggleSelect, dragHandleProps, isDraggin
             </div>
 
             {/* Footer Row: WhatsApp Chat + Assignee + Deal Value */}
-            <div className="flex items-center justify-between mt-1 pt-2.5 border-t border-gray-100 dark:border-slate-800/80">
+            <div className="flex items-center justify-between mt-1 pt-2.5 border-t border-gray-100 dark:border-zinc-800/80">
                 <div className="flex items-center gap-2 min-w-0">
                     {phone ? (
                         <button 
@@ -1015,7 +1015,7 @@ function DealCard({ deal, isSelected, onToggleSelect, dragHandleProps, isDraggin
                     </div>
                 </div>
 
-                <div className="text-xs font-bold text-gray-800 dark:text-gray-100 bg-gray-50 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-gray-100 dark:border-slate-700/80 shadow-2xs shrink-0">
+                <div className="text-xs font-bold text-gray-800 dark:text-gray-100 bg-gray-50 dark:bg-zinc-800 px-2.5 py-1 rounded-lg border border-gray-100 dark:border-zinc-700/80 shadow-2xs shrink-0">
                     {currencySymbol}{deal.value?.toLocaleString() || '0'}
                 </div>
             </div>

@@ -12,16 +12,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PinnedItem from '@/app/(platform)/(dashboard)/_components/PinnedItem';
 import RecentItem from '@/app/(platform)/(dashboard)/_components/RecentItem';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
-import { useNativeEngine } from '@/lib/useNativeEngine';
 import { useSubscription } from '@/lib/useSubscription';
 import clsx from 'clsx';
-import { HelpIcon , LogoLoader, AICreditProgressWidget } from "@workspace/ui";
+import { LogoLoader, AICreditProgressWidget } from "@workspace/ui";
 import dynamic from 'next/dynamic';
 import { signOut } from 'next-auth/react';
 import { MeetingProvider, useMeeting } from '@/lib/meeting-context';
 import FloatingMeetingPiP from '@/components/shared/FloatingMeetingPiP';
 import { AICopilotFloatingWidget } from './(workspace-tools-app)/ai/_components/AICopilotFloatingWidget';
 import { QuickSupportFloatingWidget } from './_components/QuickSupportFloatingWidget';
+import ThemeToggle from '@/components/shared/ThemeToggle';
 
 const safeImport = (importFn: () => Promise<any>) => {
     return importFn().catch((err) => {
@@ -50,128 +50,13 @@ import CompanySuspendedWall from '@/components/shared/CompanySuspendedWall';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import UploadQueueManager from '@/components/shared/UploadQueueManager';
-import SyncStatusIndicator from '@/components/shared/SyncStatusIndicator';
 import OfflineModuleGate from '@/components/shared/OfflineModuleGate';
 import { MODULE_MAP } from '@/lib/module-map';
 
 
 // navigation moved to ../../lib/navigation.ts
 
-const TOOLS = [
-    { name: 'Orbit Copilot', desc: 'Chat with Orbit Copilot', href: '/ai', icon: Bot, color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', text: 'text-violet-700' },
-    { name: 'Analytics', desc: 'Reports & insights', href: '/analytics', icon: BarChart3, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-700' },
-    { name: 'Chat', desc: 'Team messaging', href: '/chat', icon: MessageSquare, color: 'from-sky-500 to-cyan-600', bg: 'bg-sky-50', text: 'text-sky-700' },
-    { name: 'Documents', desc: 'Files & documents', href: '/documents', icon: FolderOpen, color: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-700' },
-    { name: '180 Social Studio', desc: 'Social projects & native studio', href: '/social-projects', icon: Share2, color: 'from-rose-500 to-pink-600', bg: 'bg-rose-50', text: 'text-rose-700' },
-    { name: 'Meetings', desc: 'Schedule & join calls', href: '/meeting', icon: Video, color: 'from-cyan-500 to-blue-500', bg: 'bg-cyan-50', text: 'text-cyan-700' },
-    { name: 'Work Logs', desc: 'Track & submit your work', href: '/work-logs', icon: Clock, color: 'from-amber-600 to-orange-600', bg: 'bg-amber-50', text: 'text-amber-700' },
-];
 
-function ToolsDropdown() {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-    const router = useRouter();
-
-    useEffect(() => {
-        function handleClick(e: MouseEvent) {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-        }
-        document.addEventListener('mousedown', handleClick);
-        return () => document.removeEventListener('mousedown', handleClick);
-    }, []);
-
-    return (
-        <div ref={ref} className="relative">
-            <button
-                onClick={() => setOpen(v => !v)}
-                className={clsx(
-                    'w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-300',
-                    open
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                        : 'bg-gray-100 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600'
-                )}
-                title="Tools"
-                aria-label="Open Tools"
-            >
-                <motion.div animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.2 }}>
-                    <Wrench className="w-4 h-4" />
-                </motion.div>
-            </button>
-
-            <AnimatePresence>
-                {open && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 12, scale: 0.96, filter: 'blur(4px)' }}
-                        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                        exit={{ opacity: 0, y: 8, scale: 0.96, filter: 'blur(4px)' }}
-                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                        className="absolute right-0 top-12 w-[340px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-indigo-100 border border-gray-100/80 z-50 overflow-hidden"
-                    >
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100/50 bg-gradient-to-r from-indigo-50/50 to-violet-50/50">
-                            <div className="flex items-center gap-2">
-                                <motion.div
-                                    animate={{ rotate: [0, 15, -15, 0] }}
-                                    transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}
-                                >
-                                    <Sparkles className="w-4 h-4 text-indigo-500" />
-                                </motion.div>
-                                <span className="font-bold text-sm text-gray-900">Quick Tools</span>
-                                <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100/80 text-indigo-600 px-1.5 py-0.5 rounded-md">AI Powered</span>
-                            </div>
-                            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-200/50 transition-colors">
-                                <X className="w-3.5 h-3.5" />
-                            </button>
-                        </div>
-
-                        {/* Tools Grid */}
-                        <div className="grid grid-cols-2 gap-2 p-3 bg-gray-50/30">
-                            {TOOLS.map((tool, index) => {
-                                const Icon = tool.icon;
-                                return (
-                                    <motion.div
-                                        key={tool.name}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: index * 0.03, duration: 0.3, ease: 'easeOut' }}
-                                    >
-                                        <Link
-                                            href={tool.href}
-                                            prefetch={true}
-                                            onClick={() => setOpen(false)}
-                                            className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white border border-transparent hover:border-gray-100 hover:shadow-sm transition-all group"
-                                        >
-                                            <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-to-br transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-active:scale-95', tool.color, 'shadow-sm')}>
-                                                <Icon className="w-4 h-4 text-white" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-bold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">{tool.name}</p>
-                                                <p className="text-[10px] text-gray-400 truncate leading-tight mt-0.5 group-hover:text-gray-500">{tool.desc}</p>
-                                            </div>
-                                        </Link>
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Footer */}
-                        <div className="px-3 pb-3 pt-1 bg-gray-50/30">
-                            <Link
-                                href='/ai'
-                                onClick={() => setOpen(false)}
-                                className="relative overflow-hidden w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-bold hover:shadow-lg hover:shadow-indigo-500/30 transition-all group"
-                            >
-                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out rounded-xl" />
-                                <Bot className="w-4 h-4 relative z-10 group-hover:animate-bounce" />
-                                <span className="relative z-10">Open Orbit Copilot</span>
-                            </Link>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
-}
 
 function ProfileDropdown() {
     const { user, company, logout } = useAuth();
@@ -192,19 +77,19 @@ function ProfileDropdown() {
         <div ref={ref} className="relative">
             <button
                 onClick={() => setOpen(v => !v)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer group"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer group"
             >
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm overflow-hidden bg-white">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm overflow-hidden bg-white dark:bg-zinc-950">
                     {(user?.photoUrl || company?.companyLogo || company?.logoUrl) ? (
                         <img src={user?.photoUrl || company?.companyLogo || company?.logoUrl} alt={user?.name} className="w-full h-full rounded-full object-cover" />
                     ) : (
-                        <div className="w-full h-full rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-bold">
+                        <div className="w-full h-full rounded-full bg-indigo-50 text-indigo-600 dark:bg-zinc-900 dark:text-zinc-200 flex items-center justify-center text-sm font-bold">
                             {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
                         </div>
                     )}
                 </div>
-                <span className="hidden sm:inline text-sm font-medium text-gray-700 group-hover:text-indigo-600 transition-colors">{user?.name?.split(' ')[0] || 'User'}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-gray-400 transition-transform duration-200" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+                <span className="hidden sm:inline text-sm font-medium text-gray-700 dark:text-zinc-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{user?.name?.split(' ')[0] || 'User'}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500 transition-transform duration-200" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }} />
             </button>
 
             <AnimatePresence>
@@ -214,19 +99,19 @@ function ProfileDropdown() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl shadow-gray-200/50 border border-gray-100 py-1.5 z-50 overflow-hidden"
+                        className="absolute right-0 top-12 w-48 bg-white dark:bg-zinc-950 rounded-xl shadow-xl shadow-gray-200/50 dark:shadow-[0_10px_30px_rgba(0,0,0,0.8)] border border-gray-100 dark:border-zinc-800 py-1.5 z-50 overflow-hidden"
                     >
                         <Link
                             href='/profile/me'
                             onClick={() => setOpen(false)}
-                            className="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors"
+                            className="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-900 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                         >
                             Profile Settings
                         </Link>
-                        <div className="h-px bg-gray-100 my-1 mx-2" />
+                        <div className="h-px bg-gray-100 dark:bg-zinc-800 my-1 mx-2" />
                         <button
                             onClick={() => { setOpen(false); logout(); }}
-                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                         >
                             <LogOut className="w-4 h-4" />
                             Log Out
@@ -257,26 +142,26 @@ function RecentDropdown({ recentItems, isExpanded }: { recentItems: any[], isExp
             <button
                 onClick={() => setOpen(v => !v)}
                 className={clsx(
-                    "w-full flex items-center p-2 rounded-xl hover:bg-gray-50 transition-colors group border border-transparent",
-                    open ? "bg-gray-50 border-gray-200/50" : "",
+                    "w-full flex items-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors group border border-transparent",
+                    open ? "bg-gray-50 dark:bg-zinc-900 border-gray-200/50 dark:border-zinc-800" : "",
                     isExpanded ? "justify-between" : "justify-center"
                 )}
             >
                 <div className="flex items-center gap-2.5">
                     <div className={clsx(
                         "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
-                        open ? "bg-indigo-50 text-indigo-600" : "bg-gray-50 text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600"
+                        open ? "bg-indigo-50 text-indigo-600 dark:bg-zinc-800 dark:text-indigo-400" : "bg-gray-50 text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 dark:bg-zinc-900 dark:text-zinc-500 dark:group-hover:bg-zinc-800 dark:group-hover:text-zinc-300"
                     )}>
                         <Clock className="w-4 h-4" />
                     </div>
                     {isExpanded && (
-                        <span className="text-sm font-semibold text-gray-600 group-hover:text-gray-900 transition-colors">Recent Items</span>
+                        <span className="text-sm font-semibold text-gray-600 dark:text-zinc-300 group-hover:text-gray-900 dark:group-hover:text-zinc-100 transition-colors">Recent Items</span>
                     )}
                 </div>
                 {isExpanded && (
                     <ChevronDown 
                         className={clsx(
-                            "w-3.5 h-3.5 text-gray-400 transition-transform duration-200 group-hover:text-gray-600",
+                            "w-3.5 h-3.5 text-gray-400 dark:text-zinc-500 transition-transform duration-200 group-hover:text-gray-600 dark:group-hover:text-zinc-300",
                             open ? "rotate-180" : ""
                         )}
                     />
@@ -291,12 +176,12 @@ function RecentDropdown({ recentItems, isExpanded }: { recentItems: any[], isExp
                         exit={{ opacity: 0, y: 4, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
                         className={clsx(
-                            "absolute z-50 w-[260px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden py-2",
+                            "absolute z-50 w-[260px] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-[0_10px_30px_rgba(0,0,0,0.8)] border border-gray-100 dark:border-zinc-800 overflow-hidden py-2",
                             isExpanded ? "left-0 top-full" : "left-full top-0 ml-4"
                         )}
                     >
-                        <div className="px-4 pb-2 mb-2 border-b border-gray-100 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <div className="px-4 pb-2 mb-2 border-b border-gray-100 dark:border-zinc-800/80 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
                                 <Clock className="w-3 h-3" />
                                 Recent Activity
                             </span>
@@ -485,6 +370,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                             (item.appId === 'social-media') ||
                             (subItem.id === 'orbit-copilot') ||
                             (subItem.id === 'agent-requests') ||
+                            (subItem.id === 'company-hub') ||
                             (subItem.id === 'bills-and-expenses' && (company.enabledModules.includes('expenses') || company.enabledModules.includes('bills-and-expenses'))) ||
                             (subItem.id === 'expenses' && (company.enabledModules.includes('bills-and-expenses') || company.enabledModules.includes('expenses'))) ||
                             (subItem.id === 'finance-overview' && (company.enabledModules.includes('finance') || company.enabledModules.includes('finance-overview'))) ||
@@ -537,28 +423,28 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
             onMouseEnter={() => isCollapsed && setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             className={clsx(
-                "h-full flex flex-col bg-white/80 backdrop-blur-xl border-r border-gray-200/50 overflow-y-auto fixed top-0 left-0 z-30 transition-all duration-300 ease-in-out shadow-sm overflow-x-hidden hidden-scrollbar select-none",
+                "h-full flex flex-col bg-white/80 dark:bg-black/95 backdrop-blur-xl border-r border-gray-200/50 dark:border-zinc-800/80 overflow-y-auto fixed top-0 left-0 z-30 transition-all duration-300 ease-in-out shadow-sm overflow-x-hidden hidden-scrollbar select-none",
                 isExpanded ? "w-[280px] translate-x-0" : "w-[280px] lg:w-[80px] -translate-x-full lg:translate-x-0"
             )}
         >
             {/* Back to 180workspace Button & Sidebar Toggle */}
-            <div className="p-3 border-b border-gray-200/50 flex items-center justify-between gap-2 relative">
+            <div className="p-3 border-b border-gray-200/50 dark:border-zinc-800/80 flex items-center justify-between gap-2 relative">
                 <Link href="/" onClick={handleLinkClick} className={clsx(
                     "flex items-center gap-3 p-2.5 rounded-xl text-sm font-semibold transition-all group flex-1 overflow-hidden",
                     isExpanded
-                        ? "bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 hover:from-indigo-100 hover:to-violet-100 border border-indigo-100 shadow-sm"
-                        : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 justify-center"
+                        ? "bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 hover:from-indigo-100 hover:to-violet-100 border border-indigo-100 shadow-sm dark:bg-zinc-900/90 dark:text-zinc-100 dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-900 dark:hover:bg-zinc-800"
+                        : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-zinc-900 dark:text-zinc-100 justify-center"
                 )} title="Back to 180workspace">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-white text-indigo-600 shadow-sm group-hover:scale-105 transition-transform">
-                        <img src="/black%20icon.svg" alt="180workspace" className="w-5 h-5 object-contain" />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-white dark:bg-zinc-950 text-indigo-600 shadow-sm dark:border dark:border-zinc-800 group-hover:scale-105 transition-transform">
+                        <img src="/black%20icon.svg" alt="180workspace" className="w-5 h-5 object-contain dark:invert" />
                     </div>
-                    {isExpanded && <span className="font-bold tracking-tight text-lg text-indigo-900 whitespace-nowrap"><span className="text-blue-600">180</span>workspace</span>}
+                    {isExpanded && <span className="font-bold tracking-tight text-lg text-indigo-900 dark:text-zinc-100 whitespace-nowrap"><span className="text-blue-600">180</span>workspace</span>}
                 </Link>
 
                 {isExpanded && (
                     <button
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="hidden lg:block p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+                        className="hidden lg:block p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-zinc-200 transition-colors flex-shrink-0"
                         aria-label="Collapse Sidebar"
                         title="Collapse Sidebar"
                     >
@@ -614,13 +500,13 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                                     onClick={() => toggleGroup(item.group)}
                                     className={clsx(
                                         "w-full flex items-center justify-between p-2.5 rounded-xl text-sm font-semibold transition-all group",
-                                        isAnyChildActive ? "text-indigo-600" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50/50 hover:backdrop-blur-sm"
+                                        isAnyChildActive ? "text-indigo-600 dark:text-indigo-400" : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:bg-gray-50/50 dark:hover:bg-zinc-900/60 hover:backdrop-blur-sm"
                                     )}
                                 >
                                     <div className="flex items-center gap-2.5">
                                         <div className={clsx(
                                             "w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0",
-                                            isAnyChildActive ? "bg-indigo-50 text-indigo-600" : "bg-gray-50 text-gray-400 group-hover:bg-gray-100 group-hover:text-gray-600"
+                                            isAnyChildActive ? "bg-indigo-50 text-indigo-600 dark:bg-zinc-800 dark:text-indigo-400" : "bg-gray-50 text-gray-400 group-hover:bg-gray-100 group-hover:text-gray-600 dark:bg-zinc-900 dark:text-zinc-500 dark:group-hover:bg-zinc-800 dark:group-hover:text-zinc-300"
                                         )}>
                                             <GroupIcon className="w-4 h-4" />
                                         </div>
@@ -648,11 +534,11 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                                                 prefetch={true}
                                                 onClick={handleLinkClick}
                                                 className={clsx(
-                                                    'flex items-center gap-3 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all relative overflow-hidden group/sub hover:bg-white/50',
+                                                    'flex items-center gap-3 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all relative overflow-hidden group/sub hover:bg-white/50 dark:hover:bg-zinc-900/60',
                                                     isExpanded ? 'ml-12' : 'ml-0 justify-center',
                                                     isActive
-                                                        ? 'bg-indigo-50/50 text-indigo-700 shadow-sm border border-indigo-100/50'
-                                                        : 'text-gray-500 hover:text-gray-900 hover:backdrop-blur-sm'
+                                                        ? 'bg-indigo-50/50 text-indigo-700 dark:bg-zinc-900/90 dark:text-white shadow-sm border border-indigo-100/50 dark:border-zinc-700'
+                                                        : 'text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:backdrop-blur-sm'
                                                 )}
                                                 title={!isExpanded ? subItem.name : undefined}
                                             >
@@ -688,10 +574,10 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                                 className={clsx(
                                     'flex items-center gap-2.5 p-2.5 rounded-xl text-sm font-semibold transition-all group border',
                                     isActive
-                                        ? 'bg-indigo-600/90 backdrop-blur-md text-white shadow-md shadow-indigo-200 border-indigo-500/50'
+                                        ? 'bg-indigo-600/90 backdrop-blur-md text-white shadow-md shadow-indigo-200 border-indigo-500/50 dark:shadow-none dark:border-indigo-500/30'
                                         : is180View
-                                            ? 'text-blue-700 bg-blue-50/70 border-blue-200/60 hover:bg-blue-100/80 hover:border-blue-300/70 hover:shadow-sm'
-                                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/50 hover:backdrop-blur-sm border-transparent hover:border-gray-200/50',
+                                            ? 'text-blue-700 bg-blue-50/70 border-blue-200/60 hover:bg-blue-100/80 hover:border-blue-300/70 hover:shadow-sm dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/50'
+                                            : 'text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 hover:bg-gray-50/50 dark:hover:bg-zinc-900/80 hover:backdrop-blur-sm border-transparent hover:border-gray-200/50 dark:hover:border-zinc-800',
                                     !isExpanded && 'justify-center'
                                 )}
                                 title={!isExpanded ? item.name : undefined}
@@ -701,8 +587,8 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                                     isActive
                                         ? "bg-white/20 text-white"
                                         : is180View
-                                            ? "bg-blue-100 text-blue-600 group-hover:bg-blue-200 group-hover:text-blue-700"
-                                            : "bg-gray-50 text-gray-400 group-hover:bg-gray-100 group-hover:text-gray-600"
+                                            ? "bg-blue-100 text-blue-600 dark:bg-blue-900/60 dark:text-blue-300 group-hover:bg-blue-200 dark:group-hover:bg-blue-800 group-hover:text-blue-700"
+                                            : "bg-gray-50 text-gray-400 dark:bg-zinc-900 dark:text-zinc-500 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800 group-hover:text-gray-600 dark:group-hover:text-zinc-300"
                                 )}>
                                     {is180View ? (
                                         <div className="flex flex-col items-center justify-center -space-y-[1px]">
@@ -726,7 +612,6 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
 function DashboardInner({ children }: { children: React.ReactNode }) {
     const { user, company, isLoading: authLoading } = useAuth();
     const pwa = usePWAInstall();
-    const { isNativeDesktop } = useNativeEngine();
     const { isLoading: settingsLoading, isAppDisabledByAdmin } = useSettings();
     const { isExpired, status, mandateStatus, paymentsEnabled, loading: subLoading } = useSubscription();
     const router = useRouter();
@@ -734,71 +619,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     const [isCollapsed, setIsCollapsed] = useState(true);
     const [isHovered, setIsHovered] = useState(false);
     const { meeting } = useMeeting();
-    const [isDownloadDropdownOpen, setIsDownloadDropdownOpen] = useState(false);
 
-    const handleDownloadDesktopApp = (targetPlatform?: string) => {
-        setIsDownloadDropdownOpen(false);
-        let plat = targetPlatform;
-        if (!plat) {
-            const ua = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
-            if (ua.includes('android')) plat = 'android';
-            else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) plat = 'ios';
-            else if (ua.includes('mac')) plat = 'macos';
-            else if (ua.includes('linux')) plat = 'linux';
-            else plat = 'windows';
-        }
 
-        if (plat === 'ios') {
-            toast("To install on iOS: Open in Safari, tap Share and select 'Add to Home Screen'.", {
-                icon: '📱',
-                duration: 5000,
-            });
-            return;
-        }
-
-        let fileName = "180Workspace-Setup-x64.exe";
-        let downloadUrl = "/downloads/180Workspace-Setup-x64.exe";
-
-        if (plat === "macos" || plat === "mac") {
-            fileName = "180Workspace-Universal.dmg";
-            downloadUrl = "/api/download/mac";
-        } else if (plat === "linux") {
-            fileName = "180Workspace-x86_64.AppImage";
-            downloadUrl = "/api/download/linux";
-        } else if (plat === "android") {
-            fileName = "180Workspace-v1.0.apk";
-            downloadUrl = "/api/download/android";
-        }
-
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        const label = plat === 'macos' ? 'macOS (.dmg)' : plat === 'windows' ? 'Windows (.exe)' : plat === 'linux' ? 'Linux (.AppImage)' : 'Android (.apk)';
-        toast.success(`Downloading 180 Workspace for ${label}...`);
-    };
-
-    // Contextual Help Slug Determination
-    const getHelpSlug = () => {
-        if (pathname === '/') return 'dashboard';
-        if (pathname?.includes('/projects')) return 'projects';
-        if (pathname?.includes('/tasks')) return 'tasks';
-        if (pathname?.includes('/sales/deals')) return 'crm-leads';
-        if (pathname?.includes('/sales/contacts')) return 'crm-contacts';
-        if (pathname?.includes('/sales/accounts')) return 'crm-accounts';
-        if (pathname?.includes('/sales/leads-pipeline')) return 'crm-opportunities';
-        if (pathname?.includes('/attendance')) return 'attendance';
-        if (pathname?.includes('/leaves')) return 'leaves';
-        if (pathname?.includes('/invoices')) return 'finance-invoices';
-        if (pathname?.includes('/expenses')) return 'finance-expenses';
-        if (pathname?.includes('/ai')) return 'ai-tools';
-        if (pathname?.includes('/activity')) return 'activity-log';
-        if (pathname?.includes('/help-support')) return 'help-support';
-        return 'dashboard';
-    };
 
     // Initialize state from localStorage (or default to collapsed)
     useEffect(() => {
@@ -883,14 +705,23 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (!authLoading && !user) {
-            // Clear next-auth session to prevent middleware redirect loops
-            signOut({ redirect: false }).then(() => {
-                router.push('/login');
-            });
+            // Check if there is an active localToken before signing out prematurely
+            const localToken = typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null;
+            if (!localToken) {
+                // Clear next-auth session to prevent middleware redirect loops
+                signOut({ redirect: false }).then(() => {
+                    router.push('/login');
+                });
+            }
             return;
         }
 
-        if (!authLoading && user && company) {
+        if (!authLoading && user) {
+            // If user is authenticated but has not configured a workspace yet, route to setup
+            if (!company && !(user as any).companyId) {
+                router.push('/workspace-setup');
+                return;
+            }
 
             // Gate 3: Mandate setup required for admins
             if (isAdmin && paymentsEnabled && !subLoading) {
@@ -978,8 +809,6 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         Menu: !!Menu,
         GlobalSearch: !!GlobalSearch,
         SystemSetupStatus: !!SystemSetupStatus,
-        ToolsDropdown: !!ToolsDropdown,
-        HelpIcon: !!HelpIcon,
         Link: !!Link,
         Activity: !!Activity,
         ProfileDropdown: !!ProfileDropdown,
@@ -989,7 +818,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     });
 
     return (
-        <div className={clsx("min-h-screen bg-gray-50", isMeetingFullscreen && "overflow-hidden")}>
+        <div className={clsx("min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-zinc-100 transition-colors duration-300", isMeetingFullscreen && "overflow-hidden")}>
             {/* Mobile Overlay */}
             {!isMeetingFullscreen && !effectiveIsCollapsed && (
                 <div
@@ -1013,10 +842,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             >
                 {/* Top bar */}
                 {!isMeetingFullscreen && (
-                <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20 select-none">
+                <header className="h-16 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-100 dark:border-zinc-800/80 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20 select-none transition-colors duration-300">
                     <div className="flex items-center gap-3 flex-1 lg:flex-none">
                         <button
-                            className="lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                            className="lg:hidden p-2 -ml-2 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg"
                             onClick={() => setIsCollapsed(!isCollapsed)}
                         >
                             <Menu className="w-5 h-5" />
@@ -1027,108 +856,11 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3">
                         <AICreditProgressWidget variant="nav" />
-                        <SyncStatusIndicator />
                         <SystemSetupStatus />
-                        <ToolsDropdown />
-                        {isNativeDesktop ? (
-                            <div
-                                className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold shadow-xs select-none"
-                                title="Running 180Workspace Desktop Native Engine"
-                            >
-                                <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                </span>
-                                <Laptop className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>Desktop Native</span>
-                            </div>
-                        ) : (
-                            <div className="relative hidden md:inline-flex items-center rounded-full shadow-xs">
-                                <button
-                                    onClick={() => handleDownloadDesktopApp()}
-                                    className="flex items-center gap-2 pl-3.5 pr-2 py-1.5 rounded-l-full border border-r-0 border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/90 text-indigo-700 hover:text-indigo-900 transition-all text-xs font-semibold group active:scale-95"
-                                    title="Automatically detect system and download 180 Workspace installer"
-                                >
-                                    <Laptop className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
-                                    <span>Download Desktop App</span>
-                                    <span className="text-[10px] bg-indigo-600 text-white font-bold px-1.5 py-0.2 rounded-full leading-tight">v1.0</span>
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIsDownloadDropdownOpen(!isDownloadDropdownOpen);
-                                    }}
-                                    className="px-2 py-1.5 rounded-r-full border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/90 text-indigo-700 hover:text-indigo-900 transition-all text-xs"
-                                    title="Select specific platform"
-                                >
-                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isDownloadDropdownOpen ? "rotate-180" : ""}`} />
-                                </button>
-
-                                {isDownloadDropdownOpen && (
-                                    <>
-                                        <div
-                                            className="fixed inset-0 z-30"
-                                            onClick={() => setIsDownloadDropdownOpen(false)}
-                                        />
-                                        <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white border border-gray-200 shadow-xl py-2 z-40 animate-in fade-in zoom-in-95 duration-100">
-                                            <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                                                Select Your Operating System
-                                            </div>
-
-                                            <button
-                                                onClick={() => handleDownloadDesktopApp('windows')}
-                                                className="w-full px-3 py-2 text-left hover:bg-indigo-50 flex items-center justify-between text-xs text-gray-700 hover:text-indigo-900 transition"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <Laptop className="w-4 h-4 text-indigo-600" />
-                                                    <span className="font-semibold">Windows</span>
-                                                </div>
-                                                <span className="text-[10px] font-mono text-gray-400">.exe</span>
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleDownloadDesktopApp('macos')}
-                                                className="w-full px-3 py-2 text-left hover:bg-indigo-50 flex items-center justify-between text-xs text-gray-700 hover:text-indigo-900 transition"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <Laptop className="w-4 h-4 text-purple-600" />
-                                                    <span className="font-semibold">macOS</span>
-                                                </div>
-                                                <span className="text-[10px] font-mono text-gray-400">.dmg</span>
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleDownloadDesktopApp('linux')}
-                                                className="w-full px-3 py-2 text-left hover:bg-indigo-50 flex items-center justify-between text-xs text-gray-700 hover:text-indigo-900 transition"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <Laptop className="w-4 h-4 text-amber-600" />
-                                                    <span className="font-semibold">Linux</span>
-                                                </div>
-                                                <span className="text-[10px] font-mono text-gray-400">.AppImage</span>
-                                            </button>
-
-                                            <div className="my-1 border-t border-gray-100" />
-
-                                            <button
-                                                onClick={() => handleDownloadDesktopApp('android')}
-                                                className="w-full px-3 py-2 text-left hover:bg-indigo-50 flex items-center justify-between text-xs text-gray-700 hover:text-indigo-900 transition"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <Laptop className="w-4 h-4 text-emerald-600" />
-                                                    <span className="font-semibold">Android Package</span>
-                                                </div>
-                                                <span className="text-[10px] font-mono text-gray-400">.apk</span>
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                        <HelpIcon slug={getHelpSlug()} className="w-9 h-9" />
+                        <ThemeToggle />
                         <Link
                             href='/activity'
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 dark:border dark:border-zinc-800 transition-colors"
                             title="Activity Hub"
                         >
                             <Activity className="w-4 h-4" />

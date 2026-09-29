@@ -10,6 +10,7 @@ import CustomSelect from '@/components/ui/CustomSelect';
 import { Drawer } from "@/components/ui/Drawer";
 import { navigation } from '@/lib/navigation';
 import { useSettings } from '@/lib/settings-context';
+import { ManageAccessDrawer } from '@/components/shared/ManageAccessDrawer';
 
 interface Props {
     open: boolean;
@@ -52,6 +53,7 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, 
     const isEdit = !!editUser;
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showManageAccess, setShowManageAccess] = useState(false);
     const [users, setUsers] = useState<any[]>([]);
     const [collapsedGroups, setCollapsedGroups] = useState<string[]>(MODULE_GROUPS.map((g: any) => g.group as string));
     const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -237,6 +239,16 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, 
                             </div>
                         </label>
                     </div>
+                    {isEdit && (
+                        <button
+                            type="button"
+                            onClick={() => setShowManageAccess(true)}
+                            className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/80 transition-all shadow-xs cursor-pointer active:scale-95 group"
+                        >
+                            <Shield className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+                            <span>Role & Access</span>
+                        </button>
+                    )}
                 </div>
 
                 <div className="space-y-6">
@@ -352,141 +364,179 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, 
 
                     {/* System Access */}
                     <div className="bg-gray-50/50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">System Access</h3>
-                        
-                        {!isEdit && (
-                            <div className="mb-4">
-                                <label htmlFor="employeePassword" className="label">Password *</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-                                    <input 
-                                        id="employeePassword" 
-                                        value={form.password} 
-                                        onChange={set('password')} 
-                                        type={showPassword ? "text" : "password"} 
-                                        placeholder="Minimum 8 characters" 
-                                        className="input pl-9 pr-10" 
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                                    >
-                                        {showPassword ? (
-                                            <EyeOff className="w-4 h-4" />
-                                        ) : (
-                                            <Eye className="w-4 h-4" />
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        <div>
-                            <label className="label">System Role *</label>
-                            <div className="flex gap-4 mt-2">
-                                <label className={clsx(
-                                    "flex-1 flex flex-col items-center gap-2 p-4 border rounded-xl cursor-pointer transition-all duration-300",
-                                    form.role === 'admin' ? "border-indigo-600 bg-indigo-50/50 shadow-sm" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                                )}>
-                                    <input type="radio" name="role" className="sr-only" checked={form.role === 'admin'} onChange={() => setForm(prev => ({ ...prev, role: 'admin' }))} />
-                                    <div className={clsx("w-5 h-5 rounded-full border flex items-center justify-center transition-colors", form.role === 'admin' ? "border-indigo-600" : "border-gray-300")}>
-                                        {form.role === 'admin' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-sm font-semibold text-gray-900">Admin</p>
-                                        <p className="text-xs text-gray-500 mt-0.5">Full system access</p>
-                                    </div>
-                                </label>
-                                
-                                <label className={clsx(
-                                    "flex-1 flex flex-col items-center gap-2 p-4 border rounded-xl cursor-pointer transition-all duration-300",
-                                    form.role === 'employee' ? "border-indigo-600 bg-indigo-50/50 shadow-sm" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                                )}>
-                                    <input type="radio" name="role" className="sr-only" checked={form.role === 'employee'} onChange={() => setForm(prev => ({ ...prev, role: 'employee' }))} />
-                                    <div className={clsx("w-5 h-5 rounded-full border flex items-center justify-center transition-colors", form.role === 'employee' ? "border-indigo-600" : "border-gray-300")}>
-                                        {form.role === 'employee' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-sm font-semibold text-gray-900">Employee</p>
-                                        <p className="text-xs text-gray-500 mt-0.5">Customizable access</p>
-                                    </div>
-                                </label>
-                            </div>
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">System Access</h3>
+                            {isEdit && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowManageAccess(true)}
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors cursor-pointer"
+                                >
+                                    <Shield className="w-3.5 h-3.5" />
+                                    Configure Access
+                                </button>
+                            )}
                         </div>
+                        
+                        {isEdit ? (
+                            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-semibold text-gray-900 dark:text-zinc-100">Portal Access & Role</span>
+                                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300">
+                                            {form.role}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-zinc-400">
+                                        {form.permissions?.length > 0 
+                                            ? `${form.permissions.length} granular permission(s) granted`
+                                            : 'Standard role defaults applied'}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowManageAccess(true)}
+                                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 shadow-sm transition-all shrink-0 cursor-pointer active:scale-95"
+                                >
+                                    <Shield className="w-3.5 h-3.5" />
+                                    Manage Role & Access
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="mb-4">
+                                    <label htmlFor="employeePassword" className="label">Password *</label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+                                        <input 
+                                            id="employeePassword" 
+                                            value={form.password} 
+                                            onChange={set('password')} 
+                                            type={showPassword ? "text" : "password"} 
+                                            placeholder="Minimum 8 characters" 
+                                            className="input pl-9 pr-10" 
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                                        >
+                                            {showPassword ? (
+                                                <EyeOff className="w-4 h-4" />
+                                            ) : (
+                                                <Eye className="w-4 h-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
 
-                        {form.role === 'employee' && (
-                            <div className="mt-4">
-                                <label className="label flex items-center gap-2 mb-3">
-                                    <Shield className="w-4 h-4 text-indigo-600" /> Granular Permissions
-                                </label>
-                                <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                                    {MODULE_GROUPS.map((g: any) => (
-                                        <div key={g.group} className="border border-gray-200 rounded-xl bg-white overflow-hidden">
-                                            <div 
-                                                className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
-                                                onClick={() => setCollapsedGroups(prev => prev.includes(g.group) ? prev.filter(c => c !== g.group) : [...prev, g.group])}
-                                            >
-                                                <div className="flex items-center gap-2.5">
-                                                    <g.icon className="w-4 h-4 text-indigo-500" />
-                                                    <span className="text-sm font-semibold text-gray-900">{g.group}</span>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            const allIds = g.items.map((i: any) => i.id).filter(Boolean);
-                                                            const allSelected = allIds.every((id: string) => form.permissions.includes(id));
-                                                            setForm(prev => {
-                                                                let newPerms = [...prev.permissions];
-                                                                if (allSelected) {
-                                                                    newPerms = newPerms.filter(p => !allIds.includes(p));
-                                                                } else {
-                                                                    allIds.forEach((id: string) => {
-                                                                        if (!newPerms.includes(id)) newPerms.push(id);
-                                                                    });
-                                                                }
-                                                                return { ...prev, permissions: newPerms };
-                                                            });
-                                                        }}
-                                                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors"
+                                <div>
+                                    <label className="label">System Role *</label>
+                                    <div className="flex gap-4 mt-2">
+                                        <label className={clsx(
+                                            "flex-1 flex flex-col items-center gap-2 p-4 border rounded-xl cursor-pointer transition-all duration-300",
+                                            form.role === 'admin' ? "border-indigo-600 bg-indigo-50/50 shadow-sm" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                                        )}>
+                                            <input type="radio" name="role" className="sr-only" checked={form.role === 'admin'} onChange={() => setForm(prev => ({ ...prev, role: 'admin' }))} />
+                                            <div className={clsx("w-5 h-5 rounded-full border flex items-center justify-center transition-colors", form.role === 'admin' ? "border-indigo-600" : "border-gray-300")}>
+                                                {form.role === 'admin' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-semibold text-gray-900">Admin</p>
+                                                <p className="text-xs text-gray-500 mt-0.5">Full system access</p>
+                                            </div>
+                                        </label>
+                                        
+                                        <label className={clsx(
+                                            "flex-1 flex flex-col items-center gap-2 p-4 border rounded-xl cursor-pointer transition-all duration-300",
+                                            form.role === 'employee' ? "border-indigo-600 bg-indigo-50/50 shadow-sm" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                                        )}>
+                                            <input type="radio" name="role" className="sr-only" checked={form.role === 'employee'} onChange={() => setForm(prev => ({ ...prev, role: 'employee' }))} />
+                                            <div className={clsx("w-5 h-5 rounded-full border flex items-center justify-center transition-colors", form.role === 'employee' ? "border-indigo-600" : "border-gray-300")}>
+                                                {form.role === 'employee' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-semibold text-gray-900">Employee</p>
+                                                <p className="text-xs text-gray-500 mt-0.5">Customizable access</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {form.role === 'employee' && (
+                                    <div className="mt-4">
+                                        <label className="label flex items-center gap-2 mb-3">
+                                            <Shield className="w-4 h-4 text-indigo-600" /> Granular Permissions
+                                        </label>
+                                        <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                                            {MODULE_GROUPS.map((g: any) => (
+                                                <div key={g.group} className="border border-gray-200 rounded-xl bg-white overflow-hidden">
+                                                    <div 
+                                                        className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+                                                        onClick={() => setCollapsedGroups(prev => prev.includes(g.group) ? prev.filter(c => c !== g.group) : [...prev, g.group])}
                                                     >
-                                                        Toggle All
-                                                    </button>
-                                                    {collapsedGroups.includes(g.group) ? (
-                                                        <ChevronDown className="w-4 h-4 text-gray-400" />
-                                                    ) : (
-                                                        <ChevronUp className="w-4 h-4 text-gray-400" />
+                                                        <div className="flex items-center gap-2.5">
+                                                            <g.icon className="w-4 h-4 text-indigo-500" />
+                                                            <span className="text-sm font-semibold text-gray-900">{g.group}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const allIds = g.items.map((i: any) => i.id).filter(Boolean);
+                                                                    const allSelected = allIds.every((id: string) => form.permissions.includes(id));
+                                                                    setForm(prev => {
+                                                                        let newPerms = [...prev.permissions];
+                                                                        if (allSelected) {
+                                                                            newPerms = newPerms.filter(p => !allIds.includes(p));
+                                                                        } else {
+                                                                            allIds.forEach((id: string) => {
+                                                                                if (!newPerms.includes(id)) newPerms.push(id);
+                                                                            });
+                                                                        }
+                                                                        return { ...prev, permissions: newPerms };
+                                                                    });
+                                                                }}
+                                                                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors"
+                                                            >
+                                                                Toggle All
+                                                            </button>
+                                                            {collapsedGroups.includes(g.group) ? (
+                                                                <ChevronDown className="w-4 h-4 text-gray-400" />
+                                                            ) : (
+                                                                <ChevronUp className="w-4 h-4 text-gray-400" />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {!collapsedGroups.includes(g.group) && (
+                                                        <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                                            {g.items.map((item: any) => item.id ? (
+                                                            <label key={item.id} className={clsx(
+                                                                "flex items-center gap-2.5 p-2.5 border rounded-lg cursor-pointer transition-colors bg-white hover:border-indigo-200",
+                                                                form.permissions.includes(item.id) ? "border-indigo-600 shadow-sm bg-indigo-50/10" : "border-gray-100"
+                                                            )}>
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    checked={form.permissions.includes(item.id)} 
+                                                                    onChange={() => togglePermission(item.id)} 
+                                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4"
+                                                                />
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    {item.icon && <item.icon className={clsx("w-4 h-4 flex-shrink-0", form.permissions.includes(item.id) ? "text-indigo-600" : "text-gray-400")} />}
+                                                                    <span className={clsx("text-xs font-medium truncate", form.permissions.includes(item.id) ? "text-indigo-900" : "text-gray-700")}>{item.name}</span>
+                                                                </div>
+                                                            </label>
+                                                        ) : null)}
+                                                    </div>
                                                     )}
                                                 </div>
-                                            </div>
-                                            
-                                            {!collapsedGroups.includes(g.group) && (
-                                                <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                                                    {g.items.map((item: any) => item.id ? (
-                                                    <label key={item.id} className={clsx(
-                                                        "flex items-center gap-2.5 p-2.5 border rounded-lg cursor-pointer transition-colors bg-white hover:border-indigo-200",
-                                                        form.permissions.includes(item.id) ? "border-indigo-600 shadow-sm bg-indigo-50/10" : "border-gray-100"
-                                                    )}>
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={form.permissions.includes(item.id)} 
-                                                            onChange={() => togglePermission(item.id)} 
-                                                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4"
-                                                        />
-                                                        <div className="flex items-center gap-2 min-w-0">
-                                                            {item.icon && <item.icon className={clsx("w-4 h-4 flex-shrink-0", form.permissions.includes(item.id) ? "text-indigo-600" : "text-gray-400")} />}
-                                                            <span className={clsx("text-xs font-medium truncate", form.permissions.includes(item.id) ? "text-indigo-900" : "text-gray-700")}>{item.name}</span>
-                                                        </div>
-                                                    </label>
-                                                ) : null)}
-                                            </div>
-                                            )}
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
@@ -499,6 +549,36 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess, editUser, 
                     </button>
                 </div>
             </form>
+
+            {/* Role & Access Drawer Modal */}
+            {showManageAccess && editUser && (
+                <ManageAccessDrawer
+                    user={{
+                        id: editUser.id || editUser._id,
+                        name: form.name || editUser.name,
+                        email: form.email || editUser.email,
+                        role: form.role,
+                        permissions: form.permissions || [],
+                    }}
+                    onClose={() => setShowManageAccess(false)}
+                    onUpdated={() => {
+                        const uid = editUser.id || editUser._id;
+                        if (uid) {
+                            api.get(`/api/users/${uid}`).then(({ data }) => {
+                                const u = data.user || data;
+                                if (u) {
+                                    setForm(prev => ({
+                                        ...prev,
+                                        role: u.role || prev.role,
+                                        permissions: u.permissions || prev.permissions,
+                                    }));
+                                    onSuccess(u);
+                                }
+                            }).catch(console.error);
+                        }
+                    }}
+                />
+            )}
         </Drawer>
     );
 }

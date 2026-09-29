@@ -56,16 +56,16 @@ export default function LikesBottomSheet({ isOpen, onClose, postId }: LikesBotto
             {users.map(user => (
               <div key={user.id} className="flex items-center gap-3">
                 {user.photoUrl ? (
-                  <img src={user.photoUrl} alt={user.name} className="w-10 h-10 rounded-full object-cover border border-gray-100" />
+                  <img src={user.photoUrl} alt={user.name} className="w-10 h-10 rounded-full object-cover border border-gray-100 dark:border-zinc-800" />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-gray-500 dark:text-zinc-400">
                     <UserCircle2 className="w-6 h-6" />
                   </div>
                 )}
                 <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-gray-900">{user.name}</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{user.name}</span>
                   {user.headline && (
-                    <span className="text-[12px] text-gray-500 line-clamp-1">{user.headline}</span>
+                    <span className="text-[12px] text-gray-500 dark:text-zinc-400 line-clamp-1">{user.headline}</span>
                   )}
                 </div>
               </div>

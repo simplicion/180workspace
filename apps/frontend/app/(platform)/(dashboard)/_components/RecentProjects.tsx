@@ -126,7 +126,7 @@ export default function RecentProjects({ projects, loading }: RecentProjectsProp
                                 <Link
                                     key={projectId}
                                     href={`/projects/${projectId}`}
-                                    className="group flex flex-col justify-between p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/40 dark:bg-zinc-850/40 hover:bg-white dark:hover:bg-zinc-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-md transition-all duration-200 cursor-pointer"
+                                    className="group flex flex-col justify-between p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/60 dark:bg-zinc-900/60 hover:bg-white dark:hover:bg-zinc-800/80 hover:border-indigo-200 dark:hover:border-indigo-800/80 hover:shadow-md transition-all duration-200 cursor-pointer"
                                 >
                                     <div>
                                         {/* Card Top: Avatar & Badges */}

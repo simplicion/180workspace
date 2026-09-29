@@ -133,8 +133,27 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                         `
                     }}
                 />
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            (function() {
+                                try {
+                                    var stored = localStorage.getItem('180_theme');
+                                    var isDark = stored === 'dark' || (stored === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                                    if (isDark) {
+                                        document.documentElement.classList.add('dark');
+                                        document.documentElement.style.colorScheme = 'dark';
+                                    } else {
+                                        document.documentElement.classList.remove('dark');
+                                        document.documentElement.style.colorScheme = 'light';
+                                    }
+                                } catch (e) {}
+                            })();
+                        `
+                    }}
+                />
             </head>
-            <body className="font-sans antialiased hidden-scrollbar" suppressHydrationWarning>
+            <body className="font-sans antialiased hidden-scrollbar dark:bg-black dark:text-zinc-100" suppressHydrationWarning>
                 <Providers session={session}>
                     <DesktopSplitView>
                         {children}

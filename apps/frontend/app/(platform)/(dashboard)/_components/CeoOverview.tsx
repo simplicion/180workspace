@@ -73,47 +73,47 @@ export default function CeoOverview() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="card overflow-hidden bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/80 border-indigo-100/60 shadow-sm relative"
+            className="card overflow-hidden bg-gradient-to-br from-indigo-50/90 via-white to-purple-50/70 dark:from-zinc-900 dark:via-zinc-950 dark:to-indigo-950/40 border border-indigo-100/80 dark:border-zinc-800/90 shadow-sm relative"
         >
             {/* Decorative background elements */}
-            <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-                <BrainCircuit className="w-32 h-32 text-indigo-900 transform rotate-12" />
+            <div className="absolute top-0 right-0 p-8 opacity-5 dark:opacity-10 pointer-events-none">
+                <BrainCircuit className="w-32 h-32 text-indigo-900 dark:text-indigo-400 transform rotate-12" />
             </div>
 
             <div className="p-5 relative z-10">
-                <h3 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
-                    <div className="p-1.5 bg-indigo-100 rounded-lg">
-                        <Sparkles className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-sm font-bold text-indigo-950 dark:text-indigo-200 mb-3 flex items-center gap-2">
+                    <div className="p-1.5 bg-indigo-100 dark:bg-indigo-950/80 border border-transparent dark:border-indigo-800/60 rounded-lg">
+                        <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     </div>
                     AI Executive Summary
                 </h3>
                 
-                <div className="text-[13px] text-gray-700 leading-relaxed font-medium">
+                <div className="text-[13px] text-gray-700 dark:text-zinc-300 leading-relaxed font-medium">
                     {insightsLoading ? (
-                        <div className="flex items-center gap-2 text-indigo-500/80 py-2">
+                        <div className="flex items-center gap-2 text-indigo-500/80 dark:text-indigo-400 py-2">
                             <LogoLoader className="w-4 h-4 animate-spin" /> Analyzing real-time workspace metrics...
                         </div>
                     ) : errorMessage ? (
-                        <div className="bg-amber-50/80 rounded-lg p-3 border border-amber-200/80 text-amber-900 text-xs flex items-center justify-between gap-3">
+                        <div className="bg-amber-50/80 dark:bg-amber-950/30 rounded-lg p-3 border border-amber-200/80 dark:border-amber-900/50 text-amber-900 dark:text-amber-300 text-xs flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
-                                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                                 <span>Invalid API Key or AI Connection Error.</span>
                             </div>
-                            <Link href='/settings/system-configs' className="text-amber-800 underline font-bold hover:text-amber-950 whitespace-nowrap text-[12px]">
-                                Update API Key in Settings &rarr;
+                            <Link href='/?drawer=ai-credits' className="text-amber-800 dark:text-amber-300 underline font-bold hover:text-amber-950 dark:hover:text-amber-100 whitespace-nowrap text-[12px]">
+                                Open AI Credits Hub &rarr;
                             </Link>
                         </div>
                     ) : !isConfigured || !insights ? (
-                        <div className="bg-white/60 rounded-lg p-3 border border-indigo-100/50">
-                            <span className="text-indigo-800/80">
+                        <div className="bg-white/60 dark:bg-zinc-900/80 rounded-lg p-3 border border-indigo-100/50 dark:border-zinc-800">
+                            <span className="text-indigo-800/80 dark:text-indigo-300">
                                 AI Insights are currently unavailable.{' '}
-                                <Link href='/settings/system-configs' className="text-indigo-600 underline font-bold hover:text-indigo-800 transition-colors">
-                                    Configure your AI provider in Settings &rarr;
+                                <Link href='/?drawer=ai-credits' className="text-indigo-600 dark:text-indigo-400 underline font-bold hover:text-indigo-800 dark:hover:text-indigo-200 transition-colors">
+                                    Open AI Credits & Configurations &rarr;
                                 </Link>
                             </span>
                         </div>
                     ) : (
-                        <div className="text-gray-800 leading-relaxed whitespace-pre-line">
+                        <div className="text-gray-800 dark:text-zinc-200 leading-relaxed whitespace-pre-line">
                             {insights}
                         </div>
                     )}

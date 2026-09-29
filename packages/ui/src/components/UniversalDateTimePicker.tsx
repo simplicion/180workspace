@@ -272,10 +272,10 @@ export function UniversalDateTimePicker({
           "group flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border text-xs font-mono transition-all cursor-pointer select-none",
           disabled && "opacity-50 cursor-not-allowed pointer-events-none",
           isOpen
-            ? "border-purple-500 ring-2 ring-purple-500/20 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+            ? "border-purple-500 ring-2 ring-purple-500/20 bg-white dark:bg-zinc-900 text-gray-900 dark:text-white"
             : selectedDate
             ? "border-purple-200 dark:border-purple-900/60 bg-purple-50/40 dark:bg-purple-950/20 text-purple-900 dark:text-purple-200 font-semibold hover:border-purple-300"
-            : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-400 hover:border-gray-300 dark:hover:border-gray-600"
+            : "border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-400 dark:text-zinc-500 hover:border-gray-300 dark:hover:border-zinc-700"
         )}
       >
         <div className="flex items-center gap-1.5 truncate">
@@ -294,7 +294,7 @@ export function UniversalDateTimePicker({
             <button
               type="button"
               onClick={handleClear}
-              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 transition"
+              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 transition"
               title="Clear date"
             >
               <X className="w-3 h-3" />
@@ -305,7 +305,7 @@ export function UniversalDateTimePicker({
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute z-[9999] mt-2 left-0 sm:right-0 sm:left-auto w-[310px] p-3.5 rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border border-gray-200 dark:border-gray-800 shadow-2xl animate-in fade-in zoom-in-95 duration-150 space-y-3">
+        <div className="absolute z-[9999] mt-2 left-0 sm:right-0 sm:left-auto w-[310px] p-3.5 rounded-2xl bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border border-gray-200 dark:border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95 duration-150 space-y-3">
           
           {/* Quick Presets Bar (for datetime mode) */}
           {mode === 'datetime' && presets.length > 0 && (
@@ -330,15 +330,15 @@ export function UniversalDateTimePicker({
 
           {/* Mode Switcher Tabs (for datetime mode) */}
           {mode === 'datetime' && (
-            <div className="grid grid-cols-2 p-0.5 rounded-xl bg-gray-100 dark:bg-gray-800/80 text-xs font-semibold">
+            <div className="grid grid-cols-2 p-0.5 rounded-xl bg-gray-100 dark:bg-zinc-800/80 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setActiveTab('calendar')}
                 className={clsx(
                   "py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition",
                   activeTab === 'calendar'
-                    ? "bg-white dark:bg-gray-900 text-purple-600 dark:text-purple-400 shadow-xs"
-                    : "text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                    ? "bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 shadow-xs"
+                    : "text-gray-500 hover:text-gray-800 dark:hover:text-zinc-200"
                 )}
               >
                 <CalendarIcon className="w-3.5 h-3.5" /> Date
@@ -349,8 +349,8 @@ export function UniversalDateTimePicker({
                 className={clsx(
                   "py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition",
                   activeTab === 'time'
-                    ? "bg-white dark:bg-gray-900 text-purple-600 dark:text-purple-400 shadow-xs"
-                    : "text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                    ? "bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 shadow-xs"
+                    : "text-gray-500 hover:text-gray-800 dark:hover:text-zinc-200"
                 )}
               >
                 <Clock className="w-3.5 h-3.5" /> Time
@@ -370,14 +370,14 @@ export function UniversalDateTimePicker({
                   <button
                     type="button"
                     onClick={handlePrevMonth}
-                    className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white transition"
+                    className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 hover:text-gray-900 dark:hover:text-white transition"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <button
                     type="button"
                     onClick={handleNextMonth}
-                    className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white transition"
+                    className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 hover:text-gray-900 dark:hover:text-white transition"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -387,7 +387,7 @@ export function UniversalDateTimePicker({
               {/* Day Names Row */}
               <div className="grid grid-cols-7 text-center">
                 {DAYS_OF_WEEK.map((d) => (
-                  <span key={d} className="text-[10px] font-bold text-gray-400 py-1">
+                  <span key={d} className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 py-1">
                     {d}
                   </span>
                 ))}
@@ -404,14 +404,14 @@ export function UniversalDateTimePicker({
                     className={clsx(
                       "h-7 w-7 mx-auto rounded-lg text-[11px] font-mono flex items-center justify-center transition-all",
                       item.isDisabled
-                        ? "text-gray-300 dark:text-gray-600 cursor-not-allowed opacity-40"
+                        ? "text-gray-300 dark:text-zinc-600 cursor-not-allowed opacity-40"
                         : item.isSelected
                         ? "bg-purple-600 text-white font-bold shadow-md shadow-purple-500/20"
                         : item.isToday
                         ? "border border-purple-500 text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/50"
                         : item.isCurrentMonth
-                        ? "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-                        : "text-gray-300 dark:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/40"
+                        ? "text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                        : "text-gray-300 dark:text-zinc-600 hover:bg-gray-50 dark:hover:bg-zinc-800/40"
                     )}
                   >
                     {item.date.getDate()}
@@ -436,15 +436,15 @@ export function UniversalDateTimePicker({
               </div>
 
               {/* AM / PM Pill Toggle */}
-              <div className="grid grid-cols-2 p-0.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs font-bold font-mono">
+              <div className="grid grid-cols-2 p-0.5 rounded-lg bg-gray-100 dark:bg-zinc-800 text-xs font-bold font-mono">
                 <button
                   type="button"
                   onClick={() => handleTimeChange(display12Hour === 12 ? 0 : display12Hour, minutes, false)}
                   className={clsx(
                     "py-1 rounded-md transition",
                     !isPm
-                      ? "bg-white dark:bg-gray-900 text-purple-600 shadow-xs"
-                      : "text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                      ? "bg-white dark:bg-zinc-900 text-purple-600 shadow-xs"
+                      : "text-gray-500 hover:text-gray-800 dark:hover:text-zinc-200"
                   )}
                 >
                   AM
@@ -455,8 +455,8 @@ export function UniversalDateTimePicker({
                   className={clsx(
                     "py-1 rounded-md transition",
                     isPm
-                      ? "bg-white dark:bg-gray-900 text-purple-600 shadow-xs"
-                      : "text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                      ? "bg-white dark:bg-zinc-900 text-purple-600 shadow-xs"
+                      : "text-gray-500 hover:text-gray-800 dark:hover:text-zinc-200"
                   )}
                 >
                   PM
@@ -465,7 +465,7 @@ export function UniversalDateTimePicker({
 
               {/* Hour Selection Grid */}
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Hour</label>
+                <label className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Hour</label>
                 <div className="grid grid-cols-6 gap-1 text-center">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => (
                     <button
@@ -476,7 +476,7 @@ export function UniversalDateTimePicker({
                         "h-7 rounded-lg text-xs font-mono font-bold transition",
                         display12Hour === h
                           ? "bg-purple-600 text-white shadow-xs"
-                          : "bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                          : "bg-gray-50 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300"
                       )}
                     >
                       {h}
@@ -487,7 +487,7 @@ export function UniversalDateTimePicker({
 
               {/* Minute Selection Grid (5-minute steps) */}
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Minutes</label>
+                <label className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Minutes</label>
                 <div className="grid grid-cols-6 gap-1 text-center">
                   {[0, 10, 15, 20, 30, 45].map((m) => (
                     <button
@@ -498,7 +498,7 @@ export function UniversalDateTimePicker({
                         "h-7 rounded-lg text-xs font-mono font-bold transition",
                         minutes === m
                           ? "bg-purple-600 text-white shadow-xs"
-                          : "bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                          : "bg-gray-50 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300"
                       )}
                     >
                       :{String(m).padStart(2, '0')}

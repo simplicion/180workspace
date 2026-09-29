@@ -121,9 +121,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(data.user);
             setCompany(data.company);
         } catch (err: any) {
-            // Only wipe credentials on confirmed 401 Auth errors. 
-            // 500s or network errors shouldn't log the user out.
+            // Only wipe credentials on confirmed Auth errors after fallback attempt
             if (err?.response?.status === 401) {
+                try {
+                    const { data: meData } = await api.get('/api/auth/me');
+                    if (meData?.user) {
+                        setUser(meData.user);
+                        setCompany(meData.company || null);
+                        return;
+                    }
+                } catch (_) {}
+
                 clearAllAuthTokens();
 
                 try {

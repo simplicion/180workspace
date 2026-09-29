@@ -77,7 +77,7 @@ export function AILogo({
             className={clsx(
                 "relative flex items-center justify-center shrink-0 select-none",
                 isRound ? "rounded-full" : "rounded-xl",
-                "bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs",
+                "bg-white dark:bg-zinc-900 border border-slate-200/90 dark:border-zinc-800 shadow-xs",
                 className
             )}
             style={{ width: size, height: size }}

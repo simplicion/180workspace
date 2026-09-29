@@ -47,18 +47,18 @@ export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLock
         {
             label: 'Monthly Revenue',
             value: formatCurrency(ceoInsights?.mrr),
-            color: 'text-emerald-600',
-            bgColor: 'bg-emerald-50',
-            borderColor: 'border-emerald-100',
+            color: 'text-emerald-600 dark:text-emerald-400',
+            bgColor: 'bg-emerald-50/70 dark:bg-emerald-950/20',
+            borderColor: 'border-emerald-100/70 dark:border-emerald-900/40',
             icon: TrendingUp,
             iconColor: 'text-emerald-500',
         },
         {
             label: 'Burn Rate',
             value: formatCurrency(ceoInsights?.burnRate),
-            color: 'text-rose-600',
-            bgColor: 'bg-rose-50',
-            borderColor: 'border-rose-100',
+            color: 'text-rose-600 dark:text-rose-400',
+            bgColor: 'bg-rose-50/70 dark:bg-rose-950/20',
+            borderColor: 'border-rose-100/70 dark:border-rose-900/40',
             icon: ArrowDownRight,
             iconColor: 'text-rose-500',
         },
@@ -69,9 +69,9 @@ export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLock
                     ? `${ceoInsights.runway.replace(' mo', '')} mo` 
                     : ceoInsights.runway
                 : '0 mo',
-            color: 'text-indigo-600',
-            bgColor: 'bg-indigo-50',
-            borderColor: 'border-indigo-100',
+            color: 'text-indigo-600 dark:text-indigo-400',
+            bgColor: 'bg-indigo-50/70 dark:bg-indigo-950/20',
+            borderColor: 'border-indigo-100/70 dark:border-indigo-900/40',
             icon: ArrowUpRight,
             iconColor: 'text-indigo-500',
         },
@@ -170,41 +170,41 @@ export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLock
             if (data.type) {
                 const isIncome = data.type === 'income';
                 return (
-                    <div className="bg-white p-3 border border-gray-100 rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.06)] min-w-[200px]">
-                        <p className="text-xs font-bold text-gray-900 mb-2 border-b pb-1">
+                    <div className="bg-white dark:bg-zinc-900 p-3 border border-gray-100 dark:border-zinc-800 rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.06)] dark:shadow-none min-w-[200px]">
+                        <p className="text-xs font-bold text-gray-900 dark:text-zinc-100 mb-2 border-b border-gray-100 dark:border-zinc-800 pb-1">
                             {new Date(data.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                         </p>
                         <div className="flex flex-col gap-1.5">
                             <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-gray-500 font-medium">What:</span>
-                                <span className="text-xs font-semibold text-gray-900 truncate max-w-[140px]">{data.what}</span>
+                                <span className="text-xs text-gray-500 dark:text-zinc-400 font-medium">What:</span>
+                                <span className="text-xs font-semibold text-gray-900 dark:text-zinc-200 truncate max-w-[140px]">{data.what}</span>
                             </div>
                             <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-gray-500 font-medium">Who:</span>
-                                <span className="text-xs font-semibold text-gray-900 truncate max-w-[140px]">{data.who}</span>
+                                <span className="text-xs text-gray-500 dark:text-zinc-400 font-medium">Who:</span>
+                                <span className="text-xs font-semibold text-gray-900 dark:text-zinc-200 truncate max-w-[140px]">{data.who}</span>
                             </div>
                             <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-gray-500 font-medium">Where:</span>
-                                <span className="text-xs font-semibold text-gray-900 truncate max-w-[140px]">{data.where}</span>
+                                <span className="text-xs text-gray-500 dark:text-zinc-400 font-medium">Where:</span>
+                                <span className="text-xs font-semibold text-gray-900 dark:text-zinc-200 truncate max-w-[140px]">{data.where}</span>
                             </div>
-                            <div className="flex justify-between items-center gap-4 mt-1 border-t pt-1.5">
-                                <span className="text-xs text-gray-500 font-medium">Amount:</span>
-                                <span className={`text-sm font-black ${isIncome ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            <div className="flex justify-between items-center gap-4 mt-1 border-t border-gray-100 dark:border-zinc-800 pt-1.5">
+                                <span className="text-xs text-gray-500 dark:text-zinc-400 font-medium">Amount:</span>
+                                <span className={`text-sm font-black ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                     {formatCurrency(data.amount)}
                                 </span>
                             </div>
-                            <p className="text-[9px] text-indigo-500 mt-1.5 text-center font-semibold bg-indigo-50/50 rounded py-1">Click dot to view details</p>
+                            <p className="text-[9px] text-indigo-500 dark:text-indigo-400 mt-1.5 text-center font-semibold bg-indigo-50/50 dark:bg-indigo-950/40 rounded py-1">Click dot to view details</p>
                         </div>
                     </div>
                 );
             } else {
                 return (
-                    <div className="bg-white p-3 border border-gray-100 rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.06)]">
-                        <p className="text-xs font-bold text-gray-900 mb-1.5">{data.name}</p>
-                        <p className="text-xs font-medium text-emerald-600 flex justify-between gap-4">
+                    <div className="bg-white dark:bg-zinc-900 p-3 border border-gray-100 dark:border-zinc-800 rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.06)] dark:shadow-none">
+                        <p className="text-xs font-bold text-gray-900 dark:text-zinc-100 mb-1.5">{data.name}</p>
+                        <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex justify-between gap-4">
                             <span>Revenue:</span> <span className="font-bold">{formatCurrency(data.rev)}</span>
                         </p>
-                        <p className="text-xs font-medium text-rose-600 flex justify-between gap-4 mt-1">
+                        <p className="text-xs font-medium text-rose-600 dark:text-rose-400 flex justify-between gap-4 mt-1">
                             <span>Costs:</span> <span className="font-bold">{formatCurrency(data.cost)}</span>
                         </p>
                     </div>
@@ -217,21 +217,22 @@ export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLock
     return (
         <div className="card overflow-hidden">
             {/* Header + KPIs */}
-        <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col gap-4">
+        <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-zinc-800 flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-50 rounded-xl shrink-0">
-                        <DollarSign className="w-4 h-4 text-emerald-600" />
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl shrink-0">
+                        <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-gray-900 whitespace-nowrap">Financial Trajectory</h3>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-zinc-100 whitespace-nowrap">Financial Trajectory</h3>
                         <p className="text-[11px] text-gray-400 font-medium">Revenue, burn rate & runway overview</p>
                     </div>
                 </div>
                 <CustomSelect 
                     value={timeRange}
                     onChange={(e) => setTimeRange(e.target.value as any)}
-                    className="text-xs py-1.5 px-2.5 pr-8 bg-gray-50 border-gray-200 rounded-lg text-gray-600 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-28 sm:w-32"
+                    size="sm"
                 >
                     <option value="1W">1 Week</option>
                     <option value="1M">1 Month</option>
@@ -247,7 +248,7 @@ export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLock
                         <div key={i} className={`flex flex-col gap-1.5 p-2.5 rounded-xl border ${kpi.borderColor} ${kpi.bgColor} overflow-hidden`}>
                             <div className="flex items-center gap-1.5">
                                 <kpi.icon className={`shrink-0 w-3.5 h-3.5 ${kpi.iconColor}`} />
-                                <p className="text-[8px] sm:text-[9px] text-gray-500 font-bold uppercase tracking-wider leading-none truncate">{kpi.label}</p>
+                                <p className="text-[8px] sm:text-[9px] text-gray-500 dark:text-zinc-400 font-bold uppercase tracking-wider leading-none truncate">{kpi.label}</p>
                             </div>
                             <p className={`text-sm font-black ${kpi.color} leading-none truncate`}>{kpi.value}</p>
                         </div>
@@ -271,7 +272,7 @@ export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLock
                                         <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
                                 <XAxis 
                                     dataKey="timestamp" 
                                     type="number" 
@@ -290,13 +291,13 @@ export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLock
                                     }} 
                                 />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dx={-5} tickFormatter={(val) => val >= 1000 ? `₹${val / 1000}k` : `₹${val}`} />
-                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
+                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(148, 163, 184, 0.25)', strokeWidth: 1 }} />
                                 <Legend 
                                     verticalAlign="top" 
                                     height={36} 
                                     iconType="circle" 
                                     iconSize={6}
-                                    formatter={(value) => <span className="text-xs font-medium text-gray-500">{value}</span>}
+                                    formatter={(value) => <span className="text-xs font-medium text-gray-500 dark:text-zinc-400">{value}</span>}
                                 />
                                 <Area data={filteredAreaData} type="monotone" dataKey="rev" name="Gross Revenue" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
                                 <Area data={filteredAreaData} type="monotone" dataKey="cost" name="Operating Costs" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCost)" dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
@@ -307,10 +308,10 @@ export default function FinancialTrajectory({ isLocked: isLockedProp }: { isLock
                         </ResponsiveContainer>
                     </div>
                 ) : (
-                    <div className="h-[260px] flex flex-col items-center justify-center text-center bg-gray-50/30 rounded-xl border border-dashed border-gray-200">
-                        <DollarSign className="w-10 h-10 text-gray-200 mb-3" />
-                        <p className="text-sm font-medium text-gray-400">No financial data yet</p>
-                        <p className="text-xs text-gray-300 mt-1 max-w-[280px]">
+                    <div className="h-[260px] flex flex-col items-center justify-center text-center bg-gray-50/30 dark:bg-zinc-900/30 rounded-xl border border-dashed border-gray-200 dark:border-zinc-800">
+                        <DollarSign className="w-10 h-10 text-gray-200 dark:text-zinc-700 mb-3" />
+                        <p className="text-sm font-medium text-gray-400 dark:text-zinc-400">No financial data yet</p>
+                        <p className="text-xs text-gray-300 dark:text-zinc-500 mt-1 max-w-[280px]">
                             Financial trajectory will display once invoices and expense records are available.
                         </p>
                     </div>

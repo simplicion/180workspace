@@ -100,4 +100,5 @@ apps/desktop-app/dist/
 # Android releases
 *.apk
 *.aab
+generated/
 

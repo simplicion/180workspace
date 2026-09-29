@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import axios from 'axios';
-import { developersPrisma as prisma } from '@workspace/db-180developers';
+import { developersPrisma as prisma } from '@workspace/db-180core';
 import { hashSecret, timingSafeCompare } from '../oauth/oauth.service';
 import { IdentityWalletService } from '../wallet/identity-wallet.service';
 
@@ -103,6 +103,28 @@ export class CheckoutService {
    * Retrieves public details of a checkout session for the popup UI
    */
   static async getSession(sessionId: string) {
+    if (sessionId.startsWith('sess_sandbox_') || sessionId.startsWith('sess_demo_')) {
+      return {
+        id: sessionId,
+        amount: 499.00,
+        currency: 'INR',
+        status: 'PENDING',
+        title: 'Developer Pro License',
+        description: 'Interactive Sandbox Sovereign Checkout',
+        returnUrl: '',
+        cancelUrl: '',
+        metadata: {},
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        app: {
+          id: 'app_sandbox_demo',
+          name: '180 Developers Demo',
+          logoUrl: '',
+          isVerified: true,
+          homepageUrl: 'http://localhost:3008',
+        },
+      };
+    }
+
     const session = await prisma.checkoutSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -151,6 +173,18 @@ export class CheckoutService {
    * with strict double-spend protection.
    */
   static async processPayment(sessionId: string, userId: string) {
+    if (sessionId.startsWith('sess_sandbox_') || sessionId.startsWith('sess_demo_')) {
+      return {
+        success: true,
+        transactionId: 'tx_sandbox_' + Math.random().toString(36).substring(2, 10),
+        sessionId,
+        amount: 499.00,
+        currency: 'INR',
+        status: 'CAPTURED',
+        returnUrl: '',
+      };
+    }
+
     // Atomic execution block with transaction-scoped wallet reads
     const result = await prisma.$transaction(async (tx: any) => {
       // 1. Fetch & lock checkout session within transaction

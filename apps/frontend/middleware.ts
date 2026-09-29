@@ -166,7 +166,7 @@ export async function middleware(req: NextRequest) {
       '/traffic-director', '/advertising', '/crm', '/finance', 
       '/hr', '/settings', '/projects', '/insights', '/communications', 
       '/social-media', '/workspace-tools', '/voiceforce', '/media-editor', '/video-studio', '/billing', '/superadmin', 
-      '/company-hub'
+      '/company-hub', '/company', '/forms'
     ];
     const isPlatformAdminRoute = PLATFORM_ADMIN_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
 

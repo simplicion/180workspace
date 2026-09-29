@@ -1,0 +1,167 @@
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../apps/180-core-backend/.env') });
+
+import { PrismaClient } from '../packages/db-180developers/generated/client/index.js';
+
+const devDbUrl =
+  process.env.DEVELOPERS_DATABASE_URL ||
+  process.env.IDENTITY_DATABASE_URL ||
+  'postgresql://pitchin_admin:Pitchin180Admin!23@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180developers_db?sslmode=require';
+
+const prisma = new PrismaClient({
+  datasources: { db: { url: devDbUrl } },
+});
+
+async function main() {
+  console.log('🚀 Seeding Simplicion Root User & System OAuth Apps in 180 Identity...');
+
+  const rootEmail = 'simplicion.com@gmail.com';
+  const rootPhone = '+919381420546';
+  const rootUsername = 'simplicion';
+  const rootName = 'Simplicion';
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash('Simplicion180Admin!', salt);
+
+  // 1. Upsert Root User
+  let user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: rootEmail },
+        { phone: rootPhone },
+        { username: rootUsername },
+      ],
+    },
+  });
+
+  if (user) {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        email: rootEmail,
+        phone: rootPhone,
+        username: rootUsername,
+        name: rootName,
+        passwordHash,
+        role: 'SUPERADMIN',
+        isVerified: true,
+        emailVerified: true,
+        isActive: true,
+        isOnboardingComplete: true,
+      },
+    });
+    console.log(`[Identity DB] Updated root user: ${user.id} (${user.email})`);
+  } else {
+    user = await prisma.user.create({
+      data: {
+        email: rootEmail,
+        phone: rootPhone,
+        username: rootUsername,
+        name: rootName,
+        passwordHash,
+        role: 'SUPERADMIN',
+        isVerified: true,
+        emailVerified: true,
+        isActive: true,
+        isOnboardingComplete: true,
+      },
+    });
+    console.log(`[Identity DB] Created root user: ${user.id} (${user.email})`);
+  }
+
+  // 2. Ensure Wallet exists
+  const wallet = await prisma.wallet.findUnique({
+    where: { userId: user.id },
+  });
+  if (!wallet) {
+    await prisma.wallet.create({
+      data: {
+        userId: user.id,
+        balance: 0.0,
+        currency: 'INR',
+        isLocked: false,
+      },
+    });
+    console.log('[Identity DB] Created wallet with ₹0.00 balance');
+  } else {
+    console.log(`[Identity DB] Wallet exists for user (Balance: ₹${wallet.balance})`);
+  }
+
+  // 3. First-party OAuth Client: 180-workspace-platform
+  const platformClientSecret = '180sec_live__c28066bb706752b347e42b1d79c27db9537c148da526919144e2961d7a5afa55';
+  const platformSecretHash = await bcrypt.hash(platformClientSecret, 10);
+  const platformSecretHint = platformClientSecret.slice(-4);
+
+  const existingApp = await prisma.oAuthApp.findUnique({
+    where: { clientId: '180-workspace-platform' },
+  });
+
+  const appData = {
+    name: '180 Workspace Platform',
+    description: 'Unified Business Operating System & Sovereign Collaboration Suite',
+    redirectUris: [
+      'http://localhost:3000/callback',
+      'http://localhost:3000/oauth/callback',
+      'http://localhost:3008/callback',
+      'http://localhost:3009/callback',
+      'https://180workspace.com/callback',
+      'https://180workspace.com/oauth/callback',
+      'https://developers.180workspace.com/callback',
+      'https://profile.180workspace.com/callback',
+    ],
+    allowedOrigins: [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost:3008',
+      'http://127.0.0.1:3008',
+      'http://localhost:3009',
+      'http://127.0.0.1:3009',
+      'https://180workspace.com',
+      'https://developers.180workspace.com',
+      'https://profile.180workspace.com',
+    ],
+    allowedScopes: ['openid', 'identity:read', 'identity:email', 'identity:phone', 'pay:read', 'pay:checkout'],
+    isVerified: true,
+    isActive: true,
+    enableAuth: true,
+    enablePay: true,
+    webhookSecret: '180whsec_live_9f83a8b27c194e8293701a2f4',
+  };
+
+  if (existingApp) {
+    await prisma.oAuthApp.update({
+      where: { id: existingApp.id },
+      data: appData,
+    });
+    console.log('[Identity DB] Updated 180-workspace-platform OAuth App');
+  } else {
+    await prisma.oAuthApp.create({
+      data: {
+        ...appData,
+        clientId: '180-workspace-platform',
+        clientSecretHash: platformSecretHash,
+        clientSecretHint: platformSecretHint,
+        userId: user.id,
+      },
+    });
+    console.log('[Identity DB] Created 180-workspace-platform OAuth App');
+  }
+
+  console.log('🎉 Seeding successfully completed!');
+}
+
+main()
+  .catch((err) => {
+    console.error('❌ Error during seeding:', err);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

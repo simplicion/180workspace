@@ -152,9 +152,15 @@ export default function CustomSelect({
     };
 
     const hasExplicitWidth = className && /(^|\s)(w-|min-w-|max-w-)/.test(className);
+    const containerClasses = className
+        ? className
+            .split(/\s+/)
+            .filter(c => !['select', 'input', 'show-errors'].includes(c.trim()))
+            .join(' ')
+        : '';
 
     return (
-        <div className={clsx("relative", !hasExplicitWidth && "w-full", className)} ref={containerRef}>
+        <div className={clsx("relative", !hasExplicitWidth && "w-full", containerClasses)} ref={containerRef}>
             {label && <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">{label}</label>}
             
             {/* Trigger Input */}
@@ -171,17 +177,17 @@ export default function CustomSelect({
                     "flex items-center justify-between w-full rounded-xl border text-left transition-all outline-none cursor-pointer select-none",
                     size === 'sm' ? "px-2.5 py-1.5 text-xs min-h-[34px]" : "px-3.5 py-2 text-sm min-h-[40px]",
                     isOpen 
-                        ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-white dark:bg-slate-900" 
+                        ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-white dark:bg-zinc-900" 
                         : (activeHighlight && isSelected
                             ? "bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200 font-medium shadow-2xs"
-                            : "bg-white dark:bg-slate-900 border-gray-200/90 dark:border-slate-800 text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:hover:border-slate-700 hover:bg-gray-50/60 dark:hover:bg-slate-800/60"
+                            : "bg-white dark:bg-zinc-900 border-gray-200/90 dark:border-zinc-800 text-gray-700 dark:text-zinc-200 hover:border-gray-300 dark:hover:border-zinc-700 hover:bg-gray-50/60 dark:hover:bg-zinc-800/60"
                         ),
                     error ? "border-red-500" : "",
-                    disabled && "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-slate-800/50"
+                    disabled && "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-zinc-800/50"
                 )}
             >
                 <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-1">
-                    {icon && <span className="shrink-0 text-gray-400 dark:text-gray-500">{icon}</span>}
+                    {icon && <span className="shrink-0 text-gray-400 dark:text-zinc-500">{icon}</span>}
                     <input
                         ref={inputRef}
                         id={id}
@@ -220,7 +226,7 @@ export default function CustomSelect({
                         }}
                         className={clsx(
                             "w-full outline-none bg-transparent truncate cursor-pointer",
-                            !primitiveValue && !isOpen && "text-gray-400 dark:text-gray-500",
+                            !primitiveValue && !isOpen && "text-gray-400 dark:text-zinc-500",
                             size === 'sm' ? "text-xs" : "text-sm"
                         )}
                     />
@@ -231,7 +237,7 @@ export default function CustomSelect({
                         <button
                             type="button"
                             onClick={handleClear}
-                            className="p-0.5 hover:bg-gray-200 dark:hover:bg-slate-700 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                            className="p-0.5 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 cursor-pointer"
                             title="Clear"
                         >
                             <X className="w-3 h-3" />
@@ -259,7 +265,7 @@ export default function CustomSelect({
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute z-50 min-w-full w-max max-w-[290px] left-0 mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-xl max-h-60 overflow-hidden flex flex-col animate-in fade-in-50 zoom-in-95 duration-100">
+                <div className="absolute z-50 min-w-full w-max max-w-[290px] left-0 mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl max-h-60 overflow-hidden flex flex-col animate-in fade-in-50 zoom-in-95 duration-100">
                     <div className="overflow-y-auto p-1 flex-1">
                         {filteredOptions.length > 0 && (
                             filteredOptions.map((opt, idx) => {
@@ -271,7 +277,7 @@ export default function CustomSelect({
                                         onClick={() => handleSelect(opt.value)}
                                         className={clsx(
                                             "w-full text-left px-2.5 py-1.5 text-xs rounded-lg flex items-center justify-between transition-colors whitespace-nowrap cursor-pointer",
-                                            isOptSelected ? "bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold" : "text-gray-700 dark:text-gray-200 hover:bg-gray-100/80 dark:hover:bg-slate-800"
+                                            isOptSelected ? "bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold" : "text-gray-700 dark:text-zinc-200 hover:bg-gray-100/80 dark:hover:bg-zinc-800"
                                         )}
                                     >
                                         <div className="flex items-center gap-1.5 truncate">
@@ -288,14 +294,14 @@ export default function CustomSelect({
                             <button
                                 type="button"
                                 onClick={() => handleSelect(search.trim())}
-                                className="w-full text-left px-2.5 py-1.5 text-xs rounded-lg hover:bg-indigo-50 dark:hover:bg-slate-800 text-indigo-700 dark:text-indigo-300 font-medium flex items-center gap-2 cursor-pointer"
+                                className="w-full text-left px-2.5 py-1.5 text-xs rounded-lg hover:bg-indigo-50 dark:hover:bg-zinc-800 text-indigo-700 dark:text-indigo-300 font-medium flex items-center gap-2 cursor-pointer"
                             >
                                 <span className="opacity-75">Create</span> &quot;{search.trim()}&quot;
                             </button>
                         )}
 
                         {filteredOptions.length === 0 && (!creatable || search.trim() === '') && (
-                            <div className="p-3 text-xs text-gray-500 dark:text-gray-400 text-center">No options found</div>
+                            <div className="p-3 text-xs text-gray-500 dark:text-zinc-400 text-center">No options found</div>
                         )}
                     </div>
                 </div>

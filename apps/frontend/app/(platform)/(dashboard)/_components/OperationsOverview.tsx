@@ -296,9 +296,9 @@ export default function OperationsOverview({ stats, getStatValue, getSubText, is
                 </div>
 
                 {/* 2. Interactive Applied Leaves & Claimed Expenses Authorization Hub */}
-                <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-850/40 overflow-hidden flex flex-col">
+                <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/60 overflow-hidden flex flex-col">
                     {/* Tab Navigation Header */}
-                    <div className="px-3 pt-2.5 pb-2 border-b border-zinc-200/70 dark:border-zinc-800 flex items-center justify-between bg-zinc-100/40 dark:bg-zinc-900/40">
+                    <div className="px-3 pt-2.5 pb-2 border-b border-zinc-200/70 dark:border-zinc-800 flex items-center justify-between bg-zinc-100/40 dark:bg-zinc-900/60">
                         <div className="flex items-center gap-1.5">
                             {/* Leaves Tab */}
                             <button

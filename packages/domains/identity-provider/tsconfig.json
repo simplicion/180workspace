@@ -12,7 +12,9 @@
     "declaration": true,
     "baseUrl": ".",
     "paths": {
-      "@workspace/db": ["../../db/dist/index.d.ts", "../../db/src/index.ts"],
+      "@workspace/db-180core": ["../../db-180core/dist/index.d.ts"],
+      "@workspace/db-180core/*": ["../../db-180core/*"],
+      "@workspace/db": ["../../db/dist/index.d.ts"],
       "@workspace/db/*": ["../../db/*"]
     }
   },

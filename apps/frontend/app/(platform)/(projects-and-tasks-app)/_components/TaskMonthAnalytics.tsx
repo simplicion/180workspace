@@ -175,8 +175,8 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
         if (!active || !payload || !payload.length) return null;
         const data = payload[0]?.payload;
         return (
-            <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-3 rounded-xl shadow-xl border border-gray-100 dark:border-slate-800 text-xs z-50 min-w-[160px]">
-                <p className="font-bold text-gray-900 dark:text-gray-100 mb-2 border-b border-gray-100 dark:border-slate-800 pb-1.5 flex items-center justify-between">
+            <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md p-3 rounded-xl shadow-xl border border-gray-100 dark:border-zinc-800 text-xs z-50 min-w-[160px]">
+                <p className="font-bold text-gray-900 dark:text-zinc-100 mb-2 border-b border-gray-100 dark:border-zinc-800 pb-1.5 flex items-center justify-between">
                     <span>{data.fullDate || data.label}</span>
                     <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded">
                         {data.total} {data.total === 1 ? 'Task' : 'Tasks'}
@@ -213,7 +213,7 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
     };
 
     return (
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm p-4 sm:p-5 mb-5 transition-all">
+        <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-2xl border border-gray-200/80 dark:border-zinc-800 shadow-sm p-4 sm:p-5 mb-5 transition-all">
             {/* Header Controls */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
@@ -222,14 +222,14 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                            <h2 className="text-base font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
                                 Monthly Task Activity
                             </h2>
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900/50">
                                 <Sparkles className="w-2.5 h-2.5" /> Full Month
                             </span>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <p className="text-xs text-gray-500 dark:text-zinc-400">
                             Daily progress & volume distribution for {format(currentMonth, 'MMMM yyyy')}
                         </p>
                     </div>
@@ -237,15 +237,15 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
 
                 <div className="flex flex-wrap items-center gap-2">
                     {/* View Mode Segmented Control */}
-                    <div className="flex bg-gray-100 dark:bg-slate-800 rounded-xl p-0.5 border border-gray-200/60 dark:border-slate-700 text-xs">
+                    <div className="flex bg-gray-100 dark:bg-zinc-800/80 rounded-xl p-0.5 border border-gray-200/60 dark:border-zinc-700/60 text-xs">
                         <button
                             type="button"
                             onClick={() => setViewMode('daily')}
                             className={clsx(
                                 "px-2.5 py-1 rounded-lg font-medium transition-all",
                                 viewMode === 'daily'
-                                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold"
-                                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+                                    ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold"
+                                    : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"
                             )}
                         >
                             Day of Month
@@ -256,8 +256,8 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                             className={clsx(
                                 "px-2.5 py-1 rounded-lg font-medium transition-all",
                                 viewMode === 'weekly'
-                                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold"
-                                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+                                    ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold"
+                                    : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"
                             )}
                         >
                             Weekly
@@ -268,8 +268,8 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                             className={clsx(
                                 "px-2.5 py-1 rounded-lg font-medium transition-all",
                                 viewMode === 'dayOfWeek'
-                                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold"
-                                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+                                    ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold"
+                                    : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100"
                             )}
                         >
                             Day of Week
@@ -277,23 +277,23 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                     </div>
 
                     {/* Month Navigator */}
-                    <div className="flex items-center gap-1 bg-gray-50 dark:bg-slate-800/60 rounded-xl px-2 py-1 border border-gray-200/60 dark:border-slate-700">
+                    <div className="flex items-center gap-1 bg-gray-50 dark:bg-zinc-800/60 rounded-xl px-2 py-1 border border-gray-200/60 dark:border-zinc-700/60">
                         <button
                             type="button"
                             onClick={handlePrevMonth}
                             title="Previous Month"
-                            className="p-1 text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200/60 dark:hover:bg-slate-700 transition-colors"
+                            className="p-1 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 rounded-lg hover:bg-gray-200/60 dark:hover:bg-zinc-700 transition-colors"
                         >
                             <ChevronLeft className="w-3.5 h-3.5" />
                         </button>
-                        <span className="text-xs font-bold text-gray-800 dark:text-gray-200 px-1 min-w-[100px] text-center">
+                        <span className="text-xs font-bold text-gray-800 dark:text-zinc-200 px-1 min-w-[100px] text-center">
                             {format(currentMonth, 'MMM yyyy')}
                         </span>
                         <button
                             type="button"
                             onClick={handleNextMonth}
                             title="Next Month"
-                            className="p-1 text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 rounded-lg hover:bg-gray-200/60 dark:hover:bg-slate-700 transition-colors"
+                            className="p-1 text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 rounded-lg hover:bg-gray-200/60 dark:hover:bg-zinc-700 transition-colors"
                         >
                             <ChevronRight className="w-3.5 h-3.5" />
                         </button>
@@ -313,7 +313,7 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                     <button
                         type="button"
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                         title={isCollapsed ? "Expand Analytics" : "Collapse Analytics"}
                     >
                         {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
@@ -326,11 +326,11 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                 <div className="space-y-4 animate-in fade-in duration-200">
                     {/* KPI Quick Stats Row */}
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
-                        <div className="bg-gray-50/80 dark:bg-slate-800/50 rounded-xl p-2.5 border border-gray-100 dark:border-slate-800">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Tasks</span>
+                        <div className="bg-gray-50/80 dark:bg-zinc-950/60 rounded-xl p-2.5 border border-gray-100 dark:border-zinc-800">
+                            <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider block">Total Tasks</span>
                             <div className="flex items-baseline gap-1.5 mt-0.5">
-                                <span className="text-lg font-bold text-gray-900 dark:text-gray-100">{stats.total}</span>
-                                <span className="text-[10px] text-gray-400">in month</span>
+                                <span className="text-lg font-bold text-gray-900 dark:text-zinc-100">{stats.total}</span>
+                                <span className="text-[10px] text-gray-400 dark:text-zinc-500">in month</span>
                             </div>
                         </div>
 
@@ -343,7 +343,7 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                             </div>
                             <div className="flex items-baseline gap-1.5 mt-0.5">
                                 <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{stats.done}</span>
-                                <span className="text-[10px] text-emerald-600/70">Done</span>
+                                <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70">Done</span>
                             </div>
                         </div>
 
@@ -351,7 +351,7 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                             <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">In Review</span>
                             <div className="flex items-baseline gap-1.5 mt-0.5">
                                 <span className="text-lg font-bold text-amber-700 dark:text-amber-400">{stats.inReview}</span>
-                                <span className="text-[10px] text-amber-600/70">Pending</span>
+                                <span className="text-[10px] text-amber-600/70 dark:text-amber-400/70">Pending</span>
                             </div>
                         </div>
 
@@ -359,7 +359,7 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                             <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">In Progress</span>
                             <div className="flex items-baseline gap-1.5 mt-0.5">
                                 <span className="text-lg font-bold text-blue-700 dark:text-blue-400">{stats.inProgress}</span>
-                                <span className="text-[10px] text-blue-600/70">Active</span>
+                                <span className="text-[10px] text-blue-600/70 dark:text-blue-400/70">Active</span>
                             </div>
                         </div>
 
@@ -367,7 +367,7 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                             <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider block">To Do</span>
                             <div className="flex items-baseline gap-1.5 mt-0.5">
                                 <span className="text-lg font-bold text-purple-700 dark:text-purple-400">{stats.todo}</span>
-                                <span className="text-[10px] text-purple-600/70">Queued</span>
+                                <span className="text-[10px] text-purple-600/70 dark:text-purple-400/70">Queued</span>
                             </div>
                         </div>
                     </div>
@@ -375,32 +375,32 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                     {/* Recharts Stacked Bar Graph */}
                     <div className="h-[200px] w-full pt-2">
                         {loading ? (
-                            <div className="h-full flex items-center justify-center text-xs text-gray-400">
+                            <div className="h-full flex items-center justify-center text-xs text-gray-400 dark:text-zinc-500">
                                 Loading monthly task graph...
                             </div>
                         ) : chartData.length === 0 || stats.total === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-xs text-gray-400 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-dashed border-gray-200 dark:border-slate-800">
-                                <Calendar className="w-6 h-6 text-gray-300 dark:text-gray-600 mb-1" />
+                            <div className="h-full flex flex-col items-center justify-center text-xs text-gray-400 dark:text-zinc-500 bg-gray-50/50 dark:bg-zinc-950/40 rounded-xl border border-dashed border-gray-200 dark:border-zinc-800">
+                                <Calendar className="w-6 h-6 text-gray-300 dark:text-zinc-600 mb-1" />
                                 <span>No task activity recorded in {format(currentMonth, 'MMMM yyyy')}</span>
                             </div>
                         ) : (
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.6} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.15)" strokeOpacity={0.6} />
                                     <XAxis 
                                         dataKey="label" 
                                         tickLine={false} 
-                                        axisLine={{ stroke: '#cbd5e1', strokeOpacity: 0.5 }} 
-                                        tick={{ fontSize: 10, fill: '#64748b' }}
+                                        axisLine={{ stroke: 'rgba(148, 163, 184, 0.2)', strokeOpacity: 0.5 }} 
+                                        tick={{ fontSize: 10, fill: '#71717a' }}
                                         interval={viewMode === 'daily' ? 1 : 0}
                                     />
                                     <YAxis 
                                         allowDecimals={false} 
                                         tickLine={false} 
                                         axisLine={false} 
-                                        tick={{ fontSize: 10, fill: '#64748b' }} 
+                                        tick={{ fontSize: 10, fill: '#71717a' }} 
                                     />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.06)' }} />
+                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.08)' }} />
                                     <Bar dataKey="done" name="Done" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
                                     <Bar dataKey="inReview" name="In Review" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} />
                                     <Bar dataKey="inProgress" name="In Progress" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} />
@@ -411,7 +411,7 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
                     </div>
 
                     {/* Chart Legend / Color Indicator */}
-                    <div className="flex flex-wrap items-center justify-center gap-4 pt-1 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-slate-800/80">
+                    <div className="flex flex-wrap items-center justify-center gap-4 pt-1 text-xs text-gray-500 dark:text-zinc-400 border-t border-gray-100 dark:border-zinc-800/80">
                         <div className="flex items-center gap-1.5">
                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                             <span>Done ({stats.done})</span>

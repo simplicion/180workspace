@@ -26,6 +26,7 @@ router.post('/authorize/consent', protect, AuthApiController.submitConsent);
 router.post('/token', tokenRateLimiter, AuthApiController.exchangeToken);
 router.get('/userinfo', protect, AuthApiController.getUserInfo);
 router.post('/userinfo', protect, AuthApiController.getUserInfo);
+router.get('/me', protect, (req: any, res: any) => res.json({ success: true, user: req.user }));
 router.post('/verify', AuthApiController.verifyToken);
 router.get('/verify', AuthApiController.verifyToken);
 router.post('/revoke', AuthApiController.revokeToken);
@@ -33,7 +34,13 @@ router.post('/revoke', AuthApiController.revokeToken);
 // ─── Auth Direct Endpoints ───────────────────────────────────────────────────
 router.post('/login', authRateLimiter, AuthApiController.login);
 router.post('/register', authRateLimiter, AuthApiController.register);
+router.post('/register/initiate', authRateLimiter, AuthApiController.initiateSignup);
+router.post('/register/verify-otp', authRateLimiter, AuthApiController.verifySignupOtp);
+router.post('/register/set-password', authRateLimiter, AuthApiController.setPassword);
+router.post('/onboarding', optionalAuth, AuthApiController.completeOnboarding);
+router.put('/onboarding', optionalAuth, AuthApiController.completeOnboarding);
 router.post('/forgot-password', authRateLimiter, AuthApiController.forgotPassword);
+router.post('/reset-password/verify-otp', authRateLimiter, AuthApiController.verifyResetOtp);
 router.post('/reset-password', authRateLimiter, AuthApiController.resetPassword);
 router.post('/google-continue', authRateLimiter, AuthApiController.googleContinue);
 

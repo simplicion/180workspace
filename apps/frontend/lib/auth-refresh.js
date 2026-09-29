@@ -48,6 +48,13 @@ async function _doRefresh() {
             : null;
 
     if (!refreshToken) {
+        const authToken = typeof window !== "undefined" ? localStorage.getItem("platform_auth_token") : null;
+        if (authToken) {
+            // User logged in via 180 Profile / Sovereign Auth. Do not treat missing legacy refresh token as a fatal rejection.
+            const err = new Error("No legacy refresh token available for sovereign auth session");
+            err.isAuthRejection = false;
+            throw err;
+        }
         // The server just told us (401) the access token is invalid and we hold nothing to renew it with.
         const err = new Error("No refresh token available");
         err.isAuthRejection = true;

@@ -9,22 +9,22 @@ export default function CheckoutStandaloneLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between p-4 sm:p-6 text-slate-900 relative">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between p-4 sm:p-6 text-slate-900 font-sans relative">
       {/* Background Soft Dot-Matrix Pattern */}
       <div className="fixed inset-0 marketing-grid-bg pointer-events-none z-0 opacity-80" />
 
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 max-w-lg mx-auto w-full relative z-10">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 p-[1px] shadow-xs shrink-0 overflow-hidden">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[1px] shadow-xs shrink-0 overflow-hidden">
             <div className="w-full h-full bg-white rounded-xl flex items-center justify-center p-1.5">
-              <CreditCard className="w-4 h-4 text-purple-600" />
+              <CreditCard className="w-4 h-4 text-blue-600" />
             </div>
           </div>
           <span className="font-bold text-xs tracking-tight text-slate-900">
             180 Pay
           </span>
-          <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-md">
+          <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
             Sovereign Gateway
           </span>
         </div>

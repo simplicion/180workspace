@@ -334,7 +334,7 @@ function CheckoutContent() {
                 <Button
                     variant="glass"
                     onClick={() => router.back()}
-                    className="flex items-center gap-2 mb-8 group w-fit text-slate-600 dark:text-slate-300"
+                    className="flex items-center gap-2 mb-8 group w-fit text-zinc-600 dark:text-zinc-300"
                 >
                     <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                     Back to Plans
@@ -364,10 +364,10 @@ function CheckoutContent() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <h4 className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Plan Highlights</h4>
+                                <h4 className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-3">Plan Highlights</h4>
                                 <ul className="space-y-2.5">
                                     {plan.features.filter((f: string) => !f.toLowerCase().includes('trial') && !f.toLowerCase().includes('days')).map((f: string, i: number) => (
-                                        <li key={i} className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300">
+                                        <li key={i} className="flex items-center gap-2.5 text-zinc-600 dark:text-zinc-300">
                                             <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
                                             <span className="text-sm font-medium">{f}</span>
                                         </li>
@@ -375,13 +375,13 @@ function CheckoutContent() {
                                 </ul>
                             </div>
 
-                            <div className="bg-slate-50/80 dark:bg-slate-900/50 rounded-xl p-5 border border-slate-100 dark:border-slate-800 space-y-3">
-                                <h4 className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Secure Payment</h4>
-                                <div className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300">
+                            <div className="bg-zinc-50/80 dark:bg-zinc-900/50 rounded-xl p-5 border border-zinc-100 dark:border-zinc-800 space-y-3">
+                                <h4 className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Secure Payment</h4>
+                                <div className="flex items-center gap-2.5 text-zinc-600 dark:text-zinc-300">
                                     <Shield className="w-4 h-4 text-primary" />
                                     <span className="text-sm font-medium">Industry-standard SSL encryption</span>
                                 </div>
-                                <div className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300">
+                                <div className="flex items-center gap-2.5 text-zinc-600 dark:text-zinc-300">
                                     <Lock className="w-4 h-4 text-primary" />
                                     <span className="text-sm font-medium">Powered by Razorpay Secure</span>
                                 </div>
@@ -400,14 +400,14 @@ function CheckoutContent() {
 
                 {/* Pricing Summary - Right Column */}
                 <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
-                    <Card className="rounded-3xl bg-white dark:bg-black/60 shadow-2xl shadow-indigo-100/50 dark:shadow-[0_0_40px_rgba(255,255,255,0.05)] border border-slate-100 dark:border-white/10">
+                    <Card className="rounded-3xl bg-white dark:bg-zinc-950 shadow-2xl shadow-indigo-100/50 dark:shadow-[0_0_40px_rgba(255,255,255,0.05)] border border-zinc-100 dark:border-zinc-800">
                         <CardHeader className="p-8 pb-0">
                             <CardTitle className="text-lg font-bold">Order Summary</CardTitle>
                         </CardHeader>
                         <CardContent className="p-8 pt-6">
 
-                        <div className="space-y-4 pb-6 border-b border-slate-100 text-sm">
-                            <div className="flex justify-between items-center text-slate-500">
+                        <div className="space-y-4 pb-6 border-b border-zinc-100 dark:border-zinc-800 text-sm">
+                            <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
                                 <span>Subtotal</span>
                                 <span>{currencySym}{subTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                             </div>
@@ -417,7 +417,7 @@ function CheckoutContent() {
                                     <span>-{currencySym}{discountAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                                 </div>
                             )}
-                            <div className="flex justify-between items-center text-slate-500">
+                            <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
                                 <span>GST (18%)</span>
                                 <span>{currencySym}{taxAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
                             </div>
@@ -425,19 +425,19 @@ function CheckoutContent() {
 
                         <div className="py-4 flex justify-between items-end">
                             <div>
-                                <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">Total Amount</p>
-                                <p className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                                <p className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-1">Total Amount</p>
+                                <p className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">{currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
                             </div>
                         </div>
 
-                        <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-md p-3 mb-5 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
+                        <div className="bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-md p-3 mb-5 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                             {finalPrice <= 0 ? (
                                 <span>
-                                    <strong className="text-slate-700 dark:text-slate-300 font-medium">Full Discount Applied:</strong> Your subscription is fully covered for this billing cycle. It will renew at {currencySym}{(subTotal + (subTotal * 0.18)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month starting next billing cycle.
+                                    <strong className="text-zinc-700 dark:text-zinc-300 font-medium">Full Discount Applied:</strong> Your subscription is fully covered for this billing cycle. It will renew at {currencySym}{(subTotal + (subTotal * 0.18)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month starting next billing cycle.
                                 </span>
                             ) : (
                                 <span>
-                                    <strong className="text-slate-700 dark:text-slate-300 font-medium">Subscription Terms:</strong> You will be charged {currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })} today. 
+                                    <strong className="text-zinc-700 dark:text-zinc-300 font-medium">Subscription Terms:</strong> You will be charged {currencySym}{finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })} today. 
                                     {discountAmount > 0 
                                         ? ` Your subscription will renew at ${currencySym}${(subTotal + (subTotal * 0.18)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month starting next billing cycle.` 
                                         : ' This is a recurring monthly subscription.'}
@@ -498,7 +498,7 @@ function CheckoutContent() {
                             <Building2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                             <div>
                                 <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.name}</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">Billing for {user?.role} account</p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">Billing for {user?.role} account</p>
                             </div>
                         </div>
                     </div>
