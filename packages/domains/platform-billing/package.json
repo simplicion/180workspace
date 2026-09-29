@@ -2,8 +2,8 @@
   "name": "@workspace/platform-billing",
   "version": "1.0.0",
   "description": "Platform Billing and Subscription Services",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist"
@@ -16,5 +16,8 @@
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0",
     "@workspace/typescript-config": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
   }
 }
