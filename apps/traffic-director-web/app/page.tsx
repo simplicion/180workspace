@@ -22,9 +22,18 @@ export default function TrafficDirectorLandingPage() {
       clientId: '180-traffic-director',
       redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : undefined,
       onSuccess: (res: any) => {
-        if (res?.token) {
-          localStorage.setItem('platform_auth_token', res.token);
-          document.cookie = `platform_auth_token=${res.token}; path=/; max-age=604800; SameSite=Lax`;
+        const token = res?.authToken || res?.accessToken || res?.token;
+        if (token) {
+          localStorage.setItem('platform_auth_token', token);
+          localStorage.setItem('token', token);
+          const isProd = window.location.protocol === 'https:';
+          const is180 = window.location.hostname.endsWith('180workspace.com');
+          const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+          const secureAttr = isProd ? '; Secure' : '';
+          document.cookie = `platform_auth_token=${token}; path=/; max-age=604800; SameSite=Lax${secureAttr}${domainAttr}`;
+          if (res?.user) {
+            localStorage.setItem('user', JSON.stringify(res.user));
+          }
           window.location.href = '/traffic-director';
         }
       },

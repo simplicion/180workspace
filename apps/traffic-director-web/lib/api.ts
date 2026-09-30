@@ -36,17 +36,23 @@ export const clearAuthTokens = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('auth_token');
   localStorage.removeItem('accessToken');
-  document.cookie = 'platform_auth_token=; path=/; max-age=0;';
-  document.cookie = 'token=; path=/; max-age=0;';
-  document.cookie = 'auth_token=; path=/; max-age=0;';
+  const is180 = window.location.hostname.endsWith('180workspace.com');
+  const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+  document.cookie = `platform_auth_token=; path=/; max-age=0${domainAttr};`;
+  document.cookie = `platform_auth_token=; path=/; max-age=0;`;
+  document.cookie = `token=; path=/; max-age=0${domainAttr};`;
+  document.cookie = `token=; path=/; max-age=0;`;
+  document.cookie = `auth_token=; path=/; max-age=0${domainAttr};`;
+  document.cookie = `auth_token=; path=/; max-age=0;`;
 };
 
 const handleResponse = async (res: Response) => {
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     if (res.status === 401 && typeof window !== 'undefined') {
-      clearAuthTokens();
+      console.warn('[Traffic Director API] 401 Unauthorized encountered from:', res.url, data);
       if (window.location.pathname.startsWith('/traffic-director')) {
+        clearAuthTokens();
         window.location.href = '/';
       }
     }

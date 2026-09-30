@@ -505,19 +505,24 @@ export const OneEightyIdentity = {
         successTypes: ['180_IDENTITY_SUCCESS', '180_AUTH_SUCCESS'],
         closeTypes: ['180_IDENTITY_CLOSE'],
         mapSuccess: (data) => {
+          const bestToken = data.authToken || data.accessToken || data.token || null;
           const result: AuthResponse = {
             code: data.code,
             state: data.state || state,
-            token: data.token || data.accessToken || null,
+            token: bestToken,
             id_token: data.id_token || null,
             user: data.user || null,
           };
           if (typeof window !== 'undefined') {
             try {
-              if (result.token) {
-                localStorage.setItem('platform_auth_token', result.token);
-                localStorage.setItem('token', result.token);
-                document.cookie = `platform_auth_token=${result.token}; path=/; max-age=604800; SameSite=Lax`;
+              if (bestToken) {
+                localStorage.setItem('platform_auth_token', bestToken);
+                localStorage.setItem('token', bestToken);
+                const isProd = window.location.protocol === 'https:';
+                const is180 = window.location.hostname.endsWith('180workspace.com');
+                const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+                const secureAttr = isProd ? '; Secure' : '';
+                document.cookie = `platform_auth_token=${bestToken}; path=/; max-age=604800; SameSite=Lax${secureAttr}${domainAttr}`;
               }
               if (result.user) {
                 localStorage.setItem('user', JSON.stringify(result.user));
@@ -561,19 +566,24 @@ export const OneEightyIdentity = {
         successTypes: ['180_IDENTITY_SUCCESS', '180_AUTH_SUCCESS'],
         closeTypes: ['180_IDENTITY_CLOSE'],
         mapSuccess: (data) => {
+          const bestToken = data.authToken || data.accessToken || data.token || null;
           const result: AuthResponse = {
             code: data.code,
             state: data.state || state,
-            token: data.token || data.accessToken || null,
+            token: bestToken,
             id_token: data.id_token || null,
             user: data.user || null,
           };
           if (typeof window !== 'undefined') {
             try {
-              if (result.token) {
-                localStorage.setItem('platform_auth_token', result.token);
-                localStorage.setItem('token', result.token);
-                document.cookie = `platform_auth_token=${result.token}; path=/; max-age=604800; SameSite=Lax`;
+              if (bestToken) {
+                localStorage.setItem('platform_auth_token', bestToken);
+                localStorage.setItem('token', bestToken);
+                const isProd = window.location.protocol === 'https:';
+                const is180 = window.location.hostname.endsWith('180workspace.com');
+                const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+                const secureAttr = isProd ? '; Secure' : '';
+                document.cookie = `platform_auth_token=${bestToken}; path=/; max-age=604800; SameSite=Lax${secureAttr}${domainAttr}`;
               }
               if (result.user) {
                 localStorage.setItem('user', JSON.stringify(result.user));
@@ -619,20 +629,25 @@ export const OneEightyIdentity = {
         }
         clearInterval(pollTimer);
 
+        const bestToken = event.data.authToken || event.data.accessToken || event.data.token || null;
         const result: AuthResponse = {
           code: event.data.code,
           state: event.data.state || state,
-          token: event.data.token || event.data.accessToken || null,
+          token: bestToken,
           id_token: event.data.id_token || null,
           user: event.data.user || null,
         };
 
         if (typeof window !== 'undefined') {
           try {
-            if (result.token) {
-              localStorage.setItem('platform_auth_token', result.token);
-              localStorage.setItem('token', result.token);
-              document.cookie = `platform_auth_token=${result.token}; path=/; max-age=604800; SameSite=Lax`;
+            if (bestToken) {
+              localStorage.setItem('platform_auth_token', bestToken);
+              localStorage.setItem('token', bestToken);
+              const isProd = window.location.protocol === 'https:';
+              const is180 = window.location.hostname.endsWith('180workspace.com');
+              const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+              const secureAttr = isProd ? '; Secure' : '';
+              document.cookie = `platform_auth_token=${bestToken}; path=/; max-age=604800; SameSite=Lax${secureAttr}${domainAttr}`;
             }
             if (result.user) {
               localStorage.setItem('user', JSON.stringify(result.user));
