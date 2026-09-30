@@ -33,7 +33,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   bool _newClient = false;
   final Set<String> _services = {'content_calendar', 'short_form_video', 'publishing'};
   BrandVoice _voice = BrandVoice(projectId: '');
-  final Set<String> _accountIds = const {};
+  final Set<String> _accountIds = {};
   bool _approval = true;
   String _tz = 'UTC';
 

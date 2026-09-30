@@ -36,7 +36,15 @@ class AppConfig {
 
   /// Custom scheme the OS hands back to the app after a browser OAuth hop.
   static const String deepLinkScheme = 'workspace180';
-  static const String oauthRedirectUri = 'workspace180://oauth/callback';
+  static String get oauthRedirectUri {
+    const fromEnv = String.fromEnvironment('OAUTH_REDIRECT_URI');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (kIsWeb) {
+      final base = Uri.base.origin;
+      return base.isNotEmpty ? '$base/#/oauth-callback' : 'http://localhost:3007/#/oauth-callback';
+    }
+    return 'workspace180://oauth/callback';
+  }
 
   /// 180 Identity Provider Configurations
   static String get identityServerUrl {

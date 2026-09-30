@@ -254,7 +254,7 @@ class UserAssistedPublishPackage {
 
   factory UserAssistedPublishPackage.fromJson(Json j) {
     final rawPlatformPayloads = j['platformPayloads'];
-    final Map<SocialPlatform, UniversalPlatformPayload> payloads = const {};
+    final Map<SocialPlatform, UniversalPlatformPayload> payloads = {};
     if (rawPlatformPayloads is Map) {
       for (final entry in rawPlatformPayloads.entries) {
         final plat = SocialPlatform.parse(entry.key);

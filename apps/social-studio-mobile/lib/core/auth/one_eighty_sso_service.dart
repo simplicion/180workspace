@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
@@ -52,38 +53,188 @@ class OneEightySsoService {
         'state': state,
         'code_challenge': challenge,
         'code_challenge_method': 'S256',
-        'ux_mode': kIsWeb ? 'popup' : 'redirect',
+        'ux_mode': kIsWeb ? 'bottom_sheet' : 'redirect',
       },
     );
 
     if (kIsWeb) {
-      // Use web-native popup and postMessage
-      html.window.open(
-        authUrl.toString(),
-        '180 Identity',
-        'width=500,height=700,left=100,top=100',
+      final completer = Completer<Map<String, dynamic>?>();
+
+      // Inject animation keyframes into the document head
+      const styleId = '__180_identity_sheet_styles__';
+      if (html.document.getElementById(styleId) == null) {
+        final style = html.StyleElement()
+          ..id = styleId
+          ..text = '''
+            @keyframes one-eighty-fade-in { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes one-eighty-fade-out { from { opacity: 1; } to { opacity: 0; } }
+            @keyframes one-eighty-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+            @keyframes one-eighty-slide-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
+          ''';
+        html.document.head?.append(style);
+      }
+
+      final isMobile = (html.window.innerWidth ?? 800) < 768;
+
+      final root = html.DivElement()
+        ..id = '__180_identity_sheet_container__'
+        ..style.position = 'fixed'
+        ..style.top = '0'
+        ..style.left = '0'
+        ..style.right = '0'
+        ..style.bottom = '0'
+        ..style.zIndex = '999999'
+        ..style.display = 'flex'
+        ..style.flexDirection = 'column'
+        ..style.justifyContent = 'flex-end'
+        ..style.alignItems = 'center'
+        ..style.fontFamily = 'system-ui, -apple-system, sans-serif';
+
+      final backdrop = html.DivElement()
+        ..style.position = 'fixed'
+        ..style.top = '0'
+        ..style.left = '0'
+        ..style.right = '0'
+        ..style.bottom = '0'
+        ..style.background = 'rgba(0, 0, 0, 0.72)'
+        ..style.setProperty('backdrop-filter', 'blur(8px)')
+        ..style.setProperty('-webkit-backdrop-filter', 'blur(8px)')
+        ..style.animation = 'one-eighty-fade-in 0.25s ease-out forwards'
+        ..style.cursor = 'pointer';
+
+      final sheet = html.DivElement()
+        ..style.position = 'relative'
+        ..style.zIndex = '1000000'
+        ..style.width = '100%'
+        ..style.maxWidth = isMobile ? '100%' : '480px'
+        ..style.height = isMobile ? '90vh' : '720px'
+        ..style.maxHeight = '94vh'
+        ..style.margin = isMobile ? '0' : '0 0 24px 0'
+        ..style.background = '#09090b'
+        ..style.color = '#fafafa'
+        ..style.border = '1px solid rgba(255, 255, 255, 0.12)'
+        ..style.borderRadius = isMobile ? '24px 24px 0 0' : '24px'
+        ..style.boxShadow = '0 -12px 40px rgba(0, 0, 0, 0.65), 0 20px 48px rgba(0, 0, 0, 0.85)'
+        ..style.display = 'flex'
+        ..style.flexDirection = 'column'
+        ..style.overflow = 'hidden'
+        ..style.animation = 'one-eighty-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+
+      final header = html.DivElement()
+        ..style.flexShrink = '0'
+        ..style.padding = '10px 16px 8px 16px'
+        ..style.display = 'flex'
+        ..style.flexDirection = 'column'
+        ..style.alignItems = 'center'
+        ..style.borderBottom = '1px solid rgba(255, 255, 255, 0.08)'
+        ..style.background = '#09090b'
+        ..style.position = 'relative';
+
+      final grabBar = html.DivElement()
+        ..style.width = '44px'
+        ..style.height = '4px'
+        ..style.borderRadius = '9999px'
+        ..style.background = 'rgba(255, 255, 255, 0.22)'
+        ..style.marginBottom = '8px';
+      header.append(grabBar);
+
+      final bar = html.DivElement()
+        ..style.width = '100%'
+        ..style.display = 'flex'
+        ..style.alignItems = 'center'
+        ..style.justifyContent = 'space-between'
+        ..style.gap = '12px';
+
+      final titleWrap = html.DivElement()
+        ..style.display = 'flex'
+        ..style.alignItems = 'center'
+        ..style.gap = '8px';
+      titleWrap.setInnerHtml(
+        '<span style="font-size: 13px; font-weight: 700; color: #f4f4f5; letter-spacing: -0.01em;">180 Sovereign Identity</span>',
+        treeSanitizer: html.NodeTreeSanitizer.trusted,
       );
 
-      // Wait for postMessage from the popup
-      await for (final event in html.window.onMessage) {
+      final closeBtn = html.ButtonElement()
+        ..type = 'button'
+        ..style.width = '28px'
+        ..style.height = '28px'
+        ..style.borderRadius = '50%'
+        ..style.background = 'rgba(255, 255, 255, 0.08)'
+        ..style.border = '1px solid rgba(255, 255, 255, 0.1)'
+        ..style.color = '#a1a1aa'
+        ..style.display = 'flex'
+        ..style.alignItems = 'center'
+        ..style.justifyContent = 'center'
+        ..style.cursor = 'pointer'
+        ..style.padding = '0';
+      closeBtn.setInnerHtml(
+        '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>',
+        treeSanitizer: html.NodeTreeSanitizer.trusted,
+      );
+
+      bar.append(titleWrap);
+      bar.append(closeBtn);
+      header.append(bar);
+
+      final iframe = html.IFrameElement()
+        ..src = authUrl.toString()
+        ..style.flex = '1'
+        ..style.width = '100%'
+        ..style.height = '100%'
+        ..style.border = 'none'
+        ..style.background = 'transparent';
+
+      sheet.append(header);
+      sheet.append(iframe);
+      root.append(backdrop);
+      root.append(sheet);
+      html.document.body?.append(root);
+
+      void closeSheet() {
+        sheet.style.animation = 'one-eighty-slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+        backdrop.style.animation = 'one-eighty-fade-out 0.25s ease-in forwards';
+        Future.delayed(const Duration(milliseconds: 250), () {
+          root.remove();
+        });
+      }
+
+      backdrop.onClick.listen((_) {
+        closeSheet();
+        if (!completer.isCompleted) completer.complete(null);
+      });
+      closeBtn.onClick.listen((_) {
+        closeSheet();
+        if (!completer.isCompleted) completer.complete(null);
+      });
+
+      late StreamSubscription msgSub;
+      msgSub = html.window.onMessage.listen((event) async {
         final data = event.data;
-        if (data is Map && (data['type'] == '180_IDENTITY_SUCCESS' || data['type'] == '180_AUTH_SUCCESS')) {
-          final returnedCode = data['code'];
-          final returnedState = data['state'];
-          final directToken = data['token'];
-          
-          if (returnedCode != null && returnedState != null) {
-            // Re-construct the callback URI format to reuse handleCallbackUri logic
-            final callbackUri = Uri.parse('${AppConfig.identityRedirectUri}?code=$returnedCode&state=$returnedState');
-            return await handleCallbackUri(callbackUri);
-          } else if (directToken != null) {
-            final tokenStr = directToken.toString();
-            await _storage.write(key: _kAccessToken, value: tokenStr);
-            return {'access_token': tokenStr, 'user': data['user']};
+        if (data is Map) {
+          if (data['type'] == '180_IDENTITY_CLOSE') {
+            closeSheet();
+            msgSub.cancel();
+            if (!completer.isCompleted) completer.complete(null);
+          } else if (data['type'] == '180_IDENTITY_SUCCESS' || data['type'] == '180_AUTH_SUCCESS') {
+            closeSheet();
+            msgSub.cancel();
+            final returnedCode = data['code'];
+            final returnedState = data['state'];
+            final directToken = data['token'];
+            if (returnedCode != null && returnedState != null) {
+              final callbackUri = Uri.parse('${AppConfig.identityRedirectUri}?code=$returnedCode&state=$returnedState');
+              final res = await handleCallbackUri(callbackUri);
+              if (!completer.isCompleted) completer.complete(res);
+            } else if (directToken != null) {
+              final tokenStr = directToken.toString();
+              await _storage.write(key: _kAccessToken, value: tokenStr);
+              if (!completer.isCompleted) completer.complete({'access_token': tokenStr, 'user': data['user']});
+            }
           }
         }
-      }
-      return null;
+      });
+
+      return completer.future;
     } else {
       if (!await launchUrl(authUrl, mode: LaunchMode.externalApplication)) {
         throw Exception('Could not launch 180 Identity authentication browser.');

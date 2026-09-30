@@ -138,7 +138,7 @@ class _PostBodyState extends ConsumerState<_PostBody> {
 
     final redditMeta = redditVariant?.platformMeta ?? {};
 
-    final Map<SocialPlatform, UniversalPlatformPayload> payloads = const {};
+    final Map<SocialPlatform, UniversalPlatformPayload> payloads = {};
     for (final v in p.variants) {
       payloads[v.platform] = UniversalPlatformPayload(
         platform: v.platform,

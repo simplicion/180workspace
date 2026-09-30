@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../util/json.dart';
@@ -28,7 +27,7 @@ class DeviceRegistration {
   Future<String?> installKey() async {
     try {
       if (_installKeyReader != null) return await _installKeyReader();
-      if (!Platform.isAndroid) return null;
+      if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
       final v = await _deviceChannel.invokeMethod<String>('installKey');
       return (v == null || v.length < 8) ? null : 'android:$v';
     } catch (_) {
@@ -40,12 +39,21 @@ class DeviceRegistration {
 
   String get platform {
     if (_platformOverride != null) return _platformOverride;
-    if (Platform.isIOS) return 'ios';
-    if (Platform.isAndroid) return 'android';
-    if (Platform.isWindows) return 'windows';
-    if (Platform.isMacOS) return 'macos';
-    if (Platform.isLinux) return 'linux';
-    return 'unknown';
+    if (kIsWeb) return 'web';
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.iOS:
+        return 'ios';
+      case TargetPlatform.android:
+        return 'android';
+      case TargetPlatform.windows:
+        return 'windows';
+      case TargetPlatform.macOS:
+        return 'macos';
+      case TargetPlatform.linux:
+        return 'linux';
+      default:
+        return 'unknown';
+    }
   }
 
   Future<String> ensureToken({bool forceRenew = false}) async {

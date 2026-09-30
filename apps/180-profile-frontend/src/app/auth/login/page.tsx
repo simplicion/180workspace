@@ -822,7 +822,7 @@ function LoginFormContent() {
           <form onSubmit={handleLoginSubmit} className="space-y-3.5">
             <SmartAuthInput
               label="Email or Phone Number"
-              placeholder="name@email.com or 9876543210"
+              placeholder="Enter your email address or phone number"
               value={loginEmailOrPhone}
               onChange={setLoginEmailOrPhone}
               required
@@ -940,7 +940,7 @@ function LoginFormContent() {
             <div>
               <SmartAuthInput
                 label="Email or Phone Number"
-                placeholder="alex@company.com or 9876543210"
+                placeholder="Enter your email address or phone number"
                 value={signupEmailOrPhone}
                 onChange={setSignupEmailOrPhone}
                 required

@@ -87,7 +87,7 @@ function ForgotPasswordContent() {
         <form onSubmit={handleForgotSubmit} className="space-y-3.5">
           <SmartAuthInput
             label="Email or Mobile Number"
-            placeholder="name@company.com or 9381420546"
+            placeholder="Enter your email address or phone number"
             value={emailOrPhone}
             onChange={setEmailOrPhone}
             required

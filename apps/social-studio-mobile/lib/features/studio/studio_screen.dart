@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,7 +11,7 @@ import '../posts/post_providers.dart';
 import '../projects/project_provider.dart';
 
 /// The on-device video engine exists for Android only; iOS shows this instead of failing later.
-bool get studioSupported => !Platform.isIOS;
+bool get studioSupported => defaultTargetPlatform != TargetPlatform.iOS;
 
 /// Studio tab: shoot, edit, and the active project's posts that still need a video.
 class StudioScreen extends ConsumerWidget {

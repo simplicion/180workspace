@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +21,7 @@ import 'studio_controller.dart';
 Future<void> showExportSheet(BuildContext context, StudioController c) async {
   // Android 13+ hides the background-export progress notification without this permission.
   // Denial is fine: the export still runs, just without the notification.
-  if (Platform.isAndroid) {
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     try {
       await Permission.notification.request();
     } catch (_) {}
@@ -70,7 +70,9 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
     if (!mounted) return;
     final out = c.export?.result?.outputPath;
     if (out != null && _player == null) {
-      final p = VideoPlayerController.file(File(out));
+      final p = kIsWeb
+          ? VideoPlayerController.networkUrl(Uri.parse(out))
+          : VideoPlayerController.file(File(out));
       _player = p;
       p.initialize().then((_) {
         if (mounted) setState(() => p.setLooping(true));

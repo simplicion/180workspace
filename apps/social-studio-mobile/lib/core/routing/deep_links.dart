@@ -59,13 +59,17 @@ class DeepLinkService {
         uri.path.contains('oauth-callback') ||
         uri.fragment.contains('oauth-callback') ||
         uri.queryParameters.containsKey('code') ||
-        uri.fragment.contains('code=');
+        uri.fragment.contains('code=') ||
+        uri.queryParameters.containsKey('status') ||
+        uri.fragment.contains('status=') ||
+        uri.queryParameters.containsKey('accountId') ||
+        uri.fragment.contains('accountId=') ||
+        uri.queryParameters.containsKey('selectionId') ||
+        uri.fragment.contains('selectionId=') ||
+        uri.queryParameters.containsKey('error') ||
+        uri.fragment.contains('error=');
 
-    if (isOAuth &&
-        (uri.queryParameters.containsKey('code') ||
-            uri.fragment.contains('code=') ||
-            uri.queryParameters.containsKey('error') ||
-            uri.fragment.contains('error='))) {
+    if (isOAuth) {
       _oauth.add(OAuthCallback(uri));
       return null;
     }

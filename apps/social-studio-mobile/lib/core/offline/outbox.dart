@@ -124,7 +124,7 @@ class FileOutboxStorage implements OutboxStorage {
 }
 
 class MemoryOutboxStorage implements OutboxStorage {
-  List<Json> rows = const [];
+  List<Json> rows = [];
 
   @override
   Future<List<Json>> load() async => rows.map((r) => Map<String, dynamic>.from(r)).toList();
@@ -153,7 +153,7 @@ class Outbox extends ChangeNotifier {
   final Random _random;
   final _uuid = Uuid();
 
-  final List<OutboxMutation> _items = const [];
+  final List<OutboxMutation> _items = [];
   bool _loaded = false;
   bool _draining = false;
   bool online = true;

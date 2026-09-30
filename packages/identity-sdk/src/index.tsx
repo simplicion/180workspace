@@ -474,7 +474,7 @@ export const OneEightyIdentity = {
 
     // Resolve UX mode: 'bottom_sheet' | 'popup' | 'fullscreen' | 'redirect' | 'auto'
     const isMobile = isMobileDevice();
-    let effectiveMode: 'bottom_sheet' | 'popup' | 'fullscreen' = 'popup';
+    let effectiveMode: 'bottom_sheet' | 'popup' | 'fullscreen' = 'bottom_sheet';
 
     if (options.uxMode === 'bottom_sheet') {
       effectiveMode = 'bottom_sheet';
@@ -483,8 +483,8 @@ export const OneEightyIdentity = {
     } else if (options.uxMode === 'popup') {
       effectiveMode = 'popup';
     } else {
-      // 'auto' or undefined: Mobile gets bottom_sheet, Desktop gets popup
-      effectiveMode = isMobile ? 'bottom_sheet' : 'popup';
+      // 'auto' or undefined: Unified responsive Razorpay-style bottom sheet / glass modal on all environments
+      effectiveMode = 'bottom_sheet';
     }
 
     const authUrl = `${authServer}/auth/login?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}&response_type=${encodeURIComponent(responseType)}&ux_mode=${effectiveMode}`;

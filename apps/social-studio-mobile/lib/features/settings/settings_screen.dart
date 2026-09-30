@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -85,6 +86,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Re-downloadable media only: B-roll/music fetched for exports and audio extracted for
   /// transcription. Rendered videos, recordings and upload staging files are never touched.
   Future<List<Directory>> _cacheDirs() async {
+    if (kIsWeb) return const [];
     final tmp = await getTemporaryDirectory();
     final docs = await getApplicationDocumentsDirectory();
     return [Directory('${tmp.path}/studio_media'), Directory('${docs.path}/extracted_audio')];
@@ -223,22 +225,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // Section: Appearance
           _sectionHeader(context, 'Appearance', Icons.palette_outlined),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           _card(context, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SegmentedButton<ThemeMode>(
-              key: Key('settings.theme'),
+              key: const Key('settings.theme'),
               showSelectedIcon: false,
-              segments: [
-                ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+              segments: const [
                 ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
                 ButtonSegment(value: ThemeMode.system, label: Text('System')),
               ],
-              selected: {ref.watch(themeModeProvider)},
+              selected: {ref.watch(themeModeProvider) == ThemeMode.light ? ThemeMode.dark : ref.watch(themeModeProvider)},
               onSelectionChanged: (v) => ref.read(themeModeProvider.notifier).setThemeMode(v.first),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'Select the appearance of the application. Light mode is now fully supported!',
+              'Light mode is not available yet: the studio screens use the dark Media Studio palette. System follows your device once light mode ships and stays dark until then.',
               style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
             ),
           ])),

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
@@ -46,7 +47,7 @@ class CaptionFonts {
     }.where((f) => f.$1.toLowerCase() != 'inter').toList();
     final paths = <String, String>{};
     final warnings = <String>[];
-    if (wanted.isEmpty) return (paths, warnings);
+    if (wanted.isEmpty || kIsWeb) return (paths, warnings);
     Directory? dir;
     try {
       dir = await getApplicationSupportDirectory();

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -96,7 +97,9 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     });
     try {
       await c.load(path);
-      final p = VideoPlayerController.file(File(path));
+      final p = kIsWeb
+          ? VideoPlayerController.networkUrl(Uri.parse(path))
+          : VideoPlayerController.file(File(path));
       await p.initialize();
       await _player?.dispose();
       _player = p;

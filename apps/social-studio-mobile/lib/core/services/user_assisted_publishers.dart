@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -46,7 +47,7 @@ class XUserAssistedPublisher {
     if (payload.text.runes.length > maxStandardChars) {
       issues.add('Post text exceeds standard limit of $maxStandardChars characters (${payload.text.runes.length} chars). It may require X Premium.');
     }
-    if (payload.mediaPath != null && payload.mediaPath!.isNotEmpty) {
+    if (!kIsWeb && payload.mediaPath != null && payload.mediaPath!.isNotEmpty) {
       final file = File(payload.mediaPath!);
       if (!file.existsSync()) {
         issues.add('Attached media file does not exist on device.');
@@ -89,7 +90,7 @@ class XUserAssistedPublisher {
 
     // 3. Native Android Sharesheet handoff
     try {
-      final hasMedia = payload.mediaPath != null && payload.mediaPath!.isNotEmpty && File(payload.mediaPath!).existsSync();
+      final hasMedia = !kIsWeb && payload.mediaPath != null && payload.mediaPath!.isNotEmpty && File(payload.mediaPath!).existsSync();
       if (hasMedia) {
         await SharePlus.instance.share(
           ShareParams(
