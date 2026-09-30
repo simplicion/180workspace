@@ -457,6 +457,36 @@ jobs:
               fi
             fi
 
+            # 4g. Desktop Device Registration Secret & Cartesia STT Fallback
+            if ! grep -q '^DESKTOP_DEVICE_JWT_SECRET=.\+' .env; then
+              printf '\nDESKTOP_DEVICE_JWT_SECRET=2d5e0a2bbce3284cfd37b8e3b21cd97865a36bab40b0e22028ec193937d79aca\n' >> .env
+              echo "==> DESKTOP_DEVICE_JWT_SECRET injected."
+            fi
+            if ! grep -q '^CARTESIA_API_KEY=.\+' .env; then
+              printf '\nCARTESIA_API_KEY="sk_car_dSSNJERwnECZHh4dspK6kg"\n' >> .env
+              echo "==> CARTESIA_API_KEY injected."
+            fi
+
+            # 4h. Social Channel Publishing Credentials Fallback
+            if ! grep -q '^META_APP_ID=.\+' .env; then
+              printf '\nMETA_APP_ID="1132232105894760"\nMETA_APP_SECRET="87950feaf9cb74510f7ad1fddd6767fc"\n' >> .env
+              echo "==> Meta Platform credentials injected."
+            fi
+            if ! grep -q '^INSTAGRAM_APP_ID=.\+' .env; then
+              printf '\nINSTAGRAM_APP_ID="1123089790067219"\nINSTAGRAM_APP_SECRET="e9053a522e2718d50d17894bb8a66f59"\n' >> .env
+              echo "==> Instagram credentials injected."
+            fi
+            if ! grep -q '^THREADS_APP_ID=.\+' .env; then
+              printf '\nTHREADS_APP_ID="930456979728655"\nTHREADS_APP_SECRET="f7fb9ecf49779b1479473caf8e68ad45"\n' >> .env
+              echo "==> Threads credentials injected."
+            fi
+            if ! grep -q '^SOCIAL_OAUTH_CALLBACK_BASE_URL=.\+' .env; then
+              printf '\nSOCIAL_OAUTH_CALLBACK_BASE_URL="https://api.180workspace.com"\n' >> .env
+            fi
+            if ! grep -q '^SOCIAL_MEDIA_PUBLIC_BASE_URL=.\+' .env; then
+              printf '\nSOCIAL_MEDIA_PUBLIC_BASE_URL="https://api.180workspace.com"\n' >> .env
+            fi
+
             # 5. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
             sudo chown -R $(whoami):$(whoami) /home/ubuntu/app
             if [ ! -d ".git" ]; then

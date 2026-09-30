@@ -14,7 +14,7 @@
     "paths": {
       "@workspace/db": ["../../db/dist/index.d.ts", "../../db/src/index.ts"],
       "@workspace/db/*": ["../../db/*"],
-      "@workspace/identity-sdk": ["../../identity-sdk/dist/index.js", "../../identity-sdk/src/index.tsx"],
+      "@workspace/identity-sdk": ["../../identity-sdk/dist/index.d.ts", "../../identity-sdk/src/index.tsx"],
       "@workspace/identity-sdk/*": ["../../identity-sdk/*"]
     }
   },
