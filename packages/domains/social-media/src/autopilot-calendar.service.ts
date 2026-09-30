@@ -156,8 +156,23 @@ export class AutopilotCalendarService {
         const rawDate = body.startDate === undefined || body.startDate === null || body.startDate === ''
             ? todayIn(timezone, this.deps.now())
             : String(body.startDate).trim();
+        let startDate: string;
         const dateMatch = rawDate.match(/^(\d{4}-\d{2}-\d{2})/);
-        const startDate = dateMatch ? dateMatch[1] : rawDate;
+        if (dateMatch) {
+            startDate = dateMatch[1];
+        } else if (/^[A-Za-z]{3,9}\b.*\d{1,2}/.test(rawDate) || /^\d{1,2}\s+[A-Za-z]{3,9}/.test(rawDate)) {
+            // Human date from mobile picker like "Sat 31 Oct" or "31 Oct"
+            const curYear = this.deps.now().getFullYear();
+            const parsed = Date.parse(`${rawDate} ${curYear}`);
+            if (!Number.isNaN(parsed)) {
+                const dt = new Date(parsed);
+                startDate = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+            } else {
+                throw new AutopilotError('INVALID_INPUT', 'startDate must be YYYY-MM-DD');
+            }
+        } else {
+            throw new AutopilotError('INVALID_INPUT', 'startDate must be YYYY-MM-DD');
+        }
         if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || Number.isNaN(Date.parse(`${startDate}T00:00:00Z`))) {
             throw new AutopilotError('INVALID_INPUT', 'startDate must be YYYY-MM-DD');
         }

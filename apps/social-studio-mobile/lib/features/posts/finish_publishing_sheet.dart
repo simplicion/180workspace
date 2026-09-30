@@ -207,7 +207,7 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
           context,
           preferWeb
               ? 'Opening ${platform.label} in browser…'
-              : 'Opening ${platform.label}… Media & text handed off!',
+              : result.message,
           color: AppTheme.success,
         );
       } else {

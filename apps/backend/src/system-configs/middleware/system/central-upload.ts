@@ -28,9 +28,9 @@ export function serverVideoProcessingEnabled(): boolean {
     return (process.env.SERVER_VIDEO_PROCESSING || 'on').toLowerCase() !== 'off';
 }
 
-// In-memory storage - 50MB max to accommodate videos
+// Up to 250MB to accommodate high-resolution phone videos
 const storage = multer.memoryStorage();
-export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 250 * 1024 * 1024;
 
 const upload = multer({
     storage,

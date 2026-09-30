@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -18,6 +19,41 @@ import 'user_assisted_publishers.dart';
 /// 3. Hands off to native Sharesheet with video/image attachment or opens native/web composer.
 class CentralizedManualPublisher {
   CentralizedManualPublisher._();
+
+  static const MethodChannel _appLauncher = MethodChannel('com.workspace180.socialmanager/app_launcher');
+
+  /// Android target packages to launch the platform app directly (skipping the OS share modal)
+  static String? getTargetAndroidPackage(SocialPlatform platform) {
+    switch (platform) {
+      case SocialPlatform.youtube:
+        return 'com.google.android.youtube';
+      case SocialPlatform.pinterest:
+        return 'com.pinterest';
+      case SocialPlatform.instagram:
+        return 'com.instagram.android';
+      case SocialPlatform.threads:
+        return 'com.instagram.barcelona';
+      case SocialPlatform.facebook:
+        return 'com.facebook.katana';
+      case SocialPlatform.linkedin:
+        return 'com.linkedin.android';
+      case SocialPlatform.x:
+        return 'com.twitter.android';
+      case SocialPlatform.reddit:
+        return 'com.reddit.frontpage';
+      case SocialPlatform.tiktok:
+        return 'com.zhiliaoapp.musically';
+      default:
+        return null;
+    }
+  }
+
+  static String? getFallbackAndroidPackage(SocialPlatform platform) {
+    if (platform == SocialPlatform.tiktok) {
+      return 'com.ss.android.ugc.trill';
+    }
+    return null;
+  }
 
   /// Validates text requirements, character limits, and media files for any platform.
   static List<String> validate(UniversalPlatformPayload payload) {
@@ -122,17 +158,52 @@ class CentralizedManualPublisher {
       );
     }
 
-    // 3. Native Android/iOS Sharesheet handoff
+    // 3. Direct Native App Handoff (bypasses generic Android Share Sheet chooser)
+    final hasMedia = !kIsWeb &&
+        payload.mediaPath != null &&
+        payload.mediaPath!.isNotEmpty &&
+        File(payload.mediaPath!).existsSync();
+
+    final fullShareContent = (payload.title != null && payload.title!.isNotEmpty && p != SocialPlatform.x)
+        ? '${payload.title}\n\n$shareText'
+        : shareText;
+
+    if (!kIsWeb && Platform.isAndroid) {
+      final targetPackage = getTargetAndroidPackage(p);
+      if (targetPackage != null) {
+        try {
+          final isInstalled = await _appLauncher.invokeMethod<bool>('isAppInstalled', {'package': targetPackage}) ?? false;
+          final fallbackPkg = getFallbackAndroidPackage(p);
+          final activePkg = isInstalled
+              ? targetPackage
+              : (fallbackPkg != null && (await _appLauncher.invokeMethod<bool>('isAppInstalled', {'package': fallbackPkg}) ?? false))
+                  ? fallbackPkg
+                  : null;
+
+          if (activePkg != null) {
+            await _appLauncher.invokeMethod('launchDirectShare', {
+              'package': activePkg,
+              'title': payload.title ?? '',
+              'text': shareText,
+              'mediaPath': hasMedia ? payload.mediaPath : null,
+              'mimeType': payload.mimeType.isNotEmpty ? payload.mimeType : (p == SocialPlatform.youtube ? 'video/*' : '*/*'),
+            });
+
+            return UserAssistedHandoffResult(
+              success: true,
+              mode: HandoffMode.nativeApp,
+              message: 'Opened ${p.label} directly with your prefilled content!',
+            );
+          }
+        } catch (e) {
+          debugPrint('[CentralizedManualPublisher] Direct package handoff error: $e');
+          // If direct package launch fails, proceed below to sharesheet / web fallback
+        }
+      }
+    }
+
+    // 4. Native Device Sharesheet handoff (Fallback or iOS)
     try {
-      final hasMedia = !kIsWeb &&
-          payload.mediaPath != null &&
-          payload.mediaPath!.isNotEmpty &&
-          File(payload.mediaPath!).existsSync();
-
-      final fullShareContent = (payload.title != null && payload.title!.isNotEmpty && p != SocialPlatform.x)
-          ? '${payload.title}\n\n$shareText'
-          : shareText;
-
       if (hasMedia) {
         await SharePlus.instance.share(
           ShareParams(
@@ -149,7 +220,7 @@ class CentralizedManualPublisher {
       return UserAssistedHandoffResult(
         success: true,
         mode: HandoffMode.nativeShare,
-        message: 'Content handed off to device sharing sheet for ${p.label}.',
+        message: 'Content handed off to ${p.label}.',
       );
     } catch (e) {
       // Fallback to web compose if native share throws an exception
