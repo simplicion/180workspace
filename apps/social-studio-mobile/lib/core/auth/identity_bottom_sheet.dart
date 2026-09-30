@@ -193,8 +193,20 @@ class _IdentityBottomSheetState extends State<IdentityBottomSheet> {
     final media = MediaQuery.of(context);
     final targetHeight = _isFullScreen ? media.size.height : (media.size.height * 0.88);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (!kIsWeb && await _controller.canGoBack()) {
+          await _controller.goBack();
+          return;
+        }
+        if (context.mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(null);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
       curve: Curves.easeOutCubic,
       height: targetHeight,
       decoration: BoxDecoration(
@@ -352,6 +364,7 @@ class _IdentityBottomSheetState extends State<IdentityBottomSheet> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
