@@ -60,6 +60,8 @@ export const ProductionPlanSchema = z.object({
   tasks: z.array(ProductionTaskSchema),
   status: TaskStatusSchema.default("PENDING"),
   currentTaskId: z.string().optional(),
+  companyId: z.string().optional(),
+  userId: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   summary: z.string().optional(),

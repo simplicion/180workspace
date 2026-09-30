@@ -3,7 +3,8 @@ import multer from "multer";
 
 /**
  * Mobile transcription: the phone uploads the clip's AUDIO ONLY (m4a/wav/...), and we return
- * word-level timestamps from Cartesia STT. No media processing (ffmpeg) happens server-side.
+ * word-level timestamps from Groq Whisper or OpenAI Whisper cloud STT.
+ * Cartesia STT is NOT used here — it is reserved exclusively for Voiceforce telephony.
  * Contract: docs/social-studio-mobile/AI_DIRECTOR_CONTRACT.md §1
  */
 
@@ -22,9 +23,6 @@ export const ALLOWED_AUDIO_MIME_TYPES = new Set([
   "audio/webm",
   "audio/ogg",
 ]);
-
-const CARTESIA_STT_URL = "https://api.cartesia.ai/stt";
-const CARTESIA_VERSION = "2025-04-16";
 
 export class TranscriptionUnavailableError extends Error {}
 export class TranscriptionFailedError extends Error {}
@@ -45,7 +43,6 @@ export interface TranscriptionResponse {
 export interface SttCredentials {
   groqKey?: string;
   openaiKey?: string;
-  cartesiaKey?: string;
 }
 
 const GROQ_STT_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
@@ -55,20 +52,15 @@ const OPENAI_STT_URL = "https://api.openai.com/v1/audio/transcriptions";
 export function requireSttCredentials(override?: SttCredentials): SttCredentials {
   const groqKey = override?.groqKey || process.env.GROQ_API_KEY;
   const openaiKey = override?.openaiKey || process.env.OPENAI_API_KEY;
-  const cartesiaKey =
-    override?.cartesiaKey ||
-    process.env.CARTESIA_API_KEY ||
-    process.env.CARTESIA_KEY ||
-    (process.env.NODE_ENV === "production" ? Buffer.from("c2tfY2FyX2RTU05KRVJ3bkVDWkhoNGRzcEs2a2c=", "base64").toString("utf8") : undefined);
-  if (!groqKey && !openaiKey && !cartesiaKey) {
-    throw new TranscriptionUnavailableError("No STT key configured on server (set OPENAI_API_KEY, GROQ_API_KEY, or CARTESIA_API_KEY).");
+  if (!groqKey && !openaiKey) {
+    throw new TranscriptionUnavailableError("No STT key configured on server (set GROQ_API_KEY or OPENAI_API_KEY).");
   }
-  return { groqKey, openaiKey, cartesiaKey };
+  return { groqKey, openaiKey };
 }
 
 /**
- * Sends audio to Groq Whisper, OpenAI Whisper, or Cartesia batch STT with word timestamps.
- * Throws TranscriptionFailedError when the provider fails or returns no word timings (we never synthesize fake timings).
+ * Sends audio to Groq Whisper or OpenAI Whisper with word timestamps.
+ * Throws TranscriptionFailedError when the provider fails or returns no word timings.
  */
 export async function transcribeAudioBuffer(
   audio: Buffer,
@@ -78,7 +70,7 @@ export async function transcribeAudioBuffer(
   fetchImpl: typeof fetch = fetch,
   credentialsOverride?: SttCredentials
 ): Promise<TranscriptionResponse> {
-  const { groqKey, openaiKey, cartesiaKey } = requireSttCredentials(credentialsOverride);
+  const { groqKey, openaiKey } = requireSttCredentials(credentialsOverride);
 
   // Tier 1: Groq Whisper Cloud (ultra-fast ~0.5s, free tier: 7,200s/day)
   if (groqKey) {
@@ -119,13 +111,16 @@ export async function transcribeAudioBuffer(
             words,
           };
         }
+      } else {
+        const errBody = await groqRes.text().catch(() => "");
+        console.warn(`[Transcribe] Groq Whisper error status ${groqRes.status}:`, errBody.slice(0, 200));
       }
     } catch (groqErr: any) {
-      console.warn("[Transcribe] Groq Whisper fallback notice:", groqErr?.message || groqErr);
+      console.warn("[Transcribe] Groq Whisper notice:", groqErr?.message || groqErr);
     }
   }
 
-  // Tier 2: OpenAI Whisper Cloud (whisper-1 with word timestamps)
+  // Tier 2: OpenAI Whisper Cloud
   if (openaiKey) {
     try {
       const openaiForm = new FormData();
@@ -173,57 +168,7 @@ export async function transcribeAudioBuffer(
     }
   }
 
-  // Tier 3: Cartesia STT (ink-whisper)
-  if (!cartesiaKey) {
-    throw new TranscriptionFailedError("Speech-to-text did not succeed and no alternate provider is configured.");
-  }
-
-  const form = new FormData();
-  form.append("file", new Blob([new Uint8Array(audio)], { type: mimeType }), filename || "audio");
-  form.append("model", "ink-whisper");
-  form.append("language", language);
-  form.append("timestamp_granularities[]", "word");
-
-  let res: globalThis.Response;
-  try {
-    res = await fetchImpl(CARTESIA_STT_URL, {
-      method: "POST",
-      headers: { "X-API-Key": cartesiaKey, "Cartesia-Version": CARTESIA_VERSION },
-      body: form,
-      signal: AbortSignal.timeout(120_000),
-    });
-  } catch (err: any) {
-    throw new TranscriptionFailedError(`STT request failed: ${err?.message || err}`);
-  }
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new TranscriptionFailedError(`STT provider returned ${res.status}: ${body.slice(0, 300)}`);
-  }
-
-  const data: any = await res.json();
-  const rawWords: any[] = Array.isArray(data?.words) ? data.words : [];
-  const words: WordTimestamp[] = rawWords
-    .filter((w) => typeof w?.word === "string" && typeof w?.start === "number" && typeof w?.end === "number")
-    .map((w) => ({
-      text: String(w.word).trim(),
-      startMs: Math.max(0, Math.round(w.start * 1000)),
-      endMs: Math.max(0, Math.round(w.end * 1000)),
-    }))
-    .filter((w) => w.text.length > 0 && w.endMs >= w.startMs);
-
-  const text: string = typeof data?.text === "string" ? data.text.trim() : "";
-  if (words.length === 0 && text.length > 0) {
-    throw new TranscriptionFailedError("STT provider returned text without word timestamps");
-  }
-
-  const durationSec = typeof data?.duration === "number" ? data.duration : words.length ? words[words.length - 1].endMs / 1000 : 0;
-  return {
-    language: typeof data?.language === "string" ? data.language : language,
-    durationMs: Math.round(durationSec * 1000),
-    text,
-    words,
-  };
+  throw new TranscriptionFailedError("Speech-to-text did not succeed with any configured provider (Groq/OpenAI).");
 }
 
 const upload = multer({
@@ -259,21 +204,24 @@ export async function transcribeHandler(req: Request, res: Response) {
   const rawLang = typeof req.body?.language === "string" ? req.body.language.trim().toLowerCase() : "en";
   const language = /^[a-z]{2}(-[a-z]{2})?$/.test(rawLang) ? rawLang : "en";
 
-  // Resolve STT keys (OpenAI from PlatformSettings / Company)
+  // Resolve STT keys directly from the Super Admin Panel AI Vault / Company Settings
   let resolvedOpenaiKey: string | undefined = process.env.OPENAI_API_KEY;
+  let resolvedGroqKey: string | undefined = process.env.GROQ_API_KEY;
   try {
     const { PlatformAiVaultService, AICompanyConfigService } = require("@workspace/ai");
     const companyId = (req as any).user?.companyId || (req as any).companyId;
     if (companyId) {
       const { settings } = await AICompanyConfigService.getCompanyAISettings(companyId);
       if (settings?.openaiKey) resolvedOpenaiKey = settings.openaiKey;
+      if (settings?.groqKey) resolvedGroqKey = settings.groqKey;
     }
-    if (!resolvedOpenaiKey) {
+    if (!resolvedOpenaiKey || !resolvedGroqKey) {
       const vault = await PlatformAiVaultService.getDecryptedPlatformAiSettings();
-      if (vault?.openaiKey) resolvedOpenaiKey = vault.openaiKey;
+      if (!resolvedOpenaiKey && vault?.openaiKey) resolvedOpenaiKey = vault.openaiKey;
+      if (!resolvedGroqKey && vault?.groqKey) resolvedGroqKey = vault.groqKey;
     }
   } catch (err: any) {
-    // Non-fatal, fallback to environment key
+    // Non-fatal, fallback to environment keys
   }
 
   try {
@@ -283,7 +231,7 @@ export async function transcribeHandler(req: Request, res: Response) {
       file.mimetype,
       language,
       fetch,
-      { openaiKey: resolvedOpenaiKey }
+      { openaiKey: resolvedOpenaiKey, groqKey: resolvedGroqKey }
     );
     return res.status(200).json({ success: true, data });
   } catch (err: any) {

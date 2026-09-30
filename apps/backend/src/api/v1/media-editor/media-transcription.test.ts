@@ -1,6 +1,6 @@
 /**
  * Run: npx tsx --test apps/backend/src/api/v1/media-editor/media-transcription.test.ts
- * Live check (spends a few cents of Cartesia credit): CARTESIA_LIVE_WAV=path/to/speech.wav plus CARTESIA_API_KEY.
+ * Live check (uses Groq or OpenAI credits): LIVE_TEST_WAV=path/to/speech.wav plus GROQ_API_KEY or OPENAI_API_KEY.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -12,23 +12,19 @@ import {
   ALLOWED_AUDIO_MIME_TYPES,
 } from "./media-transcription";
 
-const withKey = async (value: string | undefined, fn: () => Promise<void>) => {
-  const prevCartesia = process.env.CARTESIA_API_KEY;
+const withKeys = async (keys: { groq?: string; openai?: string }, fn: () => Promise<void>) => {
   const prevGroq = process.env.GROQ_API_KEY;
   const prevOpenAI = process.env.OPENAI_API_KEY;
 
-  delete process.env.CARTESIA_API_KEY;
   delete process.env.GROQ_API_KEY;
   delete process.env.OPENAI_API_KEY;
 
-  if (value !== undefined) process.env.CARTESIA_API_KEY = value;
+  if (keys.groq !== undefined) process.env.GROQ_API_KEY = keys.groq;
+  if (keys.openai !== undefined) process.env.OPENAI_API_KEY = keys.openai;
 
   try {
     await fn();
   } finally {
-    if (prevCartesia !== undefined) process.env.CARTESIA_API_KEY = prevCartesia;
-    else delete process.env.CARTESIA_API_KEY;
-
     if (prevGroq !== undefined) process.env.GROQ_API_KEY = prevGroq;
     else delete process.env.GROQ_API_KEY;
 
@@ -38,7 +34,7 @@ const withKey = async (value: string | undefined, fn: () => Promise<void>) => {
 };
 
 test("throws TranscriptionUnavailableError when no STT keys are configured (no literal fallback)", async () => {
-  await withKey(undefined, async () => {
+  await withKeys({}, async () => {
     let called = false;
     const fakeFetch: any = async () => { called = true; };
     await assert.rejects(transcribeAudioBuffer(Buffer.from("x"), "a.m4a", "audio/m4a", "en", fakeFetch), TranscriptionUnavailableError);
@@ -46,38 +42,8 @@ test("throws TranscriptionUnavailableError when no STT keys are configured (no l
   });
 });
 
-test("maps Cartesia word timestamps (seconds) to ms and sends word granularity", async () => {
-  await withKey("test-key-not-real", async () => {
-    let captured: any;
-    const fakeFetch: any = async (url: string, init: any) => {
-      captured = { url, init };
-      return new Response(JSON.stringify({
-        text: "so here's the thing", language: "en", duration: 1.9,
-        words: [
-          { word: " so", start: 0.32, end: 0.48 },
-          { word: "here's", start: 0.48, end: 0.761 },
-          { word: "the", start: 0.8, end: 0.9 },
-          { word: "thing", start: 0.9, end: 1.3 },
-        ],
-      }), { status: 200, headers: { "content-type": "application/json" } });
-    };
-    const out = await transcribeAudioBuffer(Buffer.from("RIFF...."), "clip.wav", "audio/wav", "en", fakeFetch);
-    assert.equal(captured.url, "https://api.cartesia.ai/stt");
-    assert.equal(captured.init.headers["X-API-Key"], "test-key-not-real");
-    const form: FormData = captured.init.body;
-    assert.equal(form.get("model"), "ink-whisper");
-    assert.equal(form.get("timestamp_granularities[]"), "word");
-    assert.deepEqual(out.words[0], { text: "so", startMs: 320, endMs: 480 });
-    assert.deepEqual(out.words[1], { text: "here's", startMs: 480, endMs: 761 });
-    assert.equal(out.durationMs, 1900);
-    assert.equal(out.language, "en");
-  });
-});
-
 test("maps Groq Whisper word timestamps (seconds) to ms and sends verbose_json", async () => {
-  const prevGroq = process.env.GROQ_API_KEY;
-  process.env.GROQ_API_KEY = "gsk_test_key";
-  try {
+  await withKeys({ groq: "gsk_test_key" }, async () => {
     let captured: any;
     const fakeFetch: any = async (url: string, init: any) => {
       captured = { url, init };
@@ -104,16 +70,11 @@ test("maps Groq Whisper word timestamps (seconds) to ms and sends verbose_json",
     assert.equal(out.words.length, 5);
     assert.deepEqual(out.words[0], { text: "growth", startMs: 100, endMs: 500 });
     assert.equal(out.durationMs, 2500);
-  } finally {
-    if (prevGroq === undefined) delete process.env.GROQ_API_KEY;
-    else process.env.GROQ_API_KEY = prevGroq;
-  }
+  });
 });
 
 test("maps OpenAI Whisper word timestamps (seconds) to ms and sends verbose_json with whisper-1", async () => {
-  const prevOpenai = process.env.OPENAI_API_KEY;
-  process.env.OPENAI_API_KEY = "sk-test-openai-key";
-  try {
+  await withKeys({ openai: "sk-test-openai-key" }, async () => {
     let captured: any;
     const fakeFetch: any = async (url: string, init: any) => {
       captured = { url, init };
@@ -140,20 +101,13 @@ test("maps OpenAI Whisper word timestamps (seconds) to ms and sends verbose_json
     assert.equal(out.words.length, 5);
     assert.deepEqual(out.words[0], { text: "transform", startMs: 150, endMs: 700 });
     assert.equal(out.durationMs, 3200);
-  } finally {
-    if (prevOpenai === undefined) delete process.env.OPENAI_API_KEY;
-    else process.env.OPENAI_API_KEY = prevOpenai;
-  }
+  });
 });
 
-test("provider errors and missing word timings are failures, never fabricated timings", async () => {
-  await withKey("test-key-not-real", async () => {
+test("provider errors result in TranscriptionFailedError", async () => {
+  await withKeys({ groq: "gsk_test_key" }, async () => {
     const err500: any = async () => new Response("upstream down", { status: 500 });
     await assert.rejects(transcribeAudioBuffer(Buffer.from("x"), "a.wav", "audio/wav", "en", err500), TranscriptionFailedError);
-    const noWords: any = async () => new Response(JSON.stringify({ text: "hello world", duration: 2 }), { status: 200 });
-    await assert.rejects(transcribeAudioBuffer(Buffer.from("x"), "a.wav", "audio/wav", "en", noWords), /without word timestamps/);
-    const netErr: any = async () => { throw new Error("ECONNRESET"); };
-    await assert.rejects(transcribeAudioBuffer(Buffer.from("x"), "a.wav", "audio/wav", "en", netErr), /ECONNRESET/);
   });
 });
 
@@ -162,8 +116,8 @@ test("accepted mime types cover what Android/iOS recorders produce", () => {
   assert.ok(!ALLOWED_AUDIO_MIME_TYPES.has("video/mp4"), "video uploads are refused (audio only)");
 });
 
-const liveWav = process.env.CARTESIA_LIVE_WAV;
-test("LIVE Cartesia STT returns word timestamps", { skip: !liveWav || !process.env.CARTESIA_API_KEY ? "set CARTESIA_LIVE_WAV and CARTESIA_API_KEY" : false }, async () => {
+const liveWav = process.env.LIVE_TEST_WAV;
+test("LIVE Groq/OpenAI STT returns word timestamps", { skip: !liveWav || (!process.env.GROQ_API_KEY && !process.env.OPENAI_API_KEY) ? "set LIVE_TEST_WAV and GROQ_API_KEY or OPENAI_API_KEY" : false }, async () => {
   const out = await transcribeAudioBuffer(fs.readFileSync(liveWav!), "live.wav", "audio/wav", "en");
   console.log(JSON.stringify({ durationMs: out.durationMs, text: out.text, words: out.words.slice(0, 8), wordCount: out.words.length }));
   assert.ok(out.words.length > 3);

@@ -18,6 +18,9 @@ export class MultiTakeTranscriber {
   /**
    * Transcribes all media files in a project directory or file list,
    * extracting word-level timestamps and speech cadence for multi-take curation.
+   *
+   * STT Tiers: Groq Whisper → OpenAI Whisper → Inbuilt Local Acoustic Engine
+   * Cartesia is used exclusively for TTS (voiceover synthesis), never for STT here.
    */
   static async transcribeAllClips(
     filePaths: string[],
@@ -41,7 +44,7 @@ export class MultiTakeTranscriber {
           await this.extractAudioWav(filePath, wavPath);
         }
 
-        // 2. Transcribe via STT
+        // 2. Transcribe via STT (Groq → OpenAI → Local Inbuilt)
         const sttResult = await this.transcribeAudioFile(wavPath);
         console.log(`    ✓ Take ${fileName}: "${sttResult.fullTranscript.slice(0, 50)}..." (${sttResult.words.length} words, ${sttResult.durationSeconds.toFixed(1)}s)`);
         results.push({
@@ -84,9 +87,18 @@ export class MultiTakeTranscriber {
     words: TranscriptWord[];
     language: string;
   }> {
-    const groqKey = process.env.GROQ_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
-    const cartesiaKey = process.env.CARTESIA_API_KEY;
+    // Resolve keys from Admin Panel AI Vault → process.env fallback
+    let groqKey = process.env.GROQ_API_KEY;
+    let openaiKey = process.env.OPENAI_API_KEY;
+
+    try {
+      const { PlatformAiVaultService } = require("@workspace/ai");
+      const vault = await PlatformAiVaultService.getDecryptedPlatformAiSettings();
+      if (!groqKey && vault?.groqKey) groqKey = vault.groqKey;
+      if (!openaiKey && vault?.openaiKey) openaiKey = vault.openaiKey;
+    } catch {
+      // Non-fatal — fallback to env keys
+    }
 
     let text = "";
     let durationSeconds = 10.0;
@@ -117,38 +129,14 @@ export class MultiTakeTranscriber {
       }
     }
 
-    // 2. Tier 2: Cartesia STT (ink-whisper)
-    if (!text && cartesiaKey) {
-      try {
-        const form = new FormData();
-        form.append("file", fs.createReadStream(wavPath));
-        form.append("model", "ink-whisper");
-        form.append("language", "hi");
-
-        const res = await axios.post("https://api.cartesia.ai/stt", form, {
-          headers: {
-            ...form.getHeaders(),
-            "X-API-Key": cartesiaKey,
-            "Cartesia-Version": "2024-06-10",
-          },
-          timeout: 30000,
-        });
-
-        text = res.data?.text || "";
-        durationSeconds = res.data?.duration || 10.0;
-        sttWords = res.data?.words || [];
-      } catch (err: any) {
-        console.warn("[MultiTakeTranscriber] Cartesia STT notice:", err?.message);
-      }
-    }
-
-    // 3. Tier 3: OpenAI Whisper Cloud
+    // 2. Tier 2: OpenAI Whisper Cloud
     if (!text && openaiKey) {
       try {
         const form = new FormData();
         form.append("file", fs.createReadStream(wavPath));
         form.append("model", "whisper-1");
         form.append("response_format", "verbose_json");
+        form.append("timestamp_granularities[]", "word");
 
         const res = await axios.post("https://api.openai.com/v1/audio/transcriptions", form, {
           headers: {
@@ -166,12 +154,32 @@ export class MultiTakeTranscriber {
       }
     }
 
-    // 4. Tier 4: High-Reliability Local Cadence Transcriber (Offline Fallback)
+    // 3. Tier 3: Inbuilt Local Acoustic Speech Intelligence Engine (100% Offline, $0 cost)
+    if (!text) {
+      try {
+        const { LocalSpeechTranscriber } = require("@workspace/ai");
+        const localResult = await LocalSpeechTranscriber.transcribeWav(wavPath, "en");
+        if (localResult.fullTranscript) {
+          text = localResult.fullTranscript;
+          durationSeconds = localResult.durationSeconds;
+          sttWords = localResult.words.map((w: any) => ({
+            word: w.word,
+            start: w.startSeconds,
+            end: w.endSeconds,
+            confidence: w.confidence ?? 0.95,
+          }));
+        }
+      } catch (localErr: any) {
+        console.warn("[MultiTakeTranscriber] Local transcriber notice:", localErr?.message);
+      }
+    }
+
+    // 4. Ultimate fallback: estimate from file size
     if (!text) {
       const stats = fs.statSync(wavPath);
       // Estimate duration from 16kHz 16-bit mono PCM (32,000 bytes/sec)
       durationSeconds = Math.max(3.0, Math.round((stats.size / 32000) * 10) / 10);
-      text = "Welcome to 180 Workspace. Creating high retention viral content autonomously with AI Director.";
+      text = "";
     }
 
     const rawWords = text.trim().split(/\s+/).filter(Boolean);
@@ -186,7 +194,7 @@ export class MultiTakeTranscriber {
           startSeconds: w.start,
           endSeconds: w.end,
           confidence: w.confidence ?? 0.95,
-          isEmphasis: this.isMedicalEmphasisWord(w.word),
+          isEmphasis: this.isEmphasisWord(w.word),
         });
       }
     } else if (rawWords.length > 0) {
@@ -199,7 +207,7 @@ export class MultiTakeTranscriber {
           startSeconds: cur,
           endSeconds: cur + wordDur * 0.85,
           confidence: 0.95,
-          isEmphasis: this.isMedicalEmphasisWord(w),
+          isEmphasis: this.isEmphasisWord(w),
         });
         cur += wordDur;
       }
@@ -209,40 +217,19 @@ export class MultiTakeTranscriber {
       durationSeconds,
       fullTranscript: text,
       words,
-      language: data.language || "hi",
+      language: data.language || "en",
     };
   }
 
-  private static isMedicalEmphasisWord(word: string): boolean {
+  private static isEmphasisWord(word: string): boolean {
     const clean = word.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, "");
-    const medicalKeywords = [
-      "misconception",
-      "circulation",
-      "blood",
-      "nerve",
-      "nerves",
-      "pressure",
-      "signaling",
-      "tingling",
-      "needles",
-      "numbness",
-      "current",
-      "massage",
-      "move",
-      "ignore",
-      "weakness",
-      "comment",
-      "doctor",
-      "solution",
-      "anesthesia",
-      "sojana",
-      "nam",
-      "so",
-      "dard",
-      "paas",
-      "aur",
+    const emphasisKeywords = [
+      "important", "critical", "key", "essential", "breakthrough",
+      "amazing", "incredible", "powerful", "revolutionary", "proven",
+      "secret", "exclusive", "urgent", "warning", "attention",
+      "solution", "transform", "discover", "unlock", "achieve",
     ];
-    return medicalKeywords.some((k) => clean.includes(k) || k.includes(clean));
+    return emphasisKeywords.some((k) => clean.includes(k) || k.includes(clean));
   }
 
   private static async fallbackTranscribe(filePath: string): Promise<ClipTranscriptionResult> {
@@ -257,14 +244,14 @@ export class MultiTakeTranscriber {
           fullTranscript: `Spoken content in ${fileName}`,
           words: [
             {
-              word: "Medical",
+              word: "Content",
               startSeconds: 0.5,
               endSeconds: 1.0,
               confidence: 0.9,
-              isEmphasis: true,
+              isEmphasis: false,
             },
             {
-              word: "Advice",
+              word: "Segment",
               startSeconds: 1.1,
               endSeconds: 1.6,
               confidence: 0.9,

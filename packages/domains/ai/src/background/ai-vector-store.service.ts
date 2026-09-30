@@ -52,13 +52,21 @@ export class VectorStore {
     }
 
     async generateEmbedding(text: string): Promise<number[]> {
-        if (!process.env.OPENAI_API_KEY) {
-            throw new Error('OPENAI_API_KEY is not set. Real embeddings require a valid API key.');
+        let apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            try {
+                const { PlatformAiVaultService } = require('../kernel/platform-ai-vault.service');
+                const vault = await PlatformAiVaultService.getDecryptedPlatformAiSettings();
+                if (vault?.openaiKey) apiKey = vault.openaiKey;
+            } catch {}
+        }
+        if (!apiKey) {
+            throw new Error('OpenAI API key is not configured in the Admin Panel or environment. Real embeddings require a valid API key.');
         }
 
         try {
             const { OpenAI } = require('openai');
-            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            const openai = new OpenAI({ apiKey });
             const response = await openai.embeddings.create({
                 model: 'text-embedding-3-small',
                 input: text,

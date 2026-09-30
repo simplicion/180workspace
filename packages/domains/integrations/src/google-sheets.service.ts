@@ -79,7 +79,7 @@ export class GoogleSheetsService {
             if (!rows || rows.length === 0) return null;
 
             // Find row by roomId (column A)
-            const row = rows.find(r => r[0] === roomId);
+            const row = rows.find((r: any[]) => r[0] === roomId);
             if (!row) return null;
 
             return {

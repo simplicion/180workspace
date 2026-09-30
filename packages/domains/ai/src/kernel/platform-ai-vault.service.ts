@@ -22,6 +22,7 @@ export interface PlatformAiConfigStorage {
         gemini?: PlatformAiKeyRecord;
         claude?: PlatformAiKeyRecord;
         groq?: PlatformAiKeyRecord;
+        cartesia?: PlatformAiKeyRecord;
         custom?: PlatformAiKeyRecord;
         [key: string]: PlatformAiKeyRecord | undefined;
     };
@@ -46,6 +47,7 @@ export interface DecryptedPlatformAiSettings {
     geminiKey: string;
     claudeKey: string;
     groqKey: string;
+    cartesiaKey: string;
     customAiKey: string;
     customAiUrl: string;
     customAiModel: string;
@@ -54,6 +56,7 @@ export interface DecryptedPlatformAiSettings {
         gemini?: string;
         claude?: string;
         groq?: string;
+        cartesia?: string;
         custom?: string;
     };
 }
@@ -63,6 +66,7 @@ const DEFAULT_MODELS: Record<string, string> = {
     gemini: 'gemini-1.5-flash',
     claude: 'claude-3-5-sonnet-20241022',
     groq: 'llama-3.3-70b-versatile',
+    cartesia: 'sonic-3.6',
     custom: 'default'
 };
 
@@ -71,6 +75,7 @@ const DISPLAY_NAMES: Record<string, string> = {
     gemini: 'Google Gemini (1.5 Flash / Pro)',
     claude: 'Anthropic Claude (3.5 Sonnet / Haiku)',
     groq: 'Groq Cloud (Llama 3.3 / Mixtral)',
+    cartesia: 'Cartesia Neural Audio & STT (Voiceforce Voice AI)',
     custom: 'Custom Enterprise LLM (Self-hosted / OpenAI Compatible)'
 };
 
@@ -251,7 +256,7 @@ export class PlatformAiVaultService {
         providers: PlatformAiProviderSummary[];
     }> {
         const stored = await this.getStoredAiConfig();
-        const supported = ['openai', 'gemini', 'claude', 'groq', 'custom'];
+        const supported = ['openai', 'gemini', 'claude', 'groq', 'cartesia', 'custom'];
 
         const defaultProvider = stored.defaultProvider || 'openai';
 
@@ -265,6 +270,7 @@ export class PlatformAiVaultService {
             else if (prov === 'gemini') envKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
             else if (prov === 'claude') envKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || '';
             else if (prov === 'groq') envKey = process.env.GROQ_API_KEY || '';
+            else if (prov === 'cartesia') envKey = process.env.CARTESIA_API_KEY || '';
             else if (prov === 'custom') envKey = process.env.CUSTOM_AI_KEY || '';
 
             const isConfigured = hasDbKey || !!envKey;
@@ -308,7 +314,7 @@ export class PlatformAiVaultService {
         const { provider, apiKey, model, endpointUrl, isActive = true, updatedBy } = params;
         const normProvider = provider.toLowerCase().trim();
 
-        if (!['openai', 'gemini', 'claude', 'groq', 'custom'].includes(normProvider)) {
+        if (!['openai', 'gemini', 'claude', 'groq', 'cartesia', 'custom'].includes(normProvider)) {
             throw new Error(`Unsupported AI provider: ${provider}`);
         }
 
@@ -548,6 +554,7 @@ export class PlatformAiVaultService {
             geminiKey: '',
             claudeKey: '',
             groqKey: '',
+            cartesiaKey: '',
             customAiKey: '',
             customAiUrl: '',
             customAiModel: '',
@@ -570,6 +577,9 @@ export class PlatformAiVaultService {
                 } else if (prov === 'groq') {
                     settings.groqKey = decrypted;
                     settings.models.groq = rec.model || DEFAULT_MODELS.groq;
+                } else if (prov === 'cartesia') {
+                    settings.cartesiaKey = decrypted;
+                    settings.models.cartesia = rec.model || DEFAULT_MODELS.cartesia;
                 } else if (prov === 'custom') {
                     settings.customAiKey = decrypted;
                     settings.customAiUrl = rec.endpointUrl || '';
