@@ -286,6 +286,45 @@
       root.appendChild(card);
       document.body.appendChild(root);
 
+      // Touch drag-down gesture for mobile bottom sheet
+      var startY = 0;
+      var currentY = 0;
+      header.addEventListener('touchstart', function (e) {
+        if (e.touches && e.touches[0]) {
+          startY = e.touches[0].clientY;
+        }
+      }, { passive: true });
+
+      header.addEventListener('touchmove', function (e) {
+        if (isFullScreen || !isMobile) return;
+        if (e.touches && e.touches[0]) {
+          currentY = e.touches[0].clientY;
+          var diff = currentY - startY;
+          if (diff > 0) {
+            card.style.transform = 'translateY(' + diff + 'px)';
+          }
+        }
+      }, { passive: true });
+
+      header.addEventListener('touchend', function () {
+        if (isFullScreen || !isMobile) return;
+        var diff = currentY - startY;
+        if (diff > 80) {
+          handleCancel();
+        } else {
+          card.style.transform = 'translateY(0)';
+        }
+        startY = 0;
+        currentY = 0;
+      }, { passive: true });
+
+      function cleanupListeners() {
+        if (window.removeEventListener) {
+          window.removeEventListener('message', onMessage);
+          window.removeEventListener('keydown', onKeyDown);
+        }
+      }
+
       function closeModal() {
         if (isMobile && !isFullScreen) {
           card.style.animation = 'one-eighty-slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards';
@@ -299,10 +338,16 @@
       function handleCancel() {
         if (isResolved) return;
         isResolved = true;
+        cleanupListeners();
         closeModal();
-        if (window.removeEventListener) window.removeEventListener('message', onMessage);
         if (options.onCancel) options.onCancel();
         resolve(null);
+      }
+
+      function onKeyDown(e) {
+        if (e.key === 'Escape' || e.keyCode === 27) {
+          handleCancel();
+        }
       }
 
       backdrop.onclick = handleCancel;
@@ -317,21 +362,31 @@
 
         var successTypes = options.successTypes || ['180_IDENTITY_SUCCESS', '180_AUTH_SUCCESS', '180_PAY_SUCCESS', '180_PAYMENT_SUCCESS'];
         var closeTypes = options.closeTypes || ['180_IDENTITY_CLOSE', '180_PAYMENT_CLOSE'];
+        var errorTypes = options.errorTypes || ['180_IDENTITY_ERROR', '180_AUTH_ERROR', '180_PAY_ERROR', '180_PAYMENT_ERROR'];
 
         if (successTypes.indexOf(data.type) !== -1) {
           if (isResolved) return;
           isResolved = true;
+          cleanupListeners();
           closeModal();
-          window.removeEventListener('message', onMessage);
           var mapped = options.mapSuccess ? options.mapSuccess(data) : data;
           if (options.onSuccess) options.onSuccess(mapped);
           resolve(mapped);
+        } else if (errorTypes.indexOf(data.type) !== -1) {
+          if (isResolved) return;
+          isResolved = true;
+          cleanupListeners();
+          closeModal();
+          var err = new Error(data.error_description || data.error || data.message || '180 Sovereign operation failed');
+          if (options.onError) options.onError(err);
+          reject(err);
         } else if (closeTypes.indexOf(data.type) !== -1) {
           handleCancel();
         }
       }
 
       window.addEventListener('message', onMessage);
+      window.addEventListener('keydown', onKeyDown);
     });
   }
 

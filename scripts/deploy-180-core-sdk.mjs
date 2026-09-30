@@ -20,8 +20,12 @@ const targetDirs = [
   path.join(rootDir, 'apps', '180-profile-frontend', 'public', 'sdk', 'v1'),
 ];
 
-console.log('--- DEPLOYING 180 CORE SDK TO GLOBAL CDN REPOSITORIES ---');
+console.log('================================================================');
+console.log('🚀 180 Core SDK: Global CDN Distribution & Pipeline Sync');
+console.log('================================================================\n');
 
+// 1. Local Edge Public Mirrors
+console.log('1️⃣ Synchronizing Local Static Edge Repositories...');
 for (const dir of targetDirs) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -36,9 +40,57 @@ for (const dir of targetDirs) {
   fs.copyFileSync(srcMinJs, destMinJs);
   fs.copyFileSync(srcDts, destDts);
 
-  console.log(`Deployed to: ${dir}`);
-  console.log(`  180-core-sdk.js     (${fs.statSync(destJs).size} bytes)`);
-  console.log(`  180-core-sdk.min.js (${fs.statSync(destMinJs).size} bytes)`);
+  const rel = path.relative(rootDir, dir).replace(/\\/g, '/');
+  console.log(`  ✅ Deployed to ${rel} (${fs.statSync(destMinJs).size} bytes minified)`);
 }
 
-console.log('--- CDN DEPLOYMENT COMPLETE ---');
+// 2. Cloudflare R2 / AWS S3 Global CDN Direct Edge Upload (if credentials exist)
+const r2Endpoint = process.env.CLOUDFLARE_R2_ENDPOINT || process.env.R2_ENDPOINT;
+const r2AccessKey = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY;
+const r2SecretKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || process.env.R2_SECRET_KEY;
+const r2Bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME || '180workspace';
+
+if (r2Endpoint && r2AccessKey && r2SecretKey) {
+  console.log('\n2️⃣ Cloudflare R2 Global CDN Credentials Detected — Synchronizing Edge Bucket...');
+  try {
+    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const s3 = new S3Client({
+      region: 'auto',
+      endpoint: r2Endpoint,
+      credentials: {
+        accessKeyId: r2AccessKey,
+        secretAccessKey: r2SecretKey,
+      },
+      maxAttempts: 3,
+    });
+
+    const uploads = [
+      { key: 'sdk/v1/180-core-sdk.js', body: fs.readFileSync(srcJs) },
+      { key: 'sdk/v1/180-core-sdk.min.js', body: fs.readFileSync(srcMinJs) },
+      { key: 'sdk/180-core-sdk.js', body: fs.readFileSync(srcJs) },
+      { key: 'sdk/180-core-sdk.min.js', body: fs.readFileSync(srcMinJs) },
+    ];
+
+    for (const item of uploads) {
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: r2Bucket,
+          Key: item.key,
+          Body: item.body,
+          ContentType: 'application/javascript; charset=utf-8',
+          CacheControl: 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800',
+        })
+      );
+      console.log(`  ☁️ Cloudflare R2: Uploaded https://cdn.180workspace.com/${item.key}`);
+    }
+    console.log('  ✅ Cloudflare R2 Edge Sync Successful');
+  } catch (err) {
+    console.warn(`  ⚠️ Cloudflare R2 edge upload skipped or failed: ${err.message}`);
+  }
+} else {
+  console.log('\n2️⃣ Cloudflare R2 Direct Sync: No direct S3/R2 credentials in current process (serving via Cloudflare Pages & Container static edge).');
+}
+
+console.log('\n================================================================');
+console.log('🎉 180 Core SDK CDN Deployment Pipeline Completed Successfully');
+console.log('================================================================\n');
