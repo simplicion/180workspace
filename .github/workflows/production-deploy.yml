@@ -281,11 +281,12 @@ jobs:
           META_WEBHOOK_VERIFY_TOKEN: ${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}
           LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
           LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
+          SOCIAL_TOKEN_ENCRYPTION_KEY: ${{ secrets.SOCIAL_TOKEN_ENCRYPTION_KEY }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,NEXTAUTH_SECRET,META_WEBHOOK_VERIFY_TOKEN,LINKEDIN_CLIENT_ID,LINKEDIN_CLIENT_SECRET
+          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,NEXTAUTH_SECRET,META_WEBHOOK_VERIFY_TOKEN,LINKEDIN_CLIENT_ID,LINKEDIN_CLIENT_SECRET,SOCIAL_TOKEN_ENCRYPTION_KEY
           command_timeout: 30m
           script: |
             set -e
@@ -501,8 +502,10 @@ jobs:
             const pagesProjects = [
               { project: '180workspace-docs', domain: 'docs.180workspace.com' },
               { project: '180workspace-profile', domain: 'profile.180workspace.com' },
+              { project: '180workspace-profile', domain: 'pay.180workspace.com' },
               { project: '180workspace-developer', domain: 'developers.180workspace.com' },
-              { project: '180workspace-traffic', domain: 'traffic.180workspace.com' }
+              { project: '180workspace-traffic', domain: 'traffic.180workspace.com' },
+              { project: '180workspace-traffic', domain: 'traffic-director.180workspace.com' }
             ];
 
             if (accountId) {

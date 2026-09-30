@@ -6,8 +6,6 @@ export function generateStaticParams() {
   return [{ sessionId: 'default' }];
 }
 
-export const dynamicParams = false;
-
 export default function StandaloneCheckoutPage() {
   return (
     <Suspense

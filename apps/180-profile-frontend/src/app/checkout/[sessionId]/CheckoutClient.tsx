@@ -25,7 +25,26 @@ declare global {
 
 export function CheckoutClient() {
   const params = useParams();
-  const sessionId = (params?.sessionId as string) || '';
+  
+  // Resilient sessionId extraction for static SSG exports (Cloudflare Pages rewrites)
+  const getInitialSessionId = () => {
+    const pId = params?.sessionId as string;
+    if (pId && pId !== 'default') return pId;
+    if (typeof window !== 'undefined') {
+      const match = window.location.pathname.match(/\/checkout\/([^\/\?#]+)/);
+      if (match && match[1] && match[1] !== 'default') return match[1];
+    }
+    return pId || '';
+  };
+
+  const [sessionId, setSessionId] = useState<string>(getInitialSessionId);
+
+  useEffect(() => {
+    const currentId = getInitialSessionId();
+    if (currentId && currentId !== sessionId) {
+      setSessionId(currentId);
+    }
+  }, [params?.sessionId]);
 
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
@@ -101,7 +120,9 @@ export function CheckoutClient() {
   };
 
   useEffect(() => {
-    fetchSessionAndWallet();
+    if (sessionId && sessionId !== 'default') {
+      fetchSessionAndWallet();
+    }
   }, [sessionId]);
 
   const handlePay = async () => {
