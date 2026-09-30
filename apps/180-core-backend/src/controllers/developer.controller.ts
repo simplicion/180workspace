@@ -6,6 +6,8 @@ import {
   DeveloperController as DomainDeveloperController,
 } from '@workspace/identity-provider';
 import { PayoutService } from '@workspace/payment-provider';
+import { uploadBufferToR2, buildR2Key, deleteObjectFromR2 } from '@workspace/integrations';
+import { inspectLogoBuffer, SUPPORTED_LOGO_MIMES } from '../middleware/logo-upload.middleware';
 
 export class DeveloperApiController {
   static listApps = DomainDeveloperController.listApps;
@@ -479,4 +481,101 @@ export class DeveloperApiController {
       return res.status(500).json({ success: false, error: err.message });
     }
   }
+
+  /**
+   * POST /api/v1/developer/upload-logo
+   * POST /api/v1/developer/apps/:id/upload-logo
+   * Direct app logo upload using Cloudflare R2 media pipeline
+   */
+  static async uploadAppLogo(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id || (req as any).userId;
+      const appId = req.params.id ? String(req.params.id) : null;
+      const file = (req as any).file;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          error: 'NO_FILE',
+          message: 'No logo file provided. Upload multipart field "logo" or "file".',
+        });
+      }
+
+      const problem = inspectLogoBuffer(file.buffer, file.mimetype);
+      if (problem) {
+        return res.status(415).json({
+          success: false,
+          error: 'UNSUPPORTED_MEDIA',
+          message: problem,
+        });
+      }
+
+      // Check R2 environment configuration
+      const env = process.env;
+      const hasR2 =
+        (env.CLOUDFLARE_R2_ENDPOINT || env.R2_ENDPOINT) &&
+        (env.CLOUDFLARE_R2_ACCESS_KEY_ID || env.R2_ACCESS_KEY) &&
+        (env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || env.R2_SECRET_KEY) &&
+        (env.CLOUDFLARE_R2_BUCKET_NAME || env.R2_BUCKET_NAME);
+
+      if (!hasR2) {
+        return res.status(503).json({
+          success: false,
+          error: 'STORAGE_UNAVAILABLE',
+          message: 'Media pipeline storage (Cloudflare R2) is not configured on the server.',
+        });
+      }
+
+      const ext = SUPPORTED_LOGO_MIMES[file.mimetype] || 'png';
+      const safeFilename = (file.originalname || `app-logo.${ext}`).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const r2Key = buildR2Key('brands/avatars', userId || 'developer', `${appId ? `${appId}-` : ''}${safeFilename}`);
+
+      const { url } = await uploadBufferToR2(file.buffer, r2Key, file.mimetype);
+
+      let updatedApp = null;
+      // If appId is provided, verify app ownership and persist logoUrl
+      if (appId) {
+        const existingApp = await prisma.oAuthApp.findFirst({
+          where: { id: appId, ...(userId ? { userId } : {}) },
+        });
+
+        if (!existingApp) {
+          return res.status(404).json({
+            success: false,
+            error: 'APP_NOT_FOUND',
+            message: 'Application not found or unauthorized to update this app.',
+          });
+        }
+
+        // Clean up previous logo if it was an R2 object
+        const oldLogo = existingApp.logoUrl;
+        if (oldLogo && oldLogo !== url && oldLogo.includes('brands/avatars/')) {
+          deleteObjectFromR2(oldLogo).catch((err) => {
+            console.warn('[uploadAppLogo] Notice: Failed to remove old logo from R2:', err.message);
+          });
+        }
+
+        updatedApp = await prisma.oAuthApp.update({
+          where: { id: appId },
+          data: { logoUrl: url },
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        url,
+        key: r2Key,
+        message: 'App logo uploaded successfully to media pipeline',
+        app: updatedApp,
+      });
+    } catch (err: any) {
+      console.error('[DeveloperApiController:uploadAppLogo] Error:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'UPLOAD_FAILED',
+        message: err.message || 'Failed to upload app logo to media pipeline',
+      });
+    }
+  }
 }
+

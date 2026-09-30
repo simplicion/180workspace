@@ -243,7 +243,13 @@
       var scope = options.scope || 'openid identity:read identity:email';
       var state = options.state || Math.random().toString(36).substring(2, 15);
       var responseType = options.responseType || 'code';
-      var uxMode = options.uxMode || 'bottom_sheet';
+
+      // Detect mobile vs desktop
+      var isMobile = (typeof window !== 'undefined') && (window.innerWidth < 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+      var uxMode = options.uxMode;
+      if (!uxMode || uxMode === 'auto') {
+        uxMode = isMobile ? 'bottom_sheet' : 'popup';
+      }
 
       if (uxMode === 'redirect' || uxMode === 'fullscreen') {
         window.location.href = authServer + '/auth/login?client_id=' + encodeURIComponent(clientId) +
@@ -253,6 +259,93 @@
           '&response_type=' + encodeURIComponent(responseType) +
           '&ux_mode=redirect';
         return Promise.resolve({ code: '', state: state });
+      }
+
+      if (uxMode === 'popup') {
+        var width = 450;
+        var height = 680;
+        var left = (typeof window !== 'undefined' && window.screen.width) ? (window.screen.width - width) / 2 : 100;
+        var top = (typeof window !== 'undefined' && window.screen.height) ? (window.screen.height - height) / 2 : 100;
+        var popupUrl = authServer + '/auth/login?client_id=' + encodeURIComponent(clientId) +
+          '&redirect_uri=' + encodeURIComponent(redirectUri) +
+          '&scope=' + encodeURIComponent(scope) +
+          '&state=' + encodeURIComponent(state) +
+          '&response_type=' + encodeURIComponent(responseType) +
+          '&ux_mode=popup';
+
+        var popup = typeof window !== 'undefined'
+          ? window.open(popupUrl, '180_identity_auth', 'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left + ',scrollbars=yes,status=no,toolbar=no,resizable=yes')
+          : null;
+
+        if (popup && typeof popup.focus === 'function') {
+          try { popup.focus(); } catch (_) {}
+        }
+
+        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+          // If popup is blocked by browser, degrade seamlessly to bottom sheet
+          return OneEightyIdentity.openBottomSheet(options);
+        }
+
+        return new Promise(function (resolve, reject) {
+          var isResolved = false;
+          var pollTimer = null;
+
+          var messageListener = function (event) {
+            if (!event.data) return;
+            if (event.data.type === '180_IDENTITY_ERROR' || event.data.type === '180_AUTH_ERROR') {
+              var errMessage = event.data.error_description || event.data.error || 'Authentication failed';
+              var err = new Error(errMessage);
+              err.data = event.data;
+              if (options.onError) options.onError(err);
+              return;
+            }
+            if (event.data.type !== '180_IDENTITY_SUCCESS' && event.data.type !== '180_AUTH_SUCCESS') {
+              return;
+            }
+
+            isResolved = true;
+            if (typeof window !== 'undefined') {
+              window.removeEventListener('message', messageListener);
+            }
+            if (pollTimer) clearInterval(pollTimer);
+
+            var bestToken = event.data.authToken || event.data.accessToken || event.data.token || null;
+            var result = {
+              code: event.data.code,
+              state: event.data.state || state,
+              token: bestToken,
+              id_token: event.data.id_token || null,
+              user: event.data.user || null
+            };
+
+            if (bestToken && typeof window !== 'undefined') {
+              try {
+                localStorage.setItem('platform_auth_token', bestToken);
+                localStorage.setItem('token', bestToken);
+              } catch (_) {}
+            }
+
+            if (options.onSuccess) options.onSuccess(result);
+            resolve(result);
+          };
+
+          if (typeof window !== 'undefined') {
+            window.addEventListener('message', messageListener);
+          }
+
+          pollTimer = setInterval(function () {
+            if (popup.closed) {
+              clearInterval(pollTimer);
+              if (typeof window !== 'undefined') {
+                window.removeEventListener('message', messageListener);
+              }
+              if (!isResolved) {
+                if (options.onCancel) options.onCancel();
+                resolve({ code: '', state: state, token: null, id_token: null, user: null });
+              }
+            }
+          }, 500);
+        });
       }
 
       var authUrl = authServer + '/auth/login?client_id=' + encodeURIComponent(clientId) +
@@ -289,28 +382,7 @@
     },
 
     openPopup: function (options) {
-      options = options || {};
-      if (options.uxMode === 'popup') {
-        // Fallback or explicit popup if requested
-        var width = 450;
-        var height = 680;
-        var left = (window.screen.width - width) / 2;
-        var top = (window.screen.height - height) / 2;
-        var authServer = options.authServerUrl || DEFAULT_AUTH_SERVER;
-        var popupUrl = authServer + '/auth/login?client_id=' + encodeURIComponent(options.clientId) +
-          '&redirect_uri=' + encodeURIComponent(options.redirectUri || '') +
-          '&scope=' + encodeURIComponent(options.scope || 'openid identity:read') +
-          '&state=' + encodeURIComponent(options.state || Math.random().toString(36).substring(2, 15)) +
-          '&response_type=' + encodeURIComponent(options.responseType || 'code') +
-          '&ux_mode=popup';
-
-        var popup = window.open(popupUrl, '180_identity_auth', 'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left);
-        if (!popup || popup.closed) {
-          // If popup is blocked by browser, degrade seamlessly to bottom sheet
-          return OneEightyIdentity.openBottomSheet(options);
-        }
-      }
-      return OneEightyIdentity.openBottomSheet(options);
+      return OneEightyIdentity.openAuth(Object.assign({}, options, { uxMode: 'popup' }));
     },
 
     renderButton: function (target, options) {

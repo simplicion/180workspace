@@ -15,6 +15,7 @@ export class AuthApiController {
   static getOpenIdConfiguration = DomainOAuthController.getOpenIdConfiguration;
   static getJwks = DomainOAuthController.getJwks;
   static validateAuthorize = DomainOAuthController.validateAuthorize;
+  static getAppPublicConfig = DomainOAuthController.getAppPublicConfig;
   static submitConsent = DomainOAuthController.submitConsent;
   static exchangeToken = DomainOAuthController.exchangeToken;
   static getUserInfo = DomainOAuthController.getUserInfo;

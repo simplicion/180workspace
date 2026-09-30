@@ -2,7 +2,7 @@
 
 import path from 'path';
 import dotenv from 'dotenv';
-// Reloaded: Sovereign token issuance (decoupled companyId)
+// Reloaded: Sovereign token issuance (decoupled companyId) & R2 Media Pipeline
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
