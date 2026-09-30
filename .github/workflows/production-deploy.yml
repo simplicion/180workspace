@@ -361,8 +361,8 @@ jobs:
               fi
             fi
             if ! grep -q '^LINKEDIN_PROVIDER_MODE=.\+' .env; then
-              printf '\nLINKEDIN_PROVIDER_MODE=mock\n' >> .env
-              echo "==> LINKEDIN_PROVIDER_MODE defaulted to mock."
+              printf '\nLINKEDIN_PROVIDER_MODE=live\n' >> .env
+              echo "==> LINKEDIN_PROVIDER_MODE defaulted to live."
             fi
             if ! grep -q '^LINKEDIN_API_VERSION=.\+' .env; then
               printf '\nLINKEDIN_API_VERSION=202507\n' >> .env
