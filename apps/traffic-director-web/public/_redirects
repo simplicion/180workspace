@@ -1,0 +1,3 @@
+# Cloudflare Pages SPA Rewrites for Traffic Director dynamic links
+/traffic-director/links/*.txt    /traffic-director/links/default.txt   200
+/traffic-director/links/*        /traffic-director/links/default.html  200

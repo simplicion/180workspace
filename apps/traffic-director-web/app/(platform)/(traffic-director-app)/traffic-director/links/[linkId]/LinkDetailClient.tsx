@@ -23,7 +23,27 @@ import LinkAnalyticsTab from './_components/LinkAnalyticsTab';
 export default function SmartLinkRuleCanvasPage() {
   const params = useParams();
   const router = useRouter();
-  const linkId = params?.linkId as string;
+  
+  // Resilient linkId extraction for static SSG exports (Cloudflare Pages rewrites)
+  const getInitialLinkId = () => {
+    const pId = params?.linkId as string;
+    if (pId && pId !== 'default') return pId;
+    if (typeof window !== 'undefined') {
+      const match = window.location.pathname.match(/\/traffic-director\/links\/([^\/\?#]+)/);
+      if (match && match[1] && match[1] !== 'default') return match[1];
+    }
+    return pId || '';
+  };
+
+  const [linkId, setLinkId] = useState<string>(getInitialLinkId);
+
+  useEffect(() => {
+    const currentId = getInitialLinkId();
+    if (currentId && currentId !== linkId) {
+      setLinkId(currentId);
+    }
+  }, [params?.linkId]);
+
   const { cloakingEnabled, isSubscriptionActive, isTrialExpired } = useSubscription();
 
   const [linkData, setLinkData] = useState<any>(null);
@@ -54,10 +74,12 @@ export default function SmartLinkRuleCanvasPage() {
   const [shieldMode, setShieldMode] = useState<'server' | 'client_shield'>('server');
   const [savingShield, setSavingShield] = useState(false);
 
-  const fetchLinkDetails = async () => {
+  const fetchLinkDetails = async (idToFetch?: string) => {
+    const targetId = idToFetch || linkId;
+    if (!targetId || targetId === 'default') return;
     try {
       setLoading(true);
-      const res = await api.get(`/api/v1/traffic-director/links/${linkId}`);
+      const res = await api.get(`/api/v1/traffic-director/links/${targetId}`);
       const lk = res.data?.data?.link || res.data?.link;
       if (!lk) {
         toast.error('Traffic link not found');
@@ -108,8 +130,8 @@ export default function SmartLinkRuleCanvasPage() {
   };
 
   useEffect(() => {
-    if (linkId) {
-      fetchLinkDetails();
+    if (linkId && linkId !== 'default') {
+      fetchLinkDetails(linkId);
     }
   }, [linkId]);
 
