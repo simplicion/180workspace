@@ -1,5 +1,6 @@
 import { prisma, requestContext } from '@workspace/db';
 import { CreateTrafficLinkDTO, UpdateTrafficLinkDTO } from '../types';
+import { TrafficDirectorBillingService } from './billing.service';
 
 const db = prisma as any;
 
@@ -207,43 +208,77 @@ export class TrafficLinksService {
     return link;
   }
 
-  static async createLink(companyId: string | undefined, data: CreateTrafficLinkDTO) {
+  static async createLink(companyId: string | undefined, data: any) {
     const effectiveCompanyId = this.resolveCompanyId(companyId) || data.companyId;
     if (!effectiveCompanyId) {
       throw new Error('Company context is required to create a traffic link');
     }
 
-    const { 
-      name, slug, description, fallbackUrl, customDomain, tags,
-      warmupUntil, rampUpEnabled, rampUpDurationHours, shieldMode, datacenterBlocked
-    } = data;
+    const linkName = data.name || data.title || 'Untitled Link';
+    const rawSlug = data.slug || linkName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
+    const cleanedSlug = rawSlug.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+    const finalFallbackUrl = data.fallbackUrl || data.destinationUrl || data.targetUrl || 'https://google.com';
 
     // Validate slug format
-    const cleanedSlug = slug.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
     const availability = await this.checkSlugAvailability(cleanedSlug);
     if (!availability.available) {
       throw new Error(availability.reason);
     }
 
+    // Enforce subscription link quota & active trial status
+    const billingStatus = await TrafficDirectorBillingService.getSubscriptionStatus(effectiveCompanyId);
+    const sub = billingStatus?.subscription;
+    if (sub && !sub.canCreateMoreLinks) {
+      if (sub.isTrialExpired) {
+        throw new Error('SUBSCRIPTION_REQUIRED: Your 7-day free trial has expired. Please upgrade your subscription in Billing to create new Smart Links.');
+      }
+      if (!sub.isSubscriptionActive) {
+        throw new Error('SUBSCRIPTION_REQUIRED: An active subscription is required to create Smart Links. Please activate a subscription in Billing.');
+      }
+      throw new Error(
+        `SUBSCRIPTION_REQUIRED: Plan link limit reached: Your ${sub.planName || sub.planTier} plan allows a maximum of ${sub.maxLinks} Smart Links (${sub.currentLinksCount}/${sub.maxLinks} used). Please upgrade your subscription in Billing to create more links.`
+      );
+    }
+
     const link = await db.trafficLink.create({
       data: {
         companyId: effectiveCompanyId,
-        name,
+        name: linkName,
         slug: cleanedSlug,
-        description,
-        fallbackUrl,
-        customDomain,
-        tags: tags || [],
-        warmupUntil: warmupUntil ? new Date(warmupUntil) : undefined,
-        rampUpEnabled: rampUpEnabled !== undefined ? rampUpEnabled : true,
-        rampUpDurationHours: rampUpDurationHours !== undefined ? Number(rampUpDurationHours) : 12,
-        shieldMode: shieldMode || 'server',
-        datacenterBlocked: datacenterBlocked ?? true
+        description: data.description,
+        fallbackUrl: finalFallbackUrl,
+        customDomain: data.customDomain,
+        tags: data.tags || [],
+        warmupUntil: data.warmupUntil ? new Date(data.warmupUntil) : undefined,
+        rampUpEnabled: data.rampUpEnabled !== undefined ? data.rampUpEnabled : true,
+        rampUpDurationHours: data.rampUpDurationHours !== undefined ? Number(data.rampUpDurationHours) : 12,
+        shieldMode: data.shieldMode || 'server',
+        datacenterBlocked: data.datacenterBlocked ?? true
       },
       include: {
         rules: true
       }
     });
+
+    if (data.cloakedUrl || data.safePageUrl) {
+      try {
+        const rule = await db.trafficRule.create({
+          data: {
+            linkId: link.id,
+            name: 'Default Cloak Rule',
+            priority: 0,
+            isActive: true,
+            destinationUrl: data.cloakedUrl || data.safePageUrl,
+            actionType: 'redirect_302',
+            conditions: [],
+            weight: 100,
+          }
+        });
+        if (rule) {
+          link.rules = [rule];
+        }
+      } catch (e) {}
+    }
 
     if (data.safePageProxyMode !== undefined) {
       try {
@@ -259,8 +294,25 @@ export class TrafficLinksService {
     return { link };
   }
 
-  static async updateLink(companyId: string | undefined, linkId: string, data: UpdateTrafficLinkDTO) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+  static async updateLink(
+    companyIdOrLinkId: string | undefined, 
+    linkIdOrData: string | UpdateTrafficLinkDTO, 
+    maybeData?: UpdateTrafficLinkDTO
+  ) {
+    let effectiveCompanyId: string | undefined;
+    let linkId: string;
+    let data: UpdateTrafficLinkDTO;
+
+    if (typeof linkIdOrData === 'object' && linkIdOrData !== null && maybeData === undefined) {
+      linkId = companyIdOrLinkId as string;
+      data = linkIdOrData as UpdateTrafficLinkDTO;
+      effectiveCompanyId = this.resolveCompanyId(undefined);
+    } else {
+      effectiveCompanyId = this.resolveCompanyId(companyIdOrLinkId);
+      linkId = linkIdOrData as string;
+      data = maybeData as UpdateTrafficLinkDTO;
+    }
+
     const where: any = { id: linkId };
     if (effectiveCompanyId) {
       where.companyId = effectiveCompanyId;
@@ -288,7 +340,19 @@ export class TrafficLinksService {
     if (data.fallbackUrl !== undefined) updateData.fallbackUrl = data.fallbackUrl;
     if (data.customDomain !== undefined) updateData.customDomain = data.customDomain;
     if (data.tags !== undefined) updateData.tags = data.tags;
-    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.isActive !== undefined) {
+      if (data.isActive === true) {
+        const existingLink = await db.trafficLink.findUnique({ where: { id: linkId }, select: { companyId: true } });
+        const targetCompanyId = existingLink?.companyId || effectiveCompanyId;
+        if (targetCompanyId) {
+          const billingStatus = await TrafficDirectorBillingService.getSubscriptionStatus(targetCompanyId);
+          if (!billingStatus?.subscription?.isSubscriptionActive || !billingStatus?.subscription?.cloakingEnabled) {
+            throw new Error('Active subscription or 7-day free trial required to activate Smart Link cloaking.');
+          }
+        }
+      }
+      updateData.isActive = data.isActive;
+    }
     if (data.warmupUntil !== undefined) updateData.warmupUntil = data.warmupUntil ? new Date(data.warmupUntil) : null;
     if (data.rampUpEnabled !== undefined) updateData.rampUpEnabled = data.rampUpEnabled;
     if (data.rampUpDurationHours !== undefined) updateData.rampUpDurationHours = Number(data.rampUpDurationHours);

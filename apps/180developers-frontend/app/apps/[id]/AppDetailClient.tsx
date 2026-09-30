@@ -37,6 +37,7 @@ import {
   UserX,
   Receipt,
   Eye,
+  ImageIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -54,6 +55,7 @@ interface DeveloperAppDetail {
   id: string;
   name: string;
   description: string;
+  logoUrl?: string;
   clientId: string;
   clientSecretHint: string;
   redirectUris: string[];
@@ -86,6 +88,7 @@ export default function AppDetailPage() {
   // Form states
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
   const [redirectUrisInput, setRedirectUrisInput] = useState('');
   const [allowedOriginsInput, setAllowedOriginsInput] = useState('');
   const [allowedScopes, setAllowedScopes] = useState<string[]>([]);
@@ -104,6 +107,10 @@ export default function AppDetailPage() {
   const [authMobileDefault, setAuthMobileDefault] = useState<string>('bottom_sheet');
   const [payDesktopDefault, setPayDesktopDefault] = useState<string>('bottom_sheet');
   const [payMobileDefault, setPayMobileDefault] = useState<string>('bottom_sheet');
+
+  // Token Lifecycle & Expiration Preferences State
+  const [accessTokenTtl, setAccessTokenTtl] = useState<number>(900); // 15 mins standard
+  const [refreshTokenDays, setRefreshTokenDays] = useState<number>(7); // 7 days standard
 
   // Test Webhook Dispatcher State
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
@@ -535,6 +542,7 @@ export default function AppDetailPage() {
       setApp(appData);
       setName(appData.name);
       setDescription(appData.description || '');
+      setLogoUrl(appData.logoUrl || '');
       setRedirectUrisInput((appData.redirectUris || []).join('\n'));
       setAllowedOriginsInput((appData.allowedOrigins || []).join('\n'));
       setAllowedScopes(appData.allowedScopes || []);
@@ -548,6 +556,8 @@ export default function AppDetailPage() {
       setAuthMobileDefault(appData.authMobileDefault || 'bottom_sheet');
       setPayDesktopDefault(appData.payDesktopDefault || 'bottom_sheet');
       setPayMobileDefault(appData.payMobileDefault || 'bottom_sheet');
+      setAccessTokenTtl(appData.accessTokenTtl || 900);
+      setRefreshTokenDays(appData.refreshTokenDays || 7);
     } catch (err: any) {
       toast.error(err.message || 'Error loading application');
     } finally {
@@ -566,6 +576,10 @@ export default function AppDetailPage() {
     e.preventDefault();
     if (!name.trim()) {
       toast.error('App name cannot be empty');
+      return;
+    }
+    if (!logoUrl.trim()) {
+      toast.error('App logo URL is strictly required');
       return;
     }
 
@@ -603,6 +617,7 @@ export default function AppDetailPage() {
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim(),
+          logoUrl: logoUrl.trim() || undefined,
           redirectUris,
           allowedOrigins,
           allowedScopes,
@@ -615,6 +630,8 @@ export default function AppDetailPage() {
           authMobileDefault,
           payDesktopDefault,
           payMobileDefault,
+          accessTokenTtl,
+          refreshTokenDays,
         }),
       });
 
@@ -628,6 +645,7 @@ export default function AppDetailPage() {
           body: JSON.stringify({
             name: name.trim(),
             description: description.trim(),
+            logoUrl: logoUrl.trim() || undefined,
             redirectUris,
             allowedOrigins,
             allowedScopes,
@@ -640,6 +658,8 @@ export default function AppDetailPage() {
             authMobileDefault,
             payDesktopDefault,
             payMobileDefault,
+            accessTokenTtl,
+            refreshTokenDays,
           }),
         });
       }
@@ -1826,6 +1846,37 @@ export default function AppDetailPage() {
           </div>
         </div>
 
+        {/* App Logo URL */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+            <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
+            App Logo URL (White-label OAuth Branding) <span className="text-red-500">*</span>
+          </label>
+          <div className="flex items-center gap-3">
+            {logoUrl.trim() && (
+              <div className="w-10 h-10 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 overflow-hidden flex items-center justify-center p-1 shrink-0">
+                <img
+                  src={logoUrl.trim()}
+                  alt="Logo preview"
+                  className="w-full h-full object-contain rounded-lg"
+                  onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                />
+              </div>
+            )}
+            <input
+              type="url"
+              required
+              placeholder="https://yourapp.com/logo.png"
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
+            />
+          </div>
+          <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+            Mandatory: This logo is displayed exclusively in the authorization popup for your app.
+          </p>
+        </div>
+
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
             Redirect URIs (One per line)
@@ -2085,6 +2136,183 @@ export default function AppDetailPage() {
                 <CreditCard className="w-3.5 h-3.5" />
                 <span>Test 180 Pay Drawer</span>
               </button>
+            </div>
+          </div>
+
+          {/* Token Lifecycle & Auto-Refresh Cycle Preferences */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-zinc-200 dark:border-white/5">
+              <div>
+                <h4 className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                  <RotateCw className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Token Lifecycle & Auto-Refresh Cycle</span>
+                </h4>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Configure cryptographic token lifetimes. 180 Profile SDK silently rotates refresh tokens before expiration without user interruption.
+                </p>
+              </div>
+              <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-semibold">
+                OAuth 2.0 Security
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
+                  <span>Access Token Lifetime</span>
+                  <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">{Math.round(accessTokenTtl / 60)} mins ({accessTokenTtl}s)</span>
+                </label>
+                <select
+                  value={accessTokenTtl}
+                  onChange={(e) => setAccessTokenTtl(Number(e.target.value))}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500"
+                >
+                  <option value={300}>5 minutes (300s) — High Security</option>
+                  <option value={900}>15 minutes (900s) — Standard (Recommended)</option>
+                  <option value={1800}>30 minutes (1800s)</option>
+                  <option value={3600}>1 hour (3600s)</option>
+                  <option value={86400}>24 hours (86400s)</option>
+                </select>
+                <p className="text-[10px] text-zinc-500">Short-lived asymmetric tokens prevent replay attacks and token interception.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
+                  <span>Refresh Token Retention Cycle</span>
+                  <span className="font-mono text-purple-600 dark:text-purple-400 font-bold">{refreshTokenDays} Days</span>
+                </label>
+                <select
+                  value={refreshTokenDays}
+                  onChange={(e) => setRefreshTokenDays(Number(e.target.value))}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
+                >
+                  <option value={1}>1 Day (24 hours)</option>
+                  <option value={3}>3 Days</option>
+                  <option value={7}>7 Days — Standard (Recommended)</option>
+                  <option value={14}>14 Days</option>
+                  <option value={30}>30 Days (Extended Session)</option>
+                </select>
+                <p className="text-[10px] text-zinc-500">180 Profile automatically exchanges and updates refresh tokens silently in the background.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Webhook Endpoints & Real-Time Dispatch Card */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-zinc-200 dark:border-white/5">
+              <div>
+                <h4 className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                  <Webhook className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Webhook Endpoints & Real-Time Dispatch</span>
+                </h4>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Receive signed HMAC-SHA256 events (payment.captured, subscription.activated) directly on your backend.
+                </p>
+              </div>
+              <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
+                HMAC-SHA256 Verified
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+                  Webhook Endpoint URL
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://myapp.com/api/webhooks/180-pay"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+                <p className="text-[10px] text-zinc-500">
+                  Must be an HTTPS URL on production. Localhost URLs (e.g. http://localhost:4002/api/webhook) are supported for local testing.
+                </p>
+              </div>
+
+              {/* Webhook Secret Row */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
+                  <span>Webhook Signing Secret (WEBHOOK_SECRET)</span>
+                  <button
+                    type="button"
+                    onClick={handleRotateWebhookSecret}
+                    disabled={isRotatingWebhook}
+                    className="text-[10px] text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <RotateCw className={`w-3 h-3 ${isRotatingWebhook ? 'animate-spin' : ''}`} />
+                    <span>Rotate Secret</span>
+                  </button>
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-700 dark:text-zinc-300 select-all truncate">
+                    {webhookSecret || 'whsec_••••••••••••••••••••••••'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(webhookSecret, 'webhookSecret')}
+                    disabled={!webhookSecret}
+                    className="px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/10 text-xs text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                  >
+                    {copiedKey === 'webhookSecret' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedKey === 'webhookSecret' ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-500">
+                  Use this secret to cryptographically verify the <code>X-180-Signature</code> header with timing-safe HMAC-SHA256 comparison.
+                </p>
+              </div>
+
+              {/* Test Webhook Runner */}
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={handleSendTestWebhook}
+                  disabled={isTestingWebhook || !webhookUrl.trim()}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isTestingWebhook ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sending Test Ping...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send Test Webhook Ping</span>
+                    </>
+                  )}
+                </button>
+                <span className="text-[11px] text-zinc-500">Dispatches simulated <code>payment.test</code> payload</span>
+              </div>
+
+              {/* Test Webhook Diagnostics Output */}
+              {testResult && (
+                <div className={`p-3.5 rounded-xl border text-xs space-y-2 font-mono ${
+                  testResult.success 
+                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-500/30 text-emerald-900 dark:text-emerald-200' 
+                    : 'bg-red-50/50 dark:bg-red-950/20 border-red-300 dark:border-red-500/30 text-red-900 dark:text-red-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold flex items-center gap-1.5">
+                      {testResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <AlertCircle className="w-4 h-4 text-red-500" />}
+                      HTTP {testResult.statusCode} ({testResult.latencyMs}ms)
+                    </span>
+                    <span className="text-[10px] opacity-75">{testResult.targetUrl}</span>
+                  </div>
+                  {testResult.signature && (
+                    <div className="text-[10px] opacity-75 truncate">
+                      X-180-Signature: {testResult.signature}
+                    </div>
+                  )}
+                  {testResult.response && (
+                    <div className="text-[10px] p-2 rounded bg-black/10 dark:bg-black/40 break-all max-h-24 overflow-y-auto">
+                      {testResult.response}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

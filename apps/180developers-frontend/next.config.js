@@ -1,5 +1,5 @@
 const isDev = process.env.NODE_ENV === 'development';
-const isExport = !isDev || process.env.NEXT_EXPORT === 'true' || process.env.CF_PAGES === 'true';
+const isExport = process.env.NEXT_EXPORT === 'true' || process.env.CF_PAGES === 'true';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

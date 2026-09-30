@@ -29,6 +29,42 @@ export const getAuthToken = (): string | null => {
   return null;
 };
 
+const handleResponse = async (res: Response) => {
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    if (res.status === 401 && typeof window !== 'undefined') {
+      const token = getAuthToken();
+      let isTokenExpired = true;
+      if (token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            if (payload.exp && payload.exp * 1000 > Date.now()) {
+              isTokenExpired = false;
+            }
+          } else {
+            isTokenExpired = false;
+          }
+        } catch (_) {}
+      }
+
+      if (isTokenExpired) {
+        localStorage.removeItem('platform_auth_token');
+        document.cookie = 'platform_auth_token=; path=/; max-age=0;';
+        if (window.location.pathname.startsWith('/traffic-director')) {
+          window.location.href = '/';
+        }
+      }
+    }
+    const error: any = new Error(data?.error || data?.message || `Request failed with status ${res.status}`);
+    error.status = res.status;
+    error.data = data;
+    throw error;
+  }
+  return { data };
+};
+
 export const api = {
   async get(endpoint: string, options: { params?: Record<string, any>; headers?: Record<string, string> } = {}) {
     const token = getAuthToken();
@@ -54,12 +90,7 @@ export const api = {
     };
 
     const res = await fetch(url, { method: 'GET', headers });
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error(data?.error || data?.message || `Request failed with status ${res.status}`);
-    }
-    return { data };
+    return handleResponse(res);
   },
 
   async post(endpoint: string, body: any = {}, options: { headers?: Record<string, string> } = {}) {
@@ -77,12 +108,7 @@ export const api = {
       headers,
       body: JSON.stringify(body),
     });
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error(data?.error || data?.message || `Request failed with status ${res.status}`);
-    }
-    return { data };
+    return handleResponse(res);
   },
 
   async put(endpoint: string, body: any = {}) {
@@ -99,12 +125,7 @@ export const api = {
       headers,
       body: JSON.stringify(body),
     });
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error(data?.error || data?.message || `Request failed with status ${res.status}`);
-    }
-    return { data };
+    return handleResponse(res);
   },
 
   async patch(endpoint: string, body: any = {}) {
@@ -121,12 +142,7 @@ export const api = {
       headers,
       body: JSON.stringify(body),
     });
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error(data?.error || data?.message || `Request failed with status ${res.status}`);
-    }
-    return { data };
+    return handleResponse(res);
   },
 
   async delete(endpoint: string, body?: any) {
@@ -143,12 +159,7 @@ export const api = {
       headers,
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error(data?.error || data?.message || `Request failed with status ${res.status}`);
-    }
-    return { data };
+    return handleResponse(res);
   },
 };
 

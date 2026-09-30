@@ -11,6 +11,7 @@
   "dependencies": {
     "@workspace/db-180core": "workspace:*",
     "@workspace/identity-provider": "workspace:*",
+    "@workspace/payment-provider": "workspace:*",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.5",

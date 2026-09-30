@@ -1,8 +1,22 @@
+'use strict';
+
 import crypto from 'crypto';
 import axios from 'axios';
 import { developersPrisma as prisma } from '@workspace/db-180core';
-import { hashSecret, timingSafeCompare } from '../oauth/oauth.service';
 import { IdentityWalletService } from '../wallet/identity-wallet.service';
+import { SubscriptionService } from '../subscription/subscription.service';
+
+function hashSecret(secret: string): string {
+  return crypto.createHash('sha256').update(secret).digest('hex');
+}
+
+function timingSafeCompare(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export interface CreateCheckoutSessionInput {
   clientId: string;
@@ -15,6 +29,10 @@ export interface CreateCheckoutSessionInput {
   cancelUrl?: string;
   metadata?: Record<string, any>;
   expiresInMinutes?: number;
+  mode?: 'payment' | 'subscription';
+  planCode?: string;
+  billingInterval?: string;
+  paymentSource?: 'WALLET' | 'RAZORPAY_RECURRING' | 'HYBRID';
 }
 
 export class CheckoutService {
@@ -33,6 +51,10 @@ export class CheckoutService {
       cancelUrl,
       metadata,
       expiresInMinutes = 30,
+      mode = 'payment',
+      planCode,
+      billingInterval,
+      paymentSource = 'WALLET',
     } = input;
 
     if (!amount || amount <= 0) {
@@ -57,24 +79,49 @@ export class CheckoutService {
       throw new Error('Invalid client secret');
     }
 
-    if ((app as any).enablePay === false) {
-      throw new Error('180 Pay is currently disabled for this application. Please enable 180 Pay in your 180 Developer Portal.');
+    if (app.enablePay === false) {
+      throw new Error('180 Pay is currently disabled for this application.');
     }
 
+    // 2. Set expiry
     const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
 
-    // 2. Create the CheckoutSession record
+    // 3. Resolve plan if in subscription mode
+    let planId: string | null = null;
+    let resolvedInterval = billingInterval || 'MONTHLY';
+    if (mode === 'subscription' && planCode) {
+      const plan = await (prisma as any).subscriptionPlan.findUnique({
+        where: {
+          appId_planCode: {
+            appId: app.id,
+            planCode: planCode.toLowerCase().trim(),
+          },
+        },
+      });
+      if (plan) {
+        planId = plan.id;
+        resolvedInterval = plan.interval;
+      }
+    }
+
+    // 4. Create session record
     const session = await prisma.checkoutSession.create({
       data: {
         appId: app.id,
         amount: Math.round(amount * 100) / 100,
         currency: currency.toUpperCase(),
         status: 'PENDING',
+        mode,
+        planId,
+        billingInterval: mode === 'subscription' ? resolvedInterval : null,
         title,
         description: description || '',
         returnUrl: returnUrl || '',
         cancelUrl: cancelUrl || '',
-        metadata: metadata || {},
+        metadata: {
+          ...(metadata || {}),
+          paymentSource,
+        },
         expiresAt,
       },
       include: {
@@ -89,42 +136,24 @@ export class CheckoutService {
       },
     });
 
+    const checkoutBase = process.env.PROFILE_FRONTEND_URL || 'https://pay.180workspace.com';
+
     return {
       success: true,
       sessionId: session.id,
       amount: session.amount,
       currency: session.currency,
+      mode: session.mode,
+      planId: session.planId,
       expiresAt: session.expiresAt,
-      checkoutUrl: `${process.env.PROFILE_FRONTEND_URL || 'https://profile.180workspace.com'}/checkout/${session.id}`,
+      checkoutUrl: `${checkoutBase}/checkout/${session.id}`,
     };
   }
 
   /**
-   * Retrieves public details of a checkout session for the popup UI
+   * Retrieves a Checkout Session for rendering the 180 Pay Drawer
    */
   static async getSession(sessionId: string) {
-    if (sessionId.startsWith('sess_sandbox_') || sessionId.startsWith('sess_demo_')) {
-      return {
-        id: sessionId,
-        amount: 499.00,
-        currency: 'INR',
-        status: 'PENDING',
-        title: 'Developer Pro License',
-        description: 'Interactive Sandbox Sovereign Checkout',
-        returnUrl: '',
-        cancelUrl: '',
-        metadata: {},
-        expiresAt: new Date(Date.now() + 3600 * 1000),
-        app: {
-          id: 'app_sandbox_demo',
-          name: '180 Developers Demo',
-          logoUrl: '',
-          isVerified: true,
-          homepageUrl: 'http://localhost:3008',
-        },
-      };
-    }
-
     const session = await prisma.checkoutSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -132,9 +161,9 @@ export class CheckoutService {
           select: {
             id: true,
             name: true,
+            description: true,
             logoUrl: true,
             isVerified: true,
-            homepageUrl: true,
           },
         },
       },
@@ -144,50 +173,39 @@ export class CheckoutService {
       throw new Error('Checkout session not found');
     }
 
-    const isExpired = new Date() > session.expiresAt;
-    if (isExpired && session.status === 'PENDING') {
-      await prisma.checkoutSession.update({
-        where: { id: sessionId },
-        data: { status: 'EXPIRED' },
-      });
-      session.status = 'EXPIRED';
+    if (session.status === 'EXPIRED' || session.expiresAt < new Date()) {
+      if (session.status !== 'EXPIRED' && session.status === 'PENDING') {
+        await prisma.checkoutSession.update({
+          where: { id: sessionId },
+          data: { status: 'EXPIRED' },
+        });
+      }
+      return {
+        ...session,
+        status: 'EXPIRED',
+        isExpired: true,
+      };
     }
 
     return {
-      id: session.id,
-      amount: session.amount,
-      currency: session.currency,
-      status: session.status,
-      title: session.title,
-      description: session.description,
-      returnUrl: session.returnUrl,
-      cancelUrl: session.cancelUrl,
-      metadata: session.metadata,
-      expiresAt: session.expiresAt,
-      app: session.app,
+      ...session,
+      isExpired: false,
     };
   }
 
   /**
-   * Processes the checkout payment atomically inside an ACID transaction
-   * with strict double-spend protection.
+   * Alias for captureSession - authenticates and executes payment from user's sovereign wallet
    */
   static async processPayment(sessionId: string, userId: string) {
-    if (sessionId.startsWith('sess_sandbox_') || sessionId.startsWith('sess_demo_')) {
-      return {
-        success: true,
-        transactionId: 'tx_sandbox_' + Math.random().toString(36).substring(2, 10),
-        sessionId,
-        amount: 499.00,
-        currency: 'INR',
-        status: 'CAPTURED',
-        returnUrl: '',
-      };
-    }
+    return this.captureSession(sessionId, userId);
+  }
 
-    // Atomic execution block with transaction-scoped wallet reads
+  /**
+   * Captures payment from the user's sovereign wallet and completes the session
+   */
+  static async captureSession(sessionId: string, userId: string) {
     const result = await prisma.$transaction(async (tx: any) => {
-      // 1. Fetch & lock checkout session within transaction
+      // 1. Lock and verify session
       const session = await tx.checkoutSession.findUnique({
         where: { id: sessionId },
         include: { app: true },
@@ -197,16 +215,16 @@ export class CheckoutService {
         throw new Error('Checkout session not found');
       }
 
-      if (session.status !== 'PENDING') {
-        throw new Error(`Checkout session is already ${session.status.toLowerCase()}`);
+      if (session.status === 'CAPTURED') {
+        throw new Error('This checkout session has already been completed.');
       }
 
-      if (new Date() > session.expiresAt) {
-        await tx.checkoutSession.update({
-          where: { id: sessionId },
-          data: { status: 'EXPIRED' },
-        });
-        throw new Error('Checkout session has expired');
+      if (session.status === 'EXPIRED' || session.expiresAt < new Date()) {
+        throw new Error('This checkout session has expired. Please create a new one.');
+      }
+
+      if (session.status !== 'PENDING') {
+        throw new Error(`Cannot capture session with status: ${session.status}`);
       }
 
       // 2. Fetch User Wallet inside transaction
@@ -236,13 +254,13 @@ export class CheckoutService {
 
       // 3. Fetch Developer App Wallet inside transaction
       let appWallet = await tx.wallet.findUnique({
-        where: { appId: session.appId },
+        where: { developerAppId: session.appId },
       });
 
       if (!appWallet) {
         appWallet = await tx.wallet.create({
           data: {
-            appId: session.appId,
+            developerAppId: session.appId,
             balance: 0,
             currency: 'INR',
           },
@@ -303,32 +321,55 @@ export class CheckoutService {
         },
       });
 
+      // 5.1 Activate recurring subscription if session was created in subscription mode
+      if (session.mode === 'subscription') {
+        try {
+          await SubscriptionService.activateSubscriptionFromSession(session.id, userId, tx);
+        } catch (subErr: any) {
+          console.warn('[CheckoutService] Failed to activate subscription from session:', subErr.message);
+        }
+      }
+
       return {
         session: updatedSession,
         userLedgerId: userLedger.id,
         newUserBalance,
       };
+    }, {
+      maxWait: 15000,
+      timeout: 30000,
     });
 
     // 6. Asynchronous Webhook Dispatch with Backoff & Timestamp Signatures
+    // Dispatches both 'payment.captured' (standard) and 'payment.succeeded' (compatibility alias)
     const session = result.session;
-    this.dispatchPaymentWebhook(session.appId, {
-      event: 'payment.succeeded',
-      data: {
-        sessionId: session.id,
-        amount: session.amount,
-        currency: session.currency,
-        title: session.title,
-        metadata: session.metadata,
-        userId,
-        timestamp: new Date().toISOString(),
-      },
-    }).catch((err) => {
+    const webhookData = {
+      sessionId: session.id,
+      transactionId: result.userLedgerId,
+      amount: session.amount,
+      currency: session.currency,
+      title: session.title,
+      metadata: session.metadata,
+      userId,
+      timestamp: new Date().toISOString(),
+    };
+
+    Promise.allSettled([
+      this.dispatchPaymentWebhook(session.appId, {
+        event: 'payment.captured',
+        data: webhookData,
+      }),
+      this.dispatchPaymentWebhook(session.appId, {
+        event: 'payment.succeeded',
+        data: webhookData,
+      }),
+    ]).catch((err) => {
       console.warn('[CheckoutService] Failed to dispatch webhook:', err.message);
     });
 
     return {
       success: true,
+      session: result.session,
       transactionId: result.userLedgerId,
       remainingBalance: result.newUserBalance,
       returnUrl: session.returnUrl,
@@ -423,4 +464,3 @@ export class CheckoutService {
     }
   }
 }
-

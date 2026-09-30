@@ -6,11 +6,12 @@ import Link from 'next/link';
 import { 
   GitFork, ArrowLeft, Plus, Play, Layers, ShieldCheck, Shield,
   Trash2, ArrowUp, ArrowDown, ExternalLink, Power, Check, Copy, Globe, Smartphone, Bot, Clock, Code, Flame,
-  ArrowRightLeft, Eye, BarChart3, Activity
+  ArrowRightLeft, Eye, BarChart3, Activity, Lock
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { LogoLoader, ConfirmModal, UniversalDateTimePicker } from '@workspace/ui';
+import { useSubscription } from '@/lib/useSubscription';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import CustomSelect from '@/components/ui/CustomSelect';
 import CreateRuleModal from '../../../_components/CreateRuleModal';
@@ -21,7 +22,9 @@ import LinkAnalyticsTab from './_components/LinkAnalyticsTab';
 
 export default function SmartLinkRuleCanvasPage() {
   const params = useParams();
+  const router = useRouter();
   const linkId = params?.linkId as string;
+  const { cloakingEnabled, isSubscriptionActive, isTrialExpired } = useSubscription();
 
   const [linkData, setLinkData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -252,7 +255,12 @@ export default function SmartLinkRuleCanvasPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">{linkData.name}</h1>
-              <span className={`w-2.5 h-2.5 rounded-full ${linkData.isActive ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ${linkData.isActive && cloakingEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+              {!cloakingEnabled && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  Cloaking Paused
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-xs text-gray-400 font-mono">/r/{linkData.slug}</span>
@@ -264,6 +272,45 @@ export default function SmartLinkRuleCanvasPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            onClick={async () => {
+              if (!linkData.isActive && !cloakingEnabled) {
+                toast.error(
+                  isTrialExpired 
+                    ? 'Your 7-day free trial has expired. Upgrade your subscription to activate cloaking.' 
+                    : 'Active subscription required: Activate a plan in Billing to enable cloaking routing.'
+                );
+                router.push('/traffic-director/subscription');
+                return;
+              }
+              try {
+                const nextActive = !linkData.isActive;
+                await api.put(`/api/v1/traffic-director/links/${linkId}`, { isActive: nextActive });
+                setLinkData((prev: any) => ({ ...prev, isActive: nextActive }));
+                toast.success(`Link is now ${nextActive ? 'Active' : 'Paused'}`);
+              } catch (err: any) {
+                toast.error(err.response?.data?.error || 'Failed to update link status');
+              }
+            }}
+            className={`p-2 rounded-xl border transition cursor-pointer relative ${
+              linkData.isActive && cloakingEnabled
+                ? 'border-emerald-200 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                : 'border-gray-200 dark:border-zinc-700 text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
+            }`}
+            title={
+              !cloakingEnabled
+                ? 'Cloaking Locked: Subscription required to activate edge routing'
+                : (linkData.isActive ? 'Pause Link' : 'Activate Link')
+            }
+          >
+            <Power className="w-4 h-4" />
+            {!cloakingEnabled && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 rounded-full flex items-center justify-center text-white shadow-xs">
+                <Lock className="w-2 h-2" />
+              </span>
+            )}
+          </button>
+
           <button
             onClick={() => setIsEditModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold transition"
@@ -285,11 +332,22 @@ export default function SmartLinkRuleCanvasPage() {
             Simulate
           </Link>
           <button
-            onClick={() => setIsRuleModalOpen(true)}
+            onClick={() => {
+              if (!cloakingEnabled) {
+                toast.error(
+                  isTrialExpired 
+                    ? 'Your 7-day free trial has expired. Upgrade your subscription to add routing rules.' 
+                    : 'Active subscription required to add routing rules.'
+                );
+                router.push('/traffic-director/subscription');
+                return;
+              }
+              setIsRuleModalOpen(true);
+            }}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-500/20 active:scale-95 transition cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
-            Add Rule
+            {cloakingEnabled ? <Plus className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+            <span>Add Rule</span>
           </button>
         </div>
       </div>

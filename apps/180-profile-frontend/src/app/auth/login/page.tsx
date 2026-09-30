@@ -28,6 +28,7 @@ import {
 import { OAuthAppHeader } from '@/components/auth/OAuthAppHeader';
 import { GoogleSSOButton } from '@/components/auth/GoogleSSOButton';
 import { OAuthErrorCard, OAuthErrorDetails } from '@/components/auth/OAuthErrorCard';
+import { SmartAuthInput } from '@/components/auth/SmartAuthInput';
 import { getCoreApiUrl } from '@/lib/api';
 
 type AuthScreenMode = 'login' | 'signup' | 'otp' | 'password' | 'onboarding';
@@ -48,6 +49,13 @@ function LoginFormContent() {
     details?: OAuthErrorDetails;
   } | null>(null);
   const [isValidatingOAuth, setIsValidatingOAuth] = useState(false);
+  const [oauthApp, setOauthApp] = useState<{
+    name: string;
+    logoUrl: string;
+    description?: string;
+    isVerified?: boolean;
+    clientId: string;
+  } | null>(null);
 
   // Cached User Session (for 1-click return)
   const [cachedUser, setCachedUser] = useState<any>(null);
@@ -161,6 +169,17 @@ function LoginFormContent() {
           details: data.details,
         });
       } else {
+        const data = await res.json().catch(() => ({}));
+        const appData = data.app || data.client;
+        if (appData) {
+          setOauthApp({
+            name: appData.name || oauthParams.clientId,
+            logoUrl: appData.logoUrl || '',
+            description: appData.description || '',
+            isVerified: appData.isVerified || false,
+            clientId: appData.clientId || oauthParams.clientId,
+          });
+        }
         setOauthValidationError(null);
       }
     } catch (e: any) {
@@ -250,7 +269,7 @@ function LoginFormContent() {
     }
 
     setLoading(true);
-    const toastId = toast.loading('Signing in to 180 Profile...');
+    const toastId = toast.loading(oauthApp ? `Signing in to ${oauthApp.name}...` : 'Signing in...');
 
     try {
       const res = await fetch(getCoreApiUrl('/api/oauth/login'), {
@@ -266,7 +285,7 @@ function LoginFormContent() {
       const { ok, data } = await parseApiResponse(res);
       if (!ok || !data.success) {
         if (data.error === 'user_not_found') {
-          toast.error('No account found. Click "Create a 180 Profile" below.', { id: toastId });
+          toast.error('No account found. Click "Create an account" below.', { id: toastId });
           return;
         }
         throw new Error(data.message || data.error || 'Invalid credentials');
@@ -690,10 +709,18 @@ function LoginFormContent() {
       ───────────────────────────────────────────────────────────────────────────── */}
       {mode === 'login' && cachedUser && !showFullLogin ? (
         <div className="space-y-5 animate-in fade-in duration-200">
-          <div className="text-center space-y-1">
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Welcome Back</h2>
-            <p className="text-xs text-slate-500">Authenticate instantly with your sovereign account</p>
-          </div>
+          {oauthParams.clientId ? (
+            <OAuthAppHeader
+              clientId={oauthParams.clientId}
+              app={oauthApp}
+              subtitle={oauthApp ? `Continue to ${oauthApp.name}` : undefined}
+            />
+          ) : (
+            <div className="text-center space-y-1">
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Welcome Back</h2>
+              <p className="text-xs text-slate-500">Authenticate instantly with your sovereign account</p>
+            </div>
+          )}
 
           <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/90 flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-3">
@@ -763,10 +790,18 @@ function LoginFormContent() {
       ───────────────────────────────────────────────────────────────────────────── */}
       {mode === 'login' && (!cachedUser || showFullLogin) && (
         <div className="space-y-5 animate-in fade-in duration-200">
-          <div className="text-center space-y-1">
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Sign in to 180 Profile</h2>
-            <p className="text-xs text-slate-500">Sign in with your email or phone number</p>
-          </div>
+          {oauthParams.clientId ? (
+            <OAuthAppHeader
+              clientId={oauthParams.clientId}
+              app={oauthApp}
+              subtitle={oauthApp ? `Sign in to continue to ${oauthApp.name}` : undefined}
+            />
+          ) : (
+            <div className="text-center space-y-1">
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Sign In</h2>
+              <p className="text-xs text-slate-500">Sign in with your email or phone number</p>
+            </div>
+          )}
 
           {/* Genuine Google OAuth Button (No sub-modal) */}
           <GoogleSSOButton
@@ -785,22 +820,14 @@ function LoginFormContent() {
 
           {/* Single Unified Sign-in Form */}
           <form onSubmit={handleLoginSubmit} className="space-y-3.5">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Email or Phone Number
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="name@email.com or +91 9876543210"
-                  value={loginEmailOrPhone}
-                  onChange={(e) => setLoginEmailOrPhone(e.target.value)}
-                  className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-3.5 py-2.5 min-h-[42px] text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                  required
-                  autoFocus
-                />
-              </div>
-            </div>
+            <SmartAuthInput
+              label="Email or Phone Number"
+              placeholder="name@email.com or 9876543210"
+              value={loginEmailOrPhone}
+              onChange={setLoginEmailOrPhone}
+              required
+              autoFocus
+            />
 
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -832,7 +859,7 @@ function LoginFormContent() {
               ) : (
                 <LogIn className="w-3.5 h-3.5 text-white" />
               )}
-              <span>Sign In with Sovereign ID</span>
+              <span>{oauthApp ? `Sign In to ${oauthApp.name}` : 'Sign In'}</span>
             </button>
           </form>
 
@@ -845,7 +872,7 @@ function LoginFormContent() {
                 onClick={() => setMode('signup')}
                 className="text-blue-600 font-bold hover:text-blue-800 hover:underline cursor-pointer ml-0.5"
               >
-                Create a 180 Profile
+                Create an account
               </button>
             </p>
           </div>
@@ -867,10 +894,18 @@ function LoginFormContent() {
       ───────────────────────────────────────────────────────────────────────────── */}
       {mode === 'signup' && (
         <div className="space-y-5 animate-in fade-in duration-200">
-          <div className="text-center space-y-1">
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Create a 180 Profile</h2>
-            <p className="text-xs text-slate-500">Sign up to get started</p>
-          </div>
+          {oauthParams.clientId ? (
+            <OAuthAppHeader
+              clientId={oauthParams.clientId}
+              app={oauthApp}
+              subtitle={oauthApp ? `Create an account to continue to ${oauthApp.name}` : undefined}
+            />
+          ) : (
+            <div className="text-center space-y-1">
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Create an Account</h2>
+              <p className="text-xs text-slate-500">Sign up to get started</p>
+            </div>
+          )}
 
           {/* Genuine Google OAuth Button */}
           <GoogleSSOButton
@@ -903,15 +938,11 @@ function LoginFormContent() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Email or Phone Number
-              </label>
-              <input
-                type="text"
+              <SmartAuthInput
+                label="Email or Phone Number"
                 placeholder="alex@company.com or 9876543210"
                 value={signupEmailOrPhone}
-                onChange={(e) => setSignupEmailOrPhone(e.target.value)}
-                className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-3.5 py-2.5 min-h-[42px] text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                onChange={setSignupEmailOrPhone}
                 required
               />
               <p className="text-[11px] text-slate-400 mt-1">
@@ -1040,7 +1071,7 @@ function LoginFormContent() {
             </div>
             <h2 className="text-lg font-bold text-slate-900 tracking-tight">Create a Secure Password</h2>
             <p className="text-xs text-slate-500">
-              Set a master password for your sovereign 180 Profile
+              Set a master password for your account
             </p>
           </div>
 
@@ -1105,9 +1136,9 @@ function LoginFormContent() {
                 <User className="w-6 h-6 text-blue-600" />
               </div>
             </div>
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Complete Your 180 Profile</h2>
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Complete Your Profile</h2>
             <p className="text-xs text-slate-500">
-              Customize how you appear across all sovereign apps
+              Customize how you appear across apps
             </p>
           </div>
 

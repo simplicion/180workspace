@@ -122,7 +122,7 @@ export const FIRST_PARTY_APPS = [
         ],
         isVerified: true,
         isActive: true,
-        logoUrl: '/icon.svg'
+        logoUrl: '/social-studio.png'
     },
     {
         clientId: '180-traffic-director',
@@ -155,6 +155,114 @@ export const FIRST_PARTY_APPS = [
         ],
         isVerified: true,
         isActive: true,
+        enablePay: true,
+        webhookUrl: process.env.TRAFFIC_DIRECTOR_WEBHOOK_URL || 'http://localhost:4002/api/v1/traffic-director/billing/webhook',
+        webhookSecret: process.env.TRAFFIC_DIRECTOR_WEBHOOK_SECRET || '180_webhook_traffic_director_prod_sec_991823',
+        logoUrl: '/icon.svg'
+    },
+    {
+        clientId: '180-developers-portal',
+        name: '180 Developers Console',
+        description: 'Developer Console & API Management for 180 Workspace Ecosystem',
+        redirectUris: [
+            'http://localhost:3000/callback',
+            'http://localhost:3000/oauth/callback',
+            'http://localhost:3008/callback',
+            'http://localhost:3008/oauth/callback',
+            'http://127.0.0.1:3008/callback',
+            'http://127.0.0.1:3008/oauth/callback',
+            'http://localhost:3002/callback',
+            'https://developers.180workspace.com/callback',
+            'https://developers.180workspace.com/oauth/callback',
+            'https://*.180workspace.com/callback',
+            'https://*.180workspace.com/oauth/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:3008',
+            'http://127.0.0.1:3008',
+            'http://localhost:3002',
+            'http://127.0.0.1:3002',
+            'https://developers.180workspace.com',
+            'https://*.180workspace.com'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email',
+            'identity:phone',
+            'developer:read',
+            'developer:write'
+        ],
+        isVerified: true,
+        isActive: true,
+        logoUrl: '/icon.svg'
+    },
+    {
+        clientId: '180-developer-portal',
+        name: '180 Developers Console',
+        description: 'Developer Console & API Management for 180 Workspace Ecosystem',
+        redirectUris: [
+            'http://localhost:3000/callback',
+            'http://localhost:3000/oauth/callback',
+            'http://localhost:3008/callback',
+            'http://localhost:3008/oauth/callback',
+            'http://127.0.0.1:3008/callback',
+            'http://127.0.0.1:3008/oauth/callback',
+            'http://localhost:3002/callback',
+            'https://developers.180workspace.com/callback',
+            'https://developers.180workspace.com/oauth/callback',
+            'https://*.180workspace.com/callback',
+            'https://*.180workspace.com/oauth/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:3008',
+            'http://127.0.0.1:3008',
+            'http://localhost:3002',
+            'http://127.0.0.1:3002',
+            'https://developers.180workspace.com',
+            'https://*.180workspace.com'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email',
+            'identity:phone',
+            'developer:read',
+            'developer:write'
+        ],
+        isVerified: true,
+        isActive: true,
+        logoUrl: '/icon.svg'
+    },
+    {
+        clientId: '180-traffic-director',
+        name: '180 Traffic Director',
+        description: 'Enterprise Edge Traffic Router, Safe Reverse Proxy & Bot Armor',
+        redirectUris: [
+            'http://localhost:3006/callback',
+            'http://localhost:3006/oauth/callback',
+            'https://traffic.180workspace.com/callback',
+            'https://traffic.180workspace.com/oauth/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3006',
+            'http://127.0.0.1:3006',
+            'https://traffic.180workspace.com'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email',
+            'pay:checkout',
+            'pay:subscriptions'
+        ],
+        isVerified: true,
+        isActive: true,
+        enablePay: true,
         logoUrl: '/icon.svg'
     }
 ];
@@ -179,20 +287,29 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                 where: { clientId: app.clientId }
             });
 
+            const knownSecret =
+                app.clientId === '180-traffic-director'
+                    ? (process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || '180_secret_traffic_director_prod_key_771829')
+                    : app.clientId === '180_client_5cc136397553836e34eb37ce22d13a53'
+                        ? (process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_workspace_core_prod_key_5cc136')
+                        : `180_secret_${app.clientId}`;
+
             if (!existing) {
-                const secret = `180_secret_${app.clientId}_${Date.now()}`;
                 await prisma.oAuthApp.create({
                     data: {
                         name: app.name,
                         description: app.description,
                         clientId: app.clientId,
-                        clientSecretHash: hashSecret(secret),
-                        clientSecretHint: secret.slice(-4),
+                        clientSecretHash: hashSecret(knownSecret),
+                        clientSecretHint: knownSecret.slice(-4),
                         redirectUris: app.redirectUris,
                         allowedOrigins: app.allowedOrigins,
                         allowedScopes: app.allowedScopes,
                         isVerified: app.isVerified,
                         isActive: app.isActive,
+                        enablePay: (app as any).enablePay !== undefined ? (app as any).enablePay : true,
+                        webhookUrl: (app as any).webhookUrl || '',
+                        webhookSecret: (app as any).webhookSecret || '',
                         logoUrl: app.logoUrl,
                         userId: systemUser.id
                     }
@@ -202,16 +319,112 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                 // Ensure redirect URIs and allowed origins stay up-to-date
                 const mergedUris = Array.from(new Set([...(existing.redirectUris || []), ...app.redirectUris]));
                 const mergedOrigins = Array.from(new Set([...(existing.allowedOrigins || []), ...app.allowedOrigins]));
+                const updateData: any = {};
+
                 if (mergedUris.length !== (existing.redirectUris || []).length || mergedOrigins.length !== (existing.allowedOrigins || []).length) {
+                    updateData.redirectUris = mergedUris;
+                    updateData.allowedOrigins = mergedOrigins;
+                    updateData.isActive = true;
+                }
+
+                if (app.clientId === '180_client_5cc136397553836e34eb37ce22d13a53') {
+                    updateData.clientSecretHash = hashSecret(knownSecret);
+                    updateData.clientSecretHint = knownSecret.slice(-4);
+                    updateData.isActive = true;
+                }
+
+                if (app.clientId === '180-traffic-director') {
+                    updateData.clientSecretHash = hashSecret(knownSecret);
+                    updateData.clientSecretHint = knownSecret.slice(-4);
+                    updateData.enablePay = true;
+                    updateData.isActive = true;
+
+                    const targetWebhookUrl = process.env.TRAFFIC_DIRECTOR_WEBHOOK_URL || (existing.webhookUrl ? existing.webhookUrl : (app as any).webhookUrl);
+                    const targetWebhookSecret = process.env.TRAFFIC_DIRECTOR_WEBHOOK_SECRET || (existing.webhookSecret ? existing.webhookSecret : (app as any).webhookSecret);
+
+                    if (targetWebhookUrl && targetWebhookUrl !== existing.webhookUrl) {
+                        updateData.webhookUrl = targetWebhookUrl;
+                    }
+                    if (targetWebhookSecret && targetWebhookSecret !== existing.webhookSecret) {
+                        updateData.webhookSecret = targetWebhookSecret;
+                    }
+                }
+
+                if (Object.keys(updateData).length > 0) {
                     await prisma.oAuthApp.update({
                         where: { id: existing.id },
-                        data: {
-                            redirectUris: mergedUris,
-                            allowedOrigins: mergedOrigins,
-                            isActive: true
-                        }
+                        data: updateData
                     });
-                    console.log(`[SeedFirstParty] Updated redirect URIs and origins for: ${app.name} (${app.clientId})`);
+                    console.log(`[SeedFirstParty] Updated configurations for: ${app.name} (${app.clientId})`);
+                }
+            }
+
+            // Seed default subscription plans for 180 Traffic Director
+            if (app.clientId === '180-traffic-director') {
+                const targetApp = await prisma.oAuthApp.findUnique({ where: { clientId: app.clientId } });
+                if (targetApp) {
+                    if (!targetApp.enablePay) {
+                        await prisma.oAuthApp.update({
+                            where: { id: targetApp.id },
+                            data: { enablePay: true }
+                        });
+                    }
+
+                    const DEFAULT_TRAFFIC_PLANS = [
+                        {
+                            planCode: 'traffic-starter',
+                            name: 'Traffic Director Starter',
+                            description: 'Max 2 Smart Links with Anycast Routing & Bot Shields',
+                            amount: 25.0,
+                            currency: 'USD',
+                            interval: 'MONTHLY'
+                        },
+                        {
+                            planCode: 'traffic-pro',
+                            name: 'Traffic Director Pro',
+                            description: 'Max 5 Smart Links with Dynamic Shield & AdBot Cloaking',
+                            amount: 50.0,
+                            currency: 'USD',
+                            interval: 'MONTHLY'
+                        },
+                        {
+                            planCode: 'traffic-enterprise',
+                            name: 'Traffic Director Enterprise',
+                            description: 'Unlimited Smart Links with Dedicated Tor RAM Sets',
+                            amount: 75.0,
+                            currency: 'USD',
+                            interval: 'MONTHLY'
+                        }
+                    ];
+
+                    for (const plan of DEFAULT_TRAFFIC_PLANS) {
+                        await (prisma as any).subscriptionPlan.upsert({
+                            where: {
+                                appId_planCode: {
+                                    appId: targetApp.id,
+                                    planCode: plan.planCode
+                                }
+                            },
+                            update: {
+                                name: plan.name,
+                                description: plan.description,
+                                amount: plan.amount,
+                                currency: plan.currency,
+                                interval: plan.interval,
+                                isActive: true
+                            },
+                            create: {
+                                appId: targetApp.id,
+                                planCode: plan.planCode,
+                                name: plan.name,
+                                description: plan.description,
+                                amount: plan.amount,
+                                currency: plan.currency,
+                                interval: plan.interval,
+                                isActive: true
+                            }
+                        });
+                    }
                 }
             }
         }

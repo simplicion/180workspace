@@ -1,7 +1,7 @@
 'use strict';
 
 import { Request, Response } from 'express';
-import { CheckoutService } from '@workspace/identity-provider';
+import { CheckoutService } from '@workspace/payment-provider';
 import { developersPrisma as prisma } from '@workspace/db-180core';
 
 export class CheckoutApiController {

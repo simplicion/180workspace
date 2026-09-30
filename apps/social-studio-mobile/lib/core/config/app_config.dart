@@ -45,6 +45,19 @@ class AppConfig {
     if (kDebugMode) return apiBaseUrl;
     return 'https://180identity.180workspace.com';
   }
+
+  /// 180 Profile / Identity Web Auth UI Server (Universal 180 Profile login)
+  static String get identityAuthUrl {
+    const fromEnv = String.fromEnvironment('IDENTITY_AUTH_URL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (kDebugMode) {
+      if (kIsWeb) return 'http://localhost:3009';
+      if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:3009';
+      return 'http://localhost:3009';
+    }
+    return 'https://profile.180workspace.com';
+  }
+
   static const String identityClientId = '180-social-studio-mobile';
   static String get identityRedirectUri {
     const fromEnv = String.fromEnvironment('IDENTITY_REDIRECT_URI');

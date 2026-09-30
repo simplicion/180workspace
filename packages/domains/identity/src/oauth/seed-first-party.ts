@@ -60,7 +60,7 @@ export const FIRST_PARTY_APPS = [
         ],
         isVerified: true,
         isActive: true,
-        logoUrl: '/icon.svg'
+        logoUrl: '/social-studio.png'
     },
     {
         clientId: '180-developers-portal',
@@ -68,20 +68,32 @@ export const FIRST_PARTY_APPS = [
         description: 'Developer Console & API Management for 180 Workspace Ecosystem',
         redirectUris: [
             'http://localhost:3000/callback',
+            'http://localhost:3000/oauth/callback',
             'http://localhost:3008/callback',
+            'http://localhost:3008/oauth/callback',
+            'http://127.0.0.1:3008/callback',
+            'http://127.0.0.1:3008/oauth/callback',
             'http://localhost:3002/callback',
-            'https://developers.180workspace.com/callback'
+            'https://developers.180workspace.com/callback',
+            'https://developers.180workspace.com/oauth/callback',
+            'https://*.180workspace.com/callback',
+            'https://*.180workspace.com/oauth/callback'
         ],
         allowedOrigins: [
             'http://localhost:3000',
+            'http://127.0.0.1:3000',
             'http://localhost:3008',
+            'http://127.0.0.1:3008',
             'http://localhost:3002',
-            'https://developers.180workspace.com'
+            'http://127.0.0.1:3002',
+            'https://developers.180workspace.com',
+            'https://*.180workspace.com'
         ],
         allowedScopes: [
             'openid',
             'identity:read',
             'identity:email',
+            'identity:phone',
             'developer:read',
             'developer:write'
         ],
@@ -95,20 +107,32 @@ export const FIRST_PARTY_APPS = [
         description: 'Developer Console & API Management for 180 Workspace Ecosystem',
         redirectUris: [
             'http://localhost:3000/callback',
+            'http://localhost:3000/oauth/callback',
             'http://localhost:3008/callback',
+            'http://localhost:3008/oauth/callback',
+            'http://127.0.0.1:3008/callback',
+            'http://127.0.0.1:3008/oauth/callback',
             'http://localhost:3002/callback',
-            'https://developers.180workspace.com/callback'
+            'https://developers.180workspace.com/callback',
+            'https://developers.180workspace.com/oauth/callback',
+            'https://*.180workspace.com/callback',
+            'https://*.180workspace.com/oauth/callback'
         ],
         allowedOrigins: [
             'http://localhost:3000',
+            'http://127.0.0.1:3000',
             'http://localhost:3008',
+            'http://127.0.0.1:3008',
             'http://localhost:3002',
-            'https://developers.180workspace.com'
+            'http://127.0.0.1:3002',
+            'https://developers.180workspace.com',
+            'https://*.180workspace.com'
         ],
         allowedScopes: [
             'openid',
             'identity:read',
             'identity:email',
+            'identity:phone',
             'developer:read',
             'developer:write'
         ],

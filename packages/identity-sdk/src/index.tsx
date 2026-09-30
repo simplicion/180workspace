@@ -68,6 +68,16 @@ export interface CheckoutOptions {
   onCancel?: () => void;
 }
 
+export interface ManageSubscriptionOptions {
+  subscriptionId: string;
+  checkoutServerUrl?: string;
+  uxMode?: PayUxMode;
+  onCancelled?: (data: any) => void;
+  onClose?: () => void;
+  onError?: (error: Error) => void;
+}
+
+
 // ============================================================================
 // 2. Base URL Helpers
 // ============================================================================
@@ -988,6 +998,43 @@ export const OneEightyPay = {
   },
 
   /**
+   * Opens 180 Pay Sovereign Subscription Manager in a slide-up bottom sheet
+   * Enables user to review subscription, next billing date, and cancel with dual-mandate revocation
+   */
+  manageSubscription(options: ManageSubscriptionOptions): Promise<{ cancelled: boolean; subscriptionId: string }> {
+    const payServer = getPayServerUrl(options.checkoutServerUrl);
+    const url = `${payServer}/checkout/manage-subscription/${encodeURIComponent(options.subscriptionId)}`;
+
+    return openInBottomSheet<{ cancelled: boolean; subscriptionId: string }>({
+      url,
+      title: 'Manage 180 Pay Subscription',
+      successTypes: ['180_SUBSCRIPTION_CANCELLED'],
+      closeTypes: ['180_SUBSCRIPTION_CLOSE'],
+      mapSuccess: (data) => {
+        options.onCancelled?.(data);
+        return { cancelled: true, subscriptionId: data.subscriptionId || options.subscriptionId };
+      },
+      onSuccess: (res) => options.onCancelled?.(res),
+      onError: options.onError,
+      onCancel: () => {
+        options.onClose?.();
+      },
+      onDefaultCancelResult: () => ({
+        cancelled: false,
+        subscriptionId: options.subscriptionId,
+      }),
+    });
+  },
+
+  /**
+   * Alias for manageSubscription
+   */
+  openSubscriptionManager(options: ManageSubscriptionOptions): Promise<{ cancelled: boolean; subscriptionId: string }> {
+    return OneEightyPay.manageSubscription(options);
+  },
+
+
+  /**
    * Webhook HMAC Verification Helper
    */
   webhooks: {
@@ -1066,7 +1113,7 @@ export function use180Identity() {
       try {
         const opts: Partial<OpenPopupOptions> =
           typeof options === 'function' ? { onSuccess: options } : options || {};
-        const clientId = opts.clientId || (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_180_CLIENT_ID : undefined) || '';
+        const clientId = opts.clientId || (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined) || '';
         if (!clientId) {
           throw new Error('[180 Identity] Missing required parameter: clientId (or NEXT_PUBLIC_180_CLIENT_ID environment variable)');
         }
@@ -1228,7 +1275,7 @@ if (typeof window !== 'undefined') {
 }
 
 export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = ({
-  clientId = (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_180_CLIENT_ID : undefined) || '',
+  clientId = (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined) || '',
   redirectUri,
   scope,
   state,
@@ -1409,6 +1456,7 @@ if (typeof window !== 'undefined') {
 
 export * from './jwks-verifier';
 export * from './token-exchange';
+export * from './token-lifecycle';
 export * from './userinfo-client';
 export * from './pkce';
 

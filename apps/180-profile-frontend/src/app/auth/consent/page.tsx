@@ -16,6 +16,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { OAuthErrorCard, OAuthErrorDetails } from '@/components/auth/OAuthErrorCard';
+import { OAuthAppHeader } from '@/components/auth/OAuthAppHeader';
+import { LogoLoader } from '@workspace/ui';
 import { getCoreApiUrl } from '@/lib/api';
 
 const SCOPE_DESCRIPTIONS: Record<string, { title: string; description: string; icon: any }> = {
@@ -64,11 +66,7 @@ function ConsentForm() {
     errorDescription: string;
     details?: OAuthErrorDetails;
   } | null>(null);
-  const [appInfo, setAppInfo] = useState<any>({
-    name: 'Third-Party Application',
-    clientId,
-    isVerified: true,
-  });
+  const [appInfo, setAppInfo] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -101,21 +99,32 @@ function ConsentForm() {
       })
       .finally(() => setLoading(false));
 
+    // Priority 1: Fetch app name and logo from developers portal
     if (clientId) {
-      setAppInfo({
-        name:
-          clientId === '180-workspace-platform'
-            ? '180 Workspace'
-            : clientId === '180-developer-portal'
-            ? '180 Developers'
-            : clientId
-                .replace(/-/g, ' ')
-                .replace(/\b\w/g, (l) => l.toUpperCase()),
-        clientId,
-        isVerified: true,
-      });
+      const query = new URLSearchParams();
+      query.set('client_id', clientId);
+      if (redirectUri) query.set('redirect_uri', redirectUri);
+      if (rawScopes) query.set('scope', rawScopes);
+
+      fetch(getCoreApiUrl(`/api/oauth/authorize/validate?${query.toString()}`), {
+        credentials: 'include',
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          const appData = data?.app || data?.client;
+          if (appData) {
+            setAppInfo({
+              name: appData.name || clientId,
+              logoUrl: appData.logoUrl || '',
+              description: appData.description || '',
+              isVerified: appData.isVerified ?? true,
+              clientId: appData.clientId || clientId,
+            });
+          }
+        })
+        .catch(() => {});
     }
-  }, [clientId, router]);
+  }, [clientId, redirectUri, rawScopes, router]);
 
   const handleAuthorize = async () => {
     setAuthorizing(true);
@@ -144,12 +153,13 @@ function ConsentForm() {
 
       const data = await res.json();
       if (!res.ok || !data.success || !data.code) {
+        const errorDesc = data.error_description || data.message || data.error || 'Authorization failed';
         setOauthError({
           error: data.error || 'invalid_request',
-          errorDescription: data.error_description || data.message || 'Authorization failed: Invalid redirect URI or origin.',
+          errorDescription: errorDesc,
           details: data.details,
         });
-        throw new Error(data.error_description || data.message || 'Authorization failed');
+        throw new Error(errorDesc);
       }
 
       const authCode = data.code;
@@ -227,32 +237,24 @@ function ConsentForm() {
       ) : (
         <>
       {/* Header / Brand Connection Visual */}
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-3 pt-2">
-          {/* 180 Profile Logo */}
-          <div className="w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[1px] shadow-sm shrink-0 overflow-hidden">
-            <div className="w-full h-full bg-white rounded-2xl flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-blue-600" />
-            </div>
-          </div>
-
-          <div className="h-0.5 w-6 bg-slate-200" />
-
-          {/* Client App Logo */}
-          <div className="w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-sm font-bold text-slate-800 shadow-xs shrink-0 overflow-hidden">
-            {appInfo.name.slice(0, 2).toUpperCase()}
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-            Authorize <span className="text-blue-600">{appInfo.name}</span>
-          </h1>
-          <p className="text-xs text-slate-500">
-            Wants access to your universal <strong className="text-slate-900">180 Profile</strong>.
-          </p>
-        </div>
-      </div>
+      <OAuthAppHeader
+        clientId={clientId}
+        redirectUri={redirectUri}
+        scope={rawScopes}
+        app={appInfo}
+        title={
+          <span>
+            Authorize <span className="text-blue-600">{appInfo?.name || 'Application'}</span>
+          </span>
+        }
+        subtitle={`${appInfo?.name || 'Application'} is requesting permission to access your identity details.`}
+        fallbackTitle={
+          <span>
+            Authorize with <span className="text-blue-600">180</span>profile
+          </span>
+        }
+        fallbackSubtitle="Permission is requested to access your sovereign 180 Profile details."
+      />
 
       {/* Logged in User Bar */}
       <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/90 flex items-center justify-between text-xs">

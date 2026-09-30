@@ -13,9 +13,10 @@ import {
 } from 'recharts';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { LogoLoader, UniversalDateTimePicker } from '@workspace/ui';
+import { LogoLoader, UniversalDateTimePicker, FeatureLock } from '@workspace/ui';
 import { Drawer } from '@/components/ui/Drawer';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import { useSubscription } from '@/lib/useSubscription';
 
 function getCountryFlag(code?: string | null): string {
   if (!code || typeof code !== 'string' || code.length !== 2) return '🌐';
@@ -34,6 +35,7 @@ interface LinkAnalyticsTabProps {
 }
 
 export default function LinkAnalyticsTab({ linkId, linkData }: LinkAnalyticsTabProps) {
+  const { hasAdvancedAnalytics } = useSubscription();
   // State for Filters (Default to 'all' or 'today')
   const [timeRange, setTimeRange] = useState<'all' | 'today' | 'yesterday' | '24h' | '7d' | '30d' | 'this_month' | 'custom'>('all');
   const [customStartDate, setCustomStartDate] = useState<string>('');
@@ -642,60 +644,70 @@ export default function LinkAnalyticsTab({ linkId, linkData }: LinkAnalyticsTabP
       {/* ─── Geographies & Referrers Grid ────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Geographic Country Leaderboard */}
-        <div className="p-6 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-indigo-500" />
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-                Geographic Traffic Split
-              </h3>
+        {hasAdvancedAnalytics ? (
+          <div className="p-6 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-indigo-500" />
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                  Geographic Traffic Split
+                </h3>
+              </div>
+              <span className="text-xs text-gray-400 font-medium">
+                {countryDistribution.length} active countries
+              </span>
             </div>
-            <span className="text-xs text-gray-400 font-medium">
-              {countryDistribution.length} active countries
-            </span>
+
+            {countryDistribution.length > 0 ? (
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {countryDistribution.map((c: any, idx: number) => (
+                  <div key={c.code} className="p-2.5 rounded-xl bg-gray-50/60 dark:bg-gray-800/40 border border-gray-200/80 dark:border-white/10 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base leading-none">{c.flag}</span>
+                        <span className="font-bold text-gray-900 dark:text-white">{c.name}</span>
+                        <span className="font-mono text-[10px] text-gray-400">({c.code})</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-gray-500 dark:text-gray-400 font-medium">
+                          {c.total.toLocaleString()} visits ({c.percentage}%)
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-mono text-[11px] font-bold">
+                          {c.targetRatePct}% offer
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 w-full bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-emerald-500 h-full transition-all"
+                        style={{ width: `${c.targetRatePct}%` }}
+                        title={`Target Offer: ${c.target}`}
+                      />
+                      <div
+                        className="bg-purple-500 h-full transition-all"
+                        style={{ width: `${100 - c.targetRatePct}%` }}
+                        title={`Safe Page: ${c.safe}`}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="h-48 flex items-center justify-center text-xs text-gray-400">
+                No country telemetry data recorded.
+              </div>
+            )}
           </div>
-
-          {countryDistribution.length > 0 ? (
-            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-              {countryDistribution.map((c: any, idx: number) => (
-                <div key={c.code} className="p-2.5 rounded-xl bg-gray-50/60 dark:bg-gray-800/40 border border-gray-200/80 dark:border-white/10 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base leading-none">{c.flag}</span>
-                      <span className="font-bold text-gray-900 dark:text-white">{c.name}</span>
-                      <span className="font-mono text-[10px] text-gray-400">({c.code})</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-500 dark:text-gray-400 font-medium">
-                        {c.total.toLocaleString()} visits ({c.percentage}%)
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-mono text-[11px] font-bold">
-                        {c.targetRatePct}% offer
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 w-full bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className="bg-emerald-500 h-full transition-all"
-                      style={{ width: `${c.targetRatePct}%` }}
-                      title={`Target Offer: ${c.target}`}
-                    />
-                    <div
-                      className="bg-purple-500 h-full transition-all"
-                      style={{ width: `${100 - c.targetRatePct}%` }}
-                      title={`Safe Page: ${c.safe}`}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="h-48 flex items-center justify-center text-xs text-gray-400">
-              No country telemetry data recorded.
-            </div>
-          )}
-        </div>
+        ) : (
+          <FeatureLock
+            title="Geographic Traffic Split Locked"
+            description="Country-level traffic distributions and geo-spoofing telemetry require Pro Armor ($50/mo) or Enterprise Sovereign."
+            actionText="Upgrade to Pro Armor"
+            actionHref="/traffic-director/subscription"
+            className="min-h-[300px]"
+          />
+        )}
 
         {/* Referrers & Acquisition Sources */}
         <div className="p-6 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-4">
@@ -742,152 +754,172 @@ export default function LinkAnalyticsTab({ linkId, linkData }: LinkAnalyticsTabP
       </div>
 
       {/* ─── Device, OS & Browser Split ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Device Types */}
-        <div className="p-5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-3">
-          <div className="flex items-center gap-2">
-            <Smartphone className="w-4 h-4 text-indigo-500" />
-            <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-              Device Form Factor
-            </h4>
+      {hasAdvancedAnalytics ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Device Types */}
+          <div className="p-5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-indigo-500" />
+              <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                Device Form Factor
+              </h4>
+            </div>
+            <div className="space-y-2.5 pt-1">
+              {deviceBreakdown.map((d: any) => (
+                <div key={d.name} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium flex items-center gap-1.5">
+                    {d.name.toLowerCase().includes('mobile') ? <Smartphone className="w-3.5 h-3.5 text-indigo-500" /> : <Monitor className="w-3.5 h-3.5 text-indigo-500" />}
+                    {d.name}
+                  </span>
+                  <span className="font-mono font-bold text-gray-900 dark:text-white">{d.count} ({d.percentage}%)</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-2.5 pt-1">
-            {deviceBreakdown.map((d: any) => (
-              <div key={d.name} className="flex items-center justify-between text-xs">
-                <span className="text-gray-700 dark:text-gray-300 font-medium flex items-center gap-1.5">
-                  {d.name.toLowerCase().includes('mobile') ? <Smartphone className="w-3.5 h-3.5 text-indigo-500" /> : <Monitor className="w-3.5 h-3.5 text-indigo-500" />}
-                  {d.name}
-                </span>
-                <span className="font-mono font-bold text-gray-900 dark:text-white">{d.count} ({d.percentage}%)</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Operating Systems */}
-        <div className="p-5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-3">
-          <div className="flex items-center gap-2">
-            <Monitor className="w-4 h-4 text-purple-500" />
-            <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-              Operating Systems
-            </h4>
+          {/* Operating Systems */}
+          <div className="p-5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+              <Monitor className="w-4 h-4 text-purple-500" />
+              <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                Operating Systems
+              </h4>
+            </div>
+            <div className="space-y-2.5 pt-1">
+              {osBreakdown.slice(0, 5).map((o: any) => (
+                <div key={o.name} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium truncate max-w-[150px]">{o.name}</span>
+                  <span className="font-mono font-bold text-gray-900 dark:text-white">{o.count} ({o.percentage}%)</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-2.5 pt-1">
-            {osBreakdown.slice(0, 5).map((o: any) => (
-              <div key={o.name} className="flex items-center justify-between text-xs">
-                <span className="text-gray-700 dark:text-gray-300 font-medium truncate max-w-[150px]">{o.name}</span>
-                <span className="font-mono font-bold text-gray-900 dark:text-white">{o.count} ({o.percentage}%)</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* In-App & Standard Browsers */}
-        <div className="p-5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-3">
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-emerald-500" />
-            <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-              Browsers & In-App WebViews
-            </h4>
-          </div>
-          <div className="space-y-2.5 pt-1">
-            {browserBreakdown.slice(0, 5).map((b: any) => (
-              <div key={b.name} className="flex items-center justify-between text-xs">
-                <span className="text-gray-700 dark:text-gray-300 font-medium truncate max-w-[150px]">{b.name}</span>
-                <span className="font-mono font-bold text-gray-900 dark:text-white">{b.count} ({b.percentage}%)</span>
-              </div>
-            ))}
+          {/* In-App & Standard Browsers */}
+          <div className="p-5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-emerald-500" />
+              <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                Browsers & In-App WebViews
+              </h4>
+            </div>
+            <div className="space-y-2.5 pt-1">
+              {browserBreakdown.slice(0, 5).map((b: any) => (
+                <div key={b.name} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium truncate max-w-[150px]">{b.name}</span>
+                  <span className="font-mono font-bold text-gray-900 dark:text-white">{b.count} ({b.percentage}%)</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <FeatureLock
+          title="Client Device Telemetry Locked"
+          description="Detailed hardware architecture breakdown, OS platforms, and in-app WebView detection require Pro Armor ($50/mo) or Enterprise Sovereign."
+          actionText="Upgrade to Pro Armor"
+          actionHref="/traffic-director/subscription"
+          className="min-h-[220px]"
+        />
+      )}
 
       {/* ─── Real-Time Live Decision Log Feed ─────────────────────────────── */}
-      <div className="p-6 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-ping' : 'bg-gray-400'}`} />
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-                Live Decision Stream & Telemetry Inspector
-              </h3>
+      {hasAdvancedAnalytics ? (
+        <div className="p-6 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-ping' : 'bg-gray-400'}`} />
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                  Live Decision Stream & Telemetry Inspector
+                </h3>
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Click any event row to inspect full request headers, hardware probes, and rule match telemetry
+              </p>
             </div>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Click any event row to inspect full request headers, hardware probes, and rule match telemetry
-            </p>
+            <span className="text-xs text-gray-400">
+              Showing latest {logs.length} evaluated requests
+            </span>
           </div>
-          <span className="text-xs text-gray-400">
-            Showing latest {logs.length} evaluated requests
-          </span>
-        </div>
 
-        {logs.length > 0 ? (
-          <div className="overflow-x-auto rounded-xl border border-gray-200/80 dark:border-white/10">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-400 uppercase tracking-wider border-b border-gray-200/80 dark:border-white/10">
-                <tr>
-                  <th className="py-3 px-4">Time</th>
-                  <th className="py-3 px-4">Origin / Country</th>
-                  <th className="py-3 px-4">Client Telemetry</th>
-                  <th className="py-3 px-4">Decision Action</th>
-                  <th className="py-3 px-4">Trigger Reason</th>
-                  <th className="py-3 px-4 text-right">Latency</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {logs.map((log) => {
-                  const isTarget = log.destinationUrl && log.destinationUrl !== linkData?.fallbackUrl && !log.isBot;
-                  return (
-                    <tr
-                      key={log.id}
-                      onClick={() => setSelectedLog(log)}
-                      className="hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 cursor-pointer transition"
-                    >
-                      <td className="py-3 px-4 text-gray-500 font-mono">
-                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </td>
-                      <td className="py-3 px-4 text-gray-800 dark:text-gray-200">
-                        <div className="flex items-center gap-1.5 font-medium">
-                          <span>{getCountryFlag(log.country)}</span>
-                          <span className="font-semibold">{log.country || 'US'}</span>
-                          <span className="text-gray-400 font-mono text-[11px]">({log.ipAddress || '127.0.0.1'})</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-gray-700 dark:text-gray-300">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium">{log.deviceType || 'Desktop'}</span>
-                          <span className="text-gray-400">·</span>
-                          <span className="text-gray-500">{log.browser || 'Browser'}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        {isTarget ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] border border-emerald-200 dark:border-emerald-800">
-                            🎯 TARGET OFFER
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 font-bold text-[11px] border border-purple-200 dark:border-purple-800">
-                            🛡️ SAFE PAGE
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 font-mono text-gray-600 dark:text-gray-400">
-                        {log.botName || (isTarget ? 'Rule Matched' : 'Fallback')}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                        {log.latencyMs || 1}ms
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="py-12 text-center text-xs text-gray-400">
-            No live traffic records matching the active filters.
-          </div>
-        )}
-      </div>
+          {logs.length > 0 ? (
+            <div className="overflow-x-auto rounded-xl border border-gray-200/80 dark:border-white/10">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-400 uppercase tracking-wider border-b border-gray-200/80 dark:border-white/10">
+                  <tr>
+                    <th className="py-3 px-4">Time</th>
+                    <th className="py-3 px-4">Origin / Country</th>
+                    <th className="py-3 px-4">Client Telemetry</th>
+                    <th className="py-3 px-4">Decision Action</th>
+                    <th className="py-3 px-4">Trigger Reason</th>
+                    <th className="py-3 px-4 text-right">Latency</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {logs.map((log) => {
+                    const isTarget = log.destinationUrl && log.destinationUrl !== linkData?.fallbackUrl && !log.isBot;
+                    return (
+                      <tr
+                        key={log.id}
+                        onClick={() => setSelectedLog(log)}
+                        className="hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 cursor-pointer transition"
+                      >
+                        <td className="py-3 px-4 text-gray-500 font-mono">
+                          {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </td>
+                        <td className="py-3 px-4 text-gray-800 dark:text-gray-200">
+                          <div className="flex items-center gap-1.5 font-medium">
+                            <span>{getCountryFlag(log.country)}</span>
+                            <span className="font-semibold">{log.country || 'US'}</span>
+                            <span className="text-gray-400 font-mono text-[11px]">({log.ipAddress || '127.0.0.1'})</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-gray-700 dark:text-gray-300">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium">{log.deviceType || 'Desktop'}</span>
+                            <span className="text-gray-400">·</span>
+                            <span className="text-gray-500">{log.browser || 'Browser'}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          {isTarget ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] border border-emerald-200 dark:border-emerald-800">
+                              🎯 TARGET OFFER
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 font-bold text-[11px] border border-purple-200 dark:border-purple-800">
+                              🛡️ SAFE PAGE
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-gray-600 dark:text-gray-400">
+                          {log.botName || (isTarget ? 'Rule Matched' : 'Fallback')}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                          {log.latencyMs || 1}ms
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-12 text-center text-xs text-gray-400">
+              No live traffic records matching the active filters.
+            </div>
+          )}
+        </div>
+      ) : (
+        <FeatureLock
+          title="Real-Time Decision Stream Locked"
+          description="Live millisecond request inspections, raw User-Agent telemetry, and hardware probe details require Pro Armor ($50/mo) or Enterprise Sovereign."
+          actionText="Unlock Live Edge Feed"
+          actionHref="/traffic-director/subscription"
+          className="min-h-[280px]"
+        />
+      )}
 
       {/* ─── Deep Inspection Drawer for Individual Request ──────────────── */}
       <Drawer

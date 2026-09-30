@@ -60,6 +60,7 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
             '/api/auth', '/api/setup', '/api/public', '/api/health', '/api/v1/platform-billing/plans',
             '/r', '/shield', '/tag', '/evaluate',
             '/api/v1/traffic-director/evaluate', '/api/v1/traffic-director/tag', '/api/v1/traffic-director/stream-proxy',
+            '/api/v1/traffic-director/billing/webhook', '/v1/traffic-director/billing/webhook',
             '/oauth', '/api/oauth', '/.well-known', '/certs',
             '/api/v1/identity/check-username', '/api/v1/identity/resolve-location', '/api/v1/identity/otp'
         ];
@@ -85,6 +86,37 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
                 const decoded = jwt.decode(token) as any;
                 if (decoded && decoded.companyId) companyId = decoded.companyId;
             } catch (e) {}
+
+            // Support OAuth 2.0 access tokens (e.g. 180 Identity SSO: 180_acc_...)
+            if (!companyId && (token.startsWith('180_acc_') || token.startsWith('180_'))) {
+                try {
+                    const { corePrisma } = require('@workspace/db-180core');
+                    const dbToken = await corePrisma.oAuthToken.findUnique({
+                        where: { accessToken: token },
+                        include: { user: true }
+                    });
+                    if (dbToken && dbToken.user) {
+                        const localUser = await prisma.user.findFirst({
+                            where: {
+                                OR: [
+                                    { id: dbToken.userId },
+                                    ...(dbToken.user.email ? [{ email: { equals: dbToken.user.email, mode: 'insensitive' } }] : [])
+                                ]
+                            },
+                            select: { companyId: true }
+                        });
+                        if (localUser?.companyId) {
+                            companyId = localUser.companyId;
+                        } else if (dbToken.user.email) {
+                            const adminComp = await prisma.company.findFirst({
+                                where: { adminEmail: { equals: dbToken.user.email, mode: 'insensitive' } },
+                                select: { id: true }
+                            });
+                            if (adminComp) companyId = adminComp.id;
+                        }
+                    }
+                } catch (_) {}
+            }
         }
 
         if ((isPublic || isOnboardingRoute) && !subdomain && !companyId) {

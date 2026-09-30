@@ -27,6 +27,7 @@ import {
   Activity,
   CreditCard,
   Webhook,
+  ImageIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -64,47 +65,10 @@ interface DeveloperApp {
 }
 
 export default function DeveloperPortalPage() {
-  const [apps, setApps] = useState<DeveloperApp[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('180_dev_apps_cache');
-        if (cached) return JSON.parse(cached);
-      } catch (_) {}
-    }
-    return [];
-  });
-  const [userProfile, setUserProfile] = useState<{ id: string; name?: string; email?: string; username?: string } | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('user');
-        if (cached) return JSON.parse(cached);
-      } catch (_) {}
-    }
-    return null;
-  });
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(() => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('platform_auth_token')
-        || localStorage.getItem('auth_token')
-        || localStorage.getItem('token')
-        || localStorage.getItem('accessToken');
-      return !!token;
-    }
-    return null;
-  });
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('platform_auth_token')
-        || localStorage.getItem('auth_token')
-        || localStorage.getItem('token')
-        || localStorage.getItem('accessToken');
-      // If no token or if we already have cached user, don't show blocking skeleton
-      if (!token) return false;
-      const cached = localStorage.getItem('user');
-      if (cached) return false;
-    }
-    return true;
-  });
+  const [apps, setApps] = useState<DeveloperApp[]>([]);
+  const [userProfile, setUserProfile] = useState<{ id: string; name?: string; email?: string; username?: string } | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   // 180 Identity & 180 Pay Hooks
@@ -122,6 +86,7 @@ export default function DeveloperPortalPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [appName, setAppName] = useState('');
   const [appDescription, setAppDescription] = useState('');
+  const [createLogoUrl, setCreateLogoUrl] = useState('');
   const [clientType, setClientType] = useState<'confidential' | 'public'>('confidential');
   const [createEnableAuth, setCreateEnableAuth] = useState(true);
   const [createEnablePay, setCreateEnablePay] = useState(true);
@@ -337,6 +302,10 @@ export default function DeveloperPortalPage() {
       toast.error('Application name is required');
       return;
     }
+    if (!createLogoUrl.trim()) {
+      toast.error('Application logo URL is strictly required');
+      return;
+    }
 
     const redirectUris = redirectUrisInput
       .split('\n')
@@ -376,6 +345,7 @@ export default function DeveloperPortalPage() {
         body: JSON.stringify({
           name: appName.trim(),
           description: appDescription.trim(),
+          logoUrl: createLogoUrl.trim() || undefined,
           clientType,
           redirectUris,
           allowedOrigins,
@@ -396,6 +366,7 @@ export default function DeveloperPortalPage() {
           body: JSON.stringify({
             name: appName.trim(),
             description: appDescription.trim(),
+            logoUrl: createLogoUrl.trim() || undefined,
             clientType,
             redirectUris,
             allowedOrigins,
@@ -429,6 +400,7 @@ export default function DeveloperPortalPage() {
 
       setAppName('');
       setAppDescription('');
+      setCreateLogoUrl('');
       setCreateEnableAuth(true);
       setCreateEnablePay(true);
       setCreateWebhookUrl('');
@@ -1468,6 +1440,35 @@ Future<void> signInWith180() async {
               onChange={(e) => setAppDescription(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
             />
+          </div>
+
+          {/* App Logo URL */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+              <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
+              App Logo URL <span className="text-red-500">*</span>
+            </label>
+            <div className="flex items-center gap-3">
+              {createLogoUrl.trim() && (
+                <div className="w-10 h-10 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 overflow-hidden flex items-center justify-center p-1 shrink-0">
+                  <img
+                    src={createLogoUrl.trim()}
+                    alt="Logo preview"
+                    className="w-full h-full object-contain rounded-lg"
+                    onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
+              <input
+                type="url"
+                required
+                placeholder="https://yourapp.com/logo.png"
+                value={createLogoUrl}
+                onChange={(e) => setCreateLogoUrl(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Mandatory: This logo is displayed exclusively in the authorization popup for your app.</p>
           </div>
 
           {/* Core Services Selection */}

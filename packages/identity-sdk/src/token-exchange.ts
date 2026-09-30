@@ -20,6 +20,14 @@ export interface TokenResponse {
   error_description?: string;
 }
 
+export interface RefreshTokenParams {
+  tokenEndpoint: string;
+  clientId: string;
+  clientSecret?: string;
+  refreshToken: string;
+  scope?: string;
+}
+
 export class TokenExchangeClient {
   /**
    * Exchange authorization code for tokens (supports PKCE and Confidential Secret)
@@ -51,6 +59,40 @@ export class TokenExchangeClient {
     const data: TokenResponse = await res.json();
     if (!res.ok) {
       throw new Error(data.error_description || data.error || `Token exchange failed with status ${res.status}`);
+    }
+
+    return data;
+  }
+
+  /**
+   * Perform silent token refresh before 15-minute access token expiration
+   */
+  static async refreshToken(params: RefreshTokenParams): Promise<TokenResponse> {
+    const body: Record<string, string> = {
+      grant_type: 'refresh_token',
+      client_id: params.clientId,
+      refresh_token: params.refreshToken,
+    };
+
+    if (params.clientSecret) {
+      body.client_secret = params.clientSecret;
+    }
+
+    if (params.scope) {
+      body.scope = params.scope;
+    }
+
+    const res = await fetch(params.tokenEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data: TokenResponse = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error_description || data.error || `Silent token refresh failed with status ${res.status}`);
     }
 
     return data;

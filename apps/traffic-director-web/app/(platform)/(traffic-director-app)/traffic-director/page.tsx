@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   GitFork, Link as LinkIcon, Activity, ShieldCheck, Globe, 
-  Smartphone, Plus, Play, ExternalLink, RefreshCw, Bot, Users
+  Smartphone, Plus, Play, ExternalLink, RefreshCw, Bot, Users, Lock
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -13,7 +14,18 @@ import { LogoLoader, FeatureLock } from '@workspace/ui';
 import CreateLinkModal from '../_components/CreateLinkModal';
 
 export default function TrafficDirectorOverviewPage() {
-  const { companyConfig, loading: subLoading } = useSubscription();
+  const router = useRouter();
+  const { 
+    companyConfig, 
+    loading: subLoading,
+    canCreateMoreLinks,
+    isTrialExpired,
+    maxLinks,
+    currentLinksCount,
+    isUnlimited,
+    planName,
+    refresh: refreshSub
+  } = useSubscription();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -58,7 +70,10 @@ export default function TrafficDirectorOverviewPage() {
       <CreateLinkModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={() => fetchOverview()}
+        onSuccess={() => {
+          fetchOverview();
+          refreshSub();
+        }}
       />
 
       {/* Header Banner */}
@@ -82,11 +97,32 @@ export default function TrafficDirectorOverviewPage() {
             Routing Simulator
           </Link>
           <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-md shadow-indigo-500/20 transition active:scale-95"
+            onClick={() => {
+              if (!canCreateMoreLinks) {
+                toast.error(
+                  isTrialExpired 
+                    ? 'Your 7-day free trial has expired. Upgrade your subscription to create new links.' 
+                    : `Link quota limit reached (${currentLinksCount}/${isUnlimited ? '∞' : maxLinks}). Upgrade your subscription to create more links.`
+                );
+                router.push('/traffic-director/subscription');
+                return;
+              }
+              setIsCreateModalOpen(true);
+            }}
+            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition active:scale-95 cursor-pointer ${
+              canCreateMoreLinks
+                ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20"
+                : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700 hover:border-amber-400"
+            }`}
+            title={canCreateMoreLinks ? 'Create a new Smart Link' : 'Upgrade subscription to create more links'}
           >
-            <Plus className="w-4 h-4" />
-            New Smart Link
+            {canCreateMoreLinks ? <Plus className="w-4 h-4" /> : <Lock className="w-4 h-4 text-amber-500" />}
+            <span>New Smart Link</span>
+            {!canCreateMoreLinks && (
+              <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded font-mono font-bold">
+                Upgrade
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -425,8 +461,19 @@ export default function TrafficDirectorOverviewPage() {
             <GitFork className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-600" />
             <p className="text-sm">No traffic recorded yet. Create a Smart Link and start routing!</p>
             <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+              onClick={() => {
+                if (!canCreateMoreLinks) {
+                  toast.error(
+                    isTrialExpired 
+                      ? 'Your 7-day free trial has expired. Upgrade your subscription to create new links.' 
+                      : `Link quota limit reached (${currentLinksCount}/${isUnlimited ? '∞' : maxLinks}). Upgrade your subscription to create more links.`
+                  );
+                  router.push('/traffic-director/subscription');
+                  return;
+                }
+                setIsCreateModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" /> Create your first Smart Link
             </button>

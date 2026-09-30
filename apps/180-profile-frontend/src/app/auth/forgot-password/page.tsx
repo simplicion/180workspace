@@ -11,6 +11,7 @@ import {
   buildOAuthQueryString,
 } from '@/components/auth/OAuthDispatchHelper';
 import { getCoreApiUrl } from '@/lib/api';
+import { SmartAuthInput } from '@/components/auth/SmartAuthInput';
 
 function ForgotPasswordContent() {
   const searchParams = useSearchParams();
@@ -84,20 +85,14 @@ function ForgotPasswordContent() {
         </div>
 
         <form onSubmit={handleForgotSubmit} className="space-y-3.5">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Email or Mobile Number
-            </label>
-            <input
-              type="text"
-              placeholder="name@company.com or +91 9381420546"
-              value={emailOrPhone}
-              onChange={(e) => setEmailOrPhone(e.target.value)}
-              className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-3.5 py-2.5 min-h-[42px] text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-              required
-              autoFocus
-            />
-          </div>
+          <SmartAuthInput
+            label="Email or Mobile Number"
+            placeholder="name@company.com or 9381420546"
+            value={emailOrPhone}
+            onChange={setEmailOrPhone}
+            required
+            autoFocus
+          />
 
           <button
             type="submit"

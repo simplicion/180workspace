@@ -450,14 +450,22 @@ class BackgroundSyncEngine {
   private async maybePull(force = false) {
     const now = Date.now();
     if (!this.isOnline || this.authPaused) return;
+    // Skip pull on auth pages — no point pulling tasks when user isn't logged in
+    if (typeof window !== 'undefined' && /^\/(login|signup|forgot-password|reset-password|callback)(\/|$)/.test(window.location.pathname)) return;
     if (!force && typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     if (!force && now - this.lastPullAt < PULL_INTERVAL_MS) return;
     this.lastPullAt = now;
     try {
       await this.pullTasks();
     } catch (err: any) {
-      if (!err?.response) this.setOnline(false);
-      else console.warn('[SyncEngine] pull failed:', err.response?.status);
+      if (!err?.response) {
+        this.setOnline(false);
+      } else if (err.response.status === 401) {
+        this.authPaused = true;
+        this.syncState = 'auth_required';
+      } else {
+        console.warn('[SyncEngine] pull failed:', err.response?.status);
+      }
     }
   }
 

@@ -34,7 +34,7 @@ class OneEightySsoService {
   }
 
   /// Launch 180 Identity SSO in browser
-  Future<void> launch180IdentityLogin() async {
+  Future<Map<String, dynamic>?> launch180IdentityLogin() async {
     final verifier = _randomString(64);
     final digest = sha256.convert(utf8.encode(verifier));
     final challenge = _base64UrlNoPadding(digest.bytes);
@@ -43,7 +43,7 @@ class OneEightySsoService {
     await _storage.write(key: _kCodeVerifier, value: verifier);
     await _storage.write(key: _kOAuthState, value: state);
 
-    final authUrl = Uri.parse('${AppConfig.identityServerUrl}/oauth/authorize').replace(
+    final authUrl = Uri.parse('${AppConfig.identityAuthUrl}/auth/login').replace(
       queryParameters: {
         'client_id': AppConfig.identityClientId,
         'redirect_uri': AppConfig.identityRedirectUri,
@@ -67,22 +67,28 @@ class OneEightySsoService {
       // Wait for postMessage from the popup
       await for (final event in html.window.onMessage) {
         final data = event.data;
-        if (data is Map && data['type'] == '180_IDENTITY_SUCCESS') {
+        if (data is Map && (data['type'] == '180_IDENTITY_SUCCESS' || data['type'] == '180_AUTH_SUCCESS')) {
           final returnedCode = data['code'];
           final returnedState = data['state'];
+          final directToken = data['token'];
           
           if (returnedCode != null && returnedState != null) {
             // Re-construct the callback URI format to reuse handleCallbackUri logic
             final callbackUri = Uri.parse('${AppConfig.identityRedirectUri}?code=$returnedCode&state=$returnedState');
-            await handleCallbackUri(callbackUri);
-            return;
+            return await handleCallbackUri(callbackUri);
+          } else if (directToken != null) {
+            final tokenStr = directToken.toString();
+            await _storage.write(key: _kAccessToken, value: tokenStr);
+            return {'access_token': tokenStr, 'user': data['user']};
           }
         }
       }
+      return null;
     } else {
       if (!await launchUrl(authUrl, mode: LaunchMode.externalApplication)) {
         throw Exception('Could not launch 180 Identity authentication browser.');
       }
+      return null;
     }
   }
 

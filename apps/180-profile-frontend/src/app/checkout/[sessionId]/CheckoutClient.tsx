@@ -228,7 +228,10 @@ export function CheckoutClient() {
             const verifyData = await verifyRes.json();
             if (verifyData.success) {
               toast.success(`Wallet topped up with ₹${deficit}!`, { id: toastId });
-              fetchSessionAndWallet();
+              await fetchSessionAndWallet();
+              // Seamless 1-Click Sovereign Vault: Automatically authorize purchase now that wallet is funded
+              toast.loading('Top-up confirmed! Completing payment with 180 Profile...', { id: toastId });
+              await handlePay();
             }
           } catch (e: any) {
             toast.error(e.message || 'Verification failed', { id: toastId });
@@ -341,16 +344,30 @@ export function CheckoutClient() {
       <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-sm font-bold text-slate-900 tracking-tight">{session.title}</h2>
+            <div className="flex items-center gap-1.5 mb-1">
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">{session.title}</h2>
+              {(session.mode === 'subscription' || session.metadata?.isSubscription) && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  Recurring {session.billingInterval || 'Monthly'}
+                </span>
+              )}
+            </div>
             {session.description && (
               <p className="text-xs text-slate-500 mt-0.5">{session.description}</p>
+            )}
+            {(session.mode === 'subscription' || session.metadata?.isSubscription) && (
+              <p className="text-[11px] text-indigo-600 font-medium mt-1">
+                Auto-renews every {session.billingInterval === 'YEARLY' ? 'year' : 'month'} from your 180 Wallet. Cancel anytime.
+              </p>
             )}
           </div>
           <div className="text-right">
             <span className="text-xl font-extrabold text-slate-900 tracking-tight">
-              ₹{session.amount.toFixed(2)}
+              {session.currency === 'USD' ? '$' : '₹'}{session.amount.toFixed(2)}
             </span>
-            <div className="text-[10px] text-slate-400 uppercase font-mono">{session.currency}</div>
+            <div className="text-[10px] text-slate-400 uppercase font-mono">
+              {session.currency} {(session.mode === 'subscription' || session.metadata?.isSubscription) ? '/ month' : ''}
+            </div>
           </div>
         </div>
       </div>
@@ -389,7 +406,13 @@ export function CheckoutClient() {
             className="w-full min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <Lock className="w-4 h-4" />
-            <span>{paying ? 'Authorizing Payment...' : `Authorize & Pay ₹${session.amount.toFixed(2)}`}</span>
+            <span>
+              {paying
+                ? 'Authorizing...'
+                : session.mode === 'subscription' || session.metadata?.isSubscription
+                ? `Authorize Recurring Subscription (${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)})`
+                : `Authorize & Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)}`}
+            </span>
           </Button>
         ) : (
           <Button

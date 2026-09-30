@@ -30,6 +30,8 @@ router.get('/me', protect, (req: any, res: any) => res.json({ success: true, use
 router.post('/verify', AuthApiController.verifyToken);
 router.get('/verify', AuthApiController.verifyToken);
 router.post('/revoke', AuthApiController.revokeToken);
+router.get('/authorized-apps', protect, AuthApiController.listAuthorizedApps);
+router.delete('/authorized-apps/:clientId', protect, AuthApiController.revokeAuthorizedApp);
 
 // ─── Auth Direct Endpoints ───────────────────────────────────────────────────
 router.post('/login', authRateLimiter, AuthApiController.login);

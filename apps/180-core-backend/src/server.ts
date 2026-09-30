@@ -16,9 +16,11 @@ import compression from 'compression';
 import authRoutes from './routes/auth.routes';
 import walletRoutes from './routes/wallet.routes';
 import checkoutRoutes from './routes/checkout.routes';
+import subscriptionRoutes from './routes/subscription.routes';
 import developerRoutes from './routes/developer.routes';
 import { generalApiLimiter } from './middleware/rate-limiter.middleware';
 import { RsaKeysService, seedFirstPartyOAuthApps } from '@workspace/identity-provider';
+import { RecurringBillingEngine } from '@workspace/payment-provider';
 
 const app = express();
 const server = http.createServer(app);
@@ -88,6 +90,10 @@ app.use('/api/v1/checkout', checkoutRoutes);
 app.use('/api/oauth/checkout', checkoutRoutes);
 app.use('/api/v1/payment/checkout', checkoutRoutes);
 
+app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/oauth/subscriptions', subscriptionRoutes);
+app.use('/api/v1/payment/subscriptions', subscriptionRoutes);
+
 app.use('/api/v1/developer', developerRoutes);
 app.use('/api/oauth/developer', developerRoutes);
 app.use('/api/v1/identity/developer', developerRoutes);
@@ -110,6 +116,16 @@ server.listen(PORT, async () => {
     await RsaKeysService.ensureKeys();
     await seedFirstPartyOAuthApps();
     console.log('[180-core-backend] 180 Identity RSA keys and first-party apps verified.');
+
+    // Autonomous recurring subscription auto-billing worker (runs hourly)
+    const BILLING_CYCLE_INTERVAL = 60 * 60 * 1000;
+    setInterval(async () => {
+      try {
+        await RecurringBillingEngine.runRecurringBillingCycle();
+      } catch (e: any) {
+        console.error('[180-core-backend] Error during recurring billing cycle:', e.message);
+      }
+    }, BILLING_CYCLE_INTERVAL);
   } catch (err: any) {
     console.warn('[180-core-backend] Bootstrapping note:', err.message);
   }

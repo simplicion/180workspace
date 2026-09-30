@@ -2,18 +2,32 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   GitFork, Link as LinkIcon, Plus, Search, Copy, Check, ExternalLink, 
-  Trash2, Settings2, Power, Filter, ArrowRight, CheckSquare, Layers
+  Trash2, Settings2, Power, Filter, ArrowRight, CheckSquare, Layers, Lock
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { LogoLoader, ConfirmModal, BulkActionBar } from '@workspace/ui';
 import clsx from 'clsx';
+import { useSubscription } from '@/lib/useSubscription';
 import CreateLinkModal from '../../_components/CreateLinkModal';
 import EditLinkModal from '../../_components/EditLinkModal';
 
 export default function SmartLinksDirectoryPage() {
+  const router = useRouter();
+  const { 
+    canCreateMoreLinks, 
+    cloakingEnabled, 
+    isSubscriptionActive, 
+    isTrialExpired,
+    currentLinksCount, 
+    maxLinks, 
+    isUnlimited, 
+    planName,
+    refresh: refreshSub 
+  } = useSubscription();
   const [links, setLinks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -56,6 +70,9 @@ export default function SmartLinksDirectoryPage() {
       });
     } catch (error: any) {
       if (!cached) setLinks([]);
+      if (error?.status === 401 || error?.message?.includes('401')) {
+        toast.error('Session expired or authentication required. Please sign in.');
+      }
     } finally {
       setLoading(false);
     }
@@ -74,13 +91,18 @@ export default function SmartLinksDirectoryPage() {
   };
 
   const handleToggleActive = async (link: any) => {
+    if (!link.isActive && !cloakingEnabled) {
+      toast.error('Subscription required: Activate a plan or free trial to enable cloaking routing.');
+      router.push('/traffic-director/subscription');
+      return;
+    }
     try {
       const updated = !link.isActive;
       await api.put(`/api/v1/traffic-director/links/${link.id}`, { isActive: updated });
       setLinks(prev => prev.map(l => l.id === link.id ? { ...l, isActive: updated } : l));
       toast.success(`Link is now ${updated ? 'Active' : 'Paused'}`);
     } catch (error: any) {
-      toast.error('Failed to update status');
+      toast.error(error.response?.data?.error || 'Failed to update status');
     }
   };
 
@@ -150,7 +172,10 @@ export default function SmartLinksDirectoryPage() {
       <CreateLinkModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={() => fetchLinks()}
+        onSuccess={() => {
+          fetchLinks();
+          refreshSub();
+        }}
       />
 
       <EditLinkModal
@@ -181,12 +206,43 @@ export default function SmartLinksDirectoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="hidden sm:flex flex-col items-end mr-1 text-right">
+            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+              Allocation: <strong className="text-gray-900 dark:text-white font-mono">{links.length} / {isUnlimited ? '∞' : maxLinks}</strong>
+            </span>
+            <span className="text-[10px] text-gray-400 font-medium">
+              {planName}
+            </span>
+          </div>
+
           <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm shadow-blue-500/20 active:scale-95 transition cursor-pointer"
+            onClick={() => {
+              if (!canCreateMoreLinks) {
+                toast.error(
+                  isTrialExpired 
+                    ? 'Your 7-day free trial has expired. Upgrade your subscription to create new links.' 
+                    : `Link quota limit reached (${links.length}/${maxLinks}). Upgrade your subscription to create more links.`
+                );
+                router.push('/traffic-director/subscription');
+                return;
+              }
+              setIsCreateModalOpen(true);
+            }}
+            className={clsx(
+              "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer",
+              canCreateMoreLinks
+                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20 active:scale-95"
+                : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700 hover:border-amber-400"
+            )}
+            title={canCreateMoreLinks ? 'Create a new Smart Link' : 'Upgrade subscription to create more links'}
           >
-            <Plus className="w-4 h-4" />
-            Create Smart Link
+            {canCreateMoreLinks ? <Plus className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5 text-amber-500" />}
+            <span>Create Smart Link</span>
+            {!canCreateMoreLinks && (
+              <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded font-mono font-bold">
+                Upgrade
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -251,7 +307,7 @@ export default function SmartLinksDirectoryPage() {
 
                   <div className="space-y-3 flex-1">
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className={`w-2.5 h-2.5 rounded-full ${link.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full ${link.isActive && cloakingEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
                       <h3 className="text-base font-bold text-gray-900 dark:text-white">{link.name}</h3>
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-zinc-800 font-mono text-xs text-blue-600 dark:text-blue-400 font-medium">
                         /r/{link.slug}
@@ -297,14 +353,24 @@ export default function SmartLinksDirectoryPage() {
                 <div className="flex items-center gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-gray-200/80 dark:border-zinc-800">
                   <button
                     onClick={() => handleToggleActive(link)}
-                    className={`p-2.5 rounded-xl border transition cursor-pointer ${
-                      link.isActive 
+                    className={clsx(
+                      "p-2.5 rounded-xl border transition cursor-pointer relative",
+                      link.isActive && cloakingEnabled
                         ? 'border-emerald-200 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' 
                         : 'border-gray-200 dark:border-zinc-700 text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
-                    }`}
-                    title={link.isActive ? 'Pause Link' : 'Activate Link'}
+                    )}
+                    title={
+                      !cloakingEnabled 
+                        ? 'Cloaking Locked: Subscription required to activate edge routing' 
+                        : (link.isActive ? 'Pause Link' : 'Activate Link')
+                    }
                   >
                     <Power className="w-4 h-4" />
+                    {!cloakingEnabled && (
+                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 rounded-full flex items-center justify-center text-white shadow-xs">
+                        <Lock className="w-2 h-2" />
+                      </span>
+                    )}
                   </button>
 
                   <button

@@ -77,6 +77,8 @@ router.post('/userinfo', OAuthController.getUserInfo);
 router.post('/verify', verifyLimiter, OAuthController.verifyToken);
 router.get('/verify', verifyLimiter, OAuthController.verifyToken);
 router.post('/revoke', OAuthController.revokeToken);
+router.get('/authorized-apps', protect, OAuthController.listAuthorizedApps);
+router.delete('/authorized-apps/:clientId', protect, OAuthController.revokeAuthorizedApp);
 
 // ─── Developer Portal App Management ─────────────────────────────────────────
 router.get('/developer/apps', protect, DeveloperController.listApps);

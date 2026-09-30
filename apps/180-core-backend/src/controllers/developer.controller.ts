@@ -4,8 +4,8 @@ import { Request, Response } from 'express';
 import { developersPrisma as prisma } from '@workspace/db-180core';
 import {
   DeveloperController as DomainDeveloperController,
-  PayoutService,
 } from '@workspace/identity-provider';
+import { PayoutService } from '@workspace/payment-provider';
 
 export class DeveloperApiController {
   static listApps = DomainDeveloperController.listApps;

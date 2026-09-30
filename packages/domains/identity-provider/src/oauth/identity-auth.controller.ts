@@ -8,21 +8,27 @@ import { EmailOtpService } from '../otp/email-otp.service';
 import { UsernameService } from '../user/username.service';
 import { LocationService } from '../user/location.service';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'jwt-secret-key-super-secure';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+function getJwtSecret(): string {
+    return process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '180-identity-jwt-secret-key-prod-super-secure';
+}
 
-function signToken(userId: string): string {
+const JWT_SECRET = getJwtSecret();
+
+function signToken(userOrId: any): string {
+    const id = typeof userOrId === 'string' ? userOrId : (userOrId.id || userOrId.sub);
+    const email = typeof userOrId === 'object' ? userOrId.email : undefined;
+    const role = typeof userOrId === 'object' ? (userOrId.role || 'USER') : 'USER';
     return jwt.sign(
-        { id: userId },
-        JWT_SECRET,
-        { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+        { id, sub: id, userId: id, email, role },
+        getJwtSecret(),
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
     );
 }
 
 function signTempToken(payload: any): string {
     return jwt.sign(
         payload,
-        JWT_SECRET,
+        getJwtSecret(),
         { expiresIn: '15m' } as jwt.SignOptions
     );
 }
@@ -195,7 +201,8 @@ export class IdentityAuthController {
             const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
             const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-            const identifier = isEmail ? cleanInput.toLowerCase() : digits;
+            const phoneMeta = !isEmail ? Msg91OtpService.normalizePhone(cleanInput) : null;
+            const identifier = isEmail ? cleanInput.toLowerCase() : (phoneMeta?.e164 || digits);
 
             // Upsert in OtpVerification
             await prisma.otpVerification.create({
@@ -208,7 +215,7 @@ export class IdentityAuthController {
                 }
             });
 
-            // Dispatch via Email SMTP or MSG91 WhatsApp
+            // Dispatch via Email SMTP or MSG91 WhatsApp Outbound
             if (isEmail) {
                 try {
                     await EmailOtpService.sendSignupOtp(cleanInput, otpCode);
@@ -217,7 +224,7 @@ export class IdentityAuthController {
                 }
             } else {
                 try {
-                    await Msg91OtpService.sendWhatsAppOtp(digits, otpCode);
+                    await Msg91OtpService.sendWhatsAppOtp(phoneMeta?.e164 || digits, otpCode);
                 } catch (smsErr: any) {
                     console.warn('[IdentityAuthController] Msg91 dispatch note:', smsErr.message);
                 }
@@ -230,14 +237,18 @@ export class IdentityAuthController {
                 step: 'otp'
             });
 
+            const displayTarget = isEmail
+                ? cleanInput
+                : (phoneMeta ? `${phoneMeta.e164.slice(0, 3)} ${phoneMeta.national}` : `+91 ${digits.slice(-10)}`);
+
             return res.json({
                 success: true,
-                channel: isEmail ? 'email' : 'phone',
+                channel: isEmail ? 'email' : 'whatsapp',
                 identifier,
                 tempToken,
                 message: isEmail
                     ? `Verification code sent to ${cleanInput}`
-                    : `Verification code dispatched to +91 ${digits.slice(-10)}`,
+                    : `WhatsApp verification code dispatched to ${displayTarget}`,
                 devOtp: process.env.NODE_ENV !== 'production' ? otpCode : undefined
             });
         } catch (err: any) {
@@ -272,13 +283,28 @@ export class IdentityAuthController {
             const cleanInput = String(emailOrPhone).trim();
             const isEmail = cleanInput.includes('@');
             const cleanOtp = String(otp).trim();
-            const identifier = isEmail ? cleanInput.toLowerCase() : cleanInput.replace(/[^\d]/g, '');
+            const digits = cleanInput.replace(/[^\d]/g, '');
+            const phoneMeta = !isEmail ? Msg91OtpService.normalizePhone(cleanInput) : null;
+            const identifier = isEmail ? cleanInput.toLowerCase() : digits;
+
+            const phoneVariants = isEmail
+                ? [identifier]
+                : Array.from(new Set([
+                    identifier,
+                    cleanInput,
+                    phoneMeta?.e164,
+                    phoneMeta?.national,
+                    phoneMeta?.msg91Mobile,
+                    digits.slice(-10),
+                    `+91${digits.slice(-10)}`,
+                    `+${digits}`
+                ].filter(Boolean))) as string[];
 
             // Check database OTP
             let isValid = false;
             const record = await prisma.otpVerification.findFirst({
                 where: {
-                    identifier,
+                    identifier: { in: phoneVariants },
                     code: cleanOtp,
                     verified: false,
                     expiresAt: { gt: new Date() }
@@ -292,9 +318,9 @@ export class IdentityAuthController {
                     where: { id: record.id },
                     data: { verified: true }
                 });
-            } else if (!isEmail && identifier.length >= 10) {
+            } else if (!isEmail && digits.length >= 10) {
                 // Secondary check via Msg91 for WhatsApp
-                const verifyRes = await Msg91OtpService.verifyWhatsAppOtp(identifier, cleanOtp);
+                const verifyRes = await Msg91OtpService.verifyWhatsAppOtp(cleanInput, cleanOtp);
                 if (verifyRes.valid) {
                     isValid = true;
                 }
@@ -849,11 +875,23 @@ export class IdentityAuthController {
 
             const cleanInput = String(rawInput).trim();
             const isEmail = cleanInput.includes('@');
+            const digits = cleanInput.replace(/[^\d]/g, '');
+
+            const phoneConditions: any[] = [{ phone: cleanInput }];
+            if (digits.length >= 10) {
+                const { e164, national, msg91Mobile } = Msg91OtpService.normalizePhone(cleanInput);
+                phoneConditions.push(
+                    { phone: e164 },
+                    { phone: national },
+                    { phone: msg91Mobile },
+                    { phone: `+${national}` }
+                );
+            }
 
             const user = await prisma.user.findFirst({
                 where: isEmail
                     ? { email: { equals: cleanInput, mode: 'insensitive' } }
-                    : { phone: cleanInput }
+                    : { OR: phoneConditions }
             });
 
             if (!user) {

@@ -20,7 +20,8 @@ export class AuthApiController {
   static getUserInfo = DomainOAuthController.getUserInfo;
   static verifyToken = DomainOAuthController.verifyToken;
   static revokeToken = DomainOAuthController.revokeToken;
-
+  static listAuthorizedApps = DomainOAuthController.listAuthorizedApps;
+  static revokeAuthorizedApp = DomainOAuthController.revokeAuthorizedApp;
   static login = DomainIdentityAuthController.login;
   static register = DomainIdentityAuthController.register;
   static initiateSignup = DomainIdentityAuthController.initiateSignup;

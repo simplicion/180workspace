@@ -53,9 +53,36 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                 if (dbToken && !dbToken.revokedAt && dbToken.expiresAt > new Date() && dbToken.user) {
                     isOAuthToken = true;
                     // Resolve user in local workspace database
-                    const localUser = await globalPrisma.user.findUnique({
+                    let localUser = await globalPrisma.user.findUnique({
                         where: { id: dbToken.userId }
                     });
+                    if (!localUser && dbToken.user.email) {
+                        localUser = await globalPrisma.user.findFirst({
+                            where: { email: { equals: dbToken.user.email, mode: 'insensitive' } }
+                        });
+                    }
+                    if (!localUser && dbToken.user) {
+                        try {
+                            localUser = await globalPrisma.user.create({
+                                data: {
+                                    id: dbToken.user.id,
+                                    email: dbToken.user.email || `${dbToken.user.username || dbToken.user.id}@180workspace.internal`,
+                                    name: dbToken.user.name || dbToken.user.username || '180 User',
+                                    username: dbToken.user.username || null,
+                                    phone: dbToken.user.phone || null,
+                                    photoUrl: dbToken.user.avatarUrl || null,
+                                    role: 'admin',
+                                    isActive: true,
+                                    isFirstLogin: true,
+                                    googleId: dbToken.user.googleId || null
+                                }
+                            });
+                        } catch (_) {
+                            localUser = await globalPrisma.user.findFirst({
+                                where: { OR: [{ id: dbToken.userId }, ...(dbToken.user.email ? [{ email: { equals: dbToken.user.email, mode: 'insensitive' } }] : [])] }
+                            });
+                        }
+                    }
                     oAuthUser = localUser || dbToken.user;
                     decoded = {
                         id: dbToken.userId,
@@ -117,58 +144,98 @@ export async function protect(req: any, res: Response, next: NextFunction) {
             console.warn('[Auth] Redis cache error:', cacheErr);
         }
 
-        if (!user) {
+        const tokenUserId = decoded.id || decoded.userId || decoded.sub;
+
+        if (!user && tokenUserId) {
             user = await req.prisma.user.findUnique({
-                where: { id: decoded.id }
+                where: { id: tokenUserId }
             });
+        }
 
-            // Cross-domain fallback: If token was signed by 180 Core / Sovereign Identity (db-180core),
-            // resolve user in 180 Workspace DB by email, phone, googleId or username, or auto-provision workspace record.
-            if (!user) {
+        if (!user && decoded.email) {
+            user = await req.prisma.user.findFirst({
+                where: { email: { equals: decoded.email, mode: 'insensitive' } }
+            });
+        }
+
+        // Cross-domain fallback: If token was signed by 180 Core / Sovereign Identity (db-180core),
+        // resolve user in 180 Workspace DB by email, phone, googleId or username, or auto-provision workspace record.
+        if (!user) {
+            try {
+                let coreUser: any = null;
+
+                // Direct core database lookup via corePrisma
                 try {
-                    // Decoupled Core OIDC User Resolution: Fetch userinfo over HTTP without direct database access
-                    let coreUser: any = null;
-                    try {
-                        const coreBackendUrl =
-                            process.env.CORE_BACKEND_INTERNAL_URL ||
-                            process.env.CORE_BACKEND_URL ||
-                            (process.env.NODE_ENV === 'production' ? 'http://core-backend:4003' : 'http://localhost:4003');
-                        const coreRes = await fetch(`${coreBackendUrl}/api/oauth/userinfo`, {
-                            headers: { Authorization: `Bearer ${token}` }
-                        });
-                        if (coreRes.ok) {
-                            const coreData: any = await coreRes.json();
-                            coreUser = coreData.user || coreData.data || coreData;
-                        }
-                    } catch (_) {}
-
-                    if (coreUser) {
-                        const orConditions: any[] = [];
-                        if (coreUser.email) orConditions.push({ email: { equals: coreUser.email, mode: 'insensitive' } });
-                        if (coreUser.googleId) orConditions.push({ googleId: coreUser.googleId });
-                        if (coreUser.phone) orConditions.push({ phone: coreUser.phone });
-                        if (coreUser.username) orConditions.push({ username: { equals: coreUser.username, mode: 'insensitive' } });
-
-                        if (orConditions.length > 0) {
-                            user = await req.prisma.user.findFirst({
-                                where: { OR: orConditions }
+                    const { corePrisma } = require('@workspace/db-180core');
+                    if (corePrisma?.user) {
+                        if (tokenUserId) {
+                            coreUser = await corePrisma.user.findUnique({
+                                where: { id: tokenUserId }
                             });
                         }
+                        if (!coreUser && decoded.email) {
+                            coreUser = await corePrisma.user.findFirst({
+                                where: { email: { equals: decoded.email, mode: 'insensitive' } }
+                            });
+                        }
+                    }
+                } catch (_) {}
 
-                        // If user is authenticated in 180 Profile but does not have a Workspace DB record yet, auto-provision
-                        if (!user) {
+                    // Decoupled Core OIDC User Resolution: Fetch userinfo over HTTP if direct db lookup didn't succeed
+                    if (!coreUser) {
+                        try {
+                            const coreBackendUrl =
+                                process.env.CORE_BACKEND_INTERNAL_URL ||
+                                process.env.CORE_BACKEND_URL ||
+                                (process.env.NODE_ENV === 'production' ? 'http://core-backend:4003' : 'http://localhost:4003');
+                            const coreRes = await fetch(`${coreBackendUrl}/api/oauth/userinfo`, {
+                                headers: { Authorization: `Bearer ${token}` }
+                            });
+                            if (coreRes.ok) {
+                                const coreData: any = await coreRes.json();
+                                coreUser = coreData.user || coreData.data || coreData;
+                            }
+                        } catch (_) {}
+                    }
+
+                    const resolvedEmail = coreUser?.email || decoded.email;
+                    const resolvedId = coreUser?.id || decoded.id;
+                    const resolvedName = coreUser?.name || decoded.name || coreUser?.username || decoded.username || '180 User';
+                    const resolvedUsername = coreUser?.username || decoded.username || null;
+                    const resolvedPhone = coreUser?.phone || decoded.phone || null;
+                    const resolvedAvatar = coreUser?.avatarUrl || decoded.avatarUrl || null;
+                    const resolvedGoogleId = coreUser?.googleId || decoded.googleId || null;
+
+                    if (!user && resolvedEmail) {
+                        user = await req.prisma.user.findFirst({
+                            where: { email: { equals: resolvedEmail, mode: 'insensitive' } }
+                        });
+                    }
+
+                    // Auto-provision user in workspace DB
+                    if (!user && (resolvedEmail || resolvedId)) {
+                        try {
                             user = await req.prisma.user.create({
                                 data: {
-                                    id: coreUser.id,
-                                    email: coreUser.email || `${coreUser.username || coreUser.id}@180workspace.internal`,
-                                    name: coreUser.name || coreUser.username || '180 User',
-                                    username: coreUser.username || null,
-                                    phone: coreUser.phone || null,
-                                    photoUrl: coreUser.avatarUrl || null,
+                                    id: resolvedId,
+                                    email: resolvedEmail || `${resolvedUsername || resolvedId}@180workspace.internal`,
+                                    name: resolvedName,
+                                    username: resolvedUsername,
+                                    phone: resolvedPhone,
+                                    photoUrl: resolvedAvatar,
                                     role: 'admin',
                                     isActive: true,
                                     isFirstLogin: true,
-                                    googleId: coreUser.googleId || null
+                                    googleId: resolvedGoogleId
+                                }
+                            });
+                        } catch (provisionErr) {
+                            user = await req.prisma.user.findFirst({
+                                where: {
+                                    OR: [
+                                        { id: resolvedId },
+                                        ...(resolvedEmail ? [{ email: { equals: resolvedEmail, mode: 'insensitive' } }] : [])
+                                    ]
                                 }
                             });
                         }
@@ -188,13 +255,12 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                     // Ignore cache set errors
                 }
             }
-        }
 
         if (!user) {
             return res.status(401).json({ error: 'Your account could not be found. Please sign in again.' });
         }
 
-        if (!user.isActive) {
+        if (user.isActive === false) {
             return res.status(401).json({ error: 'Your account has been deactivated. Please contact your administrator.' });
         }
 
@@ -205,6 +271,26 @@ export async function protect(req: any, res: Response, next: NextFunction) {
             req.user.role = (user.roles && user.roles.length > 0) ? user.roles[0] : 'employee';
         }
         req.user.companyId = decoded.companyId || req.company?.id || user.companyId;
+
+        // If user still doesn't have companyId, attempt resolving from adminEmail in company
+        if (!req.user.companyId && user.email) {
+            try {
+                const { prisma: globalPrisma } = require('@workspace/db');
+                const adminCompany = await globalPrisma.company.findFirst({
+                    where: { adminEmail: { equals: user.email, mode: 'insensitive' } },
+                    select: { id: true }
+                });
+                if (adminCompany) {
+                    req.user.companyId = adminCompany.id;
+                    try {
+                        await globalPrisma.user.update({
+                            where: { id: user.id },
+                            data: { companyId: adminCompany.id }
+                        });
+                    } catch (_) {}
+                }
+            } catch (_) {}
+        }
         
         // If company-context.js fell back to the global Prisma client because it couldn't extract companyId
         // from the request before verification, but we now know the user's companyId, upgrade the connection
@@ -213,6 +299,24 @@ export async function protect(req: any, res: Response, next: NextFunction) {
             req.prisma = getCompanyPrisma(req.user.companyId);
             if (process.env.DEBUG_AUTH === 'true') {
                 console.log(`[Auth] Upgraded global Prisma client to company client for companyId: ${req.user.companyId}`);
+            }
+        }
+
+        // Ensure req.company and req.companyId are attached when user is authenticated with a company context.
+        if (req.user.companyId && !req.company) {
+            try {
+                const targetCompanyId = req.user.companyId;
+                const { prisma: globalPrisma } = require('@workspace/db');
+                const comp = await (req.prisma || globalPrisma).company.findUnique({
+                    where: { id: targetCompanyId }
+                });
+                if (comp) {
+                    comp._id = comp.id;
+                    req.company = comp;
+                    req.companyId = comp.id;
+                }
+            } catch (err: any) {
+                console.warn('[Auth] Failed to attach company context in protect:', err?.message);
             }
         }
 

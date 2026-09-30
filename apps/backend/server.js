@@ -282,7 +282,7 @@ async function bootstrap() {
                 const { RsaKeysService, seedFirstPartyOAuthApps } = require('@workspace/identity-provider');
                 await RsaKeysService.ensureKeys();
                 await seedFirstPartyOAuthApps();
-                console.log('[Bootstrap] 180 Identity RSA keys and first-party apps verified.');
+                console.log('[Bootstrap] 180 Identity RSA keys and first-party apps verified (including developer-portal).');
             } catch (idErr) {
                 console.warn('[Bootstrap] 180 Identity initialization notice:', idErr.message);
             }

@@ -61,18 +61,37 @@ export default function HomePage() {
     const headers = { Authorization: `Bearer ${token}` };
 
     try {
-      const [userRes, walletRes, ledgerRes, appsRes] = await Promise.all([
-        fetch(getCoreApiUrl('/api/oauth/userinfo'), { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
+      // Step 1: Validate the token with userinfo first
+      const userRes = await fetch(getCoreApiUrl('/api/oauth/userinfo'), { headers, credentials: 'include' });
+
+      if (!userRes.ok) {
+        // Token is expired/invalid — clear all stale auth and stop
+        localStorage.removeItem('platform_auth_token');
+        localStorage.removeItem('token');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const userData = await userRes.json().catch(() => null);
+      if (userData && (userData.user || userData.id)) {
+        const u = userData.user || userData;
+        setUser(u);
+        localStorage.setItem('user', JSON.stringify(u));
+      } else {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Only fetch wallet, ledger, and apps AFTER auth is confirmed
+      const [walletRes, ledgerRes, appsRes] = await Promise.all([
         fetch(getCoreApiUrl('/api/oauth/wallet'), { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
         fetch(getCoreApiUrl('/api/oauth/wallet/ledger'), { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
         fetch(getCoreApiUrl('/api/oauth/authorized-apps'), { headers, credentials: 'include' }).then((r) => r.json()).catch(() => null),
       ]);
-
-      if (userRes && (userRes.user || userRes.id)) {
-        const u = userRes.user || userRes;
-        setUser(u);
-        localStorage.setItem('user', JSON.stringify(u));
-      }
 
       if (walletRes?.success && walletRes.data) {
         setBalance(walletRes.data.balance || 0);

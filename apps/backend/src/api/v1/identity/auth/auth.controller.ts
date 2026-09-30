@@ -421,9 +421,18 @@ export class AuthController {
                 return res.status(400).json({ error: 'Missing authorization code' });
             }
 
-            const identityServerUrl = process.env.IDENTITY_SERVER_URL || 'http://localhost:4003';
-            const clientId = process.env.ONE_EIGHTY_CLIENT_ID;
-            const clientSecret = process.env.ONE_EIGHTY_CLIENT_SECRET;
+            const identityServerUrl =
+                process.env.IDENTITY_SERVER_URL ||
+                process.env.CORE_BACKEND_INTERNAL_URL ||
+                process.env.CORE_BACKEND_URL ||
+                'http://localhost:4003';
+            const clientId =
+                process.env.ONE_EIGHTY_CLIENT_ID ||
+                process.env.NEXT_PUBLIC_180_CLIENT_ID ||
+                '180_client_5cc136397553836e34eb37ce22d13a53';
+            const clientSecret =
+                process.env.ONE_EIGHTY_CLIENT_SECRET ||
+                '180_secret_workspace_core_prod_key_5cc136';
 
             if (!identityServerUrl || !clientId || !clientSecret) {
                 console.error('[180 Identity Callback Error]: Missing ONE_EIGHTY_CLIENT_ID, ONE_EIGHTY_CLIENT_SECRET, or IDENTITY_SERVER_URL in environment');

@@ -17,6 +17,20 @@ export default function TrafficDirectorLandingPage() {
   const [isDark, setIsDark] = useState<boolean>(false);
   const [activeSimulation, setActiveSimulation] = useState<'crawler' | 'shopper' | 'proxy'>('crawler');
 
+  const handleLogin = () => {
+    launch180Identity({
+      clientId: '180-traffic-director',
+      redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : undefined,
+      onSuccess: (res: any) => {
+        if (res?.token) {
+          localStorage.setItem('platform_auth_token', res.token);
+          document.cookie = `platform_auth_token=${res.token}; path=/; max-age=604800; SameSite=Lax`;
+          window.location.href = '/traffic-director';
+        }
+      },
+    });
+  };
+
   useEffect(() => {
     const token = getAuthToken();
     setIsAuthenticated(Boolean(token));
@@ -262,7 +276,7 @@ export default function TrafficDirectorLandingPage() {
               </Link>
             ) : (
               <button
-                onClick={() => launch180Identity()}
+                onClick={handleLogin}
                 disabled={isOpeningIdentity}
                 className="inline-flex items-center space-x-2 rounded-full bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-950 px-5 py-2.5 text-sm font-bold shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
               >
@@ -318,7 +332,7 @@ export default function TrafficDirectorLandingPage() {
               </Link>
             ) : (
               <button
-                onClick={() => launch180Identity()}
+                onClick={handleLogin}
                 disabled={isOpeningIdentity}
                 className="btn-primary w-full sm:w-auto text-base group"
               >
@@ -640,7 +654,7 @@ export default function TrafficDirectorLandingPage() {
                 </Link>
               ) : (
                 <button
-                  onClick={() => launch180Identity()}
+                  onClick={handleLogin}
                   disabled={isOpeningIdentity}
                   className="btn-primary w-full"
                 >
