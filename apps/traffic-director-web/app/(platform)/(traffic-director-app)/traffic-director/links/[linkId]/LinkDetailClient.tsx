@@ -58,9 +58,13 @@ export default function SmartLinkRuleCanvasPage() {
     try {
       setLoading(true);
       const res = await api.get(`/api/v1/traffic-director/links/${linkId}`);
-      const lk = res.data.data.link;
+      const lk = res.data?.data?.link || res.data?.link;
+      if (!lk) {
+        toast.error('Traffic link not found');
+        return;
+      }
       setLinkData(lk);
-      setFallbackUrl(lk.fallbackUrl);
+      setFallbackUrl(lk.fallbackUrl || '');
       setSafePageProxyMode(Boolean(lk.safePageProxyMode));
       setDatacenterBlocked(lk.datacenterBlocked ?? true);
       setBlockSpyServices(!lk.tags || lk.tags.length === 0 ? true : lk.tags.includes('block_spy'));
