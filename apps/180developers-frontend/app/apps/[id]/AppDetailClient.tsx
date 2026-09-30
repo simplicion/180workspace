@@ -1,89 +1,55 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Key,
-  Copy,
-  Check,
-  RotateCw,
-  Save,
   ArrowLeft,
-  Loader2,
   CheckCircle2,
-  Shield,
-  CreditCard,
-  Webhook,
-  Send,
-  Terminal,
-  AlertCircle,
-  Zap,
-  ExternalLink,
-  Users,
-  Landmark,
-  Activity,
-  TrendingUp,
-  Clock,
-  ArrowUpRight,
-  Smartphone,
-  Monitor,
-  Layout,
-  Sliders,
-  Search,
-  Filter,
-  Play,
-  Trash2,
-  UserX,
-  Receipt,
-  Eye,
-  ImageIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
-  Button,
   UniversalSkeleton,
-  PlatformModal,
   FavoriteButton,
-  LogoLoader,
   HelpIcon,
-  AILogoIcon,
 } from '@workspace/ui';
 import { OneEightyIdentity, OneEightyPay } from '@workspace/identity-sdk';
+import {
+  DeveloperAppDetail,
+  WebhookTestResult,
+  AppOverviewDetail,
+  IdentityAppDetail,
+  PayAppDetail,
+  AppModals,
+} from '@/components/apps';
 
-interface DeveloperAppDetail {
-  id: string;
-  name: string;
-  description: string;
-  logoUrl?: string;
-  clientId: string;
-  clientSecretHint: string;
-  redirectUris: string[];
-  allowedOrigins: string[];
-  allowedScopes: string[];
-  isVerified: boolean;
-  isActive: boolean;
-  enableAuth: boolean;
-  enablePay: boolean;
-  webhookUrl: string;
-  webhookSecret: string;
-  authUxModes?: string[];
-  payUxModes?: string[];
-  authDesktopDefault?: string;
-  authMobileDefault?: string;
-  payDesktopDefault?: string;
-  payMobileDefault?: string;
-  createdAt: string;
+interface AppDetailClientProps {
+  initialView?: 'overview' | 'identity' | 'pay';
 }
 
-export default function AppDetailPage() {
+export default function AppDetailClient({ initialView }: AppDetailClientProps) {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const appId = params?.id as string;
 
   const [app, setApp] = useState<DeveloperAppDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Sub-view navigation: overview shows app cards, identity/pay show their dedicated detail pages
+  const paramView = searchParams?.get('view') as 'overview' | 'identity' | 'pay' | null;
+  const [activeView, setActiveView] = useState<'overview' | 'identity' | 'pay'>(
+    initialView || paramView || 'overview'
+  );
+
+  const navigateView = (view: 'overview' | 'identity' | 'pay') => {
+    setActiveView(view);
+    if (typeof window !== 'undefined') {
+      const url = view === 'overview' ? `/apps/${appId}` : `/apps/${appId}?view=${view}`;
+      window.history.pushState(null, '', url);
+    }
+  };
 
   // Form states
   const [name, setName] = useState('');
@@ -98,7 +64,6 @@ export default function AppDetailPage() {
   const [enablePay, setEnablePay] = useState(true);
   const [webhookUrl, setWebhookUrl] = useState('');
   const [webhookSecret, setWebhookSecret] = useState('');
-  const [isRotatingWebhook, setIsRotatingWebhook] = useState(false);
 
   // UX Display Modes & Device Defaults State
   const [authUxModes, setAuthUxModes] = useState<string[]>(['popup']);
@@ -114,15 +79,7 @@ export default function AppDetailPage() {
 
   // Test Webhook Dispatcher State
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    success: boolean;
-    statusCode: number;
-    latencyMs: number;
-    signature: string;
-    targetUrl: string;
-    message: string;
-    response: string;
-  } | null>(null);
+  const [testResult, setTestResult] = useState<WebhookTestResult | null>(null);
 
   // Secret Rotation Modal
   const [showRotateModal, setShowRotateModal] = useState(false);
@@ -154,6 +111,7 @@ export default function AppDetailPage() {
   // Real-Time Auth Logs & Live Users Telemetry
   const [authLogs, setAuthLogs] = useState<{ logs: any[]; totalUsers: number; activeSessionsCount: number } | null>(null);
   const [loadingAuthLogs, setLoadingAuthLogs] = useState(false);
+  const [revokingUserId, setRevokingUserId] = useState<string | null>(null);
 
   // Financial Analytics & Transactions Ledger
   const [paymentAnalytics, setPaymentAnalytics] = useState<{
@@ -179,11 +137,6 @@ export default function AppDetailPage() {
   const [showBankModal, setShowBankModal] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
 
-  // Connected Users Search & Filtering
-  const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [userStatusFilter, setUserStatusFilter] = useState<'ALL' | 'ACTIVE_SESSION' | 'SESSION_EXPIRED'>('ALL');
-  const [revokingUserId, setRevokingUserId] = useState<string | null>(null);
-
   // Payment Transactions Search & Filtering
   const [txSearchQuery, setTxSearchQuery] = useState('');
   const [txStatusFilter, setTxStatusFilter] = useState<'ALL' | 'CAPTURED' | 'PENDING' | 'FAILED'>('ALL');
@@ -192,7 +145,6 @@ export default function AppDetailPage() {
   // Admin Payout Review
   const [showAdminPayoutModal, setShowAdminPayoutModal] = useState(false);
   const [adminPayouts, setAdminPayouts] = useState<any[]>([]);
-  const [adminAnalytics, setAdminAnalytics] = useState<any | null>(null);
   const [loadingAdminPayouts, setLoadingAdminPayouts] = useState(false);
   const [updatingPayoutId, setUpdatingPayoutId] = useState<string | null>(null);
   const [payoutAdminNote, setPayoutAdminNote] = useState('');
@@ -355,17 +307,12 @@ export default function AppDetailPage() {
     try {
       const token = localStorage.getItem('platform_auth_token');
       const apiBase = getApiBase();
-      const [payoutsRes, analyticsRes] = await Promise.all([
+      const [payoutsRes] = await Promise.all([
         fetch(`${apiBase}/api/v1/developer/admin/payouts`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${apiBase}/api/v1/developer/admin/analytics`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (payoutsRes.ok) {
         const data = await payoutsRes.json();
         if (data.success) setAdminPayouts(data.data || []);
-      }
-      if (analyticsRes.ok) {
-        const data = await analyticsRes.json();
-        if (data.success) setAdminAnalytics(data.data || null);
       }
     } catch (_) {}
     finally { setLoadingAdminPayouts(false); }
@@ -515,25 +462,21 @@ export default function AppDetailPage() {
 
   const fetchAppDetails = async () => {
     setLoading(true);
-    const token = localStorage.getItem('platform_auth_token');
-    if (!token) {
-      router.push('/');
-      return;
-    }
-
     try {
+      const token = localStorage.getItem('platform_auth_token');
       const apiBase = getApiBase();
-      let res = await fetchWithTimeout(`${apiBase}/api/v1/identity/developer/apps/${appId}`, {
+
+      let res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${appId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res || !res.ok) {
-        res = await fetchWithTimeout(`${apiBase}/api/oauth/developer/apps/${appId}`, {
+      if (!res.ok) {
+        res = await fetch(`${apiBase}/api/oauth/developer/apps/${appId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
 
-      if (!res || !res.ok) {
+      if (!res.ok) {
         throw new Error('Failed to load application details');
       }
 
@@ -572,8 +515,8 @@ export default function AppDetailPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const handleSaveChanges = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveChanges = async (e?: React.FormEvent | React.SyntheticEvent) => {
+    e?.preventDefault();
     if (!name.trim()) {
       toast.error('App name cannot be empty');
       return;
@@ -664,58 +607,29 @@ export default function AppDetailPage() {
         });
       }
 
-      if (!res.ok) throw new Error('Failed to update app');
-      toast.success('Application settings updated successfully');
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || data.error || 'Failed to save settings');
+      }
+
+      toast.success('Configuration saved successfully');
       fetchAppDetails();
     } catch (err: any) {
-      toast.error(err.message || 'Update failed');
+      toast.error(err.message || 'Error updating settings');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRotateWebhookSecret = async () => {
-    if (!confirm('Are you sure you want to rotate your webhook signing secret? You will need to update the secret on your backend server.')) {
-      return;
-    }
-    setIsRotatingWebhook(true);
-    try {
-      const token = localStorage.getItem('platform_auth_token');
-      const apiBase = getApiBase();
-
-      let res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${appId}/rotate-webhook-secret`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        res = await fetch(`${apiBase}/api/oauth/developer/apps/${appId}/rotate-webhook-secret`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Webhook secret rotation failed');
-
-      setWebhookSecret(data.webhookSecret);
-      toast.success('Webhook signing secret rotated successfully');
-      fetchAppDetails();
-    } catch (err: any) {
-      toast.error(err.message || 'Webhook secret rotation failed');
-    } finally {
-      setIsRotatingWebhook(false);
-    }
-  };
-
-  const handleSendTestWebhook = async () => {
+  const handleTestWebhook = async () => {
     if (!webhookUrl.trim()) {
-      toast.error('Please enter and save a valid Webhook URL first');
+      toast.error('Please specify a webhook destination URL first');
       return;
     }
 
     setIsTestingWebhook(true);
     setTestResult(null);
+
     try {
       const token = localStorage.getItem('platform_auth_token');
       const apiBase = getApiBase();
@@ -891,33 +805,66 @@ export default function AppDetailPage() {
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-12">
-      {/* Header */}
+      {/* Dynamic Header */}
       <div className="space-y-3 pb-6 border-b border-zinc-200 dark:border-white/10">
-        <Link
-          href="/"
-          className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Applications</span>
-        </Link>
+        {activeView === 'overview' ? (
+          <Link
+            href="/"
+            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Applications</span>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigateView('overview')}
+            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to {app.name}</span>
+          </button>
+        )}
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-zinc-950 dark:text-white tracking-tight">{app.name}</h1>
-              {app.isVerified && <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
-              <FavoriteButton
-                recordId={app.id}
-                type="Project"
-                label={app.name}
-                href={`/apps/${app.id}`}
-                className="min-h-[36px] min-w-[36px] p-1.5"
-              />
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                Active
-              </span>
+              <h1 className="text-2xl sm:text-3xl font-bold text-zinc-950 dark:text-white tracking-tight">
+                {activeView === 'overview' ? app.name : activeView === 'identity' ? '180 Identity' : '180 Pay'}
+              </h1>
+              {activeView === 'overview' && app.isVerified && <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+              {activeView === 'overview' && (
+                <FavoriteButton
+                  recordId={app.id}
+                  type="Project"
+                  label={app.name}
+                  href={`/apps/${app.id}`}
+                  className="min-h-[36px] min-w-[36px] p-1.5"
+                />
+              )}
+              {activeView === 'identity' && (
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${enableAuth ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500'}`}>
+                  {enableAuth ? 'Active' : 'Disabled'}
+                </span>
+              )}
+              {activeView === 'pay' && (
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${enablePay ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500'}`}>
+                  {enablePay ? 'Active' : 'Disabled'}
+                </span>
+              )}
+              {activeView === 'overview' && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  Active
+                </span>
+              )}
             </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-mono">Client ID: {app.clientId}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-mono">
+              {activeView === 'overview'
+                ? `Client ID: ${app.clientId}`
+                : activeView === 'identity'
+                ? 'Universal login, WhatsApp OTP, Google SSO & sovereign @usernames'
+                : 'Sovereign Wallet & UPI checkout with 2-way verification'}
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -932,1984 +879,173 @@ export default function AppDetailPage() {
         </div>
       </div>
 
-      {/* Credentials Card */}
-      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-5 shadow-sm dark:shadow-2xl">
-        <div className="flex items-center gap-2">
-          <Key className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          <h2 className="text-base font-bold text-zinc-950 dark:text-white">OAuth 2.0 Credentials</h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Client ID</label>
-            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 font-mono text-xs text-zinc-900 dark:text-white">
-              <span className="flex-1 truncate">{app.clientId}</span>
-              <button
-                onClick={() => copyToClipboard(app.clientId, 'client')}
-                className="text-zinc-400 hover:text-zinc-950 dark:hover:text-white cursor-pointer"
-              >
-                {copiedKey === 'client' ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Client Secret</label>
-            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 font-mono text-xs text-zinc-500 dark:text-zinc-400">
-              <span className="flex-1">
-                {app.clientSecretHint ? `••••••••••••${app.clientSecretHint}` : 'Public PKCE Client'}
-              </span>
-              {app.clientSecretHint && (
-                <button
-                  onClick={() => setShowRotateModal(true)}
-                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                >
-                  <RotateCw className="w-3 h-3" />
-                  <span>Rotate</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Services & Capabilities Toggle Card */}
-      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-white/10">
-          <div>
-            <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-500" />
-              <span>Core Products & Capabilities</span>
-            </h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Enable or disable standalone 180 services for this Client ID in real time.
-            </p>
-          </div>
-          <span className="text-[11px] font-mono text-zinc-400">Single Client ID Architecture</span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* 180 Identity Service Toggle */}
-          <div
-            onClick={() => setEnableAuth(!enableAuth)}
-            className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-4 ${
-              enableAuth
-                ? 'bg-blue-500/5 border-blue-500/40 shadow-sm'
-                : 'bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-white/10 opacity-70'
-            }`}
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${enableAuth ? 'bg-blue-500/20 text-blue-500' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400'}`}>
-                    <Shield className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-bold text-sm text-zinc-950 dark:text-white">180 Identity</h3>
-                </div>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                    enableAuth
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                      : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500'
-                  }`}
-                >
-                  {enableAuth ? 'Active' : 'Disabled'}
-                </span>
-              </div>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                Universal login with WhatsApp OTP, Google SSO, and sovereign @usernames. Issues RS256 asymmetric JWKS access tokens.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between pt-2 border-t border-zinc-200 dark:border-white/5 text-[11px]">
-              <span className="text-zinc-500">OAuth 2.0 / OIDC Protocol</span>
-              <span className={`font-semibold ${enableAuth ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400'}`}>
-                {enableAuth ? 'Enabled' : 'Click to Enable'}
-              </span>
-            </div>
-          </div>
-
-          {/* 180 Pay Service Toggle */}
-          <div
-            onClick={() => setEnablePay(!enablePay)}
-            className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-4 ${
-              enablePay
-                ? 'bg-purple-500/5 border-purple-500/40 shadow-sm'
-                : 'bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-white/10 opacity-70'
-            }`}
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${enablePay ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400'}`}>
-                    <CreditCard className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-bold text-sm text-zinc-950 dark:text-white">180 Pay</h3>
-                </div>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                    enablePay
-                      ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
-                      : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500'
-                  }`}
-                >
-                  {enablePay ? 'Active' : 'Disabled'}
-                </span>
-              </div>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                1-Click Sovereign Wallet & UPI checkout popup. Dedicated 180 Pay engine processes payments with 2-way verification.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between pt-2 border-t border-zinc-200 dark:border-white/5 text-[11px]">
-              <span className="text-zinc-500">Sovereign Wallet Checkout</span>
-              <span className={`font-semibold ${enablePay ? 'text-purple-600 dark:text-purple-400' : 'text-zinc-400'}`}>
-                {enablePay ? 'Enabled' : 'Click to Enable'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Connected Users & Sovereign Identities Console */}
-      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
-          <div>
-            <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
-              <Users className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span>Connected Users & Sovereign Identities</span>
-            </h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Real-time directory of users who have authorized and connected to this application via 180 Identity.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{authLogs?.activeSessionsCount || 0} Active Sessions</span>
-            </span>
-            <button
-              type="button"
-              onClick={fetchAuthLogs}
-              disabled={loadingAuthLogs}
-              className="p-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
-              title="Refresh connected users"
-            >
-              <RotateCw className={`w-3.5 h-3.5 ${loadingAuthLogs ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
-
-        {/* Telemetry Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
-            <span className="text-[11px] font-medium text-zinc-500">Total Connected Users</span>
-            <p className="text-xl font-extrabold text-zinc-950 dark:text-white font-mono">{authLogs?.totalUsers || 0}</p>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
-            <span className="text-[11px] font-medium text-zinc-500">Active Token Sessions</span>
-            <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">{authLogs?.activeSessionsCount || 0}</p>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1 col-span-2 sm:col-span-1">
-            <span className="text-[11px] font-medium text-zinc-500">App-Scoped Username Isolation</span>
-            <p className="text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1 pt-1">
-              <Shield className="w-3.5 h-3.5" />
-              <span>Isolated Per-App Registry</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Search & Filter Controls */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Search by name, email, username or user ID..."
-              value={userSearchQuery}
-              onChange={(e) => setUserSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500 transition-colors"
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5 self-end sm:self-auto">
-            {(['ALL', 'ACTIVE_SESSION', 'SESSION_EXPIRED'] as const).map((filter) => {
-              const isActive = userStatusFilter === filter;
-              const label = filter === 'ALL' ? 'All' : filter === 'ACTIVE_SESSION' ? 'Active' : 'Expired';
-              return (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setUserStatusFilter(filter)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                      : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:border-zinc-300'
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Connected Users Table */}
-        <div className="space-y-3">
-          {loadingAuthLogs ? (
-            <div className="py-8 text-center text-xs text-zinc-400">Loading connected users...</div>
-          ) : authLogs && authLogs.logs.length > 0 ? (
-            (() => {
-              const query = userSearchQuery.trim().toLowerCase();
-              const filteredLogs = authLogs.logs.filter((log) => {
-                if (userStatusFilter !== 'ALL' && log.status !== userStatusFilter) return false;
-                if (!query) return true;
-                const name = (log.user?.name || '').toLowerCase();
-                const email = (log.user?.email || '').toLowerCase();
-                const username = (log.user?.username || '').toLowerCase();
-                const appUsername = (log.user?.appScopedUsername || '').toLowerCase();
-                const userId = (log.userId || '').toLowerCase();
-                return (
-                  name.includes(query) ||
-                  email.includes(query) ||
-                  username.includes(query) ||
-                  appUsername.includes(query) ||
-                  userId.includes(query)
-                );
-              });
-
-              if (filteredLogs.length === 0) {
-                return (
-                  <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-center text-xs text-zinc-400">
-                    No users match your search and filter criteria.
-                  </div>
-                );
-              }
-
-              return (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
-                    <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase">
-                      <tr>
-                        <th className="pb-2.5">User Profile</th>
-                        <th className="pb-2.5">App-Scoped Username</th>
-                        <th className="pb-2.5">Email</th>
-                        <th className="pb-2.5">User ID</th>
-                        <th className="pb-2.5">Session Status</th>
-                        <th className="pb-2.5">Connected Since</th>
-                        <th className="pb-2.5">Last Login</th>
-                        <th className="pb-2.5 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
-                      {filteredLogs.map((log) => {
-                        const appUsername = log.user.appScopedUsername || log.user.username;
-                        const isRevokingThis = revokingUserId === log.userId;
-
-                        return (
-                          <tr key={log.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors">
-                            <td className="py-3">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center font-bold text-purple-600 text-xs overflow-hidden flex-shrink-0">
-                                  {log.user.avatar ? (
-                                    <img src={log.user.avatar} alt="" className="w-full h-full object-cover" />
-                                  ) : (
-                                    log.user.name?.charAt(0) || 'U'
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="font-semibold text-zinc-950 dark:text-white flex items-center gap-1 truncate">
-                                    <span>{log.user.name}</span>
-                                    {log.user.isVerified && (
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-500 flex-shrink-0" />
-                                    )}
-                                  </div>
-                                  <div className="text-[10px] text-zinc-400 font-mono truncate">{log.authMethod}</div>
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="py-3">
-                              {appUsername ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-mono font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                                  @{appUsername}
-                                </span>
-                              ) : (
-                                <span className="text-zinc-400 italic text-[11px]">—</span>
-                              )}
-                            </td>
-
-                            <td className="py-3 font-mono text-[11px]">
-                              {log.user.email ? (
-                                <div className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300">
-                                  <span>{log.user.email}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => copyToClipboard(log.user.email, `email_${log.id}`)}
-                                    className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
-                                  >
-                                    {copiedKey === `email_${log.id}` ? (
-                                      <Check className="w-3 h-3 text-emerald-500" />
-                                    ) : (
-                                      <Copy className="w-3 h-3" />
-                                    )}
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="text-zinc-400 italic">Not shared</span>
-                              )}
-                            </td>
-
-                            <td className="py-3 font-mono text-[11px] text-zinc-500">
-                              <div className="flex items-center gap-1.5">
-                                <span>{log.userId.slice(0, 10)}...</span>
-                                <button
-                                  type="button"
-                                  onClick={() => copyToClipboard(log.userId, `uid_${log.id}`)}
-                                  className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
-                                  title="Copy User ID"
-                                >
-                                  {copiedKey === `uid_${log.id}` ? (
-                                    <Check className="w-3 h-3 text-emerald-500" />
-                                  ) : (
-                                    <Copy className="w-3 h-3" />
-                                  )}
-                                </button>
-                              </div>
-                            </td>
-
-                            <td className="py-3">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  log.status === 'ACTIVE_SESSION'
-                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
-                                }`}
-                              >
-                                {log.status === 'ACTIVE_SESSION' ? 'Active Token' : 'Expired'}
-                              </span>
-                            </td>
-
-                            <td className="py-3 font-mono text-[11px] text-zinc-500">
-                              {new Date(log.connectedSince || log.grantedAt).toLocaleDateString()}
-                            </td>
-
-                            <td className="py-3 font-mono text-[11px] text-zinc-500">
-                              {new Date(log.lastLogin || log.updatedAt).toLocaleDateString()}{' '}
-                              {new Date(log.lastLogin || log.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </td>
-
-                            <td className="py-3 text-right">
-                              {log.status === 'ACTIVE_SESSION' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRevokeUserSession(log.userId, log.user.name)}
-                                  disabled={isRevokingThis}
-                                  className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
-                                  title="Revoke active user session"
-                                >
-                                  {isRevokingThis ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <UserX className="w-3 h-3" />
-                                  )}
-                                  <span>Revoke</span>
-                                </button>
-                              ) : (
-                                <span className="text-[11px] text-zinc-400 italic">None</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })()
-          ) : (
-            <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-center space-y-2">
-              <p className="text-xs text-zinc-500">No users have signed into this app yet.</p>
-              <p className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
-                Embed the &lt;OneEightyAuthButton /&gt; or script to start authenticating users.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Webhook & 2-Way Payment Verification Engine Card */}
-      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
-          <div>
-            <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
-              <Webhook className="w-4 h-4 text-emerald-500" />
-              <span>Payment Verification Webhook Engine</span>
-            </h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Two-way server verification flow. All webhooks are signed using HMAC-SHA256 (<code className="text-emerald-500">X-180-Signature</code>).
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSendTestWebhook}
-            disabled={isTestingWebhook || !webhookUrl}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            {isTestingWebhook ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            <span>Send Test Webhook</span>
-          </button>
-        </div>
-
-        {/* 2-Way Verification Architecture Banner */}
-        <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-zinc-900 dark:text-white">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>2-Way Sovereign Payment Verification Workflow</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] text-zinc-600 dark:text-zinc-400">
-            <div className="p-3 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/5 space-y-1">
-              <div className="font-bold text-zinc-900 dark:text-zinc-200">1. Verification Leg 1</div>
-              <div>Customer pays in 180 popup. 180 Pay Gateway confirms instant capture.</div>
-            </div>
-            <div className="p-3 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/5 space-y-1">
-              <div className="font-bold text-zinc-900 dark:text-zinc-200">2. Verification Leg 2</div>
-              <div>180 Platform dispatches signed webhook with <code className="text-emerald-500">X-180-Signature</code> to your server.</div>
-            </div>
-            <div className="p-3 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/5 space-y-1">
-              <div className="font-bold text-zinc-900 dark:text-zinc-200">3. Fulfillment</div>
-              <div>Your server confirms signature and unlocks the product/subscription to the user.</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Webhook Configuration Inputs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-              Webhook Endpoint URL (HTTPS recommended)
-            </label>
-            <input
-              type="url"
-              placeholder="https://api.yourdomain.com/webhooks/180-pay"
-              value={webhookUrl}
-              onChange={(e) => setWebhookUrl(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                Webhook Signing Secret
-              </label>
-              <button
-                type="button"
-                onClick={handleRotateWebhookSecret}
-                disabled={isRotatingWebhook}
-                className="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <RotateCw className={`w-2.5 h-2.5 ${isRotatingWebhook ? 'animate-spin' : ''}`} />
-                <span>Rotate Secret</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-2 p-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 font-mono text-xs text-zinc-900 dark:text-white">
-              <span className="flex-1 truncate px-1 text-emerald-600 dark:text-emerald-400">
-                {webhookSecret || 'whsec_••••••••••••••••••••••••'}
-              </span>
-              {webhookSecret && (
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(webhookSecret, 'webhookSecret')}
-                  className="p-1 text-zinc-400 hover:text-zinc-950 dark:hover:text-white cursor-pointer"
-                  title="Copy Webhook Secret"
-                >
-                  {copiedKey === 'webhookSecret' ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-500" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Live Test Webhook Result Console */}
-        {testResult && (
-          <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3 font-mono text-xs">
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-zinc-400" />
-                <span className="text-zinc-300 font-bold">Webhook Delivery Telemetry</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    testResult.success
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                  }`}
-                >
-                  HTTP {testResult.statusCode}
-                </span>
-                <span className="text-zinc-500 text-[10px]">{testResult.latencyMs}ms</span>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 text-[11px]">
-              <div className="text-zinc-400">
-                <span className="text-zinc-500">Destination:</span> {testResult.targetUrl}
-              </div>
-              {testResult.signature && (
-                <div className="text-zinc-400 truncate">
-                  <span className="text-zinc-500">X-180-Signature:</span> {testResult.signature}
-                </div>
-              )}
-              <div className="text-zinc-400">
-                <span className="text-zinc-500">Status Message:</span> {testResult.message}
-              </div>
-              {testResult.response && (
-                <div className="pt-1.5">
-                  <span className="text-zinc-500 block mb-1">Server Response:</span>
-                  <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 overflow-x-auto text-[10px] max-h-24 select-all">
-                    {testResult.response}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 180 Pay Revenue & Payment Analytics Card */}
-      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
-          <div>
-            <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-emerald-500" />
-              <span>180 Pay Revenue & Payment Analytics</span>
-            </h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Comprehensive analytics on collections, monthly volume, settlements, and incoming transaction receipts.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={fetchPaymentAnalytics}
-              disabled={loadingAnalytics}
-              className="p-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
-              title="Refresh payment analytics"
-            >
-              <RotateCw className={`w-3.5 h-3.5 ${loadingAnalytics ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
-
-        {/* 4 Financial KPI Blocks */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
-            <span className="text-[11px] font-medium text-zinc-500">Total Lifetime Volume</span>
-            <p className="text-xl font-extrabold text-zinc-950 dark:text-white font-mono">
-              ₹{(paymentAnalytics?.grossVolume || 0).toFixed(2)}
-            </p>
-            <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
-              <TrendingUp className="w-3 h-3" /> Gross captured
-            </span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
-            <span className="text-[11px] font-medium text-zinc-500">Completed Payments</span>
-            <p className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">
-              {paymentAnalytics?.totalTransactionsCount || 0}
-            </p>
-            <span className="text-[10px] text-indigo-500 font-semibold">Captured checkouts</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
-            <span className="text-[11px] font-medium text-zinc-500">In-Flight Settlements</span>
-            <p className="text-xl font-extrabold text-amber-600 dark:text-amber-400 font-mono">
-              ₹{(paymentAnalytics?.pendingSettlements || 0).toFixed(2)}
-            </p>
-            <span className="text-[10px] text-amber-500">Pending settlement</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/20 space-y-1">
-            <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">Withdrawable Balance</span>
-            <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-              ₹{(payoutBalance || 0).toFixed(2)}
-            </p>
-            <span className="text-[10px] text-emerald-600 font-bold">Ready for withdrawal</span>
-          </div>
-        </div>
-
-        {/* Search & Status Filter Controls */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Search transactions by title, customer, or ID..."
-              value={txSearchQuery}
-              onChange={(e) => setTxSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors"
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5 self-end sm:self-auto">
-            {(['ALL', 'CAPTURED', 'PENDING', 'FAILED'] as const).map((filter) => {
-              const isActive = txStatusFilter === filter;
-              return (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setTxStatusFilter(filter)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                      : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:border-zinc-300'
-                  }`}
-                >
-                  {filter}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Recent Transactions Ledger */}
-        <div className="space-y-3">
-          {paymentAnalytics && paymentAnalytics.transactions.length > 0 ? (
-            (() => {
-              const query = txSearchQuery.trim().toLowerCase();
-              const filteredTxs = paymentAnalytics.transactions.filter((tx) => {
-                if (txStatusFilter !== 'ALL' && tx.status !== txStatusFilter) return false;
-                if (!query) return true;
-                const id = (tx.id || '').toLowerCase();
-                const title = (tx.title || '').toLowerCase();
-                const customerName = (tx.customer?.name || '').toLowerCase();
-                const customerEmail = (tx.customer?.email || '').toLowerCase();
-                return (
-                  id.includes(query) ||
-                  title.includes(query) ||
-                  customerName.includes(query) ||
-                  customerEmail.includes(query)
-                );
-              });
-
-              if (filteredTxs.length === 0) {
-                return (
-                  <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 text-center text-xs text-zinc-400">
-                    No transactions match your search and filter criteria.
-                  </div>
-                );
-              }
-
-              return (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
-                    <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase">
-                      <tr>
-                        <th className="pb-2.5">Session ID / Title</th>
-                        <th className="pb-2.5">Customer</th>
-                        <th className="pb-2.5">Amount</th>
-                        <th className="pb-2.5">Status</th>
-                        <th className="pb-2.5">Date</th>
-                        <th className="pb-2.5 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
-                      {filteredTxs.map((tx) => (
-                        <tr key={tx.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors">
-                          <td className="py-3">
-                            <div className="font-semibold text-zinc-950 dark:text-white">{tx.title || '180 Checkout'}</div>
-                            <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-mono mt-0.5">
-                              <span>{tx.id.slice(0, 16)}...</span>
-                              <button
-                                type="button"
-                                onClick={() => copyToClipboard(tx.id, `tx_${tx.id}`)}
-                                className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
-                                title="Copy Transaction ID"
-                              >
-                                {copiedKey === `tx_${tx.id}` ? (
-                                  <Check className="w-3 h-3 text-emerald-500" />
-                                ) : (
-                                  <Copy className="w-3 h-3" />
-                                )}
-                              </button>
-                            </div>
-                          </td>
-                          <td className="py-3">
-                            {tx.customer ? (
-                              <div>
-                                <div className="font-medium text-zinc-900 dark:text-zinc-200">{tx.customer.name}</div>
-                                <div className="text-[10px] text-zinc-400 font-mono">{tx.customer.email || '180 Profile'}</div>
-                              </div>
-                            ) : (
-                              <span className="text-zinc-400 italic">Guest Checkout</span>
-                            )}
-                          </td>
-                          <td className="py-3 font-bold text-zinc-950 dark:text-white font-mono">
-                            ₹{tx.amount.toFixed(2)}
-                          </td>
-                          <td className="py-3">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                tx.status === 'CAPTURED'
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                  : tx.status === 'PENDING'
-                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                              }`}
-                            >
-                              {tx.status}
-                            </span>
-                          </td>
-                          <td className="py-3 font-mono text-[11px] text-zinc-500">
-                            {new Date(tx.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedTx(tx)}
-                              className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-semibold inline-flex items-center gap-1 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
-                            >
-                              <Receipt className="w-3 h-3" />
-                              <span>Receipt</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })()
-          ) : (
-            <p className="text-xs text-zinc-400 italic py-2">No incoming payments recorded yet for this app.</p>
-          )}
-        </div>
-      </div>
-
-      {/* Earnings & Manual Payouts Card */}
-      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
-          <div>
-            <h2 className="text-base font-bold text-zinc-950 dark:text-white">Earnings & 180 Pay Payouts</h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Revenue collected via 1-Click 180 Profile Checkout. Request manual bank/UPI withdrawals below.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleOpenAdminPayoutModal}
-              className="px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Shield className="w-3.5 h-3.5 text-purple-500" />
-              <span>Admin Settlement Review</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenPayoutModal}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span>Request Payout</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Linked Settlement Bank Details */}
-        <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Landmark className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span className="text-xs font-bold text-zinc-900 dark:text-white">Settlement Account Configuration</span>
-              {bankDetails?.accountNumber || bankDetails?.upiId ? (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">Verified</span>
-              ) : (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">Setup Required</span>
-              )}
-            </div>
-            {bankDetails?.accountNumber || bankDetails?.upiId ? (
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-                {bankDetails.accountHolderName} • {bankDetails.upiId ? `UPI: ${bankDetails.upiId}` : `A/C: ••••••${bankDetails.accountNumber?.slice(-4)} (${bankDetails.ifscCode})`}
-              </p>
-            ) : (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                You must link your bank account or UPI ID to withdraw funds to your account.
-              </p>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowBankModal(true)}
-            className="px-3.5 py-1.5 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-white dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-800 dark:text-zinc-200 transition-colors self-start sm:self-auto cursor-pointer"
-          >
-            {bankDetails?.accountNumber || bankDetails?.upiId ? 'Update Bank Account' : 'Set Up Settlement Account'}
-          </button>
-        </div>
-
-        {/* Balance Stat */}
-        <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 flex items-center justify-between">
-          <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Withdrawable Revenue Balance</span>
-          <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-            ₹{payoutBalance.toFixed(2)}
-          </span>
-        </div>
-
-        {/* Payout History Table */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-            Withdrawal History
-          </h3>
-          {payouts.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
-                <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase">
-                  <tr>
-                    <th className="pb-2">Date</th>
-                    <th className="pb-2">Method</th>
-                    <th className="pb-2">Amount</th>
-                    <th className="pb-2 text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
-                  {payouts.map((p) => (
-                    <tr key={p.id}>
-                      <td className="py-2.5">{new Date(p.requestedAt).toLocaleDateString()}</td>
-                      <td className="py-2.5 font-medium">{p.payoutMethod}</td>
-                      <td className="py-2.5 font-bold text-zinc-900 dark:text-white">₹{p.amount.toFixed(2)}</td>
-                      <td className="py-2.5 text-right">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            p.status === 'PAID'
-                              ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                              : p.status === 'REJECTED'
-                              ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
-                              : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
-                          }`}
-                        >
-                          {p.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-xs text-zinc-400 italic py-2">No payout requests submitted yet.</p>
-          )}
-        </div>
-      </div>
-
-      {/* Configuration Form */}
-      <form onSubmit={handleSaveChanges} className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-white/10">
-          <h2 className="text-base font-bold text-zinc-950 dark:text-white">Application Configuration</h2>
-          <Button
-            type="submit"
-            disabled={saving}
-            className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            <span>Save Settings</span>
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Application Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Description</label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* App Logo URL */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
-            <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
-            App Logo URL (White-label OAuth Branding) <span className="text-red-500">*</span>
-          </label>
-          <div className="flex items-center gap-3">
-            {logoUrl.trim() && (
-              <div className="w-10 h-10 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 overflow-hidden flex items-center justify-center p-1 shrink-0">
-                <img
-                  src={logoUrl.trim()}
-                  alt="Logo preview"
-                  className="w-full h-full object-contain rounded-lg"
-                  onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
-                />
-              </div>
-            )}
-            <input
-              type="url"
-              required
-              placeholder="https://yourapp.com/logo.png"
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
-            Mandatory: This logo is displayed exclusively in the authorization popup for your app.
-          </p>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-            Redirect URIs (One per line)
-          </label>
-          <textarea
-            rows={3}
-            value={redirectUrisInput}
-            onChange={(e) => setRedirectUrisInput(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-            Allowed Web Origins (CORS)
-          </label>
-          <textarea
-            rows={2}
-            value={allowedOriginsInput}
-            onChange={(e) => setAllowedOriginsInput(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-          />
-        </div>
-
-        {/* UX Display Modes & Device Defaults Card */}
-        <div className="pt-5 border-t border-zinc-200 dark:border-white/10 space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-bold text-zinc-950 dark:text-white flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-indigo-500" />
-                <span>UX Display Modes & Device Defaults</span>
-              </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Define the presentation styles supported by your application and customize device defaults for desktop vs mobile.
-              </p>
-            </div>
-            <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 font-semibold">
-              Responsive Experience
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 180 Identity Auth UX */}
-            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-zinc-200 dark:border-white/5">
-                <Shield className="w-3.5 h-3.5 text-blue-500" />
-                <span className="text-xs font-bold text-zinc-900 dark:text-white">180 Identity Auth UX</span>
-              </div>
-
-              {/* Supported Modes (Multi-select) */}
-              <div className="space-y-2">
-                <label className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 block">
-                  Supported Display Modes
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: 'popup', label: 'Popup Window' },
-                    { id: 'modal', label: 'Centered Modal' },
-                    { id: 'bottom_sheet', label: 'Bottom Sheet' },
-                    { id: 'full_page', label: 'Full Page Redirect' },
-                  ].map((mode) => {
-                    const isSelected = authUxModes.includes(mode.id);
-                    return (
-                      <button
-                        key={mode.id}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            if (authUxModes.length > 1) {
-                              setAuthUxModes(authUxModes.filter((m) => m !== mode.id));
-                            } else {
-                              toast.error('At least one display mode must remain enabled');
-                            }
-                          } else {
-                            setAuthUxModes([...authUxModes, mode.id]);
-                          }
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                            : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:border-zinc-300'
-                        }`}
-                      >
-                        {mode.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Device Defaults */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-zinc-500 flex items-center gap-1">
-                    <Monitor className="w-3 h-3 text-zinc-400" />
-                    <span>Desktop Default</span>
-                  </label>
-                  <select
-                    value={authDesktopDefault}
-                    onChange={(e) => setAuthDesktopDefault(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="popup">Popup Window (Recommended)</option>
-                    <option value="modal">Centered Modal</option>
-                    <option value="bottom_sheet">Bottom Sheet</option>
-                    <option value="full_page">Full Page Redirect</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-zinc-500 flex items-center gap-1">
-                    <Smartphone className="w-3 h-3 text-zinc-400" />
-                    <span>Mobile Default</span>
-                  </label>
-                  <select
-                    value={authMobileDefault}
-                    onChange={(e) => setAuthMobileDefault(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="bottom_sheet">Bottom Sheet (Recommended)</option>
-                    <option value="modal">Centered Modal</option>
-                    <option value="popup">Popup Window</option>
-                    <option value="full_page">Full Page Redirect</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* 180 Pay Checkout UX */}
-            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-zinc-200 dark:border-white/5">
-                <CreditCard className="w-3.5 h-3.5 text-purple-500" />
-                <span className="text-xs font-bold text-zinc-900 dark:text-white">180 Pay Checkout UX</span>
-              </div>
-
-              {/* Supported Modes (Multi-select) */}
-              <div className="space-y-2">
-                <label className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 block">
-                  Supported Display Modes
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: 'bottom_sheet', label: 'Bottom Sheet' },
-                    { id: 'modal', label: 'Centered Modal' },
-                    { id: 'popup', label: 'Popup Window' },
-                    { id: 'full_page', label: 'Full Page Redirect' },
-                  ].map((mode) => {
-                    const isSelected = payUxModes.includes(mode.id);
-                    return (
-                      <button
-                        key={mode.id}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            if (payUxModes.length > 1) {
-                              setPayUxModes(payUxModes.filter((m) => m !== mode.id));
-                            } else {
-                              toast.error('At least one display mode must remain enabled');
-                            }
-                          } else {
-                            setPayUxModes([...payUxModes, mode.id]);
-                          }
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                            : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:border-zinc-300'
-                        }`}
-                      >
-                        {mode.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Device Defaults */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-zinc-500 flex items-center gap-1">
-                    <Monitor className="w-3 h-3 text-zinc-400" />
-                    <span>Desktop Default</span>
-                  </label>
-                  <select
-                    value={payDesktopDefault}
-                    onChange={(e) => setPayDesktopDefault(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
-                  >
-                    <option value="bottom_sheet">Bottom Sheet (Recommended)</option>
-                    <option value="modal">Centered Modal</option>
-                    <option value="popup">Popup Window</option>
-                    <option value="full_page">Full Page Redirect</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-zinc-500 flex items-center gap-1">
-                    <Smartphone className="w-3 h-3 text-zinc-400" />
-                    <span>Mobile Default</span>
-                  </label>
-                  <select
-                    value={payMobileDefault}
-                    onChange={(e) => setPayMobileDefault(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
-                  >
-                    <option value="bottom_sheet">Bottom Sheet (Recommended)</option>
-                    <option value="modal">Centered Modal</option>
-                    <option value="popup">Popup Window</option>
-                    <option value="full_page">Full Page Redirect</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Live Sandbox Previews */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5 border border-indigo-500/20 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h4 className="text-xs font-bold text-zinc-950 dark:text-white flex items-center gap-1.5">
-                  <Play className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Interactive Live Sandbox Preview</span>
-                </h4>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Test your configured auth and payment UX flows instantly in real time using the sovereign 180 SDK.
-                </p>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-semibold self-start sm:self-auto">
-                SDK v2.0.0
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={handleTestAuthModal}
-                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                <Monitor className="w-3.5 h-3.5" />
-                <span>Test Popup Modal</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleTestAuthBottomSheet}
-                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>Test Bottom Sheet</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleTestPayBottomSheet}
-                className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>Test 180 Pay Drawer</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Token Lifecycle & Auto-Refresh Cycle Preferences */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-zinc-200 dark:border-white/5">
-              <div>
-                <h4 className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
-                  <RotateCw className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Token Lifecycle & Auto-Refresh Cycle</span>
-                </h4>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Configure cryptographic token lifetimes. 180 Profile SDK silently rotates refresh tokens before expiration without user interruption.
-                </p>
-              </div>
-              <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-semibold">
-                OAuth 2.0 Security
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
-                  <span>Access Token Lifetime</span>
-                  <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">{Math.round(accessTokenTtl / 60)} mins ({accessTokenTtl}s)</span>
-                </label>
-                <select
-                  value={accessTokenTtl}
-                  onChange={(e) => setAccessTokenTtl(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value={300}>5 minutes (300s) — High Security</option>
-                  <option value={900}>15 minutes (900s) — Standard (Recommended)</option>
-                  <option value={1800}>30 minutes (1800s)</option>
-                  <option value={3600}>1 hour (3600s)</option>
-                  <option value={86400}>24 hours (86400s)</option>
-                </select>
-                <p className="text-[10px] text-zinc-500">Short-lived asymmetric tokens prevent replay attacks and token interception.</p>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
-                  <span>Refresh Token Retention Cycle</span>
-                  <span className="font-mono text-purple-600 dark:text-purple-400 font-bold">{refreshTokenDays} Days</span>
-                </label>
-                <select
-                  value={refreshTokenDays}
-                  onChange={(e) => setRefreshTokenDays(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
-                >
-                  <option value={1}>1 Day (24 hours)</option>
-                  <option value={3}>3 Days</option>
-                  <option value={7}>7 Days — Standard (Recommended)</option>
-                  <option value={14}>14 Days</option>
-                  <option value={30}>30 Days (Extended Session)</option>
-                </select>
-                <p className="text-[10px] text-zinc-500">180 Profile automatically exchanges and updates refresh tokens silently in the background.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Webhook Endpoints & Real-Time Dispatch Card */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-zinc-200 dark:border-white/5">
-              <div>
-                <h4 className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
-                  <Webhook className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Webhook Endpoints & Real-Time Dispatch</span>
-                </h4>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Receive signed HMAC-SHA256 events (payment.captured, subscription.activated) directly on your backend.
-                </p>
-              </div>
-              <span className="self-start sm:self-auto text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
-                HMAC-SHA256 Verified
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
-                  Webhook Endpoint URL
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://myapp.com/api/webhooks/180-pay"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors"
-                />
-                <p className="text-[10px] text-zinc-500">
-                  Must be an HTTPS URL on production. Localhost URLs (e.g. http://localhost:4002/api/webhook) are supported for local testing.
-                </p>
-              </div>
-
-              {/* Webhook Secret Row */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
-                  <span>Webhook Signing Secret (WEBHOOK_SECRET)</span>
-                  <button
-                    type="button"
-                    onClick={handleRotateWebhookSecret}
-                    disabled={isRotatingWebhook}
-                    className="text-[10px] text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1 transition-colors cursor-pointer"
-                  >
-                    <RotateCw className={`w-3 h-3 ${isRotatingWebhook ? 'animate-spin' : ''}`} />
-                    <span>Rotate Secret</span>
-                  </button>
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-700 dark:text-zinc-300 select-all truncate">
-                    {webhookSecret || 'whsec_••••••••••••••••••••••••'}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(webhookSecret, 'webhookSecret')}
-                    disabled={!webhookSecret}
-                    className="px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/10 text-xs text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                  >
-                    {copiedKey === 'webhookSecret' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedKey === 'webhookSecret' ? 'Copied' : 'Copy'}</span>
-                  </button>
-                </div>
-                <p className="text-[10px] text-zinc-500">
-                  Use this secret to cryptographically verify the <code>X-180-Signature</code> header with timing-safe HMAC-SHA256 comparison.
-                </p>
-              </div>
-
-              {/* Test Webhook Runner */}
-              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={handleSendTestWebhook}
-                  disabled={isTestingWebhook || !webhookUrl.trim()}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  {isTestingWebhook ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Sending Test Ping...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Send Test Webhook Ping</span>
-                    </>
-                  )}
-                </button>
-                <span className="text-[11px] text-zinc-500">Dispatches simulated <code>payment.test</code> payload</span>
-              </div>
-
-              {/* Test Webhook Diagnostics Output */}
-              {testResult && (
-                <div className={`p-3.5 rounded-xl border text-xs space-y-2 font-mono ${
-                  testResult.success 
-                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-500/30 text-emerald-900 dark:text-emerald-200' 
-                    : 'bg-red-50/50 dark:bg-red-950/20 border-red-300 dark:border-red-500/30 text-red-900 dark:text-red-200'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold flex items-center gap-1.5">
-                      {testResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <AlertCircle className="w-4 h-4 text-red-500" />}
-                      HTTP {testResult.statusCode} ({testResult.latencyMs}ms)
-                    </span>
-                    <span className="text-[10px] opacity-75">{testResult.targetUrl}</span>
-                  </div>
-                  {testResult.signature && (
-                    <div className="text-[10px] opacity-75 truncate">
-                      X-180-Signature: {testResult.signature}
-                    </div>
-                  )}
-                  {testResult.response && (
-                    <div className="text-[10px] p-2 rounded bg-black/10 dark:bg-black/40 break-all max-h-24 overflow-y-auto">
-                      {testResult.response}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </form>
-
-      {/* Danger Zone */}
-      <div className="rounded-3xl border border-red-200 dark:border-red-500/20 bg-red-50/20 dark:bg-zinc-950 p-6 sm:p-8 space-y-4 shadow-sm dark:shadow-2xl">
-        <h2 className="text-base font-bold text-red-600 dark:text-red-400">Danger Zone</h2>
-        <div className="divide-y divide-zinc-200 dark:divide-white/5 text-xs text-zinc-700 dark:text-zinc-300">
-          <div className="py-3.5 flex items-center justify-between">
-            <div>
-              <div className="font-semibold text-zinc-900 dark:text-white">Revoke All Active Tokens</div>
-              <div className="text-zinc-500 dark:text-zinc-400 text-[11px] mt-0.5">
-                Immediately invalidates all issued access and refresh tokens for this app.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleRevokeTokens}
-              disabled={isRevoking}
-              className="px-3.5 py-2 rounded-xl bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20 font-semibold cursor-pointer transition-colors"
-            >
-              {isRevoking ? 'Revoking...' : 'Revoke Tokens'}
-            </button>
-          </div>
-
-          <div className="py-3.5 flex items-center justify-between">
-            <div>
-              <div className="font-semibold text-zinc-900 dark:text-white">Delete Application</div>
-              <div className="text-zinc-500 dark:text-zinc-400 text-[11px] mt-0.5">
-                Permanently removes this application and all associated grants.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowDeleteModal(true)}
-              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold cursor-pointer transition-colors shadow-sm"
-            >
-              Delete App
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────────────────────
-          CENTRALIZED MODAL: SECRET ROTATION
-          ───────────────────────────────────────────────────────────────────────────── */}
-      <PlatformModal
-        isOpen={showRotateModal}
-        onClose={() => setShowRotateModal(false)}
-        title="Rotate Client Secret"
-        icon={RotateCw}
-        iconBgClass="bg-amber-500/10"
-        iconColorClass="text-amber-600 dark:text-amber-400"
-        maxWidthClass="max-w-md"
-      >
-        <div className="space-y-4 text-zinc-900 dark:text-white">
-          <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            Rotating your Client Secret will immediately issue a new secret. To prevent downtime, previous secrets have a 24-hour grace window.
-          </p>
-
-          {newSecretRevealed ? (
-            <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs font-mono text-emerald-600 dark:text-emerald-400 break-all select-all">
-                {newSecretRevealed}
-              </div>
-              <Button
-                onClick={() => {
-                  copyToClipboard(newSecretRevealed, 'newSecret');
-                  setSecretCopied(true);
-                }}
-                className="w-full py-2.5 min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer flex items-center justify-center gap-2"
-              >
-                {secretCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                <span>{secretCopied ? 'Copied to Clipboard!' : 'Copy New Secret'}</span>
-              </Button>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="ack-rot"
-                  checked={hasAcknowledgedSecret}
-                  onChange={(e) => setHasAcknowledgedSecret(e.target.checked)}
-                  className="w-4 h-4 rounded text-blue-600 cursor-pointer"
-                />
-                <label htmlFor="ack-rot" className="text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer">
-                  I have copied and safely stored this new secret.
-                </label>
-              </div>
-              <Button
-                disabled={!hasAcknowledgedSecret}
-                onClick={() => {
-                  setShowRotateModal(false);
-                  setNewSecretRevealed(null);
-                }}
-                className="w-full py-2.5 min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-xs cursor-pointer"
-              >
-                Close
-              </Button>
-            </div>
-          ) : (
-            <div className="flex justify-end gap-3 pt-2">
-              <Button
-                variant="ghost"
-                onClick={() => setShowRotateModal(false)}
-                className="px-4 py-2 min-h-[44px] text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleRotateSecret}
-                disabled={isRotating}
-                className="px-4 py-2 min-h-[44px] rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg cursor-pointer flex items-center gap-2"
-              >
-                {isRotating ? <LogoLoader className="w-4 h-4 animate-spin text-white" /> : <RotateCw className="w-4 h-4" />}
-                <span>Confirm Rotation</span>
-              </Button>
-            </div>
-          )}
-        </div>
-      </PlatformModal>
-
-      {/* ─────────────────────────────────────────────────────────────────────────────
-          CENTRALIZED MODAL: DELETE APPLICATION
-          ───────────────────────────────────────────────────────────────────────────── */}
-      <PlatformModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        title="Confirm Deletion"
-        icon={AlertCircle}
-        iconBgClass="bg-red-500/10"
-        iconColorClass="text-red-600 dark:text-red-400"
-        maxWidthClass="max-w-md"
-      >
-        <div className="space-y-4 text-zinc-900 dark:text-white">
-          <p className="text-xs text-zinc-600 dark:text-zinc-300">
-            To delete this application permanently, type its exact name <strong className="text-zinc-950 dark:text-white">{app.name}</strong> below:
-          </p>
-          <input
-            type="text"
-            value={deleteConfirmText}
-            onChange={(e) => setDeleteConfirmText(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-red-500 transition-colors"
-            placeholder="Type app name to confirm"
-          />
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              variant="ghost"
-              onClick={() => setShowDeleteModal(false)}
-              className="px-4 py-2 min-h-[44px] text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white"
-            >
-              Cancel
-            </Button>
-            <button
-              onClick={handleDeleteApp}
-              disabled={deleteConfirmText !== app.name || isDeleting}
-              className="px-4 py-2 min-h-[44px] rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-bold text-xs cursor-pointer transition-colors flex items-center gap-2"
-            >
-              {isDeleting ? <LogoLoader className="w-4 h-4 animate-spin text-white" /> : null}
-              <span>Delete Forever</span>
-            </button>
-          </div>
-        </div>
-      </PlatformModal>
-
-      {/* ─────────────────────────────────────────────────────────────────────────────
-          CENTRALIZED MODAL: PAYOUT REQUEST
-          ───────────────────────────────────────────────────────────────────────────── */}
-      <PlatformModal
-        isOpen={showPayoutModal}
-        onClose={() => setShowPayoutModal(false)}
-        title="Request Revenue Payout"
-        icon={CreditCard}
-        iconBgClass="bg-purple-500/10"
-        iconColorClass="text-purple-600 dark:text-purple-400"
-        maxWidthClass="max-w-md"
-      >
-        <form onSubmit={handleRequestPayout} className="space-y-4 text-zinc-900 dark:text-white">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Available to withdraw: <strong className="text-emerald-500">₹{payoutBalance.toFixed(2)}</strong>
-          </p>
-
-          <div>
-            <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
-              Withdrawal Amount (INR)
-            </label>
-            <input
-              type="number"
-              min="100"
-              max={payoutBalance}
-              placeholder="Enter amount (min ₹100)"
-              value={payoutAmount}
-              onChange={(e) => setPayoutAmount(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
-              Payout Method
-            </label>
-            <select
-              value={payoutMethod}
-              onChange={(e) => setPayoutMethod(e.target.value as any)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
-            >
-              <option value="UPI">UPI ID (Instant Transfer)</option>
-              <option value="BANK_TRANSFER">Bank Account (NEFT/IMPS)</option>
-            </select>
-          </div>
-
-          {payoutMethod === 'UPI' ? (
-            <div>
-              <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
-                UPI ID
-              </label>
-              <input
-                type="text"
-                placeholder="username@okhdfcbank"
-                value={upiId}
-                onChange={(e) => setUpiId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
-                required
-              />
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div>
-                <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
-                  Account Holder Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="Full Name as per Bank"
-                  value={bankHolder}
-                  onChange={(e) => setBankHolder(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
-                  Account Number
-                </label>
-                <input
-                  type="text"
-                  placeholder="Bank Account Number"
-                  value={bankAccNumber}
-                  onChange={(e) => setBankAccNumber(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
-                  IFSC Code
-                </label>
-                <input
-                  type="text"
-                  placeholder="HDFC0001234"
-                  value={bankIfsc}
-                  onChange={(e) => setBankIfsc(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white"
-                  required
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-3">
-            <Button
-              variant="ghost"
-              type="button"
-              onClick={() => setShowPayoutModal(false)}
-              className="px-4 py-2 min-h-[44px] text-xs text-zinc-600 dark:text-zinc-300"
-            >
-              Cancel
-            </Button>
-            <button
-              type="submit"
-              disabled={isRequestingPayout}
-              className="px-5 py-2 min-h-[44px] rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs cursor-pointer transition-colors shadow-md flex items-center gap-2"
-            >
-              {isRequestingPayout ? <LogoLoader className="w-4 h-4 animate-spin text-white" /> : null}
-              <span>Submit Request</span>
-            </button>
-          </div>
-        </form>
-      </PlatformModal>
-
-      {/* ─────────────────────────────────────────────────────────────────────────────
-          CENTRALIZED MODAL: BANK SETTLEMENT SETUP
-          ───────────────────────────────────────────────────────────────────────────── */}
-      <PlatformModal
-        isOpen={showBankModal}
-        onClose={() => setShowBankModal(false)}
-        title="Settlement Bank Information"
-        icon={Landmark}
-        iconBgClass="bg-purple-500/10"
-        iconColorClass="text-purple-600 dark:text-purple-400"
-        maxWidthClass="max-w-md"
-      >
-        <form onSubmit={handleSaveBankDetails} className="space-y-4 text-zinc-900 dark:text-white">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Configure your registered bank account or UPI ID to receive automatic & manual revenue withdrawals.
-          </p>
-
-          <div>
-            <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
-              Account Holder Full Name *
-            </label>
-            <input
-              type="text"
-              placeholder="Full Name as per Bank"
-              value={bankHolder}
-              onChange={(e) => setBankHolder(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
-                Bank Account Number
-              </label>
-              <input
-                type="text"
-                placeholder="000123456789"
-                value={bankAccNumber}
-                onChange={(e) => setBankAccNumber(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
-                IFSC Code
-              </label>
-              <input
-                type="text"
-                placeholder="HDFC0001234"
-                value={bankIfsc}
-                onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
-                className="w-full px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white uppercase focus:outline-none focus:border-purple-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold mb-1 text-zinc-700 dark:text-zinc-300">
-              UPI ID (Optional for Instant Payouts)
-            </label>
-            <input
-              type="text"
-              placeholder="developer@okhdfcbank"
-              value={upiId}
-              onChange={(e) => setUpiId(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-3">
-            <Button
-              variant="ghost"
-              type="button"
-              onClick={() => setShowBankModal(false)}
-              className="px-4 py-2 min-h-[44px] text-xs text-zinc-600 dark:text-zinc-300"
-            >
-              Cancel
-            </Button>
-            <button
-              type="submit"
-              disabled={savingBank}
-              className="px-5 py-2 min-h-[44px] rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs cursor-pointer transition-colors shadow-md flex items-center gap-2"
-            >
-              {savingBank ? <LogoLoader className="w-4 h-4 animate-spin text-white" /> : null}
-              <span>Save Settlement Account</span>
-            </button>
-          </div>
-        </form>
-      </PlatformModal>
-
-      {/* ─────────────────────────────────────────────────────────────────────────────
-          CENTRALIZED MODAL: TRANSACTION RECEIPT & AUDIT
-          ───────────────────────────────────────────────────────────────────────────── */}
-      <PlatformModal
-        isOpen={Boolean(selectedTx)}
-        onClose={() => setSelectedTx(null)}
-        title="Transaction Receipt & Audit"
-        icon={Receipt}
-        iconBgClass="bg-emerald-500/10"
-        iconColorClass="text-emerald-600 dark:text-emerald-400"
-        maxWidthClass="max-w-lg"
-      >
-        {selectedTx && (
-          <div className="space-y-4 text-zinc-900 dark:text-white">
-            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-white/5">
-                <div>
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block">Session Title</span>
-                  <div className="font-bold text-sm text-zinc-950 dark:text-white">{selectedTx.title || '180 Pay Checkout'}</div>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block">Amount</span>
-                  <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                    ₹{selectedTx.amount?.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <span className="text-[10px] text-zinc-400 block">Status</span>
-                  <span
-                    className={`inline-block px-2 py-0.5 mt-0.5 rounded text-[10px] font-bold ${
-                      selectedTx.status === 'CAPTURED'
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                        : selectedTx.status === 'PENDING'
-                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                    }`}
-                  >
-                    {selectedTx.status}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-zinc-400 block">Timestamp</span>
-                  <span className="font-mono text-zinc-700 dark:text-zinc-300">
-                    {new Date(selectedTx.createdAt).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-1 pt-1 text-xs">
-                <span className="text-[10px] text-zinc-400 block">Transaction Session ID</span>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/5 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
-                  <span className="truncate flex-1">{selectedTx.id}</span>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(selectedTx.id, 'receipt_id')}
-                    className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
-                  >
-                    {copiedKey === 'receipt_id' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-              </div>
-
-              {selectedTx.customer && (
-                <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/5 space-y-1 text-xs">
-                  <span className="text-[10px] text-zinc-400 font-semibold block">Customer Details</span>
-                  <div className="font-medium text-zinc-900 dark:text-white">{selectedTx.customer.name}</div>
-                  <div className="text-[11px] font-mono text-zinc-500">{selectedTx.customer.email}</div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="ghost"
-                onClick={() => setSelectedTx(null)}
-                className="px-4 py-2 min-h-[44px] text-xs text-zinc-600 dark:text-zinc-300"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        )}
-      </PlatformModal>
-
-      {/* ─────────────────────────────────────────────────────────────────────────────
-          CENTRALIZED MODAL: ADMIN SETTLEMENT REVIEW CONSOLE
-          ───────────────────────────────────────────────────────────────────────────── */}
-      <PlatformModal
-        isOpen={showAdminPayoutModal}
-        onClose={() => setShowAdminPayoutModal(false)}
-        title="Admin Settlement & Payout Management"
-        icon={Shield}
-        iconBgClass="bg-purple-500/10"
-        iconColorClass="text-purple-600 dark:text-purple-400"
-        maxWidthClass="max-w-2xl"
-      >
-        <div className="space-y-4 text-zinc-900 dark:text-white">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Review incoming developer payout requests, verify bank/UPI details, and update settlement status.
-          </p>
-
-          {/* Admin Note & Tx Ref Inputs */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10">
-            <div>
-              <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 mb-1">
-                Settlement Reference / UTR
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. UTR1234567890"
-                value={payoutTxRef}
-                onChange={(e) => setPayoutTxRef(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white font-mono focus:outline-none focus:border-purple-500"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 mb-1">
-                Admin Audit Note
-              </label>
-              <input
-                type="text"
-                placeholder="Optional audit notes"
-                value={payoutAdminNote}
-                onChange={(e) => setPayoutAdminNote(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500"
-              />
-            </div>
-          </div>
-
-          {loadingAdminPayouts ? (
-            <div className="py-8 text-center text-xs text-zinc-400">Loading settlement requests...</div>
-          ) : adminPayouts.length > 0 ? (
-            <div className="overflow-x-auto max-h-72 overflow-y-auto">
-              <table className="w-full text-left text-xs text-zinc-600 dark:text-zinc-300">
-                <thead className="border-b border-zinc-200 dark:border-white/10 text-zinc-400 text-[11px] uppercase sticky top-0 bg-white dark:bg-zinc-950">
-                  <tr>
-                    <th className="pb-2">Developer / App</th>
-                    <th className="pb-2">Amount</th>
-                    <th className="pb-2">Method</th>
-                    <th className="pb-2">Status</th>
-                    <th className="pb-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
-                  {adminPayouts.map((p) => (
-                    <tr key={p.id}>
-                      <td className="py-2.5">
-                        <div className="font-semibold text-zinc-950 dark:text-white">{p.app?.name || 'App'}</div>
-                        <div className="text-[10px] text-zinc-400">{p.developer?.email || 'Developer'}</div>
-                      </td>
-                      <td className="py-2.5 font-bold font-mono text-zinc-950 dark:text-white">
-                        ₹{p.amount.toFixed(2)}
-                      </td>
-                      <td className="py-2.5 font-mono text-[11px]">
-                        {p.payoutMethod === 'UPI' ? `UPI: ${p.upiId}` : `A/C: ${p.bankAccNumber}`}
-                      </td>
-                      <td className="py-2.5">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            p.status === 'PAID'
-                              ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                              : p.status === 'REJECTED'
-                              ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
-                              : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
-                          }`}
-                        >
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="py-2.5 text-right space-x-1">
-                        {p.status === 'PENDING' && (
-                          <>
-                            <button
-                              type="button"
-                              disabled={updatingPayoutId === p.id}
-                              onClick={() => handleUpdateAdminPayoutStatus(p.id, 'PAID')}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors cursor-pointer"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              disabled={updatingPayoutId === p.id}
-                              onClick={() => handleUpdateAdminPayoutStatus(p.id, 'REJECTED')}
-                              className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] transition-colors cursor-pointer"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-xs text-zinc-400 italic py-4 text-center">No pending settlement requests found.</p>
-          )}
-
-          <div className="flex justify-end pt-2">
-            <Button
-              variant="ghost"
-              onClick={() => setShowAdminPayoutModal(false)}
-              className="px-4 py-2 min-h-[44px] text-xs text-zinc-600 dark:text-zinc-300"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      </PlatformModal>
+      {/* ═══════════════════════════════════════════════════════════════════════
+          VIEW 1: OVERVIEW HUB (Credentials, Reusable App Cards, General Config)
+          ═══════════════════════════════════════════════════════════════════════ */}
+      {activeView === 'overview' && (
+        <AppOverviewDetail
+          app={app}
+          enableAuth={enableAuth}
+          enablePay={enablePay}
+          copiedKey={copiedKey}
+          copyToClipboard={copyToClipboard}
+          onOpenIdentity={() => navigateView('identity')}
+          onOpenPay={() => navigateView('pay')}
+          onRotateSecretClick={() => setShowRotateModal(true)}
+          name={name}
+          setName={setName}
+          description={description}
+          setDescription={setDescription}
+          logoUrl={logoUrl}
+          setLogoUrl={setLogoUrl}
+          redirectUrisInput={redirectUrisInput}
+          setRedirectUrisInput={setRedirectUrisInput}
+          allowedOriginsInput={allowedOriginsInput}
+          setAllowedOriginsInput={setAllowedOriginsInput}
+          onSave={handleSaveChanges}
+          saving={saving}
+          onRevokeTokens={handleRevokeTokens}
+          isRevoking={isRevoking}
+          onDeleteAppClick={() => setShowDeleteModal(true)}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          VIEW 2: DEDICATED 180 IDENTITY DETAIL PAGE
+          ═══════════════════════════════════════════════════════════════════════ */}
+      {activeView === 'identity' && (
+        <IdentityAppDetail
+          app={app}
+          enableAuth={enableAuth}
+          setEnableAuth={setEnableAuth}
+          authUxModes={authUxModes}
+          setAuthUxModes={setAuthUxModes}
+          authDesktopDefault={authDesktopDefault}
+          setAuthDesktopDefault={setAuthDesktopDefault}
+          authMobileDefault={authMobileDefault}
+          setAuthMobileDefault={setAuthMobileDefault}
+          accessTokenTtl={accessTokenTtl}
+          setAccessTokenTtl={setAccessTokenTtl}
+          refreshTokenDays={refreshTokenDays}
+          setRefreshTokenDays={setRefreshTokenDays}
+          authLogs={authLogs}
+          loadingAuthLogs={loadingAuthLogs}
+          fetchAuthLogs={fetchAuthLogs}
+          handleRevokeUserSession={handleRevokeUserSession}
+          revokingUserId={revokingUserId}
+          copiedKey={copiedKey}
+          copyToClipboard={copyToClipboard}
+          onTestPopup={handleTestAuthModal}
+          onTestBottomSheet={handleTestAuthBottomSheet}
+          onSave={handleSaveChanges}
+          saving={saving}
+          onBack={() => navigateView('overview')}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          VIEW 3: DEDICATED 180 PAY DETAIL PAGE
+          ═══════════════════════════════════════════════════════════════════════ */}
+      {activeView === 'pay' && (
+        <PayAppDetail
+          app={app}
+          enablePay={enablePay}
+          setEnablePay={setEnablePay}
+          webhookUrl={webhookUrl}
+          setWebhookUrl={setWebhookUrl}
+          webhookSecret={webhookSecret}
+          payUxModes={payUxModes}
+          setPayUxModes={setPayUxModes}
+          payDesktopDefault={payDesktopDefault}
+          setPayDesktopDefault={setPayDesktopDefault}
+          payMobileDefault={payMobileDefault}
+          setPayMobileDefault={setPayMobileDefault}
+          testResult={testResult}
+          isTestingWebhook={isTestingWebhook}
+          onTestWebhook={handleTestWebhook}
+          onRotateWebhookSecret={() => {
+            setShowRotateModal(true);
+          }}
+          onTestPayDrawer={handleTestPayBottomSheet}
+          paymentAnalytics={paymentAnalytics}
+          loadingAnalytics={loadingAnalytics}
+          fetchPaymentAnalytics={fetchPaymentAnalytics}
+          txSearchQuery={txSearchQuery}
+          setTxSearchQuery={setTxSearchQuery}
+          txStatusFilter={txStatusFilter}
+          setTxStatusFilter={setTxStatusFilter}
+          onSelectTx={(tx) => setSelectedTx(tx)}
+          payoutBalance={payoutBalance}
+          payoutHistory={payouts}
+          loadingPayoutHistory={false}
+          fetchPayoutHistory={fetchPayouts}
+          bankDetails={bankDetails}
+          onRequestPayoutClick={handleOpenPayoutModal}
+          onSetupBankClick={() => setShowBankModal(true)}
+          onAdminReviewClick={handleOpenAdminPayoutModal}
+          onSave={handleSaveChanges}
+          saving={saving}
+          onBack={() => navigateView('overview')}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          CENTRALIZED MODALS (SECRET ROTATION, PAYOUTS, BANK, DELETE, AUDIT)
+          ═══════════════════════════════════════════════════════════════════════ */}
+      <AppModals
+        app={app}
+        showRotateModal={showRotateModal}
+        setShowRotateModal={setShowRotateModal}
+        isRotating={isRotating}
+        handleRotateSecret={handleRotateSecret}
+        newSecretRevealed={newSecretRevealed}
+        setNewSecretRevealed={setNewSecretRevealed}
+        secretCopied={secretCopied}
+        setSecretCopied={setSecretCopied}
+        hasAcknowledgedSecret={hasAcknowledgedSecret}
+        setHasAcknowledgedSecret={setHasAcknowledgedSecret}
+        copyToClipboard={copyToClipboard}
+        showDeleteModal={showDeleteModal}
+        setShowDeleteModal={setShowDeleteModal}
+        deleteConfirmText={deleteConfirmText}
+        setDeleteConfirmText={setDeleteConfirmText}
+        handleDeleteApp={handleDeleteApp}
+        isDeleting={isDeleting}
+        showPayoutModal={showPayoutModal}
+        setShowPayoutModal={setShowPayoutModal}
+        payoutBalance={payoutBalance}
+        payoutAmount={payoutAmount}
+        setPayoutAmount={setPayoutAmount}
+        payoutMethod={payoutMethod}
+        setPayoutMethod={setPayoutMethod}
+        upiId={upiId}
+        setUpiId={setUpiId}
+        bankAccNumber={bankAccNumber}
+        setBankAccNumber={setBankAccNumber}
+        bankIfsc={bankIfsc}
+        setBankIfsc={setBankIfsc}
+        bankHolder={bankHolder}
+        setBankHolder={setBankHolder}
+        handleRequestPayout={handleRequestPayout}
+        isRequestingPayout={isRequestingPayout}
+        showBankModal={showBankModal}
+        setShowBankModal={setShowBankModal}
+        handleSaveBankDetails={handleSaveBankDetails}
+        savingBank={savingBank}
+        selectedTx={selectedTx}
+        setSelectedTx={setSelectedTx}
+        copiedKey={copiedKey}
+        showAdminPayoutModal={showAdminPayoutModal}
+        setShowAdminPayoutModal={setShowAdminPayoutModal}
+        adminPayouts={adminPayouts}
+        loadingAdminPayouts={loadingAdminPayouts}
+        updatingPayoutId={updatingPayoutId}
+        payoutTxRef={payoutTxRef}
+        setPayoutTxRef={setPayoutTxRef}
+        payoutAdminNote={payoutAdminNote}
+        setPayoutAdminNote={setPayoutAdminNote}
+        handleUpdateAdminPayoutStatus={handleUpdateAdminPayoutStatus}
+      />
     </div>
   );
 }
-
