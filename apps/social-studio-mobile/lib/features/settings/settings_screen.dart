@@ -156,10 +156,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: [
           // Section: Device Management
-          _sectionHeader(context, 'Active Devices & Slots', Icons.devices_rounded),
+          _sectionHeader(context, 'Active Mobile Devices & Sessions', Icons.smartphone_rounded),
           SizedBox(height: 4),
           Text(
-            'Up to 20 devices. When the limit is reached, the device unused the longest (idle 30+ minutes) is signed out automatically. This device is never removed that way.',
+            'Manage authorized mobile devices (Android & iOS) and active sessions linked to your account. Up to 20 devices. When the limit is reached, older idle sessions are signed out automatically.',
             style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color),
           ),
           SizedBox(height: 10),
@@ -475,7 +475,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ? Icons.phone_iphone_rounded
         : platform.contains('android')
             ? Icons.phone_android_rounded
-            : Icons.computer_rounded;
+            : Icons.smartphone_rounded;
 
     return ListTile(
       contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),

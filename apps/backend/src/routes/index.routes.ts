@@ -455,8 +455,12 @@ const syncRoutes = require('../api/v1/sync/sync.routes').default || require('../
 router.use('/sync', protect, syncRoutes);
 router.use('/v1/sync', protect, syncRoutes);
 
-// Desktop device registration / revocation (see api/v1/desktop/desktop-device.ts)
+// Mobile device registration / revocation & sessions (Android & iOS mobile devices)
 const desktopRoutes = require('../api/v1/desktop/desktop.routes').default || require('../api/v1/desktop/desktop.routes');
+router.use('/devices', protect, desktopRoutes);
+router.use('/v1/devices', protect, desktopRoutes);
+router.use('/mobile/devices', protect, desktopRoutes);
+router.use('/v1/mobile/devices', protect, desktopRoutes);
 router.use('/desktop', protect, desktopRoutes);
 router.use('/v1/desktop', protect, desktopRoutes);
 
