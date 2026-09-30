@@ -10,18 +10,18 @@ const _kThemePrefKey = 'user_theme_mode';
 /// text on white surfaces. Until those screens read colours from Theme/ColorScheme, the choices are Dark and System,
 /// and System resolves to the dark palette (see [lightModeAvailable]). A previously stored 'light' falls back to dark.
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.light) {
-    AppTheme.currentThemeMode = ThemeMode.light;
+  ThemeModeNotifier() : super(ThemeMode.dark) {
+    AppTheme.currentThemeMode = ThemeMode.dark;
     _load();
   }
 
   /// Flip to true once every screen is tokenised through Theme.of(context) (then offer Light in Settings).
-  static const lightModeAvailable = true;
+  static const lightModeAvailable = false;
 
   static ThemeMode parse(String? saved) => switch (saved) {
         'system' => ThemeMode.system,
-        'dark' => ThemeMode.dark,
-        _ => ThemeMode.light, // Default to light mode
+        'light' when lightModeAvailable => ThemeMode.light,
+        _ => ThemeMode.dark,
       };
 
   Future<void> _load() async {

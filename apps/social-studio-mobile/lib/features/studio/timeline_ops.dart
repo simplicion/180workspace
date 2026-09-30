@@ -938,7 +938,7 @@ class TimelineOps {
           style: style,
         ),
       );
-      group = const [];
+      group = [];
     }
 
     for (final w in mapped) {

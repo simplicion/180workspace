@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/director/ai_director_service.dart';
@@ -17,7 +18,7 @@ final tokenStoreProvider = Provider<TokenStore>((ref) => TokenStore(ref.watch(ke
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient(tokens: ref.watch(tokenStoreProvider)));
 
-final outboxStorageProvider = Provider<OutboxStorage>((ref) => FileOutboxStorage());
+final outboxStorageProvider = Provider<OutboxStorage>((ref) => kIsWeb ? MemoryOutboxStorage() : FileOutboxStorage());
 
 /// The signed-in user id, published by the session controller for the outbox.
 final currentUserIdProvider = StateProvider<String?>((ref) => null);

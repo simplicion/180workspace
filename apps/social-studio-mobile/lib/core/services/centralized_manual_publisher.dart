@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -58,7 +59,7 @@ class CentralizedManualPublisher {
     }
 
     // Media file existence check
-    if (payload.mediaPath != null && payload.mediaPath!.isNotEmpty) {
+    if (!kIsWeb && payload.mediaPath != null && payload.mediaPath!.isNotEmpty) {
       final file = File(payload.mediaPath!);
       if (!file.existsSync()) {
         issues.add('Attached media file does not exist on device.');
@@ -123,7 +124,8 @@ class CentralizedManualPublisher {
 
     // 3. Native Android/iOS Sharesheet handoff
     try {
-      final hasMedia = payload.mediaPath != null &&
+      final hasMedia = !kIsWeb &&
+          payload.mediaPath != null &&
           payload.mediaPath!.isNotEmpty &&
           File(payload.mediaPath!).existsSync();
 

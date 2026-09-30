@@ -196,8 +196,8 @@ class StudioJobStore extends ChangeNotifier {
   static const _keepFinished = 20;
 
   final KeyValueStore? _storage;
-  final List<StudioJob> _jobs = const [];
-  final Map<String, FutureOr<void> Function()> _cancellers = const {};
+  final List<StudioJob> _jobs = [];
+  final Map<String, FutureOr<void> Function()> _cancellers = {};
   int _counter = 0;
   bool _disposed = false;
 

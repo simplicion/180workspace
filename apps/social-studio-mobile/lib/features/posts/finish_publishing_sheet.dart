@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,12 +30,12 @@ class CentralizedManualPublishSheet extends ConsumerStatefulWidget {
 }
 
 class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManualPublishSheet> with WidgetsBindingObserver {
-  late final Map<SocialPlatform, UniversalPlatformPayload> _payloads = const {};
-  late final Map<SocialPlatform, TextEditingController> _controllers = const {};
-  late final Map<SocialPlatform, TextEditingController> _titleControllers = const {};
-  late final Map<SocialPlatform, TextEditingController> _metaControllers = const {};
+  late final Map<SocialPlatform, UniversalPlatformPayload> _payloads = {};
+  late final Map<SocialPlatform, TextEditingController> _controllers = {};
+  late final Map<SocialPlatform, TextEditingController> _titleControllers = {};
+  late final Map<SocialPlatform, TextEditingController> _metaControllers = {};
 
-  final Map<SocialPlatform, String> _statuses = const {};
+  final Map<SocialPlatform, String> _statuses = {};
   String? _pendingPlatformHandoff;
   bool _isPublishing = false;
 
@@ -217,7 +218,8 @@ class _CentralizedManualPublishSheetState extends ConsumerState<CentralizedManua
 
   @override
   Widget build(BuildContext context) {
-    final mediaExists = widget.package.mediaPath != null &&
+    final mediaExists = !kIsWeb &&
+        widget.package.mediaPath != null &&
         widget.package.mediaPath!.isNotEmpty &&
         File(widget.package.mediaPath!).existsSync();
     final fileName = widget.package.mediaPath?.split(RegExp(r'[\\/]')).lastOrNull ?? 'Attached media';

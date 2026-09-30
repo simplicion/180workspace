@@ -290,12 +290,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         children: [
                           const Icon(Icons.lock_outline_rounded, size: 13, color: Color(0xFF10B981)),
                           const SizedBox(width: 6),
-                          Text(
-                            'End-to-End Cryptographic Sovereign Verification',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.textMuted,
-                              fontWeight: FontWeight.w500,
+                          Flexible(
+                            child: Text(
+                              'End-to-End Cryptographic Sovereign Verification',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textMuted,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],

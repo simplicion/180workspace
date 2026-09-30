@@ -118,8 +118,8 @@ class StudioController extends ChangeNotifier {
   String? sourcePath;
   VideoMetadata? meta;
   MobileEditIr? _ir;
-  final List<MobileEditIr> _undo = const [];
-  final List<MobileEditIr> _redo = const [];
+  final List<MobileEditIr> _undo = [];
+  final List<MobileEditIr> _redo = [];
 
   TranscriptState transcriptState = TranscriptState.idle;
   Transcript? transcript;
@@ -131,7 +131,7 @@ class StudioController extends ChangeNotifier {
 
   /// Licence credit lines by media URL (music, B-roll, SFX). CC BY / BY-SA items must be credited
   /// in the post caption; the others are credited as a courtesy.
-  final Map<String, String> mediaCredits = const {};
+  final Map<String, String> mediaCredits = {};
 
   /// On-device ML Kit face samples of the source (null until detected / when unavailable).
   List<FaceSample>? faces;
@@ -146,7 +146,7 @@ class StudioController extends ChangeNotifier {
   int playheadMs = 0;
   int? selectedClip;
 
-  final List<DirectorMessage> messages = const [];
+  final List<DirectorMessage> messages = [];
   bool directorBusy = false;
 
   ExportState? export;

@@ -24,7 +24,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   List<ReplySuggestion>? _suggestions;
 
   /// Replies accepted by the server or queued offline, shown until the thread reloads.
-  final List<InboxMessage> _pending = const [];
+  final List<InboxMessage> _pending = [];
 
   @override
   void dispose() {

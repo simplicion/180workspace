@@ -273,7 +273,7 @@ export class OAuthController {
                 state: state || '',
                 response_type: response_type || 'code',
                 display: display || '',
-                ux_mode: ux_mode || 'popup',
+                ux_mode: ux_mode || (app as any).authMobileDefault || 'bottom_sheet',
                 hasConsented,
                 isAuthenticated: Boolean(userId),
                 user: userDetails

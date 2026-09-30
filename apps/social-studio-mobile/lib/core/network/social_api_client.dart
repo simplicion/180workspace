@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:uuid/uuid.dart';
 
 import '../../data/models/brand_voice.dart';
@@ -193,7 +194,7 @@ class SocialApi {
     final r = await _api.get('$base/accounts/oauth/${platform.id}/authorize', query: compact({
       'projectId': projectId,
       'redirectUri': AppConfig.oauthRedirectUri,
-      'client': 'mobile',
+      'client': kIsWeb ? 'web' : 'mobile',
     }));
     final url = jStr(r['url']) ?? jStr(r['authorizeUrl']) ?? jStr(jMap(r['data'])['url']);
     final uri = url == null ? null : Uri.tryParse(url);
