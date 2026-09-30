@@ -59,9 +59,9 @@ class AppConfig {
     if (fromEnv.isNotEmpty) return fromEnv;
     if (kIsWeb) {
       final base = Uri.base.origin;
-      return base.isNotEmpty ? '$base/#/oauth-callback' : 'http://localhost:3007/#/oauth-callback';
+      return base.isNotEmpty ? '$base/#/oauth-callback' : 'https://social.180workspace.com/#/oauth-callback';
     }
-    return '180social://oauth-callback';
+    return 'workspace180://oauth/callback';
   }
 
   /// Kebab-case app id used by billing, feature flags and `moduleGuard`.

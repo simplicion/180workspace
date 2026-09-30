@@ -3,11 +3,15 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../config/app_config.dart';
-import 'package:universal_html/html.dart' as html;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:universal_html/html.dart' as html;
+import 'package:url_launcher/url_launcher.dart';
+
+import '../config/app_config.dart';
+import 'identity_bottom_sheet.dart';
+
 class OneEightySsoService {
   final FlutterSecureStorage _storage;
   final Dio _dio;
@@ -34,8 +38,11 @@ class OneEightySsoService {
     return base64Url.encode(bytes).replaceAll('=', '');
   }
 
-  /// Launch 180 Identity SSO in browser
-  Future<Map<String, dynamic>?> launch180IdentityLogin() async {
+  /// Launch 180 Identity SSO in bottom sheet (or full page inside the app)
+  Future<Map<String, dynamic>?> launch180IdentityLogin({
+    BuildContext? context,
+    bool fullScreen = false,
+  }) async {
     final verifier = _randomString(64);
     final digest = sha256.convert(utf8.encode(verifier));
     final challenge = _base64UrlNoPadding(digest.bytes);
@@ -53,7 +60,7 @@ class OneEightySsoService {
         'state': state,
         'code_challenge': challenge,
         'code_challenge_method': 'S256',
-        'ux_mode': kIsWeb ? 'bottom_sheet' : 'redirect',
+        'ux_mode': fullScreen ? 'full_page' : 'bottom_sheet',
       },
     );
 
@@ -236,10 +243,22 @@ class OneEightySsoService {
 
       return completer.future;
     } else {
-      if (!await launchUrl(authUrl, mode: LaunchMode.externalApplication)) {
-        throw Exception('Could not launch 180 Identity authentication browser.');
+      if (context != null && context.mounted) {
+        final callbackUri = await IdentityBottomSheet.show(
+          context,
+          initialUrl: authUrl,
+          fullScreen: fullScreen,
+        );
+        if (callbackUri != null) {
+          return await handleCallbackUri(callbackUri);
+        }
+        return null;
+      } else {
+        if (!await launchUrl(authUrl, mode: LaunchMode.inAppWebView)) {
+          throw Exception('Could not launch 180 Identity authentication browser.');
+        }
+        return null;
       }
-      return null;
     }
   }
 
@@ -254,9 +273,21 @@ class OneEightySsoService {
     final code = params['code'];
     final state = params['state'];
     final error = params['error'];
+    final directToken = params['direct_token'];
 
     if (error != null) {
       throw Exception('180 Identity error: $error (${params['error_description'] ?? ''})');
+    }
+
+    // Direct token authorization bypass (when webview postMessage already contains valid JWT)
+    if (directToken != null && directToken.isNotEmpty) {
+      await _storage.write(key: _kAccessToken, value: directToken);
+      await _storage.delete(key: _kCodeVerifier);
+      await _storage.delete(key: _kOAuthState);
+      return {
+        'access_token': directToken,
+        'user': {'id': 'authenticated'},
+      };
     }
 
     if (code == null || code.isEmpty) {
@@ -273,21 +304,47 @@ class OneEightySsoService {
       throw Exception('PKCE code verifier missing.');
     }
 
-    // Exchange authorization code for tokens
-    final tokenUrl = '${AppConfig.identityServerUrl}/oauth/token';
-    final response = await _dio.post(
-      tokenUrl,
-      data: {
-        'grant_type': 'authorization_code',
-        'client_id': AppConfig.identityClientId,
-        'code': code,
-        'redirect_uri': AppConfig.identityRedirectUri,
-        'code_verifier': codeVerifier,
-      },
-      options: Options(
-        headers: {'Content-Type': 'application/json'},
-      ),
-    );
+    // Candidate token endpoints across identity provider domain and primary API domain
+    final candidateEndpoints = [
+      '${AppConfig.identityServerUrl}/oauth/token',
+      '${AppConfig.apiBaseUrl}/oauth/token',
+      '${AppConfig.apiBaseUrl}/api/oauth/token',
+      '${AppConfig.apiBaseUrl}/api/v1/identity/oauth/token',
+    ];
+
+    Response? response;
+    DioException? lastError;
+
+    for (final tokenUrl in candidateEndpoints) {
+      try {
+        response = await _dio.post(
+          tokenUrl,
+          data: {
+            'grant_type': 'authorization_code',
+            'client_id': AppConfig.identityClientId,
+            'code': code,
+            'redirect_uri': AppConfig.identityRedirectUri,
+            'code_verifier': codeVerifier,
+          },
+          options: Options(
+            headers: {'Content-Type': 'application/json'},
+          ),
+        );
+        if (response.statusCode == 200 && response.data != null) {
+          break;
+        }
+      } on DioException catch (e) {
+        lastError = e;
+        if (e.response?.statusCode == 400) {
+          // If server explicitly returned 400 (e.g. invalid code), don't spam other endpoints
+          break;
+        }
+      }
+    }
+
+    if (response == null || response.data == null) {
+      throw lastError ?? Exception('Failed to exchange authorization code for tokens.');
+    }
 
     final data = response.data as Map<String, dynamic>;
     final accessToken = data['access_token'] as String;
