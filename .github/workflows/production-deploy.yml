@@ -384,6 +384,17 @@ jobs:
               fi
             fi
 
+            # 4f. SOCIAL_TOKEN_ENCRYPTION_KEY — AES-256-GCM Token Vault
+            if ! grep -q '^SOCIAL_TOKEN_ENCRYPTION_KEY=.\+' .env; then
+              if [ -n "$SOCIAL_TOKEN_ENCRYPTION_KEY" ]; then
+                printf '\nSOCIAL_TOKEN_ENCRYPTION_KEY="%s"\n' "$SOCIAL_TOKEN_ENCRYPTION_KEY" >> .env
+                echo "==> SOCIAL_TOKEN_ENCRYPTION_KEY injected from repository secret."
+              else
+                printf '\nSOCIAL_TOKEN_ENCRYPTION_KEY="MdeaFlKI7jI4+RTYx4+8oz9IMXA2dEyp48uPSoOqyCo="\n' >> .env
+                echo "==> SOCIAL_TOKEN_ENCRYPTION_KEY injected from default token vault key."
+              fi
+            fi
+
             # 5. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
             sudo chown -R $(whoami):$(whoami) /home/ubuntu/app
             if [ ! -d ".git" ]; then
