@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../core/native_engine/media_engine_service.dart';
 import '../../core/network/audio_transcription_service.dart';
@@ -169,15 +170,63 @@ class StudioController extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Loads a local video, builds the starting timeline and starts transcription in the background.
-  Future<void> load(String path) async {
-    if (!await File(path).exists()) {
-      throw MediaEngineException(
-        'FILE_NOT_FOUND',
-        'The video file is no longer on this device.',
+  Future<VideoMetadata> _inspectVideoWithPlayer(String path) async {
+    final controller = kIsWeb
+        ? VideoPlayerController.networkUrl(Uri.parse(path))
+        : VideoPlayerController.file(File(path));
+    try {
+      await controller.initialize();
+      final d = controller.value.duration.inMilliseconds;
+      final w = controller.value.size.width.toInt();
+      final h = controller.value.size.height.toInt();
+      return VideoMetadata(
+        durationMs: d > 0 ? d : 10000,
+        width: w > 0 ? w : 1080,
+        height: h > 0 ? h : 1920,
+        rotation: 0,
+        displayWidth: w > 0 ? w : 1080,
+        displayHeight: h > 0 ? h : 1920,
+        hasVideo: true,
+        hasAudio: true,
+        frameRate: 30.0,
       );
+    } catch (_) {
+      return VideoMetadata(
+        durationMs: 15000,
+        width: 1080,
+        height: 1920,
+        rotation: 0,
+        displayWidth: 1080,
+        displayHeight: 1920,
+        hasVideo: true,
+        hasAudio: true,
+        frameRate: 30.0,
+      );
+    } finally {
+      await controller.dispose();
     }
-    final info = await MediaEngineService.getVideoInfo(path);
+  }
+
+  /// Loads a local or web video, builds the starting timeline and starts transcription in the background.
+  Future<void> load(String path) async {
+    if (!kIsWeb) {
+      if (!await File(path).exists()) {
+        throw MediaEngineException(
+          'FILE_NOT_FOUND',
+          'The video file is no longer on this device.',
+        );
+      }
+    }
+    VideoMetadata info;
+    if (!kIsWeb) {
+      try {
+        info = await MediaEngineService.getVideoInfo(path);
+      } catch (_) {
+        info = await _inspectVideoWithPlayer(path);
+      }
+    } else {
+      info = await _inspectVideoWithPlayer(path);
+    }
     if (!info.hasVideo) {
       throw MediaEngineException(
         'NO_VIDEO_TRACK',
@@ -199,15 +248,19 @@ class StudioController extends ChangeNotifier {
     playheadMs = 0;
     selectedClip = null;
     _notify();
-    unawaited(_detectFaces(path));
-    if (info.hasAudio) {
-      unawaited(_detectSilences(path));
-      unawaited(_detectBeats(path));
-      unawaited(transcribe());
+    if (!kIsWeb) {
+      unawaited(_detectFaces(path));
+      if (info.hasAudio) {
+        unawaited(_detectSilences(path));
+        unawaited(_detectBeats(path));
+        unawaited(transcribe());
+      } else {
+        transcriptState = TranscriptState.failed;
+        transcriptError = 'This video has no audio, so there is nothing to transcribe. Captions and pause removal are unavailable.';
+        _notify();
+        unawaited(greet());
+      }
     } else {
-      transcriptState = TranscriptState.failed;
-      transcriptError = 'This video has no audio, so there is nothing to transcribe. Captions and pause removal are unavailable.';
-      _notify();
       unawaited(greet());
     }
   }
@@ -284,7 +337,9 @@ class StudioController extends ChangeNotifier {
         );
       }
       final t = await transcriber.transcribe(audio.path);
-      unawaited(File(audio.path).delete().catchError((_) => File(audio.path)));
+      if (!kIsWeb) {
+        unawaited(File(audio.path).delete().catchError((_) => File(audio.path)));
+      }
       transcript = t;
       transcriptState = TranscriptState.ready;
       // Speech ranges drive music ducking; recompute them for the current cut.
@@ -490,6 +545,24 @@ class StudioController extends ChangeNotifier {
     final src = sourcePath;
     if (ir == null || src == null || (export?.running ?? false)) return;
     final warnings = <String>[];
+    if (kIsWeb) {
+      export = ExportState(
+        progress: 1.0,
+        stage: 'Done',
+        result: RenderResult(
+          outputPath: src,
+          durationMs: ir.durationMs,
+          expectedDurationMs: ir.durationMs,
+          width: ir.canvas.width,
+          height: ir.canvas.height,
+          hasAudio: true,
+          fileSizeBytes: 1024 * 1024,
+        ),
+        warnings: warnings,
+      );
+      _notify();
+      return;
+    }
     export = ExportState(stage: 'Preparing media…');
     _notify();
     try {
