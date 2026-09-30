@@ -1,14 +1,33 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-const s3Client = new S3Client({
-    region: 'auto',
-    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT || process.env.R2_ENDPOINT || '',
-    credentials: {
-        accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY || '',
-        secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || process.env.R2_SECRET_KEY || '',
-    },
-    maxAttempts: 2,
+let _s3Client: S3Client | null = null;
+
+export const getS3Client = (): S3Client => {
+    if (!_s3Client) {
+        const endpoint = process.env.CLOUDFLARE_R2_ENDPOINT || process.env.R2_ENDPOINT || '';
+        const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY || '';
+        const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || process.env.R2_SECRET_KEY || '';
+
+        _s3Client = new S3Client({
+            region: 'auto',
+            endpoint: endpoint || undefined,
+            credentials: {
+                accessKeyId,
+                secretAccessKey,
+            },
+            maxAttempts: 2,
+        });
+    }
+    return _s3Client;
+};
+
+export const s3Client = new Proxy({} as S3Client, {
+    get(_target, prop) {
+        const client = getS3Client();
+        const value = (client as any)[prop];
+        return typeof value === 'function' ? value.bind(client) : value;
+    }
 });
 
 export type R2StorageCategory =

@@ -50,6 +50,10 @@ export const FIRST_PARTY_APPS = [
         ],
         isVerified: true,
         isActive: true,
+        authDesktopDefault: 'popup',
+        authMobileDefault: 'bottom_sheet',
+        payDesktopDefault: 'bottom_sheet',
+        payMobileDefault: 'bottom_sheet',
         logoUrl: '/icon.svg'
     },
     {
@@ -98,6 +102,10 @@ export const FIRST_PARTY_APPS = [
         ],
         isVerified: true,
         isActive: true,
+        authDesktopDefault: 'popup',
+        authMobileDefault: 'bottom_sheet',
+        payDesktopDefault: 'bottom_sheet',
+        payMobileDefault: 'bottom_sheet',
         logoUrl: '/icon.svg'
     },
     {
@@ -122,17 +130,24 @@ export const FIRST_PARTY_APPS = [
         ],
         isVerified: true,
         isActive: true,
+        authDesktopDefault: 'popup',
+        authMobileDefault: 'bottom_sheet',
+        payDesktopDefault: 'bottom_sheet',
+        payMobileDefault: 'bottom_sheet',
         logoUrl: '/social-studio.png'
     },
     {
         clientId: '180-traffic-director',
         name: '180 Traffic Director',
-        description: 'Enterprise Edge Traffic Router, Safe-Page Cloaker & Click Armor',
+        description: 'Enterprise Edge Traffic Router, Safe Reverse Proxy & Bot Armor',
         redirectUris: [
             'http://localhost:3000/callback',
             'http://localhost:3006/callback',
+            'http://localhost:3006/oauth/callback',
             'http://localhost:3009/callback',
             'http://localhost:3002/callback',
+            'https://traffic.180workspace.com/callback',
+            'https://traffic.180workspace.com/oauth/callback',
             'https://traffic-director.180workspace.com/callback',
             'https://trafficdirector.180workspace.com/callback',
             'https://*.180workspace.com/callback'
@@ -144,6 +159,7 @@ export const FIRST_PARTY_APPS = [
             'http://localhost:3009',
             'http://127.0.0.1:3009',
             'http://localhost:3002',
+            'https://traffic.180workspace.com',
             'https://traffic-director.180workspace.com',
             'https://trafficdirector.180workspace.com',
             'https://*.180workspace.com'
@@ -151,11 +167,17 @@ export const FIRST_PARTY_APPS = [
         allowedScopes: [
             'openid',
             'identity:read',
-            'identity:email'
+            'identity:email',
+            'pay:checkout',
+            'pay:subscriptions'
         ],
         isVerified: true,
         isActive: true,
         enablePay: true,
+        authDesktopDefault: 'popup',
+        authMobileDefault: 'bottom_sheet',
+        payDesktopDefault: 'bottom_sheet',
+        payMobileDefault: 'bottom_sheet',
         webhookUrl: process.env.TRAFFIC_DIRECTOR_WEBHOOK_URL || 'http://localhost:4002/api/v1/traffic-director/billing/webhook',
         webhookSecret: process.env.TRAFFIC_DIRECTOR_WEBHOOK_SECRET || '180_webhook_traffic_director_prod_sec_991823',
         logoUrl: '/icon.svg'
@@ -197,6 +219,10 @@ export const FIRST_PARTY_APPS = [
         ],
         isVerified: true,
         isActive: true,
+        authDesktopDefault: 'popup',
+        authMobileDefault: 'bottom_sheet',
+        payDesktopDefault: 'bottom_sheet',
+        payMobileDefault: 'bottom_sheet',
         logoUrl: '/icon.svg'
     },
     {
@@ -236,33 +262,10 @@ export const FIRST_PARTY_APPS = [
         ],
         isVerified: true,
         isActive: true,
-        logoUrl: '/icon.svg'
-    },
-    {
-        clientId: '180-traffic-director',
-        name: '180 Traffic Director',
-        description: 'Enterprise Edge Traffic Router, Safe Reverse Proxy & Bot Armor',
-        redirectUris: [
-            'http://localhost:3006/callback',
-            'http://localhost:3006/oauth/callback',
-            'https://traffic.180workspace.com/callback',
-            'https://traffic.180workspace.com/oauth/callback'
-        ],
-        allowedOrigins: [
-            'http://localhost:3006',
-            'http://127.0.0.1:3006',
-            'https://traffic.180workspace.com'
-        ],
-        allowedScopes: [
-            'openid',
-            'identity:read',
-            'identity:email',
-            'pay:checkout',
-            'pay:subscriptions'
-        ],
-        isVerified: true,
-        isActive: true,
-        enablePay: true,
+        authDesktopDefault: 'popup',
+        authMobileDefault: 'bottom_sheet',
+        payDesktopDefault: 'bottom_sheet',
+        payMobileDefault: 'bottom_sheet',
         logoUrl: '/icon.svg'
     }
 ];
@@ -308,6 +311,10 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                         isVerified: app.isVerified,
                         isActive: app.isActive,
                         enablePay: (app as any).enablePay !== undefined ? (app as any).enablePay : true,
+                        authDesktopDefault: (app as any).authDesktopDefault || 'popup',
+                        authMobileDefault: (app as any).authMobileDefault || 'bottom_sheet',
+                        payDesktopDefault: (app as any).payDesktopDefault || 'bottom_sheet',
+                        payMobileDefault: (app as any).payMobileDefault || 'bottom_sheet',
                         webhookUrl: (app as any).webhookUrl || '',
                         webhookSecret: (app as any).webhookSecret || '',
                         logoUrl: app.logoUrl,
@@ -316,7 +323,7 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                 });
                 console.log(`[SeedFirstParty] Created first-party OAuth app: ${app.name} (${app.clientId})`);
             } else {
-                // Ensure redirect URIs and allowed origins stay up-to-date
+                // Ensure redirect URIs, allowed origins, and UX default modes stay up-to-date
                 const mergedUris = Array.from(new Set([...(existing.redirectUris || []), ...app.redirectUris]));
                 const mergedOrigins = Array.from(new Set([...(existing.allowedOrigins || []), ...app.allowedOrigins]));
                 const updateData: any = {};
@@ -325,6 +332,13 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                     updateData.redirectUris = mergedUris;
                     updateData.allowedOrigins = mergedOrigins;
                     updateData.isActive = true;
+                }
+
+                if (!existing.authDesktopDefault) {
+                    updateData.authDesktopDefault = (app as any).authDesktopDefault || 'popup';
+                }
+                if (!existing.authMobileDefault) {
+                    updateData.authMobileDefault = (app as any).authMobileDefault || 'bottom_sheet';
                 }
 
                 if (app.clientId === '180_client_5cc136397553836e34eb37ce22d13a53') {

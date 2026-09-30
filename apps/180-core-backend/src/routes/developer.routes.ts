@@ -3,8 +3,13 @@
 import express from 'express';
 import { DeveloperApiController } from '../controllers/developer.controller';
 import { protect } from '../middleware/auth.middleware';
+import { logoUploadMiddleware } from '../middleware/logo-upload.middleware';
 
 const router = express.Router();
+
+// ─── App Logo & Asset Direct Media Pipeline ─────────────────────────────────
+router.post('/upload-logo', protect, logoUploadMiddleware, DeveloperApiController.uploadAppLogo);
+router.post('/apps/:id/upload-logo', protect, logoUploadMiddleware, DeveloperApiController.uploadAppLogo);
 
 // ─── OAuth Applications Management ───────────────────────────────────────────
 router.get('/apps', protect, DeveloperApiController.listApps);

@@ -226,6 +226,13 @@ export class OAuthController {
                 }
             }
 
+            const isMobileReq = /Android|iPhone|iPad|iPod|Mobile/i.test(req.headers['user-agent'] || '');
+            const authDesktopDefault = (app as any).authDesktopDefault || 'popup';
+            const authMobileDefault = (app as any).authMobileDefault || 'bottom_sheet';
+            const payDesktopDefault = (app as any).payDesktopDefault || 'bottom_sheet';
+            const payMobileDefault = (app as any).payMobileDefault || 'bottom_sheet';
+            const computedDefaultUx = isMobileReq ? authMobileDefault : authDesktopDefault;
+
             return res.json({
                 success: true,
                 app: {
@@ -235,7 +242,11 @@ export class OAuthController {
                     logoUrl: app.logoUrl || app.company?.logoUrl || '',
                     developerName: app.company?.name || app.user?.name || '180 Developer',
                     isVerified: app.isVerified,
-                    homepageUrl: app.homepageUrl || ''
+                    homepageUrl: app.homepageUrl || '',
+                    authDesktopDefault,
+                    authMobileDefault,
+                    payDesktopDefault,
+                    payMobileDefault
                 },
                 client_id,
                 redirect_uri: targetRedirectUri,
@@ -243,7 +254,11 @@ export class OAuthController {
                 state: state || '',
                 response_type: response_type || 'code',
                 display: display || '',
-                ux_mode: ux_mode || 'popup',
+                ux_mode: ux_mode || computedDefaultUx,
+                authDesktopDefault,
+                authMobileDefault,
+                payDesktopDefault,
+                payMobileDefault,
                 hasConsented,
                 isAuthenticated: Boolean(userId),
                 user: userDetails

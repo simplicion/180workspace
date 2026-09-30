@@ -16,6 +16,7 @@ import {
 import { Button } from '@workspace/ui';
 import { AppCard } from '../AppCard';
 import { DeveloperAppDetail } from './types';
+import { AppLogoUploader } from './AppLogoUploader';
 
 export interface AppOverviewDetailProps {
   app: DeveloperAppDetail;
@@ -203,36 +204,13 @@ export function AppOverviewDetail({
           </div>
         </div>
 
-        {/* App Logo URL */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
-            <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
-            App Logo URL (White-label OAuth Branding) <span className="text-red-500">*</span>
-          </label>
-          <div className="flex items-center gap-3">
-            {logoUrl.trim() && (
-              <div className="w-10 h-10 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 overflow-hidden flex items-center justify-center p-1 shrink-0">
-                <img
-                  src={logoUrl.trim()}
-                  alt="Logo preview"
-                  className="w-full h-full object-contain rounded-lg"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-            <input
-              type="url"
-              required
-              placeholder="https://yourapp.com/logo.png"
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
-          <p className="text-[10px] text-zinc-400">Displayed in OAuth authorization prompts and checkout headers for your users.</p>
-        </div>
+        {/* Direct App Logo Upload via Media Pipeline (R2 CDN) */}
+        <AppLogoUploader
+          logoUrl={logoUrl}
+          onChange={setLogoUrl}
+          appId={app.id}
+        />
+
 
         {/* Redirect URIs */}
         <div className="space-y-1.5">

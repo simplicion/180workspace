@@ -20,6 +20,8 @@ router.get('/certs', AuthApiController.getJwks);
 
 // ─── Authorize & Consent Flow ────────────────────────────────────────────────
 router.get('/authorize/validate', optionalAuth, AuthApiController.validateAuthorize);
+router.get('/client/:clientId', AuthApiController.getAppPublicConfig);
+router.get('/app-config/:clientId', AuthApiController.getAppPublicConfig);
 router.post('/authorize/consent', protect, AuthApiController.submitConsent);
 
 // ─── Token Endpoints ─────────────────────────────────────────────────────────

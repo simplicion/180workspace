@@ -250,6 +250,12 @@ export class OAuthController {
                 }
             }
 
+            const isMobileReq = /Android|iPhone|iPad|iPod|Mobile/i.test(req.headers['user-agent'] || '');
+            const authDesktopDefault = (app as any).authDesktopDefault || 'popup';
+            const authMobileDefault = (app as any).authMobileDefault || 'bottom_sheet';
+            const payDesktopDefault = (app as any).payDesktopDefault || 'bottom_sheet';
+            const payMobileDefault = (app as any).payMobileDefault || 'bottom_sheet';
+
             const clientPayload = {
                 id: app.id,
                 clientId: app.clientId,
@@ -260,8 +266,14 @@ export class OAuthController {
                 isVerified: app.isVerified,
                 homepageUrl: app.homepageUrl || '',
                 redirectUris: app.redirectUris,
-                allowedScopes: app.allowedScopes
+                allowedScopes: app.allowedScopes,
+                authDesktopDefault,
+                authMobileDefault,
+                payDesktopDefault,
+                payMobileDefault
             };
+
+            const computedDefaultUx = isMobileReq ? authMobileDefault : authDesktopDefault;
 
             return res.json({
                 success: true,
@@ -273,13 +285,84 @@ export class OAuthController {
                 state: state || '',
                 response_type: response_type || 'code',
                 display: display || '',
-                ux_mode: ux_mode || (app as any).authMobileDefault || 'bottom_sheet',
+                ux_mode: ux_mode || computedDefaultUx,
+                authDesktopDefault,
+                authMobileDefault,
+                payDesktopDefault,
+                payMobileDefault,
                 hasConsented,
                 isAuthenticated: Boolean(userId),
                 user: userDetails
             });
         } catch (err: any) {
             console.error('[OAuthController] validateAuthorize error:', err);
+            return res.status(500).json({ error: 'server_error', error_description: err.message });
+        }
+    }
+
+    /**
+     * 1.1 Public Application Metadata & UX Configuration
+     */
+    static async getAppPublicConfig(req: any, res: any) {
+        try {
+            const clientId = req.params?.clientId || req.query?.client_id;
+            if (!clientId) {
+                return res.status(400).json({ error: 'invalid_request', error_description: 'Missing clientId parameter' });
+            }
+
+            let app: any = null;
+            try {
+                app = await prisma.oAuthApp.findUnique({
+                    where: { clientId: String(clientId) },
+                    include: { user: true }
+                });
+            } catch (e) {
+                app = null;
+            }
+
+            const fp = FIRST_PARTY_APPS.find(a => a.clientId === String(clientId));
+            if (fp) {
+                if (!app) {
+                    app = {
+                        id: fp.clientId,
+                        name: fp.name,
+                        description: fp.description,
+                        clientId: fp.clientId,
+                        redirectUris: fp.redirectUris,
+                        allowedOrigins: fp.allowedOrigins,
+                        allowedScopes: fp.allowedScopes,
+                        logoUrl: fp.logoUrl,
+                        homepageUrl: 'https://180workspace.com',
+                        isVerified: true,
+                        isActive: true,
+                        authDesktopDefault: (fp as any).authDesktopDefault || 'popup',
+                        authMobileDefault: (fp as any).authMobileDefault || 'bottom_sheet',
+                        payDesktopDefault: (fp as any).payDesktopDefault || 'bottom_sheet',
+                        payMobileDefault: (fp as any).payMobileDefault || 'bottom_sheet',
+                        user: null,
+                    } as any;
+                }
+            }
+
+            if (!app || !app.isActive) {
+                return res.status(404).json({ error: 'client_not_found', error_description: `OAuth Application '${clientId}' was not found or is inactive.` });
+            }
+
+            return res.json({
+                success: true,
+                clientId: app.clientId,
+                name: app.name,
+                description: app.description || '',
+                logoUrl: app.logoUrl || '',
+                developerName: app.user?.name || '180 Developer',
+                isVerified: app.isVerified,
+                authDesktopDefault: (app as any).authDesktopDefault || 'popup',
+                authMobileDefault: (app as any).authMobileDefault || 'bottom_sheet',
+                payDesktopDefault: (app as any).payDesktopDefault || 'bottom_sheet',
+                payMobileDefault: (app as any).payMobileDefault || 'bottom_sheet',
+            });
+        } catch (err: any) {
+            console.error('[OAuthController] getAppPublicConfig error:', err);
             return res.status(500).json({ error: 'server_error', error_description: err.message });
         }
     }

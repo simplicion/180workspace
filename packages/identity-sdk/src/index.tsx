@@ -3,7 +3,7 @@
  * Official Universal Client SDK for 180 Identity (SSO/Auth) & 180 Pay (Checkout)
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { JwksVerifier } from './jwks-verifier';
 import { TokenExchangeClient } from './token-exchange';
 import { UserInfoClient } from './userinfo-client';
@@ -24,6 +24,16 @@ export interface AuthResponse {
 
 export type AuthUxMode = 'popup' | 'bottom_sheet' | 'fullscreen' | 'redirect' | 'auto';
 export type PayUxMode = 'bottom_sheet' | 'full_page' | 'popup' | 'redirect' | 'auto';
+
+export interface AppClientConfig {
+  clientId: string;
+  name?: string;
+  logoUrl?: string;
+  authDesktopDefault?: 'popup' | 'bottom_sheet' | 'fullscreen' | 'redirect';
+  authMobileDefault?: 'popup' | 'bottom_sheet' | 'fullscreen' | 'redirect';
+  payDesktopDefault?: 'popup' | 'bottom_sheet' | 'full_page' | 'redirect';
+  payMobileDefault?: 'popup' | 'bottom_sheet' | 'full_page' | 'redirect';
+}
 
 export interface OpenPopupOptions {
   clientId: string;
@@ -141,6 +151,97 @@ export const isMobileDevice = (): boolean => {
   if (typeof window === 'undefined') return false;
   return window.innerWidth < 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 };
+
+// In-memory & session storage cache for fast, synchronous app UX resolution
+const APP_CONFIG_CACHE = new Map<string, AppClientConfig>();
+
+export function getCachedAppConfig(clientId: string): AppClientConfig | null {
+  if (!clientId) return null;
+  if (APP_CONFIG_CACHE.has(clientId)) {
+    return APP_CONFIG_CACHE.get(clientId)!;
+  }
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    try {
+      const item = window.sessionStorage.getItem(`__180_app_config_${clientId}__`);
+      if (item) {
+        const parsed = JSON.parse(item);
+        APP_CONFIG_CACHE.set(clientId, parsed);
+        return parsed;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+export function setCachedAppConfig(clientId: string, config: AppClientConfig): void {
+  if (!clientId) return;
+  APP_CONFIG_CACHE.set(clientId, config);
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    try {
+      window.sessionStorage.setItem(`__180_app_config_${clientId}__`, JSON.stringify(config));
+    } catch (_) {}
+  }
+}
+
+/**
+ * Asynchronously prefetches and caches the OAuth application's branding and UX defaults (authDesktopDefault / authMobileDefault)
+ */
+export async function prefetchAppConfig(clientId: string, customServerUrl?: string): Promise<AppClientConfig | null> {
+  if (!clientId || typeof window === 'undefined') return null;
+  const existing = getCachedAppConfig(clientId);
+  if (existing && existing.authDesktopDefault && existing.authMobileDefault) {
+    return existing;
+  }
+
+  const server = getAuthServerUrl(customServerUrl);
+  try {
+    const res = await fetch(`${server}/api/oauth/client/${encodeURIComponent(clientId)}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success) {
+        const config: AppClientConfig = {
+          clientId,
+          name: data.name,
+          logoUrl: data.logoUrl,
+          authDesktopDefault: data.authDesktopDefault || 'popup',
+          authMobileDefault: data.authMobileDefault || 'bottom_sheet',
+          payDesktopDefault: data.payDesktopDefault || 'bottom_sheet',
+          payMobileDefault: data.payMobileDefault || 'bottom_sheet',
+        };
+        setCachedAppConfig(clientId, config);
+        return config;
+      }
+    } else {
+      const fallbackRes = await fetch(`${server}/api/oauth/authorize/validate?client_id=${encodeURIComponent(clientId)}`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+      if (fallbackRes.ok) {
+        const data = await fallbackRes.json();
+        const app = data?.app || data?.client;
+        if (app) {
+          const config: AppClientConfig = {
+            clientId,
+            name: app.name,
+            logoUrl: app.logoUrl,
+            authDesktopDefault: app.authDesktopDefault || data?.authDesktopDefault || 'popup',
+            authMobileDefault: app.authMobileDefault || data?.authMobileDefault || 'bottom_sheet',
+            payDesktopDefault: app.payDesktopDefault || data?.payDesktopDefault || 'bottom_sheet',
+            payMobileDefault: app.payMobileDefault || data?.payMobileDefault || 'bottom_sheet',
+          };
+          setCachedAppConfig(clientId, config);
+          return config;
+        }
+      }
+    }
+  } catch (_) {
+    // Non-blocking prefetch failure is gracefully ignored
+  }
+  return null;
+}
 
 /* ── Bottom Sheet CSS & Layout Injector ─────────────────────────────────── */
 
@@ -453,7 +554,10 @@ export const OneEightyIdentity = {
   UserInfoClient,
   generatePkcePair,
   preconnect: preconnectAuthServer,
-  prefetch: preconnectAuthServer,
+  prefetch: prefetchAppConfig,
+  prefetchAppConfig,
+  getCachedAppConfig,
+  setCachedAppConfig,
   isMobileDevice,
 
   /**
@@ -474,7 +578,7 @@ export const OneEightyIdentity = {
 
     // Resolve UX mode: 'bottom_sheet' | 'popup' | 'fullscreen' | 'redirect' | 'auto'
     const isMobile = isMobileDevice();
-    let effectiveMode: 'bottom_sheet' | 'popup' | 'fullscreen' = 'bottom_sheet';
+    let effectiveMode: 'bottom_sheet' | 'popup' | 'fullscreen' = 'popup';
 
     if (options.uxMode === 'bottom_sheet') {
       effectiveMode = 'bottom_sheet';
@@ -483,8 +587,26 @@ export const OneEightyIdentity = {
     } else if (options.uxMode === 'popup') {
       effectiveMode = 'popup';
     } else {
-      // 'auto' or undefined: Unified responsive Razorpay-style bottom sheet / glass modal on all environments
-      effectiveMode = 'bottom_sheet';
+      // 'auto' or undefined:
+      // 1. Check if the app's configuration is cached (from Developer Console settings: authDesktopDefault / authMobileDefault)
+      const cachedAppConfig = getCachedAppConfig(clientId);
+      const configuredMode = isMobile
+        ? cachedAppConfig?.authMobileDefault
+        : cachedAppConfig?.authDesktopDefault;
+
+      if (configuredMode === 'popup' || configuredMode === 'bottom_sheet' || configuredMode === 'fullscreen') {
+        effectiveMode = configuredMode;
+      } else {
+        // 2. Default responsive UX behavior:
+        // - Mobile / Phones: Bottom sheet ('bottom_sheet') slide-up
+        // - Desktop: Centered modal popup window ('popup')
+        effectiveMode = isMobile ? 'bottom_sheet' : 'popup';
+      }
+    }
+
+    // Trigger non-blocking background prefetch for subsequent calls if not already cached
+    if (typeof window !== 'undefined' && !getCachedAppConfig(clientId)) {
+      prefetchAppConfig(clientId, options.authServerUrl).catch(() => {});
     }
 
     const authUrl = `${authServer}/auth/login?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}&response_type=${encodeURIComponent(responseType)}&ux_mode=${effectiveMode}`;
@@ -557,6 +679,12 @@ export const OneEightyIdentity = {
           `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=no,toolbar=no,resizable=yes`
         )
       : null;
+
+    if (popup && typeof popup.focus === 'function') {
+      try {
+        popup.focus();
+      } catch (_) {}
+    }
 
     if (!popup || popup.closed || typeof popup.closed === 'undefined') {
       // Fallback: If popup is blocked by browser, degrade seamlessly to bottom sheet
@@ -830,6 +958,61 @@ export const OneEightyIdentity = {
 
     element.innerHTML = '';
     element.appendChild(btn);
+  },
+
+  /**
+   * Universal Sign-In alias (opens auth in adaptive presentation)
+   */
+  signIn(options?: OpenAuthOptions): Promise<AuthResponse> {
+    return OneEightyIdentity.openAuth(options || { clientId: '180-workspace' });
+  },
+
+  /**
+   * Modal alias for backward compatibility
+   */
+  openAuthModal(options?: OpenAuthOptions): Promise<AuthResponse> {
+    return OneEightyIdentity.openAuth(options || { clientId: '180-workspace' });
+  },
+
+  /**
+   * Sovereign Sign Out
+   */
+  signOut(): void {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('platform_auth_token');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('180_access_token');
+        localStorage.removeItem('180_user');
+        document.cookie = 'platform_auth_token=; path=/; max-age=0';
+      } catch (_) {}
+    }
+  },
+
+  /**
+   * Retrieves active authenticated user
+   */
+  getUser(): any | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const u = localStorage.getItem('180_user') || localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch (_) {
+      return null;
+    }
+  },
+
+  /**
+   * Retrieves active access token
+   */
+  getAccessToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem('180_access_token') || localStorage.getItem('platform_auth_token') || localStorage.getItem('token') || null;
+    } catch (_) {
+      return null;
+    }
   }
 };
 
@@ -857,8 +1040,14 @@ export const OneEightyPay = {
     } else if (options.uxMode === 'bottom_sheet') {
       effectiveMode = 'bottom_sheet';
     } else {
-      // 'auto' or default: Bottom sheet offers the premier, modern Stripe-like embedded experience
-      effectiveMode = isMobile ? 'bottom_sheet' : 'bottom_sheet';
+      const clientId = options.metadata?.clientId || (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined);
+      const cached = clientId ? getCachedAppConfig(clientId) : null;
+      const configuredMode = isMobile ? cached?.payMobileDefault : cached?.payDesktopDefault;
+      if (configuredMode === 'popup' || configuredMode === 'bottom_sheet' || configuredMode === 'full_page') {
+        effectiveMode = configuredMode;
+      } else {
+        effectiveMode = isMobile ? 'bottom_sheet' : 'bottom_sheet';
+      }
     }
 
     const query = [
@@ -1118,9 +1307,16 @@ export function verifyWebhookSignature(options: VerifyWebhookOptions): boolean {
 // 5. Universal React Hooks: use180Identity & use180Pay
 // ============================================================================
 
-export function use180Identity() {
+export function use180Identity(defaultClientId?: string) {
   const [isOpeningIdentity, setIsOpeningIdentity] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    const id = defaultClientId || (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined);
+    if (id) {
+      prefetchAppConfig(id).catch(() => {});
+    }
+  }, [defaultClientId]);
 
   const launch180Identity = useCallback(
     async (options?: Partial<OpenPopupOptions> | ((response?: any) => void)) => {
@@ -1128,7 +1324,7 @@ export function use180Identity() {
       try {
         const opts: Partial<OpenPopupOptions> =
           typeof options === 'function' ? { onSuccess: options } : options || {};
-        const clientId = opts.clientId || (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined) || '';
+        const clientId = opts.clientId || (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined) || defaultClientId || '';
         if (!clientId) {
           throw new Error('[180 Identity] Missing required parameter: clientId (or NEXT_PUBLIC_180_CLIENT_ID environment variable)');
         }
@@ -1151,7 +1347,7 @@ export function use180Identity() {
         return null;
       }
     },
-    []
+    [defaultClientId]
   );
 
   return {
@@ -1451,8 +1647,21 @@ export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = (
 };
 
 // ============================================================================
-// 7. Global Window Exports & Sovereign Namespace
+// 7. Global Window Exports & Sovereign Namespace (180 Core SDK)
 // ============================================================================
+
+export const OneEighty = {
+  version: '1.0.0-sovereign',
+  auth: OneEightyIdentity,
+  pay: OneEightyPay,
+  signIn: (opts?: any) => OneEightyIdentity.openAuthModal(opts),
+  signOut: () => OneEightyIdentity.signOut(),
+  getUser: () => OneEightyIdentity.getUser(),
+  getAccessToken: () => OneEightyIdentity.getAccessToken(),
+  checkout: (opts?: any) => OneEightyPay.checkout(opts),
+};
+
+export const OneEightyCore = OneEighty;
 
 export const OneEightyProfile = {
   auth: OneEightyIdentity,
@@ -1460,6 +1669,8 @@ export const OneEightyProfile = {
 };
 
 if (typeof window !== 'undefined') {
+  (window as any).OneEighty = OneEighty;
+  (window as any).OneEightyCore = OneEightyCore;
   (window as any).OneEightyIdentity = OneEightyIdentity;
   (window as any).OneEightyPay = OneEightyPay;
   (window as any).OneEightyProfile = OneEightyProfile;
