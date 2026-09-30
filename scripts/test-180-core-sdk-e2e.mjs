@@ -228,6 +228,27 @@ async function runTestSuite() {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 7. Autonomous Environment Detection & Reference Code Telemetry
+  // ─────────────────────────────────────────────────────────────────────────────
+  console.log('\n7️⃣ Testing Autonomous Dev vs Prod Mode & Incident Reference Codes...');
+
+  assert(typeof OneEighty.resolveEnvironmentMode === 'function', 'OneEighty.resolveEnvironmentMode function exists');
+  assert(typeof OneEighty.generateReferenceCode === 'function', 'OneEighty.generateReferenceCode function exists');
+  assert(typeof OneEighty.auth.resolveEnvironmentMode === 'function', 'OneEighty.auth.resolveEnvironmentMode exists');
+  assert(typeof OneEighty.pay.resolveEnvironmentMode === 'function', 'OneEighty.pay.resolveEnvironmentMode exists');
+
+  // Test environment resolution
+  assert(OneEighty.resolveEnvironmentMode('development') === 'development', 'Explicit development mode override respected');
+  assert(OneEighty.resolveEnvironmentMode('production') === 'production', 'Explicit production mode override respected');
+
+  // Test reference code format
+  const authRefCode = OneEighty.generateReferenceCode('AUTH');
+  assert(/^180-AUTH-[A-Z0-9]{5}$/.test(authRefCode), `180-AUTH reference code format valid (got: ${authRefCode})`);
+
+  const payRefCode = OneEighty.generateReferenceCode('PAY');
+  assert(/^180-PAY-[A-Z0-9]{5}$/.test(payRefCode), `180-PAY reference code format valid (got: ${payRefCode})`);
+
   console.log('\n================================================================');
   console.log(`🎉 ALL ${passedAssertions}/${totalAssertions} 180 CORE SDK AUDIT CHECKS PASSED!`);
   console.log('================================================================\n');

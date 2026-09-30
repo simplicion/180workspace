@@ -70,17 +70,6 @@ class _AccountsTabState extends ConsumerState<AccountsTab> {
     }
   }
 
-  Future<void> _link(SocialAccount a) async {
-    final ok = await guarded(context, () async {
-      await ref.read(socialApiProvider).linkAccount(widget.project.id, a.id);
-      return true;
-    });
-    if (ok == true && mounted) {
-      showInfo(context, '${a.accountName} linked', color: AppTheme.success);
-      _refresh();
-    }
-  }
-
   Future<void> _unlink(SocialAccount a) async {
     final yes = await confirm(context,
         title: 'Unlink ${a.accountName}?', message: 'Scheduled posts from this account will not publish for this project.', action: 'Unlink', destructive: true);
@@ -95,7 +84,6 @@ class _AccountsTabState extends ConsumerState<AccountsTab> {
   @override
   Widget build(BuildContext context) {
     final linked = widget.project.socialAccounts;
-    final all = ref.watch(allAccountsProvider);
     return RefreshIndicator(
       onRefresh: () async => _refresh(),
       child: ListView(padding: EdgeInsets.fromLTRB(16, 8, 16, 96), children: [
@@ -116,33 +104,15 @@ class _AccountsTabState extends ConsumerState<AccountsTab> {
           child: Text('Opens the platform sign-in in your browser and returns here when done.',
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
         ),
-        SectionHeader('Other workspace accounts'),
-        all.when(
-          loading: () => Padding(padding: EdgeInsets.all(16), child: LoadingView()),
-          error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(allAccountsProvider)),
-          data: (list) {
-            final others = list.where((a) => a.projectId != widget.project.id).toList();
-            if (others.isEmpty) return SectionCard(child: Text('No other connected accounts.'));
-            return Column(children: [
-              for (final a in others)
-                _AccountTile(
-                  account: a,
-                  subtitle: a.projectName == null ? 'Not linked to a project' : 'Linked to ${a.projectName}',
-                  trailing: TextButton(onPressed: () => _link(a), child: Text(a.projectId == null ? 'Link' : 'Move here')),
-                ),
-            ]);
-          },
-        ),
       ]),
     );
   }
 }
 
 class _AccountTile extends StatelessWidget {
-  const _AccountTile({required this.account, required this.trailing, this.subtitle});
+  const _AccountTile({required this.account, required this.trailing});
   final SocialAccount account;
   final Widget trailing;
-  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +145,7 @@ class _AccountTile extends StatelessWidget {
                   StatusChip(label: 'SANDBOX', color: AppTheme.warning),
                 ],
               ]),
-              Text([a.platform.label, if (a.username != null) '@${a.username}', ?subtitle].join(' · '),
+              Text([a.platform.label, if (a.username != null) '@${a.username}'].join(' · '),
                   style: Theme.of(context).textTheme.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
               if (status != null)
                 Text(status, style: TextStyle(fontSize: 12, color: a.needsAttention ? AppTheme.error : AppTheme.warning)),

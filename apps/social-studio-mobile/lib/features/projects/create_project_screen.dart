@@ -179,19 +179,23 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
               accounts.when(
                 loading: () => LinearProgressIndicator(),
                 error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(_accountsProvider)),
-                data: (list) => list.isEmpty
-                    ? Text('No channels connected yet. Connect them later from the project\'s Channels section.')
-                    : Column(children: [
-                        for (final a in list)
-                          CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            value: _accountIds.contains(a.id),
-                            onChanged: (v) => setState(() => v == true ? _accountIds.add(a.id) : _accountIds.remove(a.id)),
-                            secondary: Icon(a.platform.icon, color: a.platform.color),
-                            title: Text(a.accountName),
-                            subtitle: Text(a.projectName == null ? a.platform.label : '${a.platform.label} · now in ${a.projectName}'),
-                          ),
-                      ]),
+                data: (list) {
+                  final unassigned = list.where((a) => a.projectId == null).toList();
+                  if (unassigned.isEmpty) {
+                    return Text('No unassigned channels available. You can connect fresh channels from the project\'s Channels section.');
+                  }
+                  return Column(children: [
+                    for (final a in unassigned)
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _accountIds.contains(a.id),
+                        onChanged: (v) => setState(() => v == true ? _accountIds.add(a.id) : _accountIds.remove(a.id)),
+                        secondary: Icon(a.platform.icon, color: a.platform.color),
+                        title: Text(a.accountName),
+                        subtitle: Text(a.platform.label),
+                      ),
+                  ]);
+                },
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

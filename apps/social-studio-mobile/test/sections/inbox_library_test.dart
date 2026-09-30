@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:social_studio_mobile/core/widgets/universal_skeleton.dart';
 import 'package:social_studio_mobile/features/inbox/conversation_screen.dart';
@@ -84,66 +85,46 @@ void main() {
     });
   });
 
-  group('Library', () {
-    appTest('assets list hides hashtag/hook bank rows', (tester) async {
+  group('Library Vault', () {
+    appTest('vault lists seeded folders and categorized notes', (tester) async {
       await pumpApp(tester, seededBackend(), location: '/library');
-      expect(find.text('Brand kit'), findsOneWidget);
-      expect(find.text('Core'), findsNothing);
+      expect(find.text('Viral Reels & Shorts'), findsOneWidget);
+      expect(find.text('High-Converting Hooks'), findsOneWidget);
+      expect(find.text('3-Sec Curiosity Pattern Interrupt'), findsOneWidget);
+      expect(find.text('HOOK'), findsOneWidget);
     });
 
-    appTest('empty assets offers "Link an asset"; linking posts url/type/title', (tester) async {
-      final b = seededBackend()
-        ..json('GET', '$sm/assets', {'success': true, 'assets': []})
-        ..json('POST', '$sm/assets', {'success': true, 'asset': {'id': 'as9'}}, status: 201);
-      await pumpApp(tester, b, location: '/library');
-      expect(find.text('No linked assets'), findsOneWidget);
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Link an asset'));
+    appTest('tapping a folder navigates inside it with breadcrumb', (tester) async {
+      await pumpApp(tester, seededBackend(), location: '/library');
+      await tester.tap(find.text('Viral Reels & Shorts'));
       await settle(tester);
-      await tester.enterText(find.widgetWithText(TextField, 'URL *'), 'https://dropbox.com/logo.png');
-      await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Logo');
-      await tester.tap(find.widgetWithText(TextButton, 'Save'));
-      await settle(tester);
-      expect(tester.takeException(), isNull);
-      expect(b.last('POST', '$sm/assets')!.json, {'url': 'https://dropbox.com/logo.png', 'type': 'image', 'title': 'Logo', 'tags': []});
-      expect(find.text('Asset linked'), findsOneWidget);
-      expect(b.calls('GET', '$sm/assets'), hasLength(2));
+      expect(find.text('Vault Root'), findsOneWidget);
+      expect(find.text('High-Converting Product Teaser Script'), findsOneWidget);
     });
 
-    appTest('an invalid URL is rejected locally', (tester) async {
-      final b = seededBackend();
-      await pumpApp(tester, b, location: '/library');
-      await tester.tap(find.byTooltip('Link an asset'));
+    appTest('filtering by notes shows only notes', (tester) async {
+      await pumpApp(tester, seededBackend(), location: '/library');
+      await tester.tap(find.text('Notes & Hooks'), warnIfMissed: false);
       await settle(tester);
-      await tester.enterText(find.widgetWithText(TextField, 'URL *'), 'not a url');
-      await tester.tap(find.widgetWithText(TextButton, 'Save'));
+      expect(find.text('3-Sec Curiosity Pattern Interrupt'), findsOneWidget);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
       await settle(tester);
-      expect(find.text('Enter a full URL starting with https://'), findsOneWidget);
-      expect(b.calls('POST', '$sm/assets'), isEmpty);
+      expect(find.text('High-Converting Product Teaser Script'), findsOneWidget);
     });
 
-    appTest('hashtag bank: list, and create posts {type,name,content,tags}', (tester) async {
-      final b = seededBackend()..json('POST', '$sm/saved-banks', {'success': true, 'bank': {'id': 'bk9'}});
-      await pumpApp(tester, b, location: '/library');
-      await tester.tap(find.text('Hashtags'));
+    appTest('copying a note copies its content', (tester) async {
+      String? copiedText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copiedText = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      });
+      await pumpApp(tester, seededBackend(), location: '/library');
+      expect(find.byTooltip('Copy Note Content'), findsWidgets);
+      await tester.tap(find.byTooltip('Copy Note Content').first, warnIfMissed: false);
       await settle(tester);
-      expect(find.text('Core tags'), findsOneWidget);
-      expect(find.text('Myth opener'), findsNothing);
-      await tester.tap(find.byTooltip('New hashtag set'));
-      await settle(tester);
-      await tester.enterText(find.byType(TextField).last, 'Fitness');
-      await tester.tap(find.widgetWithText(TextButton, 'Next'));
-      await settle(tester);
-      await tester.enterText(find.byType(TextField).last, '#gym #fit');
-      await tester.tap(find.widgetWithText(TextButton, 'Save'));
-      await settle(tester);
-      expect(b.last('POST', '$sm/saved-banks')!.json, {'type': 'hashtag', 'name': 'Fitness', 'content': '#gym #fit', 'tags': []});
-    });
-
-    appTest('assets load error offers retry', (tester) async {
-      final b = seededBackend()..fail('GET', '$sm/assets', 500, 'Storage offline');
-      await pumpApp(tester, b, location: '/library');
-      expect(find.text('Storage offline'), findsOneWidget);
-      expect(find.text('Try again'), findsOneWidget);
+      expect(copiedText, isNotEmpty);
     });
   });
 }

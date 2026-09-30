@@ -141,14 +141,14 @@ export class MediaTranscriber {
     // 4. Tier 3: Inbuilt Local Speech & Dialogue Intelligence Engine (100% Offline, $0 cost)
     const local = await LocalSpeechTranscriber.transcribeWav(wavPath, language);
     const words: TranscriptWordIntelligence[] = local.words.map((w, idx) => ({
-      id: `w_${idx}`,
+      id: w.id || `w_${idx}`,
       word: w.word,
-      startSeconds: w.start,
-      endSeconds: w.end,
+      startSeconds: w.startSeconds,
+      endSeconds: w.endSeconds,
       confidence: w.confidence ?? 0.95,
-      isEmphasis: Boolean(w.emphasis),
-      emphasisScore: w.emphasis ? 0.85 : 0,
-      energyScore: 0.5,
+      isEmphasis: Boolean(w.isEmphasis),
+      emphasisScore: w.emphasisScore ?? (w.isEmphasis ? 0.85 : 0),
+      energyScore: w.energyScore ?? 0.5,
     }));
 
     return {

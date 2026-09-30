@@ -3,6 +3,12 @@ const isExport = process.env.NEXT_EXPORT === 'true' || process.env.CF_PAGES === 
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_180_CLIENT_ID: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180-developers-portal',
+    NEXT_PUBLIC_IDENTITY_CLIENT_ID: process.env.NEXT_PUBLIC_IDENTITY_CLIENT_ID || '180-developers-portal',
+    NEXT_PUBLIC_IDENTITY_SERVER_URL: process.env.NEXT_PUBLIC_IDENTITY_SERVER_URL || 'http://localhost:4002',
+    NEXT_PUBLIC_DEVELOPERS_API_URL: process.env.NEXT_PUBLIC_DEVELOPERS_API_URL || 'http://localhost:4002/api/v1/developers',
+  },
   ...(isExport ? { output: 'export', images: { unoptimized: true } } : {}),
   transpilePackages: ['@workspace/ui', '@workspace/identity-sdk'],
   reactStrictMode: true,

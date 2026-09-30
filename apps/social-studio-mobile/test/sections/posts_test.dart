@@ -10,8 +10,10 @@ import '../support/fixtures.dart';
 
 Future<void> _fillComposer(WidgetTester tester) async {
   await tester.enterText(find.widgetWithText(TextField, 'Caption *'), 'Our new drop lands Friday.');
-  await tester.enterText(find.widgetWithText(TextField, 'Hook'), 'Stop scrolling');
   await tapVisible(tester, find.widgetWithText(FilterChip, 'Instagram'));
+  if (find.text('Save Instagram Settings').evaluate().isNotEmpty) {
+    await tapVisible(tester, find.text('Save Instagram Settings'));
+  }
 }
 
 Future<void> _tapCreate(WidgetTester tester) => tapVisible(tester, find.widgetWithText(ElevatedButton, 'Create post'));
@@ -33,7 +35,7 @@ void main() {
     expect(req.json['variants'], [
       {'platform': 'instagram', 'customContent': ''},
     ]);
-    expect(req.json['metadata'], {'hook': 'Stop scrolling'});
+    expect(req.json['metadata'], {'visibility': 'public'});
     expect(req.idempotencyKey, isNotEmpty);
     expect(find.byType(PostDetailScreen), findsOneWidget);
     expect(find.text('New drop'), findsWidgets);

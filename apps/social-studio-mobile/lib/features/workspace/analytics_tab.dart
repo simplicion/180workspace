@@ -62,7 +62,6 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
               final postsPublished = (a['postsPublished'] as num?)?.toInt() ?? 0;
               final postsCreated = (a['postsCreated'] as num?)?.toInt() ?? 0;
               final postsScheduledInRange = (a['postsScheduledInRange'] as num?)?.toInt() ?? 0;
-              final postsAwaitingApproval = (a['postsAwaitingApproval'] as num?)?.toInt() ?? 0;
               final postsFailed = (a['postsFailed'] as num?)?.toInt() ?? 0;
 
               // Approval stats
@@ -110,11 +109,11 @@ class _AnalyticsTabState extends ConsumerState<AnalyticsTab> {
                         subtitle: 'In this $_range window',
                       ),
                       _kpiCard(
-                        'In Review',
-                        '$postsAwaitingApproval',
-                        Icons.hourglass_top_rounded,
-                        AppTheme.warning,
-                        subtitle: '$sessionsSent client sessions',
+                        'Created',
+                        '$postsCreated',
+                        Icons.edit_note_rounded,
+                        AppTheme.accent,
+                        subtitle: 'Created in $_range',
                       ),
                       _kpiCard(
                         'Failed / Blocked',

@@ -135,6 +135,11 @@ export interface StartAutopilotBody {
     goals?: unknown;
     createDrafts?: unknown;
     name?: unknown;
+    structureDirectives?: unknown;
+    referenceInspirations?: unknown;
+    contentMix?: unknown;
+    targetReelDurationSec?: unknown;
+    carouselSlideCount?: unknown;
 }
 
 export class AutopilotCalendarService {
@@ -202,7 +207,17 @@ export class AutopilotCalendarService {
 
         const jobId = `apj_${randomUUID()}`;
         const nowIso = this.deps.now().toISOString();
-        const request = { days, startDate, timezone, platforms, goals, createDrafts: body.createDrafts === true };
+        const campaignName = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 120) : undefined;
+        const structureDirectives = typeof body.structureDirectives === 'string' && body.structureDirectives.trim() ? body.structureDirectives.trim().slice(0, 2000) : undefined;
+        const referenceInspirations = typeof body.referenceInspirations === 'string' && body.referenceInspirations.trim() ? body.referenceInspirations.trim().slice(0, 4000) : undefined;
+        const contentMix = body.contentMix && typeof body.contentMix === 'object' ? body.contentMix : undefined;
+        const targetReelDurationSec = typeof body.targetReelDurationSec === 'number' ? body.targetReelDurationSec : undefined;
+        const carouselSlideCount = typeof body.carouselSlideCount === 'number' ? body.carouselSlideCount : undefined;
+
+        const request = {
+            days, startDate, timezone, platforms, goals, createDrafts: body.createDrafts === true,
+            name: campaignName, structureDirectives, referenceInspirations, contentMix, targetReelDurationSec, carouselSlideCount,
+        };
         const metadata: Record<string, any> = {
             projectId,
             userId,
@@ -217,7 +232,7 @@ export class AutopilotCalendarService {
             data: {
                 companyId,
                 projectId,
-                name: typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 120) : `${project.name || 'Brand'} autopilot · ${days} days from ${startDate}`,
+                name: campaignName || `${project.name || 'Brand'} autopilot · ${days} days from ${startDate}`,
                 startDate: new Date(`${startDate}T00:00:00Z`),
                 endDate,
                 tone: brand.profile?.tone || '',
@@ -236,7 +251,7 @@ export class AutopilotCalendarService {
     async runJob(ctx: {
         companyId: string; userId: string; projectId: string; calendarId: string; metadata: Record<string, any>;
         llm: AutopilotLLM; brand: { profile: any; promptContext?: string }; project: any;
-        request: { days: number; startDate: string; timezone: string; platforms: AutopilotPlatform[]; goals: string[]; createDrafts: boolean };
+        request: { days: number; startDate: string; timezone: string; platforms: AutopilotPlatform[]; goals: string[]; createDrafts: boolean; [key: string]: any };
     }): Promise<void> {
         const { db } = this.deps;
         const { companyId, calendarId, metadata } = ctx;
@@ -266,6 +281,12 @@ export class AutopilotCalendarService {
                 platforms: ctx.request.platforms,
                 goals: ctx.request.goals.length ? ctx.request.goals : objectivesAsGoals(ctx.brand.profile),
                 memoryContext,
+                campaignName: ctx.request.name,
+                structureDirectives: ctx.request.structureDirectives,
+                referenceInspirations: ctx.request.referenceInspirations,
+                contentMix: ctx.request.contentMix,
+                targetReelDurationSec: ctx.request.targetReelDurationSec,
+                carouselSlideCount: ctx.request.carouselSlideCount,
                 brand: buildBrandContext(ctx.brand.profile, {
                     brandName: ctx.project.name,
                     industry: ctx.brand.profile?.industry || ctx.project.description || undefined,

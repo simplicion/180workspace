@@ -54,13 +54,9 @@ export interface PexelsStockSearchResult {
 export class PexelsClient {
   private static readonly BASE_URL = "https://api.pexels.com";
 
-  /** Reads the key from the environment only. Throws when unset (never falls back to a literal). */
-  static getApiKey(): string {
-    const key = process.env.PEXELS_API_KEY || process.env.NEXT_PUBLIC_PEXELS_API_KEY;
-    if (!key) {
-      throw new Error("PEXELS_API_KEY is not set.");
-    }
-    return key;
+  /** Reads the key from the environment only. Returns null when unset so fallback stock providers work. */
+  static getApiKey(): string | null {
+    return process.env.PEXELS_API_KEY || process.env.NEXT_PUBLIC_PEXELS_API_KEY || null;
   }
 
   /**

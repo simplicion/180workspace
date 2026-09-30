@@ -14,9 +14,45 @@ export type ContentFormat = (typeof CONTENT_FORMATS)[number];
 export const AUTOPILOT_PLATFORMS = ['instagram', 'facebook', 'tiktok', 'youtube', 'linkedin', 'x'] as const;
 export type AutopilotPlatform = (typeof AUTOPILOT_PLATFORMS)[number];
 
+export const PSYCHOLOGICAL_JOBS = [
+    'curiosity',
+    'belief_reversal',
+    'fear_reduction',
+    'insider_knowledge',
+    'saveability',
+    'relatability',
+    'urgency',
+    'authority_trust',
+    'identity',
+    'aspiration',
+] as const;
+export type PsychologicalJob = (typeof PSYCHOLOGICAL_JOBS)[number];
+
+export const DESIGN_SYSTEMS = [
+    'minimalistic',
+    'brand_iterative',
+    'editorial',
+    'proof_led',
+] as const;
+export type DesignSystem = (typeof DESIGN_SYSTEMS)[number];
+
 const platformSchema = z.enum(AUTOPILOT_PLATFORMS);
 const hookTypeSchema = z.enum(HOOK_TYPES);
+const psychologicalJobSchema = z.enum(PSYCHOLOGICAL_JOBS);
+const designSystemSchema = z.enum(DESIGN_SYSTEMS);
 const nonEmpty = (max: number) => z.string().trim().min(1).max(max);
+
+// ---------------------------------------------------------------- content mix & cadence
+
+export const ContentMixConfigSchema = z.object({
+    mode: z.enum(['preset', 'daily', 'alternate', 'custom']).default('preset'),
+    preset: z.string().optional(),
+    dailyReels: z.number().int().min(0).max(10).default(1),
+    dailyCarousels: z.number().int().min(0).max(10).default(0),
+    targetReelDurationSec: z.number().int().min(15).max(180).default(60),
+    carouselSlideCount: z.number().int().min(3).max(12).default(5),
+});
+export type ContentMixConfig = z.infer<typeof ContentMixConfigSchema>;
 
 // ---------------------------------------------------------------- strategist
 
@@ -28,6 +64,12 @@ export const StrategySlotSchema = z.object({
     topic: nonEmpty(200),
     angle: nonEmpty(300),
     hookType: hookTypeSchema.optional(),
+    psychologicalJob: psychologicalJobSchema.optional(),
+    designSystem: designSystemSchema.optional(),
+    whatContentDelivers: z.string().max(1000).optional(),
+    visualDirection: z.string().max(800).optional(),
+    targetDurationSec: z.number().int().min(5).max(180).optional(),
+    slideCount: z.number().int().min(3).max(12).optional(),
     goal: z.string().max(120).optional(),
     /** Research URLs this slot is grounded in (must come from the research digest). */
     sourceUrls: z.array(z.string().url()).max(3).optional(),
@@ -65,39 +107,76 @@ export type Strategy = z.infer<typeof StrategySchema>;
 // ---------------------------------------------------------------- hook & script
 
 export const ScriptSchema = z.object({
-    hook: nonEmpty(300),
-    body: z.array(z.object({
-        beat: nonEmpty(600),
-        retentionDevice: z.string().max(200).optional(),
-    })).min(1).max(12),
-    retentionLoop: nonEmpty(400),
-    cta: nonEmpty(300),
-    estimatedDurationSec: z.number().int().min(5).max(180),
+    hook: z.string().min(1).default('Here is what you need to know.'),
+    body: z.preprocess((val) => {
+        if (Array.isArray(val)) {
+            return val.map((b) => typeof b === 'string' ? { beat: b } : b);
+        }
+        return val;
+    }, z.array(z.object({
+        beat: z.string().min(1).default('Focus on this key takeaway.'),
+        retentionDevice: z.string().max(400).optional(),
+    })).min(1).max(20)),
+    retentionLoop: z.string().default('Watch to the end for the key framework.'),
+    cta: z.string().default('Save this reel and follow for more.'),
+    estimatedDurationSec: z.preprocess((val) => {
+        if (typeof val === 'string') {
+            const num = parseInt(val.replace(/\D/g, ''), 10);
+            return isNaN(num) ? 60 : num;
+        }
+        return val;
+    }, z.coerce.number().int().min(5).max(180).default(60)),
+    psychologicalJob: psychologicalJobSchema.optional(),
+    visualDirection: z.string().max(800).optional(),
+    whatContentDelivers: z.string().max(1000).optional(),
 });
 export type Script = z.infer<typeof ScriptSchema>;
 
 export const CarouselBriefSchema = z.object({
-    title: nonEmpty(160),
+    title: z.string().min(1).default('Carousel Content Brief'),
+    psychologicalJob: psychologicalJobSchema.optional(),
+    designSystem: designSystemSchema.optional(),
+    visualDirection: z.string().max(800).optional(),
+    whatContentDelivers: z.string().max(1000).optional(),
     slides: z.array(z.object({
-        index: z.number().int().min(1).max(20),
-        role: z.enum(['hook', 'value', 'proof', 'cta']),
-        headline: nonEmpty(140),
-        body: z.string().max(400).default(''),
-        visualIdea: z.string().max(300).default(''),
-    })).min(3).max(12),
+        index: z.coerce.number().int().min(1).max(20).default(1),
+        role: z.string().transform((r) => {
+            const low = (r || '').toLowerCase().trim();
+            if (['hook', 'intro', 'start', 'headline', 'stop'].includes(low)) return 'hook';
+            if (['reveal', 'problem', 'insight', 'shift', 'truth'].includes(low)) return 'reveal';
+            if (['proof', 'example', 'case', 'stats', 'evidence', 'results'].includes(low)) return 'proof';
+            if (['cta', 'action', 'conclusion', 'outro', 'follow', 'save'].includes(low)) return 'cta';
+            return 'value';
+        }),
+        headline: z.string().min(1).default('Key Insight'),
+        body: z.string().max(800).default(''),
+        visualIdea: z.string().max(600).default(''),
+    })).min(1).max(20),
 });
 export type CarouselBrief = z.infer<typeof CarouselBriefSchema>;
 
 export const HookScriptItemSchema = z.object({
-    slotId: nonEmpty(40),
-    headline: nonEmpty(160),
-    hookType: hookTypeSchema,
-    spokenHook: nonEmpty(300),
-    onScreenHook: nonEmpty(90),
+    slotId: z.string().min(1),
+    headline: z.string().min(1).default('Master SOP Content Piece'),
+    hookType: z.string().transform((h) => {
+        const low = (h || '').toLowerCase().trim();
+        if (HOOK_TYPES.includes(low as any)) return low as HookType;
+        if (low.includes('pattern') || low.includes('interrupt')) return 'pattern_interrupt';
+        if (low.includes('contrarian') || low.includes('truth')) return 'contrarian';
+        if (low.includes('pain') || low.includes('relat')) return 'relatable_pain';
+        if (low.includes('story')) return 'story';
+        return 'curiosity_gap';
+    }),
+    psychologicalJob: psychologicalJobSchema.optional(),
+    designSystem: designSystemSchema.optional(),
+    whatContentDelivers: z.string().max(1000).optional(),
+    visualDirection: z.string().max(800).optional(),
+    spokenHook: z.string().min(1).default('Stop scrolling and listen to this.'),
+    onScreenHook: z.string().min(1).transform((s) => s.slice(0, 120)),
     script: ScriptSchema.optional(),
-    shotNotes: z.array(nonEmpty(300)).max(15).optional(),
+    shotNotes: z.array(z.string().min(1)).max(25).optional(),
     carouselBrief: CarouselBriefSchema.optional(),
-    visualBrief: z.string().max(500).optional(),
+    visualBrief: z.string().max(1000).optional(),
 });
 export type HookScriptItem = z.infer<typeof HookScriptItemSchema>;
 
@@ -118,6 +197,7 @@ export const CopyItemSchema = z.object({
     slotId: nonEmpty(40),
     copies: z.array(PlatformCopySchema).min(1),
 });
+export type CopyItem = z.infer<typeof CopyItemSchema>;
 export const CopyBatchSchema = z.object({ items: z.array(CopyItemSchema).min(1) });
 
 // ---------------------------------------------------------------- critic

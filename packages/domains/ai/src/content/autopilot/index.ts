@@ -8,3 +8,7 @@ export * from './brand-context';
 export * from './pipeline';
 export * from './persistence';
 export * from './types';
+export * from './agents/neuromarketing-research.agent';
+export * from './agents/cadence-flow.agent';
+export * from './agents/creative-copywriter.agent';
+export * from './agents/qc-brand-auditor.agent';

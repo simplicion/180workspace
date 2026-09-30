@@ -3,12 +3,15 @@
  * Universal Client SDK for 180 Identity (SSO/Auth) and 180 Pay (Checkout)
  */
 
+export type EnvironmentMode = 'development' | 'production' | 'auto';
+
 export interface OneEightyConfig {
   clientId?: string;
   authServerUrl?: string;
   payServerUrl?: string;
   apiServerUrl?: string;
   uxMode?: 'bottom_sheet' | 'modal' | 'popup' | 'full_page' | 'auto';
+  environment?: EnvironmentMode;
 }
 
 export interface AuthSignInOptions {
@@ -18,6 +21,7 @@ export interface AuthSignInOptions {
   scope?: string;
   state?: string;
   uxMode?: 'bottom_sheet' | 'modal' | 'popup' | 'full_page' | 'auto';
+  environment?: EnvironmentMode;
   onSuccess?: (response: AuthResult) => void;
   onError?: (error: Error) => void;
   onCancel?: () => void;
@@ -41,6 +45,7 @@ export interface PayCheckoutOptions {
   sessionId?: string;
   payServerUrl?: string;
   uxMode?: 'bottom_sheet' | 'modal' | 'full_page' | 'popup' | 'auto';
+  environment?: EnvironmentMode;
   metadata?: Record<string, any>;
   onSuccess?: (response: PayResult) => void;
   onError?: (error: Error) => void;
@@ -60,6 +65,7 @@ export interface AdaptiveModalOptions {
   url: string;
   title?: string;
   uxMode?: 'bottom_sheet' | 'modal' | 'full_page' | 'popup' | 'auto';
+  environment?: EnvironmentMode;
   successTypes?: string[];
   closeTypes?: string[];
   mapSuccess?: (data: any) => any;
@@ -74,11 +80,15 @@ export interface OneEightyAuthService {
   signOut(): void;
   getUser(): any | null;
   getAccessToken(): string | null;
+  resolveEnvironmentMode(customMode?: EnvironmentMode): 'development' | 'production';
+  generateReferenceCode(domainPrefix?: 'AUTH' | 'PAY' | 'CORE'): string;
 }
 
 export interface OneEightyPayService {
   checkout(options?: PayCheckoutOptions): Promise<PayResult | null>;
   openCheckoutModal(options?: PayCheckoutOptions): Promise<PayResult | null>;
+  resolveEnvironmentMode(customMode?: EnvironmentMode): 'development' | 'production';
+  generateReferenceCode(domainPrefix?: 'AUTH' | 'PAY' | 'CORE'): string;
 }
 
 export interface OneEightyUiService {
@@ -93,6 +103,8 @@ export interface OneEightyCoreInstance {
   auth: OneEightyAuthService;
   pay: OneEightyPayService;
   ui: OneEightyUiService;
+  resolveEnvironmentMode(customMode?: EnvironmentMode): 'development' | 'production';
+  generateReferenceCode(domainPrefix?: 'AUTH' | 'PAY' | 'CORE'): string;
   signIn(options?: AuthSignInOptions): Promise<AuthResult | null>;
   signOut(): void;
   getUser(): any | null;
@@ -114,5 +126,7 @@ export const OneEighty: OneEightyCoreInstance;
 export const OneEightyCore: OneEightyCoreInstance;
 export const OneEightyIdentity: OneEightyAuthService;
 export const OneEightyPay: OneEightyPayService;
+export function resolveEnvironmentMode(customMode?: EnvironmentMode): 'development' | 'production';
+export function generateReferenceCode(domainPrefix?: 'AUTH' | 'PAY' | 'CORE'): string;
 
 export default OneEighty;

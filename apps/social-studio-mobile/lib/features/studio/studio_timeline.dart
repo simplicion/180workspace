@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/native_engine/edit_ir.dart';
 import '../../core/theme/app_theme.dart';
@@ -130,8 +131,9 @@ class _StudioTimelineState extends State<StudioTimeline> {
               ]),
               Expanded(
                 child: LayoutBuilder(builder: (context, box) {
+                  const leadW = 32.0;
                   final width = box.maxWidth * _zoom;
-                  double x(int ms) => ms / total * width;
+                  double x(int ms) => leadW + (ms / total * width);
                   int msPerPx(double dx) => (dx / width * total).round();
                   final drag = _drag;
                   return GestureDetector(
@@ -142,7 +144,7 @@ class _StudioTimelineState extends State<StudioTimeline> {
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: SizedBox(
-                        width: width,
+                        width: width + leadW + 36,
                         child: Stack(clipBehavior: Clip.none, children: [
                           Column(children: [
                             for (final k in tracks)
@@ -150,8 +152,24 @@ class _StudioTimelineState extends State<StudioTimeline> {
                                 height: k == TrackKind.video ? _videoH : _trackH,
                                 child: GestureDetector(
                                   behavior: HitTestBehavior.opaque,
-                                  onTapDown: (d) => widget.onScrub((d.localPosition.dx / width * total).round()),
+                                  onTapDown: (d) {
+                                    final localMs = ((d.localPosition.dx - leadW) / width * total).round().clamp(0, total.toInt());
+                                    widget.onScrub(localMs);
+                                  },
                                   child: Stack(clipBehavior: Clip.none, children: [
+                                    if (k == TrackKind.video) ...[
+                                      // Prepend '+' button at the very beginning of the video timeline
+                                      Positioned(
+                                        left: 2,
+                                        width: 26,
+                                        top: 7,
+                                        bottom: 7,
+                                        child: _AddClipButton(
+                                          tooltip: 'Add video to start (intro)',
+                                          onTap: () => _showAddVideoSheet(context, atIndex: 0),
+                                        ),
+                                      ),
+                                    ],
                                     for (final (i, it) in items.where((i) => i.kind == k).indexed)
                                       ..._placed(
                                         it: drag != null && drag.item.id == it.id && drag.item.kind == it.kind
@@ -164,12 +182,25 @@ class _StudioTimelineState extends State<StudioTimeline> {
                                         total: total.toInt(),
                                         muted: TimelineOps.mutableTracks.contains(k) && TimelineOps.isTrackMuted(ir, k),
                                       ),
+                                    if (k == TrackKind.video) ...[
+                                      // Append '+' button at the very end of the video timeline
+                                      Positioned(
+                                        left: x(ir.durationMs) + 4,
+                                        width: 26,
+                                        top: 7,
+                                        bottom: 7,
+                                        child: _AddClipButton(
+                                          tooltip: 'Add video to end',
+                                          onTap: () => _showAddVideoSheet(context, atIndex: ir.clips.length),
+                                        ),
+                                      ),
+                                    ],
                                   ]),
                                 ),
                               ),
                           ]),
                           Positioned(
-                            left: x(c.playheadMs).clamp(0, width - 2).toDouble(),
+                            left: x(c.playheadMs).clamp(leadW, leadW + width).toDouble(),
                             top: 0,
                             bottom: 0,
                             child: IgnorePointer(child: Container(width: 2, color: AppTheme.textPrimary)),
@@ -177,7 +208,7 @@ class _StudioTimelineState extends State<StudioTimeline> {
                           if (drag != null)
                             Positioned(
                               left: (x(drag.mode == _DragMode.trimEnd ? drag.preview.endMs : drag.preview.startMs) - 30)
-                                  .clamp(0, math.max(0, width - 60))
+                                  .clamp(0, math.max(0, width + leadW - 60))
                                   .toDouble(),
                               top: 0,
                               child: IgnorePointer(
@@ -245,6 +276,84 @@ class _StudioTimelineState extends State<StudioTimeline> {
     widget.onEdit(
       (ir) => TimelineOps.setTrackMuted(ir, k, !muted, restoreDb: restore),
       done: '${k.label} ${muted ? 'unmuted' : 'muted'}',
+    );
+  }
+
+  Future<void> _showAddVideoSheet(BuildContext context, {int? atIndex}) async {
+    final isStart = atIndex == 0;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(children: [
+                Icon(Icons.video_library_rounded, color: AppTheme.primary),
+                SizedBox(width: 8),
+                Text(
+                  isStart ? 'Add Video to Beginning' : 'Add Video to End of Timeline',
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ]),
+              SizedBox(height: 6),
+              Text(
+                isStart
+                    ? 'Prepend an intro or opening clip before your current video.'
+                    : 'Append another video clip to continue the timeline sequence.',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
+              SizedBox(height: 16),
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Icon(Icons.add_photo_alternate_rounded, color: AppTheme.primary),
+                ),
+                title: Text('Choose from Gallery / Device'),
+                subtitle: Text('Pick an MP4 video clip from phone storage'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final f = await ImagePicker().pickVideo(source: ImageSource.gallery);
+                  if (f != null) {
+                    await widget.controller.addVideoClip(f.path, atIndex: atIndex);
+                  }
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: AppTheme.accentBlue.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Icon(Icons.movie_filter_rounded, color: AppTheme.accentBlue),
+                ),
+                title: Text('Search Stock Video'),
+                subtitle: Text('Search Pexels & Pixabay library'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onOpenTool(StudioTool.broll);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: AppTheme.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Icon(Icons.folder_copy_rounded, color: AppTheme.accent),
+                ),
+                title: Text('Assets & Library'),
+                subtitle: Text('Open the full assets bottom sheet'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onOpenTool(StudioTool.library);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -426,6 +535,31 @@ class _Block extends StatelessWidget {
       );
 }
 
+class _AddClipButton extends StatelessWidget {
+  const _AddClipButton({required this.tooltip, required this.onTap});
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: Material(
+          color: AppTheme.accentBlue.withValues(alpha: 0.25),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+            side: BorderSide(color: AppTheme.accentBlue, width: 1.5),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(6),
+            child: Center(
+              child: Icon(Icons.add_rounded, size: 18, color: Colors.white),
+            ),
+          ),
+        ),
+      );
+}
+
 /// Inspector for one placed item: move, nudge, trim, volume/style, replace, delete.
 Future<void> showTimelineItemSheet(
   BuildContext context,
@@ -460,12 +594,14 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
   late double _volume = _sfx?.volumeDb ?? widget.c.ir!.audio.music.firstOrNull?.volumeDb ?? -12;
   late final _text = TextEditingController(text: _caption?.text ?? '');
   late double _intensity = _effect?.intensity ?? 0.6;
+  late double _brollOpacity = _overlay?.opacity ?? 1.0;
 
   TimelineItem get it => widget.item;
   MobileEditIr get ir => widget.c.ir!;
   EditIrSfx? get _sfx => ir.audio.sfx.where((e) => e.id == it.id).firstOrNull;
   EditIrCaption? get _caption => ir.captions.where((e) => e.id == it.id).firstOrNull;
   EditIrEffect? get _effect => ir.effects.where((e) => e.id == it.id).firstOrNull;
+  EditIrOverlay? get _overlay => ir.overlays.where((e) => e.id == it.id).firstOrNull;
 
   @override
   void dispose() {
@@ -485,6 +621,9 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
   Widget build(BuildContext context) {
     final movable = it.kind != TrackKind.music && it.kind != TrackKind.video;
     final total = ir.durationMs.toDouble();
+    final o = _overlay;
+    final fit = (o?.source['fit'] as String?) ?? 'cover';
+    final isPip = o?.source['pip'] == true;
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
       child: SingleChildScrollView(
@@ -577,15 +716,95 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
               label: Text('Change caption style'),
             ),
           ],
-          if (it.kind == TrackKind.music || it.kind == TrackKind.broll) ...[
+          if (it.kind == TrackKind.broll && o != null) ...[
+            SizedBox(height: 12),
+            Text('Overlay Audio', style: Theme.of(context).textTheme.labelMedium),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(o.muted ? 'Muted (Silent Overlay)' : 'Video Audio Enabled'),
+              subtitle: Text(o.muted ? 'Only primary video/speech plays' : 'B-roll audio mixes with speech'),
+              value: o.muted,
+              onChanged: (v) => _apply(
+                (ir) => TimelineOps.updateOverlay(ir, it.id, muted: v),
+                v ? 'Overlay audio muted' : 'Overlay audio enabled',
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _apply(
+                (ir) => TimelineOps.updateOverlay(ir, it.id, muted: true),
+                'Overlay audio removed',
+              ),
+              icon: Icon(Icons.volume_off_rounded),
+              label: Text('Remove overlay audio'),
+            ),
+
+            SizedBox(height: 12),
+            Text('Framing & Layout', style: Theme.of(context).textTheme.labelMedium),
+            SizedBox(height: 6),
+            Wrap(spacing: 8, children: [
+              ChoiceChip(
+                label: Text('Full Cover'),
+                selected: fit == 'cover' && !isPip,
+                onSelected: (_) => _apply(
+                  (ir) => TimelineOps.updateOverlay(ir, it.id, sourceUpdates: {'fit': 'cover', 'pip': false}),
+                  'Framing: Full Cover',
+                ),
+              ),
+              ChoiceChip(
+                label: Text('Fit Canvas'),
+                selected: fit == 'contain' && !isPip,
+                onSelected: (_) => _apply(
+                  (ir) => TimelineOps.updateOverlay(ir, it.id, sourceUpdates: {'fit': 'contain', 'pip': false}),
+                  'Framing: Fit Canvas',
+                ),
+              ),
+              ChoiceChip(
+                label: Text('Picture-in-Picture'),
+                selected: isPip,
+                onSelected: (_) => _apply(
+                  (ir) => TimelineOps.updateOverlay(ir, it.id, sourceUpdates: {'pip': true}),
+                  'Mode: Picture-in-Picture',
+                ),
+              ),
+            ]),
+
+            SizedBox(height: 12),
+            Text('Opacity ${(_brollOpacity * 100).round()}%', style: Theme.of(context).textTheme.labelMedium),
+            Slider(
+              value: _brollOpacity.clamp(0.1, 1.0),
+              min: 0.1,
+              max: 1.0,
+              divisions: 9,
+              onChanged: (v) => setState(() => _brollOpacity = v),
+            ),
+            OutlinedButton(
+              onPressed: () => _apply(
+                (ir) => TimelineOps.updateOverlay(ir, it.id, opacity: _brollOpacity),
+                'Opacity set to ${(_brollOpacity * 100).round()}%',
+              ),
+              child: Text('Apply opacity'),
+            ),
+          ],
+          if (it.kind == TrackKind.music) ...[
             SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                widget.onOpenTool(it.kind == TrackKind.music ? StudioTool.music : StudioTool.broll);
+                widget.onOpenTool(StudioTool.music);
               },
               icon: Icon(Icons.swap_horiz_rounded),
-              label: Text(it.kind == TrackKind.music ? 'Replace music' : 'Add different B-roll'),
+              label: Text('Replace music'),
+            ),
+          ],
+          if (it.kind == TrackKind.broll) ...[
+            SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                widget.onOpenTool(StudioTool.broll);
+              },
+              icon: Icon(Icons.swap_horiz_rounded),
+              label: Text('Replace with different B-roll clip'),
             ),
           ],
           SizedBox(height: 16),

@@ -30,8 +30,12 @@ class TasksTab extends ConsumerWidget {
         onAction: () => context.push('/projects/${project.id}/content'),
       ),
       builder: (tasks) {
-        final sorted = [...tasks]..sort((a, b) {
-            if (a.isOverdue != b.isOverdue) return a.isOverdue ? -1 : 1;
+        final activeTasks = tasks.where((t) =>
+            !t.isOverdue &&
+            t.status != 'submitted_for_review' &&
+            t.status != 'awaiting_approval' &&
+            t.status != 'pending_approval').toList();
+        final sorted = [...activeTasks]..sort((a, b) {
             return (a.dueDate ?? DateTime(9999)).compareTo(b.dueDate ?? DateTime(9999));
           });
         return RefreshIndicator(
@@ -81,7 +85,9 @@ class _TaskCard extends ConsumerWidget {
       final file = await ImagePicker().pickVideo(source: ImageSource.gallery);
       if (file == null || !context.mounted) return;
       showInfo(context, 'Uploading…');
-      url = await guarded(context, () => api.uploadFile(file.path));
+      final bytes = await file.readAsBytes();
+      if (!context.mounted) return;
+      url = await guarded(context, () => api.uploadFile(file.path, fileBytes: bytes, filename: file.name));
     } else {
       url = await promptText(context, title: 'Final video URL', label: 'https://…', action: 'Next');
       if (url != null && Uri.tryParse(url)?.hasScheme != true) {

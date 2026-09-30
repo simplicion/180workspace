@@ -29,10 +29,12 @@ export class ContentCalendarService {
         if (!project) throw notFound('Project');
     }
 
-    static async listCalendars(limit: number = 10, offset: number = 0, explicitCompanyId?: string) {
+    static async listCalendars(limit: number = 10, offset: number = 0, explicitCompanyId?: string, projectId?: string) {
         const companyId = tenantOf(explicitCompanyId);
+        const where: any = { companyId };
+        if (projectId) where.projectId = projectId;
         const calendars: any[] = await getDb().contentCalendar.findMany({
-            where: { companyId },
+            where,
             orderBy: { createdAt: 'desc' },
             skip: offset,
             take: limit

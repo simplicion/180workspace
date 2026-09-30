@@ -228,11 +228,14 @@ export class LocalSpeechTranscriber {
         const confidence = Math.min(0.98, Math.max(0.75, Math.round((wordPeak / (meanRms + 0.001)) * 0.45 * 100) / 100));
 
         words.push({
+          id: `w_${segIdx + 1}_${w + 1}`,
           word: `[speech_${segIdx + 1}_${w + 1}]`,
-          start: startSec,
-          end: endSec,
+          startSeconds: startSec,
+          endSeconds: endSec,
           confidence,
-          emphasis: isEmphasized,
+          isEmphasis: isEmphasized,
+          emphasisScore: isEmphasized ? 0.85 : 0,
+          energyScore: wordPeak,
         });
       }
     }

@@ -44,7 +44,7 @@ void main() {
     await settle(tester);
     expect(find.text('All projects'), findsOneWidget);
     expect(find.text('Sign out'), findsOneWidget);
-    await tester.tapAt(const Offset(10, 700)); // dismiss the menu
+    await tester.tap(find.byIcon(Icons.close_rounded)); // dismiss the bottom sheet
     await settle(tester);
 
     b.json('GET', '$sm/projects', {'success': true, 'projects': [projectJson()]});

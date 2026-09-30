@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,10 +14,13 @@ import '../../core/native_engine/edit_ir.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../data/models/vault_item.dart';
+import '../library/vault_provider.dart';
 import 'caption_fonts.dart';
 import 'director_panel.dart';
 import 'export_sheet.dart';
 import 'studio_controller.dart';
+import 'studio_drafts_service.dart';
 import 'studio_timeline.dart';
 import 'studio_tools.dart';
 import 'timeline_ops.dart';
@@ -39,6 +43,10 @@ class StudioSessionScreen extends ConsumerStatefulWidget {
     this.pieceId,
     this.hook,
     this.script,
+    this.folderId,
+    this.folderName,
+    this.draftId,
+    this.draft,
   });
   final String? sourcePath;
   final String? postId;
@@ -46,6 +54,10 @@ class StudioSessionScreen extends ConsumerStatefulWidget {
   final String? pieceId;
   final String? hook;
   final String? script;
+  final String? folderId;
+  final String? folderName;
+  final String? draftId;
+  final StudioDraft? draft;
 
   @override
   ConsumerState<StudioSessionScreen> createState() => _StudioSessionScreenState();
@@ -60,6 +72,7 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     pieceId: widget.pieceId,
     hook: widget.hook,
     script: widget.script,
+    draftId: widget.draftId ?? widget.draft?.id,
   );
   VideoPlayerController? _player;
   Object? _loadError;
@@ -71,8 +84,70 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
   void initState() {
     super.initState();
     c.addListener(_onChange);
-    if (widget.sourcePath != null) _load(widget.sourcePath!);
+    if (widget.draft != null) {
+      _loadDraft(widget.draft!);
+    } else if (widget.draftId != null) {
+      _loadDraftById(widget.draftId!);
+    } else if (widget.sourcePath != null && widget.sourcePath!.isNotEmpty) {
+      _load(widget.sourcePath!);
+    } else if (widget.folderId != null) {
+      _loadFromFolder(widget.folderId!);
+    }
+  }
 
+  Future<void> _loadFromFolder(String folderId) async {
+    final allItems = ref.read(vaultItemsProvider).valueOrNull ?? [];
+    final folderItems = allItems.where((i) => i.folderId == folderId).toList();
+    final videos = folderItems.where((i) => i.type == VaultItemType.video && (i.localPath?.isNotEmpty ?? false)).toList();
+    if (videos.isNotEmpty && videos.first.localPath != null) {
+      await _load(videos.first.localPath!);
+    }
+  }
+
+  Future<void> _loadDraft(StudioDraft draft) async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      await c.restoreFromDraft(draft);
+      final path = draft.sourcePath;
+      if (path.isNotEmpty) {
+        final p = kIsWeb
+            ? VideoPlayerController.networkUrl(Uri.parse(path))
+            : VideoPlayerController.file(File(path));
+        await p.initialize();
+        await _player?.dispose();
+        _player = p;
+        await p.seekTo(Duration(milliseconds: c.sourcePositionMs));
+      }
+    } catch (e) {
+      _loadError = e;
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadDraftById(String draftId) async {
+    final d = ref.read(studioDraftsProvider.notifier).getById(draftId);
+    if (d != null) {
+      await _loadDraft(d);
+    } else if (widget.sourcePath != null) {
+      await _load(widget.sourcePath!);
+    }
+  }
+
+  Future<void> _saveDraft({bool popOnSuccess = false}) async {
+    final draft = c.createDraft();
+    if (draft == null) {
+      showError(context, 'No active timeline to save as draft.');
+      return;
+    }
+    await ref.read(studioDraftsProvider.notifier).save(draft);
+    if (!mounted) return;
+    showInfo(context, 'Draft saved! You can resume from the Studio page.');
+    if (popOnSuccess) {
+      context.pop();
+    }
   }
 
   @override
@@ -186,28 +261,99 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     await showStudioTool(context, tool, c, onEdit: _edit);
   }
 
-  Future<bool> _confirmLeave() async {
-    if (!c.canUndo) return true;
-    return confirm(context, title: 'Leave the editor?', message: 'Unexported edits are lost.', action: 'Leave', destructive: true);
+  Future<void> _promptLeaveOrSave() async {
+    if (!c.canUndo && c.ir != null) {
+      context.pop();
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.bookmark_add_rounded, color: AppTheme.primary, size: 24),
+                ),
+                SizedBox(width: 14),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Save your draft?', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    SizedBox(height: 2),
+                    Text('Resume editing from where you left off on Studio.', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                  ]),
+                ),
+              ]),
+              SizedBox(height: 20),
+              FilledButton.icon(
+                icon: Icon(Icons.bookmark_added_rounded),
+                label: Text('Save as Draft & Leave'),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _saveDraft(popOnSuccess: true);
+                },
+              ),
+              SizedBox(height: 10),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  context.pop();
+                },
+                style: OutlinedButton.styleFrom(foregroundColor: AppTheme.error),
+                child: Text('Discard Edits & Leave'),
+              ),
+              SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Keep Editing', style: TextStyle(color: AppTheme.textSecondary)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final ir = c.ir;
     return PopScope(
-      canPop: !c.canUndo,
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        if (await _confirmLeave() && context.mounted) context.pop();
+        await _promptLeaveOrSave();
       },
       child: Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBar(
           backgroundColor: AppTheme.surface,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: _promptLeaveOrSave,
+          ),
           title: Text('Studio'),
           actions: [
             IconButton(tooltip: 'Undo', onPressed: c.canUndo ? c.undo : null, icon: Icon(Icons.undo_rounded)),
             IconButton(tooltip: 'Redo', onPressed: c.canRedo ? c.redo : null, icon: Icon(Icons.redo_rounded)),
+            if (ir != null)
+              TextButton.icon(
+                onPressed: () => _saveDraft(),
+                icon: Icon(Icons.bookmark_border_rounded, size: 18),
+                label: Text('Save Draft'),
+              ),
             Padding(
               padding: EdgeInsets.only(right: 8),
               child: FilledButton(
@@ -228,7 +374,15 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
                 ? _Empty(error: _loadError, onPick: _pick, onRecord: () => context.pushReplacement(
                     '/camera?projectId=${widget.projectId ?? ''}&postId=${widget.postId ?? ''}'))
                 : Column(children: [
-                    Expanded(child: _Preview(controller: c, player: _player, playing: _playing)),
+                    Expanded(
+                      child: _Preview(
+                        controller: c,
+                        player: _player,
+                        playing: _playing,
+                        onOpenTool: _openTool,
+                        onEdit: _edit,
+                      ),
+                    ),
                     _TransportBar(controller: c, playing: _playing, onPlay: _togglePlay, onSplit: () => _edit((ir) => TimelineOps.split(ir, c.playheadMs))),
                     _TranscriptChip(controller: c),
                     StudioTimeline(
@@ -273,11 +427,22 @@ class _Empty extends StatelessWidget {
 
 /// Source frame at the playhead, cropped/letterboxed like the export, with text and zoom
 /// indicators. It is a guide, not a frame-accurate render: Export produces the real video.
+/// Source frame at the playhead, cropped/letterboxed like the export, with text and zoom
+/// indicators. It is a guide, not a frame-accurate render: Export produces the real video.
 class _Preview extends StatelessWidget {
-  const _Preview({required this.controller, required this.player, required this.playing});
+  const _Preview({
+    required this.controller,
+    required this.player,
+    required this.playing,
+    required this.onOpenTool,
+    required this.onEdit,
+  });
+
   final StudioController controller;
   final VideoPlayerController? player;
   final bool playing;
+  final ValueChanged<StudioTool> onOpenTool;
+  final EditFn onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -289,6 +454,7 @@ class _Preview extends StatelessWidget {
     final broll = ir.overlays.where((o) => t >= o.timelineStartMs && t < o.timelineEndMs).firstOrNull;
     final p = player;
     final canvasAspect = ir.canvas.width / ir.canvas.height;
+
     return Container(
       color: AppTheme.background,
       padding: EdgeInsets.all(12),
@@ -299,32 +465,77 @@ class _Preview extends StatelessWidget {
             child: Container(
               color: _hex(ir.canvas.background),
               child: Stack(fit: StackFit.expand, children: [
+                // Base primary video
                 if (p != null && p.value.isInitialized)
                   Transform.scale(
                     scale: zoom?.scale ?? 1,
                     alignment: Alignment(((zoom?.centerX ?? 0.5) * 2) - 1, ((zoom?.centerY ?? 0.5) * 2) - 1),
                     child: _CroppedVideo(player: p, clip: clip, filter: clip.filter),
                   ),
-                if (broll != null && broll.isImage && broll.source['url'] is String)
-                  Image.network(
-                    broll.source['url'] as String,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => SizedBox.shrink(),
-                  ),
-                if (broll != null)
-                  Container(
-                    color: broll.isImage ? null : Colors.black54,
-                    alignment: Alignment.topLeft,
-                    padding: EdgeInsets.all(8),
-                    child: StatusChip(label: '${broll.isImage ? 'Photo' : 'B-roll'}: ${broll.source['query'] ?? broll.source['kind']}', color: AppTheme.accentBlue, icon: Icons.layers_rounded),
-                  ),
-                for (final cap in captions)
-                  Align(
-                    alignment: Alignment(0, ((cap.style['positionY'] as num?)?.toDouble() ?? 0.72) * 2 - 1),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: _CaptionPreview(caption: cap, t: t),
+
+                // B-roll Video or Image Overlay
+                if (broll != null) ...[
+                  if (broll.isImage)
+                    _BrollOverlayImage(
+                      broll: broll,
+                      onTap: () => onOpenTool(StudioTool.broll),
+                    )
+                  else
+                    _BrollOverlayVideo(
+                      broll: broll,
+                      playheadMs: t,
+                      playing: playing,
+                      onTap: () => onOpenTool(StudioTool.broll),
                     ),
+
+                  // Overlay status chip with mute indicator & shortcut
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: InkWell(
+                      onTap: () => onOpenTool(StudioTool.broll),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.accentBlue.withValues(alpha: 0.5)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(broll.isImage ? Icons.photo_rounded : Icons.layers_rounded, size: 14, color: AppTheme.accentBlue),
+                            SizedBox(width: 5),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: 160),
+                              child: Text(
+                                '${broll.isImage ? 'Photo' : 'B-roll'}: ${broll.source['query'] ?? broll.source['kind'] ?? 'Cutaway'}',
+                                style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (!broll.isImage && broll.muted) ...[
+                              SizedBox(width: 4),
+                              Icon(Icons.volume_off_rounded, size: 12, color: AppTheme.warning),
+                            ],
+                            SizedBox(width: 4),
+                            Icon(Icons.tune_rounded, size: 12, color: AppTheme.textMuted),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+
+                // Draggable text / captions on top of the preview canvas
+                for (final cap in captions)
+                  _DraggableCaption(
+                    caption: cap,
+                    t: t,
+                    controller: controller,
+                    onTap: () => onOpenTool(cap.kind == 'text' ? StudioTool.text : StudioTool.captions),
                   ),
               ]),
             ),
@@ -338,6 +549,295 @@ class _Preview extends StatelessWidget {
     final h = hex.replaceFirst('#', '');
     final v = int.tryParse(h.length == 6 ? 'FF$h' : h, radix: 16);
     return v == null ? Colors.black : Color(v);
+  }
+}
+
+/// Image B-roll cutaway overlay
+class _BrollOverlayImage extends StatelessWidget {
+  const _BrollOverlayImage({required this.broll, required this.onTap});
+  final EditIrOverlay broll;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = broll.source['url'] as String?;
+    if (url == null || url.isEmpty) return SizedBox.shrink();
+    final isPip = broll.source['pip'] == true;
+    final fit = (broll.source['fit'] as String?) ?? 'cover';
+    final boxFit = fit == 'contain' ? BoxFit.contain : BoxFit.cover;
+
+    Widget img = Image.network(
+      url,
+      fit: boxFit,
+      errorBuilder: (_, o, s) => Container(color: Colors.black54, child: Icon(Icons.broken_image_rounded, color: AppTheme.textMuted)),
+    );
+
+    img = Opacity(opacity: broll.opacity.clamp(0.05, 1.0), child: img);
+
+    if (isPip) {
+      return Align(
+        alignment: Alignment(0.82, 0.72),
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 120,
+            height: 180,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.accentBlue, width: 2),
+              boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4))],
+            ),
+            child: ClipRRect(borderRadius: BorderRadius.circular(10), child: img),
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(onTap: onTap, child: img);
+  }
+}
+
+/// Synchronized B-roll Video Player with PiP, framing, cropping, volume and opacity controls
+class _BrollOverlayVideo extends StatefulWidget {
+  const _BrollOverlayVideo({
+    required this.broll,
+    required this.playheadMs,
+    required this.playing,
+    required this.onTap,
+  });
+
+  final EditIrOverlay broll;
+  final int playheadMs;
+  final bool playing;
+  final VoidCallback onTap;
+
+  @override
+  State<_BrollOverlayVideo> createState() => _BrollOverlayVideoState();
+}
+
+class _BrollOverlayVideoState extends State<_BrollOverlayVideo> {
+  VideoPlayerController? _controller;
+  String? _loadedUrl;
+  bool _initializing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initPlayer();
+  }
+
+  @override
+  void didUpdateWidget(_BrollOverlayVideo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final url = widget.broll.source['url'] as String?;
+    if (url != _loadedUrl) {
+      _initPlayer();
+    } else {
+      _syncPlayback();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initPlayer() async {
+    final url = widget.broll.source['url'] as String?;
+    if (url == null || url.isEmpty) return;
+    setState(() {
+      _initializing = true;
+      _loadedUrl = url;
+    });
+    await _controller?.dispose();
+    try {
+      final isNet = url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || kIsWeb;
+      final c = isNet
+          ? VideoPlayerController.networkUrl(Uri.parse(url))
+          : VideoPlayerController.file(File(url));
+      await c.initialize();
+      c.setLooping(true);
+      if (!mounted) {
+        await c.dispose();
+        return;
+      }
+      _controller = c;
+      _syncPlayback();
+    } catch (e) {
+      debugPrint('B-roll player error: $e');
+    } finally {
+      if (mounted) setState(() => _initializing = false);
+    }
+  }
+
+  void _syncPlayback() {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    c.setVolume(widget.broll.muted ? 0.0 : 1.0);
+    final targetMs = (widget.playheadMs - widget.broll.timelineStartMs).clamp(0, widget.broll.timelineEndMs - widget.broll.timelineStartMs) + widget.broll.sourceStartMs;
+    final curMs = c.value.position.inMilliseconds;
+    if ((curMs - targetMs).abs() > 200) {
+      c.seekTo(Duration(milliseconds: targetMs));
+    }
+    if (widget.playing && !c.value.isPlaying) {
+      c.play();
+    } else if (!widget.playing && c.value.isPlaying) {
+      c.pause();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _controller;
+    final broll = widget.broll;
+    final isPip = broll.source['pip'] == true;
+    final fit = (broll.source['fit'] as String?) ?? 'cover';
+    final boxFit = fit == 'contain' ? BoxFit.contain : BoxFit.cover;
+
+    Widget content;
+    if (c != null && c.value.isInitialized) {
+      content = SizedBox.expand(
+        child: FittedBox(
+          fit: boxFit,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: c.value.size.width,
+            height: c.value.size.height,
+            child: VideoPlayer(c),
+          ),
+        ),
+      );
+    } else {
+      final thumb = broll.source['thumbnailUrl'] as String?;
+      content = thumb != null
+          ? Image.network(thumb, fit: boxFit, errorBuilder: (_, o, s) => _placeholder())
+          : _placeholder();
+    }
+
+    content = Opacity(
+      opacity: broll.opacity.clamp(0.05, 1.0),
+      child: content,
+    );
+
+    if (isPip) {
+      return Align(
+        alignment: Alignment(0.82, 0.72),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width: 125,
+            height: 190,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.accentBlue, width: 2),
+              boxShadow: [
+                BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4)),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  content,
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(4)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.picture_in_picture_alt_rounded, size: 10, color: AppTheme.primary),
+                        SizedBox(width: 3),
+                        Text('PiP', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
+                      ]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: content,
+    );
+  }
+
+  Widget _placeholder() => Container(
+        color: Colors.black87,
+        child: Center(
+          child: _initializing
+              ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary))
+              : Icon(Icons.movie_rounded, color: AppTheme.textMuted, size: 36),
+        ),
+      );
+}
+
+/// CapCut-style draggable text overlay on top of the preview canvas
+class _DraggableCaption extends StatefulWidget {
+  const _DraggableCaption({
+    required this.caption,
+    required this.t,
+    required this.controller,
+    required this.onTap,
+  });
+
+  final EditIrCaption caption;
+  final int t;
+  final StudioController controller;
+  final VoidCallback onTap;
+
+  @override
+  State<_DraggableCaption> createState() => _DraggableCaptionState();
+}
+
+class _DraggableCaptionState extends State<_DraggableCaption> {
+  bool _active = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final posX = (widget.caption.style['positionX'] as num?)?.toDouble() ?? 0.5;
+    final posY = (widget.caption.style['positionY'] as num?)?.toDouble() ?? (widget.caption.kind == 'text' ? 0.25 : 0.72);
+
+    return LayoutBuilder(builder: (context, constraints) {
+      return Align(
+        alignment: Alignment(posX * 2 - 1, posY * 2 - 1),
+        child: GestureDetector(
+          onTap: () {
+            widget.controller.selectTrackItem(widget.caption.id, TrackKind.captions);
+            widget.onTap();
+          },
+          onPanStart: (_) => setState(() => _active = true),
+          onPanUpdate: (d) {
+            if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) return;
+            final nextX = (posX + d.delta.dx / constraints.maxWidth).clamp(0.05, 0.95);
+            final nextY = (posY + d.delta.dy / constraints.maxHeight).clamp(0.05, 0.95);
+            widget.controller.applyWithoutHistory((ir) => TimelineOps.updateCaptionPosition(ir, widget.caption.id, positionX: nextX, positionY: nextY));
+          },
+          onPanEnd: (_) {
+            setState(() => _active = false);
+            widget.controller.apply((ir) => TimelineOps.updateCaptionPosition(ir, widget.caption.id, positionX: posX, positionY: posY));
+          },
+          onPanCancel: () => setState(() => _active = false),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: _active
+                ? BoxDecoration(
+                    border: Border.all(color: AppTheme.primary, width: 1.5),
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.black.withValues(alpha: 0.2),
+                  )
+                : null,
+            child: _CaptionPreview(caption: widget.caption, t: widget.t),
+          ),
+        ),
+      );
+    });
   }
 }
 
@@ -424,22 +924,35 @@ class _CaptionPreview extends StatelessWidget {
     final hi = col('highlightColor', Color(0xFFFFE600));
     final bgSpec = st['background'];
     final bg = bgSpec is Map ? col2(bgSpec['color'], Colors.black.withValues(alpha: 0.7)) : null;
+
+    final anim = (st['animation'] as String?) ?? 'none';
+    final elapsedMs = (t - caption.startMs).clamp(0, caption.endMs - caption.startMs);
+    final textStr = caption.text;
+
+    // Typewriter effect
+    String renderedText = textStr;
+    if (anim == 'typewriter' && textStr.isNotEmpty) {
+      final chars = ((elapsedMs / 80).floor()).clamp(1, textStr.length);
+      renderedText = textStr.substring(0, chars);
+    }
+
     final spans = caption.words.isEmpty || caption.kind == 'text'
-        ? [TextSpan(text: upper ? caption.text.toUpperCase() : caption.text)]
+        ? [TextSpan(text: upper ? renderedText.toUpperCase() : renderedText)]
         : [
             for (final w in caption.words)
               TextSpan(
                 text: '${upper ? w.text.toUpperCase() : w.text} ',
                 style: TextStyle(
-                  color: st['animation'] == 'none'
+                  color: anim == 'none'
                       ? text
-                      : (t >= w.startMs && t < w.endMs) || (st['animation'] == 'karaoke' && t >= w.endMs) || w.highlight
+                      : (t >= w.startMs && t < w.endMs) || (anim == 'karaoke' && t >= w.endMs) || w.highlight
                           ? hi
                           : text,
                 ),
               ),
           ];
-    return Container(
+
+    Widget textWidget = Container(
       padding: bg == null ? null : EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: bg == null ? null : BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
       child: Text.rich(
@@ -448,9 +961,9 @@ class _CaptionPreview extends StatelessWidget {
         style: CaptionFonts.textStyle(
           st,
           color: text,
-          fontSize: caption.kind == 'text' ? 22 : 18,
+          fontSize: (st['fontSizePx'] as num?)?.toDouble() ?? (caption.kind == 'text' ? 24 : 18),
           shadows: [
-            if (st['glow'] == true) Shadow(blurRadius: 12, color: hi),
+            if (st['glow'] == true) Shadow(blurRadius: 16, color: hi),
             if (st['shadow'] == true || (st['strokeWidthPx'] as num? ?? 0) > 0) ...[
               Shadow(blurRadius: 4, color: Colors.black),
               Shadow(blurRadius: 1, color: Colors.black),
@@ -459,6 +972,25 @@ class _CaptionPreview extends StatelessWidget {
         ),
       ),
     );
+
+    // Apply CapCut motion animations
+    if (anim == 'fade_in') {
+      final alpha = (elapsedMs / 300).clamp(0.0, 1.0);
+      textWidget = Opacity(opacity: alpha, child: textWidget);
+    } else if (anim == 'word_pop') {
+      final p = (elapsedMs / 250).clamp(0.0, 1.0);
+      final s = p < 0.7 ? 0.7 + (p / 0.7) * 0.4 : 1.1 - ((p - 0.7) / 0.3) * 0.1;
+      textWidget = Transform.scale(scale: s, child: textWidget);
+    } else if (anim == 'slide_up') {
+      final p = (elapsedMs / 300).clamp(0.0, 1.0);
+      final dy = (1.0 - p) * 20;
+      textWidget = Transform.translate(offset: Offset(0, dy), child: textWidget);
+    } else if (anim == 'pulse') {
+      final s = 1.0 + 0.05 * math.sin(t / 200);
+      textWidget = Transform.scale(scale: s, child: textWidget);
+    }
+
+    return textWidget;
   }
 }
 

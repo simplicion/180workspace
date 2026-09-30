@@ -1,4 +1,4 @@
-import type { AutopilotPlatform, CarouselBrief, ContentFormat, HookType, Script, Strategy } from './schemas';
+import type { AutopilotPlatform, CarouselBrief, ContentFormat, ContentMixConfig, DesignSystem, HookType, PsychologicalJob, Script, Strategy } from './schemas';
 
 /** What every agent knows about the brand. Built from WS1's brand consciousness profile. */
 export interface AutopilotBrandContext {
@@ -24,6 +24,12 @@ export interface AutopilotRunInput {
     brand: AutopilotBrandContext;
     /** Compact, project-scoped memory lines (creator preferences, feedback, performance history). */
     memoryContext?: string[];
+    campaignName?: string;
+    structureDirectives?: string;
+    referenceInspirations?: string;
+    contentMix?: ContentMixConfig;
+    targetReelDurationSec?: number;
+    carouselSlideCount?: number;
 }
 
 export interface PieceCopy {
@@ -48,6 +54,10 @@ export interface AutopilotPiece {
     angle: string;
     headline: string;
     hookType: HookType;
+    psychologicalJob?: PsychologicalJob;
+    designSystem?: DesignSystem;
+    visualDirection?: string;
+    whatContentDelivers?: string;
     spokenHook: string;
     onScreenHook: string;
     script?: Script;

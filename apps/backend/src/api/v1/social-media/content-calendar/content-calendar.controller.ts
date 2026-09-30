@@ -18,9 +18,10 @@ export const listCalendars = async (req: Request, res: Response) => {
     const companyId = requireCompany(req, res);
     if (!companyId) return;
     try {
-        const limit = parseInt(req.query.limit as string) || 10;
+        const limit = parseInt(req.query.limit as string) || 50;
         const offset = parseInt(req.query.offset as string) || 0;
-        const calendars = await ContentCalendarService.listCalendars(limit, offset, companyId);
+        const projectId = typeof req.query.projectId === 'string' && req.query.projectId.trim() ? req.query.projectId.trim() : undefined;
+        const calendars = await ContentCalendarService.listCalendars(limit, offset, companyId, projectId);
         res.json({ calendars });
     } catch (err) { sendRouteError(res, err, 'content-calendar.list'); }
 };

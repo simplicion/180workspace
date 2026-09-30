@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../data/models/brand_voice.dart';
@@ -8,6 +9,7 @@ import '../../data/models/content_calendar.dart';
 import '../../data/models/engagement_rule.dart';
 import '../../data/models/inbox.dart';
 import '../../data/models/library.dart';
+import '../../data/models/manager_chat.dart';
 import '../../data/models/platform.dart';
 import '../../data/models/project.dart';
 import '../../data/models/review.dart';
@@ -219,8 +221,12 @@ class SocialApi {
 
   // ── AI content calendars ──────────────────────────────────────────────────
 
-  Future<List<ContentCalendar>> listCalendars({int limit = 50, int offset = 0}) async {
-    final r = await _api.get('$base/content-calendar', query: {'limit': limit, 'offset': offset});
+  Future<List<ContentCalendar>> listCalendars({int limit = 50, int offset = 0, String? projectId}) async {
+    final r = await _api.get('$base/content-calendar', query: compact({
+      'limit': limit,
+      'offset': offset,
+      if (projectId != null && projectId.isNotEmpty) 'projectId': projectId,
+    }));
     return jList(r['calendars'], ContentCalendar.fromJson);
   }
 
@@ -271,6 +277,11 @@ class SocialApi {
     List<String>? platforms,
     List<String> goals = const [],
     String? name,
+    String? structureDirectives,
+    String? referenceInspirations,
+    Map<String, dynamic>? contentMix,
+    int? targetReelDurationSec,
+    int? carouselSlideCount,
   }) async {
     final d = startDate;
     final ymd = '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -280,6 +291,11 @@ class SocialApi {
       if (platforms != null && platforms.isNotEmpty) 'platforms': platforms,
       if (goals.isNotEmpty) 'goals': goals,
       if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      if (structureDirectives != null && structureDirectives.trim().isNotEmpty) 'structureDirectives': structureDirectives.trim(),
+      if (referenceInspirations != null && referenceInspirations.trim().isNotEmpty) 'referenceInspirations': referenceInspirations.trim(),
+      if (contentMix != null && contentMix.isNotEmpty) 'contentMix': contentMix,
+      if (targetReelDurationSec != null) 'targetReelDurationSec': targetReelDurationSec,
+      if (carouselSlideCount != null) 'carouselSlideCount': carouselSlideCount,
     }), idempotencyKey: _uuid.v4());
     final jobId = jStr(r['jobId']);
     final calendarId = jStr(r['calendarId']);
@@ -361,6 +377,22 @@ class SocialApi {
   Future<MutationOutcome> updatePost(String id, Json body) =>
       _mutate('PUT', '$base/posts/$id', body: body, label: 'Update post');
 
+  Future<MultipartFile> _makeMultipartFile(
+    String path, {
+    String? filename,
+    DioMediaType? contentType,
+  }) async {
+    final name = filename ?? path.split(RegExp(r'[/\\]')).lastOrNull ?? 'file';
+    if (kIsWeb) {
+      List<int> bytes = const <int>[];
+      try {
+        bytes = await XFile(path).readAsBytes();
+      } catch (_) {}
+      return MultipartFile.fromBytes(bytes, filename: name, contentType: contentType);
+    }
+    return MultipartFile.fromFile(path, filename: name, contentType: contentType);
+  }
+
   /// Uploads a rendered/recorded MP4 as the post's deliverable and moves it to `in_review`
   /// (`POST /posts/:id/submit-for-approval`, device-gated multipart, max 300 MB).
   Future<SocialPost> submitForApproval(
@@ -372,10 +404,10 @@ class SocialApi {
   }) async {
     Future<Json> call() async {
       final form = FormData.fromMap({
-        'video': await MultipartFile.fromFile(videoPath,
+        'video': await _makeMultipartFile(videoPath,
             contentType: videoPath.toLowerCase().endsWith('.mov') ? DioMediaType('video', 'quicktime') : DioMediaType('video', 'mp4')),
         if (thumbnailPath != null)
-          'thumbnail': await MultipartFile.fromFile(thumbnailPath,
+          'thumbnail': await _makeMultipartFile(thumbnailPath,
               contentType: thumbnailPath.toLowerCase().endsWith('.png') ? DioMediaType('image', 'png') : DioMediaType('image', 'jpeg')),
         if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
         'source': 'social-studio-mobile',
@@ -401,7 +433,7 @@ class SocialApi {
   Future<String> uploadPieceRawFootage(String pieceId, String videoPath, {void Function(int sent, int total)? onProgress}) async {
     final lower = videoPath.toLowerCase();
     final form = FormData.fromMap({
-      'video': await MultipartFile.fromFile(videoPath,
+      'video': await _makeMultipartFile(videoPath,
           contentType: lower.endsWith('.mov')
               ? DioMediaType('video', 'quicktime')
               : lower.endsWith('.webm')
@@ -424,7 +456,7 @@ class SocialApi {
   }) async {
     Future<Json> call() async {
       final form = FormData.fromMap({
-        'video': await MultipartFile.fromFile(videoPath,
+        'video': await _makeMultipartFile(videoPath,
             contentType: videoPath.toLowerCase().endsWith('.mov') ? DioMediaType('video', 'quicktime') : DioMediaType('video', 'mp4')),
         if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
         'source': 'social-studio-mobile',
@@ -692,6 +724,52 @@ class SocialApi {
     return list.map((m) => jMap(m)).toList();
   }
 
+  // ── 180 Manager AI Assistant & Swarm ───────────────────────────────────────
+
+  Future<ManagerTurnResponse> chatWithManager({
+    required String message,
+    String? projectId,
+    String? conversationId,
+    String? attachedAssetUrl,
+  }) async {
+    final r = await _api.post('$base/manager/chat', body: compact({
+      'message': message,
+      'projectId': projectId,
+      'conversationId': conversationId,
+      'attachedAssetUrl': attachedAssetUrl,
+    }));
+    return ManagerTurnResponse.fromJson(jMap(r));
+  }
+
+  Future<Map<String, dynamic>> executeManagerAction(Map<String, dynamic> action) async {
+    final r = await _api.post('$base/manager/actions/execute', body: {'action': action});
+    return jMap(r);
+  }
+
+  Future<Map<String, dynamic>> getManagerCalendarStatus(String projectId) async {
+    final r = await _api.get('$base/manager/calendar-status', query: {'projectId': projectId});
+    return jMap(r['status']);
+  }
+
+  Future<List<Map<String, dynamic>>> getManagerInboxOpportunities({String? projectId, String? platform}) async {
+    final r = await _api.get('$base/manager/inbox-opportunities', query: compact({
+      'projectId': projectId,
+      'platform': platform,
+    }));
+    final list = r['opportunities'] as List<dynamic>? ?? [];
+    return list.map((o) => jMap(o)).toList();
+  }
+
+  Future<Map<String, dynamic>> getManagerAnalyticsSummary({String? projectId}) async {
+    final r = await _api.get('$base/manager/analytics-summary', query: compact({'projectId': projectId}));
+    return jMap(r['summary']);
+  }
+
+  Future<Map<String, dynamic>> analyzeVideoIntel(Map<String, dynamic> data) async {
+    final r = await _api.post('$base/manager/video-intel', body: data);
+    return jMap(r['traits']);
+  }
+
   // ── Assets & banks ─────────────────────────────────────────────────────────
 
   Future<List<LinkedAsset>> listAssets({String? type}) async {
@@ -751,8 +829,19 @@ class SocialApi {
   // ── Storage ────────────────────────────────────────────────────────────────
 
   /// Uploads a local file to workspace storage and returns its public URL.
-  Future<String> uploadFile(String filePath, {void Function(int sent, int total)? onProgress}) async {
-    final r = await _api.upload('/api/files/upload', filePath: filePath, onProgress: onProgress);
+  Future<String> uploadFile(
+    String filePath, {
+    List<int>? fileBytes,
+    String? filename,
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    final r = await _api.upload(
+      '/api/files/upload',
+      filePath: filePath,
+      fileBytes: fileBytes,
+      filename: filename,
+      onProgress: onProgress,
+    );
     final doc = jMap(r['document']);
     final url = jStr(doc['fileUrl']) ?? jStr(r['fileUrl']) ?? jStr(r['url']);
     if (url == null || url.isEmpty) {
@@ -762,10 +851,12 @@ class SocialApi {
   }
 
   /// Uploads a brand logo to Cloudflare R2 and updates the project's brand identity.
-  Future<String> uploadBrandLogo(String projectId, String filePath) async {
+  Future<String> uploadBrandLogo(String projectId, String filePath, {List<int>? fileBytes, String? filename}) async {
     final r = await _api.upload(
       '$base/projects/$projectId/brand-consciousness/logo',
       filePath: filePath,
+      fileBytes: fileBytes,
+      filename: filename,
       field: 'logo',
     );
     final url = jStr(r['logoUrl']);

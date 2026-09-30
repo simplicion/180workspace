@@ -2,8 +2,11 @@ import { prisma, requestContext } from '@workspace/db';
 import { AiContentService } from '@workspace/ai';
 
 export class ContentCalendarService {
-    static async listCalendars(limit: number = 10, offset: number = 0) {
+    static async listCalendars(limit: number = 10, offset: number = 0, projectId?: string) {
+        const where: any = {};
+        if (projectId) where.projectId = projectId;
         const calendars = await prisma.contentCalendar.findMany({
+            where,
             orderBy: { createdAt: 'desc' },
             skip: offset,
             take: limit

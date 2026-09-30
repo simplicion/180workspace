@@ -32,17 +32,25 @@ void main() {
     expect(b.calls('DELETE', '$_devices/dev1'), isEmpty);
   });
 
-  appTest('Settings → Appearance: Dark / System persisted; Light is not offered and never restored', (tester) async {
+  appTest('Settings → Appearance: Dark / Light / System persisted and selectable', (tester) async {
     final b = seededBackend()..json('GET', _devices, {'success': true, 'devices': []});
     final h = await pumpApp(tester, b, location: '/settings');
     await tester.scrollUntilVisible(find.text('System'), 200);
+    expect(find.text('Dark'), findsOneWidget);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('System'), findsOneWidget);
+
     await tester.tap(find.text('System'));
     await settle(tester);
     expect(h.container.read(themeModeProvider), ThemeMode.system);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('user_theme_mode'), 'system');
-    expect(find.text('Light'), findsNothing);
-    expect(ThemeModeNotifier.parse('light'), ThemeMode.dark, reason: 'a stored light choice falls back to dark until screens are tokenised');
+
+    await tester.tap(find.text('Light'));
+    await settle(tester);
+    expect(h.container.read(themeModeProvider), ThemeMode.light);
+    expect(prefs.getString('user_theme_mode'), 'light');
+    expect(ThemeModeNotifier.parse('light'), ThemeMode.light);
   });
 
   appTest('Settings → Notifications: shows "Push not configured" when Firebase is unavailable in this build', (tester) async {

@@ -15,8 +15,10 @@ import '../projects/projects_list_screen.dart';
 import '../reviews/public_review_screen.dart';
 import '../settings/settings_screen.dart';
 import '../studio/camera_screen.dart';
+import '../studio/studio_drafts_service.dart';
 import '../studio/studio_screen.dart';
 import '../studio/studio_session_screen.dart';
+import '../workspace/oauth_callback_screen.dart';
 import '../workspace/project_workspace_screen.dart';
 
 String? _q(GoRouterState s, String k) {
@@ -41,6 +43,7 @@ List<RouteBase> extraRoutes() => [
       GoRoute(path: '/projects/new', builder: (_, _) => CreateProjectScreen()),
       GoRoute(
         path: '/projects/:id/:tab',
+        redirect: (_, s) => s.pathParameters['tab'] == 'media' ? '/library' : null,
         builder: (_, s) => ProjectWorkspaceScreen(
           projectId: s.pathParameters['id']!,
           tab: s.pathParameters['tab']!,
@@ -70,11 +73,15 @@ List<RouteBase> extraRoutes() => [
         builder: (_, s) {
           final x = _extra(s);
           return CameraScreen(
-            hook: jStr(x['hook']),
-            script: jStr(x['script']),
+            hook: _q(s, 'hook') ?? jStr(x['hook']),
+            script: _q(s, 'script') ?? jStr(x['script']),
             projectId: _q(s, 'projectId') ?? jStr(x['projectId']),
             postId: _q(s, 'postId'),
             pieceId: _q(s, 'pieceId') ?? jStr(x['pieceId']),
+            folderId: _q(s, 'folderId') ?? jStr(x['folderId']),
+            folderName: _q(s, 'folderName') ?? jStr(x['folderName']),
+            speed: double.tryParse(_q(s, 'speed') ?? '') ?? (x['speed'] as num?)?.toDouble() ?? 1.2,
+            fontSize: double.tryParse(_q(s, 'fontSize') ?? '') ?? (x['fontSize'] as num?)?.toDouble() ?? 22.0,
           );
         },
       ),
@@ -90,9 +97,14 @@ List<RouteBase> extraRoutes() => [
                   pieceId: _q(s, 'pieceId') ?? jStr(x['pieceId']),
                   hook: jStr(x['hook']),
                   script: jStr(x['script']),
+                  folderId: _q(s, 'folderId') ?? jStr(x['folderId']),
+                  folderName: _q(s, 'folderName') ?? jStr(x['folderName']),
+                  draftId: _q(s, 'draftId') ?? jStr(x['draftId']),
+                  draft: x['draft'] is StudioDraft ? x['draft'] as StudioDraft : null,
                 )
               : StudioScreen();
         },
       ),
       GoRoute(path: '/review/:token', builder: (_, s) => PublicReviewScreen(token: s.pathParameters['token']!)),
+      GoRoute(path: '/oauth-callback', builder: (_, s) => OAuthCallbackScreen(query: s.uri.queryParameters)),
     ];

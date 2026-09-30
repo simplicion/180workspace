@@ -764,6 +764,7 @@ class TimelineOps {
     String preset, {
     String? highlightColor,
     double positionY = 0.72,
+    double positionX = 0.5,
   }) {
     final base = <String, dynamic>{
       'preset': preset,
@@ -797,7 +798,7 @@ class TimelineOps {
         'fontWeight': 600,
         'background': {'color': '#000000B3', 'paddingPx': 16, 'radiusPx': 16},
       },
-      'TITLE' => {...base, 'fontSizePx': 88, 'positionY': positionY},
+      'TITLE' => {...base, 'fontSizePx': 88, 'positionY': positionY, 'positionX': positionX},
       _ when viralCaptionPresets.containsKey(preset) => {
         ...base,
         ...viralCaptionPresets[preset]!.style,
@@ -1013,6 +1014,7 @@ class TimelineOps {
     required int startMs,
     required int durationMs,
     double positionY = 0.2,
+    double positionX = 0.5,
     Map<String, dynamic>? style,
   }) {
     final t = text.trim();
@@ -1028,7 +1030,7 @@ class TimelineOps {
       endMs: e,
       text: t,
       words: [EditIrWord(text: t, startMs: s, endMs: e)],
-      style: style ?? captionStyle('TITLE', positionY: positionY),
+      style: style ?? captionStyle('TITLE', positionY: positionY, positionX: positionX),
     );
     return _copy(
       ir,
@@ -1109,12 +1111,105 @@ class TimelineOps {
   static MobileEditIr removeOverlay(MobileEditIr ir, String id) =>
       _copy(ir, overlays: ir.overlays.where((o) => o.id != id).toList());
 
+  /// Updates overlay properties: muted, opacity, fit, crop, pip, volume, etc.
+  static MobileEditIr updateOverlay(
+    MobileEditIr ir,
+    String id, {
+    bool? muted,
+    double? opacity,
+    Map<String, dynamic>? sourceUpdates,
+    int? sourceStartMs,
+  }) {
+    final overlays = ir.overlays.map((o) {
+      if (o.id != id) return o;
+      final newSource = Map<String, dynamic>.from(o.source);
+      if (sourceUpdates != null) {
+        newSource.addAll(sourceUpdates);
+      }
+      return EditIrOverlay(
+        id: o.id,
+        timelineStartMs: o.timelineStartMs,
+        timelineEndMs: o.timelineEndMs,
+        sourceStartMs: sourceStartMs ?? o.sourceStartMs,
+        source: newSource,
+        opacity: opacity ?? o.opacity,
+        muted: muted ?? o.muted,
+        mediaType: o.mediaType,
+      );
+    }).toList();
+    return _copy(ir, overlays: overlays);
+  }
+
+  /// Adds a new video clip to the main timeline track (e.g. at the start as an intro or appended at the end).
+  static MobileEditIr addTimelineClip(
+    MobileEditIr ir, {
+    required String assetId,
+    required int durationMs,
+    int width = 1080,
+    int height = 1920,
+    bool prepend = false,
+    int? atIndex,
+  }) {
+    final clip = EditIrClip(
+      id: _id('c'),
+      assetId: assetId,
+      sourceStartMs: 0,
+      sourceEndMs: durationMs,
+      timelineStartMs: 0,
+      timelineEndMs: durationMs,
+    );
+    final clips = [...ir.clips];
+    if (prepend) {
+      clips.insert(0, clip);
+    } else if (atIndex != null) {
+      clips.insert(atIndex.clamp(0, clips.length), clip);
+    } else {
+      clips.add(clip);
+    }
+    final sources = [...ir.sources];
+    if (!sources.any((s) => s.assetId == assetId)) {
+      sources.add(EditIrSource(
+        assetId: assetId,
+        durationMs: durationMs,
+        width: width,
+        height: height,
+      ));
+    }
+    final nextIr = ir.copyWith(sources: sources);
+    return _replaceClips(nextIr, clips);
+  }
+
+  /// Updates caption position (positionX, positionY in normalized 0.05..0.95 coordinates).
+  static MobileEditIr updateCaptionPosition(
+    MobileEditIr ir,
+    String captionId, {
+    required double positionX,
+    required double positionY,
+  }) {
+    final captions = ir.captions.map((c) {
+      if (c.id != captionId) return c;
+      final st = Map<String, dynamic>.from(c.style);
+      st['positionX'] = positionX.clamp(0.05, 0.95);
+      st['positionY'] = positionY.clamp(0.05, 0.95);
+      return EditIrCaption(
+        id: c.id,
+        kind: c.kind,
+        startMs: c.startMs,
+        endMs: c.endMs,
+        text: c.text,
+        words: c.words,
+        style: st,
+      );
+    }).toList();
+    return _copy(ir, captions: captions);
+  }
+
   // ── Audio ──────────────────────────────────────────────────────────────────
 
   static MobileEditIr setOriginalVolume(MobileEditIr ir, double db) =>
       _withAudio(ir, originalVolumeDb: db.clamp(-60.0, 12.0));
 
-  /// Background music under the whole video from an HTTPS [url] (upload local files first).
+  /// Background music under the whole video from an HTTPS [url] or local file path.
   static MobileEditIr setMusic(
     MobileEditIr ir, {
     required String url,
@@ -1125,14 +1220,16 @@ class TimelineOps {
     bool duckUnderSpeech = true,
   }) {
     final uri = Uri.tryParse(url);
-    if (uri == null || !uri.isScheme('https')) {
-      throw MediaEngineException('INVALID_EDIT', 'Music must be an https URL.');
+    final isHttp = uri != null && (uri.isScheme('https') || uri.isScheme('http'));
+    final isLocal = url.startsWith('/') || url.contains(':\\') || url.startsWith('file://');
+    if (!isHttp && !isLocal) {
+      throw MediaEngineException('INVALID_EDIT', 'Music must be a valid file or URL.');
     }
     final m = EditIrMusic(
       id: ir.audio.music.firstOrNull?.id ?? _id('m'),
       timelineStartMs: 0,
       timelineEndMs: ir.durationMs,
-      source: {'kind': 'url', 'url': url, 'query': ?title},
+      source: isHttp ? {'kind': 'url', 'url': url, 'query': ?title} : {'kind': 'file', 'path': url, 'query': ?title},
       volumeDb: volumeDb,
       fadeInMs: fadeInMs,
       fadeOutMs: fadeOutMs,
@@ -1177,7 +1274,7 @@ class TimelineOps {
 
   static const maxSfx = 40;
 
-  /// One-shot sound effect at [startMs] from an HTTPS [url]. [credit] is kept for export attribution.
+  /// One-shot sound effect at [startMs] from an HTTPS [url] or local file. [credit] is kept for export attribution.
   static MobileEditIr addSfx(
     MobileEditIr ir, {
     required String url,
@@ -1185,9 +1282,12 @@ class TimelineOps {
     int? durationMs,
     double volumeDb = -8,
     String? credit,
+    String? name,
   }) {
-    if (!url.startsWith('https://') && !url.startsWith('http://')) {
-      throw MediaEngineException('INVALID_EDIT', 'Sound effects must come from the library (a web address).');
+    final isHttp = url.startsWith('https://') || url.startsWith('http://');
+    final isLocal = url.startsWith('/') || url.contains(':\\') || url.startsWith('file://');
+    if (!isHttp && !isLocal) {
+      throw MediaEngineException('INVALID_EDIT', 'Sound effect audio source is invalid.');
     }
     if (ir.audio.sfx.length >= maxSfx) {
       throw MediaEngineException('INVALID_EDIT', 'This video already has $maxSfx sound effects.');
@@ -1197,9 +1297,9 @@ class TimelineOps {
       id: _id('sfx'),
       timelineStartMs: s,
       durationMs: durationMs == null ? null : math.max(100, math.min(durationMs, ir.durationMs - s)),
-      source: {'kind': 'url', 'url': url},
+      source: isHttp ? {'kind': 'url', 'url': url} : {'kind': 'file', 'path': url},
       volumeDb: volumeDb.clamp(-60.0, 12.0),
-      credit: credit,
+      credit: credit ?? name,
     );
     return _withSfx(ir, [...ir.audio.sfx, e]..sort((a, b) => a.timelineStartMs.compareTo(b.timelineStartMs)));
   }
