@@ -99,13 +99,9 @@ export class PixabayClient {
   private static rateLimitRemaining = 100;
   private static rateLimitReset = 60;
 
-  /** Reads the key from the environment only. Throws when unset (never falls back to a literal). */
-  static getApiKey(): string {
-    const key = process.env.PIXABAY_API_KEY || process.env.NEXT_PUBLIC_PIXABAY_API_KEY;
-    if (!key) {
-      throw new Error("PIXABAY_API_KEY is not set.");
-    }
-    return key;
+  /** Reads the key from the environment only. Returns null when unset so fallback stock providers work. */
+  static getApiKey(): string | null {
+    return process.env.PIXABAY_API_KEY || process.env.NEXT_PUBLIC_PIXABAY_API_KEY || null;
   }
 
   /**
@@ -226,6 +222,10 @@ export class PixabayClient {
     log?: (msg: string) => void;
   }): Promise<{ totalHits: number; images: PixabayImageItem[] }> {
     const apiKey = this.getApiKey();
+    if (!apiKey) {
+      options.log?.("[PixabayClient] PIXABAY_API_KEY is not configured.");
+      return { totalHits: 0, images: [] };
+    }
     const {
       query,
       imageType = "all",
@@ -317,6 +317,10 @@ export class PixabayClient {
     log?: (msg: string) => void;
   }): Promise<{ totalHits: number; videos: PixabayVideoItem[] }> {
     const apiKey = this.getApiKey();
+    if (!apiKey) {
+      options.log?.("[PixabayClient] PIXABAY_API_KEY is not configured.");
+      return { totalHits: 0, videos: [] };
+    }
     const {
       query,
       videoType = "all",

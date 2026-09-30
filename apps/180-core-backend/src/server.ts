@@ -62,7 +62,22 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-180-Signature', 'X-180-Timestamp', 'X-180-Event'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-180-Signature',
+      'X-180-Timestamp',
+      'X-180-Event',
+      'x-device-token',
+      'x-desktop-device-token',
+      'x-company-id',
+      'x-workspace-id',
+      'idempotency-key',
+      'Idempotency-Key',
+      'x-client-platform',
+      'x-app-version',
+    ],
   })
 );
 

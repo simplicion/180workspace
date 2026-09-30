@@ -19,6 +19,7 @@ class EngagementRule {
     this.actionDmDeliverableUrl,
     this.actionEnableAiAgent = false,
     this.aiAgentGoal = 'qualify_lead',
+    this.aiAgentPromptOverride,
     this.totalTriggered = 0,
     this.totalDmsSent = 0,
     this.totalLiked = 0,
@@ -43,6 +44,7 @@ class EngagementRule {
   final String? actionDmDeliverableUrl;
   final bool actionEnableAiAgent;
   final String aiAgentGoal;
+  final String? aiAgentPromptOverride;
   final int totalTriggered;
   final int totalDmsSent;
   final int totalLiked;
@@ -69,6 +71,7 @@ class EngagementRule {
         actionDmDeliverableUrl: jStr(j['actionDmDeliverableUrl']),
         actionEnableAiAgent: jBool(j['actionEnableAiAgent']),
         aiAgentGoal: jStrOr(j['aiAgentGoal'], 'qualify_lead'),
+        aiAgentPromptOverride: jStr(j['aiAgentPromptOverride']),
         totalTriggered: jInt(j['totalTriggered']) ?? 0,
         totalDmsSent: jInt(j['totalDmsSent']) ?? 0,
         totalLiked: jInt(j['totalLiked']) ?? 0,
@@ -92,6 +95,7 @@ class EngagementRule {
         if (actionDmDeliverableUrl != null) 'actionDmDeliverableUrl': actionDmDeliverableUrl,
         'actionEnableAiAgent': actionEnableAiAgent,
         'aiAgentGoal': aiAgentGoal,
+        if (aiAgentPromptOverride != null) 'aiAgentPromptOverride': aiAgentPromptOverride,
       };
 }
 

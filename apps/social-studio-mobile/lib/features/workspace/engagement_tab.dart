@@ -5,8 +5,12 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/universal_skeleton.dart';
+import '../../core/util/json.dart';
 import '../../data/models/engagement_rule.dart';
+import '../../data/models/platform.dart';
 import '../../data/models/project.dart';
+import '../posts/post_providers.dart';
+import 'accounts_tab.dart';
 
 final engagementRulesProvider = FutureProvider.autoDispose.family<List<EngagementRule>, String>((ref, projectId) {
   return ref.watch(socialApiProvider).listEngagementRules(projectId: projectId);
@@ -81,24 +85,24 @@ class EngagementTab extends ConsumerWidget {
             SectionHeader(
               'Active Funnels & Triggers',
               trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _openDryRunSheet(context, ref),
-                      icon: Icon(Icons.science_rounded, size: 16, color: AppTheme.primary),
-                      label: Text('Test Matcher', style: TextStyle(fontSize: 12, color: AppTheme.primary)),
-                    ),
-                    IconButton(
-                      tooltip: 'Refresh',
-                      icon: Icon(Icons.refresh_rounded, size: 20),
-                      onPressed: () {
-                        ref.invalidate(engagementRulesProvider(project.id));
-                        ref.invalidate(engagementStatsProvider(project.id));
-                        ref.invalidate(livePlatformMetricsProvider(project.id));
-                      },
-                    ),
-                  ],
-                ),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _openDryRunSheet(context, ref),
+                    icon: Icon(Icons.science_rounded, size: 16, color: AppTheme.primary),
+                    label: Text('Test Matcher', style: TextStyle(fontSize: 12, color: AppTheme.primary)),
+                  ),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    icon: Icon(Icons.refresh_rounded, size: 20),
+                    onPressed: () {
+                      ref.invalidate(engagementRulesProvider(project.id));
+                      ref.invalidate(engagementStatsProvider(project.id));
+                      ref.invalidate(livePlatformMetricsProvider(project.id));
+                    },
+                  ),
+                ],
+              ),
             ),
             SizedBox(height: 8),
 
@@ -238,8 +242,35 @@ class _RuleCard extends ConsumerWidget {
   final EngagementRule rule;
   final String projectId;
 
+  String _formatTriggerLabel() {
+    if (rule.triggerType == 'comment_any') {
+      return 'Any Comment on Post';
+    } else if (rule.triggerType == 'dm_inbound') {
+      return 'Inbound Direct Message';
+    }
+    return 'Comment Keyword';
+  }
+
+  String _formatGoalLabel() {
+    switch (rule.aiAgentGoal) {
+      case 'qualify_lead':
+        return 'Lead Qualification';
+      case 'book_demo':
+        return 'Book Demo/Call';
+      case 'answer_support':
+        return 'Customer Support';
+      case 'deliver_resource':
+        return 'Deliver Resource';
+      default:
+        return 'AI Assistant';
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isGlobalAccount = rule.socialAccountId == null;
+    final isGlobalPost = rule.postId == null;
+
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -278,8 +309,67 @@ class _RuleCard extends ConsumerWidget {
           ),
           SizedBox(height: 8),
 
-          // Keywords
-          if (rule.triggerKeywords.isNotEmpty)
+          // Scope Badges (Target Account & Target Post)
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isGlobalAccount ? AppTheme.surfaceElevated : AppTheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: isGlobalAccount ? AppTheme.border : AppTheme.primary.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.hub_rounded, size: 11, color: isGlobalAccount ? AppTheme.textSecondary : AppTheme.primary),
+                    SizedBox(width: 4),
+                    Text(
+                      isGlobalAccount ? 'All Connected Accounts' : 'Specific Account',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isGlobalAccount ? AppTheme.textSecondary : AppTheme.primary),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isGlobalPost ? AppTheme.surfaceElevated : AppTheme.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: isGlobalPost ? AppTheme.border : AppTheme.accent.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.video_collection_rounded, size: 11, color: isGlobalPost ? AppTheme.textSecondary : AppTheme.accent),
+                    SizedBox(width: 4),
+                    Text(
+                      isGlobalPost ? 'All Videos & Posts' : 'Linked to Specific Post/Reel',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isGlobalPost ? AppTheme.textSecondary : AppTheme.accent),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceElevated,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: Text(
+                  _formatTriggerLabel(),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+
+          // Keywords (if keyword trigger)
+          if (rule.triggerType == 'comment_keyword' && rule.triggerKeywords.isNotEmpty)
             Wrap(
               spacing: 6,
               runSpacing: 4,
@@ -298,7 +388,7 @@ class _RuleCard extends ConsumerWidget {
                   ),
               ],
             ),
-          SizedBox(height: 10),
+          SizedBox(height: 8),
 
           // Details summary
           Wrap(
@@ -315,13 +405,13 @@ class _RuleCard extends ConsumerWidget {
               if (rule.actionSendDm) ...[
                 Icon(Icons.chat_bubble_rounded, size: 14, color: AppTheme.accent),
                 SizedBox(width: 4),
-                Text('Auto-DM', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                Text('Auto-DM Deliverable', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                 SizedBox(width: 12),
               ],
               if (rule.actionEnableAiAgent) ...[
                 Icon(Icons.auto_awesome, size: 14, color: AppTheme.warning),
                 SizedBox(width: 4),
-                Text('AI Multi-Turn', style: TextStyle(fontSize: 12, color: AppTheme.warning)),
+                Text('AI: ${_formatGoalLabel()}', style: TextStyle(fontSize: 12, color: AppTheme.warning, fontWeight: FontWeight.w600)),
               ],
             ],
           ),
@@ -334,7 +424,7 @@ class _RuleCard extends ConsumerWidget {
                 SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    rule.actionDmDeliverableUrl!,
+                    'Deliverable: ${rule.actionDmDeliverableUrl!}',
                     style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, decoration: TextDecoration.underline),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -387,10 +477,15 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
   );
   final _deliverableUrlCtl = TextEditingController();
   final _publicReplyCtl = TextEditingController(text: 'Sent to your DMs! Check your messages');
+  final _aiPromptOverrideCtl = TextEditingController();
 
+  String _triggerType = 'comment_keyword'; // 'comment_keyword', 'comment_any', 'dm_inbound'
+  String _aiAgentGoal = 'qualify_lead'; // 'qualify_lead', 'book_demo', 'answer_support', 'deliver_resource'
+  String? _selectedAccountId; // null = all connected accounts (e.g. all 5 accounts)
+  String? _selectedPostId; // null = all posts & reels
   bool _autoLike = true;
   final bool _sendDm = true;
-  bool _enableAiAgent = false;
+  bool _enableAiAgent = true;
   final String _matchMode = 'contains';
   bool _saving = false;
   String? _selectedPreset;
@@ -402,6 +497,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
     _dmTemplateCtl.dispose();
     _deliverableUrlCtl.dispose();
     _publicReplyCtl.dispose();
+    _aiPromptOverrideCtl.dispose();
     super.dispose();
   }
 
@@ -409,30 +505,66 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
     setState(() => _selectedPreset = preset);
     if (preset == 'blueprint') {
       _nameCtl.text = 'Free Blueprint Lead Magnet';
+      _triggerType = 'comment_keyword';
       _keywordsCtl.text = 'BLUEPRINT, GUIDE, LINK, SEND';
       _dmTemplateCtl.text = 'Hey {name}! Here is your VIP Blueprint link: {link} Let me know if you have any questions!';
       _deliverableUrlCtl.text = 'https://180workspace.com/blueprint';
       _publicReplyCtl.text = 'Sent to your DMs, {handle}! Check your inbox';
+      _aiAgentGoal = 'qualify_lead';
+      _aiPromptOverrideCtl.text = 'Ask what business/niche they are running and collect their best email to send follow-up growth assets.';
       setState(() {
         _autoLike = true;
         _enableAiAgent = true;
       });
+    } else if (preset == 'any_comment') {
+      _nameCtl.text = 'Auto-DM on Any Reel Comment';
+      _triggerType = 'comment_any';
+      _keywordsCtl.clear();
+      _dmTemplateCtl.text = 'Hey {name}! Thanks for checking out our video! Here is the link you requested: {link}';
+      _deliverableUrlCtl.text = 'https://180workspace.com/resources';
+      _publicReplyCtl.text = 'Just sent you a DM with the details!';
+      _aiAgentGoal = 'qualify_lead';
+      _aiPromptOverrideCtl.text = 'Check if they watched the full breakdown and ask if they would like help implementing it.';
+      setState(() {
+        _autoLike = true;
+        _enableAiAgent = true;
+      });
+    } else if (preset == 'dm_bot') {
+      _nameCtl.text = 'Global Multi-Account DM Assistant';
+      _triggerType = 'dm_inbound';
+      _keywordsCtl.clear();
+      _dmTemplateCtl.text = 'Hi {name}! Thanks for reaching out. Here is our official portal: {link} How can we help you today?';
+      _deliverableUrlCtl.text = 'https://180workspace.com';
+      _publicReplyCtl.clear();
+      _aiAgentGoal = 'qualify_lead';
+      _aiPromptOverrideCtl.text = 'Qualify the inbound prospect: ask what services they are interested in and capture their email/phone number.';
+      setState(() {
+        _autoLike = false;
+        _enableAiAgent = true;
+        _selectedAccountId = null; // Applies across all connected accounts
+      });
     } else if (preset == 'support') {
       _nameCtl.text = 'AI Customer Support Bot';
+      _triggerType = 'comment_keyword';
       _keywordsCtl.text = 'HELP, SUPPORT, PRICING, COST';
       _dmTemplateCtl.text = 'Hi {name}! I am the 180 AI Assistant. How can I help you today? Check our options here: {link}';
       _deliverableUrlCtl.text = 'https://180workspace.com/pricing';
       _publicReplyCtl.text = 'Just messaged you with details!';
+      _aiAgentGoal = 'answer_support';
+      _aiPromptOverrideCtl.text = 'Answer product and pricing questions accurately according to our brand context. If unsure, escalate to human.';
       setState(() {
         _autoLike = true;
         _enableAiAgent = true;
       });
     } else if (preset == 'promo') {
       _nameCtl.text = 'VIP Discount Promo Code';
+      _triggerType = 'comment_keyword';
       _keywordsCtl.text = 'DISCOUNT, PROMO, CODE, VIP';
       _dmTemplateCtl.text = 'Hey {name}! Use code VIP20 for 20% off your next purchase: {link}';
       _deliverableUrlCtl.text = 'https://180workspace.com/store';
       _publicReplyCtl.text = 'Code sent to your DM! Enjoy';
+      _aiAgentGoal = 'deliver_resource';
+      _aiPromptOverrideCtl.clear();
       setState(() {
         _autoLike = true;
         _enableAiAgent = false;
@@ -454,6 +586,112 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
     setState(() {});
   }
 
+  Future<void> _showLinkInstagramReelDialog() async {
+    final urlCtl = TextEditingController();
+    final titleCtl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dlgContext) => AlertDialog(
+        backgroundColor: AppTheme.surfaceElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.link_rounded, color: AppTheme.primary, size: 22),
+            const SizedBox(width: 8),
+            const Text('Link Instagram Reel', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Link a reel or video you already posted directly on Instagram so you can target this automation rule to it.',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: urlCtl,
+                decoration: fieldDecoration('Instagram Reel URL *', hint: 'https://instagram.com/reel/C-xyz/'),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Please enter the Instagram URL';
+                  if (!v.contains('instagram.com/')) return 'Must be a valid instagram.com URL';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: titleCtl,
+                decoration: fieldDecoration('Video Title / Label (Optional)', hint: 'e.g. Scaling AI Systems Reel'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dlgContext).pop(false),
+            child: Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.of(dlgContext).pop(true);
+              }
+            },
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
+            child: const Text('Link & Select'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      final reelUrl = urlCtl.text.trim();
+      final title = titleCtl.text.trim().isNotEmpty
+          ? titleCtl.text.trim()
+          : 'IG Reel: ${reelUrl.split('?').first.split('/').where((s) => s.isNotEmpty).last}';
+
+      final postOutcome = await guarded(
+        context,
+        () => ref.read(socialApiProvider).createPost({
+          'projectId': widget.projectId,
+          'title': title,
+          'content': 'Targeted Instagram Reel: $reelUrl',
+          'mediaType': 'video',
+          'status': 'published',
+          'publishedAt': DateTime.now().toIso8601String(),
+          'socialAccountId': _selectedAccountId,
+          'variants': [
+            {
+              'platform': 'instagram',
+              'publishStatus': 'published',
+              'externalUrl': reelUrl,
+              'socialAccountId': _selectedAccountId,
+            }
+          ],
+        }),
+      );
+
+      if (mounted && postOutcome != null) {
+        showInfo(context, 'Linked Instagram Reel: $title', color: AppTheme.success);
+        ref.invalidate(projectPostsProvider(PostQuery(projectId: widget.projectId)));
+        final created = jMapOrNull(postOutcome.data?['post']);
+        final id = created == null ? null : jStr(created['id']);
+        if (id != null) {
+          setState(() {
+            _selectedPostId = id;
+          });
+        }
+      }
+    }
+    urlCtl.dispose();
+    titleCtl.dispose();
+  }
+
   Future<void> _submit() async {
     final name = _nameCtl.text.trim();
     if (name.isEmpty) {
@@ -461,26 +699,42 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       return;
     }
 
-    final rawKeywords = _keywordsCtl.text
-        .split(RegExp(r'[,\n]'))
-        .map((k) => k.trim())
-        .where((k) => k.isNotEmpty)
-        .toList();
+    List<String> rawKeywords = [];
+    if (_triggerType == 'comment_keyword') {
+      rawKeywords = _keywordsCtl.text
+          .split(RegExp(r'[,\n]'))
+          .map((k) => k.trim())
+          .where((k) => k.isNotEmpty)
+          .toList();
+      if (rawKeywords.isEmpty) {
+        showError(context, 'Please specify at least one trigger keyword.');
+        return;
+      }
+    }
+
+    final dmTemplate = _dmTemplateCtl.text.trim();
+    if (dmTemplate.isEmpty) {
+      showError(context, 'Direct Message Template is required.');
+      return;
+    }
 
     setState(() => _saving = true);
     final data = {
       'name': name,
       'projectId': widget.projectId,
-      'triggerType': 'comment_keyword',
+      'socialAccountId': _selectedAccountId,
+      'postId': _selectedPostId,
+      'triggerType': _triggerType,
       'triggerKeywords': rawKeywords,
       'matchMode': _matchMode,
-      'actionAutoLike': _autoLike,
-      'actionPublicReplies': [_publicReplyCtl.text.trim()],
+      'actionAutoLike': _triggerType == 'dm_inbound' ? false : _autoLike,
+      'actionPublicReplies': _triggerType == 'dm_inbound' || _publicReplyCtl.text.trim().isEmpty ? [] : [_publicReplyCtl.text.trim()],
       'actionSendDm': _sendDm,
-      'actionDmTemplate': _dmTemplateCtl.text.trim(),
+      'actionDmTemplate': dmTemplate,
       'actionDmDeliverableUrl': _deliverableUrlCtl.text.trim().isEmpty ? null : _deliverableUrlCtl.text.trim(),
       'actionEnableAiAgent': _enableAiAgent,
-      'aiAgentGoal': 'qualify_lead',
+      'aiAgentGoal': _aiAgentGoal,
+      'aiAgentPromptOverride': _aiPromptOverrideCtl.text.trim().isEmpty ? null : _aiPromptOverrideCtl.text.trim(),
     };
 
     final rule = await guarded(context, () => ref.read(socialApiProvider).createEngagementRule(data));
@@ -573,6 +827,9 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
 
   @override
   Widget build(BuildContext context) {
+    final accountsAsync = ref.watch(allAccountsProvider);
+    final postsAsync = ref.watch(projectPostsProvider(PostQuery(projectId: widget.projectId)));
+
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
       decoration: BoxDecoration(
@@ -625,7 +882,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Turn comments into automated DM leads & responses',
+                        'Automate comments, DMs & lead qualification across your accounts',
                         style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                       ),
                     ],
@@ -670,6 +927,10 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                       children: [
                         _buildPresetButton('blueprint', 'Blueprint Giveaway', Icons.card_giftcard_rounded),
                         const SizedBox(width: 8),
+                        _buildPresetButton('any_comment', 'Any Comment Auto-DM', Icons.mark_chat_read_rounded),
+                        const SizedBox(width: 8),
+                        _buildPresetButton('dm_bot', 'Global 5-Account DM Bot', Icons.hub_rounded),
+                        const SizedBox(width: 8),
                         _buildPresetButton('support', 'Support Bot', Icons.smart_toy_rounded),
                         const SizedBox(width: 8),
                         _buildPresetButton('promo', 'VIP Promo Code', Icons.local_offer_rounded),
@@ -678,77 +939,301 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                   ),
                   const SizedBox(height: 20),
 
-                  // Section 1: Trigger Configuration
+                  // Section 1: Scope (Accounts & Target Content)
                   _buildSectionCard(
                     icon: Icons.tune_rounded,
-                    title: 'Trigger Configuration',
+                    title: 'Target Channel & Content',
                     children: [
                       TextField(
                         controller: _nameCtl,
                         decoration: fieldDecoration(
                           'Rule Name *',
-                          hint: 'e.g. Reel Blueprint Giveaway',
+                          hint: 'e.g. Reel Blueprint Lead Magnet',
                           prefix: Icon(Icons.drive_file_rename_outline_rounded, size: 18, color: AppTheme.textSecondary),
                         ),
                       ),
                       const SizedBox(height: 14),
-                      TextField(
-                        controller: _keywordsCtl,
-                        decoration: fieldDecoration(
-                          'Trigger Keywords (comma separated) *',
-                          hint: 'e.g. BLUEPRINT, GUIDE, SCALE, SEND',
-                          helper: 'Triggers when a comment contains any of these keywords',
-                          prefix: Icon(Icons.tag_rounded, size: 18, color: AppTheme.textSecondary),
+
+                      // Social Account Selection (Filtered to Meta: Instagram & Facebook)
+                      Row(
+                        children: [
+                          Text(
+                            'Target Social Account(s)',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.25)),
+                            ),
+                            child: Text(
+                              'Instagram & Facebook Only',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      accountsAsync.when(
+                        data: (allAccs) {
+                          final accounts = allAccs.where((a) =>
+                              a.projectId == widget.projectId &&
+                              (a.platform == SocialPlatform.instagram || a.platform == SocialPlatform.facebook)
+                          ).toList();
+
+                          if (accounts.isEmpty) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.surfaceElevated,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppTheme.border),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.warning),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'No Instagram or Facebook accounts linked to this project. Comment-to-DM automation is officially supported by Meta APIs on Instagram & Facebook. Connect an account in Channels.',
+                                      style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return DropdownButtonFormField<String?>(
+                            initialValue: _selectedAccountId,
+                            dropdownColor: AppTheme.surfaceElevated,
+                            decoration: fieldDecoration(
+                              'Select Target Account',
+                              prefix: Icon(Icons.account_circle_outlined, size: 18, color: AppTheme.primary),
+                              helper: 'Automate comments & DMs on Instagram & Facebook (Meta Graph API verified).',
+                            ),
+                            items: [
+                              DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text('🌐 All Supported Channels (${accounts.length})'),
+                              ),
+                              for (final acc in accounts)
+                                DropdownMenuItem<String?>(
+                                  value: acc.id,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(acc.platform.icon, size: 16, color: acc.platform.color),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          '${acc.platform.label}: @${acc.username != null && acc.username!.isNotEmpty ? acc.username! : acc.accountName}',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                            onChanged: (val) => setState(() => _selectedAccountId = val),
+                          );
+                        },
+                        loading: () => const LinearProgressIndicator(),
+                        error: (_, _) => DropdownButtonFormField<String?>(
+                          initialValue: null,
+                          items: const [DropdownMenuItem(value: null, child: Text('All Linked Accounts'))],
+                          onChanged: (_) {},
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Target Post Selection (All Posts vs Specific Reel / Video)
+                      Row(
+                        children: [
+                          Text(
+                            'Target Video / Post',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: _showLinkInstagramReelDialog,
+                            icon: Icon(Icons.link_rounded, size: 15, color: AppTheme.primary),
+                            label: Text('Link Reel URL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      postsAsync.when(
+                        data: (posts) {
+                          return DropdownButtonFormField<String?>(
+                            initialValue: _selectedPostId,
+                            dropdownColor: AppTheme.surfaceElevated,
+                            decoration: fieldDecoration(
+                              'Select Target Video/Post',
+                              prefix: Icon(Icons.video_collection_outlined, size: 18, color: AppTheme.accent),
+                              helper: 'Link to an existing Instagram video/reel or apply to all posts.',
+                            ),
+                            items: [
+                              const DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text('🎬 All Videos & Posts (Existing & Future)'),
+                              ),
+                              for (final post in posts)
+                                DropdownMenuItem<String?>(
+                                  value: post.id,
+                                  child: Text(
+                                    (post.title != null && post.title!.isNotEmpty)
+                                        ? post.title!
+                                        : (post.content.length > 25 ? '${post.content.substring(0, 25)}...' : post.content),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                            ],
+                            onChanged: (val) => setState(() => _selectedPostId = val),
+                          );
+                        },
+                        loading: () => const LinearProgressIndicator(),
+                        error: (_, _) => DropdownButtonFormField<String?>(
+                          initialValue: null,
+                          items: const [DropdownMenuItem(value: null, child: Text('All Videos & Posts'))],
+                          onChanged: (_) {},
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.lightbulb_outline_rounded, size: 16, color: AppTheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '💡 Automate existing videos: Choose "All Videos & Posts" to trigger on ANY past or future video uploaded directly to Instagram. Or tap "Link Reel URL" to target one specific Reel.',
+                                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.35),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
 
-                  // Section 2: Automation Actions & Deliverables
+                  // Section 2: Trigger Rules
+                  _buildSectionCard(
+                    icon: Icons.sensors_rounded,
+                    title: 'Trigger Rules',
+                    children: [
+                      Text(
+                        'Trigger Type',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ChoiceChip(
+                            avatar: Icon(Icons.tag_rounded, size: 16),
+                            label: Text('Keyword Match'),
+                            selected: _triggerType == 'comment_keyword',
+                            selectedColor: AppTheme.primary.withValues(alpha: 0.15),
+                            onSelected: (v) => setState(() => _triggerType = 'comment_keyword'),
+                          ),
+                          ChoiceChip(
+                            avatar: Icon(Icons.comment_rounded, size: 16),
+                            label: Text('Any Comment on Post'),
+                            selected: _triggerType == 'comment_any',
+                            selectedColor: AppTheme.primary.withValues(alpha: 0.15),
+                            onSelected: (v) => setState(() => _triggerType = 'comment_any'),
+                          ),
+                          ChoiceChip(
+                            avatar: Icon(Icons.chat_bubble_rounded, size: 16),
+                            label: Text('Inbound DM Auto-Reply'),
+                            selected: _triggerType == 'dm_inbound',
+                            selectedColor: AppTheme.primary.withValues(alpha: 0.15),
+                            onSelected: (v) => setState(() => _triggerType = 'dm_inbound'),
+                          ),
+                        ],
+                      ),
+                      if (_triggerType == 'comment_keyword') ...[
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: _keywordsCtl,
+                          decoration: fieldDecoration(
+                            'Trigger Keywords (comma separated) *',
+                            hint: 'e.g. BLUEPRINT, GUIDE, SCALE, SEND',
+                            helper: 'Triggers when a comment contains any of these keywords',
+                            prefix: Icon(Icons.tag_rounded, size: 18, color: AppTheme.textSecondary),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Section 3: Automation Actions & Deliverables
                   _buildSectionCard(
                     icon: Icons.flash_on_rounded,
                     title: 'Automation Actions & DM',
                     children: [
-                      // Auto-Like Container
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppTheme.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.border),
-                        ),
-                        child: SwitchListTile.adaptive(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                          value: _autoLike,
-                          activeTrackColor: AppTheme.primary,
-                          title: Text(
-                            'Auto-Like Comment',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                      // Auto-Like Container (only if comment trigger)
+                      if (_triggerType != 'dm_inbound') ...[
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppTheme.border),
                           ),
-                          subtitle: Text(
-                            'Likes the comment immediately to increase algorithmic reach',
-                            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                          child: SwitchListTile.adaptive(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                            value: _autoLike,
+                            activeTrackColor: AppTheme.primary,
+                            title: Text(
+                              'Auto-Like Comment',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                            ),
+                            subtitle: Text(
+                              'Likes the comment immediately to increase algorithmic reach',
+                              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                            ),
+                            onChanged: (v) => setState(() => _autoLike = v),
                           ),
-                          onChanged: (v) => setState(() => _autoLike = v),
                         ),
-                      ),
-                      const SizedBox(height: 14),
+                        const SizedBox(height: 14),
 
-                      TextField(
-                        controller: _publicReplyCtl,
-                        decoration: fieldDecoration(
-                          'Public Comment Reply',
-                          hint: 'e.g. Sent to your DM! Check your inbox',
-                          prefix: Icon(Icons.chat_bubble_outline_rounded, size: 18, color: AppTheme.textSecondary),
+                        TextField(
+                          controller: _publicReplyCtl,
+                          decoration: fieldDecoration(
+                            'Public Comment Reply',
+                            hint: 'e.g. Sent to your DMs, {handle}! Check your inbox',
+                            helper: 'Visible comment reply posted under their comment',
+                            prefix: Icon(Icons.chat_bubble_outline_rounded, size: 18, color: AppTheme.textSecondary),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
+                        const SizedBox(height: 14),
+                      ],
 
+                      // Deliverable Explanation & Input
                       TextField(
                         controller: _deliverableUrlCtl,
                         decoration: fieldDecoration(
                           'Deliverable / Link URL',
-                          hint: 'https://yoursite.com/resource',
+                          hint: 'https://yoursite.com/free-blueprint',
+                          helper: 'The resource/link delivered in the DM (PDF guide, Notion doc, webinar, or booking page)',
                           prefix: Icon(Icons.link_rounded, size: 18, color: AppTheme.textSecondary),
                         ),
                       ),
@@ -759,7 +1244,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                         maxLines: 3,
                         decoration: fieldDecoration(
                           'Direct Message Template *',
-                          hint: 'Hey {name}! Here is your link: {link}',
+                          hint: 'Hey {name}! Here is your link: {link} Let me know if you have any questions!',
                           prefix: Icon(Icons.mark_chat_unread_outlined, size: 18, color: AppTheme.textSecondary),
                         ),
                       ),
@@ -798,10 +1283,10 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                   ),
                   const SizedBox(height: 16),
 
-                  // Section 3: Autonomous AI Agent
+                  // Section 4: Autonomous AI Agent & Lead Qualification
                   _buildSectionCard(
                     icon: Icons.psychology_outlined,
-                    title: 'Autonomous AI Agent',
+                    title: 'Autonomous AI Lead Qualification',
                     children: [
                       Container(
                         decoration: BoxDecoration(
@@ -834,12 +1319,80 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                             ],
                           ),
                           subtitle: Text(
-                            'Autonomous AI qualifies lead and answers questions after DM deliverable',
+                            'Autonomous AI continues conversation after the DM deliverable to qualify leads & answer queries',
                             style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                           ),
                           onChanged: (v) => setState(() => _enableAiAgent = v),
                         ),
                       ),
+
+                      if (_enableAiAgent) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          'AI Agent Goal',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                        ),
+                        const SizedBox(height: 6),
+                        DropdownButtonFormField<String>(
+                          initialValue: _aiAgentGoal,
+                          dropdownColor: AppTheme.surfaceElevated,
+                          decoration: fieldDecoration('Select Goal', prefix: Icon(Icons.flag_rounded, size: 18, color: AppTheme.warning)),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'qualify_lead',
+                              child: Text('🎯 Qualify Lead (Extract Need, Email & Phone into CRM)'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'book_demo',
+                              child: Text('📅 Book Demo / Call (Guide to Booking Link)'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'answer_support',
+                              child: Text('💬 Answer Support (Product FAQ with Brand Voice)'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'deliver_resource',
+                              child: Text('📦 Deliver Resource (Confirm Receipt & Follow Up)'),
+                            ),
+                          ],
+                          onChanged: (v) => setState(() => _aiAgentGoal = v ?? 'qualify_lead'),
+                        ),
+                        const SizedBox(height: 14),
+
+                        TextField(
+                          controller: _aiPromptOverrideCtl,
+                          maxLines: 2,
+                          decoration: fieldDecoration(
+                            'Custom Qualification Guidelines (Optional)',
+                            hint: 'e.g. Ask for their monthly ad budget, team size, and email address to qualify them before booking.',
+                            prefix: Icon(Icons.tune_rounded, size: 18, color: AppTheme.textSecondary),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Explanatory Callout
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline_rounded, size: 16, color: AppTheme.primary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Lead Qualification Workflow: 1) Initial DM delivers the link. 2) If prospect replies, AI answers questions grounded in Brand Voice. 3) When prospect provides an email or phone, 180 Workspace automatically creates a qualified CRM Lead.',
+                                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 24),

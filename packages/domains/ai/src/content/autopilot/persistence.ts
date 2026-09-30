@@ -43,6 +43,10 @@ export function pieceToRow(piece: AutopilotPiece, calendarId: string, companyId:
         timezone: piece.timezone,
         sources: piece.sources,
         critic: piece.critic,
+        psychologicalJob: piece.psychologicalJob || null,
+        designSystem: piece.designSystem || null,
+        visualDirection: piece.visualDirection || piece.visualBrief || null,
+        whatContentDelivers: piece.whatContentDelivers || null,
         // legacy keys for the existing web drawer
         hookVariations: { [LEGACY_HOOK_KEY[piece.hookType]]: piece.spokenHook },
         ...(piece.script ? {
@@ -60,6 +64,7 @@ export function pieceToRow(piece: AutopilotPiece, calendarId: string, companyId:
         } : {}),
     };
     const notes = [
+        piece.psychologicalJob ? `Psychological Job: ${piece.psychologicalJob}` : '',
         piece.sources.length ? `Sources: ${piece.sources.join(' ')}` : '',
         piece.critic.issues.length ? `Critic (${piece.critic.verdict}): ${piece.critic.issues.join('; ')}` : '',
     ].filter(Boolean).join('\n');
@@ -76,7 +81,7 @@ export function pieceToRow(piece: AutopilotPiece, calendarId: string, companyId:
         videoScriptOrHooks: JSON.stringify(payload),
         callToAction: primary?.cta || piece.script?.cta || '',
         hashtagsResearched: JSON.stringify(primary?.hashtags || []),
-        visualAssetsBrief: piece.visualBrief || (piece.shotNotes || []).join('\n'),
+        visualAssetsBrief: piece.visualDirection || piece.visualBrief || (piece.shotNotes || []).join('\n'),
         postingTimeTz: `${postingTime} ${piece.timezone}`,
         notes,
         status: piece.status,
@@ -106,6 +111,10 @@ export function expandAutopilotFields<T extends Record<string, any>>(row: T): T 
         format: a.format,
         platforms: a.platforms,
         hookType: HOOK_TYPES.includes(a.hookType) ? a.hookType : null,
+        psychologicalJob: a.psychologicalJob || null,
+        designSystem: a.designSystem || null,
+        visualDirection: a.visualDirection || null,
+        whatContentDelivers: a.whatContentDelivers || null,
         spokenHook: a.spokenHook,
         onScreenHook: a.onScreenHook,
         script: a.script || null,

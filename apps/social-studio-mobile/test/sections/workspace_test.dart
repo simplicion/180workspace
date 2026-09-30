@@ -63,10 +63,8 @@ void main() {
     expect(q['to'], isNotNull);
   });
 
-  appTest('Media: empty state action opens the Library tab', (tester) async {
+  appTest('Media: legacy /projects/:id/media redirects to dedicated Library screen', (tester) async {
     await pumpApp(tester, seededBackend(), location: '/projects/p1/media');
-    expect(find.text('No media yet'), findsOneWidget);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Open Library'));
     await settle(tester);
     expect(find.byType(LibraryScreen), findsOneWidget);
   });

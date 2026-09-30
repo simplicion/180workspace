@@ -15,22 +15,49 @@
   // ─── DOMAIN CONFIGURATION & DISCOVERY ─────────────────────────────────────
   var isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
-  var DEFAULT_AUTH_SERVER = 'https://profile.180workspace.com';
-  var DEFAULT_PAY_SERVER = 'https://pay.180workspace.com';
-  var DEFAULT_API_SERVER = 'https://api.180workspace.com';
-
-  if (isBrowser && window.location) {
-    var host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1') {
-      DEFAULT_AUTH_SERVER = 'http://localhost:3009';
-      DEFAULT_PAY_SERVER = 'http://localhost:3009';
-      DEFAULT_API_SERVER = 'http://localhost:4002';
-    } else if (host.endsWith('180workspace.com')) {
-      DEFAULT_AUTH_SERVER = 'https://profile.180workspace.com';
-      DEFAULT_PAY_SERVER = 'https://pay.180workspace.com';
-      DEFAULT_API_SERVER = 'https://api.180workspace.com';
+  function resolveEnvironmentMode(customMode) {
+    if (customMode === 'development' || customMode === 'production') {
+      return customMode;
     }
+    if (isBrowser && window.location) {
+      var protocol = window.location.protocol;
+      var host = (window.location.hostname || '').toLowerCase();
+      var isLocalHost =
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '0.0.0.0' ||
+        host.endsWith('.local') ||
+        host.endsWith('.test') ||
+        host.endsWith('.internal') ||
+        host.endsWith('.example');
+
+      if (protocol === 'http:' || isLocalHost) {
+        return 'development';
+      }
+      if (protocol === 'https:') {
+        return 'production';
+      }
+    }
+    if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV) {
+      return process.env.NODE_ENV === 'production' ? 'production' : 'development';
+    }
+    return 'development';
   }
+
+  function generateReferenceCode(domainPrefix) {
+    var prefix = domainPrefix || 'CORE';
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var rand = '';
+    for (var i = 0; i < 5; i++) {
+      rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return '180-' + prefix + '-' + rand;
+  }
+
+  var activeEnv = resolveEnvironmentMode();
+  var DEFAULT_AUTH_SERVER = activeEnv === 'production' ? 'https://profile.180workspace.com' : 'http://localhost:3009';
+  var DEFAULT_PAY_SERVER = activeEnv === 'production' ? 'https://pay.180workspace.com' : 'http://localhost:3009';
+  var DEFAULT_API_SERVER = activeEnv === 'production' ? 'https://api.180workspace.com' : 'http://localhost:4002';
 
   // ─── INTELLIGENT DEVICE & VIEWPORT DETECTOR ───────────────────────────────
   function isMobileViewport() {
@@ -395,11 +422,11 @@
     signIn: async function (options) {
       options = options || {};
       var clientId = options.clientId || '180-core-client';
-      var authServer = options.authServerUrl || DEFAULT_AUTH_SERVER;
-      var redirectUri = options.redirectUri || (isBrowser ? window.location.origin + '/oauth-callback' : '');
+      var env = resolveEnvironmentMode(options.environment);
+      var authServer = options.authServerUrl || (env === 'production' ? 'https://profile.180workspace.com' : DEFAULT_AUTH_SERVER);
+      var redirectUri = options.redirectUri || (isBrowser ? window.location.origin + '/oauth/callback' : '');
       var scope = options.scope || 'openid identity:read identity:email';
-      var state = options.state || generateRandomString(32);
-
+      var state = options.state || generateRandomString(16);
       var pkce = await generatePkcePair();
 
       var isMobile = isMobileViewport();
@@ -414,7 +441,8 @@
         'state=' + encodeURIComponent(state),
         'code_challenge=' + encodeURIComponent(pkce.challenge),
         'code_challenge_method=S256',
-        'ux_mode=' + encodeURIComponent(effectiveMode)
+        'ux_mode=' + encodeURIComponent(effectiveMode),
+        'env=' + encodeURIComponent(env)
       ].join('&');
 
       var authUrl = authServer + '/auth/login?' + params;
@@ -473,14 +501,18 @@
       try {
         return localStorage.getItem('180_access_token') || localStorage.getItem('platform_auth_token') || null;
       } catch (_) { return null; }
-    }
+    },
+
+    resolveEnvironmentMode: resolveEnvironmentMode,
+    generateReferenceCode: generateReferenceCode
   };
 
   // ─── 180 PAY / SOVEREIGN CHECKOUT SERVICE ─────────────────────────────────
   var OneEightyPay = {
     checkout: function (options) {
       options = options || {};
-      var payServer = options.payServerUrl || DEFAULT_PAY_SERVER;
+      var env = resolveEnvironmentMode(options.environment);
+      var payServer = options.payServerUrl || (env === 'production' ? 'https://pay.180workspace.com' : DEFAULT_PAY_SERVER);
       var sessionId = options.sessionId || 'cs_' + generateRandomString(24);
 
       var query = [
@@ -489,7 +521,8 @@
         options.title ? 'title=' + encodeURIComponent(options.title) : '',
         options.planCode ? 'plan=' + encodeURIComponent(options.planCode) : '',
         options.description ? 'description=' + encodeURIComponent(options.description) : '',
-        'ux_mode=' + encodeURIComponent(options.uxMode || 'bottom_sheet')
+        'ux_mode=' + encodeURIComponent(options.uxMode || 'bottom_sheet'),
+        'env=' + encodeURIComponent(env)
       ].filter(Boolean).join('&');
 
       var checkoutUrl = payServer + '/checkout/' + encodeURIComponent(sessionId) + (query ? '?' + query : '');
@@ -517,7 +550,9 @@
     },
     openCheckoutModal: function (options) {
       return OneEightyPay.checkout(options);
-    }
+    },
+    resolveEnvironmentMode: resolveEnvironmentMode,
+    generateReferenceCode: generateReferenceCode
   };
 
   // ─── 180 UI ADAPTIVE SERVICE ──────────────────────────────────────────────
@@ -561,6 +596,8 @@
     auth: OneEightyAuth,
     pay: OneEightyPay,
     ui: OneEightyUi,
+    resolveEnvironmentMode: resolveEnvironmentMode,
+    generateReferenceCode: generateReferenceCode,
     signIn: OneEightyAuth.signIn,
     signOut: OneEightyAuth.signOut,
     getUser: OneEightyAuth.getUser,

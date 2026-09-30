@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 
 /// Build-time configuration. Nothing in here is a secret.
 ///
 /// Override per build with `--dart-define`, e.g.
-/// `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4002`.
+/// `flutter run --dart-define=API_BASE_URL=http://localhost:4002`.
 class AppConfig {
   AppConfig._();
 
@@ -11,14 +11,33 @@ class AppConfig {
   static String get apiBaseUrl {
     const fromEnv = String.fromEnvironment('API_BASE_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
+    if (kIsWeb) {
+      final host = Uri.base.host;
+      if (host == 'localhost' || host == '127.0.0.1') {
+        return 'http://$host:4002';
+      }
+    }
+    if (kDebugMode) {
+      return 'http://localhost:4002';
+    }
     return 'https://api.180workspace.com';
   }
 
   /// Origin of the web app. Used to build shareable links such as `/review/<token>`.
-  static const String webAppUrl = String.fromEnvironment(
-    'WEB_APP_URL',
-    defaultValue: 'https://app.180workspace.com',
-  );
+  static String get webAppUrl {
+    const fromEnv = String.fromEnvironment('WEB_APP_URL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (kIsWeb) {
+      final host = Uri.base.host;
+      if (host == 'localhost' || host == '127.0.0.1') {
+        return 'http://$host:3002';
+      }
+    }
+    if (kDebugMode) {
+      return 'http://localhost:3002';
+    }
+    return 'https://app.180workspace.com';
+  }
 
   /// Google OAuth *web* client id used as `serverClientId` so the native SDK mints an ID token
   /// the backend accepts. A public identifier, not a secret.
@@ -43,6 +62,15 @@ class AppConfig {
   static String get identityServerUrl {
     const fromEnv = String.fromEnvironment('IDENTITY_SERVER_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
+    if (kIsWeb) {
+      final host = Uri.base.host;
+      if (host == 'localhost' || host == '127.0.0.1') {
+        return 'http://$host:4003';
+      }
+    }
+    if (kDebugMode) {
+      return 'http://localhost:4003';
+    }
     return 'https://180identity.180workspace.com';
   }
 
@@ -50,6 +78,15 @@ class AppConfig {
   static String get identityAuthUrl {
     const fromEnv = String.fromEnvironment('IDENTITY_AUTH_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
+    if (kIsWeb) {
+      final host = Uri.base.host;
+      if (host == 'localhost' || host == '127.0.0.1') {
+        return 'http://$host:3009';
+      }
+    }
+    if (kDebugMode) {
+      return 'http://localhost:3009';
+    }
     return 'https://profile.180workspace.com';
   }
 

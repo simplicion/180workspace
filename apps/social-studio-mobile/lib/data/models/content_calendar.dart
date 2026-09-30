@@ -194,6 +194,10 @@ class CalendarPiece {
     this.rawMediaUrls = const [],
     this.finalVideoUrl,
     this.thumbnailUrl,
+    this.psychologicalJob,
+    this.designSystem,
+    this.visualDirection,
+    this.whatContentDelivers,
   });
 
   final String id;
@@ -220,6 +224,10 @@ class CalendarPiece {
   final List<String> rawMediaUrls;
   final String? finalVideoUrl;
   final String? thumbnailUrl;
+  final String? psychologicalJob;
+  final String? designSystem;
+  final String? visualDirection;
+  final String? whatContentDelivers;
 
   factory CalendarPiece.fromJson(Json j) {
     final target = jMap(j['engagementTarget']);
@@ -248,6 +256,10 @@ class CalendarPiece {
       rawMediaUrls: jStrList(j['rawMediaUrls']),
       finalVideoUrl: jStr(j['finalVideoUrl']),
       thumbnailUrl: jStr(j['thumbnailUrl']),
+      psychologicalJob: jStr(j['psychologicalJob']),
+      designSystem: jStr(j['designSystem']),
+      visualDirection: jStr(j['visualDirection']),
+      whatContentDelivers: jStr(j['whatContentDelivers']),
     );
   }
 }
@@ -272,6 +284,7 @@ class CalendarConfig {
     List<String>? competitors,
     this.marketingBudget = '',
     this.personalGoals = '',
+    this.projectId,
   })  : platforms = platforms ?? <String>[],
         contentPillars = contentPillars ?? <String>[],
         competitors = competitors ?? <String>[],
@@ -294,6 +307,7 @@ class CalendarConfig {
   List<String> competitors;
   String marketingBudget;
   String personalGoals;
+  String? projectId;
 
   static const platformOptions = ['Instagram', 'LinkedIn', 'Twitter/X', 'Facebook', 'TikTok', 'YouTube Shorts'];
   static const durationOptions = ['1 week', '2 weeks', '1 month'];
@@ -320,6 +334,7 @@ class CalendarConfig {
       competitors: [...c.competitors],
       marketingBudget: jStr(c.raw['marketingBudget']) ?? '',
       personalGoals: jStr(c.raw['personalGoals']) ?? '',
+      projectId: c.projectId,
     );
   }
 
@@ -341,5 +356,6 @@ class CalendarConfig {
         'competitors': competitors,
         if (calendarType == 'company' && marketingBudget.trim().isNotEmpty) 'marketingBudget': marketingBudget.trim(),
         if (calendarType == 'personal' && personalGoals.trim().isNotEmpty) 'personalGoals': personalGoals.trim(),
+        if (projectId != null && projectId!.trim().isNotEmpty) 'projectId': projectId!.trim(),
       };
 }

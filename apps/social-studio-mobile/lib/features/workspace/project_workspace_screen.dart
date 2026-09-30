@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/sync_indicator.dart';
 import '../../data/models/project.dart';
 import '../dashboard/studio_dashboard_screen.dart';
 import '../inbox/inbox_screen.dart';
 import '../projects/project_provider.dart';
+import '../manager/manager_copilot_sheet.dart';
 import 'accounts_tab.dart';
 import 'analytics_tab.dart';
 import 'approvals_tab.dart';
@@ -15,7 +17,6 @@ import 'calendar_tab.dart';
 import 'content_tab.dart';
 import 'engagement_tab.dart';
 import 'evergreen_tab.dart';
-import 'media_tab.dart';
 import 'publishing_tab.dart';
 import 'settings_tab.dart';
 import 'tasks_tab.dart';
@@ -38,7 +39,14 @@ class ProjectWorkspaceScreen extends ConsumerWidget {
           if (detail.valueOrNull != null)
             Text(detail.valueOrNull!.project.name, style: Theme.of(context).textTheme.labelSmall),
         ]),
-        actions: [SyncIndicator()],
+        actions: [
+          IconButton(
+            icon: Icon(Icons.auto_awesome_rounded, color: AppTheme.accent),
+            tooltip: '180 Manager AI',
+            onPressed: () => show180ManagerCopilot(context, projectId: projectId),
+          ),
+          SyncIndicator(),
+        ],
       ),
       body: section == null
           ? EmptyView(icon: Icons.help_outline_rounded, title: 'Unknown section "$tab"')
@@ -53,7 +61,6 @@ class ProjectWorkspaceScreen extends ConsumerWidget {
   Widget _tabBody(ProjectDetail d) => switch (tab) {
         'calendar' => CalendarTab(project: d.project),
         'content' => ContentTab(project: d.project),
-        'media' => MediaTab(project: d.project),
         'tasks' => TasksTab(project: d.project),
         'approvals' => ApprovalsTab(detail: d, openSendForm: query['send'] == '1'),
         'publishing' => PublishingTab(project: d.project),

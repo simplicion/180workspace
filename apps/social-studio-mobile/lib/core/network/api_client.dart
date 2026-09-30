@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../config/app_config.dart';
 import '../storage/token_store.dart';
@@ -116,10 +118,11 @@ class ApiClient {
   }) =>
       _send(method, path, body: body, idempotencyKey: idempotencyKey);
 
-  /// Multipart upload of one local file.
+  /// Multipart upload of one local file (cross-platform: supports Web via bytes and Native via file).
   Future<Map<String, dynamic>> upload(
     String path, {
     required String filePath,
+    List<int>? fileBytes,
     String field = 'file',
     String? filename,
     DioMediaType? contentType,
@@ -129,9 +132,58 @@ class ApiClient {
     CancelToken? cancelToken,
     Duration? timeout,
   }) async {
+    final String cleanFilename = filename ?? filePath.split(RegExp(r'[/\\]')).lastOrNull ?? 'upload';
+
+    DioMediaType? mediaType = contentType;
+    if (mediaType == null) {
+      final ext = cleanFilename.toLowerCase().split('.').lastOrNull ?? '';
+      switch (ext) {
+        case 'mp4':
+          mediaType = DioMediaType('video', 'mp4');
+          break;
+        case 'mov':
+          mediaType = DioMediaType('video', 'quicktime');
+          break;
+        case 'webm':
+          mediaType = DioMediaType('video', 'webm');
+          break;
+        case 'png':
+          mediaType = DioMediaType('image', 'png');
+          break;
+        case 'jpg':
+        case 'jpeg':
+          mediaType = DioMediaType('image', 'jpeg');
+          break;
+        case 'webp':
+          mediaType = DioMediaType('image', 'webp');
+          break;
+      }
+    }
+
+    final MultipartFile multipartFile;
+    if (kIsWeb || fileBytes != null) {
+      List<int> bytes = fileBytes ?? const <int>[];
+      if (bytes.isEmpty && filePath.isNotEmpty) {
+        try {
+          bytes = await XFile(filePath).readAsBytes();
+        } catch (_) {}
+      }
+      multipartFile = MultipartFile.fromBytes(
+        bytes,
+        filename: cleanFilename,
+        contentType: mediaType,
+      );
+    } else {
+      multipartFile = await MultipartFile.fromFile(
+        filePath,
+        filename: cleanFilename,
+        contentType: mediaType,
+      );
+    }
+
     final form = FormData.fromMap({
       ...fields,
-      field: await MultipartFile.fromFile(filePath, filename: filename, contentType: contentType),
+      field: multipartFile,
     });
     return _send(
       'POST',

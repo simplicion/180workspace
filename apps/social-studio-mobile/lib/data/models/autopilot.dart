@@ -164,6 +164,10 @@ class PieceBrief {
     this.carouselTitle,
     this.carouselSlides = const [],
     this.visualBrief,
+    this.psychologicalJob,
+    this.designSystem,
+    this.visualDirection,
+    this.whatContentDelivers,
     this.raw = const {},
   });
 
@@ -179,6 +183,10 @@ class PieceBrief {
   final String? carouselTitle;
   final List<({String? role, String headline, String? body})> carouselSlides;
   final String? visualBrief;
+  final String? psychologicalJob;
+  final String? designSystem;
+  final String? visualDirection;
+  final String? whatContentDelivers;
   final Json raw;
 
   static PieceBrief? parse(String text) {
@@ -221,6 +229,10 @@ class PieceBrief {
           (role: jStr(s['role']), headline: jStrOr(s['headline'], ''), body: jStr(s['body'])),
       ],
       visualBrief: visual is String ? visual : (visual is Map ? jStr(visual['summary']) ?? jsonEncode(visual) : null),
+      psychologicalJob: jStr(j['psychologicalJob']) ?? jStr(script['psychologicalJob']) ?? jStr(carousel['psychologicalJob']),
+      designSystem: jStr(j['designSystem']) ?? jStr(carousel['designSystem']),
+      visualDirection: jStr(j['visualDirection']) ?? jStr(script['visualDirection']) ?? jStr(carousel['visualDirection']),
+      whatContentDelivers: jStr(j['whatContentDelivers']) ?? jStr(script['whatContentDelivers']) ?? jStr(carousel['whatContentDelivers']),
       raw: j,
     );
   }

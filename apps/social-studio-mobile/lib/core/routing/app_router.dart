@@ -31,6 +31,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final loc = state.matchedLocation;
       if (loc.startsWith('/review/')) return null; // public client portal, no login
+      if (loc == '/oauth-callback' || loc.startsWith('/oauth-callback')) return null; // OAuth callback processing
       final session = ref.read(sessionProvider);
       if (!session.hasValue) return loc == '/splash' ? null : '/splash';
       final s = session.value;

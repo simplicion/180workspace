@@ -60,6 +60,7 @@ class _CalendarGeneratorScreenState extends ConsumerState<CalendarGeneratorScree
     };
     if (_c.platforms.isEmpty) _c.platforms = platforms.toList();
     _c.timezone = p.settings.defaultTimezone;
+    _c.projectId = p.id;
   }
 
   String? _validate() {
@@ -80,7 +81,8 @@ class _CalendarGeneratorScreenState extends ConsumerState<CalendarGeneratorScree
       ..contentPillars = splitList(_pillars.text)
       ..brandVoice = _voice.text
       ..engagementGoal = _goal.text
-      ..competitors = splitList(_competitors.text);
+      ..competitors = splitList(_competitors.text)
+      ..projectId ??= ref.read(activeProjectProvider).valueOrNull?.id;
     setState(() => _generating = true);
     final r = await guarded(context, () => ref.read(socialApiProvider).createCalendar(_c));
     if (!mounted) return;
@@ -133,14 +135,18 @@ class _CalendarGeneratorScreenState extends ConsumerState<CalendarGeneratorScree
             title: Text('Brand'),
             isActive: _step >= 0,
             content: Column(children: [
-              SegmentedButton<String>(
-                segments: [
-                  ButtonSegment(value: 'company', label: Text('Business')),
-                  ButtonSegment(value: 'personal', label: Text('Personal brand')),
-                ],
-                selected: {_c.calendarType},
-                onSelectionChanged: (s) => setState(() => _c.calendarType = s.first),
-              ),
+              Wrap(spacing: 8, children: [
+                ChoiceChip(
+                  label: Text('Business'),
+                  selected: _c.calendarType == 'company',
+                  onSelected: (_) => setState(() => _c.calendarType = 'company'),
+                ),
+                ChoiceChip(
+                  label: Text('Personal brand'),
+                  selected: _c.calendarType == 'personal',
+                  onSelected: (_) => setState(() => _c.calendarType = 'personal'),
+                ),
+              ]),
               SizedBox(height: 12),
               TextField(controller: _brand, decoration: fieldDecoration('Brand name *')),
               SizedBox(height: 12),

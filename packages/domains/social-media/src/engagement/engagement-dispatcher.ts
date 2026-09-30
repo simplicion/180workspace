@@ -15,15 +15,22 @@ export class EngagementDispatcher {
      * {deliverable_link} -> rule's deliverable URL
      */
     static interpolateTemplate(template: string, event: InboundEngagementEvent, deliverableUrl?: string): string {
+        if (!template || typeof template !== 'string') return '';
         let result = template;
-        const name = event.senderName || `@${event.senderHandle}`;
-        const handle = event.senderHandle.startsWith('@') ? event.senderHandle : `@${event.senderHandle}`;
+        const senderHandle = event.senderHandle || 'friend';
+        const name = event.senderName || (senderHandle.startsWith('@') ? senderHandle : `@${senderHandle}`);
+        const handle = senderHandle.startsWith('@') ? senderHandle : `@${senderHandle}`;
+        const rawHandle = senderHandle.replace(/^@/, '');
+        const firstName = (event.senderName || rawHandle).split(' ')[0].replace(/^@/, '');
         const link = deliverableUrl || '';
 
         result = result.replace(/\{name\}/gi, name);
         result = result.replace(/\{handle\}/gi, handle);
+        result = result.replace(/\{username\}/gi, handle);
+        result = result.replace(/\{firstname\}/gi, firstName);
         result = result.replace(/\{deliverable_link\}/gi, link);
         result = result.replace(/\{link\}/gi, link);
+        result = result.replace(/\{url\}/gi, link);
         return result.trim();
     }
 
@@ -51,12 +58,14 @@ export class EngagementDispatcher {
      * Selects a public comment reply from configured rotating templates to prevent spam flags.
      */
     static pickRotatingPublicReply(templates: string[], recipientHandle: string): string {
-        if (!templates.length) {
-            return '';
+        const cleanHandle = (recipientHandle || 'there').startsWith('@') ? recipientHandle : `@${recipientHandle || 'there'}`;
+        const validTemplates = (templates || []).filter((t) => t && typeof t === 'string' && t.trim().length > 0);
+        if (!validTemplates.length) {
+            return `Sent to your DMs, ${cleanHandle}! Check your messages 📩`;
         }
         // Rotate or randomly pick
-        const template = templates[Math.floor(Math.random() * templates.length)];
-        return template.replace(/\{handle\}/gi, `@${recipientHandle}`).replace(/\{name\}/gi, `@${recipientHandle}`);
+        const template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
+        return template.replace(/\{handle\}/gi, cleanHandle).replace(/\{name\}/gi, cleanHandle).trim();
     }
 
     /**

@@ -69,12 +69,36 @@ class _DirectorPanelState extends State<DirectorPanel> {
           ),
           if (c.transcriptState != TranscriptState.ready)
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                c.transcriptState == TranscriptState.running
-                    ? 'Transcribing… Speech-based edits (pauses, captions, fillers) work once the transcript is ready.'
-                    : 'No transcript, so the director cannot cut pauses or add captions. Visual edits still work.',
-                style: TextStyle(fontSize: 12, color: AppTheme.warning),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      c.transcriptState == TranscriptState.running
+                          ? 'Transcribing… Speech-based edits work once the transcript is ready.'
+                          : 'No audio transcript. Provide a script for full speech & character consciousness.',
+                      style: TextStyle(fontSize: 12, color: AppTheme.warning),
+                    ),
+                  ),
+                  if (c.transcriptState != TranscriptState.running)
+                    TextButton.icon(
+                      style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                      icon: const Icon(Icons.description_rounded, size: 14),
+                      label: const Text('Add Script', style: TextStyle(fontSize: 12)),
+                      onPressed: () async {
+                        final text = await promptText(
+                          context,
+                          title: 'Video Script / Speech',
+                          label: 'Paste spoken script or dialogue for AI Director',
+                          action: 'Apply Script',
+                          maxLines: 5,
+                        );
+                        if (text != null && text.trim().isNotEmpty) {
+                          c.attachScript(text.trim());
+                        }
+                      },
+                    ),
+                ],
               ),
             ),
           Expanded(

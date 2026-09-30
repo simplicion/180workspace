@@ -62,18 +62,24 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                   onAction: () => context.push('/planner/new'),
                 );
               }
-              final mine = list.where((c) => projectId != null && c.projectId == projectId).toList();
-              final rest = list.where((c) => !mine.contains(c)).toList();
+              final projectCalendars = list.where((c) => projectId == null || c.projectId == projectId).toList();
+              if (projectCalendars.isEmpty) {
+                return EmptyView(
+                  icon: Icons.calendar_month_rounded,
+                  title: 'No content calendars yet for this project',
+                  message: 'Generate a month of platform-ready ideas from your brand in about a minute.',
+                  actionLabel: 'Generate calendar',
+                  onAction: () => context.push('/planner/new'),
+                );
+              }
               return RefreshIndicator(
                 onRefresh: () async => ref.invalidate(calendarsProvider),
-                child: ListView(padding: EdgeInsets.fromLTRB(16, 0, 16, 96), children: [
-                  if (mine.isNotEmpty) ...[
-                    SectionHeader('This project'),
-                    for (final c in mine) _CalendarCard(calendar: c),
-                    SectionHeader('Other calendars'),
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 96),
+                  children: [
+                    for (final c in projectCalendars) _CalendarCard(calendar: c),
                   ],
-                  for (final c in rest) _CalendarCard(calendar: c),
-                ]),
+                ),
               );
             },
           ),
@@ -95,8 +101,20 @@ class _CalendarCard extends StatelessWidget {
       child: SectionCard(
         onTap: () => context.push('/planner/${c.id}'),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text(c.displayName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(c.displayName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  if (c.name.isNotEmpty && c.name != c.displayName)
+                    Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Text(c.name, style: TextStyle(fontSize: 13, color: AppTheme.primary, fontWeight: FontWeight.w600)),
+                    ),
+                ],
+              ),
+            ),
             StatusChip(label: c.status.label, color: c.status.color),
           ]),
           SizedBox(height: 4),

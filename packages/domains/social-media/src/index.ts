@@ -25,3 +25,4 @@ export * from './post-guards';
 export * from './linkedin';
 export * from './youtube';
 export * from './agent-os';
+export * from './manager';

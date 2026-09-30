@@ -9,6 +9,7 @@ import '../../core/native_engine/media_engine_service.dart';
 import '../../core/network/audio_transcription_service.dart';
 import '../director/ai_director_service.dart';
 import 'caption_fonts.dart';
+import 'studio_drafts_service.dart';
 import 'timeline_ops.dart';
 
 enum TranscriptState { idle, running, ready, failed }
@@ -65,6 +66,7 @@ class StudioController extends ChangeNotifier {
     this.hook,
     this.script,
     this.aspect = '9:16',
+    this.draftId,
   });
 
   final AiDirectorService director;
@@ -75,6 +77,16 @@ class StudioController extends ChangeNotifier {
   final String? hook;
   final String? script;
   final String aspect;
+  String? draftId;
+
+  TrackKind? selectedKind;
+  String? selectedItemId;
+
+  void selectTrackItem(String id, TrackKind kind) {
+    selectedItemId = id;
+    selectedKind = kind;
+    notifyListeners();
+  }
 
   bool _greeted = false;
 
@@ -117,6 +129,7 @@ class StudioController extends ChangeNotifier {
   static const _maxUndo = 50;
 
   String? sourcePath;
+  final Map<String, String> sourcePaths = {};
   VideoMetadata? meta;
   MobileEditIr? _ir;
   final List<MobileEditIr> _undo = [];
@@ -234,6 +247,7 @@ class StudioController extends ChangeNotifier {
       );
     }
     sourcePath = path;
+    sourcePaths['main'] = path;
     meta = info;
     _ir = TimelineOps.initial(
       projectId: projectId ?? 'local',
@@ -254,6 +268,14 @@ class StudioController extends ChangeNotifier {
         unawaited(_detectSilences(path));
         unawaited(_detectBeats(path));
         unawaited(transcribe());
+      } else if (script != null && script!.trim().isNotEmpty) {
+        _populateTranscriptFromScript(script!, info.durationMs);
+        _notify();
+        unawaited(greet());
+      } else if (hook != null && hook!.trim().isNotEmpty) {
+        _populateTranscriptFromScript(hook!, info.durationMs);
+        _notify();
+        unawaited(greet());
       } else {
         transcriptState = TranscriptState.failed;
         transcriptError = 'This video has no audio, so there is nothing to transcribe. Captions and pause removal are unavailable.';
@@ -261,8 +283,123 @@ class StudioController extends ChangeNotifier {
         unawaited(greet());
       }
     } else {
+      if (script != null && script!.trim().isNotEmpty) {
+        _populateTranscriptFromScript(script!, info.durationMs);
+      } else if (hook != null && hook!.trim().isNotEmpty) {
+        _populateTranscriptFromScript(hook!, info.durationMs);
+      }
+      _notify();
       unawaited(greet());
     }
+  }
+
+  /// Restores complete timeline and session state from a saved draft.
+  Future<void> restoreFromDraft(StudioDraft draft) async {
+    draftId = draft.id;
+    sourcePath = draft.sourcePath;
+    sourcePaths.clear();
+    sourcePaths.addAll(draft.sourcePaths);
+    if (!sourcePaths.containsKey('main') && draft.sourcePath.isNotEmpty) {
+      sourcePaths['main'] = draft.sourcePath;
+    }
+    _ir = draft.ir;
+    playheadMs = draft.playheadMs.clamp(0, draft.ir.durationMs);
+    _undo.clear();
+    _redo.clear();
+    selectedClip = null;
+    selectedKind = null;
+    selectedItemId = null;
+    _notify();
+  }
+
+  /// Creates a draft representation of the current project and timeline.
+  StudioDraft? createDraft({String? title}) {
+    final curIr = _ir;
+    final path = sourcePath;
+    if (curIr == null || path == null) return null;
+    final dId = draftId ?? 'draft_${DateTime.now().millisecondsSinceEpoch}';
+    draftId = dId;
+
+    final defaultTitle = title ??
+        (hook != null && hook!.trim().isNotEmpty ? hook!.trim() : null) ??
+        (script != null && script!.trim().isNotEmpty
+            ? (script!.trim().length > 30 ? '${script!.trim().substring(0, 30)}…' : script!.trim())
+            : null) ??
+        'Draft · ${timecode(curIr.durationMs)}';
+
+    return StudioDraft(
+      id: dId,
+      title: defaultTitle,
+      sourcePath: path,
+      sourcePaths: Map<String, String>.from(sourcePaths),
+      ir: curIr,
+      playheadMs: playheadMs,
+      updatedAt: DateTime.now(),
+      projectId: projectId,
+      postId: postId,
+      pieceId: pieceId,
+      hook: hook,
+      script: script,
+      thumbnailUrl: curIr.overlays.firstOrNull?.source['thumbnailUrl'] as String?,
+    );
+  }
+
+  void _populateTranscriptFromScript(String scriptText, int totalDurationMs) {
+    final clean = scriptText.replaceAll(RegExp(r'[\r\n]+'), ' ').trim();
+    if (clean.isEmpty) return;
+    final wordsList = clean.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (wordsList.isEmpty) return;
+
+    final dur = totalDurationMs > 0 ? totalDurationMs : 15000;
+    final wordDurationMs = (dur / wordsList.length).round().clamp(120, 600);
+    final transcriptWords = <TranscriptWord>[];
+    var currentMs = 250;
+
+    for (var i = 0; i < wordsList.length; i++) {
+      final w = wordsList[i];
+      final startMs = currentMs;
+      final endMs = (startMs + wordDurationMs).clamp(startMs + 50, dur);
+      transcriptWords.add(TranscriptWord(text: w, startMs: startMs, endMs: endMs));
+      currentMs = endMs + 40;
+      if (currentMs >= dur) break;
+    }
+
+    transcript = Transcript(
+      language: 'en',
+      durationMs: dur,
+      text: clean,
+      words: transcriptWords,
+    );
+    transcriptState = TranscriptState.ready;
+    transcriptError = null;
+
+    final ir = _ir;
+    if (ir != null) {
+      _ir = MobileEditIr(
+        projectId: ir.projectId,
+        canvas: ir.canvas,
+        durationMs: ir.durationMs,
+        sources: ir.sources,
+        watermark: ir.watermark,
+        clips: ir.clips,
+        overlays: ir.overlays,
+        captions: ir.captions,
+        zooms: ir.zooms,
+        effects: ir.effects,
+        audio: EditIrAudio(
+          originalVolumeDb: ir.audio.originalVolumeDb,
+          music: ir.audio.music,
+          speechRangesMs: TimelineOps.speechRanges(transcriptWords, ir),
+          sfx: ir.audio.sfx,
+        ),
+      );
+    }
+  }
+
+  /// Manually attach or update the video spoken script for AI Director consciousness.
+  void attachScript(String scriptText) {
+    _populateTranscriptFromScript(scriptText, _ir?.durationMs ?? 15000);
+    _notify();
   }
 
   Future<void> _detectSilences(String path) async {
@@ -365,8 +502,14 @@ class StudioController extends ChangeNotifier {
         );
       }
     } catch (e) {
-      transcriptState = TranscriptState.failed;
-      transcriptError = e;
+      if (script != null && script!.trim().isNotEmpty) {
+        _populateTranscriptFromScript(script!, _ir?.durationMs ?? 15000);
+      } else if (hook != null && hook!.trim().isNotEmpty) {
+        _populateTranscriptFromScript(hook!, _ir?.durationMs ?? 15000);
+      } else {
+        transcriptState = TranscriptState.failed;
+        transcriptError = e;
+      }
     }
     _notify();
     unawaited(greet());
@@ -384,6 +527,40 @@ class StudioController extends ChangeNotifier {
       selectedClip = next.clips.length - 1;
     }
     _notify();
+  }
+
+  /// Applies live update (e.g. dragging text on canvas) without cluttering the undo stack.
+  void applyWithoutHistory(MobileEditIr Function(MobileEditIr ir) edit) {
+    final current = _ir;
+    if (current == null) return;
+    final next = edit(current);
+    _ir = next;
+    _notify();
+  }
+
+  /// Adds a new video clip to the timeline (at start or end).
+  Future<void> addVideoClip(String path, {bool prepend = false, int? atIndex, String? label}) async {
+    VideoMetadata info;
+    if (!kIsWeb) {
+      try {
+        info = await MediaEngineService.getVideoInfo(path);
+      } catch (_) {
+        info = await _inspectVideoWithPlayer(path);
+      }
+    } else {
+      info = await _inspectVideoWithPlayer(path);
+    }
+    final assetId = 'asset_${DateTime.now().millisecondsSinceEpoch}';
+    sourcePaths[assetId] = path;
+    apply((ir) => TimelineOps.addTimelineClip(
+      ir,
+      assetId: assetId,
+      durationMs: info.durationMs,
+      width: info.width,
+      height: info.height,
+      prepend: prepend,
+      atIndex: atIndex,
+    ));
   }
 
   void _push(MobileEditIr ir) {

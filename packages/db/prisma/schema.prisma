@@ -154,6 +154,8 @@ model Company {
   socialConversations_CompanySocialConversations SocialConversation[] @relation("CompanySocialConversations")
   evergreenQueueSlots_CompanyEvergreenQueueSlots EvergreenQueueSlot[] @relation("CompanyEvergreenQueueSlots")
   socialEngagementRules_CompanySocialEngagementRules SocialEngagementRule[] @relation("CompanySocialEngagementRules")
+  managerConversations_CompanyManagerConversations ManagerConversation[] @relation("CompanyManagerConversations")
+  postVideoIntelligences_CompanyPostVideoIntelligences PostVideoIntelligence[] @relation("CompanyPostVideoIntelligences")
   aiCreditAccount                          CompanyAICreditAccount?
 }
 
@@ -577,6 +579,8 @@ model Project {
   socialConversations                     SocialConversation[]  @relation("ProjectSocialConversations")
   evergreenQueueSlots                     EvergreenQueueSlot[]  @relation("ProjectEvergreenQueueSlots")
   socialEngagementRules                   SocialEngagementRule[] @relation("ProjectSocialEngagementRules")
+  managerConversations                    ManagerConversation[]  @relation("ProjectManagerConversations")
+  postVideoIntelligences                  PostVideoIntelligence[] @relation("ProjectPostVideoIntelligences")
 
   @@index([companyId, status])
   @@index([companyId])
@@ -3725,6 +3729,7 @@ model SocialPost {
   reviewComments      PostReviewComment[]
   publishAttempts     SocialPublishAttempt[]
   engagementRules     SocialEngagementRule[] @relation("PostSocialEngagementRules")
+  videoIntelligence   PostVideoIntelligence?
 
   @@index([companyId, status])
   @@index([companyId, projectId])
@@ -4075,5 +4080,63 @@ model MediaIndexEntry {
 
   @@index([companyId, projectId])
   @@index([companyId, projectId, assetId, kind])
+}
+
+model ManagerConversation {
+  id              String           @id @default(uuid())
+  companyId       String
+  projectId       String?
+  title           String           @default("180 Manager Chat")
+  summary         String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  messages        ManagerMessage[]
+  company         Company          @relation("CompanyManagerConversations", fields: [companyId], references: [id], onDelete: Cascade)
+  project         Project?         @relation("ProjectManagerConversations", fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, projectId])
+}
+
+model ManagerMessage {
+  id               String               @id @default(uuid())
+  conversationId   String
+  senderType       String               // "user" | "manager" | "system"
+  content          String               @db.Text
+  intent           String?              // "analytics", "calendar_update", "inbox_hunt", "director_rule", "video_intel"
+  suggestedActions Json?                @default("[]")
+  delegatedAgent   String?              // "calendar" | "inbox" | "analytics" | "director" | "video_intel"
+  tokenUsage       Int                  @default(0)
+  createdAt        DateTime             @default(now())
+
+  conversation     ManagerConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model PostVideoIntelligence {
+  id                   String       @id @default(uuid())
+  companyId            String
+  projectId            String
+  postId               String?      @unique
+  assetUrl             String?
+  durationSec          Float?
+  hookScore            Int          @default(0) // 0 - 100
+  visualHookAnalysis   String?      @db.Text
+  audioHookTranscript  String?      @db.Text
+  pacingScore          Int          @default(0) // 0 - 100
+  cutsPerMinute        Float?
+  energyLevel          String?      // "high", "medium", "calm"
+  detectedFormat       String?      // "talking_head", "tutorial", "breakdown", "meme", "lifestyle"
+  speechTranscript     String?      @db.Text
+  viralityHypothesis   String?      @db.Text
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  company              Company      @relation("CompanyPostVideoIntelligences", fields: [companyId], references: [id], onDelete: Cascade)
+  project              Project      @relation("ProjectPostVideoIntelligences", fields: [projectId], references: [id], onDelete: Cascade)
+  post                 SocialPost?  @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, projectId])
 }
 

@@ -24,6 +24,7 @@ export interface AuthResponse {
 
 export type AuthUxMode = 'popup' | 'bottom_sheet' | 'fullscreen' | 'redirect' | 'auto';
 export type PayUxMode = 'bottom_sheet' | 'full_page' | 'popup' | 'redirect' | 'auto';
+export type EnvironmentMode = 'development' | 'production' | 'auto';
 
 export interface AppClientConfig {
   clientId: string;
@@ -43,6 +44,7 @@ export interface OpenPopupOptions {
   state?: string;
   responseType?: 'code' | 'token';
   uxMode?: AuthUxMode;
+  environment?: EnvironmentMode;
   onSuccess?: (response: AuthResponse) => void;
   onError?: (error: Error) => void;
   onCancel?: () => void;
@@ -73,6 +75,7 @@ export interface CheckoutOptions {
   metadata?: Record<string, any>;
   checkoutServerUrl?: string;
   uxMode?: PayUxMode;
+  environment?: EnvironmentMode;
   onSuccess?: (response: CheckoutResponse) => void;
   onError?: (error: Error) => void;
   onCancel?: () => void;
@@ -82,6 +85,7 @@ export interface ManageSubscriptionOptions {
   subscriptionId: string;
   checkoutServerUrl?: string;
   uxMode?: PayUxMode;
+  environment?: EnvironmentMode;
   onCancelled?: (data: any) => void;
   onClose?: () => void;
   onError?: (error: Error) => void;
@@ -89,31 +93,73 @@ export interface ManageSubscriptionOptions {
 
 
 // ============================================================================
-// 2. Base URL Helpers
+// 2. Base URL Helpers & Autonomous Environment Detection Engine
 // ============================================================================
 
-const getAuthServerUrl = (customUrl?: string): string => {
+/**
+ * Autonomously resolves whether the current client is executing in development or production mode.
+ * - Explicit override ('development' | 'production') is always respected.
+ * - HTTP protocol or local hostnames (localhost, 127.0.0.1, 0.0.0.0, *.local, *.test, *.internal) resolve to 'development'.
+ * - HTTPS protocol on non-local hostnames resolves to 'production'.
+ */
+export function resolveEnvironmentMode(customMode?: EnvironmentMode): 'development' | 'production' {
+  if (customMode === 'development' || customMode === 'production') {
+    return customMode;
+  }
+  if (typeof window !== 'undefined' && window.location) {
+    const protocol = window.location.protocol;
+    const host = (window.location.hostname || '').toLowerCase();
+    const isLocalHost =
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '0.0.0.0' ||
+      host.endsWith('.local') ||
+      host.endsWith('.test') ||
+      host.endsWith('.internal') ||
+      host.endsWith('.example');
+
+    if (protocol === 'http:' || isLocalHost) {
+      return 'development';
+    }
+    if (protocol === 'https:') {
+      return 'production';
+    }
+  }
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV) {
+    return process.env.NODE_ENV === 'production' ? 'production' : 'development';
+  }
+  return 'development';
+}
+
+/**
+ * Generates an enterprise-grade, human-readable Reference Code for incident tracking
+ * (e.g. 180-AUTH-7E4A1, 180-PAY-9B2F3).
+ */
+export function generateReferenceCode(domainPrefix: 'AUTH' | 'PAY' | 'CORE' = 'CORE'): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let rand = '';
+  for (let i = 0; i < 5; i++) {
+    rand += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `180-${domainPrefix}-${rand}`;
+}
+
+const getAuthServerUrl = (customUrl?: string, envMode?: EnvironmentMode): string => {
   if (customUrl) return customUrl;
   if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_AUTH_URL) {
     return process.env.NEXT_PUBLIC_180_AUTH_URL;
   }
-  if (typeof window !== 'undefined') {
-    const isProd = window.location.hostname.endsWith('180workspace.com') || window.location.protocol === 'https:';
-    return isProd ? 'https://profile.180workspace.com' : 'http://localhost:3009';
-  }
-  return 'http://localhost:3009';
+  const mode = resolveEnvironmentMode(envMode);
+  return mode === 'production' ? 'https://profile.180workspace.com' : 'http://localhost:3009';
 };
 
-const getPayServerUrl = (customUrl?: string): string => {
+const getPayServerUrl = (customUrl?: string, envMode?: EnvironmentMode): string => {
   if (customUrl) return customUrl;
   if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_PAY_URL) {
     return process.env.NEXT_PUBLIC_180_PAY_URL;
   }
-  if (typeof window !== 'undefined') {
-    const isProd = window.location.hostname.endsWith('180workspace.com') || window.location.protocol === 'https:';
-    return isProd ? 'https://pay.180workspace.com' : 'http://localhost:3009';
-  }
-  return 'http://localhost:3009';
+  const mode = resolveEnvironmentMode(envMode);
+  return mode === 'production' ? 'https://pay.180workspace.com' : 'http://localhost:3009';
 };
 
 /**
@@ -306,6 +352,7 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
     let isResolved = false;
 
     // Outer root container
+    const isMobile = isMobileDevice();
     const root = document.createElement('div');
     root.id = '__180_bottom_sheet_container__';
     root.style.cssText = `
@@ -314,7 +361,7 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
       z-index: 999999;
       display: flex;
       flex-direction: column;
-      justify-content: flex-end;
+      justify-content: ${isMobile ? 'flex-end' : 'center'};
       align-items: center;
       pointer-events: auto;
       font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -333,7 +380,6 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
     `;
 
     // Sheet Modal Window
-    const isMobile = isMobileDevice();
     const sheet = document.createElement('div');
     sheet.style.cssText = `
       position: relative;
@@ -342,7 +388,7 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
       max-width: ${isMobile ? '100%' : '480px'};
       height: ${isMobile ? '90vh' : '700px'};
       max-height: 94vh;
-      margin: ${isMobile ? '0' : '0 0 24px 0'};
+      margin: 0;
       background: #09090b;
       color: #fafafa;
       border: 1px solid rgba(255, 255, 255, 0.12);
@@ -351,7 +397,7 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      animation: one-eighty-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: ${isMobile ? 'one-eighty-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'one-eighty-fade-in 0.25s ease-out forwards'};
     `;
 
     // Header with grab handle, title, close button
@@ -564,12 +610,14 @@ export const OneEightyIdentity = {
    * Opens 180 Identity Sovereign Auth with the configured UX mode (bottom_sheet, popup, or fullscreen/redirect)
    */
   openAuth(options: OpenAuthOptions): Promise<AuthResponse> {
-    const { clientId } = options;
-    if (!clientId) {
-      throw new Error('[180 Identity] Missing required parameter: clientId');
-    }
+    const clientId =
+      options.clientId ||
+      (typeof window !== 'undefined' && (window as any).__180_CLIENT_ID) ||
+      (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined) ||
+      '180-developers-portal';
 
-    const authServer = getAuthServerUrl(options.authServerUrl);
+    const env = resolveEnvironmentMode(options.environment);
+    const authServer = getAuthServerUrl(options.authServerUrl, env);
     preconnectAuthServer(authServer);
     const redirectUri = options.redirectUri || (typeof window !== 'undefined' ? window.location.origin + '/oauth/callback' : '');
     const scope = options.scope || 'openid identity:read identity:email';
@@ -578,7 +626,7 @@ export const OneEightyIdentity = {
 
     // Resolve UX mode: 'bottom_sheet' | 'popup' | 'fullscreen' | 'redirect' | 'auto'
     const isMobile = isMobileDevice();
-    let effectiveMode: 'bottom_sheet' | 'popup' | 'fullscreen' = 'popup';
+    let effectiveMode: 'bottom_sheet' | 'popup' | 'fullscreen' = 'bottom_sheet';
 
     if (options.uxMode === 'bottom_sheet') {
       effectiveMode = 'bottom_sheet';
@@ -588,7 +636,6 @@ export const OneEightyIdentity = {
       effectiveMode = 'popup';
     } else {
       // 'auto' or undefined:
-      // 1. Check if the app's configuration is cached (from Developer Console settings: authDesktopDefault / authMobileDefault)
       const cachedAppConfig = getCachedAppConfig(clientId);
       const configuredMode = isMobile
         ? cachedAppConfig?.authMobileDefault
@@ -597,10 +644,8 @@ export const OneEightyIdentity = {
       if (configuredMode === 'popup' || configuredMode === 'bottom_sheet' || configuredMode === 'fullscreen') {
         effectiveMode = configuredMode;
       } else {
-        // 2. Default responsive UX behavior:
-        // - Mobile / Phones: Bottom sheet ('bottom_sheet') slide-up
-        // - Desktop: Centered modal popup window ('popup')
-        effectiveMode = isMobile ? 'bottom_sheet' : 'popup';
+        // Default to in-DOM bottom_sheet / modal so it is NEVER blocked by browser popup blockers!
+        effectiveMode = 'bottom_sheet';
       }
     }
 
@@ -609,7 +654,7 @@ export const OneEightyIdentity = {
       prefetchAppConfig(clientId, options.authServerUrl).catch(() => {});
     }
 
-    const authUrl = `${authServer}/auth/login?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}&response_type=${encodeURIComponent(responseType)}&ux_mode=${effectiveMode}`;
+    const authUrl = `${authServer}/auth/login?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}&response_type=${encodeURIComponent(responseType)}&ux_mode=${effectiveMode}&env=${encodeURIComponent(env)}`;
 
     // 1. Fullscreen / Redirect Mode
     if (effectiveMode === 'fullscreen') {
@@ -1013,7 +1058,10 @@ export const OneEightyIdentity = {
     } catch (_) {
       return null;
     }
-  }
+  },
+
+  resolveEnvironmentMode,
+  generateReferenceCode,
 };
 
 // ============================================================================
@@ -1022,6 +1070,8 @@ export const OneEightyIdentity = {
 
 export const OneEightyPay = {
   version: '1.0.0',
+  resolveEnvironmentMode,
+  generateReferenceCode,
 
   /**
    * Opens 180 Profile Sovereign Checkout with the configured UX mode (bottom_sheet, popup, or full_page/redirect)
@@ -1029,7 +1079,8 @@ export const OneEightyPay = {
   checkout(options: CheckoutOptions): Promise<CheckoutResponse> {
     const sessionId = options.sessionId || `sess_${Math.random().toString(36).substring(2, 12)}_${Date.now()}`;
 
-    const payServer = getPayServerUrl(options.checkoutServerUrl);
+    const env = resolveEnvironmentMode(options.environment);
+    const payServer = getPayServerUrl(options.checkoutServerUrl, env);
     const isMobile = isMobileDevice();
 
     let effectiveMode: 'bottom_sheet' | 'full_page' | 'popup' = 'bottom_sheet';
@@ -1057,6 +1108,7 @@ export const OneEightyPay = {
       options.description ? `description=${encodeURIComponent(options.description)}` : '',
       options.couponCode ? `coupon=${encodeURIComponent(options.couponCode)}` : '',
       `ux_mode=${encodeURIComponent(effectiveMode)}`,
+      `env=${encodeURIComponent(env)}`,
     ].filter(Boolean).join('&');
 
     const checkoutUrl = `${payServer}/checkout/${encodeURIComponent(sessionId)}${query ? `?${query}` : ''}`;
@@ -1312,7 +1364,11 @@ export function use180Identity(defaultClientId?: string) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    const id = defaultClientId || (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined);
+    const id =
+      defaultClientId ||
+      (typeof window !== 'undefined' && (window as any).__180_CLIENT_ID) ||
+      (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined) ||
+      '180-developers-portal';
     if (id) {
       prefetchAppConfig(id).catch(() => {});
     }
@@ -1324,10 +1380,13 @@ export function use180Identity(defaultClientId?: string) {
       try {
         const opts: Partial<OpenPopupOptions> =
           typeof options === 'function' ? { onSuccess: options } : options || {};
-        const clientId = opts.clientId || (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined) || defaultClientId || '';
-        if (!clientId) {
-          throw new Error('[180 Identity] Missing required parameter: clientId (or NEXT_PUBLIC_180_CLIENT_ID environment variable)');
-        }
+        const clientId =
+          opts.clientId ||
+          defaultClientId ||
+          (typeof window !== 'undefined' && (window as any).__180_CLIENT_ID) ||
+          (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined) ||
+          '180-developers-portal';
+
         const res = await OneEightyIdentity.openAuth({
           clientId,
           ...opts,
@@ -1342,6 +1401,7 @@ export function use180Identity(defaultClientId?: string) {
         }
         return res;
       } catch (err: any) {
+        console.error('[180 Identity] Launch error:', err);
         setIsOpeningIdentity(false);
         setIsProcessing(false);
         return null;

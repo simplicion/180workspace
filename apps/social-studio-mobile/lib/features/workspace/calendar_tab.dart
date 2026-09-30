@@ -78,15 +78,16 @@ class _CalendarTabState extends ConsumerState<CalendarTab> {
       ),
       Padding(
         padding: EdgeInsets.symmetric(horizontal: 16),
-        // Wrap, not Row: a long timezone plus the button overflowed on 320dp phones.
-        child: Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          StatusChip(label: widget.project.settings.defaultTimezone, color: AppTheme.textSecondary, icon: Icons.public_rounded),
-          TextButton.icon(
-            onPressed: () => context.push('/posts/new?projectId=${widget.project.id}'),
-            icon: Icon(Icons.add_rounded, size: 18),
-            label: Text('Create content'),
-          ),
-        ]),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton.icon(
+              onPressed: () => context.push('/posts/new?projectId=${widget.project.id}'),
+              icon: Icon(Icons.add_rounded, size: 18),
+              label: Text('Create content'),
+            ),
+          ],
+        ),
       ),
       Expanded(
         child: AsyncBody<List<SocialPost>>(

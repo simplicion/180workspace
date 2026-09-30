@@ -91,7 +91,19 @@ const APPS = {
     name: '180 Social Studio (Flutter Mobile)',
     filter: 'social-studio-mobile',
     cmd: 'flutter',
-    args: ['run', '-d', 'chrome', '--web-port', '3007'],
+    args: [
+      'run',
+      '-d',
+      'web-server',
+      '--web-port',
+      '3007',
+      '--web-hostname',
+      '0.0.0.0',
+      '--dart-define=API_BASE_URL=http://localhost:4002',
+      '--dart-define=IDENTITY_SERVER_URL=http://localhost:4003',
+      '--dart-define=IDENTITY_AUTH_URL=http://localhost:3009',
+      '--dart-define=WEB_APP_URL=http://localhost:3002',
+    ],
     cwd: path.join(rootDir, 'apps', 'social-studio-mobile'),
     port: 3007,
     color: '\x1b[96m', // Bright Cyan
@@ -225,8 +237,8 @@ function runAllApps(includeMobile = true) {
 
   // 2. Launch Flutter mobile in parallel if enabled
   if (includeMobile) {
-    const flutterChild = spawn('flutter', ['run', '-d', 'chrome', '--web-port', '3007'], {
-      cwd: path.join(rootDir, 'apps', 'social-studio-mobile'),
+    const flutterChild = spawn(APPS.social.cmd, APPS.social.args, {
+      cwd: APPS.social.cwd || path.join(rootDir, 'apps', 'social-studio-mobile'),
       stdio: 'inherit',
       shell: true,
     });

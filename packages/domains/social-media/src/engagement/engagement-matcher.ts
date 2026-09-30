@@ -61,27 +61,33 @@ export class EngagementMatcher {
     /**
      * Tests if text matches keywords based on matchMode.
      */
+    /**
+     * Tests if text matches keywords based on matchMode.
+     * Supports exact match, regex, and boundary-aware contains (handles emojis, punctuation, spaces).
+     */
     static matchesKeywords(text: string, keywords: string[], matchMode: 'contains' | 'exact' | 'regex' = 'contains'): boolean {
         if (!keywords.length) return true; // empty keywords = catch all
-        const normalizedText = text.trim().toLowerCase();
+        const normalizedText = (text || '').trim().toLowerCase();
 
         for (const kw of keywords) {
-            const normalizedKw = kw.trim().toLowerCase();
+            const normalizedKw = (kw || '').trim().toLowerCase();
             if (!normalizedKw) continue;
 
             if (matchMode === 'exact') {
                 if (normalizedText === normalizedKw) return true;
+                // Also handle trailing punctuation / emojis in exact mode (e.g. "LINK!" or "LINK🔥")
+                const strippedText = normalizedText.replace(/^[\s\p{P}\p{S}]+|[\s\p{P}\p{S}]+$/gu, '');
+                if (strippedText === normalizedKw) return true;
             } else if (matchMode === 'contains') {
-                // Word-boundary aware or substring matching
-                const isAlphaNumeric = /[a-zA-Z0-9]/.test(normalizedKw);
-                if (isAlphaNumeric) {
-                    const escaped = normalizedKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const wordBoundaryRegex = new RegExp(`(^|\\s|[#@.,!?;:'"\\(\\)\\[\\]])${escaped}($|\\s|[#@.,!?;:'"\\(\\)\\[\\]])`, 'i');
-                    if (wordBoundaryRegex.test(text)) {
-                        return true;
-                    }
+                // If keyword contains space or symbols, match substring
+                if (/\s/.test(normalizedKw)) {
+                    if (normalizedText.includes(normalizedKw)) return true;
                 } else {
-                    if (normalizedText.includes(normalizedKw)) {
+                    // Non-alphanumeric boundary regex: matches start/end or any non-alphanumeric char
+                    // (handles emojis like 🔥, symbols, punctuation, spaces, tabs, newlines)
+                    const escaped = normalizedKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const boundaryRegex = new RegExp(`(^|[^a-zA-Z0-9])${escaped}([^a-zA-Z0-9]|$)`, 'i');
+                    if (boundaryRegex.test(text)) {
                         return true;
                     }
                 }
@@ -127,6 +133,7 @@ export class EngagementMatcher {
                         OR: [
                             { postId: null },
                             ...(event.postId ? [{ postId: event.postId }] : []),
+                            ...(event.mediaId ? [{ postId: event.mediaId }] : []),
                         ],
                     },
                 ],
@@ -135,9 +142,18 @@ export class EngagementMatcher {
         });
 
         for (const rule of candidateRules) {
-            // Check specific target post matching if specified
-            if (rule.postId && event.postId && rule.postId !== event.postId) {
+            // Check specific target account matching
+            if (rule.socialAccountId && event.socialAccountId && rule.socialAccountId !== event.socialAccountId) {
                 continue;
+            }
+
+            // Check specific target post/media matching if rule is post-scoped
+            if (rule.postId) {
+                const matchesTarget = (event.postId && rule.postId === event.postId) ||
+                                      (event.mediaId && rule.postId === event.mediaId);
+                if (!matchesTarget) {
+                    continue;
+                }
             }
 
             // If triggerType is comment_any or dm_inbound without keywords, it matches

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -74,7 +75,11 @@ Future<void> showStudioTool(BuildContext context, StudioTool tool, StudioControl
           StudioTool.rotate => _RotateSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.filter => _FilterSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.adjust => _AdjustSheet(c: c, index: clipIndex, onEdit: onEdit),
-          StudioTool.text => _TextSheet(c: c, onEdit: onEdit),
+          StudioTool.text => _TextSheet(
+            c: c,
+            onEdit: onEdit,
+            captionId: c.selectedKind == TrackKind.captions ? c.selectedItemId : null,
+          ),
           StudioTool.captions => _CaptionsSheet(c: c, onEdit: onEdit),
           StudioTool.music => _MusicSheet(c: c, onEdit: onEdit),
           StudioTool.zoom => _ZoomSheet(c: c, onEdit: onEdit),
@@ -510,18 +515,64 @@ class _AdjustSheetState extends State<_AdjustSheet> {
 // ── overlays & audio ─────────────────────────────────────────────────────────
 
 class _TextSheet extends StatefulWidget {
-  const _TextSheet({required this.c, required this.onEdit});
+  const _TextSheet({required this.c, required this.onEdit, this.captionId});
   final StudioController c;
   final EditFn onEdit;
+  final String? captionId;
 
   @override
   State<_TextSheet> createState() => _TextSheetState();
 }
 
 class _TextSheetState extends State<_TextSheet> {
-  final _text = TextEditingController();
-  double seconds = 3;
-  double y = 0.2;
+  late final EditIrCaption? _existing = () {
+    final id = widget.captionId ??
+        (widget.c.selectedKind == TrackKind.captions ? widget.c.selectedItemId : null);
+    if (id == null) return null;
+    return widget.c.ir?.captions.where((c) => c.id == id).firstOrNull;
+  }();
+
+  late final _text = TextEditingController(text: _existing?.text ?? '');
+  late double seconds = _existing != null ? ((_existing.endMs - _existing.startMs) / 1000).clamp(0.5, 30.0) : 3.0;
+  late double y = (_existing?.style['positionY'] as num?)?.toDouble() ?? 0.25;
+  late double x = (_existing?.style['positionX'] as num?)?.toDouble() ?? 0.50;
+
+  late String _fontFamily = (_existing?.style['fontFamily'] as String?) ?? 'Inter';
+  late double _fontSize = (_existing?.style['fontSizePx'] as num?)?.toDouble() ?? 24;
+  late String _textColor = (_existing?.style['textColor'] as String?) ?? '#FFFFFF';
+  late String? _bgColor = (_existing?.style['background'] as Map?)?['color'] as String?;
+  late int _strokeWidth = (_existing?.style['strokeWidthPx'] as num?)?.toInt() ?? 0;
+  late bool _shadow = _existing?.style['shadow'] == true;
+  late bool _glow = _existing?.style['glow'] == true;
+  late String _animation = (_existing?.style['animation'] as String?) ?? 'none';
+
+  static const _emojis = ['🔥', '🚀', '❤️', '💡', '👏', '😂', '✨', '🎯', '📈', '⚡', '🎬', '💥', '💰', '👑', '🎉', '💯'];
+  static const _fonts = ['Inter', 'Anton', 'Montserrat', 'Poppins', 'Syne', 'Outfit', 'Roboto', 'Bebas Neue'];
+  static const _textColors = [
+    ('#FFFFFF', 'White'),
+    ('#FFE600', 'Yellow'),
+    ('#22D3EE', 'Cyan'),
+    ('#4ADE80', 'Green'),
+    ('#F472B6', 'Pink'),
+    ('#FB923C', 'Orange'),
+    ('#000000', 'Black'),
+    ('#EF4444', 'Red'),
+  ];
+  static const _bgColors = [
+    (null, 'None'),
+    ('#B3000000', 'Black'),
+    ('#CCFFFFFF', 'White'),
+    ('#4D22D3EE', 'Cyan'),
+    ('#80EF4444', 'Red'),
+  ];
+  static const _animations = [
+    ('none', 'None'),
+    ('fade_in', 'Fade In'),
+    ('word_pop', 'Word Pop'),
+    ('slide_up', 'Slide Up'),
+    ('typewriter', 'Typewriter'),
+    ('pulse', 'Pulse (Loop)'),
+  ];
 
   @override
   void dispose() {
@@ -529,45 +580,324 @@ class _TextSheetState extends State<_TextSheet> {
     super.dispose();
   }
 
+  void _insertEmoji(String emoji) {
+    final cur = _text.text;
+    final pos = _text.selection.baseOffset;
+    if (pos >= 0 && pos <= cur.length) {
+      _text.text = cur.substring(0, pos) + emoji + cur.substring(pos);
+      _text.selection = TextSelection.collapsed(offset: pos + emoji.length);
+    } else {
+      _text.text = cur + emoji;
+      _text.selection = TextSelection.collapsed(offset: _text.text.length);
+    }
+    setState(() {});
+  }
+
+  Map<String, dynamic> _buildStyle() => {
+        'fontFamily': _fontFamily,
+        'fontSizePx': _fontSize,
+        'textColor': _textColor,
+        'highlightColor': _textColor,
+        'positionX': x,
+        'positionY': y,
+        if (_bgColor != null) 'background': {'color': _bgColor},
+        if (_strokeWidth > 0) 'strokeWidthPx': _strokeWidth,
+        if (_strokeWidth > 0) 'strokeColor': '#000000',
+        'shadow': _shadow,
+        'glow': _glow,
+        'animation': _animation,
+      };
+
   @override
   Widget build(BuildContext context) {
     final titles = widget.c.ir!.captions.where((c) => c.kind == 'text').toList();
-    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      _Title('Add text', subtitle: 'Starts at ${timecode(widget.c.playheadMs)}'),
-      TextField(controller: _text, autofocus: true, maxLines: 2, decoration: fieldDecoration('Title or lower third')),
-      Text('Show for ${seconds.toStringAsFixed(1)}s'),
-      Slider(value: seconds, min: 0.5, max: 10, divisions: 19, onChanged: (v) => setState(() => seconds = v)),
-      SegmentedButton<double>(
-        segments: [ButtonSegment(value: 0.2, label: Text('Top')), ButtonSegment(value: 0.5, label: Text('Middle')), ButtonSegment(value: 0.82, label: Text('Bottom'))],
-        selected: {y},
-        onSelectionChanged: (v) => setState(() => y = v.first),
-      ),
-      SizedBox(height: 12),
-      FilledButton(
-        onPressed: () {
-          final t = _text.text;
-          _close(context);
-          widget.onEdit((ir) => TimelineOps.addText(ir, t, startMs: widget.c.playheadMs, durationMs: (seconds * 1000).round(), positionY: y));
-        },
-        child: Text('Add text'),
-      ),
-      if (titles.isNotEmpty) ...[
-        SectionHeader('On this video'),
-        for (final t in titles)
-          ListTile(
-            dense: true,
-            title: Text(t.text, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text('${timecode(t.startMs)} – ${timecode(t.endMs)}'),
-            trailing: IconButton(
-              icon: Icon(Icons.delete_outline_rounded),
-              onPressed: () {
-                _close(context);
-                widget.onEdit((ir) => TimelineOps.removeCaption(ir, t.id));
-              },
+    final previewStyle = _buildStyle();
+
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.78,
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          _Title(
+            _existing != null ? 'Edit text style' : 'Add text',
+            subtitle: 'Starts at ${timecode(widget.c.playheadMs)}. Drag directly on video to position.',
+          ),
+
+          // Live Text Preview Box
+          Container(
+            height: 72,
+            margin: EdgeInsets.only(bottom: 12),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.black45,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                _text.text.isEmpty ? 'Sample Text' : _text.text,
+                textAlign: TextAlign.center,
+                style: CaptionFonts.textStyle(
+                  previewStyle,
+                  fontSize: _fontSize.clamp(14, 32),
+                  color: Color(int.parse('FF${_textColor.substring(1)}', radix: 16)),
+                  shadows: [
+                    if (_glow) Shadow(blurRadius: 16, color: Color(int.parse('FF${_textColor.substring(1)}', radix: 16))),
+                    if (_shadow || _strokeWidth > 0) ...[
+                      Shadow(blurRadius: 4, color: Colors.black),
+                      Shadow(blurRadius: 1, color: Colors.black),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
-      ],
-    ]);
+
+          // Text Field
+          TextField(
+            controller: _text,
+            autofocus: _existing == null,
+            maxLines: 2,
+            onChanged: (_) => setState(() {}),
+            decoration: fieldDecoration('Text content', hint: 'Type your title, hook, or text…'),
+          ),
+          SizedBox(height: 8),
+
+          // Quick Emojis
+          Row(children: [
+            Icon(Icons.emoji_emotions_outlined, size: 16, color: AppTheme.textSecondary),
+            SizedBox(width: 6),
+            Text('Quick Emojis', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+          ]),
+          SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final em in _emojis)
+                  Padding(
+                    padding: EdgeInsets.only(right: 6),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => _insertEmoji(em),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(color: AppTheme.surfaceElevated, borderRadius: BorderRadius.circular(8)),
+                        child: Text(em, style: TextStyle(fontSize: 18)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(height: 12),
+
+          // Google Font Family
+          Text('Font Style', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+          SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final f in _fonts)
+                  Padding(
+                    padding: EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      label: Text(f),
+                      selected: _fontFamily == f,
+                      onSelected: (_) => setState(() => _fontFamily = f),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(height: 12),
+
+          // Text Colors
+          Text('Text Color', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+          SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final (hex, _) in _textColors)
+                  Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => setState(() => _textColor = hex),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Color(int.parse('FF${hex.substring(1)}', radix: 16)),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _textColor == hex ? AppTheme.primary : AppTheme.border,
+                            width: _textColor == hex ? 3 : 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(height: 12),
+
+          // Highlight / Background
+          Text('Highlight Box', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+          SizedBox(height: 6),
+          Wrap(spacing: 8, children: [
+            for (final (hex, label) in _bgColors)
+              ChoiceChip(
+                label: Text(label),
+                selected: _bgColor == hex,
+                onSelected: (_) => setState(() => _bgColor = hex),
+              ),
+          ]),
+          SizedBox(height: 12),
+
+          // CapCut Animations
+          Text('Motion & Animations (CapCut Presets)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+          SizedBox(height: 6),
+          Wrap(spacing: 8, runSpacing: 6, children: [
+            for (final (animKey, animLabel) in _animations)
+              ChoiceChip(
+                label: Text(animLabel),
+                selected: _animation == animKey,
+                onSelected: (_) => setState(() => _animation = animKey),
+              ),
+          ]),
+          SizedBox(height: 12),
+
+          // Effects: Stroke, Shadow, Glow
+          Text('Effects & Styling', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+          SizedBox(height: 6),
+          Wrap(spacing: 8, children: [
+            FilterChip(
+              label: Text('Drop Shadow'),
+              selected: _shadow,
+              onSelected: (v) => setState(() => _shadow = v),
+            ),
+            FilterChip(
+              label: Text('Neon Glow'),
+              selected: _glow,
+              onSelected: (v) => setState(() => _glow = v),
+            ),
+            ChoiceChip(
+              label: Text('No Stroke'),
+              selected: _strokeWidth == 0,
+              onSelected: (_) => setState(() => _strokeWidth = 0),
+            ),
+            ChoiceChip(
+              label: Text('Outline 2px'),
+              selected: _strokeWidth == 2,
+              onSelected: (_) => setState(() => _strokeWidth = 2),
+            ),
+            ChoiceChip(
+              label: Text('Outline 4px'),
+              selected: _strokeWidth == 4,
+              onSelected: (_) => setState(() => _strokeWidth = 4),
+            ),
+          ]),
+          SizedBox(height: 12),
+
+          // Font Size & Duration
+          Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Size: ${_fontSize.round()}px', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                Slider(
+                  value: _fontSize,
+                  min: 14,
+                  max: 56,
+                  divisions: 21,
+                  onChanged: (v) => setState(() => _fontSize = v),
+                ),
+              ]),
+            ),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Duration: ${seconds.toStringAsFixed(1)}s', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                Slider(
+                  value: seconds,
+                  min: 0.5,
+                  max: 10,
+                  divisions: 19,
+                  onChanged: (v) => setState(() => seconds = v),
+                ),
+              ]),
+            ),
+          ]),
+          SizedBox(height: 8),
+
+          // Vertical Position Quick Buttons
+          Text('Vertical Position', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+          SizedBox(height: 6),
+          SegmentedButton<double>(
+            segments: [
+              ButtonSegment(value: 0.18, label: Text('Top')),
+              ButtonSegment(value: 0.50, label: Text('Center')),
+              ButtonSegment(value: 0.82, label: Text('Bottom')),
+            ],
+            selected: {y},
+            onSelectionChanged: (v) => setState(() => y = v.first),
+          ),
+          SizedBox(height: 16),
+
+          // Apply / Add Button
+          FilledButton.icon(
+            icon: Icon(_existing != null ? Icons.check_rounded : Icons.add_rounded),
+            label: Text(_existing != null ? 'Update text' : 'Add text to video'),
+            onPressed: () {
+              final t = _text.text.trim();
+              if (t.isEmpty) return;
+              _close(context);
+              final ex = _existing;
+              if (ex != null) {
+                widget.onEdit(
+                  (ir) => TimelineOps.editText(ir, ex.id, text: t, style: _buildStyle()),
+                  done: 'Text updated',
+                );
+              } else {
+                widget.onEdit(
+                  (ir) => TimelineOps.addText(
+                    ir,
+                    t,
+                    startMs: widget.c.playheadMs,
+                    durationMs: (seconds * 1000).round(),
+                    positionY: y,
+                    positionX: x,
+                    style: _buildStyle(),
+                  ),
+                  done: 'Text added',
+                );
+              }
+            },
+          ),
+
+          if (titles.isNotEmpty) ...[
+            SizedBox(height: 16),
+            SectionHeader('On this video'),
+            for (final t in titles)
+              ListTile(
+                dense: true,
+                title: Text(t.text, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text('${timecode(t.startMs)} – ${timecode(t.endMs)}'),
+                trailing: IconButton(
+                  icon: Icon(Icons.delete_outline_rounded, color: AppTheme.error),
+                  onPressed: () {
+                    _close(context);
+                    widget.onEdit((ir) => TimelineOps.removeCaption(ir, t.id));
+                  },
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -803,7 +1133,15 @@ class _MusicSheetState extends ConsumerState<_MusicSheet> {
     final path = file?.path;
     if (file == null || path == null || !mounted) return;
     setState(() => _busy = true);
-    final url = await guarded(context, () => ref.read(socialApiProvider).uploadFile(path));
+    List<int>? bytes;
+    try {
+      bytes = await XFile(path).readAsBytes();
+    } catch (_) {}
+    if (!mounted) return;
+    final url = await guarded(
+      context,
+      () => ref.read(socialApiProvider).uploadFile(path, fileBytes: bytes, filename: file.name),
+    );
     if (!mounted) return;
     setState(() => _busy = false);
     if (url != null) {
@@ -1028,8 +1366,8 @@ class _BrollSheet extends ConsumerStatefulWidget {
 class _BrollSheetState extends ConsumerState<_BrollSheet> {
   final _query = TextEditingController(text: 'cinematic');
   double seconds = 3;
-  bool _busy = false;
   bool _searching = false;
+  bool _busy = false;
   List<StockVideoResult>? _results;
 
   static const _ideaChips = ['cinematic', 'nature', 'office', 'city night', 'technology', 'people', 'coffee', 'coding'];
@@ -1079,86 +1417,162 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
     );
   }
 
+  void _onSelectClip(StockVideoResult v) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Insert Stock Video', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Text('${v.provider}: ${v.author ?? v.id}', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              SizedBox(height: 16),
+              FilledButton.icon(
+                icon: Icon(Icons.layers_rounded),
+                label: Text('Add as B-roll Cutaway (Overlay)'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _addClip(v.downloadUrl, '${v.provider}: ${v.author ?? v.id}', credit: v.attribution);
+                },
+              ),
+              SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: Icon(Icons.movie_rounded),
+                label: Text('Add to Main Timeline (Video Track)'),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  _close(context);
+                  await widget.c.addVideoClip(v.downloadUrl, label: '${v.provider}: ${v.author ?? v.id}');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _fromGallery() async {
-    final f = await ImagePicker().pickVideo(source: ImageSource.gallery);
-    if (f == null || !mounted) return;
     setState(() => _busy = true);
-    final url = await guarded(context, () => ref.read(socialApiProvider).uploadFile(f.path));
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (url != null) {
-      _addClip(url, f.name);
+    final XFile? file;
+    try {
+      file = await ImagePicker().pickVideo(source: ImageSource.gallery);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
+    if (file == null || !mounted) return;
+    final f = file;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Add Selected Video', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Text(f.name, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              SizedBox(height: 16),
+              FilledButton.icon(
+                icon: Icon(Icons.layers_rounded),
+                label: Text('Add as B-roll Cutaway (Overlay)'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _addClip(f.path, f.name);
+                },
+              ),
+              SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: Icon(Icons.movie_rounded),
+                label: Text('Add to Main Timeline'),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  _close(context);
+                  await widget.c.addVideoClip(f.path, label: f.name);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final overlays = widget.c.ir!.overlays;
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _Title('B-roll Cutaways', subtitle: 'Full-screen overlay from ${timecode(widget.c.playheadMs)}. Voice keeps playing.'),
-            Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _query,
-                  onSubmitted: _searchVideos,
-                  decoration: fieldDecoration('Search stock video', hint: 'e.g. city at night'),
-                ),
-              ),
-              SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: _searching || _busy ? null : () => _searchVideos(_query.text),
-                icon: Icon(Icons.search_rounded, size: 18),
-                label: Text('Find'),
-              ),
-            ]),
-            SizedBox(height: 8),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final tag in _ideaChips)
-                    Padding(
-                      padding: EdgeInsets.only(right: 6),
-                      child: ActionChip(
-                        label: Text(tag, style: TextStyle(fontSize: 12)),
-                        backgroundColor: _query.text.trim().toLowerCase() == tag ? AppTheme.primary.withValues(alpha: 0.3) : AppTheme.surfaceElevated,
-                        side: BorderSide(
-                          color: _query.text.trim().toLowerCase() == tag ? AppTheme.primary : AppTheme.border,
-                        ),
-                        onPressed: () {
-                          _query.text = tag;
-                          _searchVideos(tag);
-                        },
-                      ),
-                    ),
-                ],
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.78,
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          _Title('B-roll Cutaways & Clips', subtitle: 'Overlay from ${timecode(widget.c.playheadMs)} or add to main timeline.'),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _query,
+                onSubmitted: _searchVideos,
+                decoration: fieldDecoration('Search stock video', hint: 'e.g. nature, cinematic, city…'),
               ),
             ),
-            if (_searching)
-              SizedBox(height: 160, child: UniversalSkeleton(type: SkeletonType.projects)),
-            if (_results != null && !_searching) ...[
-              SizedBox(height: 12),
-              Text(
-                'Found ${_results!.length} clips (Pexels & Pixabay):',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
-              ),
-              SizedBox(height: 8),
-              if (_results!.isEmpty)
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: AppTheme.surfaceElevated, borderRadius: BorderRadius.circular(12)),
-                  child: Text('No video clips found. Try another query like "city" or "drone".', style: TextStyle(color: AppTheme.textMuted)),
-                )
-              else
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
+            SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: _searching || _busy ? null : () => _searchVideos(_query.text),
+              icon: Icon(Icons.search_rounded, size: 18),
+              label: Text('Find'),
+            ),
+          ]),
+          SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final tag in _ideaChips)
+                  Padding(
+                    padding: EdgeInsets.only(right: 6),
+                    child: ActionChip(
+                      label: Text(tag, style: TextStyle(fontSize: 12)),
+                      backgroundColor: _query.text.trim().toLowerCase() == tag ? AppTheme.primary.withValues(alpha: 0.3) : AppTheme.surfaceElevated,
+                      side: BorderSide(
+                        color: _query.text.trim().toLowerCase() == tag ? AppTheme.primary : AppTheme.border,
+                      ),
+                      onPressed: () {
+                        _query.text = tag;
+                        _searchVideos(tag);
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (_searching)
+            SizedBox(height: 160, child: UniversalSkeleton(type: SkeletonType.projects)),
+          if (_results != null && !_searching) ...[
+            SizedBox(height: 12),
+            Text(
+              'Found ${_results!.length} clips (Pexels & Pixabay):',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
+            ),
+            SizedBox(height: 8),
+            if (_results!.isEmpty)
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(color: AppTheme.surfaceElevated, borderRadius: BorderRadius.circular(12)),
+                child: Text('No video clips found. Try another query like "city" or "drone".', style: TextStyle(color: AppTheme.textMuted)),
+              )
+            else
+              SizedBox(
+                height: math.min(320.0, ((_results!.length.clamp(0, 15) + 2) ~/ 3) * 155.0),
+                child: GridView.builder(
+                  physics: ClampingScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     crossAxisSpacing: 8,
@@ -1170,7 +1584,7 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                     final v = _results![i];
                     return InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap: () => _addClip(v.downloadUrl, '${v.provider}: ${v.author ?? v.id}', credit: v.attribution),
+                      onTap: () => _onSelectClip(v),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: Stack(
@@ -1227,24 +1641,30 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                     );
                   },
                 ),
-            ],
-            SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _busy || _searching ? null : _fromGallery,
-              icon: Icon(Icons.video_library_rounded),
-              label: Text('From my gallery'),
-            ),
-            if (_busy) Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
-            SizedBox(height: 12),
-            Text('Cutaway length: ${seconds.toStringAsFixed(1)}s'),
-            Slider(value: seconds, min: 1, max: 10, divisions: 18, onChanged: (v) => setState(() => seconds = v)),
+              ),
+          ],
+          SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _busy || _searching ? null : _fromGallery,
+            icon: Icon(Icons.video_library_rounded),
+            label: Text('From my gallery / device'),
+          ),
+          if (_busy) Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
+          SizedBox(height: 12),
+          Text('Cutaway length: ${seconds.toStringAsFixed(1)}s'),
+          Slider(value: seconds, min: 1, max: 10, divisions: 18, onChanged: (v) => setState(() => seconds = v)),
+          if (overlays.isNotEmpty) ...[
+            SizedBox(height: 8),
+            Text('Active Overlays on Timeline', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
             for (final o in overlays)
               ListTile(
                 dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(o.isImage ? Icons.photo_rounded : Icons.layers_rounded, color: AppTheme.accentBlue),
                 title: Text('${o.source['query'] ?? o.source['kind']}', maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text('${timecode(o.timelineStartMs)} – ${timecode(o.timelineEndMs)}'),
                 trailing: IconButton(
-                  icon: Icon(Icons.delete_outline_rounded),
+                  icon: Icon(Icons.delete_outline_rounded, color: AppTheme.error),
                   onPressed: () {
                     _close(context);
                     widget.onEdit((ir) => TimelineOps.removeOverlay(ir, o.id));
@@ -1252,7 +1672,7 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                 ),
               ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -1378,7 +1798,7 @@ class _LibrarySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 6,
+        length: 7,
         child: SizedBox(
           height: MediaQuery.of(context).size.height * 0.8,
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -1386,10 +1806,11 @@ class _LibrarySheet extends StatelessWidget {
               isScrollable: true,
               tabAlignment: TabAlignment.start,
               tabs: [
-                Tab(icon: Icon(Icons.music_note_rounded), text: 'Music'),
-                Tab(icon: Icon(Icons.graphic_eq_rounded), text: 'Sound FX'),
+                Tab(icon: Icon(Icons.cloud_upload_rounded), text: 'Uploads'),
                 Tab(icon: Icon(Icons.movie_rounded), text: 'Video'),
                 Tab(icon: Icon(Icons.photo_rounded), text: 'Photos'),
+                Tab(icon: Icon(Icons.music_note_rounded), text: 'Music'),
+                Tab(icon: Icon(Icons.graphic_eq_rounded), text: 'Sound FX'),
                 Tab(icon: Icon(Icons.title_rounded), text: 'Text'),
                 Tab(icon: Icon(Icons.auto_fix_high_rounded), text: 'Effects'),
               ],
@@ -1397,10 +1818,11 @@ class _LibrarySheet extends StatelessWidget {
             SizedBox(height: 12),
             Expanded(
               child: TabBarView(children: [
-                _MusicSheet(c: c, onEdit: onEdit),
-                _SfxTab(c: c, onEdit: onEdit),
+                _UploadsTab(c: c, onEdit: onEdit),
                 _BrollSheet(c: c, onEdit: onEdit),
                 _PhotosTab(c: c, onEdit: onEdit),
+                _MusicSheet(c: c, onEdit: onEdit),
+                _SfxTab(c: c, onEdit: onEdit),
                 _TextTemplatesTab(c: c, onEdit: onEdit),
                 _EffectsTab(c: c, onEdit: onEdit),
               ]),
@@ -1408,6 +1830,191 @@ class _LibrarySheet extends StatelessWidget {
           ]),
         ),
       );
+}
+
+class _UploadsTab extends ConsumerStatefulWidget {
+  const _UploadsTab({required this.c, required this.onEdit});
+  final StudioController c;
+  final EditFn onEdit;
+
+  @override
+  ConsumerState<_UploadsTab> createState() => _UploadsTabState();
+}
+
+class _UploadsTabState extends ConsumerState<_UploadsTab> {
+  Future<void> _uploadVideo() async {
+    final f = await ImagePicker().pickVideo(source: ImageSource.gallery);
+    if (f == null || !mounted) return;
+    _chooseVideoPlacement(f.path, f.name);
+  }
+
+  void _chooseVideoPlacement(String path, String name) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Insert Video Clip', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Text(name, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              SizedBox(height: 16),
+              FilledButton.icon(
+                icon: Icon(Icons.movie_rounded),
+                label: Text('Add to Main Video Timeline'),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  _close(context);
+                  await widget.c.addVideoClip(path, label: name);
+                },
+              ),
+              SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: Icon(Icons.layers_rounded),
+                label: Text('Add as B-roll Cutaway (Overlay)'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _close(context);
+                  widget.onEdit(
+                    (ir) => TimelineOps.addBroll(
+                      ir,
+                      {'kind': 'file', 'url': path, 'query': name},
+                      startMs: widget.c.playheadMs,
+                      durationMs: 3000,
+                    ),
+                    done: 'B-roll added',
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadPhoto() async {
+    final f = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 2160, maxHeight: 2160);
+    if (f == null || !mounted) return;
+    _close(context);
+    widget.onEdit(
+      (ir) => TimelineOps.addBroll(
+        ir,
+        {'kind': 'url', 'url': f.path, 'query': f.name},
+        startMs: widget.c.playheadMs,
+        durationMs: 3000,
+        image: true,
+      ),
+      done: 'Photo overlay added',
+    );
+  }
+
+  Future<void> _uploadAudio() async {
+    final files = await FilePicker.pickFiles(type: FileType.audio);
+    final file = files.firstOrNull;
+    final path = file?.path;
+    if (file == null || path == null || !mounted) return;
+    _chooseAudioPlacement(path, file.name);
+  }
+
+  void _chooseAudioPlacement(String path, String name) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Insert Audio File', style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Text(name, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              SizedBox(height: 16),
+              FilledButton.icon(
+                icon: Icon(Icons.music_note_rounded),
+                label: Text('Set as Background Music Track'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _close(context);
+                  widget.onEdit(
+                    (ir) => TimelineOps.setMusic(ir, url: path, title: name),
+                    done: 'Background music updated',
+                  );
+                },
+              ),
+              SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: Icon(Icons.graphic_eq_rounded),
+                label: Text('Insert as Sound Effect (SFX)'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _close(context);
+                  widget.onEdit(
+                    (ir) => TimelineOps.addSfx(ir, credit: name, url: path, startMs: widget.c.playheadMs, durationMs: 2000),
+                    done: 'Sound effect added',
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        _Title('Upload & Import Assets', subtitle: 'Import media from your device storage into this video.'),
+        ListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: AppTheme.border)),
+          leading: Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+            child: Icon(Icons.video_call_rounded, color: AppTheme.primary),
+          ),
+          title: Text('Import Video Clip', style: TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Text('Add to timeline or overlay as B-roll cutaway'),
+          trailing: Icon(Icons.chevron_right_rounded),
+          onTap: _uploadVideo,
+        ),
+        SizedBox(height: 10),
+        ListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: AppTheme.border)),
+          leading: Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppTheme.accentBlue.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+            child: Icon(Icons.add_photo_alternate_rounded, color: AppTheme.accentBlue),
+          ),
+          title: Text('Import Photo', style: TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Text('Add full-screen or Picture-in-Picture photo overlay'),
+          trailing: Icon(Icons.chevron_right_rounded),
+          onTap: _uploadPhoto,
+        ),
+        SizedBox(height: 10),
+        ListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: AppTheme.border)),
+          leading: Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppTheme.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+            child: Icon(Icons.audio_file_rounded, color: AppTheme.success),
+          ),
+          title: Text('Import Audio Track', style: TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Text('Add custom music soundtrack or sound effect'),
+          trailing: Icon(Icons.chevron_right_rounded),
+          onTap: _uploadAudio,
+        ),
+      ],
+    );
+  }
 }
 
 class _SfxTab extends ConsumerStatefulWidget {
@@ -1705,7 +2312,12 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
     final f = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 2160, maxHeight: 2160);
     if (f == null || !mounted) return;
     setState(() => _busy = true);
-    final url = await guarded(context, () => ref.read(socialApiProvider).uploadFile(f.path));
+    final bytes = await f.readAsBytes();
+    if (!mounted) return;
+    final url = await guarded(
+      context,
+      () => ref.read(socialApiProvider).uploadFile(f.path, fileBytes: bytes, filename: f.name),
+    );
     if (!mounted) return;
     setState(() => _busy = false);
     if (url != null) _add(url, 'my photo', null);

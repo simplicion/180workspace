@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Wallet,
@@ -11,7 +11,15 @@ import {
   Lock,
   Sparkles,
   ArrowRight,
+  ArrowLeft,
   ExternalLink,
+  Copy,
+  Check,
+  RefreshCw,
+  Terminal,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Button, LogoLoader, AILogoIcon } from '@workspace/ui';
 import toast from 'react-hot-toast';
@@ -52,6 +60,87 @@ export function CheckoutClient() {
   const [paying, setPaying] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [topupLoading, setTopupLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedDetails, setCopiedDetails] = useState(false);
+  const [showDevInspector, setShowDevInspector] = useState(false);
+
+  // ─── Autonomous Environment Detection ──────────────────────────────────────
+  const isProduction = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const urlParams = new URLSearchParams(window.location.search);
+    const explicitEnv = urlParams.get('env');
+    if (explicitEnv === 'production') return true;
+    if (explicitEnv === 'development') return false;
+
+    const protocol = window.location.protocol;
+    const host = (window.location.hostname || '').toLowerCase();
+    const isLocal =
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '0.0.0.0' ||
+      host.endsWith('.local') ||
+      host.endsWith('.test') ||
+      host.endsWith('.internal');
+
+    return protocol === 'https:' && !isLocal;
+  }, []);
+
+  // ─── Deterministic 180 Pay Reference Code ───────────────────────────────────
+  const [payReferenceCode] = useState(() => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let rand = '';
+    for (let i = 0; i < 5; i++) {
+      rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return `180-PAY-${rand}`;
+  });
+
+  const handleCopyReferenceCode = () => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(payReferenceCode);
+      setCopiedCode(true);
+      toast.success(`Reference code copied: ${payReferenceCode}`);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
+  const handleCopyErrorDetails = () => {
+    const payload = JSON.stringify(
+      {
+        referenceCode: payReferenceCode,
+        sessionId,
+        isProduction,
+        timestamp: new Date().toISOString(),
+      },
+      null,
+      2
+    );
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(payload);
+      setCopiedDetails(true);
+      toast.success('Payment error diagnostic copied');
+      setTimeout(() => setCopiedDetails(false), 2000);
+    }
+  };
+
+  const handleReturnToApp = () => {
+    if (typeof window !== 'undefined') {
+      const closePayload = {
+        type: '180_PAYMENT_CLOSE',
+        sessionId,
+        referenceCode: payReferenceCode,
+        error: 'SESSION_EXPIRED',
+      };
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(closePayload, '*');
+        window.close();
+      } else if (window.parent && window.parent !== window) {
+        window.parent.postMessage(closePayload, '*');
+      } else {
+        window.history.back();
+      }
+    }
+  };
 
   const fetchSessionAndWallet = async () => {
     try {
@@ -347,15 +436,226 @@ export function CheckoutClient() {
   }
 
   if (!session) {
+    // ─── 1. PRODUCTION MODE: Enterprise Clean Fallback Screen ───────────────
+    if (isProduction && !showDevInspector) {
+      return (
+        <div 
+          role="alert" 
+          aria-live="assertive"
+          className="bg-white rounded-3xl p-8 text-center space-y-6 max-w-lg mx-auto border border-slate-200 shadow-xl font-sans animate-in zoom-in-95"
+        >
+          {/* Brand & Security Status */}
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+              Unable to process payment
+            </h2>
+            <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
+              Your card, wallet, or bank account has <strong className="text-slate-900 font-bold">NOT</strong> been charged. Please try again or return to the application.
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={fetchSessionAndWallet}
+              className="w-full py-2.5 px-4 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-blue-700 active:scale-[0.99] transition-all cursor-pointer shadow-sm min-h-[42px]"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Try Again</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleReturnToApp}
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 active:scale-[0.99] font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[42px]"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Return to Application</span>
+            </button>
+          </div>
+
+          {/* Reference Code Telemetry Box */}
+          <div className="pt-2 border-t border-slate-100">
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between gap-3 text-left">
+              <div className="min-w-0">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-600 block">
+                  Reference Code
+                </span>
+                <span className="text-xs font-mono font-bold text-slate-900 select-all">
+                  {payReferenceCode}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyReferenceCode}
+                className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg shadow-2xs transition-colors shrink-0 cursor-pointer"
+              >
+                {copiedCode ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    <span className="text-emerald-600 font-bold">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Subtle Dev Expander */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setShowDevInspector(true)}
+              className="text-[11px] font-medium text-slate-600 hover:text-slate-700 flex items-center justify-center gap-1 mx-auto transition-colors"
+            >
+              <span>Developer Diagnostics</span>
+              <ChevronDown className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── 2. DEVELOPMENT MODE: Full Payment Diagnostic Inspector ────────────
     return (
       <div 
         role="alert" 
         aria-live="assertive"
-        className="bg-white rounded-3xl p-8 text-center space-y-4 max-w-lg mx-auto border border-rose-200 shadow-xl font-sans"
+        className="bg-white rounded-3xl p-6 sm:p-8 space-y-5 max-w-lg mx-auto border border-amber-300/80 shadow-xl font-sans text-left animate-in zoom-in-95"
       >
-        <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
-        <h2 className="text-base font-bold text-slate-900 tracking-tight">Session Not Found or Expired</h2>
-        <p className="text-xs text-slate-500">This checkout session is no longer active.</p>
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-slate-900 relative overflow-hidden">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-600">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700">
+                  180 Pay Dev Diagnostic
+                </span>
+                <span className="text-[10px] font-mono text-slate-600">
+                  INVALID_SESSION
+                </span>
+              </div>
+              <h2 className="text-base font-bold text-slate-900 leading-snug">
+                Checkout Session Not Found or Expired
+              </h2>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                The session identifier was not recognized or has exceeded its validity window.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Diagnostics Box */}
+        <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-3.5 space-y-2.5 text-xs">
+          <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60">
+            <span className="font-bold text-slate-700 flex items-center gap-1.5">
+              <Terminal className="w-3.5 h-3.5 text-slate-500" />
+              Session Diagnostics
+            </span>
+            <button
+              type="button"
+              onClick={handleCopyErrorDetails}
+              className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+            >
+              {copiedDetails ? (
+                <>
+                  <Check className="w-3 h-3 text-emerald-600" />
+                  <span className="text-emerald-600">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3" />
+                  <span>Copy Details</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-slate-600 font-semibold">Reference Code</span>
+            <code className="bg-white px-2 py-1 rounded border border-slate-200 font-mono text-[11px] text-blue-700 font-bold break-all select-all">
+              {payReferenceCode}
+            </code>
+          </div>
+
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-rose-500 font-semibold">Session ID</span>
+            <code className="bg-rose-50/80 border border-rose-200 px-2 py-1 rounded font-mono text-[11px] text-rose-700 break-all select-all font-semibold">
+              {sessionId || 'N/A'}
+            </code>
+          </div>
+        </div>
+
+        {/* Resolution Guide Callout */}
+        <div className="p-3 rounded-xl bg-blue-50/80 border border-blue-100 flex items-start gap-2.5 text-xs text-blue-900">
+          <HelpCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-bold text-blue-950">Local Testing Recommendation</p>
+            <p className="text-blue-800/90 leading-relaxed text-[11px]">
+              For local sandbox testing, ensure your session prefix starts with <code className="bg-white/80 px-1 py-0.5 rounded font-mono font-bold text-blue-900">sess_sandbox_</code> or verify your checkout server endpoint in the{' '}
+              <a
+                href="http://localhost:3008"
+                target="_blank"
+                rel="noreferrer"
+                className="font-bold underline hover:text-blue-950 inline-flex items-center gap-0.5"
+              >
+                180 Developer Portal <ExternalLink className="w-2.5 h-2.5 inline" />
+              </a>.
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={fetchSessionAndWallet}
+            className="flex-1 py-2 px-3 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-800 active:scale-[0.99] transition-all cursor-pointer shadow-xs min-h-[38px]"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Retry Fetch</span>
+          </button>
+
+          <a
+            href="http://localhost:3008"
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 py-2 px-3 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-blue-700 active:scale-[0.99] transition-all cursor-pointer shadow-xs min-h-[38px]"
+          >
+            <span>Developer Console</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+
+          <button
+            type="button"
+            onClick={handleReturnToApp}
+            className="py-2 px-3 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.99] font-bold text-xs transition-all cursor-pointer min-h-[38px]"
+          >
+            Close
+          </button>
+        </div>
+
+        {isProduction && showDevInspector ? (
+          <button
+            type="button"
+            onClick={() => setShowDevInspector(false)}
+            className="text-[11px] font-medium text-slate-600 hover:text-slate-700 flex items-center justify-center gap-1 mx-auto transition-colors pt-1"
+          >
+            <ChevronUp className="w-3 h-3" />
+            <span>Switch to Standard View</span>
+          </button>
+        ) : null}
       </div>
     );
   }
