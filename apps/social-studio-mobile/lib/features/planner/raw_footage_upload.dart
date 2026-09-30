@@ -29,7 +29,7 @@ Future<void> uploadRawFootage(BuildContext context, WidgetRef ref, String pieceI
     await ref.read(socialApiProvider).uploadPieceRawFootage(pieceId, path,
         onProgress: (sent, total) => progress.value = total > 0 ? sent / total : null);
     nav.pop();
-    if (context.mounted) showSuccess(context, 'Footage saved to this piece. Your editor can open it on the desktop app.');
+    if (context.mounted) showSuccess(context, 'Footage saved to this piece. Your editor can open it in the studio.');
   } catch (e) {
     nav.pop();
     if (context.mounted) showError(context, e);

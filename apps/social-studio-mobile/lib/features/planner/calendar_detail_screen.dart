@@ -465,7 +465,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
                     ListTile(
                       leading: Icon(Icons.cloud_upload_rounded),
                       title: Text('Send raw footage to my editor'),
-                      subtitle: Text('Uploads it to this piece for editing on the desktop app'),
+                      subtitle: Text('Uploads it to this piece for editing in the studio'),
                       onTap: () => Navigator.pop(ctx, 'upload'),
                     ),
                   ]),
