@@ -2,7 +2,11 @@ import React, { Suspense } from 'react';
 import AppDetailClient from '../AppDetailClient';
 import { LogoLoader } from '@workspace/ui';
 
-export const dynamicParams = true;
+export function generateStaticParams() {
+  return [{ id: 'default' }];
+}
+
+export const dynamicParams = false;
 
 export default function PayDetailPage() {
   return (
