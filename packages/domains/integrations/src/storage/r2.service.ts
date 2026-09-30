@@ -96,7 +96,7 @@ export const getPresignedUploadUrl = async (key: string, mimetype: string) => {
         ContentType: mimetype,
     });
 
-    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    const signedUrl = await getSignedUrl(s3Client as any, command, { expiresIn: 3600 });
     return signedUrl;
 };
 
@@ -114,7 +114,7 @@ export const getPresignedDownloadUrl = async (key: string, expiresInSeconds = 36
         Key: key,
     });
 
-    return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+    return await getSignedUrl(s3Client as any, command, { expiresIn: expiresInSeconds });
 };
 
 /**
