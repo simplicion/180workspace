@@ -9,6 +9,42 @@ env:
 
 jobs:
   # ====================================================
+  # Phase 0: Build & Deploy 180 Core SDK to Global CDN
+  # ====================================================
+  deploy-core-sdk-cdn:
+    name: Build & Deploy 180 Core SDK to Global CDN
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build 180 Core SDK & Distribute to CDN
+        env:
+          CLOUDFLARE_R2_ENDPOINT: ${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+        run: |
+          pnpm run build:sdk
+
+      - name: Run 180 Core SDK E2E Verification
+        run: pnpm run test:sdk
+
+  # ====================================================
   # Phase 1: Deploy Frontends to Cloudflare Pages
   # ====================================================
   deploy-marketing-cloudflare:
@@ -45,6 +81,7 @@ jobs:
   deploy-profile-cloudflare:
     name: Deploy 180 Profile Frontend (profile, auth, pay) to Cloudflare Pages
     runs-on: ubuntu-latest
+    needs: [deploy-core-sdk-cdn]
     continue-on-error: true
     steps:
       - name: Checkout repository
@@ -63,6 +100,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+
+      - name: Sync 180 Core SDK to Public CDN Assets
+        run: pnpm run build:sdk
 
       - name: Build 180 Profile Frontend
         env:
@@ -86,6 +126,7 @@ jobs:
   deploy-developer-cloudflare:
     name: Deploy 180 Developer Portal to Cloudflare Pages
     runs-on: ubuntu-latest
+    needs: [deploy-core-sdk-cdn]
     continue-on-error: true
     steps:
       - name: Checkout repository
@@ -104,6 +145,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+
+      - name: Sync 180 Core SDK to Public CDN Assets
+        run: pnpm run build:sdk
 
       - name: Build 180 Developer Portal
         env:
@@ -208,6 +252,7 @@ jobs:
   build-and-push-images:
     name: Build & Push Production Images
     runs-on: ubuntu-latest
+    needs: [deploy-core-sdk-cdn]
     permissions:
       contents: read
       packages: write
@@ -230,6 +275,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies & sync SDK
+        run: |
+          pnpm install --no-frozen-lockfile
+          pnpm run build:sdk
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

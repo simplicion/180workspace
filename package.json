@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
+    "build": "pnpm build:sdk && turbo run build",
+    "build:sdk": "pnpm --filter @workspace/identity-sdk build && node scripts/deploy-180-core-sdk.mjs",
+    "test:sdk": "node scripts/test-180-core-sdk-e2e.mjs",
     "dev": "node scripts/dev-runner.js",
     "dev:all": "node scripts/dev-runner.js all",
     "dev:full": "node scripts/dev-runner.js full",
