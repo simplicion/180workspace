@@ -43,6 +43,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="workspace180" />
                 <data android:scheme="one80" />
+                <data android:scheme="180social" />
             </intent-filter>
         </activity>
         <!-- Keeps renders alive in the background (mediaengine/RenderForegroundService.kt).

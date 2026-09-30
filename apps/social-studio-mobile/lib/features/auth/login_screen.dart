@@ -62,7 +62,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _loginWith180Identity() async {
+  Future<void> _loginWith180Identity({bool fullScreen = false}) async {
     setState(() {
       _busy = true;
       _error = null;
@@ -70,7 +70,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
     try {
       final sso = OneEightySsoService();
-      final data = await sso.launch180IdentityLogin();
+      final data = await sso.launch180IdentityLogin(
+        context: context,
+        fullScreen: fullScreen,
+      );
       if (data != null && data['access_token'] != null) {
         final accessToken = data['access_token'] as String;
         final refreshToken = data['refresh_token'] as String?;
@@ -178,7 +181,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: InkWell(
                           key: const Key('login.180identity'),
                           borderRadius: BorderRadius.circular(18),
-                          onTap: _busy ? null : _loginWith180Identity,
+                          onTap: _busy ? null : () => _loginWith180Identity(fullScreen: false),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -282,7 +285,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 8),
+
+                      // Full Page in-app window toggle
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: _busy ? null : () => _loginWith180Identity(fullScreen: true),
+                          icon: const Icon(Icons.open_in_full_rounded, size: 13, color: Color(0xFF94A3B8)),
+                          label: const Text(
+                            'Open in Full Page Window',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
                       // Cryptographic Trust Badge
                       Row(
