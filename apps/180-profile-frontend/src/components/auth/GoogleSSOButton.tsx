@@ -21,10 +21,13 @@ export function GoogleSSOButton({
   const [googleLoading, setGoogleLoading] = useState(false);
   const tokenClientRef = useRef<any>(null);
 
-  const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+  const GOOGLE_CLIENT_ID =
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+    '188560578303-2bih1dg5qhbq5uao9q451r6db3986e6f.apps.googleusercontent.com';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (!GOOGLE_CLIENT_ID) return;
 
     const setupGoogle = () => {
       try {
@@ -75,12 +78,31 @@ export function GoogleSSOButton({
     const toastId = toast.loading('Authenticating with Google Sovereign Identity...');
 
     try {
-      // Send access token to backend for server-side verification and user sync
+      // Proactively fetch Google userinfo to guarantee profile resolution
+      let profileData: any = {};
+      try {
+        const uRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (uRes.ok) {
+          profileData = await uRes.json();
+        }
+      } catch (e) {
+        console.warn('[GoogleSSO] Client userinfo fetch notice:', e);
+      }
+
+      // Send access token and profile info to backend for server-side verification and user sync
       const res = await fetch(getCoreApiUrl('/api/oauth/google-continue'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ accessToken }),
+        body: JSON.stringify({
+          accessToken,
+          email: profileData?.email,
+          name: profileData?.name,
+          avatar: profileData?.picture,
+          googleId: profileData?.sub,
+        }),
       });
 
       let data: any = {};
@@ -110,6 +132,11 @@ export function GoogleSSOButton({
   };
 
   const handleButtonClick = () => {
+    if (!GOOGLE_CLIENT_ID) {
+      toast.error('Google Sign-In is being initialized. Please use Email or WhatsApp OTP.');
+      return;
+    }
+
     if (tokenClientRef.current) {
       setGoogleLoading(true);
       tokenClientRef.current.requestAccessToken({ prompt: 'select_account' });
@@ -131,10 +158,15 @@ export function GoogleSSOButton({
         client.requestAccessToken({ prompt: 'select_account' });
       } catch (e: any) {
         setGoogleLoading(false);
-        toast.error('Google Sign-In is initializing. Please try again in a moment.');
+        console.warn('[GoogleSSO] Token client init error:', e);
+        if (e?.message?.includes('client_id')) {
+          toast.error('Google Sign-In configuration error. Please use Email or WhatsApp OTP.');
+        } else {
+          toast.error('Google Sign-In is initializing. Please try again in a moment.');
+        }
       }
     } else {
-      toast.error('Google Sign-In is loading. Please try again.');
+      toast.error('Google Sign-In script is loading. Please try again in a second.');
     }
   };
 

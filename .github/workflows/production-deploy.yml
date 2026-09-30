@@ -107,6 +107,7 @@ jobs:
       - name: Build 180 Profile Frontend
         env:
           NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID || '188560578303-2bih1dg5qhbq5uao9q451r6db3986e6f.apps.googleusercontent.com' }}
           NEXT_EXPORT: 'true'
         run: pnpm turbo run build --filter=180-profile-frontend...
 
