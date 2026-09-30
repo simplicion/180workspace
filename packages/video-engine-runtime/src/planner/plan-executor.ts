@@ -33,6 +33,8 @@ export class PlanExecutor {
       projectId: plan.id,
       tempDir: options.tempDir,
       artifacts,
+      companyId: plan.companyId,
+      userId: plan.userId,
       log: options.log || ((msg) => console.log(msg)),
     };
 

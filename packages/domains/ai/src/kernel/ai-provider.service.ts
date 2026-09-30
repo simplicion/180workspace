@@ -3,10 +3,12 @@ import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 
 export interface AISettings {
-    aiProvider: 'gemini' | 'openai' | 'claude' | 'custom' | string;
+    aiProvider: 'gemini' | 'openai' | 'claude' | 'groq' | 'cartesia' | 'custom' | string;
     geminiKey?: string;
     openaiKey?: string;
     claudeKey?: string;
+    groqKey?: string;
+    cartesiaKey?: string;
     customAiKey?: string;
     customAiUrl?: string;
     customAiModel?: string;

@@ -338,6 +338,8 @@ export class ProductionPlanner {
       directorPreset: resolvedStyle.presetKey,
       tasks,
       status: "PENDING",
+      companyId,
+      userId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       summary: `Decomposed into ${tasks.length} discrete DAG tasks across 6 production stages utilizing the ${activeSkill.name} skill package.`,

@@ -53,6 +53,7 @@ export class AICompanyConfigService {
         const openaiKey = metadata.openaiKey || platformVault.openaiKey || metadata.apiKey || process.env.OPENAI_API_KEY || '';
         const claudeKey = metadata.claudeKey || platformVault.claudeKey || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || '';
         const groqKey = metadata.groqKey || platformVault.groqKey || process.env.GROQ_API_KEY || '';
+        const cartesiaKey = metadata.cartesiaKey || platformVault.cartesiaKey || process.env.CARTESIA_API_KEY || '';
         const customAiKey = metadata.customAiKey || platformVault.customAiKey || process.env.CUSTOM_AI_KEY || '';
         const customAiUrl = metadata.customAiUrl || platformVault.customAiUrl || process.env.CUSTOM_AI_URL || '';
         const customAiModel = metadata.customAiModel || platformVault.customAiModel || process.env.CUSTOM_AI_MODEL || '';
@@ -72,6 +73,8 @@ export class AICompanyConfigService {
             geminiKey,
             openaiKey,
             claudeKey,
+            groqKey,
+            cartesiaKey,
             customAiKey,
             customAiUrl,
             customAiModel

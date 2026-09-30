@@ -58,7 +58,26 @@ export class CartesiaVoiceTool extends VideoDirectorTool<CartesiaVoiceInput, Car
     const voiceoverId = `vo_${crypto.randomUUID().slice(0, 8)}`;
     const targetWavPath = path.join(audioDir, `${voiceoverId}.wav`);
 
-    const apiKey = process.env.CARTESIA_API_KEY || process.env.CARTESIA_KEY;
+    // Resolve Cartesia TTS key: Admin Panel AI Vault → Company Settings → process.env fallback
+    let apiKey = process.env.CARTESIA_API_KEY || process.env.CARTESIA_KEY;
+    const companyId = context.companyId;
+
+    if (!apiKey) {
+      try {
+        const { AICompanyConfigService, PlatformAiVaultService } = require("@workspace/ai");
+        if (companyId) {
+          const { settings } = await AICompanyConfigService.getCompanyAISettings(companyId);
+          if (settings?.cartesiaKey) apiKey = settings.cartesiaKey;
+        }
+        if (!apiKey) {
+          const vault = await PlatformAiVaultService.getDecryptedPlatformAiSettings();
+          if (vault?.cartesiaKey) apiKey = vault.cartesiaKey;
+        }
+      } catch {
+        // Non-fatal — proceed with env key or fallback
+      }
+    }
+
     const sampleRate = input.sampleRate || 44100;
     let durationSec = 10.0;
 
@@ -106,7 +125,7 @@ export class CartesiaVoiceTool extends VideoDirectorTool<CartesiaVoiceInput, Car
         durationSec = Math.max(3.0, input.transcript.split(/\s+/).length * 0.35);
       }
     } else {
-      context.log?.(`[CartesiaVoiceTool] No CARTESIA_API_KEY detected in environment. Generating high-fidelity broadcast voice buffer.`);
+      context.log?.(`[CartesiaVoiceTool] No CARTESIA_API_KEY detected (env or Admin Panel vault). Generating high-fidelity broadcast voice buffer.`);
       this.writeSynthesizedAudioFallback(targetWavPath, sampleRate, input.transcript);
       durationSec = Math.max(3.0, input.transcript.split(/\s+/).length * 0.35);
     }

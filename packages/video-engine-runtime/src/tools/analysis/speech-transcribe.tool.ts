@@ -11,7 +11,7 @@ export type SpeechTranscribeInput = z.infer<typeof SpeechTranscribeInputSchema>;
 
 export class SpeechTranscribeTool extends VideoDirectorTool<SpeechTranscribeInput, ClipTranscriptionResult[]> {
   readonly name = "speech_transcribe";
-  readonly description = "Extracts 16kHz audio and transcribes speech tokens with word-level timestamps using Cartesia Whisper STT";
+  readonly description = "Extracts 16kHz audio and transcribes speech tokens with word-level timestamps using Groq/OpenAI Whisper or the inbuilt local acoustic engine";
   readonly stage = "INGESTION_AND_TELEMETRY" as const;
   readonly inputSchema = SpeechTranscribeInputSchema;
 

@@ -70,6 +70,14 @@ const PROVIDER_INFO: Record<string, {
         badgeColor: 'bg-orange-50 text-orange-700 border-orange-200',
         models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768']
     },
+    cartesia: {
+        description: 'Ultra-realistic neural voice synthesis and low-latency speech-to-text powering Voiceforce.',
+        keyFormat: 'sk_car_...',
+        docsUrl: 'https://play.cartesia.ai/keys',
+        color: 'sky',
+        badgeColor: 'bg-sky-50 text-sky-700 border-sky-200',
+        models: ['sonic-3.6', 'ink-whisper']
+    },
     custom: {
         description: 'Self-hosted vLLM, Ollama, or private enterprise OpenAI-compatible proxy gateway.',
         keyFormat: 'Bearer key or api-token',

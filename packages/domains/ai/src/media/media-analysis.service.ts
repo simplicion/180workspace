@@ -18,7 +18,7 @@ export interface MediaAnalysisParams {
 
 /**
  * Builds a real MediaIntelligenceGraph for a source asset by actually analyzing the
- * media file (ffmpeg scene-cut + silence detection, Cartesia transcription), instead
+ * media file (ffmpeg scene-cut + silence detection, cloud/local transcription), instead
  * of the empty/neutral defaults `MediaGraphBuilder.build()` falls back to when no real
  * data is supplied.
  *

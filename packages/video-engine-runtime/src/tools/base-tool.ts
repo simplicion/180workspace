@@ -5,6 +5,8 @@ export interface DirectorExecutionContext {
   projectId: string;
   tempDir: string;
   artifacts: Map<string, any>;
+  companyId?: string;
+  userId?: string;
   onProgress?: (percent: number, message: string) => void;
   log?: (message: string) => void;
 }
