@@ -90,21 +90,118 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                         scopes: dbToken.scopes
                     };
                 } else {
-                    // Try verifying as RS256 ID Token
-                    const { verifyIdToken } = require('@workspace/identity');
-                    const verified = typeof verifyIdToken === 'function' ? verifyIdToken(token) : { valid: false };
+                    // Try verifying as RS256 ID Token from 180 Identity
+                    let verifyIdTokenFn: any = null;
+                    try {
+                        verifyIdTokenFn = require('@workspace/identity-provider').verifyIdToken;
+                    } catch (_) {
+                        try {
+                            verifyIdTokenFn = require('@workspace/identity').verifyIdToken;
+                        } catch (_) {}
+                    }
+                    const verified = typeof verifyIdTokenFn === 'function' ? verifyIdTokenFn(token) : { valid: false };
                     if (verified.valid && verified.payload?.sub) {
-                        const userFromSub = await globalPrisma.user.findUnique({
-                            where: { id: verified.payload.sub }
+                        const targetUserId = verified.payload.sub;
+                        const targetEmail = verified.payload.email;
+
+                        // 1. Look up user in workspace DB by ID or Email
+                        let localUser = await globalPrisma.user.findUnique({
+                            where: { id: targetUserId }
                         });
-                        if (userFromSub) {
-                            isOAuthToken = true;
-                            oAuthUser = userFromSub;
-                            decoded = {
-                                id: userFromSub.id,
-                                companyId: userFromSub.companyId || null
-                            };
+                        if (!localUser && targetEmail) {
+                            localUser = await globalPrisma.user.findFirst({
+                                where: { email: { equals: targetEmail, mode: 'insensitive' } }
+                            });
                         }
+
+                        // 2. Fall back to 180 Core DB if user was created via 180 Profile
+                        if (!localUser) {
+                            try {
+                                const { corePrisma } = require('@workspace/db-180core');
+                                if (corePrisma?.user) {
+                                    let coreUser = await corePrisma.user.findUnique({
+                                        where: { id: targetUserId }
+                                    });
+                                    if (!coreUser && targetEmail) {
+                                        coreUser = await corePrisma.user.findFirst({
+                                            where: { email: { equals: targetEmail, mode: 'insensitive' } }
+                                        });
+                                    }
+                                    if (coreUser) {
+                                        try {
+                                            localUser = await globalPrisma.user.create({
+                                                data: {
+                                                    id: coreUser.id,
+                                                    email: coreUser.email || `${coreUser.username || coreUser.id}@180workspace.internal`,
+                                                    name: coreUser.name || coreUser.username || verified.payload.name || '180 User',
+                                                    username: coreUser.username || verified.payload.username || null,
+                                                    phone: coreUser.phone || verified.payload.phone || null,
+                                                    photoUrl: coreUser.avatarUrl || verified.payload.picture || verified.payload.avatarUrl || null,
+                                                    role: 'admin',
+                                                    isActive: true,
+                                                    isFirstLogin: true,
+                                                    googleId: coreUser.googleId || null
+                                                }
+                                            });
+                                        } catch (_) {
+                                            localUser = await globalPrisma.user.findFirst({
+                                                where: {
+                                                    OR: [
+                                                        { id: targetUserId },
+                                                        ...(targetEmail ? [{ email: { equals: targetEmail, mode: 'insensitive' } }] : [])
+                                                    ]
+                                                }
+                                            });
+                                        }
+                                    }
+                                }
+                            } catch (_) {}
+                        }
+
+                        // 3. Auto-provision in workspace DB directly from cryptographically verified claims if needed
+                        if (!localUser) {
+                            try {
+                                localUser = await globalPrisma.user.create({
+                                    data: {
+                                        id: targetUserId,
+                                        email: targetEmail || `${verified.payload.username || targetUserId}@180workspace.internal`,
+                                        name: verified.payload.name || verified.payload.username || '180 User',
+                                        username: verified.payload.username || null,
+                                        phone: verified.payload.phone || null,
+                                        photoUrl: verified.payload.picture || verified.payload.avatarUrl || null,
+                                        role: 'admin',
+                                        isActive: true,
+                                        isFirstLogin: true
+                                    }
+                                });
+                            } catch (_) {
+                                localUser = await globalPrisma.user.findFirst({
+                                    where: {
+                                        OR: [
+                                            { id: targetUserId },
+                                            ...(targetEmail ? [{ email: { equals: targetEmail, mode: 'insensitive' } }] : [])
+                                        ]
+                                    }
+                                });
+                            }
+                        }
+
+                        isOAuthToken = true;
+                        oAuthUser = localUser || {
+                            id: targetUserId,
+                            email: targetEmail,
+                            name: verified.payload.name,
+                            username: verified.payload.username,
+                            role: 'admin'
+                        };
+                        decoded = {
+                            id: localUser?.id || targetUserId,
+                            sub: targetUserId,
+                            email: localUser?.email || targetEmail,
+                            name: localUser?.name || verified.payload.name,
+                            companyId: localUser?.companyId || null,
+                            scopes: verified.payload.scopes || ['openid', 'identity:read']
+                        };
                     }
                 }
             } catch (oauthLookupErr) {
@@ -462,13 +559,31 @@ export async function optionalProtect(req: any, res: Response, next: NextFunctio
                     oAuthUser = dbToken.user;
                     decoded = { id: dbToken.userId, companyId: dbToken.user.companyId || null };
                 } else {
-                    const { verifyIdToken } = require('@workspace/identity');
-                    const verified = verifyIdToken(token);
+                    let verifyIdTokenFn: any = null;
+                    try {
+                        verifyIdTokenFn = require('@workspace/identity-provider').verifyIdToken;
+                    } catch (_) {
+                        try {
+                            verifyIdTokenFn = require('@workspace/identity').verifyIdToken;
+                        } catch (_) {}
+                    }
+                    const verified = typeof verifyIdTokenFn === 'function' ? verifyIdTokenFn(token) : { valid: false };
                     if (verified.valid && verified.payload?.sub) {
-                        const u = await globalPrisma.user.findUnique({ where: { id: verified.payload.sub } });
+                        const targetUserId = verified.payload.sub;
+                        const targetEmail = verified.payload.email;
+                        const u = await globalPrisma.user.findFirst({
+                            where: {
+                                OR: [
+                                    { id: targetUserId },
+                                    ...(targetEmail ? [{ email: { equals: targetEmail, mode: 'insensitive' } }] : [])
+                                ]
+                            }
+                        });
                         if (u) {
                             oAuthUser = u;
                             decoded = { id: u.id, companyId: u.companyId || null };
+                        } else {
+                            decoded = { id: targetUserId, email: targetEmail, companyId: null };
                         }
                     }
                 }

@@ -8,7 +8,7 @@ import {
   Calendar, Lock, Sparkles, RefreshCw, BadgeCheck, LogOut
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getAuthToken } from '@/lib/api';
+import { getAuthToken, clearAuthTokens } from '@/lib/api';
 
 interface UserProfile {
   id: string;
@@ -31,9 +31,7 @@ export default function ProfilePage() {
   const [copiedId, setCopiedId] = useState(false);
 
   const handleLogout = () => {
-    localStorage.removeItem('platform_auth_token');
-    localStorage.removeItem('platform_refresh_token');
-    document.cookie = 'platform_auth_token=; path=/; max-age=0;';
+    clearAuthTokens();
     toast.success('Logged out successfully');
     window.location.href = '/';
   };

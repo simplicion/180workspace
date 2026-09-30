@@ -9,7 +9,7 @@ import {
   ExternalLink, ShieldCheck, ChevronRight, Sparkles, CreditCard
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getAuthToken } from '@/lib/api';
+import { getAuthToken, clearAuthTokens } from '@/lib/api';
 import { TrialBanner } from '@/components/shared/TrialBanner';
 
 export default function PlatformLayout({
@@ -42,8 +42,7 @@ export default function PlatformLayout({
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
         if (payload.exp && payload.exp * 1000 < Date.now()) {
-          localStorage.removeItem('platform_auth_token');
-          document.cookie = 'platform_auth_token=; path=/; max-age=0;';
+          clearAuthTokens();
           toast.error('Your session has expired. Please sign in again.');
           router.replace('/');
           return;

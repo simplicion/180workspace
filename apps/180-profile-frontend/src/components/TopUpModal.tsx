@@ -32,13 +32,28 @@ export function TopUpModal({ isOpen, onClose, onSuccess }: TopUpModalProps) {
       return;
     }
 
+    const token =
+      localStorage.getItem('platform_auth_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('accessToken');
+
+    if (!token) {
+      toast.error('Please sign in to recharge your wallet');
+      return;
+    }
+
+    const authHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+
     setLoading(true);
     const toastId = toast.loading('Creating secure Razorpay order...');
 
     try {
       const res = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/order'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         credentials: 'include',
         body: JSON.stringify({ amount: finalAmount, currency: 'INR' }),
       });
@@ -48,7 +63,12 @@ export function TopUpModal({ isOpen, onClose, onSuccess }: TopUpModalProps) {
         throw new Error(data.error || 'Failed to initialize top-up');
       }
 
-      const { orderId, amountPaise, keyId } = data.data;
+      const { orderId, amountPaise, keyId } = data.data || data;
+
+      let storedUser: any = null;
+      try {
+        storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      } catch (_) {}
 
       const options = {
         key: keyId,
@@ -58,23 +78,35 @@ export function TopUpModal({ isOpen, onClose, onSuccess }: TopUpModalProps) {
         description: 'Universal Prepaid Wallet Recharge',
         order_id: orderId,
         theme: { color: '#2563eb' },
+        prefill: {
+          name: storedUser?.name || undefined,
+          email: storedUser?.email || undefined,
+        },
         handler: async function (response: any) {
           const verifyToast = toast.loading('Verifying transaction...');
           try {
             const verifyRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: authHeaders,
               credentials: 'include',
               body: JSON.stringify({
                 orderId: response.razorpay_order_id,
                 paymentId: response.razorpay_payment_id,
                 signature: response.razorpay_signature,
+                amount: finalAmount,
               }),
             });
 
             const verifyData = await verifyRes.json();
             if (verifyData.success) {
               toast.success(`Wallet credited with ₹${finalAmount}!`, { id: verifyToast });
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('180_wallet_updated', {
+                    detail: { balance: verifyData.data?.newBalance },
+                  })
+                );
+              }
               onSuccess();
               onClose();
             } else {

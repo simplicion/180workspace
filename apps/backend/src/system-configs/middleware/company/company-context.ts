@@ -61,7 +61,7 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
             '/r', '/shield', '/tag', '/evaluate',
             '/api/v1/traffic-director/evaluate', '/api/v1/traffic-director/tag', '/api/v1/traffic-director/stream-proxy',
             '/api/v1/traffic-director/billing/webhook', '/v1/traffic-director/billing/webhook',
-            '/oauth', '/api/oauth', '/.well-known', '/certs',
+            '/oauth', '/api/oauth', '/api/v1/identity/oauth', '/api/v1/identity', '/.well-known', '/certs',
             '/api/v1/identity/check-username', '/api/v1/identity/resolve-location', '/api/v1/identity/otp'
         ];
         const isPublic = publicRoutes.some(route => req.path.startsWith(route));
@@ -84,7 +84,29 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
         if (!companyId && token) {
             try {
                 const decoded = jwt.decode(token) as any;
-                if (decoded && decoded.companyId) companyId = decoded.companyId;
+                if (decoded && decoded.companyId) {
+                    companyId = decoded.companyId;
+                } else if (decoded && (decoded.sub || decoded.id)) {
+                    const localUserId = decoded.sub || decoded.id;
+                    const localUser = await prisma.user.findFirst({
+                        where: {
+                            OR: [
+                                { id: localUserId },
+                                ...(decoded.email ? [{ email: { equals: decoded.email, mode: 'insensitive' } }] : [])
+                            ]
+                        },
+                        select: { companyId: true }
+                    });
+                    if (localUser?.companyId) {
+                        companyId = localUser.companyId;
+                    } else if (decoded.email) {
+                        const adminComp = await prisma.company.findFirst({
+                            where: { adminEmail: { equals: decoded.email, mode: 'insensitive' } },
+                            select: { id: true }
+                        });
+                        if (adminComp) companyId = adminComp.id;
+                    }
+                }
             } catch (e) {}
 
             // Support OAuth 2.0 access tokens (e.g. 180 Identity SSO: 180_acc_...)

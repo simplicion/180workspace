@@ -36,9 +36,17 @@ export function CheckoutClient() {
 
   const fetchSessionAndWallet = async () => {
     try {
+      const token =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('platform_auth_token') ||
+            localStorage.getItem('token') ||
+            localStorage.getItem('accessToken')
+          : null;
+      const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
       const [sessionRes, walletRes] = await Promise.all([
-        fetch(getCoreApiUrl(`/api/oauth/checkout/sessions/${sessionId}`), { credentials: 'include' }),
-        fetch(getCoreApiUrl('/api/oauth/wallet'), { credentials: 'include' }),
+        fetch(getCoreApiUrl(`/api/oauth/checkout/sessions/${sessionId}`), { headers: authHeaders, credentials: 'include' }),
+        fetch(getCoreApiUrl('/api/oauth/wallet'), { headers: authHeaders, credentials: 'include' }),
       ]);
 
       let sessionInfo: any = null;
@@ -186,13 +194,25 @@ export function CheckoutClient() {
     if (!session) return;
     const deficit = Math.max(10, Math.ceil(session.amount - (wallet?.balance || 0)));
 
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('platform_auth_token') ||
+          localStorage.getItem('token') ||
+          localStorage.getItem('accessToken')
+        : null;
+
+    const authHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
     setTopupLoading(true);
     const toastId = toast.loading('Initializing Razorpay top-up...');
 
     try {
       const res = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/order'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         credentials: 'include',
         body: JSON.stringify({ amount: deficit, currency: 'INR' }),
       });
@@ -200,7 +220,12 @@ export function CheckoutClient() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Failed to initialize recharge');
 
-      const { orderId, amountPaise, keyId } = data.data;
+      const { orderId, amountPaise, keyId } = data.data || data;
+
+      let storedUser: any = null;
+      try {
+        storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      } catch (_) {}
 
       const options = {
         key: keyId,
@@ -210,12 +235,16 @@ export function CheckoutClient() {
         description: `Top-Up to complete purchase with ${session.app?.name}`,
         order_id: orderId,
         theme: { color: '#2563eb' },
+        prefill: {
+          name: storedUser?.name || undefined,
+          email: storedUser?.email || undefined,
+        },
         handler: async function (response: any) {
           toast.loading('Crediting wallet balance...', { id: toastId });
           try {
             const verifyRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: authHeaders,
               credentials: 'include',
               body: JSON.stringify({
                 orderId: response.razorpay_order_id,

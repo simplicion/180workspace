@@ -30,9 +30,15 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
       token = authHeader.split(' ')[1];
     }
 
-    // 2. Check Cookie
+    // 2. Check Cookie (supports parsed req.cookies and raw req.headers.cookie)
     if (!token && (req as any).cookies?.platform_auth_token) {
       token = (req as any).cookies.platform_auth_token;
+    }
+    if (!token && req.headers.cookie) {
+      const match = req.headers.cookie.match(/(?:^|;\s*)(?:platform_auth_token|token|auth_token)=([^;]+)/);
+      if (match) {
+        token = decodeURIComponent(match[1]);
+      }
     }
 
     if (!token) {

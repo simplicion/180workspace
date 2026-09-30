@@ -79,6 +79,19 @@ export default function DashboardLayout({
     };
 
     fetchProfileAndWallet();
+
+    const handleWalletUpdated = (e: any) => {
+      if (typeof e.detail?.balance === 'number') {
+        setBalance(e.detail.balance);
+      } else {
+        fetchProfileAndWallet();
+      }
+    };
+
+    window.addEventListener('180_wallet_updated', handleWalletUpdated);
+    return () => {
+      window.removeEventListener('180_wallet_updated', handleWalletUpdated);
+    };
   }, [router]);
 
   return (

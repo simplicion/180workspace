@@ -89,12 +89,13 @@ export class WalletApiController {
       }
 
       const { orderId, paymentId, signature, amount } = req.body;
+      const parsedAmount = amount !== undefined && amount !== null && !isNaN(Number(amount)) ? Number(amount) : undefined;
       const result = await IdentityWalletService.verifyAndCreditTopup(
         userId,
         orderId,
         paymentId,
         signature,
-        Number(amount)
+        parsedAmount
       );
 
       return res.json({ success: true, data: result });
@@ -162,7 +163,8 @@ export class WalletApiController {
             orderId || `ord_${Date.now()}`,
             paymentId,
             signature || '',
-            amountInr
+            amountInr,
+            true // skipSignatureVerify because webhook signature was already validated above
           ).catch((e: any) => console.log('[WalletWebhook] Processed:', e.message));
         }
       }
