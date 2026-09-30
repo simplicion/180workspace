@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -379,6 +380,7 @@ class MediaEngineService {
 
   /// A standard path in the app documents directory for rendered videos.
   static Future<String> getOutputVideoPath(String fileName) async {
+    if (kIsWeb) return fileName;
     final dir = await getApplicationDocumentsDirectory();
     final outDir = Directory('${dir.path}/rendered_videos');
     if (!await outDir.exists()) {
@@ -389,6 +391,7 @@ class MediaEngineService {
 
   /// A standard audio path for transcription.
   static Future<String> getOutputAudioPath(String fileName) async {
+    if (kIsWeb) return fileName;
     final dir = await getApplicationDocumentsDirectory();
     final outDir = Directory('${dir.path}/extracted_audio');
     if (!await outDir.exists()) {

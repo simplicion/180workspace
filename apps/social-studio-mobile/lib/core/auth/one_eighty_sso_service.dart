@@ -143,12 +143,12 @@ class OneEightySsoService {
         ..style.display = 'flex'
         ..style.alignItems = 'center'
         ..style.justifyContent = 'space-between'
-        ..style.gap = '12px';
+        ..style.setProperty('gap', '12px');
 
       final titleWrap = html.DivElement()
         ..style.display = 'flex'
         ..style.alignItems = 'center'
-        ..style.gap = '8px';
+        ..style.setProperty('gap', '8px');
       titleWrap.setInnerHtml(
         '<span style="font-size: 13px; font-weight: 700; color: #f4f4f5; letter-spacing: -0.01em;">180 Sovereign Identity</span>',
         treeSanitizer: html.NodeTreeSanitizer.trusted,
