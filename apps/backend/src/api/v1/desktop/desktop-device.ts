@@ -46,14 +46,13 @@ export function enforcementMode(): EnforcementMode {
   return v === 'enforce' || v === 'report' ? v : 'off';
 }
 
-/** Secret for signing native/desktop device registration tokens. Falls back to JWT_SECRET if unset. */
+/** Secret for signing native/desktop device registration tokens. Must be set and >= 32 chars. */
 function secret(): string {
-  const s =
-    process.env.DESKTOP_DEVICE_JWT_SECRET ||
-    process.env.JWT_SECRET ||
-    process.env.JWT_REFRESH_SECRET ||
-    '2d5e0a2bbce3284cfd37b8e3b21cd97865a36bab40b0e22028ec193937d79aca';
-  return s.length >= 32 ? s : s.padEnd(32, '0');
+  const s = process.env.DESKTOP_DEVICE_JWT_SECRET;
+  if (!s || s.length < 32) {
+    throw new Error('DESKTOP_DEVICE_JWT_SECRET must be set and at least 32 characters');
+  }
+  return s;
 }
 
 export interface DeviceRecord {
@@ -135,11 +134,26 @@ async function saveDevice(companyId: string, userId: string, d: DeviceRecord) {
 export async function revokeDevice(companyId: string, userId: string, deviceId: string): Promise<boolean> {
   // A revoked device must stop receiving notifications: drop its push token from the owner index too.
   const current = await findDevice(companyId, userId, deviceId);
-  if (current?.push) await releasePushOwner(current.push.token, { companyId, userId, deviceId });
-  return withRegistry(
-    async () => (await redis!.hdel(registryKey(companyId, userId), deviceId)) > 0,
-    () => memory.get(registryKey(companyId, userId))?.delete(deviceId) ?? false
-  );
+  if (!current) return false;
+
+  const all = await listDevices(companyId, userId);
+  const matchKey = current.installKeyHash
+    ? (d: DeviceRecord) => d.installKeyHash === current.installKeyHash
+    : (d: DeviceRecord) => d.platform === current.platform && d.label === current.label;
+
+  const toRevoke = all.filter(matchKey);
+  const targets = toRevoke.length > 0 ? toRevoke : [current];
+
+  let anyRevoked = false;
+  for (const d of targets) {
+    if (d.push) await releasePushOwner(d.push.token, { companyId, userId, deviceId: d.deviceId });
+    const ok = await withRegistry(
+      async () => (await redis!.hdel(registryKey(companyId, userId), d.deviceId)) > 0,
+      () => memory.get(registryKey(companyId, userId))?.delete(d.deviceId) ?? false
+    );
+    if (ok) anyRevoked = true;
+  }
+  return anyRevoked;
 }
 
 async function findDevice(companyId: string, userId: string, deviceId: string): Promise<DeviceRecord | null> {

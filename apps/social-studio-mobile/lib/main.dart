@@ -69,13 +69,12 @@ class _SocialStudioAppState extends ConsumerState<SocialStudioApp> with WidgetsB
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    AppTheme.currentThemeMode = themeMode;
     
     return MaterialApp.router(
       title: '180 Social Studio',
       debugShowCheckedModeBanner: false,
-      // Screens still use the dark studio tokens directly, so light is not safe yet (see ThemeModeNotifier):
-      // System resolves to the dark palette until ThemeModeNotifier.lightModeAvailable is true.
-      theme: ThemeModeNotifier.lightModeAvailable ? AppTheme.lightTheme : AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
       routerConfig: ref.watch(routerProvider),

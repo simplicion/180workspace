@@ -348,3 +348,27 @@ test('reinstall: a matching install key renews the same device slot even without
   const other = await call('POST', '/api/desktop/devices/register', { user: freshUser(), body: { platform: 'android', installKey: key } });
   assert.notEqual(other.json.deviceId, first.json.deviceId, 'another user never inherits the device');
 });
+
+test('aggregateDevices: groups duplicate sessions on same device, exposes sessionCount and deviceIds', async () => {
+  const { aggregateDevices } = await import('./desktop.routes');
+  const d1 = { deviceId: 'dev-1', label: 'Chrome Web', platform: 'windows', createdAt: 100, lastSeenAt: 200 };
+  const d2 = { deviceId: 'dev-2', label: 'Chrome Web', platform: 'windows', createdAt: 150, lastSeenAt: 300 };
+  const d3 = { deviceId: 'dev-3', label: 'Chrome Web', platform: 'windows', createdAt: 180, lastSeenAt: 400 };
+  const dOther = { deviceId: 'dev-phone', label: 'Pixel 8', platform: 'android', createdAt: 500, lastSeenAt: 500 };
+
+  const aggregated = aggregateDevices([d1, d2, d3, dOther], 'dev-2');
+  assert.equal(aggregated.length, 2);
+
+  const webGroup = aggregated.find((d: any) => d.platform === 'windows');
+  assert.ok(webGroup);
+  assert.equal(webGroup.sessionCount, 3);
+  assert.equal(webGroup.current, true);
+  assert.equal(webGroup.deviceId, 'dev-2', 'picks current device as primary');
+  assert.deepEqual(webGroup.deviceIds, ['dev-1', 'dev-2', 'dev-3']);
+  assert.equal(webGroup.lastSeenAt, 400);
+
+  const phoneGroup = aggregated.find((d: any) => d.platform === 'android');
+  assert.ok(phoneGroup);
+  assert.equal(phoneGroup.sessionCount, 1);
+  assert.equal(phoneGroup.current, false);
+});
