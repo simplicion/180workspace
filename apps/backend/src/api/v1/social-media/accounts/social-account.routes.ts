@@ -466,16 +466,24 @@ export const oauthCallbackRouter = Router();
 oauthCallbackRouter.get('/:platform/callback', async (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Referrer-Policy', 'no-referrer');
+    const platform = String(req.params.platform);
     try {
-        const { redirectTo } = await SocialOAuthService.callback(String(req.params.platform), req.query as Record<string, any>);
+        const { redirectTo } = await SocialOAuthService.callback(platform, req.query as Record<string, any>);
         res.status(302)
             .setHeader('Location', redirectTo)
             .type('html')
             .send(`<!doctype html><meta charset="utf-8"><title>Returning to 180</title><p>Connected. <a href="${escapeHtml(redirectTo)}">Return to the app</a>.</p>`);
     } catch (error: any) {
         const status = isPublishError(error) ? error.httpStatus : 500;
-        const msg = isPublishError(error) ? error.message : 'Could not complete the connection.';
-        res.status(status).type('html').send(`<!doctype html><meta charset="utf-8"><title>Connection failed</title><p>${escapeHtml(msg)}</p><p>Close this window and start the connection again from the app.</p>`);
+        const providerDesc = req.query.error_description || req.query.error_message || req.query.error_reason;
+        const providerErr = req.query.error || req.query.error_code;
+        const msg = providerErr
+            ? `Platform error (${escapeHtml(String(providerErr))}): ${escapeHtml(String(providerDesc || 'Authorization failed.'))}`
+            : isPublishError(error)
+              ? error.message
+              : 'Could not complete the connection.';
+        console.error(`[SocialOAuth] ${platform} callback error:`, { query: req.query, error: error?.message || error });
+        res.status(status).type('html').send(`<!doctype html><meta charset="utf-8"><title>Connection failed</title><p><strong>${escapeHtml(msg)}</strong></p><p>Close this window and start the connection again from the app.</p>`);
     }
 });
 

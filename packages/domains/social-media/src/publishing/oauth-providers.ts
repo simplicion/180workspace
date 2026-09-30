@@ -309,9 +309,15 @@ const linkedinProvider: OAuthProvider = {
     selectable: true,
     authorizeUrl({ state, redirectUri }) {
         const { clientId } = requireAppCredentials('linkedin');
+        const allowOrg = process.env.LINKEDIN_ENABLE_ORGANIZATIONS === 'true';
         const base = ['openid', 'profile', 'w_member_social'];
-        const org = process.env.LINKEDIN_ENABLE_ORGANIZATIONS === 'true' ? ['r_organization_social', 'w_organization_social', 'rw_organization_admin'] : [];
-        const q = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirectUri, state, scope: envScopes('LINKEDIN_SCOPES', [...base, ...org]).join(' ') });
+        const org = allowOrg ? ['r_organization_social', 'w_organization_social', 'rw_organization_admin'] : [];
+        let scopes = envScopes('LINKEDIN_SCOPES', [...base, ...org]);
+        if (!allowOrg) {
+            // Strip organization scopes unless explicitly enabled to prevent invalid_scope_error
+            scopes = scopes.filter((s) => !s.toLowerCase().includes('organization'));
+        }
+        const q = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirectUri, state, scope: scopes.join(' ') });
         return `https://www.linkedin.com/oauth/v2/authorization?${q}`;
     },
     async exchangeCode({ code, redirectUri }) {
