@@ -350,8 +350,18 @@ function groupByWeek<T extends { weekNumber: number }>(items: T[]): T[][] {
 
 export function validateRunInput(input: AutopilotRunInput) {
     if (![7, 14, 30].includes(input.days)) throw new AutopilotError('INVALID_INPUT', 'days must be 7, 14 or 30');
-    const dateMatch = String(input.startDate || '').trim().match(/^(\d{4}-\d{2}-\d{2})/);
-    if (dateMatch) (input as any).startDate = dateMatch[1];
+    const rawDate = String(input.startDate || '').trim();
+    const dateMatch = rawDate.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (dateMatch) {
+        (input as any).startDate = dateMatch[1];
+    } else if (/^[A-Za-z]{3,9}\b.*\d{1,2}/.test(rawDate) || /^\d{1,2}\s+[A-Za-z]{3,9}/.test(rawDate)) {
+        const curYear = new Date().getFullYear();
+        const parsed = Date.parse(`${rawDate} ${curYear}`);
+        if (!Number.isNaN(parsed)) {
+            const dt = new Date(parsed);
+            (input as any).startDate = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+        }
+    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate) || Number.isNaN(Date.parse(`${input.startDate}T00:00:00Z`))) {
         throw new AutopilotError('INVALID_INPUT', 'startDate must be YYYY-MM-DD');
     }

@@ -52,6 +52,18 @@
             android:name="com.workspace180.socialmanager.mediaengine.RenderForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync|mediaProcessing" />
+
+        <!-- Direct File Sharing Provider for Native App Handoff -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths" />
+        </provider>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -64,9 +76,18 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
-        <!-- Package visibility for X and Reddit native apps -->
+        <!-- Package visibility for direct native app handoff (bypasses Android system share sheet) -->
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.pinterest" />
+        <package android:name="com.instagram.android" />
+        <package android:name="com.instagram.barcelona" />
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.linkedin.android" />
         <package android:name="com.twitter.android" />
         <package android:name="com.reddit.frontpage" />
+        <package android:name="com.zhiliaoapp.musically" />
+        <package android:name="com.ss.android.ugc.trill" />
+
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
@@ -92,6 +113,22 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="reddit" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="vnd.youtube" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="instagram" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="pinterest" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="fb" />
         </intent>
     </queries>
 </manifest>

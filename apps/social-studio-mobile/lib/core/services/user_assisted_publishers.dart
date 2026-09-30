@@ -12,6 +12,7 @@ export 'centralized_manual_publisher.dart';
 
 enum HandoffMode {
   nativeShare,
+  nativeApp,
   webCompose,
   clipboardOnly,
 }
