@@ -6,7 +6,7 @@ export function generateStaticParams() {
   return [{ linkId: 'default' }];
 }
 
-export const dynamicParams = true;
+export const dynamicParams = false;
 
 export default function Page() {
   return (

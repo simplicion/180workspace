@@ -2,7 +2,11 @@ import React, { Suspense } from 'react';
 import ManageSubscriptionClient from './ManageSubscriptionClient';
 import { LogoLoader } from '@workspace/ui';
 
-export const dynamicParams = true;
+export function generateStaticParams() {
+  return [{ id: 'default' }];
+}
+
+export const dynamicParams = false;
 
 export default function ManageSubscriptionPage() {
   return (
