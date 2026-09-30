@@ -227,6 +227,9 @@ app.get('/oauth/authorize', (req, res) => {
 });
 app.use('/.well-known', oauthRoutes);
 app.use('/oauth', oauthRoutes);
+app.use('/api/oauth', oauthRoutes);
+app.use('/api/v1/identity/oauth', oauthRoutes);
+app.use('/api/v1/identity', oauthRoutes);
 app.use('/certs', oauthRoutes);
 
 app.use('/api', apiRoutes);

@@ -43,12 +43,27 @@ if (typeof window !== 'undefined' && !(window as any).__180_fetch_intercepted) {
       }
     }
 
-    const modifiedInit: RequestInit = isCoreTarget
+    let modifiedInit: RequestInit = isCoreTarget
       ? {
           ...init,
           credentials: init?.credentials || 'include',
         }
       : (init || {});
+
+    // Automatically inject Authorization Bearer token for sovereign core backend calls
+    if (isCoreTarget && typeof window !== 'undefined') {
+      const headers = new Headers(modifiedInit.headers || {});
+      if (!headers.has('Authorization')) {
+        const token =
+          localStorage.getItem('platform_auth_token') ||
+          localStorage.getItem('token') ||
+          localStorage.getItem('accessToken');
+        if (token) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+      }
+      modifiedInit.headers = headers;
+    }
 
     return originalFetch(target, modifiedInit);
   };

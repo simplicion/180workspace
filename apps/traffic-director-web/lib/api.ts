@@ -29,32 +29,25 @@ export const getAuthToken = (): string | null => {
   return null;
 };
 
+export const clearAuthTokens = () => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('platform_auth_token');
+  localStorage.removeItem('platform_refresh_token');
+  localStorage.removeItem('token');
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('accessToken');
+  document.cookie = 'platform_auth_token=; path=/; max-age=0;';
+  document.cookie = 'token=; path=/; max-age=0;';
+  document.cookie = 'auth_token=; path=/; max-age=0;';
+};
+
 const handleResponse = async (res: Response) => {
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     if (res.status === 401 && typeof window !== 'undefined') {
-      const token = getAuthToken();
-      let isTokenExpired = true;
-      if (token) {
-        try {
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            const payload = JSON.parse(atob(parts[1]));
-            if (payload.exp && payload.exp * 1000 > Date.now()) {
-              isTokenExpired = false;
-            }
-          } else {
-            isTokenExpired = false;
-          }
-        } catch (_) {}
-      }
-
-      if (isTokenExpired) {
-        localStorage.removeItem('platform_auth_token');
-        document.cookie = 'platform_auth_token=; path=/; max-age=0;';
-        if (window.location.pathname.startsWith('/traffic-director')) {
-          window.location.href = '/';
-        }
+      clearAuthTokens();
+      if (window.location.pathname.startsWith('/traffic-director')) {
+        window.location.href = '/';
       }
     }
     const error: any = new Error(data?.error || data?.message || `Request failed with status ${res.status}`);

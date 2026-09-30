@@ -82,13 +82,28 @@ export default function TransactionsPage() {
       return;
     }
 
+    const token =
+      localStorage.getItem('platform_auth_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('accessToken');
+
+    if (!token) {
+      toast.error('Authentication token required. Please sign in to recharge wallet.');
+      return;
+    }
+
+    const authHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+
     setTopupLoading(true);
     const toastId = toast.loading('Initializing secure Razorpay order...');
 
     try {
       const res = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/order'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         credentials: 'include',
         body: JSON.stringify({ amount: finalAmount, currency: 'INR' }),
       });
@@ -98,7 +113,12 @@ export default function TransactionsPage() {
         throw new Error(data.error || 'Failed to initialize recharge order');
       }
 
-      const { orderId, amountPaise, keyId } = data.data;
+      const { orderId, amountPaise, keyId } = data.data || data;
+
+      let storedUser: any = null;
+      try {
+        storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      } catch (_) {}
 
       const options = {
         key: keyId,
@@ -108,24 +128,39 @@ export default function TransactionsPage() {
         description: 'Universal Prepaid Wallet Recharge',
         order_id: orderId,
         theme: { color: '#2563eb' },
+        prefill: {
+          name: storedUser?.name || undefined,
+          email: storedUser?.email || undefined,
+        },
         handler: async function (response: any) {
           const verifyToast = toast.loading('Verifying transaction on 180 Core...');
           try {
             const verifyRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: authHeaders,
               credentials: 'include',
               body: JSON.stringify({
                 orderId: response.razorpay_order_id,
                 paymentId: response.razorpay_payment_id,
                 signature: response.razorpay_signature,
+                amount: finalAmount,
               }),
             });
 
             const verifyData = await verifyRes.json();
             if (verifyData.success) {
-              toast.success('Wallet recharged successfully!', { id: verifyToast });
-              fetchWalletData();
+              const creditedBalance = verifyData.data?.newBalance ?? (balance + finalAmount);
+              setBalance(creditedBalance);
+              toast.success(`Wallet successfully recharged with ₹${finalAmount.toFixed(2)}!`, { id: verifyToast });
+              await fetchWalletData();
+
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('180_wallet_updated', {
+                    detail: { balance: creditedBalance },
+                  })
+                );
+              }
             } else {
               toast.error(verifyData.error || 'Payment verification failed', { id: verifyToast });
             }
