@@ -1,2 +1,7 @@
-/api/* https://services.180workspace.com/api/:splat 307
-/oauth/* https://services.180workspace.com/oauth/:splat 307
+# Cloudflare Pages SPA Rewrites for 180 Developers dynamic routes
+/apps/*/identity.txt    /apps/default/identity.txt    200
+/apps/*/identity        /apps/default/identity.html   200
+/apps/*/pay.txt         /apps/default/pay.txt         200
+/apps/*/pay             /apps/default/pay.html        200
+/apps/*.txt             /apps/default.txt             200
+/apps/*                 /apps/default.html            200

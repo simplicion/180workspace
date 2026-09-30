@@ -31,7 +31,25 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const appId = params?.id as string;
+  // Resilient appId extraction for static SSG exports (Cloudflare Pages rewrites)
+  const getInitialAppId = () => {
+    const pId = params?.id as string;
+    if (pId && pId !== 'default') return pId;
+    if (typeof window !== 'undefined') {
+      const match = window.location.pathname.match(/\/apps\/([^\/\?#]+)/);
+      if (match && match[1] && match[1] !== 'default') return match[1];
+    }
+    return pId || '';
+  };
+
+  const [appId, setAppId] = useState<string>(getInitialAppId);
+
+  useEffect(() => {
+    const currentId = getInitialAppId();
+    if (currentId && currentId !== appId) {
+      setAppId(currentId);
+    }
+  }, [params?.id]);
 
   const [app, setApp] = useState<DeveloperAppDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -385,11 +403,13 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
   };
 
   useEffect(() => {
-    fetchAppDetails();
-    fetchPayouts();
-    fetchAuthLogs();
-    fetchPaymentAnalytics();
-    fetchBankDetails();
+    if (appId && appId !== 'default') {
+      fetchAppDetails();
+      fetchPayouts();
+      fetchAuthLogs();
+      fetchPaymentAnalytics();
+      fetchBankDetails();
+    }
   }, [appId]);
 
   const fetchPayouts = async () => {
