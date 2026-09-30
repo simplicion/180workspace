@@ -1,0 +1,1382 @@
+[
+  {
+    "id": "user_4aff6173-e1c8-4756-be72-b097e4976dcc_chunk_0",
+    "docId": "user_4aff6173-e1c8-4756-be72-b097e4976dcc",
+    "text": "Employee Record: jesus. Role: admin. Department: null. Email: rewardsource@gmail.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "68e8c787-978d-4e95-81c9-d9052a6ab081",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "user_7d32f34a-7a1c-4674-a3f4-bcc9a4404560_chunk_0",
+    "docId": "user_7d32f34a-7a1c-4674-a3f4-bcc9a4404560",
+    "text": "Employee Record: Mobile Dev B. Role: admin. Department: null. Email: mobile-dev-b@example.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "6a8dc65f-4703-4100-b3c6-b443d76e2bf0",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "project_eeef9ec6-f4c8-4cfd-8224-11a77fe293c5_chunk_0",
+    "docId": "project_eeef9ec6-f4c8-4cfd-8224-11a77fe293c5",
+    "text": "Project Record: B project. Description: None. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "6a8dc65f-4703-4100-b3c6-b443d76e2bf0",
+      "type": "project"
+    }
+  },
+  {
+    "id": "user_26eb9107-2145-403d-9d1c-e95204658187_chunk_0",
+    "docId": "user_26eb9107-2145-403d-9d1c-e95204658187",
+    "text": "Employee Record: Manu kumar. Role: admin. Department: null. Email: manukumar7427@gmail.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "834a1b86-24b5-4e5f-b510-e93fc4a2b077",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "user_5096c712-11af-4c0b-8c51-8b2c3aa08931_chunk_0",
+    "docId": "user_5096c712-11af-4c0b-8c51-8b2c3aa08931",
+    "text": "Employee Record: Raj. Role: admin. Department: null. Email: saaviksolutions@gmail.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "89432063-350d-4d4e-b896-d0fa3d8d219d",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "project_d3642ee4-704b-4ca3-93e0-0685d2c95525_chunk_0",
+    "docId": "project_d3642ee4-704b-4ca3-93e0-0685d2c95525",
+    "text": "Project Record: Kridaz. Description: None. Status: planning. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "89432063-350d-4d4e-b896-d0fa3d8d219d",
+      "type": "project"
+    }
+  },
+  {
+    "id": "user_2de1b226-4e2d-40c0-a37a-f0dadc23a08d_chunk_0",
+    "docId": "user_2de1b226-4e2d-40c0-a37a-f0dadc23a08d",
+    "text": "Employee Record: Prince Kumar. Role: employee. Department: Engineering / IT. Email: princeshah364133@gmail.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "user_6b5dd77b-3bfb-4332-a546-61d6d9549d6e_chunk_0",
+    "docId": "user_6b5dd77b-3bfb-4332-a546-61d6d9549d6e",
+    "text": "Employee Record: Varsha Adigoppula. Role: admin. Department: Engineering / IT. Email: varshaadigoppula@gmail.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "user_e6b10270-3c1a-4534-8513-74f1d4620203_chunk_0",
+    "docId": "user_e6b10270-3c1a-4534-8513-74f1d4620203",
+    "text": "Employee Record: Begumpet Alok. Role: admin. Department: null. Email: adhocx.ofc@gmail.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "project_0bd352c2-f7a6-48b9-b4bb-d5b534f5d564_chunk_0",
+    "docId": "project_0bd352c2-f7a6-48b9-b4bb-d5b534f5d564",
+    "text": "Project Record: Adhocx. Description: b2b bulk cab booking. Status: planning. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "project"
+    }
+  },
+  {
+    "id": "task_0519a2b7-08a8-4b6d-afef-64159bb58162_chunk_0",
+    "docId": "task_0519a2b7-08a8-4b6d-afef-64159bb58162",
+    "text": "Task Record: Complete Driver app frontend . Description: None. Status: in_progress. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_0a7984e4-3320-4242-a12b-c9c856ae64ae_chunk_0",
+    "docId": "task_0a7984e4-3320-4242-a12b-c9c856ae64ae",
+    "text": "Task Record: Voiceforce 50-Test Task. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_33de5f09-63d3-456e-8990-53366d5d7b55_chunk_0",
+    "docId": "task_33de5f09-63d3-456e-8990-53366d5d7b55",
+    "text": "Task Record: Voiceforce 50-Test Task. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_3988cae6-5555-475a-a96e-644ef543a5fd_chunk_0",
+    "docId": "task_3988cae6-5555-475a-a96e-644ef543a5fd",
+    "text": "Task Record: Voiceforce 50-Test Task. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_9be21ef9-7976-439d-b05e-3d4a70066467_chunk_0",
+    "docId": "task_9be21ef9-7976-439d-b05e-3d4a70066467",
+    "text": "Task Record: Start workiing on redesigning admin pannel following our design md and  uiux  md . Description: I have already completed the work. Status: in_review. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_ac69501e-6cbb-4b25-9654-f163d35916f3_chunk_0",
+    "docId": "task_ac69501e-6cbb-4b25-9654-f163d35916f3",
+    "text": "Task Record: Voiceforce 50-Test Task. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_c78b24f9-215a-4532-b9be-14dfd18fee73_chunk_0",
+    "docId": "task_c78b24f9-215a-4532-b9be-14dfd18fee73",
+    "text": "Task Record: Voiceforce 50-Test Task. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_eaac2eda-5fbb-475e-a70b-82d04a73ccff_chunk_0",
+    "docId": "task_eaac2eda-5fbb-475e-a70b-82d04a73ccff",
+    "text": "Task Record: Voiceforce 50-Test Task. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "90db6ba3-5392-4cda-b414-7a86dea4d27d",
+      "type": "task"
+    }
+  },
+  {
+    "id": "user_49e955b1-baa6-4dc0-8256-d96a872b7fbd_chunk_0",
+    "docId": "user_49e955b1-baa6-4dc0-8256-d96a872b7fbd",
+    "text": "Employee Record: harsh. Role: employee. Department: Design / Creative. Email: harshthederic@gmail.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "user_53f0b499-0d8a-4337-a983-2c2bc846bfd2_chunk_0",
+    "docId": "user_53f0b499-0d8a-4337-a983-2c2bc846bfd2",
+    "text": "Employee Record: Prince Kumar. Role: employee. Department: Engineering / IT. Email: princegupta3641@gmail.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "user_f675fb3c-0ba2-4926-80c7-2a6e825edc4a_chunk_0",
+    "docId": "user_f675fb3c-0ba2-4926-80c7-2a6e825edc4a",
+    "text": "Employee Record: Simplicion. Role: admin. Department: null. Email: simplicion.com@gmail.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "project_07023f41-0b37-4d0a-9413-aa38bb247c2c_chunk_0",
+    "docId": "project_07023f41-0b37-4d0a-9413-aa38bb247c2c",
+    "text": "Project Record: Pitchin180. Description: None. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_215a1dfa-e6b6-4e50-8ed4-43c16baa5368_chunk_0",
+    "docId": "project_215a1dfa-e6b6-4e50-8ed4-43c16baa5368",
+    "text": "Project Record: Lokaya. Description: Social commerce app. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_3a424d60-90a2-43fc-a66f-02c7d33a72aa_chunk_0",
+    "docId": "project_3a424d60-90a2-43fc-a66f-02c7d33a72aa",
+    "text": "Project Record: 180workspace. Description: None. Status: planning. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_4ae56100-fbbb-4abe-ad11-75f17d85d3a4_chunk_0",
+    "docId": "project_4ae56100-fbbb-4abe-ad11-75f17d85d3a4",
+    "text": "Project Record: Prince. Description: personal branding as a founder. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_6f2c6165-3c8b-4421-b0a7-9ed16568118a_chunk_0",
+    "docId": "project_6f2c6165-3c8b-4421-b0a7-9ed16568118a",
+    "text": "Project Record: Joincab. Description: None. Status: planning. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_7f8de781-ae89-440b-8a6b-5a73efc92bb8_chunk_0",
+    "docId": "project_7f8de781-ae89-440b-8a6b-5a73efc92bb8",
+    "text": "Project Record: My personal branding. Description: Identity creation as a founder entrepreneur and tech guy. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_c95ea0dd-cae7-4bb1-9cb0-3aa560349178_chunk_0",
+    "docId": "project_c95ea0dd-cae7-4bb1-9cb0-3aa560349178",
+    "text": "Project Record: Yourbrand. Description: None. Status: in_progress. Priority: critical.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_d23867f8-6637-4056-8d18-714edf88a0e1_chunk_0",
+    "docId": "project_d23867f8-6637-4056-8d18-714edf88a0e1",
+    "text": "Project Record: Dr Ankita . Description: to built her brand identity. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_fc803176-22a0-436a-b659-7c2b2c40d6e6_chunk_0",
+    "docId": "project_fc803176-22a0-436a-b659-7c2b2c40d6e6",
+    "text": "Project Record: Adhocx. Description: Corporate vehicle  bulk booking on realtime app. Status: in_progress. Priority: critical.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "project"
+    }
+  },
+  {
+    "id": "task_0145de97-9873-48da-8156-51fbaec6336b_chunk_0",
+    "docId": "task_0145de97-9873-48da-8156-51fbaec6336b",
+    "text": "Task Record: Connect Live Payroll Aggregation. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_04d7a242-7ad8-44c2-b8fe-34da98b29693_chunk_0",
+    "docId": "task_04d7a242-7ad8-44c2-b8fe-34da98b29693",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159992993. Description: Your dedicated phone number +14159992993 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_089468ce-1531-4bbb-8bac-e74e46b622ae_chunk_0",
+    "docId": "task_089468ce-1531-4bbb-8bac-e74e46b622ae",
+    "text": "Task Record: Executive Architecture Review. Description: Review Q4 scaling roadmap with engineering leads. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_08c409c0-5e95-4bee-ae0c-1f4c1e0e678e_chunk_0",
+    "docId": "task_08c409c0-5e95-4bee-ae0c-1f4c1e0e678e",
+    "text": "Task Record: Do reaseach on narihealth . Description: research on thie rcompettior and to build their soles funnel okay . Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_092ee997-0a24-45bc-97f8-7c9d7844bedc_chunk_0",
+    "docId": "task_092ee997-0a24-45bc-97f8-7c9d7844bedc",
+    "text": "Task Record: Research on blackhat. Description: Too deep and detailed research in the Black Hat to start the business on that. Status: backlog. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_102593c7-7c6d-45ef-82ab-fa496cede104_chunk_0",
+    "docId": "task_102593c7-7c6d-45ef-82ab-fa496cede104",
+    "text": "Task Record: Executive Architecture Review. Description: Review Q4 scaling roadmap with engineering leads. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_12eb1341-4b78-4545-a0ab-b6f25c898d49_chunk_0",
+    "docId": "task_12eb1341-4b78-4545-a0ab-b6f25c898d49",
+    "text": "Task Record: Build Interactive Action Cards. Description: None. Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_14b2aa20-3d82-4964-a7b3-18a43507ee81_chunk_0",
+    "docId": "task_14b2aa20-3d82-4964-a7b3-18a43507ee81",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14158616504. Description: Your dedicated phone number +14158616504 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_1af1357d-8f1f-4a7c-b602-ff4ab40d6431_chunk_0",
+    "docId": "task_1af1357d-8f1f-4a7c-b602-ff4ab40d6431",
+    "text": "Task Record: Create company bank account to add in gst portal. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_1da7ca45-064d-4d99-8419-2ec2014b0c6a_chunk_0",
+    "docId": "task_1da7ca45-064d-4d99-8419-2ec2014b0c6a",
+    "text": "Task Record: Complete the posting reqirment feature on adhocx. Description: None. Status: in_progress. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_1ebd2c50-01fc-451d-bfc7-956fd1aff47f_chunk_0",
+    "docId": "task_1ebd2c50-01fc-451d-bfc7-956fd1aff47f",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159992667. Description: Your dedicated phone number +14159992667 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_344ce29d-3aa3-4870-966a-a83bc2b062af_chunk_0",
+    "docId": "task_344ce29d-3aa3-4870-966a-a83bc2b062af",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14154551720. Description: Your dedicated phone number +14154551720 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_35de0a15-c55e-4841-850c-3fdf49fa52b7_chunk_0",
+    "docId": "task_35de0a15-c55e-4841-850c-3fdf49fa52b7",
+    "text": "Task Record: Implement OAuth2 PKCE Flow. Description: Add standard PKCE authorization for mobile clients. Status: in_review. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_37e98ab1-7792-4a7d-bd37-fa7ea27b3b44_chunk_0",
+    "docId": "task_37e98ab1-7792-4a7d-bd37-fa7ea27b3b44",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159998850. Description: Your dedicated phone number +14159998850 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_3cb2f666-5866-4624-940a-3ba012c5b895_chunk_0",
+    "docId": "task_3cb2f666-5866-4624-940a-3ba012c5b895",
+    "text": "Task Record: Executive Architecture Review. Description: Review Q4 scaling roadmap with engineering leads. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_4253f228-7660-4bc3-b0aa-cdccc4379ee7_chunk_0",
+    "docId": "task_4253f228-7660-4bc3-b0aa-cdccc4379ee7",
+    "text": "Task Record: Build Interactive Action Cards. Description: None. Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_49efb0f9-6abc-4317-9d37-9cb6f3317222_chunk_0",
+    "docId": "task_49efb0f9-6abc-4317-9d37-9cb6f3317222",
+    "text": "Task Record: Connect Live Payroll Aggregation. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_52096d7b-d8c0-4571-86ea-ad70fd739ba0_chunk_0",
+    "docId": "task_52096d7b-d8c0-4571-86ea-ad70fd739ba0",
+    "text": "Task Record: Executive Architecture Review. Description: Review Q4 scaling roadmap with engineering leads. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_55c0da56-0263-4381-8413-851aa41bbe88_chunk_0",
+    "docId": "task_55c0da56-0263-4381-8413-851aa41bbe88",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14154814991. Description: Your dedicated phone number +14154814991 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_61ffe81c-fadb-4132-bf93-daf66f257d17_chunk_0",
+    "docId": "task_61ffe81c-fadb-4132-bf93-daf66f257d17",
+    "text": "Task Record: setting email and razorpay payment connectons on website . Description: None. Status: in_review. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_653806ab-5e22-4cf1-a231-938095baf81f_chunk_0",
+    "docId": "task_653806ab-5e22-4cf1-a231-938095baf81f",
+    "text": "Task Record: Implement Universal AST Builder. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_6749d0ee-7fdf-483f-adf1-ac9da1506cb7_chunk_0",
+    "docId": "task_6749d0ee-7fdf-483f-adf1-ac9da1506cb7",
+    "text": "Task Record: Do reaseach on narihealth . Description: research on thie rcompettior and to build their soles funnel okay . Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_68eebc9c-3228-4f9f-853f-49d2d0d3a0db_chunk_0",
+    "docId": "task_68eebc9c-3228-4f9f-853f-49d2d0d3a0db",
+    "text": "Task Record: Complete competior doctor analysis and build content statergy for anesthesiaologist clieint. Description: deep reseach under and apply statergy to dcoteor profile . Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_6f184069-e40f-4e58-83a4-9dd9d16c8d7b_chunk_0",
+    "docId": "task_6f184069-e40f-4e58-83a4-9dd9d16c8d7b",
+    "text": "Task Record: Complete competior doctor analysis and build content statergy for anesthesiaologist clieint. Description: deep reseach under and apply statergy to dcoteor profile . Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_6f6f9e6f-42f5-4566-972b-303aacea634b_chunk_0",
+    "docId": "task_6f6f9e6f-42f5-4566-972b-303aacea634b",
+    "text": "Task Record: Research on binance. Description: None. Status: in_review. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_73cd354c-c743-470c-8631-48fe7a417178_chunk_0",
+    "docId": "task_73cd354c-c743-470c-8631-48fe7a417178",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159992121. Description: Your dedicated phone number +14159992121 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_757cf15d-e985-4f80-90cf-deebf72d3473_chunk_0",
+    "docId": "task_757cf15d-e985-4f80-90cf-deebf72d3473",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159995521. Description: Your dedicated phone number +14159995521 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_77af2170-9373-4b59-b7c4-e17be1fe5d4d_chunk_0",
+    "docId": "task_77af2170-9373-4b59-b7c4-e17be1fe5d4d",
+    "text": "Task Record: do deep reseach on dcotor id and growth . Description: None. Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_781bd7ad-7521-47da-8c05-f971bd67effa_chunk_0",
+    "docId": "task_781bd7ad-7521-47da-8c05-f971bd67effa",
+    "text": "Task Record: Create company bank account to add in gst portal. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_7e15a02a-431c-4348-bebe-3c6f6cd80a4f_chunk_0",
+    "docId": "task_7e15a02a-431c-4348-bebe-3c6f6cd80a4f",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14157974523. Description: Your dedicated phone number +14157974523 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_7fcd70dd-0364-439a-9dea-e583538f3f79_chunk_0",
+    "docId": "task_7fcd70dd-0364-439a-9dea-e583538f3f79",
+    "text": "Task Record: Implement Universal AST Builder. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_84c37002-6284-4dec-88cf-1149a881c17d_chunk_0",
+    "docId": "task_84c37002-6284-4dec-88cf-1149a881c17d",
+    "text": "Task Record: Create company bank account to add in gst portal. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_8b0c14c0-bd11-4bbf-bc34-92e305d74fc0_chunk_0",
+    "docId": "task_8b0c14c0-bd11-4bbf-bc34-92e305d74fc0",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159991096. Description: Your dedicated phone number +14159991096 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_8d7c92c7-f6d4-4e57-a6da-36cf7af2729d_chunk_0",
+    "docId": "task_8d7c92c7-f6d4-4e57-a6da-36cf7af2729d",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14155964499. Description: Your dedicated phone number +14155964499 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_8e0c3e16-19d6-416a-8aae-92eac0fb9007_chunk_0",
+    "docId": "task_8e0c3e16-19d6-416a-8aae-92eac0fb9007",
+    "text": "Task Record: Complete competior doctor analysis and build content statergy for anesthesiaologist clieint. Description: deep reseach under and apply statergy to dcoteor profile . Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_95197c6d-74ce-4f4e-a356-5927507c654f_chunk_0",
+    "docId": "task_95197c6d-74ce-4f4e-a356-5927507c654f",
+    "text": "Task Record: Research on blackhat. Description: Too deep and detailed research in the Black Hat to start the business on that. Status: in_review. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_98c5edda-0eb9-4847-b679-5f4e5093abf2_chunk_0",
+    "docId": "task_98c5edda-0eb9-4847-b679-5f4e5093abf2",
+    "text": "Task Record: comeplte shiprocket intigration . Description: None. Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_9fecf6fc-6e97-4a8c-982f-f72cd30630a8_chunk_0",
+    "docId": "task_9fecf6fc-6e97-4a8c-982f-f72cd30630a8",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14157434494. Description: Your dedicated phone number +14157434494 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_a05ce353-4ded-4b0c-9c8a-affbe76781f4_chunk_0",
+    "docId": "task_a05ce353-4ded-4b0c-9c8a-affbe76781f4",
+    "text": "Task Record: Build Interactive Action Cards. Description: None. Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_a1f0be63-aa8a-4ea2-9fb9-8c3d3e994700_chunk_0",
+    "docId": "task_a1f0be63-aa8a-4ea2-9fb9-8c3d3e994700",
+    "text": "Task Record: Connect Live Payroll Aggregation. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_a8aac86f-a271-4e64-871a-d4d068a766dd_chunk_0",
+    "docId": "task_a8aac86f-a271-4e64-871a-d4d068a766dd",
+    "text": "Task Record: End-to-End SMTP Assignment Verification Task. Description: Verifying automated email dispatch via Gmail SMTP on task assignment.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_aad42f7f-e467-4145-85c6-da45ba82b4bc_chunk_0",
+    "docId": "task_aad42f7f-e467-4145-85c6-da45ba82b4bc",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14157744411. Description: Your dedicated phone number +14157744411 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_ac11bbaa-b40e-43b4-adbd-a01955a23099_chunk_0",
+    "docId": "task_ac11bbaa-b40e-43b4-adbd-a01955a23099",
+    "text": "Task Record: Complete the posting reqirment feature on adhocx. Description: None. Status: in_progress. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_b153dae7-9ad0-46a9-91d7-811bb1ffde2f_chunk_0",
+    "docId": "task_b153dae7-9ad0-46a9-91d7-811bb1ffde2f",
+    "text": "Task Record: Create video with yourself for doctor cleint. Description: None. Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_b4beb63e-009a-4997-9a83-0731e52e1e86_chunk_0",
+    "docId": "task_b4beb63e-009a-4997-9a83-0731e52e1e86",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14157830720. Description: Your dedicated phone number +14157830720 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_b5e7fb12-0857-4790-84cb-b84e835d636f_chunk_0",
+    "docId": "task_b5e7fb12-0857-4790-84cb-b84e835d636f",
+    "text": "Task Record: complete the product ordering flow and payment flow and all edge cases of paymnt . Description: None. Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_c44a768a-35b8-4868-b614-6704baf58e83_chunk_0",
+    "docId": "task_c44a768a-35b8-4868-b614-6704baf58e83",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14157167708. Description: Your dedicated phone number +14157167708 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_c5444e0e-dcb2-4535-b30d-adaf7b60f202_chunk_0",
+    "docId": "task_c5444e0e-dcb2-4535-b30d-adaf7b60f202",
+    "text": "Task Record: Completing the GST processes. Description: None. Status: in_review. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_c6f17d2e-002f-4401-a0c1-16adea963393_chunk_0",
+    "docId": "task_c6f17d2e-002f-4401-a0c1-16adea963393",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14158234609. Description: Your dedicated phone number +14158234609 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_ce2eabca-dbb0-469f-9e16-5328a0f68059_chunk_0",
+    "docId": "task_ce2eabca-dbb0-469f-9e16-5328a0f68059",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14156198509. Description: Your dedicated phone number +14156198509 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_d0948d1a-e842-4c3d-bdbf-ea8d25589fa2_chunk_0",
+    "docId": "task_d0948d1a-e842-4c3d-bdbf-ea8d25589fa2",
+    "text": "Task Record: Implement OAuth2 PKCE Flow. Description: Add standard PKCE authorization for mobile clients. Status: in_review. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_d38bb57f-a613-4a54-84e2-d5543cfc75ef_chunk_0",
+    "docId": "task_d38bb57f-a613-4a54-84e2-d5543cfc75ef",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159997352. Description: Your dedicated phone number +14159997352 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_d8cd3397-9f9c-4997-bee1-844dbdd99d19_chunk_0",
+    "docId": "task_d8cd3397-9f9c-4997-bee1-844dbdd99d19",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159995227. Description: Your dedicated phone number +14159995227 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_dab64f58-1735-4d72-95fc-4205a82319cd_chunk_0",
+    "docId": "task_dab64f58-1735-4d72-95fc-4205a82319cd",
+    "text": "Task Record: Implement OAuth2 PKCE Flow. Description: Add standard PKCE authorization for mobile clients. Status: in_review. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_daca608b-3e8d-4be8-a214-fca0b8d5f4fb_chunk_0",
+    "docId": "task_daca608b-3e8d-4be8-a214-fca0b8d5f4fb",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159997369. Description: Your dedicated phone number +14159997369 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_dc4f1ef7-3983-4622-984e-b5bf1a14d7aa_chunk_0",
+    "docId": "task_dc4f1ef7-3983-4622-984e-b5bf1a14d7aa",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14154713884. Description: Your dedicated phone number +14154713884 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_dd285585-8b31-478d-b20e-6754df88d7e5_chunk_0",
+    "docId": "task_dd285585-8b31-478d-b20e-6754df88d7e5",
+    "text": "Task Record: Voiceforce 50-Test Task. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_de119440-904a-484f-9e35-e45e7e6aada2_chunk_0",
+    "docId": "task_de119440-904a-484f-9e35-e45e7e6aada2",
+    "text": "Task Record: Connect Live Payroll Aggregation. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_de1293b6-e057-4196-891e-6f88b5b694d1_chunk_0",
+    "docId": "task_de1293b6-e057-4196-891e-6f88b5b694d1",
+    "text": "Task Record: Video Edit: New Content Piece. Description: Produce short-form video deliverable according to the approved script.\n\n--- SCRIPT EXCERPT ---\nHook: Write your compelling viral opening hook here...\n\nScript Talking Points:\n1. Problem setup\n2. The solution framework\n3. Actionable takeaway\n\nCTA: Follow for more growth frameworks.. Status: assigned. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_e06fa140-a7d0-44b1-bd8c-bdd871614fa3_chunk_0",
+    "docId": "task_e06fa140-a7d0-44b1-bd8c-bdd871614fa3",
+    "text": "Task Record: Connect Live Payroll Aggregation. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_e5b65723-f782-422a-8e44-f6af3101d805_chunk_0",
+    "docId": "task_e5b65723-f782-422a-8e44-f6af3101d805",
+    "text": "Task Record: Build Interactive Action Cards. Description: None. Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_e6180ac1-1bef-4801-acac-e8dfd3dbf6b8_chunk_0",
+    "docId": "task_e6180ac1-1bef-4801-acac-e8dfd3dbf6b8",
+    "text": "Task Record: Create company bank account to add in gst portal. Description: None. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_e76d48cf-81c0-43d3-8a1d-3e50b8333470_chunk_0",
+    "docId": "task_e76d48cf-81c0-43d3-8a1d-3e50b8333470",
+    "text": "Task Record: Implement OAuth2 PKCE Flow. Description: Add standard PKCE authorization for mobile clients. Status: in_review. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_eeefbf70-b5af-4fe7-8710-5457ed61874c_chunk_0",
+    "docId": "task_eeefbf70-b5af-4fe7-8710-5457ed61874c",
+    "text": "Task Record: AI calling agent client proposal creation and send. Description: send proposal. Status: in_review. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_f39c7e82-5e91-4a94-931a-c404141a28a5_chunk_0",
+    "docId": "task_f39c7e82-5e91-4a94-931a-c404141a28a5",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159997389. Description: Your dedicated phone number +14159997389 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_f43ce88b-4c4a-450d-9d53-657fffb7cd75_chunk_0",
+    "docId": "task_f43ce88b-4c4a-450d-9d53-657fffb7cd75",
+    "text": "Task Record: Build Interactive Action Cards. Description: None. Status: todo. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "task_f8a39949-c94c-491b-9f21-c764a8e0f8e9_chunk_0",
+    "docId": "task_f8a39949-c94c-491b-9f21-c764a8e0f8e9",
+    "text": "Task Record: [Action Required]: Top up wallet to keep line +14159994225. Description: Your dedicated phone number +14159994225 is in a 5-day grace period. If wallet balance is not restored to >= ₹200.00 and monthly rental (₹149.00) cleared within 5 days, the number will be auto-released from the carrier exchange.. Status: todo. Priority: high.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "9b212af0-90db-467c-b0b1-a00fbea15436",
+      "type": "task"
+    }
+  },
+  {
+    "id": "user_2c69025a-49fb-4fe7-a507-17286214255f_chunk_0",
+    "docId": "user_2c69025a-49fb-4fe7-a507-17286214255f",
+    "text": "Employee Record: Mobile Dev. Role: admin. Department: null. Email: mobile-dev@example.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "a13d0030-6c3d-4b7c-9384-4d9c4ef460fd",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "user_a15dac1a-d7ef-4927-aceb-f7862c9bb89e_chunk_0",
+    "docId": "user_a15dac1a-d7ef-4927-aceb-f7862c9bb89e",
+    "text": "Employee Record: LUNDVEER. Role: admin. Department: null. Email: yoman15304@ncleap.com",
+    "embedding": [],
+    "metadata": {
+      "companyId": "b1d92f2e-7e13-4800-8682-c787fb2c0927",
+      "type": "employee"
+    }
+  },
+  {
+    "id": "project_proj_1789768351085_chunk_0",
+    "docId": "project_proj_1789768351085",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1789768351085",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1789792466492_chunk_0",
+    "docId": "project_proj_1789792466492",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1789792466492",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1789793119672_chunk_0",
+    "docId": "project_proj_1789793119672",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1789793119672",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1789793729739_chunk_0",
+    "docId": "project_proj_1789793729739",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1789793729739",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790365042460_chunk_0",
+    "docId": "project_proj_1790365042460",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790365042460",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790365081434_chunk_0",
+    "docId": "project_proj_1790365081434",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790365081434",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790365383783_chunk_0",
+    "docId": "project_proj_1790365383783",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790365383783",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790365445515_chunk_0",
+    "docId": "project_proj_1790365445515",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790365445515",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790374737471_chunk_0",
+    "docId": "project_proj_1790374737471",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790374737471",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790389843358_chunk_0",
+    "docId": "project_proj_1790389843358",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790389843358",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790390157977_chunk_0",
+    "docId": "project_proj_1790390157977",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790390157977",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790393015002_chunk_0",
+    "docId": "project_proj_1790393015002",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790393015002",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790409835407_chunk_0",
+    "docId": "project_proj_1790409835407",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790409835407",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790410232989_chunk_0",
+    "docId": "project_proj_1790410232989",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790410232989",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790410526233_chunk_0",
+    "docId": "project_proj_1790410526233",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790410526233",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790410749252_chunk_0",
+    "docId": "project_proj_1790410749252",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790410749252",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790431126974_chunk_0",
+    "docId": "project_proj_1790431126974",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790431126974",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790431646720_chunk_0",
+    "docId": "project_proj_1790431646720",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790431646720",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_proj_1790431885803_chunk_0",
+    "docId": "project_proj_1790431885803",
+    "text": "Project Record: Q4 Multi-Channel Dominance. Description: None. Status: not_started. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_1790431885803",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_86dd5fe1-e3fc-4c03-bbd4-280512e3cd92_chunk_0",
+    "docId": "project_86dd5fe1-e3fc-4c03-bbd4-280512e3cd92",
+    "text": "Project Record: Master Edge Project 1789792845069. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1789792845069",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_9e3db4ec-8fdc-4736-9cb6-4b5f202ba7a6_chunk_0",
+    "docId": "project_9e3db4ec-8fdc-4736-9cb6-4b5f202ba7a6",
+    "text": "Project Record: Master Edge Project 1789792932446. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1789792932446",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_140c8e86-8aa9-4c85-a77d-8b394fa1803d_chunk_0",
+    "docId": "project_140c8e86-8aa9-4c85-a77d-8b394fa1803d",
+    "text": "Project Record: Master Edge Project 1789792993562. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1789792993562",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_2a5e3c1f-4b2a-41a8-bb6a-557dc47a990c_chunk_0",
+    "docId": "project_2a5e3c1f-4b2a-41a8-bb6a-557dc47a990c",
+    "text": "Project Record: Master Edge Project 1789793050985. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1789793050985",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_94b7172c-7da5-4ff9-8464-038b4f7c705f_chunk_0",
+    "docId": "project_94b7172c-7da5-4ff9-8464-038b4f7c705f",
+    "text": "Project Record: Master Edge Project 1789793084698. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1789793084698",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_3fd7622d-c149-4946-bf4a-2408797c985e_chunk_0",
+    "docId": "project_3fd7622d-c149-4946-bf4a-2408797c985e",
+    "text": "Project Record: Master Edge Project 1789793693284. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1789793693284",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_ed6e6dee-bb34-42fc-9c9a-5b3c4b634fea_chunk_0",
+    "docId": "project_ed6e6dee-bb34-42fc-9c9a-5b3c4b634fea",
+    "text": "Project Record: Master Edge Project 1789798909726. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1789798909726",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_a5a0944d-1e0d-41e9-948b-c4f46932eb39_chunk_0",
+    "docId": "project_a5a0944d-1e0d-41e9-948b-c4f46932eb39",
+    "text": "Project Record: Master Edge Project 1790365042501. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790365042501",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_1b9f5ea7-39b2-45d2-bd66-3473dfda7109_chunk_0",
+    "docId": "project_1b9f5ea7-39b2-45d2-bd66-3473dfda7109",
+    "text": "Project Record: Master Edge Project 1790365081439. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790365081439",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_e256f726-a066-496c-a545-3f67e42b8174_chunk_0",
+    "docId": "project_e256f726-a066-496c-a545-3f67e42b8174",
+    "text": "Project Record: Master Edge Project 1790365383803. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790365383803",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_fb24cfff-b1ee-4790-ae21-3cad7ac5e141_chunk_0",
+    "docId": "project_fb24cfff-b1ee-4790-ae21-3cad7ac5e141",
+    "text": "Project Record: Master Edge Project 1790367593795. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790367593795",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_fa6df8dd-43a5-472f-91d2-15fbc5ba4133_chunk_0",
+    "docId": "project_fa6df8dd-43a5-472f-91d2-15fbc5ba4133",
+    "text": "Project Record: Master Edge Project 1790374830267. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790374830267",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_1bb2a98c-a89a-466c-921e-9d486c94d9b1_chunk_0",
+    "docId": "project_1bb2a98c-a89a-466c-921e-9d486c94d9b1",
+    "text": "Project Record: Master Edge Project 1790389806940. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790389806940",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_82c7b35f-90a9-4449-83d3-88ce05357aaa_chunk_0",
+    "docId": "project_82c7b35f-90a9-4449-83d3-88ce05357aaa",
+    "text": "Project Record: Master Edge Project 1790390123670. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790390123670",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_c47f3264-5389-4e3d-9189-6fca7cec7510_chunk_0",
+    "docId": "project_c47f3264-5389-4e3d-9189-6fca7cec7510",
+    "text": "Project Record: Master Edge Project 1790392623906. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790392623906",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_158936b9-a818-479c-bd7d-aada11002890_chunk_0",
+    "docId": "project_158936b9-a818-479c-bd7d-aada11002890",
+    "text": "Project Record: Master Edge Project 1790410749371. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790410749371",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_b2995018-671a-4dfd-99d6-a7f6f3ce0e78_chunk_0",
+    "docId": "project_b2995018-671a-4dfd-99d6-a7f6f3ce0e78",
+    "text": "Project Record: Master Edge Project 1790430935669. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790430935669",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_4386cc69-5cdb-4613-8727-f8c97ad10a4d_chunk_0",
+    "docId": "project_4386cc69-5cdb-4613-8727-f8c97ad10a4d",
+    "text": "Project Record: Master Edge Project 1790431385252. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790431385252",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_cd767669-d4dd-4dab-be73-2a58a74a4f84_chunk_0",
+    "docId": "project_cd767669-d4dd-4dab-be73-2a58a74a4f84",
+    "text": "Project Record: Master Edge Project 1790432095325. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790432095325",
+      "type": "project"
+    }
+  },
+  {
+    "id": "project_39112b7f-3ae0-4a21-a013-c5b77e8f77e1_chunk_0",
+    "docId": "project_39112b7f-3ae0-4a21-a013-c5b77e8f77e1",
+    "text": "Project Record: Master Edge Project 1790433729584. Description: Full-scale social growth testing. Status: in_progress. Priority: medium.",
+    "embedding": [],
+    "metadata": {
+      "companyId": "comp_master_1790433729584",
+      "type": "project"
+    }
+  }
+]

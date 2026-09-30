@@ -50,6 +50,8 @@ export class DeveloperController {
                 authMobileDefault: (app as any).authMobileDefault || 'bottom_sheet',
                 payDesktopDefault: (app as any).payDesktopDefault || 'bottom_sheet',
                 payMobileDefault: (app as any).payMobileDefault || 'bottom_sheet',
+                accessTokenTtl: ((app as any).bankDetails as any)?.accessTokenTtl || 900,
+                refreshTokenDays: ((app as any).bankDetails as any)?.refreshTokenDays || 7,
                 metrics: {
                     activeTokens: app._count.tokens,
                     authorizedUsers: app._count.consents
@@ -119,6 +121,8 @@ export class DeveloperController {
                     authMobileDefault: (app as any).authMobileDefault || 'bottom_sheet',
                     payDesktopDefault: (app as any).payDesktopDefault || 'bottom_sheet',
                     payMobileDefault: (app as any).payMobileDefault || 'bottom_sheet',
+                    accessTokenTtl: ((app as any).bankDetails as any)?.accessTokenTtl || 900,
+                    refreshTokenDays: ((app as any).bankDetails as any)?.refreshTokenDays || 7,
                     metrics: {
                         activeTokens: app._count.tokens,
                         authorizedUsers: app._count.consents
@@ -164,6 +168,10 @@ export class DeveloperController {
 
             if (!name || String(name).trim().length < 2) {
                 return res.status(400).json({ success: false, message: 'Application name is required (min 2 characters)' });
+            }
+
+            if (!logoUrl || !String(logoUrl).trim()) {
+                return res.status(400).json({ success: false, message: 'Application logo URL is strictly required' });
             }
 
             // Generate client ID, high-entropy secret, and webhook secret
@@ -251,7 +259,9 @@ export class DeveloperController {
                 authDesktopDefault,
                 authMobileDefault,
                 payDesktopDefault,
-                payMobileDefault
+                payMobileDefault,
+                accessTokenTtl,
+                refreshTokenDays
             } = req.body;
 
             const app = await prisma.oAuthApp.findFirst({
@@ -260,6 +270,15 @@ export class DeveloperController {
 
             if (!app) {
                 return res.status(404).json({ success: false, message: 'OAuth application not found' });
+            }
+
+            let updatedBankDetails = (app.bankDetails as any) || {};
+            if (accessTokenTtl !== undefined || refreshTokenDays !== undefined) {
+                updatedBankDetails = {
+                    ...updatedBankDetails,
+                    ...(accessTokenTtl !== undefined && { accessTokenTtl: Math.max(60, Number(accessTokenTtl)) }),
+                    ...(refreshTokenDays !== undefined && { refreshTokenDays: Math.max(1, Number(refreshTokenDays)) })
+                };
             }
 
             const updated = await prisma.oAuthApp.update({
@@ -281,7 +300,8 @@ export class DeveloperController {
                     ...(authDesktopDefault !== undefined && { authDesktopDefault: String(authDesktopDefault) }),
                     ...(authMobileDefault !== undefined && { authMobileDefault: String(authMobileDefault) }),
                     ...(payDesktopDefault !== undefined && { payDesktopDefault: String(payDesktopDefault) }),
-                    ...(payMobileDefault !== undefined && { payMobileDefault: String(payMobileDefault) })
+                    ...(payMobileDefault !== undefined && { payMobileDefault: String(payMobileDefault) }),
+                    ...((accessTokenTtl !== undefined || refreshTokenDays !== undefined) && { bankDetails: updatedBankDetails })
                 } as any
             });
 
@@ -303,7 +323,9 @@ export class DeveloperController {
                     authDesktopDefault: (updated as any).authDesktopDefault,
                     authMobileDefault: (updated as any).authMobileDefault,
                     payDesktopDefault: (updated as any).payDesktopDefault,
-                    payMobileDefault: (updated as any).payMobileDefault
+                    payMobileDefault: (updated as any).payMobileDefault,
+                    accessTokenTtl: ((updated as any).bankDetails as any)?.accessTokenTtl || 900,
+                    refreshTokenDays: ((updated as any).bankDetails as any)?.refreshTokenDays || 7
                 }
             });
         } catch (err: any) {

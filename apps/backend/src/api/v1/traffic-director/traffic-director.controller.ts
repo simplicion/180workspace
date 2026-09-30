@@ -5,7 +5,8 @@ import {
   TrafficAnalyticsService, 
   TrafficSimulatorService,
   ThreatIntelligenceService,
-  TorExitSyncService
+  TorExitSyncService,
+  TrafficDirectorBillingService
 } from '@workspace/traffic-director';
 
 export class TrafficDirectorController {
@@ -23,13 +24,21 @@ export class TrafficDirectorController {
     const user = reqAny.user;
     if (user?.id) {
       const { prisma } = require('@workspace/db');
-      const dbUser = await prisma.user.findUnique({
+      let dbUser = await prisma.user.findUnique({
         where: { id: user.id },
         select: { id: true, companyId: true, email: true, name: true }
       });
 
+      if (!dbUser && user.email) {
+        dbUser = await prisma.user.findFirst({
+          where: { email: { equals: user.email, mode: 'insensitive' } },
+          select: { id: true, companyId: true, email: true, name: true }
+        });
+      }
+
       if (dbUser?.companyId) {
         reqAny.companyId = dbUser.companyId;
+        if (reqAny.user) reqAny.user.companyId = dbUser.companyId;
         return dbUser.companyId;
       }
 
@@ -37,21 +46,30 @@ export class TrafficDirectorController {
       const baseSlug = `td-${user.id.slice(0, 8)}-${Date.now().toString(36)}`;
       const newCompany = await prisma.company.create({
         data: {
-          name: `${dbUser?.name || dbUser?.email?.split('@')[0] || 'User'}'s Traffic Director`,
+          name: `${dbUser?.name || user.name || dbUser?.email?.split('@')[0] || user.email?.split('@')[0] || 'User'}'s Traffic Director`,
           slug: baseSlug,
-          ownerId: user.id,
-          status: 'ACTIVE',
+          adminName: dbUser?.name || user.name || 'User',
+          adminEmail: dbUser?.email || user.email || `${baseSlug}@180workspace.internal`,
+          accountStatus: 'active',
           subscriptionStatus: 'active',
-          enabledApps: ['traffic-director']
+          isOnboardingComplete: true,
+          metadata: {
+            enabledApps: ['traffic-director'],
+            autoProvisioned: true,
+            source: 'traffic-director'
+          }
         }
       });
 
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { companyId: newCompany.id, role: 'OWNER' }
-      });
+      if (dbUser) {
+        await prisma.user.update({
+          where: { id: dbUser.id },
+          data: { companyId: newCompany.id, role: 'OWNER' }
+        });
+      }
 
       reqAny.companyId = newCompany.id;
+      if (reqAny.user) reqAny.user.companyId = newCompany.id;
       return newCompany.id;
     }
 
@@ -596,6 +614,73 @@ export class TrafficDirectorController {
     } catch (error: any) {
       console.error('[TrafficDirectorController.deleteCustomThreatEntry]', error);
       return res.status(400).json({ success: false, error: error.message || 'Failed to delete threat entry' });
+    }
+  }
+
+  // ─── Subscriptions & Billing (180 Pay Integration) ─────────────────────
+  static async getBillingStatus(req: Request, res: Response) {
+    try {
+      const companyId = await TrafficDirectorController.getCompanyId(req);
+      if (!companyId) {
+        return res.status(400).json({ success: false, error: 'Company context required' });
+      }
+
+      const result = await TrafficDirectorBillingService.getSubscriptionStatus(companyId);
+      return res.json(result);
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.getBillingStatus]', error);
+      return res.status(500).json({ success: false, error: error.message || 'Failed to fetch billing status' });
+    }
+  }
+
+  static async validateCoupon(req: Request, res: Response) {
+    try {
+      const { couponCode, planTier } = req.body || {};
+      const result = await TrafficDirectorBillingService.validateCoupon(couponCode, planTier);
+      return res.json({ success: true, ...result });
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.validateCoupon]', error);
+      return res.status(400).json({ success: false, error: error.message || 'Coupon validation failed' });
+    }
+  }
+
+  static async createBillingCheckout(req: Request, res: Response) {
+    try {
+      const companyId = await TrafficDirectorController.getCompanyId(req);
+      if (!companyId) {
+        return res.status(400).json({ success: false, error: 'Company context required' });
+      }
+
+      const { planTier, couponCode, returnUrl, cancelUrl } = req.body || {};
+      if (!planTier) {
+        return res.status(400).json({ success: false, error: 'Plan tier is required (STARTER, PRO, or ENTERPRISE)' });
+      }
+
+      const result = await TrafficDirectorBillingService.createSubscriptionCheckout({
+        companyId,
+        planTier,
+        couponCode,
+        returnUrl,
+        cancelUrl,
+      });
+
+      return res.json(result);
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.createBillingCheckout]', error);
+      return res.status(400).json({ success: false, error: error.message || 'Failed to initialize 180 Pay session' });
+    }
+  }
+
+  static async handleBillingWebhook(req: Request, res: Response) {
+    try {
+      const payload = req.body;
+      const signature = (req.headers['x-180-signature'] as string) || '';
+      const rawBody = (req as any).rawBody || JSON.stringify(payload);
+      const result = await TrafficDirectorBillingService.handleWebhookEvent(payload, signature, rawBody);
+      return res.json({ success: true, result });
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.handleBillingWebhook]', error);
+      return res.status(400).json({ success: false, error: error.message || 'Webhook processing failed' });
     }
   }
 }

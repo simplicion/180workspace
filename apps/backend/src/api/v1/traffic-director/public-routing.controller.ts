@@ -5,7 +5,8 @@ import {
   TrafficLinksService,
   TrafficAnalyticsService,
   ClientShieldGenerator,
-  ReverseProxyService
+  ReverseProxyService,
+  TrafficDirectorBillingService
 } from '@workspace/traffic-director';
 
 export class PublicRoutingController {
@@ -45,12 +46,18 @@ export class PublicRoutingController {
       // 2. Extract Signals from Client Request
       const signals = SignalExtractor.extractFromRequest(req);
 
+      // Verify active subscription / 7-day free trial status
+      const isSubActive = link.companyId
+        ? await TrafficDirectorBillingService.isCompanySubscriptionActive(link.companyId)
+        : true;
+      const effectiveIsActive = Boolean(link.isActive && isSubActive);
+
       // 3. Evaluate Rule Matrix
       const result = DecisionEngine.evaluate(
         {
           id: link.id,
           fallbackUrl: link.fallbackUrl,
-          isActive: link.isActive,
+          isActive: effectiveIsActive,
           warmupUntil: link.warmupUntil,
           rampUpEnabled: link.rampUpEnabled,
           rampUpDurationHours: link.rampUpDurationHours,
@@ -219,11 +226,18 @@ export class PublicRoutingController {
       }
 
       const signals = SignalExtractor.extractFromRequest(req);
+
+      // Verify active subscription / 7-day free trial status
+      const isSubActive = link.companyId
+        ? await TrafficDirectorBillingService.isCompanySubscriptionActive(link.companyId)
+        : true;
+      const effectiveIsActive = Boolean(link.isActive && isSubActive);
+
       const result = DecisionEngine.evaluate(
         {
           id: link.id,
           fallbackUrl: link.fallbackUrl,
-          isActive: link.isActive,
+          isActive: effectiveIsActive,
           warmupUntil: link.warmupUntil,
           rampUpEnabled: link.rampUpEnabled,
           rampUpDurationHours: link.rampUpDurationHours,

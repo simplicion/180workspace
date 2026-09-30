@@ -112,6 +112,20 @@ export default function DeveloperDocsPage() {
             <span>Blueprint & Ports</span>
           </a>
           <a
+            href="#vault-proxy-model"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 font-semibold transition-colors shrink-0 flex items-center gap-1"
+          >
+            <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Sovereign Vault & Gateway Shielding</span>
+          </a>
+          <a
+            href="#token-lifecycle"
+            className="px-3 py-1.5 min-h-[32px] rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 font-semibold transition-colors shrink-0 flex items-center gap-1"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
+            <span>Token Lifecycle (15m/7d)</span>
+          </a>
+          <a
             href="#credentials"
             className="px-3 py-1.5 min-h-[32px] rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors shrink-0 flex items-center gap-1"
           >
@@ -279,6 +293,179 @@ export default function DeveloperDocsPage() {
               </tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          SECTION: 180 PAY SOVEREIGN VAULT & GATEWAY SHIELDING ARCHITECTURE
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="vault-proxy-model" className="space-y-6 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <CreditCard className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
+              180 Pay Sovereign Vault & Gateway Shielding Architecture
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              How unconventional, high-risk, and ethical merchants accept frictionless payments without traditional gateway rejections.
+            </p>
+          </div>
+        </div>
+
+        {/* The Gateway Shielding Solution Explanation */}
+        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-emerald-950/20 via-zinc-900 to-black/60 border border-emerald-500/20 space-y-6 shadow-xl">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 font-mono">
+                The Sovereign Merchant Shield
+              </span>
+            </div>
+            <h3 className="text-xl font-extrabold text-white tracking-tight">
+              Why Traditional Gateways Fail Unconventional Businesses — And How 180 Pay Solves It
+            </h3>
+            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed max-w-3xl">
+              Traditional payment aggregators (Stripe, Razorpay, PayPal) operate under rigid Merchant Category Codes (MCC) with strict automated risk engines. Ethical businesses in adult/sensual lifestyle, high-risk digital consulting, international arbitrage, or unbanked sectors frequently face sudden account terminations and frozen funds.
+            </p>
+            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed max-w-3xl">
+              <strong>180 Pay acts as an online digital vault and universal system wallet.</strong> Merchants never connect directly to traditional gateways. Instead, 180 Pay serves as the sovereign ledger, proxying consumer wallet loads and transferring settled funds directly to the developer's sovereign wallet.
+            </p>
+          </div>
+
+          {/* 3 Step Interactive Workflow Architecture */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            {/* Step 1: 2-Step Consumer Onboarding */}
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs font-mono">
+                01
+              </div>
+              <h4 className="font-bold text-sm text-white">2-Step Consumer Onboarding</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                When a customer arrives at the merchant's site, creating a 180 Profile takes less than 15 seconds:
+              </p>
+              <ul className="text-[11px] text-zinc-300 space-y-1 list-disc list-inside">
+                <li><strong className="text-white">Step A:</strong> Enter Phone/Email and verify instant 6-digit OTP.</li>
+                <li><strong className="text-white">Step B:</strong> Enter display name & handle. Profile and vault are instantly ready.</li>
+              </ul>
+            </div>
+
+            {/* Step 2: Deficit Auto-Recharge Proxy */}
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs font-mono">
+                02
+              </div>
+              <h4 className="font-bold text-sm text-white">Deficit Auto-Recharge Proxy</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Suppose the merchant charges ₹500 and the user's 180 Wallet balance is ₹30 (deficit of ₹470):
+              </p>
+              <ul className="text-[11px] text-zinc-300 space-y-1 list-disc list-inside">
+                <li>180 Pay checkout dynamically triggers <code className="text-emerald-400">Recharge & Pay via Razorpay</code>.</li>
+                <li>Razorpay processes ₹470 as a personal wallet top-up (<strong className="text-white">"180 Profile Instant Recharge"</strong>).</li>
+                <li><strong>Gateway Blindness:</strong> Razorpay sees zero connection to the merchant's URL, content, or product.</li>
+              </ul>
+            </div>
+
+            {/* Step 3: Sovereign Ledger Transfer */}
+            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs font-mono">
+                03
+              </div>
+              <h4 className="font-bold text-sm text-white">Internal Ledger Transfer & Payout</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Once the top-up succeeds:
+              </p>
+              <ul className="text-[11px] text-zinc-300 space-y-1 list-disc list-inside">
+                <li>180 Pay double-entry ledger transfers ₹500 from consumer wallet to developer wallet.</li>
+                <li>180 Pay dispatches an HMAC-SHA256 signed webhook (<code className="text-purple-400">payment.captured</code>) to the merchant.</li>
+                <li>Developers withdraw their wallet revenue directly to their linked Bank Account or UPI ID via Developer Console.</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Universal Subscriptions Callout */}
+          <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-indigo-300">
+              <Zap className="w-4 h-4 text-indigo-400" />
+              <span>Universal Recurring Subscriptions via 180 Pay</span>
+            </div>
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              Developers can also provision recurring subscription plans (e.g. Starter $25/mo, Pro $50/mo, Enterprise $75/mo). 180 Pay registers the recurring mandate with Razorpay, runs daily recurring billing cycles, automatically handles failed payment retries, and notifies the merchant app via <code className="text-indigo-400">subscription.charged</code> and <code className="text-indigo-400">subscription.cancelled</code> webhooks.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          SECTION: 180 IDENTITY UNIVERSAL SSO & TOKEN LIFECYCLE
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="token-lifecycle" className="space-y-6 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <RefreshCw className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
+              180 Identity Universal SSO & Cryptographic Token Lifecycle
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Zero developer auth infrastructure with standard 15-minute access tokens and 7-day silent auto-refresh cycles.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Card 1: Zero Auth Infrastructure */}
+          <div className="p-6 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-3 shadow-sm">
+            <div className="flex items-center gap-2 pb-2 border-b border-zinc-100 dark:border-white/5">
+              <Shield className="w-4 h-4 text-blue-500" />
+              <h3 className="font-bold text-sm text-zinc-950 dark:text-white">Zero Auth Infrastructure Required</h3>
+            </div>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              When using 180 Identity, the developer's backend never needs to build, maintain, or secure:
+            </p>
+            <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-1.5 list-disc list-inside">
+              <li>User passwords or bcrypt/argon2 password hashing vaults.</li>
+              <li>SMS or WhatsApp OTP gateway contracts and carrier verification logic.</li>
+              <li>Session databases, cookie parsing middleware, or CSRF token synchronization.</li>
+              <li>Password reset flows, magic links, or account recovery mechanisms.</li>
+            </ul>
+            <div className="pt-2">
+              <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold">
+                Single SDK Call: OneEightyIdentity.openAuthModal()
+              </span>
+            </div>
+          </div>
+
+          {/* Card 2: 15-Minute / 7-Day Cycle */}
+          <div className="p-6 rounded-3xl bg-white dark:bg-[#101012] border border-zinc-200 dark:border-white/10 space-y-3 shadow-sm">
+            <div className="flex items-center gap-2 pb-2 border-b border-zinc-100 dark:border-white/5">
+              <RefreshCw className="w-4 h-4 text-purple-500" />
+              <h3 className="font-bold text-sm text-zinc-950 dark:text-white">Token Lifecycle & Silent Auto-Refresh</h3>
+            </div>
+            <div className="space-y-3 text-xs text-zinc-600 dark:text-zinc-400">
+              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
+                <div className="flex items-center justify-between font-bold text-zinc-950 dark:text-white">
+                  <span>15-Minute Access Token (900s)</span>
+                  <span className="text-blue-500 font-mono">RS256 JWT</span>
+                </div>
+                <p className="text-[11px]">
+                  Issued upon code exchange. Short expiration prevents credential theft and replay attacks.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
+                <div className="flex items-center justify-between font-bold text-zinc-950 dark:text-white">
+                  <span>7-Day Refresh Token Lifecycle</span>
+                  <span className="text-purple-500 font-mono">Configurable (1-30d)</span>
+                </div>
+                <p className="text-[11px]">
+                  The 180 SDK silently rotates refresh tokens before expiration without user prompts. Developers can customize this duration in their App Detail console.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

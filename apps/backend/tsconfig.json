@@ -13,7 +13,6 @@
     "strictPropertyInitialization": false,
     "declaration": false,
     "declarationMap": false,
-    "baseUrl": ".",
     "paths": {
       "@workspace/backend-infra": ["../../packages/backend-common/src/index.ts"],
       "@workspace/backend-infra/*": ["../../packages/backend-common/src/*"],

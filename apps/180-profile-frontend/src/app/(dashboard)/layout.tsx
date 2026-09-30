@@ -49,6 +49,7 @@ export default function DashboardLayout({
         } else {
           localStorage.removeItem('platform_auth_token');
           localStorage.removeItem('token');
+          localStorage.removeItem('accessToken');
           localStorage.removeItem('user');
           setUser(null);
         }

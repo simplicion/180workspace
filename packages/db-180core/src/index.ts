@@ -1,8 +1,8 @@
 'use strict';
 
-import { PrismaClient } from '../generated/client';
+import { PrismaClient, Prisma } from '../generated/client/index.js';
 
-export * from '../generated/client';
+export { PrismaClient, Prisma };
 
 function getCoreDatabaseUrl(): string {
   return (

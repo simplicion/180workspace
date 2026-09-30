@@ -37,4 +37,10 @@ router.patch('/rules/:ruleId', TrafficDirectorController.updateRule);
 router.delete('/rules/:ruleId', TrafficDirectorController.deleteRule);
 router.post('/links/:linkId/rules/reorder', TrafficDirectorController.reorderRules);
 
+// Subscriptions & 180 Pay Billing
+router.get('/billing/status', TrafficDirectorController.getBillingStatus);
+router.post('/billing/validate-coupon', TrafficDirectorController.validateCoupon);
+router.post('/billing/create-checkout', TrafficDirectorController.createBillingCheckout);
+router.post('/billing/webhook', TrafficDirectorController.handleBillingWebhook);
+
 export default router;

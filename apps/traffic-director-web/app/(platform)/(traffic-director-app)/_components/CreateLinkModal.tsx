@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Link as LinkIcon, Sparkles, Globe, Shield, CheckCircle2, XCircle, Loader2, ArrowRightLeft, Eye } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { 
+  Link as LinkIcon, Sparkles, Globe, Shield, CheckCircle2, 
+  XCircle, Loader2, ArrowRightLeft, Eye, Lock, ArrowRight 
+} from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { PlatformModal } from '@/components/shared/PlatformModal';
 import { LogoLoader } from '@workspace/ui';
+import { useSubscription } from '@/lib/useSubscription';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -14,6 +19,14 @@ interface CreateLinkModalProps {
 }
 
 export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLinkModalProps) {
+  const router = useRouter();
+  const { 
+    canCreateMoreLinks, 
+    isTrialExpired, 
+    maxLinks, 
+    currentLinksCount, 
+    planName 
+  } = useSubscription();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
@@ -72,6 +85,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
   }, [slug]);
 
   const isFormValid = Boolean(
+    canCreateMoreLinks &&
     name.trim() &&
     fallbackUrl.trim() &&
     slug.trim() &&
@@ -80,7 +94,20 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (loading || !isFormValid) return;
+    if (loading) return;
+
+    if (!canCreateMoreLinks) {
+      toast.error(
+        isTrialExpired
+          ? 'Your 7-day free trial has expired. Upgrade your subscription to create new links.'
+          : `Link quota limit reached (${currentLinksCount}/${maxLinks}). Upgrade your subscription to create more links.`
+      );
+      onClose();
+      router.push('/traffic-director/subscription');
+      return;
+    }
+
+    if (!isFormValid) return;
 
     if (!name.trim() || !slug.trim() || !fallbackUrl.trim()) {
       toast.error('Please fill in all required fields');
@@ -176,6 +203,35 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
       }
     >
       <div className="space-y-4 p-1">
+        {!canCreateMoreLinks && (
+          <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3">
+            <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-xs space-y-2 flex-1">
+              <p className="font-bold text-amber-900 dark:text-amber-200">
+                {isTrialExpired
+                  ? '7-Day Free Trial Expired'
+                  : 'Smart Link Quota Limit Reached'}
+              </p>
+              <p className="text-amber-700 dark:text-amber-300">
+                {isTrialExpired
+                  ? 'Your 7-day free trial has expired. Upgrade your subscription in Billing to create new Smart Links and activate live edge cloaking.'
+                  : `Your ${planName} allows a maximum of ${maxLinks} links (${currentLinksCount}/${maxLinks} used). Upgrade your plan to create more links.`}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  router.push('/traffic-director/subscription');
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[11px] shadow-xs cursor-pointer"
+              >
+                <span>Upgrade Subscription</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Strategy Choice */}
         <div>
           <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">

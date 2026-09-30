@@ -90,7 +90,7 @@ export async function dispatchOAuthSuccess(
       idToken = consentData.id_token || consentData.credential || '';
     } else {
       const errorData = await consentRes.json().catch(() => ({}));
-      const errorDesc = errorData.error_description || errorData.message || 'Authorization failed: Invalid redirect URI or origin.';
+      const errorDesc = errorData.error_description || errorData.message || errorData.error || 'Authorization failed';
       
       const errorPayload = {
         type: '180_IDENTITY_ERROR',

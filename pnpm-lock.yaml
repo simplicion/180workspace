@@ -39,6 +39,9 @@ importers:
       '@workspace/identity-provider':
         specifier: workspace:*
         version: link:../../packages/domains/identity-provider
+      '@workspace/payment-provider':
+        specifier: workspace:*
+        version: link:../../packages/domains/payment-provider
       axios:
         specifier: ^1.7.9
         version: 1.19.0
@@ -394,6 +397,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@workspace/db-180core':
+        specifier: workspace:*
+        version: link:../../packages/db-180core
       '@workspace/engine':
         specifier: workspace:*
         version: link:../../packages/domains/engine
@@ -406,6 +412,9 @@ importers:
       '@workspace/identity':
         specifier: workspace:*
         version: link:../../packages/domains/identity
+      '@workspace/identity-provider':
+        specifier: workspace:*
+        version: link:../../packages/domains/identity-provider
       '@workspace/identity-sdk':
         specifier: workspace:*
         version: link:../../packages/identity-sdk
@@ -1419,6 +1428,9 @@ importers:
       '@workspace/db-180core':
         specifier: workspace:*
         version: link:../../db-180core
+      '@workspace/payment-provider':
+        specifier: workspace:*
+        version: link:../payment-provider
       axios:
         specifier: ^1.7.9
         version: 1.19.0
@@ -1481,6 +1493,22 @@ importers:
         version: link:../../typescript-config
       typescript:
         specifier: ^5.0.0
+        version: 5.9.3
+
+  packages/domains/payment-provider:
+    dependencies:
+      '@workspace/db-180core':
+        specifier: workspace:*
+        version: link:../../db-180core
+      axios:
+        specifier: ^1.7.9
+        version: 1.19.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      typescript:
+        specifier: ^5.9.3
         version: 5.9.3
 
   packages/domains/platform-admin:

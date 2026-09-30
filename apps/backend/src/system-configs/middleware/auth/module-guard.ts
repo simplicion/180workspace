@@ -29,8 +29,30 @@ export default function moduleGuard(appId?: string, moduleId?: string) {
 
     return async (req: any, res: Response, next: NextFunction) => {
         try {
-            const company = req.company;
-            const prismaClient = req.prisma;
+            let company = req.company;
+            let prismaClient = req.prisma;
+
+            // Defensive resolution: resolve company if missing but companyId is available on req.user or req.companyId
+            if (!company && (req.user?.companyId || req.companyId)) {
+                const targetCompanyId = req.user?.companyId || req.companyId;
+                try {
+                    const { prisma: globalPrisma, getCompanyPrisma } = require('@workspace/db');
+                    company = await (prismaClient || globalPrisma).company.findUnique({
+                        where: { id: targetCompanyId }
+                    });
+                    if (company) {
+                        company._id = company.id;
+                        req.company = company;
+                        req.companyId = company.id;
+                        if (!prismaClient) {
+                            prismaClient = getCompanyPrisma(company.id);
+                            req.prisma = prismaClient;
+                        }
+                    }
+                } catch (e: any) {
+                    console.warn('[Module Guard] Failed to resolve company context:', e?.message);
+                }
+            }
 
             if (!company || !prismaClient) {
                 if (req.url.includes('cec552a6-6610-4d7e-a2e9-c5623e93c190')) {

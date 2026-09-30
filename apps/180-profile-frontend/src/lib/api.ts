@@ -3,12 +3,14 @@
  * Directs all API and OAuth calls to the sovereign core backend (services.180workspace.com)
  */
 
+const envCoreUrl = process.env.NEXT_PUBLIC_CORE_BACKEND_URL;
 export const CORE_BACKEND_URL =
-  process.env.NEXT_PUBLIC_CORE_BACKEND_URL ||
-  (typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:4003'
-    : 'https://services.180workspace.com');
+  (envCoreUrl && !envCoreUrl.includes(':4004'))
+    ? envCoreUrl
+    : (typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:4003'
+        : 'https://services.180workspace.com');
 
 export function getCoreApiUrl(path: string): string {
   if (!path) return CORE_BACKEND_URL;

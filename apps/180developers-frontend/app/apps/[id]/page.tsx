@@ -2,11 +2,7 @@ import React, { Suspense } from 'react';
 import AppDetailClient from './AppDetailClient';
 import { LogoLoader } from '@workspace/ui';
 
-export function generateStaticParams() {
-  return [{ id: 'overview' }];
-}
-
-export const dynamicParams = false;
+export const dynamicParams = true;
 
 export default function Page() {
   return (

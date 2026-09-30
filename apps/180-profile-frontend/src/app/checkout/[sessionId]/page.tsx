@@ -2,11 +2,7 @@ import React, { Suspense } from 'react';
 import CheckoutClient from './CheckoutClient';
 import { LogoLoader } from '@workspace/ui';
 
-export function generateStaticParams() {
-  return [{ sessionId: 'preview' }];
-}
-
-export const dynamicParams = false;
+export const dynamicParams = true;
 
 export default function StandaloneCheckoutPage() {
   return (

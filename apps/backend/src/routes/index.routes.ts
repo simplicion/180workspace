@@ -269,6 +269,9 @@ router.use('/v1/social-media/accounts/oauth', require('../api/v1/social-media/ac
 // Public Meta Webhooks & Callbacks (Challenge handshake, event receiver, deauthorization, data deletion)
 router.use('/v1/social-media/webhooks/meta', require('../api/v1/social-media/webhooks/meta-webhook.routes').metaWebhookRouter);
 
+// Public 180 Pay Webhook Receiver for Traffic Director Subscriptions
+router.post('/v1/traffic-director/billing/webhook', require('../api/v1/traffic-director/traffic-director.controller').TrafficDirectorController.handleBillingWebhook);
+
 router.use('/v1/communications', protect, communicationsRoutes);
 router.use('/v1/advertising', protect, moduleGuard('advertising'), advertisingRoutes);
 router.use('/v1/traffic-director', protect, trafficDirectorRoutes);

@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
   GitFork, Link as LinkIcon, Activity, BarChart3, 
-  Layers, Terminal, LogOut, User, Plus, Sun, Moon,
-  ExternalLink, ShieldCheck, ChevronRight, Sparkles
+  Layers, Terminal, User, Plus, Sun, Moon,
+  ExternalLink, ShieldCheck, ChevronRight, Sparkles, CreditCard
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getAuthToken } from '@/lib/api';
+import { TrialBanner } from '@/components/shared/TrialBanner';
 
 export default function PlatformLayout({
   children,
@@ -18,14 +19,17 @@ export default function PlatformLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [userEmail, setUserEmail] = useState<string>('');
   const [isDark, setIsDark] = useState<boolean>(true);
+  const [advertisingUrl, setAdvertisingUrl] = useState<string>('http://localhost:3000/advertising');
 
   useEffect(() => {
     // Read theme
     const storedTheme = localStorage.getItem('180_theme');
     const isDarkMode = storedTheme ? storedTheme === 'dark' : document.documentElement.classList.contains('dark');
     setIsDark(isDarkMode);
+
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    setAdvertisingUrl(isLocal ? 'http://localhost:3000/advertising' : 'https://app.180workspace.com/advertising');
 
     const token = getAuthToken();
     if (!token) {
@@ -37,11 +41,15 @@ export default function PlatformLayout({
       const parts = token.split('.');
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
-        setUserEmail(payload.email || payload.sub || 'Advertiser');
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          localStorage.removeItem('platform_auth_token');
+          document.cookie = 'platform_auth_token=; path=/; max-age=0;';
+          toast.error('Your session has expired. Please sign in again.');
+          router.replace('/');
+          return;
+        }
       }
-    } catch (_) {
-      setUserEmail('Advertiser');
-    }
+    } catch (_) {}
   }, [router]);
 
   const toggleTheme = () => {
@@ -56,14 +64,6 @@ export default function PlatformLayout({
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('platform_auth_token');
-    localStorage.removeItem('platform_refresh_token');
-    document.cookie = 'platform_auth_token=; path=/; max-age=0;';
-    toast.success('Logged out successfully');
-    router.replace('/');
-  };
-
   const navItems = [
     { name: 'Overview', href: '/traffic-director', icon: Activity },
     { name: 'Smart Links', href: '/traffic-director/links', icon: LinkIcon },
@@ -71,6 +71,8 @@ export default function PlatformLayout({
     { name: 'Traffic Logs', href: '/traffic-director/logs', icon: Layers },
     { name: 'Edge Simulator', href: '/traffic-director/simulator', icon: Terminal },
     { name: 'Threat Intelligence', href: '/traffic-director/threats', icon: ShieldCheck },
+    { name: 'Subscriptions', href: '/traffic-director/subscription', icon: CreditCard },
+    { name: 'Profile', href: '/traffic-director/profile', icon: User },
   ];
 
   const currentNav = navItems.find((n) => 
@@ -135,7 +137,8 @@ export default function PlatformLayout({
               AI Tools
             </div>
             <a
-              href={typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000/advertising' : 'https://app.180workspace.com/advertising'}
+              href={advertisingUrl}
+              suppressHydrationWarning
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20 transition-all border border-transparent hover:border-indigo-200/50 dark:hover:border-indigo-800/40 group"
@@ -150,42 +153,6 @@ export default function PlatformLayout({
               </span>
             </a>
           </nav>
-        </div>
-
-        {/* User Account & Theme Toggle */}
-        <div className="p-4 border-t border-gray-200/60 dark:border-white/10 space-y-2">
-          {/* Theme switch button */}
-          <button
-            onClick={toggleTheme}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-900/60 transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              {isDark ? <Moon className="w-3.5 h-3.5 text-blue-400" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
-              <span>{isDark ? 'Obsidian Dark' : 'Clean Light'}</span>
-            </span>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Toggle</span>
-          </button>
-
-          {/* User badge */}
-          <div className="flex items-center justify-between p-2 rounded-xl bg-gray-50 dark:bg-zinc-900/80 border border-gray-200/50 dark:border-white/5">
-            <div className="flex items-center space-x-2.5 overflow-hidden">
-              <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-zinc-800 border border-blue-200/50 dark:border-zinc-700 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs shrink-0">
-                {userEmail?.[0]?.toUpperCase() || 'U'}
-              </div>
-              <div className="truncate">
-                <p className="text-xs font-semibold text-gray-900 dark:text-zinc-200 truncate">{userEmail}</p>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">180 Sovereign ID</span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              title="Sign Out"
-              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors cursor-pointer"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
         </div>
       </aside>
 
@@ -204,6 +171,24 @@ export default function PlatformLayout({
           </div>
 
           <div className="flex items-center space-x-3">
+            {/* Dark / Light Mode Switcher in Header */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl border border-gray-200/80 dark:border-white/10 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-300 transition-all shadow-sm cursor-pointer"
+              title={isDark ? "Switch to Clean Light Mode" : "Switch to Obsidian Dark Mode"}
+              aria-label="Toggle Theme"
+            >
+              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600 dark:text-zinc-400" />}
+            </button>
+
+            <Link
+              href="/traffic-director/subscription"
+              className="hidden sm:inline-flex items-center space-x-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-300 transition-all cursor-pointer"
+            >
+              <CreditCard className="h-3.5 w-3.5 text-blue-500" />
+              <span>Plans & Billing</span>
+            </Link>
+
             <Link
               href="/traffic-director/links"
               className="inline-flex items-center space-x-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-3.5 py-2 text-xs font-semibold text-white shadow-sm shadow-blue-500/20 transition-all active:scale-95 cursor-pointer"
@@ -213,6 +198,9 @@ export default function PlatformLayout({
             </Link>
           </div>
         </header>
+
+        {/* Global Trial & Subscription Status Banner */}
+        <TrialBanner />
 
         {/* Page Body */}
         <div className="p-6 md:p-8 max-w-7xl w-full mx-auto">

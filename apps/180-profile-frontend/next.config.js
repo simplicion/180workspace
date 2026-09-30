@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const isDev = process.env.NODE_ENV === 'development';
+const isExport = process.env.NEXT_EXPORT === 'true' || process.env.CF_PAGES === 'true';
 
 const nextConfig = {
   reactStrictMode: true,
@@ -34,13 +35,15 @@ const nextConfig = {
     }
     return config;
   },
-  ...(isDev
+  ...(!isExport
     ? {
         async rewrites() {
-          const backendUrl =
+          const rawUrl =
+            process.env.CORE_BACKEND_URL ||
             process.env.NEXT_PUBLIC_CORE_BACKEND_URL ||
             process.env.NEXT_PUBLIC_BACKEND_URL ||
             'http://localhost:4003';
+          const backendUrl = rawUrl.includes(':4004') ? 'http://localhost:4003' : rawUrl;
           return [
             {
               source: '/api/v1/:path*',

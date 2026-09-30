@@ -54,6 +54,7 @@ model User {
   wallet           Wallet?                  @relation("UserWallet")
   checkoutSessions CheckoutSession[]        @relation("UserCheckoutSessions")
   appUserIdentities AppUserIdentity[]       @relation("UserAppIdentities")
+  subscriptions    RecurringSubscription[]  @relation("UserAppSubscriptions")
 
   @@index([username])
   @@index([email])
@@ -104,6 +105,8 @@ model OAuthApp {
   checkoutSessions CheckoutSession[]        @relation("AppCheckoutSessions")
   payoutRequests   PayoutRequest[]          @relation("AppPayoutRequests")
   appUsers         AppUserIdentity[]        @relation("AppUserIdentities")
+  subscriptionPlans SubscriptionPlan[]      @relation("AppSubscriptionPlans")
+  subscriptions    RecurringSubscription[]  @relation("AppSubscriptions")
 
   @@index([userId])
   @@index([clientId])
@@ -285,6 +288,9 @@ model CheckoutSession {
   displayMode      String?       @default("bottom_sheet") // popup, modal, bottom_sheet, full_page, embedded
   returnUrl        String?       @default("")
   cancelUrl        String?       @default("")
+  mode             String?       @default("payment") // payment, subscription
+  planId           String?
+  billingInterval  String?       @default("MONTHLY") // MONTHLY, YEARLY
   metadata         Json?
   expiresAt        DateTime
   completedAt      DateTime?
@@ -342,4 +348,68 @@ model AppUserIdentity {
   @@index([appId])
   @@index([userId])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UNIVERSAL RECURRING SUBSCRIPTION ENGINE (180 PAY)
+// Open subscription platform for all first-party and third-party developer apps
+// ─────────────────────────────────────────────────────────────────────────────
+
+model SubscriptionPlan {
+  id              String                  @id @default(uuid())
+  appId           String
+  planCode        String
+  name            String
+  description     String?                 @default("")
+  amount          Float
+  currency        String                  @default("USD")
+  interval        String                  @default("MONTHLY") // MONTHLY, YEARLY, WEEKLY
+  intervalCount   Int                     @default(1)
+  trialDays       Int                     @default(0)
+  isActive        Boolean                 @default(true)
+  razorpayPlanId  String?
+  metadata        Json?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  app             OAuthApp                @relation("AppSubscriptionPlans", fields: [appId], references: [id], onDelete: Cascade)
+  subscriptions   RecurringSubscription[] @relation("PlanSubscriptions")
+
+  @@unique([appId, planCode])
+  @@index([appId, isActive])
+}
+
+model RecurringSubscription {
+  id                 String            @id @default(uuid())
+  appId              String
+  planId             String
+  userId             String
+  walletId           String?
+  status             String            @default("ACTIVE") // PENDING, ACTIVE, PAST_DUE, CANCELLED, EXPIRED
+  billingCycle       String            @default("MONTHLY")
+  amount             Float
+  currency           String            @default("USD")
+  currentPeriodStart DateTime          @default(now())
+  currentPeriodEnd   DateTime
+  nextBillingDate    DateTime
+  cancelledAt        DateTime?
+  cancelReason       String?
+  failedAttempts     Int               @default(0)
+  lastPaymentId      String?
+  paymentSource      String            @default("WALLET") // WALLET, RAZORPAY_RECURRING, HYBRID
+  razorpaySubscriptionId String?
+  razorpayCustomerId String?
+  metadata           Json?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  app                OAuthApp          @relation("AppSubscriptions", fields: [appId], references: [id], onDelete: Cascade)
+  plan               SubscriptionPlan  @relation("PlanSubscriptions", fields: [planId], references: [id], onDelete: Restrict)
+  user               User              @relation("UserAppSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([appId, status])
+  @@index([userId, status])
+  @@index([nextBillingDate, status])
+  @@index([razorpaySubscriptionId])
+}
+
 

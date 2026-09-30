@@ -548,7 +548,10 @@ export class OAuthController {
                 // Issue Access Token & Refresh Token
                 const accessToken = generateRandomToken('180_acc', 32);
                 const newRefreshToken = generateRandomToken('180_ref', 32);
-                const accessLifetime = 3600; // 1 hour
+                const appSettings = (authCode.app as any)?.bankDetails as any;
+                const accessLifetime = (appSettings?.accessTokenTtl && Number(appSettings.accessTokenTtl) > 0)
+                    ? Number(appSettings.accessTokenTtl)
+                    : 900; // 15 minutes standard (RFC 6749 compliant)
                 const expiresAt = new Date(Date.now() + accessLifetime * 1000);
 
                 await prisma.oAuthToken.create({
@@ -605,10 +608,26 @@ export class OAuthController {
                     return res.status(400).json({ error: 'invalid_grant', error_description: 'Refresh token is invalid or revoked' });
                 }
 
+                // Enforce 7-Day (or configured) Refresh Token Lifecycle
+                const appSettings = (existingToken.app as any)?.bankDetails as any;
+                const refreshLifetimeDays = (appSettings?.refreshTokenDays && Number(appSettings.refreshTokenDays) > 0)
+                    ? Number(appSettings.refreshTokenDays)
+                    : 7; // 7 days standard cycle
+                const maxRefreshAgeMs = refreshLifetimeDays * 24 * 3600 * 1000;
+
+                if (Date.now() - new Date(existingToken.createdAt).getTime() > maxRefreshAgeMs) {
+                    return res.status(400).json({
+                        error: 'invalid_grant',
+                        error_description: `Refresh token has expired (${refreshLifetimeDays}-day lifecycle). User must re-authenticate.`
+                    });
+                }
+
                 // Rotate refresh token
                 const newAccessToken = generateRandomToken('180_acc', 32);
                 const rotatedRefreshToken = generateRandomToken('180_ref', 32);
-                const accessLifetime = 3600;
+                const accessLifetime = (appSettings?.accessTokenTtl && Number(appSettings.accessTokenTtl) > 0)
+                    ? Number(appSettings.accessTokenTtl)
+                    : 900; // 15 minutes standard
                 const expiresAt = new Date(Date.now() + accessLifetime * 1000);
 
                 await prisma.oAuthToken.update({
@@ -827,4 +846,68 @@ export class OAuthController {
             return res.status(500).json({ error: 'server_error', error_description: err.message });
         }
     }
+
+    /**
+     * 9. List Authorized Applications for Current User
+     */
+    static async listAuthorizedApps(req: any, res: any) {
+        try {
+            const userId = req.user?.id;
+            if (!userId) {
+                return res.status(401).json({ success: false, error: 'Unauthorized' });
+            }
+
+            const consents = await prisma.oAuthConsent.findMany({
+                where: { userId },
+                include: { app: true },
+                orderBy: { updatedAt: 'desc' }
+            });
+
+            const apps = consents.map((c) => ({
+                id: c.id,
+                name: c.app.name,
+                clientId: c.app.clientId,
+                scopes: c.scopes,
+                authorizedAt: c.grantedAt.toISOString(),
+                logo: c.app.logoUrl || undefined,
+                lastActive: c.updatedAt.toISOString(),
+                status: 'active'
+            }));
+
+            return res.json({ success: true, apps });
+        } catch (err: any) {
+            console.error('[OAuthController] listAuthorizedApps error:', err);
+            return res.status(500).json({ success: false, error: 'server_error', message: err.message });
+        }
+    }
+
+    /**
+     * 10. Revoke an Authorized Application for Current User
+     */
+    static async revokeAuthorizedApp(req: any, res: any) {
+        try {
+            const userId = req.user?.id;
+            const { clientId } = req.params;
+            if (!userId || !clientId) {
+                return res.status(400).json({ success: false, error: 'invalid_request', message: 'clientId is required' });
+            }
+
+            const app = await prisma.oAuthApp.findUnique({ where: { clientId } });
+            if (app) {
+                await prisma.oAuthConsent.deleteMany({
+                    where: { userId, appId: app.id }
+                });
+                await prisma.oAuthToken.updateMany({
+                    where: { userId, appId: app.id },
+                    data: { revokedAt: new Date() }
+                });
+            }
+
+            return res.json({ success: true, message: `Access for ${clientId} revoked successfully` });
+        } catch (err: any) {
+            console.error('[OAuthController] revokeAuthorizedApp error:', err);
+            return res.status(500).json({ success: false, error: 'server_error', message: err.message });
+        }
+    }
 }
+

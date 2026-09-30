@@ -9,5 +9,6 @@ export * from './services/simulator.service';
 export * from './services/proxy.service';
 export * from './services/tor-exit-sync.service';
 export * from './services/threat-intelligence.service';
+export * from './services/billing.service';
 
 

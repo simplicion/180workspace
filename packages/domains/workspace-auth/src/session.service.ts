@@ -18,7 +18,8 @@ export class WorkspaceSessionService {
      * Mint a platform session token for the user in the company context
      */
     static mintSessionToken(payload: WorkspaceSessionPayload): string {
-        return jwt.sign(payload, JWT_SECRET, {
+        const id = payload.id || payload.userId;
+        return jwt.sign({ ...payload, id, sub: id, userId: id }, JWT_SECRET, {
             expiresIn: JWT_EXPIRES_IN,
         } as jwt.SignOptions);
     }

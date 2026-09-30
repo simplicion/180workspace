@@ -29,6 +29,7 @@ import {
   CreditCard,
   Webhook,
   ArrowLeft,
+  ImageIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -75,41 +76,11 @@ const DEFAULT_AUTHORIZED_SCOPES = [
 export default function DeveloperDashboardPage() {
   const router = useRouter();
   const [apps, setApps] = useState<DeveloperApp[]>([]);
-  const [userProfile, setUserProfile] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('user');
-        if (cached) return JSON.parse(cached);
-      } catch (_) {}
-    }
-    return null;
-  });
+  const [userProfile, setUserProfile] = useState<any>(null);
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(() => {
-    if (typeof window !== 'undefined') {
-      const token =
-        localStorage.getItem('platform_auth_token') ||
-        localStorage.getItem('auth_token') ||
-        localStorage.getItem('token') ||
-        localStorage.getItem('accessToken');
-      return !!token;
-    }
-    return null;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const token =
-        localStorage.getItem('platform_auth_token') ||
-        localStorage.getItem('auth_token') ||
-        localStorage.getItem('token') ||
-        localStorage.getItem('accessToken');
-      if (!token) return false;
-      const cached = localStorage.getItem('user');
-      if (cached) return false;
-    }
-    return true;
-  });
+  const [loading, setLoading] = useState<boolean>(true);
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -125,6 +96,7 @@ export default function DeveloperDashboardPage() {
   const [createEnableAuth, setCreateEnableAuth] = useState(true);
   const [createEnablePay, setCreateEnablePay] = useState(true);
   const [createWebhookUrl, setCreateWebhookUrl] = useState('');
+  const [createLogoUrl, setCreateLogoUrl] = useState('');
   const [redirectUrisInput, setRedirectUrisInput] = useState('http://localhost:3000/callback');
   const [allowedOriginsInput, setAllowedOriginsInput] = useState('http://localhost:3000');
   const [isCreating, setIsCreating] = useState(false);
@@ -202,7 +174,7 @@ export default function DeveloperDashboardPage() {
     return isLocal ? 'http://localhost:4003' : (process.env.NEXT_PUBLIC_CORE_BACKEND_URL || 'https://services.180workspace.com');
   };
 
-  const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 2500): Promise<Response | null> => {
+  const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 5000): Promise<Response | null> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -238,20 +210,31 @@ export default function DeveloperDashboardPage() {
     try {
       const apiBase = getApiBase();
 
-      const [uRes, appsRes] = await Promise.all([
-        fetchWithTimeout(`${apiBase}/api/oauth/userinfo`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetchWithTimeout(`${apiBase}/api/v1/identity/developer/apps`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
+      // Step 1: Verify the token is valid via userinfo
+      const uRes = await fetchWithTimeout(`${apiBase}/api/oauth/userinfo`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       let user: any = null;
+
       if (uRes && uRes.ok) {
         user = await uRes.json();
+      } else if (uRes && uRes.status === 401) {
+        // Token is expired/invalid — clear all stale auth and bail
+        localStorage.removeItem('platform_auth_token');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('token');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
+        document.cookie = 'platform_auth_token=; path=/; max-age=0;';
+        setIsAuthenticated(false);
+        setUserProfile(null);
+        setApps([]);
+        setLoading(false);
+        return;
       }
 
+      // Step 2: Fallback to /me only if userinfo didn't return a user (non-401 case)
       if (!user) {
         const meRes = await fetchWithTimeout(`${apiBase}/api/v1/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -259,9 +242,22 @@ export default function DeveloperDashboardPage() {
         if (meRes && meRes.ok) {
           const meData = await meRes.json();
           user = meData.user || meData;
+        } else if (meRes && meRes.status === 401) {
+          localStorage.removeItem('platform_auth_token');
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('token');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('user');
+          document.cookie = 'platform_auth_token=; path=/; max-age=0;';
+          setIsAuthenticated(false);
+          setUserProfile(null);
+          setApps([]);
+          setLoading(false);
+          return;
         }
       }
 
+      // Step 3: Last resort — decode JWT payload client-side
       if (!user) {
         try {
           const parts = token.split('.');
@@ -278,12 +274,44 @@ export default function DeveloperDashboardPage() {
       }
 
       if (user) {
+        // Validate JWT expiry if user was decoded from token
+        try {
+          const parts = token!.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            if (payload.exp && payload.exp * 1000 < Date.now()) {
+              // Token is expired — clear everything
+              localStorage.removeItem('platform_auth_token');
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('token');
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('user');
+              document.cookie = 'platform_auth_token=; path=/; max-age=0;';
+              setIsAuthenticated(false);
+              setUserProfile(null);
+              setApps([]);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (_) {}
+
         setUserProfile(user);
         setIsAuthenticated(true);
         localStorage.setItem('user', JSON.stringify(user));
+      } else {
+        // No user at all — clear and treat as unauthenticated
+        setIsAuthenticated(false);
+        setLoading(false);
+        return;
       }
 
+      // Step 4: Only fetch apps AFTER auth is confirmed
       let parsedApps: DeveloperApp[] = [];
+      const appsRes = await fetchWithTimeout(`${apiBase}/api/v1/identity/developer/apps`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
       if (appsRes && appsRes.ok) {
         const data = await appsRes.json();
         parsedApps = (data.apps || data || []).map((app: any) => ({
@@ -341,6 +369,10 @@ export default function DeveloperDashboardPage() {
       toast.error('Application name is required');
       return;
     }
+    if (!createLogoUrl.trim()) {
+      toast.error('Application logo URL is strictly required');
+      return;
+    }
 
     const redirectUris = redirectUrisInput
       .split('\n')
@@ -380,6 +412,7 @@ export default function DeveloperDashboardPage() {
         body: JSON.stringify({
           name: appName.trim(),
           description: appDescription.trim(),
+          logoUrl: createLogoUrl.trim() || undefined,
           clientType,
           redirectUris,
           allowedOrigins,
@@ -400,6 +433,7 @@ export default function DeveloperDashboardPage() {
           body: JSON.stringify({
             name: appName.trim(),
             description: appDescription.trim(),
+            logoUrl: createLogoUrl.trim() || undefined,
             clientType,
             redirectUris,
             allowedOrigins,
@@ -433,6 +467,7 @@ export default function DeveloperDashboardPage() {
 
       setAppName('');
       setAppDescription('');
+      setCreateLogoUrl('');
       setCreateWebhookUrl('');
       setRedirectUrisInput('http://localhost:3000/callback');
       setAllowedOriginsInput('http://localhost:3000');
@@ -832,6 +867,35 @@ export default function DeveloperDashboardPage() {
               onChange={(e) => setAppDescription(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
             />
+          </div>
+
+          {/* App Logo URL */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+              <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
+              App Logo URL <span className="text-red-500">*</span>
+            </label>
+            <div className="flex items-center gap-3">
+              {createLogoUrl.trim() && (
+                <div className="w-10 h-10 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 overflow-hidden flex items-center justify-center p-1 shrink-0">
+                  <img
+                    src={createLogoUrl.trim()}
+                    alt="Logo preview"
+                    className="w-full h-full object-contain rounded-lg"
+                    onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
+              <input
+                type="url"
+                required
+                placeholder="https://yourapp.com/logo.png"
+                value={createLogoUrl}
+                onChange={(e) => setCreateLogoUrl(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Mandatory: This logo is displayed exclusively in the authorization popup for your app.</p>
           </div>
 
           {/* Core Services Selection */}

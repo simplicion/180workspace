@@ -1,6 +1,6 @@
 'use strict';
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { CheckoutService } from './checkout.service';
 import { IdentityWalletService } from '../wallet/identity-wallet.service';
 import { PayoutService } from '../payout/payout.service';

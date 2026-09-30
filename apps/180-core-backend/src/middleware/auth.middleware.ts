@@ -4,7 +4,21 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { developersPrisma as prisma } from '@workspace/db-180core';
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '180-identity-jwt-secret-key-prod-super-secure';
+export function verifyJwtToken(token: string): any {
+  const secrets = [
+    process.env.JWT_SECRET,
+    process.env.JWT_ACCESS_SECRET,
+    '195ee7cdf2272463be82f5d065eaf1dc52992c6d5c05241e7cde005eb2cbc71b',
+    '180-identity-jwt-secret-key-prod-super-secure'
+  ].filter(Boolean) as string[];
+
+  for (const secret of secrets) {
+    try {
+      return jwt.verify(token, secret);
+    } catch (_) {}
+  }
+  return null;
+}
 
 export async function protect(req: Request, res: Response, next: NextFunction) {
   try {
@@ -30,10 +44,10 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
 
     // 3. Verify JWT or OAuth Token
     let userId: string | null = null;
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = verifyJwtToken(token) as any;
+    if (decoded) {
       userId = decoded.id || decoded.sub || decoded.userId || null;
-    } catch (jwtErr) {
+    } else {
       // Check if it's an OAuth access token stored in database
       const dbToken = await prisma.oAuthToken.findUnique({
         where: { accessToken: token },
@@ -91,8 +105,10 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction) {
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    (req as any).user = { id: decoded.id || decoded.sub || decoded.userId };
+    const decoded = verifyJwtToken(token) as any;
+    if (decoded) {
+      (req as any).user = { id: decoded.id || decoded.sub || decoded.userId };
+    }
   } catch (e) {}
 
   next();

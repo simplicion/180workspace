@@ -104,6 +104,7 @@ model Company {
   teamActivityLogs         TeamActivityLog[]
   calendarEvents           CalendarEvent[]    @relation("CompanyCalendarEvents")
   trafficLinks             TrafficLink[]
+  trafficDirectorSubscription TrafficDirectorSubscription?
   voiceAgents              VoiceAgent[]
   phoneNumbers             PhoneNumber[]
   callCampaigns            CallCampaign[]
@@ -2824,6 +2825,31 @@ model TrafficLink {
 
   @@index([companyId])
   @@index([slug])
+}
+
+model TrafficDirectorSubscription {
+  id                 String    @id @default(uuid())
+  companyId          String    @unique
+  planTier           String    @default("FREE") // FREE, STARTER, PRO, ENTERPRISE
+  maxLinks           Int       @default(2)
+  status             String    @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELLED
+  oneEightySubId     String?
+  amountCharged      Float     @default(0)
+  currency           String    @default("USD")
+  couponApplied      String?
+  discountAmount     Float     @default(0)
+  trialStartedAt     DateTime?
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime  @default(now())
+  currentPeriodEnd   DateTime?
+  nextBillingDate    DateTime?
+  autoRenew          Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
 }
 
 model TrafficRule {
