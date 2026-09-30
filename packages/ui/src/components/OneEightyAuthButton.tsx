@@ -44,13 +44,19 @@ export const OneEightyAuthButton: React.FC<OneEightyAuthButtonProps> = ({
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === '180_AUTH_SUCCESS') {
-        const { code } = event.data;
+      if (!event.data) return;
+      const data = typeof event.data === 'string' ? (() => { try { return JSON.parse(event.data); } catch (_) { return null; } })() : event.data;
+      if (!data) return;
+
+      if (data.type === '180_AUTH_SUCCESS' || data.type === '180_IDENTITY_SUCCESS') {
+        const code = data.code || data.authToken || data.token || data.accessToken;
         setLoading(false);
         if (onSuccess) onSuccess(code);
-      } else if (event.data && event.data.type === '180_AUTH_ERROR') {
+      } else if (data.type === '180_AUTH_ERROR' || data.type === '180_IDENTITY_ERROR') {
         setLoading(false);
-        if (onError) onError(event.data.error || 'Authentication failed');
+        if (onError) onError(data.error_description || data.error || data.message || 'Authentication failed');
+      } else if (data.type === '180_IDENTITY_CLOSE' || data.type === '180_AUTH_CLOSE') {
+        setLoading(false);
       }
     };
 
@@ -58,7 +64,41 @@ export const OneEightyAuthButton: React.FC<OneEightyAuthButtonProps> = ({
     return () => window.removeEventListener('message', handleMessage);
   }, [onSuccess, onError]);
 
-  const handleClick = () => {
+  const handleClick = async () => {
+    // 1. If 180 Core SDK is present in window, use its adaptive bottom-sheet / modal engine
+    if (typeof window !== 'undefined' && (window as any).OneEighty?.auth?.signIn) {
+      setLoading(true);
+      try {
+        const result = await (window as any).OneEighty.auth.signIn({
+          clientId,
+          scope,
+          redirectUri,
+          state,
+          uxMode: uxMode === 'redirect' ? 'fullscreen' : 'auto',
+          onSuccess: (res: any) => {
+            setLoading(false);
+            if (onSuccess) onSuccess(res?.code || res?.token || res?.accessToken);
+          },
+          onError: (err: any) => {
+            setLoading(false);
+            if (onError) onError(err?.message || 'Authentication failed');
+          },
+          onCancel: () => {
+            setLoading(false);
+          },
+        });
+        if (result && onSuccess) {
+          onSuccess(result.code || result.token || result.accessToken);
+        }
+      } catch (err: any) {
+        if (onError) onError(err?.message || 'Authentication failed');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // 2. Direct Web Fallback (Popup or Redirect)
     const base = getResolvedAuthBase();
     const resolvedRedirect = redirectUri || (typeof window !== 'undefined' ? window.location.href : '');
     const resolvedState = state || 'st_' + Math.random().toString(36).substring(2, 12);
