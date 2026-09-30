@@ -35,6 +35,8 @@ function parseKey(raw: string, envName: string): Buffer {
     return buf;
 }
 
+const keyIdOf = (key: Buffer) => crypto.createHash('sha256').update(key).digest('hex').slice(0, 8);
+
 let warnedFallback = false;
 
 function loadKeys(): { current: VaultKey; all: VaultKey[] } {
