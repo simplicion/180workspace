@@ -165,12 +165,17 @@ function ConsentForm() {
       const authCode = data.code;
       const idToken = data.id_token || '';
 
+      const effectiveToken = token || idToken;
+
       if (window.opener && !window.opener.closed) {
         window.opener.postMessage(
           {
             type: '180_IDENTITY_SUCCESS',
             code: authCode,
-            token: idToken || token,
+            token: effectiveToken,
+            accessToken: effectiveToken,
+            authToken: token || '',
+            id_token: idToken || null,
             state,
             user,
           },

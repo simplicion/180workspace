@@ -66,6 +66,17 @@ export class TrafficDirectorController {
           where: { id: dbUser.id },
           data: { companyId: newCompany.id, role: 'OWNER' }
         });
+      } else {
+        await prisma.user.create({
+          data: {
+            id: user.id,
+            email: user.email || `${baseSlug}@180workspace.internal`,
+            name: user.name || 'User',
+            companyId: newCompany.id,
+            role: 'OWNER',
+            isActive: true
+          }
+        }).catch(() => {});
       }
 
       reqAny.companyId = newCompany.id;

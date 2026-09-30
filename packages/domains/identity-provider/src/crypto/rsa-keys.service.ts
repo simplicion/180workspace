@@ -5,11 +5,32 @@ import fs from 'fs';
 import path from 'path';
 
 const KEY_ID = process.env.OAUTH_KEY_ID || '180-identity-2026-v1';
-const ROOT_DIR = process.cwd();
-const KEYS_DIR = fs.existsSync(path.resolve(ROOT_DIR, 'keys'))
-    ? path.resolve(ROOT_DIR, 'keys')
-    : path.resolve(__dirname, '../../../../keys');
-const KEY_FILE_PATH = path.join(KEYS_DIR, 'oauth-rsa-key.json');
+
+function resolveKeyFilePath(): string {
+    const candidatePaths = [
+        process.env.OAUTH_KEY_FILE_PATH,
+        path.resolve(process.cwd(), 'packages', 'keys', 'oauth-rsa-key.json'),
+        path.resolve(process.cwd(), '..', 'packages', 'keys', 'oauth-rsa-key.json'),
+        path.resolve(process.cwd(), '..', '..', 'packages', 'keys', 'oauth-rsa-key.json'),
+        path.resolve(process.cwd(), 'keys', 'oauth-rsa-key.json'),
+        path.resolve(process.cwd(), '..', 'keys', 'oauth-rsa-key.json'),
+        path.resolve(process.cwd(), '..', '..', 'keys', 'oauth-rsa-key.json'),
+        path.resolve(__dirname, '../../../../packages/keys/oauth-rsa-key.json'),
+        path.resolve(__dirname, '../../../../keys/oauth-rsa-key.json'),
+        path.resolve(__dirname, '../../../keys/oauth-rsa-key.json'),
+        path.resolve(__dirname, '../../keys/oauth-rsa-key.json'),
+    ].filter(Boolean) as string[];
+
+    for (const p of candidatePaths) {
+        try {
+            if (fs.existsSync(p)) return p;
+        } catch (_) {}
+    }
+    return path.resolve(process.cwd(), 'packages', 'keys', 'oauth-rsa-key.json');
+}
+
+const KEY_FILE_PATH = resolveKeyFilePath();
+const KEYS_DIR = path.dirname(KEY_FILE_PATH);
 
 let privateKeyPem: string | null = null;
 let publicKeyPem: string | null = null;

@@ -144,10 +144,15 @@ export async function dispatchOAuthSuccess(
     securityPreferences: userData.securityPreferences || {},
   } : userData;
 
+  const effectiveToken = authToken || idToken;
+
   const payload = {
     type: '180_IDENTITY_SUCCESS',
     code: authCode,
-    token: idToken || authToken,
+    token: effectiveToken,
+    accessToken: effectiveToken,
+    authToken: authToken || '',
+    id_token: idToken || null,
     state: params.state,
     user: fullUser,
   };
