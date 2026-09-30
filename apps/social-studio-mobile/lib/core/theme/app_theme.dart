@@ -13,19 +13,19 @@ class AppTheme {
   }
 
   // Tokens
-  static Color get background => _isLight ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
-  static Color get surface => _isLight ? const Color(0xFFFFFFFF) : const Color(0xFF1E293B);
-  static Color get surfaceElevated => _isLight ? const Color(0xFFF1F5F9) : const Color(0xFF334155);
-  static Color get border => _isLight ? const Color(0xFFE2E8F0) : const Color(0xFF334155);
-  static Color get borderSubtle => _isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
+  static Color get background => _isLight ? const Color(0xFFF8FAFC) : const Color(0xFF09090B);
+  static Color get surface => _isLight ? const Color(0xFFFFFFFF) : const Color(0xFF121214);
+  static Color get surfaceElevated => _isLight ? const Color(0xFFF4F4F5) : const Color(0xFF18181B);
+  static Color get border => _isLight ? const Color(0xFFE4E4E7) : const Color(0xFF27272A);
+  static Color get borderSubtle => _isLight ? const Color(0xFFF4F4F5) : const Color(0xFF1F1F23);
 
-  static Color get textPrimary => _isLight ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
-  static Color get textSecondary => _isLight ? const Color(0xFF475569) : const Color(0xFF94A3B8);
-  static Color get textMuted => _isLight ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+  static Color get textPrimary => _isLight ? const Color(0xFF09090B) : const Color(0xFFFAFAFA);
+  static Color get textSecondary => _isLight ? const Color(0xFF52525B) : const Color(0xFFA1A1AA);
+  static Color get textMuted => _isLight ? const Color(0xFFA1A1AA) : const Color(0xFF71717A);
 
-  static Color get primary => const Color(0xFF3B82F6);
-  static Color get accent => const Color(0xFF8B5CF6);
-  static Color get accentBlue => const Color(0xFF0EA5E9);
+  static Color get primary => const Color(0xFF0066FF);
+  static Color get accent => _isLight ? const Color(0xFF0066FF) : const Color(0xFF3B82F6);
+  static Color get accentBlue => const Color(0xFF0066FF);
   
   static Color get success => const Color(0xFF10B981);
   static Color get warning => const Color(0xFFF59E0B);
@@ -34,29 +34,30 @@ class AppTheme {
   static BoxDecoration glassCardDecoration({Color? color}) => BoxDecoration(
     color: color ?? surface,
     borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: borderSubtle),
+    border: Border.all(color: border),
   );
 
   static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+    cardColor: const Color(0xFFFFFFFF),
     colorScheme: const ColorScheme.light(
-      primary: Color(0xFF3B82F6),
+      primary: Color(0xFF0066FF),
       surface: Color(0xFFFFFFFF),
       error: Color(0xFFEF4444),
       onPrimary: Colors.white,
-      onSurface: Color(0xFF0F172A),
+      onSurface: Color(0xFF09090B),
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFFFFFFFF),
       surfaceTintColor: Colors.transparent,
-      foregroundColor: Color(0xFF0F172A),
+      foregroundColor: Color(0xFF09090B),
       elevation: 0,
       centerTitle: true,
     ),
     dividerTheme: const DividerThemeData(
-      color: Color(0xFFE2E8F0),
+      color: Color(0xFFE4E4E7),
       thickness: 1,
       space: 1,
     ),
@@ -65,23 +66,24 @@ class AppTheme {
   static ThemeData get darkTheme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    scaffoldBackgroundColor: const Color(0xFF0F172A),
+    scaffoldBackgroundColor: const Color(0xFF09090B),
+    cardColor: const Color(0xFF121214),
     colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF3B82F6),
-      surface: Color(0xFF1E293B),
+      primary: Color(0xFF0066FF),
+      surface: Color(0xFF121214),
       error: Color(0xFFEF4444),
       onPrimary: Colors.white,
-      onSurface: Color(0xFFF8FAFC),
+      onSurface: Color(0xFFFAFAFA),
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF1E293B),
+      backgroundColor: Color(0xFF09090B),
       surfaceTintColor: Colors.transparent,
-      foregroundColor: Color(0xFFF8FAFC),
+      foregroundColor: Color(0xFFFAFAFA),
       elevation: 0,
       centerTitle: true,
     ),
     dividerTheme: const DividerThemeData(
-      color: Color(0xFF334155),
+      color: Color(0xFF27272A),
       thickness: 1,
       space: 1,
     ),

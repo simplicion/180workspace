@@ -64,11 +64,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _revokeDevice(String deviceId, String label) async {
+  Future<void> _revokeDevice(String deviceId, String label, {int sessionCount = 1}) async {
     final ok = await confirm(
       context,
       title: 'Revoke device?',
-      message: 'Are you sure you want to revoke "$label"? It will need to re-register on next launch.',
+      message: sessionCount > 1
+          ? 'Are you sure you want to revoke "$label" and its $sessionCount active sessions? It will need to re-register on next launch.'
+          : 'Are you sure you want to revoke "$label"? It will need to re-register on next launch.',
       action: 'Revoke',
     );
     if (!ok) return;
@@ -229,17 +231,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _card(context, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SegmentedButton<ThemeMode>(
               key: const Key('settings.theme'),
-              showSelectedIcon: false,
+              showSelectedIcon: true,
               segments: const [
-                ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
-                ButtonSegment(value: ThemeMode.system, label: Text('System')),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  label: Text('Dark'),
+                  icon: Icon(Icons.dark_mode_outlined, size: 16),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  label: Text('Light'),
+                  icon: Icon(Icons.light_mode_outlined, size: 16),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  label: Text('System'),
+                  icon: Icon(Icons.brightness_auto_outlined, size: 16),
+                ),
               ],
-              selected: {ref.watch(themeModeProvider) == ThemeMode.light ? ThemeMode.dark : ref.watch(themeModeProvider)},
+              selected: {ref.watch(themeModeProvider)},
               onSelectionChanged: (v) => ref.read(themeModeProvider.notifier).setThemeMode(v.first),
             ),
             const SizedBox(height: 8),
             Text(
-              'Light mode is not available yet: the studio screens use the dark Media Studio palette. System follows your device once light mode ships and stays dark until then.',
+              'Choose between Obsidian Dark (pure black & gray mix) and Crisp Light (official 180 blue & white). System dynamically matches your OS appearance.',
               style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
             ),
           ])),
@@ -451,6 +466,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final label = device['label']?.toString() ?? 'Mobile Device';
     final platform = device['platform']?.toString().toLowerCase() ?? 'android';
     final isCurrent = device['current'] == true || deviceId == _currentDeviceId;
+    final sessionCount = (device['sessionCount'] as num?)?.toInt() ?? 1;
     final lastSeen = device['lastSeenAt'] != null
         ? DateTime.fromMillisecondsSinceEpoch((device['lastSeenAt'] as num).toInt())
         : null;
@@ -469,8 +485,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
       title: Row(
         children: [
-          Expanded(child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
-          if (isCurrent)
+          Expanded(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                ),
+                if (sessionCount > 1) ...[
+                  SizedBox(width: 6),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceElevated,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.border),
+                    ),
+                    child: Text(
+                      '($sessionCount times)',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (isCurrent) ...[
+            SizedBox(width: 6),
             Container(
               padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
@@ -480,18 +521,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               child: Text('THIS DEVICE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.primary)),
             ),
+          ],
         ],
       ),
-      subtitle: Text(
-        lastSeen != null ? 'Last active: ${DateFormat('MMM d, h:mm a').format(lastSeen)}' : 'Registered device',
-        style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            lastSeen != null ? 'Last active: ${DateFormat('MMM d, h:mm a').format(lastSeen)}' : 'Registered device',
+            style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+          ),
+          if (sessionCount > 1)
+            Text(
+              '$sessionCount active sessions linked to this device',
+              style: TextStyle(fontSize: 10, color: AppTheme.textMuted),
+            ),
+        ],
       ),
       trailing: isCurrent
           ? null
           : IconButton(
               icon: Icon(Icons.remove_circle_outline_rounded, color: AppTheme.error, size: 20),
               tooltip: 'Revoke device',
-              onPressed: () => _revokeDevice(deviceId, label),
+              onPressed: () => _revokeDevice(deviceId, label, sessionCount: sessionCount),
             ),
     );
   }

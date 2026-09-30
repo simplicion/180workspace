@@ -15,12 +15,12 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     _load();
   }
 
-  /// Flip to true once every screen is tokenised through Theme.of(context) (then offer Light in Settings).
-  static const lightModeAvailable = false;
+  /// Light mode and Dark mode both fully supported per 180 Workspace centralized design rules.
+  static const lightModeAvailable = true;
 
   static ThemeMode parse(String? saved) => switch (saved) {
         'system' => ThemeMode.system,
-        'light' when lightModeAvailable => ThemeMode.light,
+        'light' => ThemeMode.light,
         _ => ThemeMode.dark,
       };
 
@@ -36,7 +36,6 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
-    if (mode == ThemeMode.light && !lightModeAvailable) mode = ThemeMode.dark;
     state = mode;
     AppTheme.currentThemeMode = mode;
     final prefs = await SharedPreferences.getInstance();

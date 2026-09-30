@@ -29,8 +29,8 @@ class EngagementTab extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.surfaceElevated,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: AppTheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => _EngagementRuleFormSheet(projectId: project.id),
     );
   }
@@ -39,8 +39,8 @@ class EngagementTab extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.surfaceElevated,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: AppTheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => _DryRunTesterSheet(projectId: project.id),
     );
   }
@@ -85,8 +85,8 @@ class EngagementTab extends ConsumerWidget {
                   children: [
                     TextButton.icon(
                       onPressed: () => _openDryRunSheet(context, ref),
-                      icon: Icon(Icons.science_rounded, size: 16, color: AppTheme.accent),
-                      label: Text('Test Matcher', style: TextStyle(fontSize: 12, color: AppTheme.accent)),
+                      icon: Icon(Icons.science_rounded, size: 16, color: AppTheme.primary),
+                      label: Text('Test Matcher', style: TextStyle(fontSize: 12, color: AppTheme.primary)),
                     ),
                     IconButton(
                       tooltip: 'Refresh',
@@ -147,7 +147,7 @@ class EngagementTab extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.insights_rounded, color: AppTheme.accent, size: 20),
+              Icon(Icons.insights_rounded, color: AppTheme.primary, size: 20),
               SizedBox(width: 8),
               Text('Automation Telemetry', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
             ],
@@ -157,8 +157,8 @@ class EngagementTab extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _metricTile('Triggers', '${stats.totalTriggered}', Icons.touch_app_rounded, AppTheme.primary),
-              _metricTile('DMs Sent', '${stats.totalDmsSent}', Icons.send_rounded, AppTheme.accent),
-              _metricTile('Likes', '${stats.totalLiked}', Icons.favorite_rounded, AppTheme.accent),
+              _metricTile('DMs Sent', '${stats.totalDmsSent}', Icons.send_rounded, AppTheme.primary),
+              _metricTile('Likes', '${stats.totalLiked}', Icons.favorite_rounded, AppTheme.primary),
               _metricTile('Leads', '${stats.totalLeadsGenerated}', Icons.person_pin_rounded, AppTheme.success),
             ],
           ),
@@ -393,6 +393,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
   bool _enableAiAgent = false;
   final String _matchMode = 'contains';
   bool _saving = false;
+  String? _selectedPreset;
 
   @override
   void dispose() {
@@ -405,6 +406,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
   }
 
   void _applyPreset(String preset) {
+    setState(() => _selectedPreset = preset);
     if (preset == 'blueprint') {
       _nameCtl.text = 'Free Blueprint Lead Magnet';
       _keywordsCtl.text = 'BLUEPRINT, GUIDE, LINK, SEND';
@@ -436,6 +438,20 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
         _enableAiAgent = false;
       });
     }
+  }
+
+  void _insertToken(String token) {
+    final text = _dmTemplateCtl.text;
+    final selection = _dmTemplateCtl.selection;
+    if (selection.isValid && selection.start >= 0 && selection.end >= 0) {
+      final newText = text.replaceRange(selection.start, selection.end, token);
+      _dmTemplateCtl.text = newText;
+      _dmTemplateCtl.selection = TextSelection.collapsed(offset: selection.start + token.length);
+    } else {
+      _dmTemplateCtl.text = '$text $token'.trim();
+      _dmTemplateCtl.selection = TextSelection.collapsed(offset: _dmTemplateCtl.text.length);
+    }
+    setState(() {});
   }
 
   Future<void> _submit() async {
@@ -478,124 +494,383 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildPresetButton(String id, String label, IconData icon) {
+    final isSelected = _selectedPreset == id;
+    return InkWell(
+      onTap: () => _applyPreset(id),
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary.withValues(alpha: 0.15) : AppTheme.surfaceElevated,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? AppTheme.primary : AppTheme.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Icon(Icons.bolt_rounded, color: AppTheme.primary),
-                SizedBox(width: 8),
-                Text('Create Engagement Funnel', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-              ],
+            Icon(
+              icon,
+              size: 15,
+              color: isSelected ? AppTheme.primary : AppTheme.textSecondary,
             ),
-            SizedBox(height: 12),
-            Text('Quick Preset Templates:', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
-            SizedBox(height: 6),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  ActionChip(
-                    avatar: Icon(Icons.card_giftcard_rounded, size: 14, color: AppTheme.primary),
-                    label: Text('Blueprint Giveaway', style: TextStyle(fontSize: 11)),
-                    onPressed: () => _applyPreset('blueprint'),
-                  ),
-                  SizedBox(width: 8),
-                  ActionChip(
-                    avatar: Icon(Icons.smart_toy_rounded, size: 14, color: AppTheme.accent),
-                    label: Text('Support Bot', style: TextStyle(fontSize: 11)),
-                    onPressed: () => _applyPreset('support'),
-                  ),
-                  SizedBox(width: 8),
-                  ActionChip(
-                    avatar: Icon(Icons.local_offer_rounded, size: 14, color: AppTheme.warning),
-                    label: Text('VIP Promo Code', style: TextStyle(fontSize: 11)),
-                    onPressed: () => _applyPreset('promo'),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 16),
-
-            TextField(
-              controller: _nameCtl,
-              decoration: fieldDecoration('Rule Name *', hint: 'e.g. Reel Blueprint Giveaway'),
-            ),
-            SizedBox(height: 12),
-
-            TextField(
-              controller: _keywordsCtl,
-              decoration: fieldDecoration(
-                'Trigger Keywords (comma separated) *',
-                hint: 'e.g. BLUEPRINT, GUIDE, SCALE, SEND',
-                helper: 'Triggers when a comment contains any of these keywords',
-              ),
-            ),
-            SizedBox(height: 12),
-
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _autoLike,
-              title: Text('Auto-Like Comment'),
-              subtitle: Text('Likes the comment immediately to increase reach'),
-              onChanged: (v) => setState(() => _autoLike = v),
-            ),
-
-            TextField(
-              controller: _publicReplyCtl,
-              decoration: fieldDecoration('Public Comment Reply', hint: 'e.g. Sent to your DM! Check your inbox'),
-            ),
-            SizedBox(height: 12),
-
-            TextField(
-              controller: _deliverableUrlCtl,
-              decoration: fieldDecoration('Deliverable / Link URL', hint: 'https://yoursite.com/resource'),
-            ),
-            SizedBox(height: 12),
-
-            TextField(
-              controller: _dmTemplateCtl,
-              maxLines: 3,
-              decoration: fieldDecoration(
-                'Direct Message Template *',
-                hint: 'Hey {name}! Here is your link: {link}',
-                helper: 'Use {name}, {handle}, {link} tokens',
-              ),
-            ),
-            SizedBox(height: 12),
-
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _enableAiAgent,
-              title: Text('Enable AI Multi-Turn Agent'),
-              subtitle: Text('Autonomous AI qualifies lead and answers questions after DM deliverable'),
-              onChanged: (v) => setState(() => _enableAiAgent = v),
-            ),
-            SizedBox(height: 20),
-
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: FilledButton.icon(
-                onPressed: _saving ? null : _submit,
-                icon: _saving ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.textPrimary, strokeWidth: 2)) : Icon(Icons.check_rounded),
-                label: Text(_saving ? 'Creating...' : 'Activate Automation Funnel'),
-                style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? AppTheme.primary : AppTheme.textPrimary,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required IconData icon,
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: AppTheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                title.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                  color: AppTheme.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 10, bottom: 8),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Icon(Icons.bolt_rounded, color: AppTheme.primary, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Create Engagement Funnel',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Turn comments into automated DM leads & responses',
+                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close_rounded, size: 20, color: AppTheme.textSecondary),
+                  onPressed: () => Navigator.of(context).pop(),
+                  tooltip: 'Close',
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: AppTheme.border),
+
+          // Scrollable Form Body
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Presets header
+                  Text(
+                    'QUICK TEMPLATES',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildPresetButton('blueprint', 'Blueprint Giveaway', Icons.card_giftcard_rounded),
+                        const SizedBox(width: 8),
+                        _buildPresetButton('support', 'Support Bot', Icons.smart_toy_rounded),
+                        const SizedBox(width: 8),
+                        _buildPresetButton('promo', 'VIP Promo Code', Icons.local_offer_rounded),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Section 1: Trigger Configuration
+                  _buildSectionCard(
+                    icon: Icons.tune_rounded,
+                    title: 'Trigger Configuration',
+                    children: [
+                      TextField(
+                        controller: _nameCtl,
+                        decoration: fieldDecoration(
+                          'Rule Name *',
+                          hint: 'e.g. Reel Blueprint Giveaway',
+                          prefix: Icon(Icons.drive_file_rename_outline_rounded, size: 18, color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _keywordsCtl,
+                        decoration: fieldDecoration(
+                          'Trigger Keywords (comma separated) *',
+                          hint: 'e.g. BLUEPRINT, GUIDE, SCALE, SEND',
+                          helper: 'Triggers when a comment contains any of these keywords',
+                          prefix: Icon(Icons.tag_rounded, size: 18, color: AppTheme.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Section 2: Automation Actions & Deliverables
+                  _buildSectionCard(
+                    icon: Icons.flash_on_rounded,
+                    title: 'Automation Actions & DM',
+                    children: [
+                      // Auto-Like Container
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.border),
+                        ),
+                        child: SwitchListTile.adaptive(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                          value: _autoLike,
+                          activeTrackColor: AppTheme.primary,
+                          title: Text(
+                            'Auto-Like Comment',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                          ),
+                          subtitle: Text(
+                            'Likes the comment immediately to increase algorithmic reach',
+                            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                          ),
+                          onChanged: (v) => setState(() => _autoLike = v),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      TextField(
+                        controller: _publicReplyCtl,
+                        decoration: fieldDecoration(
+                          'Public Comment Reply',
+                          hint: 'e.g. Sent to your DM! Check your inbox',
+                          prefix: Icon(Icons.chat_bubble_outline_rounded, size: 18, color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      TextField(
+                        controller: _deliverableUrlCtl,
+                        decoration: fieldDecoration(
+                          'Deliverable / Link URL',
+                          hint: 'https://yoursite.com/resource',
+                          prefix: Icon(Icons.link_rounded, size: 18, color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      TextField(
+                        controller: _dmTemplateCtl,
+                        maxLines: 3,
+                        decoration: fieldDecoration(
+                          'Direct Message Template *',
+                          hint: 'Hey {name}! Here is your link: {link}',
+                          prefix: Icon(Icons.mark_chat_unread_outlined, size: 18, color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Interactive Token Pills
+                      Row(
+                        children: [
+                          Text('Insert token: ', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                          const SizedBox(width: 4),
+                          Wrap(
+                            spacing: 6,
+                            children: [
+                              for (final token in ['{name}', '{handle}', '{link}'])
+                                InkWell(
+                                  onTap: () => _insertToken(token),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.surface,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: AppTheme.border),
+                                    ),
+                                    child: Text(
+                                      '+ $token',
+                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Section 3: Autonomous AI Agent
+                  _buildSectionCard(
+                    icon: Icons.psychology_outlined,
+                    title: 'Autonomous AI Agent',
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.border),
+                        ),
+                        child: SwitchListTile.adaptive(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                          value: _enableAiAgent,
+                          activeTrackColor: AppTheme.primary,
+                          title: Row(
+                            children: [
+                              Text(
+                                'Enable AI Multi-Turn Agent',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'PRO',
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Text(
+                            'Autonomous AI qualifies lead and answers questions after DM deliverable',
+                            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                          ),
+                          onChanged: (v) => setState(() => _enableAiAgent = v),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Submit Action Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: FilledButton.icon(
+                      onPressed: _saving ? null : _submit,
+                      icon: _saving
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Icon(Icons.bolt_rounded, size: 20),
+                      label: Text(
+                        _saving ? 'Creating Funnel...' : 'Activate Automation Funnel',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -651,134 +926,186 @@ class _DryRunTesterSheetState extends ConsumerState<_DryRunTesterSheet> {
     final matched = _testResult != null && _testResult!['matched'] == true;
     final rule = _testResult?['rule'] as Map<String, dynamic>?;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+    return Container(
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.science_rounded, color: AppTheme.accent),
-                SizedBox(width: 8),
-                Text('Test Automation Matcher', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-              ],
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Simulate how incoming comments trigger auto-likes, public replies, and DMs before going live.',
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-            ),
-            SizedBox(height: 16),
-
-            // Platform selector
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final p in ['instagram', 'youtube', 'linkedin', 'threads', 'tiktok'])
-                  ChoiceChip(
-                    label: Text(p[0].toUpperCase() + p.substring(1)),
-                    selected: _selectedPlatform == p,
-                    onSelected: (v) => setState(() => _selectedPlatform = p),
-                  ),
-              ],
-            ),
-            SizedBox(height: 12),
-
-            TextField(
-              controller: _commentCtl,
-              maxLines: 2,
-              decoration: fieldDecoration('Sample Incoming Comment', hint: 'e.g. Can you send me the blueprint?'),
-            ),
-            SizedBox(height: 16),
-
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: FilledButton.icon(
-                onPressed: _testing ? null : _runSimulation,
-                icon: _testing
-                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppTheme.textPrimary, strokeWidth: 2))
-                    : Icon(Icons.play_arrow_rounded),
-                label: Text(_testing ? 'Evaluating Rules...' : 'Run Simulation'),
-                style: FilledButton.styleFrom(backgroundColor: AppTheme.accent),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 10, bottom: 8),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.border,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            SizedBox(height: 16),
-
-            if (_testResult != null) ...[
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: matched ? AppTheme.success.withValues(alpha: 0.1) : AppTheme.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: matched ? AppTheme.success.withValues(alpha: 0.4) : AppTheme.error.withValues(alpha: 0.4)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(matched ? Icons.check_circle_rounded : Icons.cancel_rounded, color: matched ? AppTheme.success : AppTheme.error, size: 20),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            matched ? 'Rule Matched: ${rule?['name'] ?? 'Active Rule'}' : 'No Rule Matched',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: matched ? AppTheme.success : AppTheme.error),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 8,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                        ),
+                        child: Icon(Icons.science_rounded, color: AppTheme.primary, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Test Automation Matcher',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
                           ),
                         ),
-                      ],
-                    ),
-                    if (matched && rule != null) ...[
-                      SizedBox(height: 12),
-                      Text('Automated Action Sequence:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 6),
-                      if (rule['actionAutoLike'] == true)
-                        Row(children: [
-                          Icon(Icons.favorite, size: 14, color: AppTheme.accent),
-                          SizedBox(width: 6),
-                          Text('Auto-like (where the platform allows it)', style: TextStyle(fontSize: 12)),
-                        ]),
-                      if (rule['actionPublicReplies'] != null && (rule['actionPublicReplies'] as List).isNotEmpty) ...[
-                        SizedBox(height: 4),
-                        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Icon(Icons.reply, size: 14, color: AppTheme.primary),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Public Reply: "${(rule['actionPublicReplies'] as List).first.toString().replaceAll('{handle}', '@prospect_jane')}"',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ]),
-                      ],
-                      if (rule['actionSendDm'] == true && rule['actionDmTemplate'] != null) ...[
-                        SizedBox(height: 4),
-                        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Icon(Icons.send_rounded, size: 14, color: AppTheme.accent),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Private DM: "${rule['actionDmTemplate'].toString().replaceAll('{name}', 'Jane').replaceAll('{handle}', '@prospect_jane').replaceAll('{link}', rule['actionDmDeliverableUrl'] ?? '')}"',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ]),
-                      ],
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close_rounded, size: 20, color: AppTheme.textSecondary),
+                        onPressed: () => Navigator.of(context).pop(),
+                        tooltip: 'Close',
+                      ),
                     ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Simulate how incoming comments trigger auto-likes, public replies, and DMs before going live.',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Platform selector
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final p in ['instagram', 'youtube', 'linkedin', 'threads', 'tiktok'])
+                        ChoiceChip(
+                          label: Text(p[0].toUpperCase() + p.substring(1)),
+                          selected: _selectedPlatform == p,
+                          selectedColor: AppTheme.primary.withValues(alpha: 0.15),
+                          onSelected: (v) => setState(() => _selectedPlatform = p),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  TextField(
+                    controller: _commentCtl,
+                    maxLines: 2,
+                    decoration: fieldDecoration('Sample Incoming Comment', hint: 'e.g. Can you send me the blueprint?'),
+                  ),
+                  const SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton.icon(
+                      onPressed: _testing ? null : _runSimulation,
+                      icon: _testing
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Icon(Icons.play_arrow_rounded),
+                      label: Text(_testing ? 'Evaluating Rules...' : 'Run Simulation'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (_testResult != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: matched ? AppTheme.success.withValues(alpha: 0.1) : AppTheme.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: matched ? AppTheme.success.withValues(alpha: 0.4) : AppTheme.error.withValues(alpha: 0.4)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(matched ? Icons.check_circle_rounded : Icons.cancel_rounded, color: matched ? AppTheme.success : AppTheme.error, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  matched ? 'Rule Matched: ${rule?['name'] ?? 'Active Rule'}' : 'No Rule Matched',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: matched ? AppTheme.success : AppTheme.error),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (matched && rule != null) ...[
+                            const SizedBox(height: 12),
+                            Text('Automated Action Sequence:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+                            const SizedBox(height: 6),
+                            if (rule['actionAutoLike'] == true)
+                              Row(children: [
+                                Icon(Icons.favorite, size: 14, color: AppTheme.primary),
+                                const SizedBox(width: 6),
+                                Text('Auto-like (where the platform allows it)', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                              ]),
+                            if (rule['actionPublicReplies'] != null && (rule['actionPublicReplies'] as List).isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Icon(Icons.reply, size: 14, color: AppTheme.primary),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Public Reply: "${(rule['actionPublicReplies'] as List).first.toString().replaceAll('{handle}', '@prospect_jane')}"',
+                                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                  ),
+                                ),
+                              ]),
+                            ],
+                            if (rule['actionSendDm'] == true && rule['actionDmTemplate'] != null) ...[
+                              const SizedBox(height: 4),
+                              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Icon(Icons.send_rounded, size: 14, color: AppTheme.primary),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Private DM: "${rule['actionDmTemplate'].toString().replaceAll('{name}', 'Jane').replaceAll('{handle}', '@prospect_jane').replaceAll('{link}', rule['actionDmDeliverableUrl'] ?? '')}"',
+                                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                  ),
+                                ),
+                              ]),
+                            ],
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

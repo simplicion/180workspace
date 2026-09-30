@@ -64,12 +64,45 @@ router.post('/devices/register', async (req: Request, res: Response) => {
   }
 });
 
+/** Group duplicate sessions belonging to the same device and record sessionCount */
+export function aggregateDevices(devices: DeviceRecord[], currentId?: string) {
+  const groups = new Map<string, DeviceRecord[]>();
+  for (const d of devices) {
+    const key = d.installKeyHash ? `key:${d.installKeyHash}` : `lp:${d.platform || ''}:::${d.label}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(d);
+  }
+
+  const result = [];
+  for (const group of groups.values()) {
+    const primary = (currentId && group.find((d) => d.deviceId === currentId)) ||
+      [...group].sort((a, b) => (b.lastSeenAt || b.createdAt || 0) - (a.lastSeenAt || a.createdAt || 0))[0];
+
+    const isCurrent = group.some((d) => d.deviceId === currentId);
+    const lastSeenAt = Math.max(...group.map((d) => d.lastSeenAt || d.createdAt || 0));
+    const createdAt = Math.min(...group.map((d) => d.createdAt || 0));
+
+    result.push({
+      ...publicDevice(primary),
+      current: isCurrent,
+      sessionCount: group.length,
+      deviceIds: group.map((d) => d.deviceId),
+      lastSeenAt,
+      createdAt,
+    });
+  }
+
+  return result.sort((a, b) => b.lastSeenAt - a.lastSeenAt);
+}
+
 router.get('/devices', async (req: Request, res: Response) => {
   const s = scope(req);
   if (!s) return res.status(401).json({ success: false, error: 'Authentication required' });
   try {
     const current = requestDeviceId(req);
-    return res.json({ success: true, devices: (await listDevices(s.companyId, s.userId)).map((d) => ({ ...publicDevice(d), current: d.deviceId === current })) });
+    const raw = await listDevices(s.companyId, s.userId);
+    const aggregated = aggregateDevices(raw, current);
+    return res.json({ success: true, devices: aggregated });
   } catch (err) {
     return failure(res, err);
   }
