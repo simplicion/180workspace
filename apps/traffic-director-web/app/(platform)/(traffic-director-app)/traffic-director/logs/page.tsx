@@ -10,6 +10,7 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { LogoLoader, UniversalDateTimePicker } from '@workspace/ui';
 import { Drawer } from '@/components/ui/Drawer';
+import { ensureExternalUrl } from '@/lib/url';
 
 export default function TrafficStreamLogsPage() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -390,7 +391,7 @@ export default function TrafficStreamLogsPage() {
               <span className="font-bold text-gray-400 uppercase text-[10px]">Delivered Destination URL</span>
               <div className="p-3 rounded-xl bg-gray-100 dark:bg-gray-800 font-mono text-indigo-600 dark:text-indigo-400 break-all text-xs flex items-center justify-between">
                 <span>{selectedLog.destinationUrl}</span>
-                <a href={selectedLog.destinationUrl} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-indigo-600 ml-2 shrink-0">
+                <a href={ensureExternalUrl(selectedLog.destinationUrl)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-indigo-600 ml-2 shrink-0">
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>

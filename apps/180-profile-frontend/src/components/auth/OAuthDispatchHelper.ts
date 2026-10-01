@@ -100,6 +100,16 @@ export async function dispatchOAuthSuccess(
       };
 
       if (typeof window !== 'undefined') {
+        const mobileChannel = (window as any).OneEightyMobileChannel;
+        if (mobileChannel && typeof mobileChannel.postMessage === 'function') {
+          try {
+            mobileChannel.postMessage(JSON.stringify(errorPayload));
+          } catch (_) {}
+        }
+        try {
+          window.postMessage(errorPayload, '*');
+          window.dispatchEvent(new CustomEvent('180_IDENTITY_ERROR', { detail: errorPayload }));
+        } catch (_) {}
         if (window.opener && !window.opener.closed) {
           window.opener.postMessage(errorPayload, '*');
         }
@@ -117,7 +127,7 @@ export async function dispatchOAuthSuccess(
     throw err;
   }
 
-  // Cross-window popup and embedded iframe bottom sheet communication
+  // Cross-window popup, mobile webview bridge, and embedded iframe communication
   const fullUser = userData ? {
     id: userData.id || userData.sub || '',
     email: userData.email || null,
@@ -158,10 +168,32 @@ export async function dispatchOAuthSuccess(
   };
 
   if (typeof window !== 'undefined') {
+    // 1. Direct Flutter Native In-App WebView JavaScript Channel Bridge
+    const mobileChannel = (window as any).OneEightyMobileChannel;
+    if (mobileChannel && typeof mobileChannel.postMessage === 'function') {
+      try {
+        mobileChannel.postMessage(JSON.stringify(payload));
+        mobileChannel.postMessage(JSON.stringify({ ...payload, type: '180_AUTH_SUCCESS' }));
+      } catch (e) {
+        console.warn('[180 Identity] OneEightyMobileChannel postMessage note:', e);
+      }
+    }
+
+    // 2. Local Window & Custom Event Listeners
+    try {
+      window.postMessage(payload, '*');
+      window.postMessage({ ...payload, type: '180_AUTH_SUCCESS' }, '*');
+      window.dispatchEvent(new CustomEvent('180_IDENTITY_SUCCESS', { detail: payload }));
+      window.dispatchEvent(new CustomEvent('180_AUTH_SUCCESS', { detail: payload }));
+    } catch (_) {}
+
+    // 3. Desktop Browser Popup Window Bridge
     if (window.opener && !window.opener.closed) {
       window.opener.postMessage(payload, '*');
       window.opener.postMessage({ ...payload, type: '180_AUTH_SUCCESS' }, '*');
     }
+
+    // 4. Embedded Iframe Bottom Sheet Bridge
     if (window.parent && window.parent !== window) {
       window.parent.postMessage(payload, '*');
       window.parent.postMessage({ ...payload, type: '180_AUTH_SUCCESS' }, '*');
@@ -171,15 +203,28 @@ export async function dispatchOAuthSuccess(
   toast.success(`Welcome, ${userData.name || userData.username || '180 User'}!`);
 
   setTimeout(() => {
+    // If mobile channel was already notified, the native app pops the sheet directly
+    if (typeof window !== 'undefined' && (window as any).OneEightyMobileChannel) {
+      return;
+    }
+
     if (typeof window !== 'undefined' && window.opener && !window.opener.closed) {
       window.close();
     } else if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
       window.parent.postMessage({ type: '180_IDENTITY_CLOSE' }, '*');
     } else if (params.redirectUri && authCode) {
-      const url = new URL(params.redirectUri);
-      url.searchParams.set('code', authCode);
-      if (params.state) url.searchParams.set('state', params.state);
-      window.location.href = url.toString();
+      let redirectDestination = params.redirectUri;
+      try {
+        const url = new URL(params.redirectUri);
+        url.searchParams.set('code', authCode);
+        if (params.state) url.searchParams.set('state', params.state);
+        redirectDestination = url.toString();
+      } catch (_) {
+        // Safe query string append for custom schemes starting with digits (e.g. 180social://)
+        const sep = redirectDestination.includes('?') ? '&' : '?';
+        redirectDestination = `${redirectDestination}${sep}code=${encodeURIComponent(authCode)}${params.state ? `&state=${encodeURIComponent(params.state)}` : ''}`;
+      }
+      window.location.href = redirectDestination;
     } else {
       window.location.href = '/';
     }

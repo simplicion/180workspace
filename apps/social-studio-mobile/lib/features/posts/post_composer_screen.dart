@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -227,8 +228,11 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         : await picker.pickImage(source: ImageSource.gallery);
     if (file == null || !mounted) return;
     setState(() => _uploadProgress = 0);
-    final bytes = await file.readAsBytes();
-    if (!mounted) return;
+    List<int>? bytes;
+    if (kIsWeb) {
+      bytes = await file.readAsBytes();
+      if (!mounted) return;
+    }
     final url = await guarded(
       context,
       () => ref.read(socialApiProvider).uploadFile(

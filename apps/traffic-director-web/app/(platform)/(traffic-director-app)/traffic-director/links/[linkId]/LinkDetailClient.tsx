@@ -12,6 +12,7 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { LogoLoader, ConfirmModal, UniversalDateTimePicker } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
+import { ensureExternalUrl } from '@/lib/url';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import CustomSelect from '@/components/ui/CustomSelect';
 import CreateRuleModal from '../../../_components/CreateRuleModal';
@@ -76,7 +77,11 @@ export default function SmartLinkRuleCanvasPage() {
 
   const fetchLinkDetails = async (idToFetch?: string) => {
     const targetId = idToFetch || linkId;
-    if (!targetId || targetId === 'default') return;
+    if (!targetId || targetId === 'default') {
+      setLoading(false);
+      router.replace('/traffic-director/links');
+      return;
+    }
     try {
       setLoading(true);
       const res = await api.get(`/api/v1/traffic-director/links/${targetId}`);
@@ -139,10 +144,12 @@ export default function SmartLinkRuleCanvasPage() {
     if (savingFallback) return;
     try {
       setSavingFallback(true);
+      const cleanFallback = ensureExternalUrl(fallbackUrl);
       await api.put(`/api/v1/traffic-director/links/${linkId}`, { 
-        fallbackUrl,
+        fallbackUrl: cleanFallback,
         safePageProxyMode
       });
+      setFallbackUrl(cleanFallback);
       toast.success('Safe page settings saved!');
       fetchLinkDetails();
     } catch (error) {
@@ -869,7 +876,7 @@ export default function SmartLinkRuleCanvasPage() {
                     <div className="flex items-center gap-2 text-xs">
                       <span className="font-semibold text-gray-400 uppercase">THEN ROUTE TO:</span>
                       <a
-                        href={rule.destinationUrl}
+                        href={ensureExternalUrl(rule.destinationUrl)}
                         target="_blank"
                         rel="noreferrer"
                         className="font-mono text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 truncate max-w-md"

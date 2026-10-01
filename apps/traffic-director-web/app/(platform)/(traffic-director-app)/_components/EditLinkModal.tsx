@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { PlatformModal } from '@/components/shared/PlatformModal';
 import { LogoLoader } from '@workspace/ui';
+import { ensureExternalUrl } from '@/lib/url';
 
 interface EditLinkModalProps {
   isOpen: boolean;
@@ -109,7 +110,7 @@ export default function EditLinkModal({ isOpen, onClose, link, onSuccess }: Edit
       await api.put(`/api/v1/traffic-director/links/${link.id}`, {
         name: name.trim(),
         slug: slug.toLowerCase().replace(/[^a-z0-9-_]/g, '-'),
-        fallbackUrl: fallbackUrl.trim(),
+        fallbackUrl: ensureExternalUrl(fallbackUrl),
         safePageProxyMode,
         description: description.trim() || undefined
       });

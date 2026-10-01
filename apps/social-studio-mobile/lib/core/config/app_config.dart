@@ -71,7 +71,7 @@ class AppConfig {
     if (kDebugMode) {
       return 'http://localhost:4003';
     }
-    return 'https://180identity.180workspace.com';
+    return 'https://services.180workspace.com';
   }
 
   /// 180 Profile / Identity Web Auth UI Server (Universal 180 Profile login)

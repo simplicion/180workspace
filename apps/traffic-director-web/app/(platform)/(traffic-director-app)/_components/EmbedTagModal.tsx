@@ -6,7 +6,7 @@ import {
   Code2, ChevronDown, Zap, Server, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '@/lib/api';
+import api, { getApiBase } from '@/lib/api';
 import { Drawer } from '@/components/ui/Drawer';
 import { DomainManagerModal } from '@workspace/ui';
 
@@ -910,6 +910,7 @@ serve_safe_page($config);
           targetId={linkId}
           targetName={linkName}
           initialDomain={customDomain}
+          apiBaseUrl={getApiBase()}
           onDomainSaved={() => {
             if (onDomainUpdated) onDomainUpdated();
           }}

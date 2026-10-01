@@ -317,7 +317,7 @@ export async function fetchLivePlatformMetrics(params: { projectId: string; comp
     if (!companyId) throw new SocialInsightsError(401, 'COMPANY_REQUIRED', 'Company context required');
     const { getDb } = require('./publishing/http');
     const { SocialTokenVault } = require('./publishing/token-vault');
-    const { META_GRAPH_VERSION } = require('./publishing/config');
+    const { META_GRAPH_VERSION, metaGraphUrl } = require('./publishing/config');
     const db = getDb();
     const project = await db.project.findFirst({ where: { id: projectId, companyId }, select: { id: true } });
     if (!project) throw new SocialInsightsError(404, 'PROJECT_NOT_FOUND', 'Project not found');
@@ -326,7 +326,7 @@ export async function fetchLivePlatformMetrics(params: { projectId: string; comp
         where: { companyId, projectId, isActive: true },
         select: { id: true, companyId: true, platform: true, platformAccountId: true, accountName: true, followersCount: true, reauthRequired: true, updatedAt: true },
     });
-    const graph = (p: string) => `https://graph.facebook.com/${META_GRAPH_VERSION()}/${p}`;
+    const graph = (p: string, token?: string, plat?: string) => metaGraphUrl(p, token, plat);
     const now = new Date();
     const since = Math.floor((now.getTime() - METRICS_PERIOD_DAYS * 86_400_000) / 1000);
     const until = Math.floor(now.getTime() / 1000);
@@ -355,13 +355,13 @@ export async function fetchLivePlatformMetrics(params: { projectId: string; comp
                 const token = await SocialTokenVault.getAccessToken(acc);
                 const id = encodeURIComponent(acc.platformAccountId);
                 if (platform === 'instagram') {
-                    const profile = await getJson('instagram', graph(`${id}?fields=followers_count`), token, 'Instagram profile');
-                    const ins = await getJson('instagram', graph(`${id}/insights?metric=reach,views,accounts_engaged,total_interactions&period=day&metric_type=total_value&since=${since}&until=${until}`), token, 'Instagram insights');
+                    const profile = await getJson('instagram', graph(`${id}?fields=followers_count`, token, 'instagram'), token, 'Instagram profile');
+                    const ins = await getJson('instagram', graph(`${id}/insights?metric=reach,views,accounts_engaged,total_interactions&period=day&metric_type=total_value&since=${since}&until=${until}`, token, 'instagram'), token, 'Instagram insights');
                     return { ...base, source: 'live', fetchedAt: now.toISOString(), followersCount: profile.followers_count ?? null, reach: sumInsight(ins.data, 'reach'), views: sumInsight(ins.data, 'views'), engagements: sumInsight(ins.data, 'total_interactions'), periodDays: METRICS_PERIOD_DAYS };
                 }
                 if (platform === 'facebook') {
-                    const page = await getJson('facebook', graph(`${id}?fields=followers_count,fan_count`), token, 'Facebook page');
-                    const ins = await getJson('facebook', graph(`${id}/insights?metric=page_impressions_unique,page_post_engagements&period=days_28`), token, 'Facebook page insights');
+                    const page = await getJson('facebook', graph(`${id}?fields=followers_count,fan_count`, token, 'facebook'), token, 'Facebook page');
+                    const ins = await getJson('facebook', graph(`${id}/insights?metric=page_impressions_unique,page_post_engagements&period=days_28`, token, 'facebook'), token, 'Facebook page insights');
                     return { ...base, source: 'live', fetchedAt: now.toISOString(), followersCount: page.followers_count ?? page.fan_count ?? null, reach: sumInsight(ins.data, 'page_impressions_unique'), engagements: sumInsight(ins.data, 'page_post_engagements'), periodDays: METRICS_PERIOD_DAYS };
                 }
                 const ch = await getJson('youtube', 'https://www.googleapis.com/youtube/v3/channels?part=statistics&mine=true', token, 'YouTube channel statistics');

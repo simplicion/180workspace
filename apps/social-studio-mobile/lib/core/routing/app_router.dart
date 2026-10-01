@@ -29,9 +29,22 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     refreshListenable: listenable,
     redirect: (context, state) {
+      final uri = state.uri;
+      // Handle custom scheme deep links (e.g. workspace180://oauth/callback?...)
+      if (uri.scheme == 'workspace180' || uri.scheme == 'one80' || uri.scheme == '180social') {
+        final path = [if (uri.host.isNotEmpty) uri.host, ...uri.pathSegments].join('/');
+        final query = uri.hasQuery ? '?${uri.query}' : '';
+        if (path.startsWith('oauth/callback') || path.startsWith('oauth-callback')) {
+          return '/oauth-callback$query';
+        }
+        return '/$path$query';
+      }
+
       final loc = state.matchedLocation;
       if (loc.startsWith('/review/')) return null; // public client portal, no login
-      if (loc == '/oauth-callback' || loc.startsWith('/oauth-callback')) return null; // OAuth callback processing
+      if (loc == '/oauth-callback' || loc.startsWith('/oauth-callback') || loc == '/oauth/callback' || loc.startsWith('/oauth/callback')) {
+        return null; // OAuth callback processing
+      }
       final session = ref.read(sessionProvider);
       if (!session.hasValue) return loc == '/splash' ? null : '/splash';
       final s = session.value;
@@ -39,6 +52,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!s.entitlement.hasSocial) return loc == '/locked' ? null : '/locked';
       if (loc == '/login' || loc == '/splash' || loc == '/locked') return '/home';
       return null;
+    },
+    onException: (context, state, router) {
+      final uri = state.uri;
+      final raw = uri.toString();
+      final query = uri.hasQuery
+          ? '?${uri.query}'
+          : (uri.fragment.contains('?') ? '?${uri.fragment.substring(uri.fragment.indexOf('?') + 1)}' : '');
+      final isOAuth = raw.contains('oauth') ||
+          raw.contains('status=') ||
+          raw.contains('accountId=') ||
+          raw.contains('code=') ||
+          raw.contains('error=');
+      if (isOAuth) {
+        router.go('/oauth-callback$query');
+        return;
+      }
+      router.go('/home');
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, _) => SplashScreen()),

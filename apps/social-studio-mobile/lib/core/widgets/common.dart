@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,9 +17,16 @@ String errorText(Object error) {
     final issues = error.issues;
     return issues.isEmpty ? error.message : '${error.message}\n• ${issues.join('\n• ')}';
   }
+  if (error is DioException) {
+    return errorText(ApiException.fromDio(error));
+  }
   if (error is MediaEngineException) return error.message;
   if (error is String) return error;
-  return error.toString().replaceFirst('Exception: ', '');
+  final str = error.toString().replaceFirst('Exception: ', '');
+  if (str.contains('Broken pipe') || str.contains('errno = 32')) {
+    return 'Connection was lost during transfer (Broken pipe). Please check your internet connection and try again.';
+  }
+  return str;
 }
 
 void showError(BuildContext context, Object error) {

@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
@@ -829,12 +829,73 @@ class SocialApi {
   // ── Storage ────────────────────────────────────────────────────────────────
 
   /// Uploads a local file to workspace storage and returns its public URL.
+  /// Uses direct presigned R2 upload when available to bypass reverse-proxy payload limits (HTTP 413)
+  /// and TCP connection resets (Broken pipe), with seamless fallback to multipart upload.
   Future<String> uploadFile(
     String filePath, {
     List<int>? fileBytes,
     String? filename,
     void Function(int sent, int total)? onProgress,
   }) async {
+    final cleanFilename = filename ?? filePath.split(RegExp(r'[/\\]')).lastOrNull ?? 'upload';
+    final ext = cleanFilename.toLowerCase().split('.').lastOrNull ?? '';
+    final mimeType = switch (ext) {
+      'mp4' => 'video/mp4',
+      'mov' => 'video/quicktime',
+      'webm' => 'video/webm',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'gif' => 'image/gif',
+      _ => 'application/octet-stream',
+    };
+
+    // 1. Attempt direct presigned upload to R2 (bypasses proxy 413 limit and broken pipe)
+    try {
+      final safeName = cleanFilename.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      final key = 'social-uploads/${DateTime.now().millisecondsSinceEpoch}_$safeName';
+      final presignedRes = await _api.get(
+        '/api/files/presigned-url',
+        query: {'key': key, 'contentType': mimeType},
+      );
+      final uploadUrl = jStr(presignedRes['url']);
+      final publicUrl = jStr(presignedRes['publicUrl']);
+
+      if (uploadUrl != null && uploadUrl.isNotEmpty && publicUrl != null && publicUrl.isNotEmpty) {
+        final dio = Dio();
+        Stream<List<int>>? uploadStream;
+        int? contentLength;
+
+        if (fileBytes != null && fileBytes.isNotEmpty) {
+          uploadStream = Stream.fromIterable([fileBytes]);
+          contentLength = fileBytes.length;
+        } else if (filePath.isNotEmpty) {
+          final xf = XFile(filePath);
+          contentLength = await xf.length();
+          uploadStream = xf.openRead();
+        }
+
+        if (uploadStream != null) {
+          await dio.put(
+            uploadUrl,
+            data: uploadStream,
+            options: Options(
+              headers: {
+                'Content-Type': mimeType,
+                if (contentLength != null) 'Content-Length': contentLength.toString(),
+              },
+            ),
+            onSendProgress: onProgress,
+          );
+          return publicUrl;
+        }
+      }
+    } catch (e) {
+      // If presigned URL is not available or rejected, smoothly fallback to standard upload
+      debugPrint('[Upload] Presigned upload fallback: $e');
+    }
+
+    // 2. Standard multipart upload fallback
     final r = await _api.upload(
       '/api/files/upload',
       filePath: filePath,

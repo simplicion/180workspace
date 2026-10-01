@@ -151,13 +151,40 @@ const instagramProvider: OAuthProvider = {
                 body: form({ client_id: clientId, client_secret: clientSecret, grant_type: 'authorization_code', redirect_uri: redirectUri, code }),
             }), 'Instagram Business code exchange');
 
-            const long = await oauthJson('instagram', await providerFetch('instagram', `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(clientSecret)}&access_token=${encodeURIComponent(short.access_token)}`), 'Instagram Business long-lived token exchange');
+            let long: any = null;
+            try {
+                // Try POST first (preferred by Meta Graph API token exchange)
+                const postRes = await providerFetch('instagram', 'https://graph.instagram.com/access_token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: form({
+                        grant_type: 'ig_exchange_token',
+                        client_secret: clientSecret,
+                        access_token: short.access_token,
+                    }),
+                });
+                const postBody = await readBody(postRes);
+                if (postRes.ok && postBody?.access_token) {
+                    long = postBody;
+                } else {
+                    // Fall back to GET as documented in Graph API specs
+                    const getRes = await providerFetch('instagram', `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(clientSecret)}&access_token=${encodeURIComponent(short.access_token)}`);
+                    const getBody = await readBody(getRes);
+                    if (getRes.ok && getBody?.access_token) {
+                        long = getBody;
+                    } else {
+                        console.warn('[social-publishing] Instagram long-lived token exchange warning (using short-lived token):', postBody?.error?.message || getBody?.error?.message || 'Unsupported');
+                    }
+                }
+            } catch (err: any) {
+                console.warn('[social-publishing] Instagram long-lived token exchange failed (using short-lived token):', err?.message || err);
+            }
 
-            const token = long.access_token || short.access_token;
+            const token = long?.access_token || short.access_token;
             return {
                 accessToken: token,
                 refreshToken: token,
-                expiresAt: expiresIn(long.expires_in || 60 * 86400),
+                expiresAt: expiresIn(long?.expires_in || short?.expires_in || 3600),
                 scopes,
                 tokenType: 'bearer',
             };

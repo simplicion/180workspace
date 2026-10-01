@@ -284,9 +284,21 @@ class OneEightySsoService {
       await _storage.write(key: _kAccessToken, value: directToken);
       await _storage.delete(key: _kCodeVerifier);
       await _storage.delete(key: _kOAuthState);
+
+      Map<String, dynamic> userInfo = {'id': 'authenticated'};
+      try {
+        final profileRes = await _dio.get(
+          '${AppConfig.identityServerUrl}/api/oauth/userinfo',
+          options: Options(headers: {'Authorization': 'Bearer $directToken'}),
+        );
+        if (profileRes.statusCode == 200 && profileRes.data is Map) {
+          userInfo = Map<String, dynamic>.from(profileRes.data['user'] ?? profileRes.data);
+        }
+      } catch (_) {}
+
       return {
         'access_token': directToken,
-        'user': {'id': 'authenticated'},
+        'user': userInfo,
       };
     }
 
@@ -306,9 +318,12 @@ class OneEightySsoService {
 
     // Candidate token endpoints across identity provider domain and primary API domain
     final candidateEndpoints = [
+      '${AppConfig.identityServerUrl}/api/oauth/token',
       '${AppConfig.identityServerUrl}/oauth/token',
-      '${AppConfig.apiBaseUrl}/oauth/token',
+      'https://services.180workspace.com/api/oauth/token',
+      'https://services.180workspace.com/oauth/token',
       '${AppConfig.apiBaseUrl}/api/oauth/token',
+      '${AppConfig.apiBaseUrl}/oauth/token',
       '${AppConfig.apiBaseUrl}/api/v1/identity/oauth/token',
     ];
 
@@ -335,8 +350,8 @@ class OneEightySsoService {
         }
       } on DioException catch (e) {
         lastError = e;
-        if (e.response?.statusCode == 400) {
-          // If server explicitly returned 400 (e.g. invalid code), don't spam other endpoints
+        if (e.response?.statusCode == 400 && e.response?.data is Map && e.response?.data['error'] == 'invalid_grant') {
+          // If code was already redeemed or expired, stop retrying
           break;
         }
       }

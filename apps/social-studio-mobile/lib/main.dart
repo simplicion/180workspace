@@ -39,7 +39,14 @@ class _SocialStudioAppState extends ConsumerState<SocialStudioApp> with WidgetsB
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(deepLinksProvider).start((location) => ref.read(routerProvider).push(location));
+      ref.read(deepLinksProvider).start((location) {
+        final router = ref.read(routerProvider);
+        if (location.startsWith('/oauth') || location.startsWith('/home') || location.startsWith('/login')) {
+          router.go(location);
+        } else {
+          router.push(location);
+        }
+      });
       // Push: gated on Firebase config; a tapped notification opens the post.
       unawaited(ref.read(pushServiceProvider.notifier).init(navigate: (location) => ref.read(routerProvider).push(location)).then((_) {
         if (ref.read(sessionProvider).valueOrNull != null) unawaited(ref.read(pushServiceProvider.notifier).enable());

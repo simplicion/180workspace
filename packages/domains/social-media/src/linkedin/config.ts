@@ -2,6 +2,7 @@
  * Centralized LinkedIn API configuration, versioning, and environment resolution.
  * Strictly adheres to 180 Workspace security standards: never exposes or logs raw credentials.
  */
+import { linkedInApiVersion } from '../publishing/linkedin-version';
 
 export interface LinkedInApiConfig {
     readonly restBaseUrl: string;
@@ -59,8 +60,8 @@ export function getLinkedInApiConfig(): LinkedInApiConfig {
         oauthAuthorizeUrl: process.env.LINKEDIN_OAUTH_AUTH_URL || 'https://www.linkedin.com/oauth/v2/authorization',
         oauthTokenUrl: process.env.LINKEDIN_OAUTH_TOKEN_URL || 'https://www.linkedin.com/oauth/v2/accessToken',
         userinfoUrl: process.env.LINKEDIN_USERINFO_URL || 'https://api.linkedin.com/v2/userinfo',
-        // LinkedIn Marketing Version 202510 sunsets Oct 15, 2026. Configurable via LINKEDIN_API_VERSION.
-        apiVersion: process.env.LINKEDIN_API_VERSION?.trim() || '202507',
+        // LinkedIn Marketing Version is dynamically resolved and validated via linkedInApiVersion().
+        apiVersion: linkedInApiVersion(),
         restliProtocolVersion: '2.0.0',
         timeoutMs: intEnv('LINKEDIN_REQUEST_TIMEOUT_MS', 30000),
         maxRetries: intEnv('LINKEDIN_MAX_RETRIES', 3),

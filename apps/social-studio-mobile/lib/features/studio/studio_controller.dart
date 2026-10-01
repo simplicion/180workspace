@@ -778,11 +778,18 @@ class StudioController extends ChangeNotifier {
             : {'jpg', 'jpeg', 'png', 'webp'}.contains(imgExt)
                 ? imgExt!
                 : 'jpg';
-        overlayPaths[o.id] = await director.download(
-          url,
-          '${dir.path}/${o.id}.$ext',
-        );
-        usedUrls.add(url);
+        try {
+          overlayPaths[o.id] = await director.download(
+            url,
+            '${dir.path}/${o.id}.$ext',
+          );
+          usedUrls.add(url);
+        } catch (e) {
+          warnings.add(
+            'Skipped B-roll "${o.source['query'] ?? o.id}": could not download media ($e).',
+          );
+          working = TimelineOps.removeOverlay(working, o.id);
+        }
       }
       final musicPaths = <String, String>{};
       for (final m in working.audio.music) {
@@ -812,11 +819,18 @@ class StudioController extends ChangeNotifier {
         export = ExportState(stage: 'Downloading music…', warnings: warnings);
         _notify();
         final ext = Uri.tryParse(url)?.path.split('.').last.toLowerCase();
-        usedUrls.add(url);
-        musicPaths[m.id] = await director.download(
-          url,
-          '${dir.path}/${m.id}.${{'mp3', 'm4a', 'aac', 'wav', 'ogg'}.contains(ext) ? ext : 'mp3'}',
-        );
+        try {
+          musicPaths[m.id] = await director.download(
+            url,
+            '${dir.path}/${m.id}.${{'mp3', 'm4a', 'aac', 'wav', 'ogg'}.contains(ext) ? ext : 'mp3'}',
+          );
+          usedUrls.add(url);
+        } catch (e) {
+          warnings.add(
+            'Background music could not be downloaded ($e). Exporting video without music.',
+          );
+          working = TimelineOps.removeMusic(working);
+        }
       }
       final sfxPaths = <String, String>{};
       final keptSfx = <EditIrSfx>[];

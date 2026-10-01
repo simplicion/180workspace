@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { PlatformModal } from '@/components/shared/PlatformModal';
 import { LogoLoader } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
+import { ensureExternalUrl } from '@/lib/url';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -124,7 +125,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
       const res = await api.post('/api/v1/traffic-director/links', {
         name: name.trim(),
         slug: slug.toLowerCase().replace(/[^a-z0-9-_]/g, '-'),
-        fallbackUrl: fallbackUrl.trim(),
+        fallbackUrl: ensureExternalUrl(fallbackUrl),
         description: description.trim() || undefined,
         datacenterBlocked: true,
         tags: ['block_spy', 'block_vpn'],

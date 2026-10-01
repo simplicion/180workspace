@@ -56,16 +56,40 @@ export class EngagementDispatcher {
 
     /**
      * Selects a public comment reply from configured rotating templates to prevent spam flags.
+     * Interpolates {name}, {handle}, {firstname}, {link}, {deliverable_link}, {url}.
      */
-    static pickRotatingPublicReply(templates: string[], recipientHandle: string): string {
+    static pickRotatingPublicReply(
+        templates: string[],
+        recipientHandle: string,
+        opts: { event?: InboundEngagementEvent; deliverableUrl?: string; platform?: string } = {}
+    ): string {
         const cleanHandle = (recipientHandle || 'there').startsWith('@') ? recipientHandle : `@${recipientHandle || 'there'}`;
         const validTemplates = (templates || []).filter((t) => t && typeof t === 'string' && t.trim().length > 0);
+        const platform = opts.platform || opts.event?.platform || 'instagram';
+        const hasDmSupport = platform === 'instagram' || platform === 'facebook' || platform === 'x';
+
+        let template: string;
         if (!validTemplates.length) {
-            return `Sent to your DMs, ${cleanHandle}! Check your messages 📩`;
+            if (hasDmSupport) {
+                template = `Sent to your DMs, ${cleanHandle}! Check your messages 📩`;
+            } else {
+                template = opts.deliverableUrl
+                    ? `Thanks for checking this out, ${cleanHandle}! Here is your link: {link}`
+                    : `Thanks for the comment, ${cleanHandle}! Glad to connect.`;
+            }
+        } else {
+            template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
         }
-        // Rotate or randomly pick
-        const template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
-        return template.replace(/\{handle\}/gi, cleanHandle).replace(/\{name\}/gi, cleanHandle).trim();
+
+        if (opts.event) {
+            return this.interpolateTemplate(template, opts.event, opts.deliverableUrl);
+        }
+
+        let res = template.replace(/\{handle\}/gi, cleanHandle).replace(/\{name\}/gi, cleanHandle).replace(/\{username\}/gi, cleanHandle);
+        if (opts.deliverableUrl) {
+            res = res.replace(/\{link\}/gi, opts.deliverableUrl).replace(/\{url\}/gi, opts.deliverableUrl).replace(/\{deliverable_link\}/gi, opts.deliverableUrl);
+        }
+        return res.trim();
     }
 
     /**
@@ -212,7 +236,11 @@ export class EngagementDispatcher {
                 if (p.action === 'like') {
                     if (await run('like', () => likeComment(event.platform, account, event.commentId!, token))) outcome.commentLiked = true;
                 } else if (p.action === 'reply') {
-                    const text = this.pickRotatingPublicReply(rule.actionPublicReplies, event.senderHandle);
+                    const text = this.pickRotatingPublicReply(rule.actionPublicReplies, event.senderHandle, {
+                        event,
+                        deliverableUrl: rule.actionDmDeliverableUrl,
+                        platform: event.platform,
+                    });
                     if (await run('reply', () => replyToComment(event.platform, account, event.commentId!, text, token, event.mediaId))) outcome.publicReplySent = text;
                 } else {
                     const text = this.interpolateTemplate(rule.actionDmTemplate, event, rule.actionDmDeliverableUrl);
@@ -225,7 +253,7 @@ export class EngagementDispatcher {
                 }
             }
 
-            // 7. Record the DM in the sender's thread (so the inbox and the "one message until reply" rule see it).
+            // 7. Record the DM or public reply in the conversation thread (so the inbox sees it).
             if (outcome.dmSent) {
                 try {
                     const thread = await db.socialConversation.upsert({
@@ -248,6 +276,23 @@ export class EngagementDispatcher {
                     await db.socialMessage.create({ data: { conversationId: thread.id, senderType: 'ai_bot', content: outcome.dmSent } });
                 } catch (err: any) {
                     console.warn(`[EngagementDispatcher] conversation sync warning: ${err.message}`);
+                }
+            } else if (outcome.publicReplySent && event.commentId) {
+                try {
+                    const thread = await db.socialConversation.findFirst({
+                        where: { companyId: event.companyId, platform: event.platform, platformThreadId: `comment:${event.commentId}` },
+                    });
+                    if (thread) {
+                        await db.socialConversation.update({
+                            where: { id: thread.id },
+                            data: { lastMessageSnippet: outcome.publicReplySent.substring(0, 120), lastMessageAt: new Date(nowMs) },
+                        });
+                        await db.socialMessage.create({
+                            data: { conversationId: thread.id, senderType: 'ai_bot', content: outcome.publicReplySent },
+                        });
+                    }
+                } catch (err: any) {
+                    console.warn(`[EngagementDispatcher] public reply thread sync warning: ${err.message}`);
                 }
             }
 

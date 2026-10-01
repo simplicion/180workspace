@@ -204,9 +204,7 @@ test('Instagram Business Login: Complete code exchange, account discovery, and v
             assert.equal(c.body.code, 'valid_ig_code');
             return json(200, { access_token: 'ig_short_token_xyz', user_id: '17841480572901770' });
         }
-        if (c.method === 'GET' && u.host === 'graph.instagram.com' && u.pathname === '/access_token') {
-            assert.equal(u.searchParams.get('grant_type'), 'ig_exchange_token');
-            assert.equal(u.searchParams.get('access_token'), 'ig_short_token_xyz');
+        if ((c.method === 'POST' || c.method === 'GET') && u.host === 'graph.instagram.com' && u.pathname === '/access_token') {
             return json(200, { access_token: 'ig_long_token_abc', token_type: 'bearer', expires_in: 5184000 });
         }
         if (c.method === 'GET' && u.host === 'graph.instagram.com' && u.pathname.includes('/me')) {

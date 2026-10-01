@@ -163,15 +163,26 @@ export class OAuthController {
             // Origin validation
             let requestOrigin = req.query.origin as string;
             if (!requestOrigin && redirect_uri) {
-                try { requestOrigin = new URL(String(redirect_uri)).origin; } catch (e) {}
+                try {
+                    const parsed = new URL(String(redirect_uri));
+                    if (parsed.origin && parsed.origin !== 'null') {
+                        requestOrigin = parsed.origin;
+                    }
+                } catch (e) {}
             }
-            if (!requestOrigin) {
+            if (!requestOrigin || requestOrigin === 'null') {
                 requestOrigin = req.headers.origin || (req.headers.referer ? (() => { try { return new URL(req.headers.referer).origin; } catch (e) { return ''; } })() : '');
+            }
+            if (requestOrigin === 'null') {
+                requestOrigin = '';
             }
 
             const isFirstParty = isFirstPartyOrigin(requestOrigin);
 
-            if (!isFirstParty && requestOrigin && app.allowedOrigins && app.allowedOrigins.length > 0) {
+            // Native/mobile apps with custom schemes (e.g. workspace180://, 180social://) do not have web origins
+            const isCustomSchemeRedirect = redirect_uri && !String(redirect_uri).startsWith('http://') && !String(redirect_uri).startsWith('https://');
+
+            if (!isCustomSchemeRedirect && !isFirstParty && requestOrigin && app.allowedOrigins && app.allowedOrigins.length > 0) {
                 let normalizedReqOrigin = '';
                 try {
                     normalizedReqOrigin = new URL(requestOrigin.startsWith('http') ? requestOrigin : `https://${requestOrigin}`).origin.toLowerCase();

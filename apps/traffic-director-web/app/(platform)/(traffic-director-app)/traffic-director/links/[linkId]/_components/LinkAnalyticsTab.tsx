@@ -17,6 +17,7 @@ import { LogoLoader, UniversalDateTimePicker, FeatureLock } from '@workspace/ui'
 import { Drawer } from '@/components/ui/Drawer';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import { useSubscription } from '@/lib/useSubscription';
+import { ensureExternalUrl } from '@/lib/url';
 
 function getCountryFlag(code?: string | null): string {
   if (!code || typeof code !== 'string' || code.length !== 2) return '🌐';
@@ -947,7 +948,7 @@ export default function LinkAnalyticsTab({ linkId, linkData }: LinkAnalyticsTabP
               <span className="font-bold text-gray-400 uppercase text-[10px]">Delivered Destination URL</span>
               <div className="p-3 rounded-xl bg-gray-100 dark:bg-gray-800 font-mono text-indigo-600 dark:text-indigo-400 break-all text-xs flex items-center justify-between">
                 <span>{selectedLog.destinationUrl}</span>
-                <a href={selectedLog.destinationUrl} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-indigo-600 ml-2 shrink-0">
+                <a href={ensureExternalUrl(selectedLog.destinationUrl)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-indigo-600 ml-2 shrink-0">
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>

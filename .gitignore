@@ -102,3 +102,6 @@ apps/desktop-app/dist/
 *.aab
 generated/
 
+
+*.env
+

@@ -51,9 +51,12 @@ class _IdentityBottomSheetState extends State<IdentityBottomSheet> {
   bool _isCallbackUri(Uri uri) {
     return uri.scheme == 'workspace180' ||
         uri.scheme == '180social' ||
+        uri.scheme == 'socialstudio' ||
         uri.scheme == 'one80' ||
         uri.host == 'oauth-callback' ||
+        uri.host == 'callback' ||
         uri.path.contains('oauth-callback') ||
+        uri.path.contains('callback') ||
         uri.fragment.contains('oauth-callback') ||
         (uri.queryParameters.containsKey('code') &&
             uri.queryParameters.containsKey('state')) ||
@@ -88,13 +91,13 @@ class _IdentityBottomSheetState extends State<IdentityBottomSheet> {
                 if (type == '180_IDENTITY_SUCCESS' || type == '180_AUTH_SUCCESS') {
                   final code = data['code'];
                   final state = data['state'];
-                  final directToken = data['token'] ?? data['accessToken'];
-                  if (code != null) {
+                  final directToken = data['token'] ?? data['accessToken'] ?? data['authToken'];
+                  if (code != null && code.toString().isNotEmpty) {
                     final uri = Uri.parse(
                       '${AppConfig.identityRedirectUri}?code=$code&state=${state ?? ''}',
                     );
                     _handleSuccessUri(uri);
-                  } else if (directToken != null) {
+                  } else if (directToken != null && directToken.toString().isNotEmpty) {
                     final uri = Uri.parse(
                       '${AppConfig.identityRedirectUri}?direct_token=$directToken&state=${state ?? ''}',
                     );
@@ -134,13 +137,32 @@ class _IdentityBottomSheetState extends State<IdentityBottomSheet> {
                   (function() {
                     if (window.__180_mobile_listener_registered) return;
                     window.__180_mobile_listener_registered = true;
-                    window.addEventListener('message', function(event) {
-                      if (window.OneEightyMobileChannel && event && event.data) {
+
+                    function forwardMessage(payload) {
+                      if (window.OneEightyMobileChannel) {
                         try {
-                          var payload = typeof event.data === 'string' ? event.data : JSON.stringify(event.data);
-                          window.OneEightyMobileChannel.postMessage(payload);
+                          var str = typeof payload === 'string' ? payload : JSON.stringify(payload);
+                          window.OneEightyMobileChannel.postMessage(str);
                         } catch(e) {}
                       }
+                    }
+
+                    window.addEventListener('message', function(event) {
+                      if (event && event.data) {
+                        forwardMessage(event.data);
+                      }
+                    });
+
+                    window.addEventListener('180_IDENTITY_SUCCESS', function(event) {
+                      if (event && event.detail) forwardMessage(event.detail);
+                    });
+
+                    window.addEventListener('180_AUTH_SUCCESS', function(event) {
+                      if (event && event.detail) forwardMessage(event.detail);
+                    });
+
+                    window.addEventListener('180_IDENTITY_CLOSE', function() {
+                      forwardMessage({ type: '180_IDENTITY_CLOSE' });
                     });
                   })();
                 ''');
@@ -156,12 +178,37 @@ class _IdentityBottomSheetState extends State<IdentityBottomSheet> {
               }
             },
             onWebResourceError: (error) {
-              // Ignore ERR_UNKNOWN_URL_SCHEME if it's our intercepted callback
+              final failingUrl = error.url;
+              if (failingUrl != null && failingUrl.isNotEmpty) {
+                final uri = Uri.tryParse(failingUrl);
+                if (uri != null && _isCallbackUri(uri)) {
+                  _handleSuccessUri(uri);
+                  return;
+                }
+              }
+
               final desc = error.description.toLowerCase();
               final isCustomScheme = desc.contains('workspace180') ||
                   desc.contains('180social') ||
+                  desc.contains('socialstudio') ||
                   desc.contains('one80');
-              if (!isCustomScheme && mounted) {
+
+              if (isCustomScheme) {
+                final match = RegExp(
+                  r'(workspace180|180social|socialstudio|one80)://[^\s]+',
+                  caseSensitive: false,
+                ).firstMatch(error.description);
+                if (match != null) {
+                  final uri = Uri.tryParse(match.group(0)!);
+                  if (uri != null && _isCallbackUri(uri)) {
+                    _handleSuccessUri(uri);
+                    return;
+                  }
+                }
+                return;
+              }
+
+              if (mounted) {
                 setState(() {
                   _loadError = error.description;
                   _loading = false;

@@ -9,13 +9,29 @@ export const LINKEDIN_DEFAULT_API_VERSION = '202609';
 
 let warned = false;
 
+/** Computes the preceding month's YYYYMM which is guaranteed to be active in LinkedIn's 12-month rolling window. */
+export function computeActiveLinkedInVersion(now: Date = new Date()): string {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    return `${y}${m}`;
+}
+
 export function linkedInApiVersion(now: Date = new Date()): string {
-    const v = process.env.LINKEDIN_API_VERSION?.trim() || LINKEDIN_DEFAULT_API_VERSION;
-    if (!warned && isLinkedInVersionSunset(v, now)) {
-        warned = true;
-        console.error(`[social-publishing] LINKEDIN_API_VERSION=${v} is older than 12 months; LinkedIn will reject it. Use a current YYYYMM version.`);
+    const raw = process.env.LINKEDIN_API_VERSION?.trim();
+    if (raw && !isLinkedInVersionSunset(raw, now)) {
+        return raw;
     }
-    return v;
+    if (raw && isLinkedInVersionSunset(raw, now)) {
+        if (!warned) {
+            warned = true;
+            console.error(`[social-publishing] LINKEDIN_API_VERSION=${raw} is past its 12-month sunset date; LinkedIn will reject it. Automatically falling back to active version.`);
+        }
+    }
+    const defaultActive = isLinkedInVersionSunset(LINKEDIN_DEFAULT_API_VERSION, now)
+        ? computeActiveLinkedInVersion(now)
+        : LINKEDIN_DEFAULT_API_VERSION;
+    return defaultActive;
 }
 
 export function isLinkedInVersionSunset(v: string, now: Date = new Date()): boolean {
@@ -24,3 +40,4 @@ export function isLinkedInVersionSunset(v: string, now: Date = new Date()): bool
     const months = (now.getUTCFullYear() - Number(m[1])) * 12 + (now.getUTCMonth() + 1 - Number(m[2]));
     return months >= 12;
 }
+
