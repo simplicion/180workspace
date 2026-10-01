@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { FeatureLock } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { migrateLegacySection } from '../advertising/[id]/edit/ElementFactory';
 
 const TOP_FONTS = [
     'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat',
@@ -75,21 +76,26 @@ function FontPicker({ value, onChange }: { value: string; onChange: (v: string) 
     );
 }
 
-const getInitialSectionsForPage = (pageType: string, companyData: any = null) => {
+// Legacy section shapes, converted to renderable element trees via migrateLegacySection.
+// Contact details are only included when the company actually has them — never placeholders.
+const getLegacySectionsForPage = (pageType: string, companyData: any = null): any[] => {
     const ts = Date.now();
-    const companyName = companyData?.name || 'Your Company Name';
-    const companyEmail = companyData?.email || 'hello@yourcompany.com';
-    const companyAddress = companyData?.address || 'Your Company Address';
-    const companyPhone = companyData?.phone || '+1 234 567 8900';
-    
+    const companyName = companyData?.name || '';
+    const contactParts = [
+        companyData?.email && `email us at ${companyData.email}`,
+        companyData?.phone && `call us at ${companyData.phone}`,
+        companyData?.address && `visit us at ${companyData.address}`,
+    ].filter(Boolean);
+    const contactLine = contactParts.length ? `You can ${contactParts.join(', or ')}.` : 'We would love to hear from you.';
+
     if (pageType === 'home') return [
-        { id: `sec-home-hero-${ts}`, type: 'hero', data: { badge: 'Welcome`, title: `Welcome to ${companyName}`, subtitle: `Transform your business with our cutting-edge solutions.', buttonText: 'Get Started' } },
-        { id: `sec-home-about-${ts}`, type: 'about', data: { title: 'About Us', content: 'We are a dedicated team providing top-notch services.', image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=800' } },
-        { id: `sec-home-contact-${ts}`, type: 'contact', data: { title: 'Contact Us', subtitle: `Get in touch with us at ${companyEmail}.` } }
+        { id: `sec-home-hero-${ts}`, type: 'hero', data: { badge: 'Welcome', title: companyName ? `Welcome to ${companyName}` : 'Welcome', subtitle: 'Transform your business with our cutting-edge solutions.', buttonText: 'Get Started' } },
+        { id: `sec-home-about-${ts}`, type: 'about', data: { title: 'About Us', content: 'We are a dedicated team providing top-notch services.' } },
+        { id: `sec-home-contact-${ts}`, type: 'contact', data: { title: 'Contact Us', subtitle: contactLine } }
     ];
     if (pageType === 'about') return [
-        { id: `sec-about-hero-${ts}`, type: 'hero', data: { badge: 'About Us`, title: `Who We Are at ${companyName}`, subtitle: `Learn more about our mission and values.', buttonText: 'Read Story' } },
-        { id: `sec-about-about-${ts}`, type: 'about', data: { title: 'Our Journey', content: 'Founded with a simple vision: to deliver excellence and build trust.', image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=800' } }
+        { id: `sec-about-hero-${ts}`, type: 'hero', data: { badge: 'About Us', title: companyName ? `Who We Are at ${companyName}` : 'Who We Are', subtitle: 'Learn more about our mission and values.', buttonText: 'Read Story' } },
+        { id: `sec-about-about-${ts}`, type: 'about', data: { title: 'Our Journey', content: 'Founded with a simple vision: to deliver excellence and build trust.' } }
     ];
     if (pageType === 'services') return [
         { id: `sec-srv-hero-${ts}`, type: 'hero', data: { badge: 'Services', title: 'Professional Services', subtitle: 'Tailored solutions for your business needs.', buttonText: 'View Details' } }
@@ -99,16 +105,20 @@ const getInitialSectionsForPage = (pageType: string, companyData: any = null) =>
     ];
     if (pageType === 'contact') return [
         { id: `sec-cnt-hero-${ts}`, type: 'hero', data: { badge: 'Contact', title: 'Get In Touch', subtitle: 'Have questions? We are here to help.', buttonText: 'Send Message' } },
-        { id: `sec-cnt-contact-${ts}`, type: 'contact', data: { title: 'Contact Us', subtitle: `Reach out to us at ${companyEmail} or call us at ${companyPhone}. We are located at ${companyAddress}.` } }
+        { id: `sec-cnt-contact-${ts}`, type: 'contact', data: { title: 'Contact Us', subtitle: contactLine } }
     ];
+    const legalName = companyName || 'us';
     if (pageType === 'terms') return [
-        { id: `sec-terms-text-${ts}`, type: 'text', data: { content: `<h1>Terms and Conditions</h1><p>Please read these terms and conditions carefully before using services provided by ${companyName}.</p>` } }
+        { id: `sec-terms-text-${ts}`, type: 'text', data: { content: `<h1>Terms and Conditions</h1><p>Please read these terms and conditions carefully before using services provided by ${legalName}.</p>` }, style: {} }
     ];
     if (pageType === 'privacy') return [
-        { id: `sec-priv-text-${ts}`, type: 'text', data: { content: `<h1>Privacy Policy</h1><p>We at ${companyName} value your privacy and protect your personal data in accordance with modern standards.</p>` } }
+        { id: `sec-priv-text-${ts}`, type: 'text', data: { content: `<h1>Privacy Policy</h1><p>${companyName ? `We at ${companyName}` : 'We'} value your privacy and protect your personal data in accordance with modern standards.</p>` }, style: {} }
     ];
     return [];
 };
+
+const getInitialSectionsForPage = (pageType: string, companyData: any = null) =>
+    getLegacySectionsForPage(pageType, companyData).map((s) => migrateLegacySection(s, companyData?.currencySymbol || '$'));
 
 export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, websiteCount = 0, companyData }) {
     const router = useRouter();
@@ -209,7 +219,8 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
         }));
 
         const config = {
-            brand: { primaryColor, fontFamily, textColor: '#111827', accentColor: '#10b981', headerFooterTheme: 'light' },
+            version: 2,
+            brand: { primaryColor, fontFamily, companyName: companyData?.name || undefined, textColor: '#111827', accentColor: '#10b981', headerFooterTheme: 'light' },
             pages,
         };
 

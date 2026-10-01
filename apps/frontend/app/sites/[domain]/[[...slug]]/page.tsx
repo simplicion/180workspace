@@ -1,10 +1,14 @@
 import type { Metadata } from 'next';
-import { ShieldCheck, Layout, Sparkles, User, Phone, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { BuilderElement } from '@/app/(platform)/(advertising-app)/advertising/[id]/edit/BuilderElement';
+import { cache } from 'react';
+import { ShieldCheck } from 'lucide-react';
 import { CompanyProfileUI } from '@/app/(platform)/(advertising-app)/_components/CompanyProfileUI';
+import { ResponsiveStyles, SITE_ROOT_CLASS, SITE_CONTAINER_NAME, BREAKPOINT_MAX } from '@/app/(platform)/(advertising-app)/advertising/[id]/edit/responsive-styles';
 import { ScriptInjector } from './_components/ScriptInjector';
 import { FacebookPixel } from './_components/FacebookPixel';
+import { SiteElement } from './_components/SiteElement';
+import { SiteMobileNav, type SiteNavLink } from './_components/SiteMobileNav';
 
+import { migrateLegacySection } from '@/app/(platform)/(advertising-app)/advertising/[id]/edit/ElementFactory';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 
@@ -30,46 +34,92 @@ function sanitizeGaMeasurementId(id?: string): string {
     return clean.replace(/[^A-Za-z0-9-_]/g, '');
 }
 
-async function resolveDomainData(domain: string, slug?: string | string[]) {
-    const cleanDomain = decodeURIComponent(domain || '').split(':')[0].toLowerCase().trim();
-    try {
-        const candidateBases = [
-            process.env.BACKEND_INTERNAL_URL,
-            process.env.NODE_ENV === 'production' ? 'http://backend:4000' : null,
-            process.env.NEXT_PUBLIC_BACKEND_URL,
-            process.env.NEXT_PUBLIC_API_URL,
-            'http://localhost:4004',
-            'http://localhost:4002',
-            'http://127.0.0.1:4004',
-            'http://127.0.0.1:4002',
-            'https://api.180workspace.com'
-        ].filter(Boolean) as string[];
+const RESOLVE_TIMEOUT_MS = 3000;
 
-        const uniqueBases = Array.from(new Set(candidateBases));
-        
-        const searchParams = new URLSearchParams();
-        searchParams.append('domain', cleanDomain);
-        if (slug) {
-            const slugStr = Array.isArray(slug) ? slug.join('/') : slug;
-            searchParams.append('slug', slugStr);
-        }
+/** Backend bases from env only (plus the docker-internal service name in production). */
+function backendBases(): string[] {
+    const bases = [
+        process.env.BACKEND_INTERNAL_URL,
+        process.env.NODE_ENV === 'production' ? 'http://backend:4000' : null,
+        process.env.NEXT_PUBLIC_BACKEND_URL,
+        process.env.NEXT_PUBLIC_API_URL,
+    ]
+        .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+        .map((v) => v.trim().replace(/\/+$/, ''));
+    return Array.from(new Set(bases));
+}
 
-        for (const apiBase of uniqueBases) {
-            try {
-                const targetUrl = `${apiBase}/api/public/domains/resolve?${searchParams.toString()}`;
-                const res = await fetch(targetUrl, { cache: 'no-store' });
-                if (res.ok) {
-                    return await res.json();
-                }
-            } catch (e) {
-                // Try next base
-            }
-        }
-        return null;
-    } catch (err) {
-        console.error('Failed to resolve domain:', err);
+async function fetchResolve(apiBase: string, query: string, signal: AbortSignal): Promise<any> {
+    const res = await fetch(`${apiBase}/api/public/domains/resolve?${query}`, { cache: 'no-store', signal });
+    if (!res.ok) throw new Error(`resolve ${res.status}`);
+    return res.json();
+}
+
+/**
+ * Resolves a domain/slug to its registry payload. Cached per request (metadata + page share one call);
+ * all configured bases are tried in parallel, first success wins, each attempt is aborted after 3s.
+ */
+const resolveDomainCached = cache(async (cleanDomain: string, slugStr: string): Promise<any | null> => {
+    const bases = backendBases();
+    if (bases.length === 0) {
+        console.error('[sites] No backend URL configured (BACKEND_INTERNAL_URL / NEXT_PUBLIC_BACKEND_URL / NEXT_PUBLIC_API_URL).');
         return null;
     }
+    const searchParams = new URLSearchParams();
+    searchParams.append('domain', cleanDomain);
+    if (slugStr) searchParams.append('slug', slugStr);
+    const query = searchParams.toString();
+
+    const controllers = bases.map(() => new AbortController());
+    const timers = controllers.map((c) => setTimeout(() => c.abort(), RESOLVE_TIMEOUT_MS));
+    try {
+        return await Promise.any(bases.map((base, i) => fetchResolve(base, query, controllers[i].signal)));
+    } catch {
+        return null;
+    } finally {
+        timers.forEach(clearTimeout);
+        controllers.forEach((c) => c.abort());
+    }
+});
+
+function cleanDomainParam(domain: string): string {
+    let decoded = domain || '';
+    try { decoded = decodeURIComponent(decoded); } catch { /* malformed escape: use as-is */ }
+    return decoded.split(':')[0].toLowerCase().trim();
+}
+
+function resolveDomainData(domain: string, slug?: string | string[]) {
+    const cleanDomain = cleanDomainParam(domain);
+    const slugStr = slug ? (Array.isArray(slug) ? slug.join('/') : slug) : '';
+    return resolveDomainCached(cleanDomain, slugStr);
+}
+
+/** JSON for <script type="application/ld+json"> without allowing `</script>` breakouts. */
+const jsonLd = (value: unknown) => JSON.stringify(value).replace(/</g, '\\u003c');
+
+/** Font weights actually used by the page (plus the defaults the shell uses). */
+function collectFontWeights(nodes: any[]): number[] {
+    const weights = new Set<number>([400, 600, 700, 900]);
+    const visit = (list: any[]) => {
+        for (const n of list || []) {
+            if (!n || typeof n !== 'object') continue;
+            for (const s of [n.style, n.responsive?.tablet, n.responsive?.mobile]) {
+                const w = s?.fontWeight;
+                if (w === 'bold' || w === 'bolder') weights.add(700);
+                else if (w !== undefined && w !== null && /^[1-9]00$/.test(String(w))) weights.add(Number(w));
+            }
+            if (Array.isArray(n.children)) visit(n.children);
+        }
+    };
+    visit(nodes);
+    return Array.from(weights).sort((a, b) => a - b);
+}
+
+function googleFontHref(families: string[], weights: number[]): string | null {
+    const clean = Array.from(new Set(families.map((f) => (f || '').trim()).filter((f) => /^[A-Za-z0-9 ]+$/.test(f))));
+    if (clean.length === 0) return null;
+    const fam = clean.map((f) => `family=${f.replace(/ /g, '+')}:wght@${weights.join(';')}`).join('&');
+    return `https://fonts.googleapis.com/css2?${fam}&display=swap`;
 }
 
 export async function generateMetadata({ 
@@ -78,7 +128,7 @@ export async function generateMetadata({
     params: Promise<{ domain: string; slug?: string | string[] }> 
 }): Promise<Metadata> {
     const { domain, slug } = await params;
-    const cleanDomain = decodeURIComponent(domain || '').split(':')[0].toLowerCase().trim();
+    const cleanDomain = cleanDomainParam(domain);
     const data = await resolveDomainData(domain, slug);
 
     if (!data) {
@@ -149,7 +199,7 @@ export async function generateMetadata({
         const currentSlug = slug ? `/${Array.isArray(slug) ? slug.join('/') : slug}` : '/';
         
         let currentPage: any = null;
-        if (config.version !== 2) {
+        if (config.version !== 2 && !Array.isArray(config.pages)) {
             if (currentSlug === '/') {
                 currentPage = { name: 'Home', sections: config.sections || [] };
             }
@@ -251,7 +301,7 @@ export default async function PublicWebsitePage({
     params: Promise<{ domain: string; slug?: string | string[] }> 
 }) {
     const { domain, slug } = await params;
-    const cleanDomain = decodeURIComponent(domain || '').split(':')[0].toLowerCase().trim();
+    const cleanDomain = cleanDomainParam(domain);
     
     let registryData: any = null;
     let website: any = null;
@@ -292,12 +342,16 @@ export default async function PublicWebsitePage({
     const config = website?.config || {};
     
     let currentPage;
-    if (config.version !== 2) {
+    if (config.version !== 2 && !Array.isArray(config.pages)) {
         if (currentSlug === '/') {
             currentPage = { isPublished: true, isEnabled: true, sections: config.sections || [] };
         }
     } else {
         currentPage = config.pages?.find((p: any) => p.slug === currentSlug);
+    }
+    // Legacy section types (hero/services/about/contact…) have no renderer: convert them to element trees.
+    if (currentPage && Array.isArray(currentPage.sections)) {
+        currentPage = { ...currentPage, sections: currentPage.sections.filter(Boolean).map((s: any) => migrateLegacySection(s, '$')) };
     }
 
     const isPagePublished = currentPage ? (currentPage.isPublished !== false && currentPage.isEnabled !== false) : false;
@@ -358,7 +412,14 @@ export default async function PublicWebsitePage({
     };
     const hfStyles = getHeaderFooterStyles(brand);
 
-    const hasDynamicSections = currentPage?.sections && currentPage.sections.length > 0;
+    const pageSections: any[] = Array.isArray(currentPage?.sections) ? currentPage.sections.filter((s: any) => s && typeof s === 'object') : [];
+    const hasDynamicSections = pageSections.length > 0;
+    const bodyFont = config.typography?.body || brand?.fontFamily || 'Inter';
+    const headingFont = config.typography?.heading || bodyFont;
+    const fontHref = googleFontHref([bodyFont, headingFont], collectFontWeights(pageSections));
+    const hasBgImage = (currentPage?.bgType === 'image' && !!currentPage?.bgValue) || (brand?.bgType === 'image' && !!brand?.bgValue);
+    const navPages = (config.pages || []).filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header'));
+    const navLinks: SiteNavLink[] = navPages.map((p: any) => ({ id: String(p.id ?? p.slug), name: String(p.name ?? ''), href: String(p.slug || '/'), active: currentSlug === p.slug }));
 
     const seo = config.seo || {};
     const brandName = brand?.companyName || config.header?.title || website.name || 'Website';
@@ -440,38 +501,46 @@ export default async function PublicWebsitePage({
 
     return (
         <div 
-            className="min-h-screen w-full max-w-full overflow-x-hidden font-sans text-gray-900 selection:bg-indigo-100" 
+            className={`${SITE_ROOT_CLASS} ${hasBgImage ? 'site-bg-fixed' : ''} min-h-screen w-full max-w-full overflow-x-clip font-sans text-gray-900 selection:bg-indigo-100`} 
             style={{ 
-                fontFamily: `"${config.typography?.body || brand?.fontFamily || 'Inter'}", sans-serif`,
+                fontFamily: `"${bodyFont}", sans-serif`,
                 color: brand?.textColor || '#111827',
                 backgroundColor: (currentPage?.bgType === 'image' ? 'transparent' : (currentPage?.bgValue || brand?.bgValue || '#ffffff')),
                 backgroundImage: (currentPage?.bgType === 'image' && currentPage?.bgValue) ? `url(${currentPage.bgValue})` : (brand?.bgType === 'image' && brand?.bgValue ? `url(${brand.bgValue})` : 'none'),
                 backgroundSize: 'cover',
-                backgroundAttachment: 'fixed',
                 backgroundPosition: 'center',
                 '--primary': primaryColor,
                 '--heading-font': config.typography?.heading || 'Inter'
             } as any}
         >
+            {/* Fonts (hoisted to <head> by React): preconnect + stylesheet, only the weights in use */}
+            {fontHref && (
+                <>
+                    <link rel="preconnect" href="https://fonts.googleapis.com" />
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+                    <link rel="stylesheet" href={fontHref} precedence="default" />
+                </>
+            )}
+
             {/* Site-Specific Schema.org JSON-LD */}
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+                dangerouslySetInnerHTML={{ __html: jsonLd(websiteJsonLd) }}
             />
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+                dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
             />
             {faqJsonLd && (
                 <script
                     type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+                    dangerouslySetInnerHTML={{ __html: jsonLd(faqJsonLd) }}
                 />
             )}
             {productEntities.length > 0 && (
                 <script
                     type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(productEntities.length === 1 ? productEntities[0] : productEntities) }}
+                    dangerouslySetInnerHTML={{ __html: jsonLd(productEntities.length === 1 ? productEntities[0] : productEntities) }}
                 />
             )}
 
@@ -505,64 +574,16 @@ export default async function PublicWebsitePage({
                 ) : null;
             })()}
 
-            <div className="w-full max-w-full min-h-screen flex flex-col bg-transparent relative overflow-x-hidden">
+            <div className="w-full max-w-full min-h-screen flex flex-col bg-transparent relative overflow-x-clip">
+                {/* Shell rules: mobile nav toggle + iOS-safe background (fixed attachment only on large pointer screens) */}
                 <style dangerouslySetInnerHTML={{
-                    __html: `
-                        @import url('https://fonts.googleapis.com/css2?family=${(config.typography?.body || brand?.fontFamily || 'Inter').replace(/ /g, '+')}:wght@100;200;300;400;500;600;700;800;900&display=swap');
-                        
-                        @media (max-width: 767px) {
-                            /* Master Anti-Blowout Rule for all elements on mobile */
-                            [data-element-type="section"],
-                            [data-element-type="row"],
-                            [data-element-type="column"],
-                            [data-element-type="box"],
-                            [data-element-type="text"],
-                            [data-element-type="media"],
-                            [data-element-type="button"] {
-                                max-width: 100% !important;
-                                min-width: 0 !important;
-                                box-sizing: border-box !important;
-                            }
-
-                            [data-element-type="row"],
-                            [data-element-type="box"].is-row-container {
-                                display: flex !important;
-                                flex-direction: column !important;
-                                flex-wrap: wrap !important;
-                            }
-                            [data-element-type="column"] {
-                                width: 100% !important;
-                                flex: 1 1 100% !important;
-                                flex-shrink: 1 !important;
-                                padding-left: 1rem !important;
-                                padding-right: 1rem !important;
-                                margin-left: 0 !important;
-                                margin-right: 0 !important;
-                            }
-                            [data-element-type="box"] {
-                                flex-shrink: 1 !important;
-                            }
-                            [data-element-type="text"] {
-                                overflow-wrap: break-word !important;
-                                word-break: break-word !important;
-                            }
-                            [data-element-type="text"] h1,
-                            [data-element-type="text"] h2 {
-                                font-size: clamp(1.4rem, 5.5vw, 2.2rem) !important;
-                                line-height: 1.25 !important;
-                            }
-                            [data-element-type="text"] h3,
-                            [data-element-type="text"] h4 {
-                                font-size: clamp(1.2rem, 4vw, 1.6rem) !important;
-                                line-height: 1.3 !important;
-                            }
-                            [data-element-type="media"] img,
-                            [data-element-type="media"] video {
-                                height: auto !important;
-                            }
-                        }
-                    `
+                    __html: `.site-nav-toggle{display:none}`
+                        + `@container ${SITE_CONTAINER_NAME} (max-width: ${BREAKPOINT_MAX.mobile}px){.site-nav-desktop{display:none}.site-nav-toggle{display:inline-flex}}`
+                        + `.site-bg-fixed{background-attachment:fixed}`
+                        + `@media (max-width: ${BREAKPOINT_MAX.tablet}px), (hover: none), (pointer: coarse){.site-bg-fixed{background-attachment:scroll}}`
                 }} />
+                {/* Compiled per-node responsive styles (same compiler as the editor canvas) */}
+                <ResponsiveStyles nodes={pageSections} brand={brand} includeRoot={true} />
                 {/* Dedicated Facebook Pixels */}
                 {pixels && pixels.length > 0 && <FacebookPixel pixels={pixels} />}
 
@@ -598,7 +619,7 @@ export default async function PublicWebsitePage({
                 {/* Header */}
                 {config.header?.enabled !== false && currentPage?.showHeader !== false && (
                     <header
-                        className={`flex flex-col md:flex-row items-center justify-between gap-6 group relative border-b border-black/5 ${config.header?.style?.isSticky !== false ? 'sticky top-0 z-40' : ''} transition-all`}
+                        className={`flex flex-row items-center justify-between gap-4 group border-b border-black/5 ${config.header?.style?.isSticky !== false ? 'sticky top-0 z-40' : 'relative'} transition-all`}
                         style={{
                             backgroundColor: config.header?.style?.backgroundColor || hfStyles.backgroundColor,
                             color: config.header?.style?.color || hfStyles.color,
@@ -609,37 +630,43 @@ export default async function PublicWebsitePage({
                             paddingRight: config.header?.style?.paddingRight || (config.header?.style?.paddingX !== undefined ? `${config.header.style.paddingX}rem` : '1.5rem'),
                         }}
                     >
-                        <a href="/" className="flex items-center gap-3">
+                        <a href="/" className="flex items-center gap-3 min-w-0">
                             {config.header?.logo && (
                                 <img src={config.header.logo} alt={config.header?.title || website.name} style={{ height: config.header?.style?.logoHeight ? `${config.header.style.logoHeight}px` : '40px' }} className="w-auto object-contain" />
                             )}
-                            <span className="text-xl font-black tracking-tight text-current" style={{ color: 'inherit' }}>
+                            <span className="text-xl font-black tracking-tight text-current truncate" style={{ color: 'inherit' }}>
                                 {brand?.companyName || config.header?.title || website?.name || 'Website Name'}
                             </span>
                         </a>
 
-                        <nav className="flex flex-wrap justify-center items-center gap-6 text-sm font-bold opacity-80">
-                            {(config.pages || [])
-                                ?.filter((p: any) => (p.isPublished !== false && p.isEnabled !== false) && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header'))
-                                .map((p: any) => (
+                        {navLinks.length > 0 && (
+                            <nav aria-label="Main" className="site-nav-desktop flex flex-wrap justify-end items-center gap-6 text-sm font-bold opacity-80">
+                                {navLinks.map((l) => (
                                     <a
-                                        key={p.id}
-                                        href={p.slug}
-                                        className={`hover:opacity-100 transition-opacity py-1 ${currentSlug === p.slug ? 'border-b-2 border-current' : ''}`}
+                                        key={l.id}
+                                        href={l.href}
+                                        aria-current={l.active ? 'page' : undefined}
+                                        className={`hover:opacity-100 transition-opacity py-1 ${l.active ? 'border-b-2 border-current' : ''}`}
                                         style={{ color: 'inherit' }}
                                     >
-                                        {p.name}
+                                        {l.name}
                                     </a>
                                 ))}
-                        </nav>
+                            </nav>
+                        )}
+                        <SiteMobileNav
+                            links={navLinks}
+                            backgroundColor={config.header?.style?.backgroundColor || hfStyles.backgroundColor}
+                            color={config.header?.style?.color || hfStyles.color}
+                        />
                     </header>
                 )}
 
                 {/* Dynamic Builder Content */}
                 {hasDynamicSections ? (
-                    <main className="flex-1 w-full max-w-full min-h-[50vh] flex flex-col overflow-x-hidden">
-                        {(currentPage?.sections || []).filter((s: any) => s.type !== 'floating').map((sec: any) => (
-                            <BuilderElement key={sec.id} node={sec} brand={brand} isReadOnly={true} />
+                    <main className="flex-1 w-full max-w-full min-h-[50vh] flex flex-col overflow-x-clip">
+                        {pageSections.filter((s: any) => s.type !== 'floating').map((sec: any, i: number) => (
+                            <SiteElement key={sec.id ?? i} node={sec} brand={brand} />
                         ))}
                     </main>
                 ) : (
@@ -684,9 +711,17 @@ export default async function PublicWebsitePage({
                                         <h4 className="font-bold mb-4 opacity-90 text-current" style={{ color: 'inherit' }}>Company</h4>
                                         <div className="text-sm leading-relaxed whitespace-pre-wrap text-current" style={{ color: 'inherit' }}>
                                             <div className="font-semibold">{brand?.companyName || config.header?.title || website.name}</div>
-                                            <div className="opacity-90">{brand?.address || '123 Business Avenue'}</div>
-                                            <div className="opacity-90">{brand?.email || 'email@example.com'}</div>
-                                            {brand?.phone && <div className="opacity-90">{brand.phone}</div>}
+                                            {brand?.address && <div className="opacity-90">{brand.address}</div>}
+                                            {brand?.email && (
+                                                <div className="opacity-90">
+                                                    <a href={`mailto:${brand.email}`} className="hover:underline" style={{ color: 'inherit' }}>{brand.email}</a>
+                                                </div>
+                                            )}
+                                            {brand?.phone && (
+                                                <div className="opacity-90">
+                                                    <a href={`tel:${String(brand.phone).replace(/[^+0-9]/g, '')}`} className="hover:underline" style={{ color: 'inherit' }}>{brand.phone}</a>
+                                                </div>
+                                            )}
                                             {brand?.twitter && (
                                                 <div className="opacity-90 mt-1">
                                                     <a href={brand.twitter} target="_blank" rel="noopener noreferrer" className="hover:underline">Twitter</a>
@@ -731,8 +766,8 @@ export default async function PublicWebsitePage({
                 )}
 
                 {/* Screen Sticky / Floating Elements Overlay */}
-                {(currentPage?.sections || []).filter((s: any) => s.type === 'floating').map((sec: any) => (
-                    <BuilderElement key={sec.id} node={sec} brand={brand} isReadOnly={true} />
+                {pageSections.filter((s: any) => s.type === 'floating').map((sec: any, i: number) => (
+                    <SiteElement key={sec.id ?? i} node={sec} brand={brand} />
                 ))}
 
                 {/* Global Body Scripts (SSR + Client Injection) */}

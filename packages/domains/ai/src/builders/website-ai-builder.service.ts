@@ -10,11 +10,317 @@ export interface ElementNode {
     type: 'section' | 'box' | 'row' | 'column' | 'text' | 'media' | 'button' | 'line' | 'floating' | 'code';
     data?: any;
     style?: any;
+    /** Per-device style overrides merged over `style` (desktop = base). See docs/website-builder/AUDIT_AND_PLAN.md §2. */
+    responsive?: { tablet?: Record<string, any>; mobile?: Record<string, any> };
+    hiddenOn?: { desktop?: boolean; tablet?: boolean; mobile?: boolean };
     children?: ElementNode[];
     animation?: any;
+    name?: string;
 }
 
 const genId = (prefix: string = 'el') => `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+// ---------------------------------------------------------------------------------------------------------------
+// Typed errors
+// ---------------------------------------------------------------------------------------------------------------
+
+export type WebsiteBuilderErrorCode =
+    | 'AI_NOT_CONFIGURED'
+    | 'AI_PROVIDER_ERROR'
+    | 'AI_INVALID_OUTPUT'
+    | 'INVALID_INPUT'
+    | 'COMPANY_REQUIRED'
+    | 'WEBSITE_NOT_FOUND'
+    | 'SAVE_FAILED';
+
+const WEBSITE_BUILDER_STATUS: Record<WebsiteBuilderErrorCode, number> = {
+    AI_NOT_CONFIGURED: 503,
+    AI_PROVIDER_ERROR: 502,
+    AI_INVALID_OUTPUT: 502,
+    INVALID_INPUT: 400,
+    COMPANY_REQUIRED: 403,
+    WEBSITE_NOT_FOUND: 404,
+    SAVE_FAILED: 500,
+};
+
+export class WebsiteBuilderError extends Error {
+    readonly code: WebsiteBuilderErrorCode;
+    readonly statusCode: number;
+    constructor(code: WebsiteBuilderErrorCode, message: string) {
+        super(message);
+        this.name = 'WebsiteBuilderError';
+        this.code = code;
+        this.statusCode = WEBSITE_BUILDER_STATUS[code];
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// AI output validation / sanitization (pure; exported for tests)
+// ---------------------------------------------------------------------------------------------------------------
+
+export const WEBSITE_ELEMENT_TYPES = ['section', 'box', 'row', 'column', 'text', 'media', 'button', 'line', 'code', 'floating'] as const;
+const ALLOWED_TYPES = new Set<string>(WEBSITE_ELEMENT_TYPES);
+const CONTAINER_TYPES = new Set<string>(['section', 'box', 'row', 'column', 'floating']);
+const TEXT_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'div', 'blockquote']);
+const FLOATING_POSITIONS = new Set(['bottom-right', 'bottom-left', 'top-right', 'top-left']);
+
+export const WEBSITE_SANITIZE_LIMITS = {
+    maxDepth: 8,
+    maxNodes: 600,
+    maxChildren: 40,
+    maxSections: 20,
+    maxTextLength: 5000,
+    maxStyleKeys: 60,
+    maxStyleValueLength: 300,
+};
+
+/** Removes executable markup from rich text / HTML (scripts, event handlers, javascript: URLs). */
+export function sanitizeRichText(input: unknown, maxLength = WEBSITE_SANITIZE_LIMITS.maxTextLength): string {
+    if (input === null || input === undefined) return '';
+    let s = String(input);
+    s = s.replace(/<\s*(script|style|iframe|object|embed|noscript|template)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+    s = s.replace(/<\s*\/?\s*(script|style|iframe|object|embed|noscript|template|meta|link|base|form)\b[^>]*>/gi, '');
+    s = s.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    s = s.replace(/(href|src|action|formaction|xlink:href)\s*=\s*(["']?)\s*(?:javascript|vbscript|data)\s*:[^"'\s>]*\2/gi, '$1="#"');
+    return s.slice(0, maxLength);
+}
+
+/** Plain text: strips all tags. */
+export function sanitizePlainText(input: unknown, maxLength = 500): string {
+    if (input === null || input === undefined) return '';
+    return sanitizeRichText(input, maxLength * 4).replace(/<[^>]*>/g, '').slice(0, maxLength);
+}
+
+/** Absolute http(s) URL or ''. Used for media sources. */
+export function sanitizeHttpUrl(input: unknown): string {
+    if (typeof input !== 'string') return '';
+    const s = input.trim();
+    if (!/^https?:\/\//i.test(s)) return '';
+    try {
+        const u = new URL(s);
+        return u.protocol === 'http:' || u.protocol === 'https:' ? u.toString() : '';
+    } catch {
+        return '';
+    }
+}
+
+/** Link target: in-page anchor, site-relative path, http(s), mailto: or tel:. Anything else becomes '#'. */
+export function sanitizeLink(input: unknown): string {
+    if (typeof input !== 'string') return '#';
+    const s = input.trim();
+    if (!s) return '#';
+    if (/^#[A-Za-z0-9_\-:.]*$/.test(s)) return s;
+    if (/^\/(?!\/)[^\s<>"']*$/.test(s)) return s;
+    if (/^(mailto|tel):[^\s<>"']+$/i.test(s)) return s;
+    return sanitizeHttpUrl(s) || '#';
+}
+
+function isPlainObject(v: unknown): v is Record<string, any> {
+    return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+/** CSS-in-JS style object: camelCase keys, string/number values, no `;{}<>`, no script URLs or expressions. */
+export function sanitizeStyle(input: unknown): Record<string, any> {
+    if (!isPlainObject(input)) return {};
+    const out: Record<string, any> = {};
+    let n = 0;
+    for (const [key, raw] of Object.entries(input)) {
+        if (n >= WEBSITE_SANITIZE_LIMITS.maxStyleKeys) break;
+        if (!/^[a-zA-Z][a-zA-Z0-9]{0,40}$/.test(key)) continue;
+        if (key === 'tagName') {
+            const tag = String(raw || '').toLowerCase();
+            if (TEXT_TAGS.has(tag)) { out.tagName = tag; n++; }
+            continue;
+        }
+        if (typeof raw === 'number') {
+            if (Number.isFinite(raw)) { out[key] = raw; n++; }
+            continue;
+        }
+        if (typeof raw !== 'string') continue;
+        let v = raw.replace(/[;{}<>]/g, '').trim().slice(0, WEBSITE_SANITIZE_LIMITS.maxStyleValueLength);
+        if (/expression\s*\(|javascript:|vbscript:|@import|behavior\s*:/i.test(v)) continue;
+        if (/url\s*\(/i.test(v)) {
+            const urls = v.match(/url\s*\(\s*(['"]?)(.*?)\1\s*\)/gi) || [];
+            const allSafe = urls.length > 0 && urls.every((u) => /url\s*\(\s*(['"]?)https?:\/\//i.test(u));
+            if (!allSafe) continue;
+        }
+        if (!v) continue;
+        out[key] = v;
+        n++;
+    }
+    return out;
+}
+
+function sanitizeData(type: string, data: unknown): Record<string, any> {
+    const d = isPlainObject(data) ? data : {};
+    switch (type) {
+        case 'text':
+            return { content: sanitizeRichText(d.content ?? d.text ?? '') };
+        case 'button': {
+            const out: Record<string, any> = { content: sanitizePlainText(d.content ?? d.text ?? '', 120), link: sanitizeLink(d.link ?? d.href) };
+            if (typeof d.openInNewTab === 'boolean') out.openInNewTab = d.openInNewTab;
+            return out;
+        }
+        case 'media': {
+            const out: Record<string, any> = { imageUrl: sanitizeHttpUrl(d.imageUrl ?? d.src ?? '') };
+            const video = sanitizeHttpUrl(d.videoUrl);
+            if (video) out.videoUrl = video;
+            if (d.alt !== undefined) out.alt = sanitizePlainText(d.alt, 200);
+            return out;
+        }
+        case 'code':
+            return { html: sanitizeRichText(d.html ?? '', 20000) };
+        case 'floating': {
+            const out: Record<string, any> = { position: FLOATING_POSITIONS.has(d.position) ? d.position : 'bottom-right' };
+            if (d.link !== undefined) out.link = sanitizeLink(d.link);
+            return out;
+        }
+        default:
+            return {};
+    }
+}
+
+function sanitizeResponsive(input: unknown): ElementNode['responsive'] | undefined {
+    if (!isPlainObject(input)) return undefined;
+    const out: any = {};
+    for (const bp of ['tablet', 'mobile']) {
+        const s = sanitizeStyle(input[bp]);
+        if (Object.keys(s).length) out[bp] = s;
+    }
+    return Object.keys(out).length ? out : undefined;
+}
+
+function sanitizeHiddenOn(input: unknown): ElementNode['hiddenOn'] | undefined {
+    if (!isPlainObject(input)) return undefined;
+    const out: any = {};
+    for (const bp of ['desktop', 'tablet', 'mobile']) if (input[bp] === true) out[bp] = true;
+    return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * Validates one untrusted node (from an LLM). Only allowed element types survive; ids are regenerated;
+ * depth, node count and children are capped; text is stripped of scripts; URLs must be http(s).
+ */
+export function sanitizeElementNode(raw: unknown, depth = 0, ctx: { count: number } = { count: 0 }): ElementNode | null {
+    if (!isPlainObject(raw)) return null;
+    if (depth > WEBSITE_SANITIZE_LIMITS.maxDepth) return null;
+    if (ctx.count >= WEBSITE_SANITIZE_LIMITS.maxNodes) return null;
+
+    let type = String(raw.type || '').toLowerCase();
+    if (type === 'image' || type === 'video') type = 'media';
+    if (!ALLOWED_TYPES.has(type)) {
+        if (Array.isArray(raw.children) && raw.children.length) type = 'box';
+        else return null;
+    }
+    if (type === 'section' && depth > 0) type = 'box';
+    if (type === 'floating' && depth > 0) type = 'box';
+
+    ctx.count++;
+    const node: ElementNode = {
+        id: genId(type),
+        type: type as ElementNode['type'],
+        data: sanitizeData(type, raw.data),
+        style: sanitizeStyle(raw.style),
+    };
+    const responsive = sanitizeResponsive(raw.responsive);
+    if (responsive) node.responsive = responsive;
+    const hiddenOn = sanitizeHiddenOn(raw.hiddenOn);
+    if (hiddenOn) node.hiddenOn = hiddenOn;
+    if (typeof raw.name === 'string' && raw.name.trim()) node.name = sanitizePlainText(raw.name, 80);
+
+    if (CONTAINER_TYPES.has(type)) {
+        const kids = Array.isArray(raw.children) ? raw.children.slice(0, WEBSITE_SANITIZE_LIMITS.maxChildren) : [];
+        node.children = kids
+            .map((c: unknown) => sanitizeElementNode(c, depth + 1, ctx))
+            .filter((c: ElementNode | null): c is ElementNode => !!c);
+    }
+    return node;
+}
+
+/** Validates a list of top-level sections. Non-section top-level nodes are wrapped in a section. */
+export function sanitizeSections(raw: unknown, ctx: { count: number } = { count: 0 }): ElementNode[] {
+    if (!Array.isArray(raw)) return [];
+    const out: ElementNode[] = [];
+    for (const item of raw.slice(0, WEBSITE_SANITIZE_LIMITS.maxSections)) {
+        const node = sanitizeElementNode(item, 0, ctx);
+        if (!node) continue;
+        if (node.type === 'section' || node.type === 'floating') {
+            out.push(node);
+        } else {
+            out.push({ id: genId('section'), type: 'section', data: {}, style: { paddingY: 4 }, children: [node] });
+        }
+    }
+    return out;
+}
+
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const FONT_NAME = /^[A-Za-z0-9 \-]{1,40}$/;
+
+export function sanitizeBrand(raw: unknown): Record<string, string> {
+    if (!isPlainObject(raw)) return {};
+    const out: Record<string, string> = {};
+    for (const k of ['primaryColor', 'secondaryColor', 'textColor']) {
+        if (typeof raw[k] === 'string' && HEX_COLOR.test(raw[k].trim())) out[k] = raw[k].trim();
+    }
+    for (const k of ['headingFont', 'bodyFont']) {
+        if (typeof raw[k] === 'string' && FONT_NAME.test(raw[k].trim())) out[k] = raw[k].trim();
+    }
+    return out;
+}
+
+/**
+ * Validates a full LLM website response `{ title, brand, sections }`.
+ * Throws AI_INVALID_OUTPUT when nothing renderable survives.
+ */
+export function sanitizeGeneratedWebsite(parsed: unknown): { title: string; brand: Record<string, string>; sections: ElementNode[] } {
+    if (!isPlainObject(parsed)) {
+        throw new WebsiteBuilderError('AI_INVALID_OUTPUT', 'The AI response was not valid website JSON.');
+    }
+    const sections = sanitizeSections(parsed.sections);
+    if (!sections.some((s) => s.type === 'section' && (s.children || []).length > 0)) {
+        throw new WebsiteBuilderError('AI_INVALID_OUTPUT', 'The AI response did not contain any renderable sections.');
+    }
+    return {
+        title: sanitizePlainText(parsed.title, 80),
+        brand: sanitizeBrand(parsed.brand),
+        sections,
+    };
+}
+
+/** Shared element-schema instructions for generation prompts. */
+const ELEMENT_SCHEMA_PROMPT = `ELEMENT SCHEMA (JSON). Every node: { "type", "name"?, "data"?, "style"?, "responsive"?, "hiddenOn"?, "children"? }. Do not include ids.
+Allowed "type" values ONLY: section | box | row | column | text | media | button | line | code | floating.
+- section: top-level block. style: { "paddingY": number (rem, e.g. 5), "backgroundColor", "color" }. Put content in children.
+- box: flex container (style.flexDirection "column" or "row", gap, alignItems, maxWidth, margin "0 auto", padding, backgroundColor, borderRadius).
+  Grids: box with style { "display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(260px, 1fr))", "gap": "2rem" }.
+- row: horizontal flex container whose children are columns. column: style { "flex": "1 1 300px" }.
+- text: data.content is plain text or simple inline HTML (<strong>, <em>, <br>, <a href>). style.tagName one of h1,h2,h3,h4,p,span. Use fontSize, fontWeight, lineHeight, textAlign, color, opacity, marginBottom.
+- button: data { "content": label, "link": "#section-name" | "/path" | "https://..." }. style { backgroundColor, color, borderRadius, padding }.
+- media: data.imageUrl MUST be "" unless the user gave an exact image URL (the user uploads real images). style { "width": "100%", "aspectRatio": "16/9", "borderRadius" }.
+- line: divider. style { "backgroundColor", "thickness": "1px" }.
+- responsive: per-device style overrides merged over style, e.g. { "mobile": { "fontSize": "2.25rem" } } on an h1, { "mobile": { "flexDirection": "column" } } on a row-direction box, { "mobile": { "paddingY": 3 } } on a section. Add mobile overrides for large headings, large paddings and side-by-side layouts.
+- hiddenOn: { "mobile": true } to hide decorative elements on phones.
+HONESTY RULES (mandatory): never invent statistics, customer counts, ratings, reviews, testimonials, awards, client logos, prices, phone numbers, email addresses or street addresses. When a section needs such facts, use clearly editable bracketed placeholders like "[Add a customer quote]" or "[Your email]". Only state facts given in the business context or the user's request.
+No <script>, no inline event handlers, no external fonts or CSS.`;
+
+// Section summary for prompts
+function describeSections(sections: any[]): string {
+    return sections
+        .map((s, i) => {
+            const label = s?.name || (() => {
+                let found = '';
+                const walk = (n: any) => {
+                    if (found || !n) return;
+                    if (n.type === 'text' && n.data?.content) { found = String(n.data.content).replace(/<[^>]*>/g, '').slice(0, 60); return; }
+                    (n.children || []).forEach(walk);
+                };
+                walk(s);
+                return found || s?.type || 'Section';
+            })();
+            return `  ${i + 1}. ${label}`;
+        })
+        .join('\n');
+}
 
 export class WebsiteAIBuilderService implements IUniversalBuilder {
     readonly builderType = 'website';
@@ -93,6 +399,22 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
         };
     }
 
+    private createGrid(children: ElementNode[] = [], columns: number = 3): ElementNode {
+        return this.createBox(children, {
+            display: 'grid',
+            gridTemplateColumns: `repeat(auto-fit, minmax(${columns >= 3 ? 240 : 300}px, 1fr))`,
+            gap: '1.5rem',
+            width: '100%'
+        });
+    }
+
+    private createCard(title: string, body: string): ElementNode {
+        return this.createBox([
+            this.createText(title, { tagName: 'h3', fontSize: '1.15rem', fontWeight: '700', marginBottom: '0.5rem' }),
+            this.createText(body, { tagName: 'p', lineHeight: '1.6', opacity: 0.8 })
+        ], { backgroundColor: '#f8fafc', borderRadius: '1rem', padding: '1.5rem', borderStyle: 'solid', borderWidth: '1px', borderColor: '#e2e8f0' });
+    }
+
     private createFloating(data: any = {}, style: any = {}): ElementNode {
         return {
             id: genId('floating'),
@@ -120,17 +442,185 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
         };
     }
 
+    /** Resolves the company's AI client or throws AI_NOT_CONFIGURED. Never falls back to another company. */
+    private async resolveCompanyClient(companyId: string) {
+        if (!companyId) throw new WebsiteBuilderError('COMPANY_REQUIRED', 'A company context is required.');
+        const { settings, companyName } = await AICompanyConfigService.getCompanyAISettings(companyId);
+        const client = await aiProviderService.getClient(settings);
+        if (!client) {
+            throw new WebsiteBuilderError(
+                'AI_NOT_CONFIGURED',
+                `No usable AI provider key for this workspace (provider "${settings?.aiProvider || 'none'}"). Add a key in Settings > AI.`
+            );
+        }
+        return { client, companyName };
+    }
+
+    /** Facts about the business the model may use (company profile only; nothing invented). */
+    private async loadBusinessContext(companyId: string, companyName: string): Promise<string> {
+        const company = await basePrisma.company.findUnique({
+            where: { id: companyId },
+            select: { name: true, tagline: true, oneLineDescription: true, industry: true, aboutUs: true, mission: true, headquarters: true, website: true },
+        }).catch(() => null);
+        const lines = [
+            `- Business name: ${company?.name || companyName}`,
+            company?.tagline ? `- Tagline: ${company.tagline}` : '',
+            company?.oneLineDescription ? `- One-line description: ${company.oneLineDescription}` : '',
+            company?.industry ? `- Industry: ${company.industry}` : '',
+            company?.aboutUs ? `- About: ${String(company.aboutUs).slice(0, 800)}` : '',
+            company?.mission ? `- Mission: ${String(company.mission).slice(0, 400)}` : '',
+            company?.headquarters ? `- Location: ${company.headquarters}` : '',
+        ].filter(Boolean);
+        return lines.join('\n');
+    }
+
+    private async callModel(client: any, prompt: string): Promise<any> {
+        let raw: string;
+        try {
+            raw = await client.generate(prompt, { max_tokens: 8000, temperature: 0.6 });
+        } catch (err: any) {
+            throw new WebsiteBuilderError('AI_PROVIDER_ERROR', `The AI provider request failed: ${err?.message || 'unknown error'}`);
+        }
+        const parsed = this.extractJSON(raw || '');
+        if (!parsed) throw new WebsiteBuilderError('AI_INVALID_OUTPUT', 'The AI response was not valid JSON.');
+        return parsed;
+    }
+
+    /**
+     * Generates a new website with the company's LLM. The model outputs element trees (ElementNode schema),
+     * which are validated/sanitized before saving. `mode: 'template'` builds a user-chosen starter template
+     * instead (no model call, clearly labelled as a template).
+     */
     async compileAST(params: BuilderGenerationParams): Promise<BuilderResult> {
+        if (params.mode === 'template') return this.compileStarterTemplate(params);
+
+        const { companyId, userId } = params;
+        const textPrompt = (params.prompt || '').trim().slice(0, 4000);
+        if (!companyId) throw new WebsiteBuilderError('COMPANY_REQUIRED', 'A company context is required.');
+        if (!textPrompt) throw new WebsiteBuilderError('INVALID_INPUT', 'Describe the website you want to generate.');
+
+        const { client, companyName } = await this.resolveCompanyClient(companyId);
+        const businessContext = await this.loadBusinessContext(companyId, companyName);
+        const rawTheme = (params as any).theme ?? params.meta?.theme;
+        const themeHint = typeof rawTheme === 'string' ? rawTheme.slice(0, 200) : '';
+
+        const prompt = `You are a senior web designer. Design a complete, responsive single-page website for a visual website builder.
+
+BUSINESS CONTEXT (facts you may use):
+${businessContext || '- (none provided)'}
+
+USER REQUEST: "${textPrompt.replace(/"/g, '\\"')}"
+${themeHint ? `STYLE PREFERENCE: "${themeHint.replace(/"/g, '\\"')}"\n` : ''}
+${ELEMENT_SCHEMA_PROMPT}
+
+Build 4 to 8 sections that fit the request (for example a hero, what we offer, how it works, about, FAQ, call to action, contact). Give each section a short "name".
+Return ONLY one JSON object, no markdown:
+{
+  "title": "Short website title",
+  "brand": { "primaryColor": "#hex", "secondaryColor": "#hex", "textColor": "#hex", "headingFont": "Inter", "bodyFont": "Inter" },
+  "sections": [ /* section nodes */ ]
+}`;
+
+        const parsed = await this.callModel(client, prompt);
+        const site = sanitizeGeneratedWebsite(parsed);
+
+        const siteTitle = site.title || companyName || 'New Website';
+        const brand = {
+            primaryColor: '#4f46e5',
+            secondaryColor: '#ffffff',
+            textColor: '#111827',
+            headingFont: 'Inter',
+            bodyFont: 'Inter',
+            fontFamily: site.brand.bodyFont || 'Inter',
+            headerFooterTheme: 'light',
+            bgType: 'color',
+            bgValue: '#ffffff',
+            ...site.brand,
+        };
+
+        const finalConfig = {
+            version: 2,
+            brand,
+            header: { logo: '', showNavigation: true, navigation: [] },
+            footer: { copyright: `© ${new Date().getFullYear()} ${siteTitle}. All rights reserved.`, links: [] },
+            pages: [{ id: 'home', name: 'Home', slug: '/', isEnabled: true, sections: site.sections }],
+        };
+
+        const website = await this.persistNewWebsite(companyId, userId, siteTitle, finalConfig);
+        const editUrl = `/advertising/${website.id}/edit`;
+        const sectionNames = site.sections.filter((s) => s.type === 'section').map((s, i) => s.name || `Section ${i + 1}`);
+
+        const reply = `🌐 **${siteTitle}** was generated from your description and saved with ${sectionNames.length} sections: ${sectionNames.join(', ')}.\n\n` +
+            `• **Subdomain**: \`${website.slug}\`\n` +
+            `• Image slots are left empty for your own photos, and anything in [brackets] is a placeholder to replace with your real details.\n\n` +
+            `Open the **Website Builder** to review and edit before sharing.`;
+
+        return {
+            success: true,
+            builderType: this.builderType,
+            entityId: website.id,
+            title: siteTitle,
+            editUrl,
+            reply,
+            ast: finalConfig,
+            actionCards: [{ type: 'edit', label: 'Open in Website Builder →', url: editUrl }],
+        };
+    }
+
+    /** Creates the Website row + subdomain registry entry, scoped to the company. */
+    private async persistNewWebsite(companyId: string, userId: string | undefined, siteTitle: string, finalConfig: any) {
+        if (!companyId) throw new WebsiteBuilderError('COMPANY_REQUIRED', 'A company context is required.');
+        if (!userId) throw new WebsiteBuilderError('INVALID_INPUT', 'A user context is required to own the website.');
+
+        let baseSlug = (siteTitle || 'site')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '') || 'site';
+        if (baseSlug.length > 30) baseSlug = baseSlug.slice(0, 30);
+
+        let slug = baseSlug;
+        const existingDomain = await basePrisma.domainRegistry.findFirst({ where: { domain: slug } }).catch(() => null);
+        const existingSite = await basePrisma.website.findFirst({ where: { slug } }).catch(() => null);
+        if (existingDomain || existingSite) {
+            slug = `${baseSlug}-${Date.now().toString(36).slice(-5)}`;
+        }
+
+        const website = await basePrisma.website.create({
+            data: {
+                name: siteTitle,
+                slug,
+                companyId,
+                template: 'default',
+                config: finalConfig,
+                publishedConfig: finalConfig,
+                isPublished: true,
+                owner: userId,
+                status: 'active'
+            }
+        });
+
+        await basePrisma.domainRegistry.create({
+            data: { domain: slug, type: 'ADVERTISING_WEBSITE', targetId: website.id, companyId }
+        }).catch((err: any) => {
+            console.warn('[WebsiteAIBuilder] domain registry insert failed:', err?.message);
+        });
+
+        return website;
+    }
+
+    /**
+     * Starter templates (festival / e-commerce / agency / general). User-chosen via `mode: 'template'`;
+     * no model call, and the reply says the content is placeholder template copy.
+     */
+    private async compileStarterTemplate(params: BuilderGenerationParams): Promise<BuilderResult> {
         const { prompt, companyId, userId } = params;
         const textPrompt = (prompt || '').trim();
 
-        let effectiveCompanyId = companyId;
-        if (!effectiveCompanyId) {
-            const firstCompany = await prisma.company.findFirst().catch(() => null);
-            effectiveCompanyId = firstCompany?.id;
-        }
+        if (!companyId) throw new WebsiteBuilderError('COMPANY_REQUIRED', 'A company context is required.');
+        const effectiveCompanyId = companyId;
 
-        const { settings, companyName } = await AICompanyConfigService.getCompanyAISettings(effectiveCompanyId);
+        const { companyName } = await AICompanyConfigService.getCompanyAISettings(effectiveCompanyId);
 
         // 1. Extract Name/Title if specified
         let extractedTitle = '';
@@ -457,59 +947,14 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
             ]
         };
 
-        // Generate clean unique subdomain slug
-        let baseSlug = (siteTitle || 'site')
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '') || 'site';
-
-        if (baseSlug.length > 30) baseSlug = baseSlug.slice(0, 30);
-        
-        let slug = baseSlug;
-        const existingDomain = await basePrisma.domainRegistry.findFirst({ where: { domain: slug } }).catch(() => null);
-        if (existingDomain) {
-            slug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
-        }
-
-        // Persist the website in PostgreSQL
-        let effectiveUserId = userId;
-        if (!effectiveUserId) {
-            const firstUser = await prisma.user.findFirst({ where: { companyId: effectiveCompanyId } }).catch(() => null);
-            effectiveUserId = firstUser?.id || 'system';
-        }
-
-        const website = await prisma.website.create({
-            data: {
-                name: siteTitle,
-                slug,
-                companyId: effectiveCompanyId,
-                template: 'default',
-                config: finalConfig,
-                publishedConfig: finalConfig,
-                isPublished: true,
-                owner: effectiveUserId,
-                status: 'active'
-            }
-        });
-
-        // Register subdomain in domain registry
-        await basePrisma.domainRegistry.create({
-            data: {
-                domain: slug,
-                type: 'ADVERTISING_WEBSITE',
-                targetId: website.id,
-                companyId: effectiveCompanyId
-            }
-        }).catch(() => {});
+        const website = await this.persistNewWebsite(effectiveCompanyId, userId, siteTitle, finalConfig);
+        const slug = website.slug;
 
         const editUrl = `/advertising/${website.id}/edit`;
 
-        const reply = `🌐 **${siteTitle}** has been synthesized and saved with ${sections.length} high-fidelity sections!\n\n` +
+        const reply = `🧩 **${siteTitle}** was created from the **${isDiwaliOrFestival ? 'Festive Campaign' : isEcommerce ? 'E-Commerce Storefront' : isAgency ? 'Creative Agency / Portfolio' : 'Landing Page'} starter template** with ${sections.length} sections.\n\n` +
             `• **Subdomain**: \`${slug}\`\n` +
-            `• **Category**: ${isDiwaliOrFestival ? 'Festive Holiday Campaign' : isEcommerce ? 'E-Commerce Storefront' : isAgency ? 'Creative Agency / Portfolio' : 'SaaS Landing Page'}\n` +
-            `• **Theme**: ${brand.primaryColor} (Inter Typography)\n` +
-            `• **Sections**: ${sections.map((s: any) => s.id.split('-')[1] || s.type).join(', ')}\n\n` +
+            `• Template text, numbers, reviews and images are sample placeholders — replace them with your real content before sharing.\n\n` +
             `You can open and customize the site live in the **Website Builder** below.`;
 
         return {
@@ -989,29 +1434,47 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
         ];
     }
 
+    /** User-chosen starter template sections (sample copy, clearly labelled as such in the reply). */
+    private buildTemplateSections(kind: string, primaryColor: string, siteName: string, instruction: string): { sections: ElementNode[]; label: string } | null {
+        const k = kind.toLowerCase().replace(/\s+page$/, '').replace(/s$/, '').replace(/[\s-]+/g, '-');
+        switch (k) {
+            case 'hero': return { sections: [this.createHeroSection(siteName, undefined, primaryColor)], label: 'Hero' };
+            case 'feature': return { sections: [this.createFeaturesSection(primaryColor)], label: 'Features' };
+            case 'testimonial': return { sections: [this.createTestimonialsSection(primaryColor)], label: 'Testimonials' };
+            case 'pricing': return { sections: [this.createPricingSection(primaryColor)], label: 'Pricing' };
+            case 'faq': return { sections: [this.createFAQSection(primaryColor)], label: 'FAQ' };
+            case 'stat': return { sections: [this.createStatsSection(primaryColor)], label: 'Stats' };
+            case 'team': return { sections: [this.createTeamSection(primaryColor)], label: 'Team' };
+            case 'contact': return { sections: [this.createContactSection(primaryColor)], label: 'Contact' };
+            case 'cta': return { sections: [this.createCtaSection(undefined, primaryColor)], label: 'Call to action' };
+            case 'thank-you': return { sections: this.createThankYouSections(primaryColor), label: 'Thank-you' };
+            case 'landing': return { sections: this.createTailoredLandingPage(instruction, siteName, primaryColor).sections, label: 'Landing page' };
+            default: return null;
+        }
+    }
+
+    /**
+     * Conversational website editing. Exact structural commands (clear page, delete section N / by name,
+     * set an explicit hex theme colour, insert a named starter template) run deterministically. Everything
+     * else goes to the company's LLM, whose element output is validated before it is applied. Provider or
+     * parse failures throw typed errors; they are never replaced by canned content.
+     */
     async patchAST(entityId: string, instruction: string, params: BuilderGenerationParams): Promise<BuilderResult> {
         const { prompt, companyId, stateContext } = params;
-        const textInstruction = (instruction || prompt || '').trim();
-        const lowerInstruction = textInstruction.toLowerCase();
+        const textInstruction = (instruction || prompt || '').trim().slice(0, 4000);
+        if (!companyId) throw new WebsiteBuilderError('COMPANY_REQUIRED', 'A company context is required.');
+        if (!entityId) throw new WebsiteBuilderError('INVALID_INPUT', 'Website ID is required.');
+        if (!textInstruction) throw new WebsiteBuilderError('INVALID_INPUT', 'Tell the AI what to change.');
+
+        // Tenant-scoped load: a website of another company is "not found".
+        const website = await basePrisma.website.findFirst({ where: { id: entityId, companyId } });
+        if (!website) throw new WebsiteBuilderError('WEBSITE_NOT_FOUND', 'Website not found');
 
         const activeState = params.stateContext || params.existingAST;
-        const website = await prisma.website.findUnique({ where: { id: entityId } }).catch(() => null);
-        if (!website && !activeState) {
-            return {
-                success: false,
-                builderType: this.builderType,
-                entityId,
-                title: 'Website Not Found',
-                editUrl: `/advertising`,
-                reply: `❌ Could not find website with ID ${entityId}.`,
-                ast: null
-            };
-        }
+        const siteName = website.name || 'Website';
 
-        const siteName = website?.name || activeState?.name || activeState?.title || activeState?.brand?.siteTitle || 'Active Website';
-
-        // Live Context Ground Truth: Use stateContext from active editor if provided, otherwise website.config
-        let currentConfig = activeState || website?.config || {};
+        // Live editor state is the ground truth when provided; otherwise the saved config.
+        const currentConfig: any = activeState && typeof activeState === 'object' ? activeState : (website.config || {});
         if (!currentConfig.pages || !Array.isArray(currentConfig.pages) || currentConfig.pages.length === 0) {
             currentConfig.pages = [
                 {
@@ -1023,7 +1486,7 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
                 }
             ];
         }
-
+        if (!currentConfig.version) currentConfig.version = 2;
         if (!currentConfig.brand) {
             currentConfig.brand = { primaryColor: '#4f46e5', headingFont: 'Inter', bodyFont: 'Inter' };
         }
@@ -1033,430 +1496,209 @@ export class WebsiteAIBuilderService implements IUniversalBuilder {
         const targetPageIndex = currentConfig.pages.findIndex((p: any) => p.id === targetPageId);
         const activePageIndex = targetPageIndex !== -1 ? targetPageIndex : 0;
         const activePage = currentConfig.pages[activePageIndex];
-        let activeSections: ElementNode[] = activePage.sections || [];
+        const activeSections: ElementNode[] = Array.isArray(activePage.sections) ? activePage.sections : [];
         const primaryColor = currentConfig.brand?.primaryColor || '#4f46e5';
+        const pageLabel = activePage.name || activePage.id;
 
-        // 1. Conversational Greeting & Consciousness Inquiry
-        if (this.isGreetingOrChitchat(textInstruction)) {
-            const sectionList = activeSections.length > 0
-                ? activeSections.map((s, idx) => `• Section ${idx + 1}: **${this.extractSectionTitle(s)}**`).join('\n')
-                : '• *(Canvas is currently empty)*';
-
+        const done = async (reply: string, changed: boolean): Promise<BuilderResult> => {
+            if (changed) {
+                let count = 0;
+                try {
+                    ({ count } = await basePrisma.website.updateMany({
+                        where: { id: entityId, companyId },
+                        // Draft only — changes go live when the user publishes from the editor.
+                        data: { config: currentConfig }
+                    }));
+                } catch (err: any) {
+                    throw new WebsiteBuilderError('SAVE_FAILED', `Could not save the website: ${err?.message || 'database error'}`);
+                }
+                if (!count) throw new WebsiteBuilderError('WEBSITE_NOT_FOUND', 'Website not found');
+                reply += '\n\n_Saved as a draft — click **Publish** in the editor to make it live._';
+            }
             return {
                 success: true,
                 builderType: this.builderType,
                 entityId,
                 title: siteName,
                 editUrl,
-                reply: `👋 Hello! I am your **180 Workspace AI Website Architect**.\n\nI have live awareness of your active website **"${siteName}"** (Active Page: **"${activePage.name || activePage.id}"**, with ${activeSections.length} sections across ${currentConfig.pages.length} page(s)):\n${sectionList}\n\n**Instruct me to continue building:**\n• *"Add an About page"* or *"Add Contact Us page"*\n• *"Add a customer testimonials and review section"*\n• *"Add a 3-tier pricing table"*\n• *"Add an FAQ accordion section"*\n• *"Switch visual theme to emerald green (#10b981)"*\n• *"Delete the hero section" or "Clear page"*`,
+                reply,
                 ast: currentConfig,
-                actionCards: [
-                    { type: 'edit', label: 'View in Website Builder →', url: editUrl }
-                ]
+                actionCards: [{ type: 'edit', label: 'View in Website Builder →', url: editUrl }]
             };
+        };
+
+        // 1. Greeting / help (static help text, no content generated)
+        if (this.isGreetingOrChitchat(textInstruction)) {
+            const sectionList = activeSections.length > 0
+                ? activeSections.map((s: any, idx) => `• Section ${idx + 1}: **${s.name || this.extractSectionTitle(s)}**`).join('\n')
+                : '• *(Canvas is currently empty)*';
+            return done(`👋 Hello! I am your **180 Workspace AI Website Architect**.\n\nYour website **"${siteName}"** (page **"${pageLabel}"**, ${activeSections.length} sections across ${currentConfig.pages.length} page(s)):\n${sectionList}\n\n**Try:**\n• *"Add an About page"*\n• *"Add an FAQ section about delivery and returns"*\n• *"Rewrite the hero headline to focus on speed"*\n• *"Set theme colour to #10b981"*\n• *"Delete section 2"* or *"Clear page"*\n• *"Add pricing template"* (inserts a starter template with sample copy)`, false);
         }
 
-        let effectiveCompanyId = website?.companyId || companyId;
-        const { settings, companyName } = await AICompanyConfigService.getCompanyAISettings(effectiveCompanyId);
-
-        let aiHandled = false;
-        let aiReply = '';
-        const addedDetails: string[] = [];
-
-        const history = Array.isArray(params.history) ? params.history : [];
-        const lastAssistantMsg = [...history].reverse().find((m: any) => (m.role === 'assistant' || m.sender === 'assistant'))?.text || '';
-
-        // 1.5 Affirmative Follow-up Intent ("yes", "sure", "do it", "go ahead", "add it", "okay", "please do")
-        const isAffirmative = /^(?:yes|yeah|yep|sure|ok|okay|do it|go ahead|please do|add it|sounds good|proceed|fine|confirm|definitely|absolutely)\b/i.test(textInstruction.trim());
-        if (!aiHandled && isAffirmative) {
-            const lastLower = lastAssistantMsg.toLowerCase();
-            if (lastLower.includes('feature')) {
-                activeSections.push(this.createFeaturesSection(primaryColor));
-                currentConfig.pages[activePageIndex].sections = activeSections;
-                aiReply = `🚀 **Features Section Added**: Based on your confirmation, I have added the **Features & Benefits** section to your active page!\n\n💬 Would you also like to add **Customer Testimonials** or a **Pricing Matrix**?`;
-                aiHandled = true;
-            } else if (lastLower.includes('testimonial') || lastLower.includes('review')) {
-                activeSections.push(this.createTestimonialsSection(primaryColor));
-                currentConfig.pages[activePageIndex].sections = activeSections;
-                aiReply = `⭐ **Testimonials Section Added**: Based on your confirmation, I have added customer testimonials to your page!\n\n💬 Would you like me to add a **Pricing Table** or **FAQ Accordion** next?`;
-                aiHandled = true;
-            } else if (lastLower.includes('pricing') || lastLower.includes('tier') || lastLower.includes('matrix') || lastLower.includes('cost')) {
-                activeSections.push(this.createPricingSection(primaryColor));
-                currentConfig.pages[activePageIndex].sections = activeSections;
-                aiReply = `💰 **Pricing Matrix Added**: Based on your confirmation, I have added the 3-tier pricing matrix to your page!\n\n💬 Would you like to add an **FAQ Accordion** or **Contact Form** next?`;
-                aiHandled = true;
-            } else if (lastLower.includes('faq') || lastLower.includes('question')) {
-                activeSections.push(this.createFAQSection(primaryColor));
-                currentConfig.pages[activePageIndex].sections = activeSections;
-                aiReply = `❓ **FAQ Accordion Added**: Based on your confirmation, I have added the FAQ section to your page!`;
-                aiHandled = true;
-            } else if (lastLower.includes('contact') || lastLower.includes('lead') || lastLower.includes('inquiry')) {
-                activeSections.push(this.createContactSection(primaryColor));
-                currentConfig.pages[activePageIndex].sections = activeSections;
-                aiReply = `📬 **Contact Section Added**: Based on your confirmation, I have added the contact & inquiry section to your page!`;
-                aiHandled = true;
-            } else if (lastLower.includes('medicine') || lastLower.includes('landing page')) {
-                const generated = this.createTailoredLandingPage('medicine', siteName, primaryColor);
-                activeSections = generated.sections;
-                currentConfig.pages[activePageIndex].sections = activeSections;
-                currentConfig.brand.primaryColor = generated.primaryColor;
-                aiReply = generated.reply;
-                aiHandled = true;
-            } else {
-                activeSections.push(this.createFeaturesSection(primaryColor));
-                currentConfig.pages[activePageIndex].sections = activeSections;
-                aiReply = `✅ **Confirmed**: I have added the **Key Features & Benefits** section to your canvas.\n\n💬 What would you like to add next? (e.g. Testimonials, Pricing Matrix, FAQ, or Contact Form?)`;
-                aiHandled = true;
-            }
-        }
-
-        // 1.8 Full Landing Page / Domain Synthesis Intent
-        const isLandingPageIntent = /(?:landing page|full (?:page|site|website)|complete (?:site|page|website)|build.*(?:page|site|website)|create.*(?:page|site|website))/i.test(textInstruction) ||
-            lowerInstruction.includes('medicine product') ||
-            lowerInstruction.includes('medical product');
-
-        if (!aiHandled && isLandingPageIntent) {
-            const wantsThankYouPage = lowerInstruction.includes('thank you') || lowerInstruction.includes('thankyou') || lowerInstruction.includes('two page') || lowerInstruction.includes('2 page');
-
-            const generated = this.createTailoredLandingPage(textInstruction, siteName, primaryColor);
-            activeSections = generated.sections;
-            currentConfig.pages[activePageIndex].sections = activeSections;
-            currentConfig.brand.primaryColor = generated.primaryColor;
-
-            if (wantsThankYouPage) {
-                let thankYouPage = currentConfig.pages.find((p: any) => p.slug === '/thank-you' || p.id === 'thank-you' || p.name?.toLowerCase().includes('thank'));
-                const thankYouSections = this.createThankYouSections(generated.primaryColor);
-                if (!thankYouPage) {
-                    thankYouPage = {
-                        id: 'thank-you',
-                        name: 'Thank You',
-                        slug: '/thank-you',
-                        isEnabled: true,
-                        sections: thankYouSections
-                    };
-                    currentConfig.pages.push(thankYouPage);
-                } else {
-                    thankYouPage.sections = thankYouSections;
-                }
-
-                aiReply = `✨ **2-Page Healthcare & Medicine Website Synthesized!**\n\nI have created both pages for your website:\n1. 🏠 **Home Landing Page (Active)**: 8 high-converting, clinical-grade sections tailored to promote your healthcare & vitality medicine (Clinical Trust Hero, Lab Metrics, Therapeutic Benefits, Medical Testimonials, Dosage Bundles, FAQ, Consultation Form, and Guarantee CTA).\n2. 🎉 **Thank You Page (\`/thank-you\`)**: Complete post-purchase confirmation flow with discreet packaging guarantee, 3-step fulfillment timeline, shipping & privacy FAQ, and 24/7 medical support card.\n\n---\n💬 **To customize this for your exact product, let me know:**\n1. **Product Name & Classification**: What is your medicine's brand name, and is it OTC, herbal/ayurvedic, or prescription?\n2. **Key Active Ingredients**: Are there specific active ingredients, herbs, or therapeutic compounds you'd like highlighted?\n3. **Pricing & Packaging**: Would you like custom dosage bundles, or should we link the order button directly to a checkout page?\n\n*(You can click the page navigation tabs in the header to preview both pages, or tell me what to refine!)*`;
-            } else {
-                aiReply = generated.reply;
-            }
-            aiHandled = true;
-        }
-
-        // 2. Add New Page Intent (e.g. "add about page", "create contact page", "add a new pricing page")
-        const addPageMatch = textInstruction.match(/(?:add|create|append)\s+(?:a\s+|new\s+)?([a-z0-9\s-]+?)\s+page/i);
-        if (!aiHandled && addPageMatch) {
-            const pageNameRaw = addPageMatch[1].trim();
-            const pageName = pageNameRaw.charAt(0).toUpperCase() + pageNameRaw.slice(1);
-            const pageSlug = pageNameRaw.toLowerCase().replace(/[^a-z0-9]/g, '-');
-            const newPageId = `page_${pageSlug}_${Date.now().toString(36).substring(2, 6)}`;
-            const newPageSections: ElementNode[] = [];
-            if (pageSlug.includes('thank')) {
-                newPageSections.push(...this.createThankYouSections(primaryColor));
-            } else {
-                newPageSections.push(this.createHeroSection(pageName, `Discover more about our ${pageName.toLowerCase()} and offerings.`, primaryColor));
-                if (pageSlug.includes('contact')) {
-                    newPageSections.push(this.createContactSection(primaryColor));
-                } else if (pageSlug.includes('price') || pageSlug.includes('pricing')) {
-                    newPageSections.push(this.createPricingSection(primaryColor));
-                } else if (pageSlug.includes('about') || pageSlug.includes('team')) {
-                    newPageSections.push(this.createFeaturesSection(primaryColor));
-                    newPageSections.push(this.createTeamSection(primaryColor));
-                } else if (pageSlug.includes('faq')) {
-                    newPageSections.push(this.createFAQSection(primaryColor));
-                }
-                newPageSections.push(this.createCtaSection(undefined, primaryColor));
-            }
-
-            currentConfig.pages.push({
-                id: newPageId,
-                name: pageName,
-                slug: `/${pageSlug}`,
-                isEnabled: true,
-                sections: newPageSections
-            });
-            currentConfig.activePageId = newPageId;
-            aiReply = `📄 **New Page Added**: Created the **"${pageName}"** page with ${newPageSections.length} tailored sections! Your website now has **${currentConfig.pages.length} pages**.`;
-            aiHandled = true;
-        }
-
-        // 3. Clear Page / Delete All Sections Intent (handles typos like "delte this ppage", "clear page")
-        const isClearPageIntent = /(?:del(?:e)?t(?:e)?|clear|reset|erase|wipe)\s+(?:this\s+)?(?:p+a+g+e+|all|canvas|everything|sections?)/i.test(textInstruction);
-        if (!aiHandled && isClearPageIntent) {
+        // 2. Exact structural commands (no model call)
+        const isClearPageIntent = /^(?:please\s+)?(?:del(?:e)?t(?:e)?|clear|reset|erase|wipe)\s+(?:this\s+|the\s+)?(?:p+a+g+e+|all|canvas|everything|all\s+sections?)\s*[.!]?$/i.test(textInstruction);
+        if (isClearPageIntent) {
             currentConfig.pages[activePageIndex].sections = [];
-            aiReply = `🗑️ **Canvas Cleared**: All sections on page **"${activePage.name || activePage.id}"** for **"${siteName}"** have been cleared. You now have a blank canvas ready for new sections.`;
-            aiHandled = true;
+            return done(`🗑️ **Canvas Cleared**: All sections on page **"${pageLabel}"** were removed. Use undo in the editor if this was a mistake.`, true);
         }
 
-        // 4. Remove Single Target Section Intent (e.g. "remove hero", "delete testimonials", "delete pricing", "remove section 2")
-        if (!aiHandled) {
-            const deleteSectionMatch = textInstruction.match(/(?:del(?:e)?t(?:e)?|remove|drop|erase)\s+(?:the\s+)?([a-z0-9_\s-]+?)(?:\s+section|\s+block|$)/i);
-            if (deleteSectionMatch) {
-                const targetKey = deleteSectionMatch[1].trim().toLowerCase();
-                let foundIndex = -1;
-
-                if (targetKey.includes('hero')) {
-                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('hero'));
-                } else if (targetKey.includes('testimonial') || targetKey.includes('review')) {
-                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('testimonial'));
-                } else if (targetKey.includes('pricing') || targetKey.includes('plan') || targetKey.includes('tier') || targetKey.includes('price')) {
-                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('pricing') || (s.id || '').includes('offers'));
-                } else if (targetKey.includes('faq') || targetKey.includes('question')) {
-                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('faq'));
-                } else if (targetKey.includes('feature')) {
-                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('feature') || (s.id || '').includes('value'));
-                } else if (targetKey.includes('stat')) {
-                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('stat'));
-                } else if (targetKey.includes('team')) {
-                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('team'));
-                } else if (targetKey.includes('contact')) {
-                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('contact'));
-                } else if (targetKey.includes('cta') || targetKey.includes('call to action') || targetKey.includes('banner')) {
-                    foundIndex = activeSections.findIndex(s => (s.id || '').includes('cta'));
-                } else if (/\d+/.test(targetKey)) {
-                    const numMatch = targetKey.match(/\d+/);
-                    if (numMatch) {
-                        const idx = parseInt(numMatch[0], 10) - 1;
-                        if (idx >= 0 && idx < activeSections.length) foundIndex = idx;
-                    }
-                }
-
-                if (foundIndex !== -1) {
-                    const removed = activeSections[foundIndex];
-                    const removedTitle = this.extractSectionTitle(removed);
-                    activeSections.splice(foundIndex, 1);
-                    currentConfig.pages[activePageIndex].sections = activeSections;
-                    aiReply = `🗑️ **Section Removed**: Removed **"${removedTitle}"** from **"${siteName}"** while keeping your other ${activeSections.length} sections intact.`;
-                    aiHandled = true;
-                }
+        const deleteSectionMatch = textInstruction.match(/^(?:please\s+)?(?:del(?:e)?t(?:e)?|remove|drop|erase)\s+(?:the\s+)?([a-z0-9_#\s-]+?)(?:\s+section|\s+block)?\s*[.!]?$/i);
+        if (deleteSectionMatch) {
+            const targetKey = deleteSectionMatch[1].trim().toLowerCase();
+            let foundIndex = -1;
+            const numMatch = targetKey.match(/^(?:section\s+|#)?(\d+)$/);
+            if (numMatch) {
+                const idx = parseInt(numMatch[1], 10) - 1;
+                if (idx >= 0 && idx < activeSections.length) foundIndex = idx;
+            } else if (targetKey.length >= 3) {
+                const key = targetKey.replace(/s$/, '');
+                foundIndex = activeSections.findIndex((s: any) =>
+                    String(s?.name || '').toLowerCase().includes(key) || String(s?.id || '').toLowerCase().includes(key));
+            }
+            if (foundIndex !== -1) {
+                const removed: any = activeSections[foundIndex];
+                const removedTitle = removed.name || this.extractSectionTitle(removed);
+                activeSections.splice(foundIndex, 1);
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                return done(`🗑️ **Section Removed**: Removed **"${removedTitle}"**; your other ${activeSections.length} sections are unchanged.`, true);
             }
         }
 
-        // 4. Live LLM Synthesizer with Incremental Consciousness
-        if (!aiHandled) {
-            try {
-                const client = await aiProviderService.getClient(settings);
-                if (client) {
-                    const summary = activeSections.map((s, i) => `  ${i + 1}. [${s.id}] "${this.extractSectionTitle(s)}"`).join('\n');
-                    const conversationHistoryText = history.length > 0
-                        ? history.slice(-6).map((m: any) => `${m.role === 'user' || m.sender === 'user' ? 'User' : 'AI Architect'}: "${(m.text || m.content || '').replace(/\s+/g, ' ').trim()}"`).join('\n')
-                        : '  (New session)';
+        const hexThemeMatch = textInstruction.match(/^(?:please\s+)?(?:set|change|switch|make)\s+(?:the\s+)?(?:theme|brand|primary)?\s*colou?r\s+(?:to\s+)?(#[0-9a-f]{6}|#[0-9a-f]{3})\s*[.!]?$/i);
+        if (hexThemeMatch) {
+            currentConfig.brand.primaryColor = hexThemeMatch[1];
+            return done(`🎨 **Theme Updated**: Primary colour set to ${hexThemeMatch[1]}.`, true);
+        }
 
-                    const patchPrompt = `You are the 180 Workspace AI Website Architect with live consciousness of the current website canvas.
-CURRENT WEBSITE: "${siteName}" (Company: "${companyName}")
-PRIMARY BRAND COLOR: "${primaryColor}"
-CURRENT ACTIVE PAGE: "${activePage.name || activePage.id}" (Page ${activePageIndex + 1} of ${currentConfig.pages.length})
-CURRENT ACTIVE SECTIONS (${activeSections.length}):
-${summary || '  (Empty canvas)'}
+        const templateMatch = textInstruction.match(/\b(?:add|insert|use)\s+(?:an?\s+|the\s+)?(hero|features?|testimonials?|pricing|faq|stats?|team|contact|cta|landing(?:\s+page)?|thank[\s-]?you(?:\s+page)?)\s+template\b/i);
+        if (templateMatch) {
+            const tpl = this.buildTemplateSections(templateMatch[1], primaryColor, siteName, textInstruction);
+            if (tpl) {
+                activeSections.push(...tpl.sections);
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                return done(`🧩 **${tpl.label} template added** to page **"${pageLabel}"**. Its text, numbers, names and images are sample placeholders; replace them with your real content before publishing.`, true);
+            }
+        }
 
-RECENT CONVERSATION HISTORY:
+        // 3. Live LLM edit
+        const { client, companyName } = await this.resolveCompanyClient(companyId);
+        const history = Array.isArray(params.history) ? params.history : [];
+        const conversationHistoryText = history.length > 0
+            ? history.slice(-6).map((m: any) => `${m.role === 'user' || m.sender === 'user' ? 'User' : 'AI Architect'}: "${String(m.text || m.content || '').replace(/\s+/g, ' ').trim().slice(0, 600)}"`).join('\n')
+            : '  (New session)';
+        const sectionsJson = JSON.stringify(activeSections);
+        const sectionsBlock = sectionsJson.length <= 14000
+            ? `CURRENT PAGE SECTIONS JSON (1-based order):\n${sectionsJson}`
+            : `CURRENT PAGE SECTIONS (titles only, 1-based):\n${describeSections(activeSections) || '  (Empty canvas)'}`;
+
+        const patchPrompt = `You are the 180 Workspace AI Website Architect editing an existing website.
+WEBSITE: "${siteName}" (Business: "${companyName}")
+BRAND: ${JSON.stringify(currentConfig.brand)}
+PAGES: ${currentConfig.pages.map((p: any) => `"${p.name || p.id}" (${p.slug || '/'})`).join(', ')}
+ACTIVE PAGE: "${pageLabel}" with ${activeSections.length} sections.
+${sectionsBlock}
+
+RECENT CONVERSATION:
 ${conversationHistoryText}
 
-USER INSTRUCTION: "${textInstruction}"
+USER INSTRUCTION: "${textInstruction.replace(/"/g, '\\"')}"
 
-CRITICAL INTERACTION & CONSCIOUSNESS RULES:
-1. NEVER say "no updates are necessary", "instruction was unclear", or refuse to make changes.
-2. If the user asks to build or generate a landing page, website, or product page (e.g. for a medicine product, healthcare, real estate, SaaS, gym, agency):
-   Return action "GENERATE_FULL_PAGE" with "topic" and "sectionsToBuild". In "reply", provide an enthusiastic explanation of what was built, PLUS 2-3 intelligent, interactive clarifying questions with concrete suggestions to guide the user.
-3. If the user replies with a short affirmation ("yes", "sure", "do it", "add it"), check RECENT CONVERSATION HISTORY to see what you previously suggested, and execute that action!
-4. If the user asks to add sections, return "ADD_SECTION" with "sectionType".
-5. If the user instruction is brief, vague, or underspecified, PROACTIVELY TAKE INITIATIVE by generating or adding the most relevant section/page, AND in your "reply" ask 2-3 intelligent, interactive clarifying questions with concrete suggestions to guide the user.
-6. Return a valid JSON object ONLY:
+${ELEMENT_SCHEMA_PROMPT}
+
+Choose ONE action and return ONLY a JSON object (no markdown):
 {
-  "action": "GENERATE_FULL_PAGE" | "ADD_SECTION" | "REMOVE_SECTION" | "CLEAR_PAGE" | "UPDATE_PROPERTIES" | "INTERACTIVE_PROPOSAL",
-  "reply": "Clear, markdown-formatted explanation of what was built, PLUS 2-3 interactive clarifying questions to refine it",
-  "sectionType": "testimonials" | "pricing" | "faq" | "features" | "stats" | "team" | "contact" | "hero" | "cta" | "custom",
-  "sectionsToBuild": ["hero", "features", "stats", "testimonials", "pricing", "faq", "contact", "cta"],
-  "topic": "medicine" | "saas" | "ecommerce" | "general",
-  "primaryColor": "#hexColor",
-  "headline": "Headline text if requested",
-  "buttonText": "Button text if requested"
-}`;
-                    const rawResponse = await client.generate(patchPrompt);
-                    const parsed = this.extractJSON(rawResponse);
-                    if (parsed && parsed.action) {
-                        if (parsed.primaryColor) {
-                            currentConfig.brand.primaryColor = parsed.primaryColor;
-                            addedDetails.push(`Updated brand theme color to ${parsed.primaryColor}`);
-                        }
+  "action": "ADD_SECTIONS" | "REPLACE_SECTION" | "REPLACE_PAGE" | "ADD_PAGE" | "REMOVE_SECTION" | "UPDATE_BRAND" | "REPLY_ONLY",
+  "reply": "Short markdown summary of what you changed (or your answer/question for REPLY_ONLY)",
+  "sections": [ /* section nodes for ADD_SECTIONS, REPLACE_PAGE, ADD_PAGE; exactly one for REPLACE_SECTION */ ],
+  "index": 1,
+  "page": { "name": "About", "slug": "/about" },
+  "brand": { "primaryColor": "#hex", "secondaryColor": "#hex", "textColor": "#hex", "headingFont": "Inter", "bodyFont": "Inter" }
+}
+"index" is the 1-based section number for REPLACE_SECTION / REMOVE_SECTION, or the insert position for ADD_SECTIONS (omit to append). "page" is only for ADD_PAGE. "brand" is optional with any action.
+Use REPLACE_SECTION to edit the text, layout or style of an existing section (return the full updated section). If the user replies "yes"/"do it", act on what you last proposed in the conversation. If the instruction is genuinely ambiguous, use REPLY_ONLY and ask one concise question.`;
 
-                        if (parsed.action === 'GENERATE_FULL_PAGE') {
-                            const topic = (parsed.topic || textInstruction).toLowerCase();
-                            const generated = this.createTailoredLandingPage(topic, siteName, parsed.primaryColor || primaryColor);
-                            activeSections = generated.sections;
-                            currentConfig.pages[activePageIndex].sections = activeSections;
-                            currentConfig.brand.primaryColor = generated.primaryColor;
+        const parsed = await this.callModel(client, patchPrompt);
+        const action = String(parsed.action || '').toUpperCase();
+        const llmReply = sanitizeRichText(parsed.reply || '', 3000).trim();
+        let changed = false;
 
-                            const wantsThankYou = lowerInstruction.includes('thank you') || lowerInstruction.includes('thankyou') || lowerInstruction.includes('two page') || lowerInstruction.includes('2 page');
-                            if (wantsThankYou) {
-                                let thankYouPage = currentConfig.pages.find((p: any) => p.slug === '/thank-you' || p.id === 'thank-you' || p.name?.toLowerCase().includes('thank'));
-                                const thankYouSections = this.createThankYouSections(generated.primaryColor);
-                                if (!thankYouPage) {
-                                    thankYouPage = {
-                                        id: 'thank-you',
-                                        name: 'Thank You',
-                                        slug: '/thank-you',
-                                        isEnabled: true,
-                                        sections: thankYouSections
-                                    };
-                                    currentConfig.pages.push(thankYouPage);
-                                } else {
-                                    thankYouPage.sections = thankYouSections;
-                                }
-
-                                aiReply = `✨ **2-Page Healthcare & Medicine Website Synthesized!**\n\nI have created both pages for your website:\n1. 🏠 **Home Landing Page (Active)**: 8 high-converting, clinical-grade sections tailored to promote your healthcare & vitality medicine (Clinical Trust Hero, Lab Metrics, Therapeutic Benefits, Medical Testimonials, Dosage Bundles, FAQ, Consultation Form, and Guarantee CTA).\n2. 🎉 **Thank You Page (\`/thank-you\`)**: Complete post-purchase confirmation flow with discreet packaging guarantee, 3-step fulfillment timeline, shipping & privacy FAQ, and 24/7 medical support card.\n\n---\n💬 **To customize this for your exact product, let me know:**\n1. **Product Name & Classification**: What is your medicine's brand name, and is it OTC, herbal/ayurvedic, or prescription?\n2. **Key Active Ingredients**: Are there specific active ingredients, herbs, or therapeutic compounds you'd like highlighted?\n3. **Pricing & Packaging**: Would you like custom dosage bundles, or should we link the order button directly to a checkout page?\n\n*(You can click the page navigation tabs in the header to preview both pages, or tell me what to refine!)*`;
-                            } else {
-                                aiReply = parsed.reply || generated.reply;
-                            }
-                            aiHandled = true;
-                        } else if (parsed.action === 'ADD_SECTION' && parsed.sectionType) {
-                            let newSec: ElementNode | null = null;
-                            const secType = parsed.sectionType.toLowerCase();
-                            if (secType === 'testimonials') newSec = this.createTestimonialsSection(primaryColor);
-                            else if (secType === 'pricing') newSec = this.createPricingSection(primaryColor);
-                            else if (secType === 'faq') newSec = this.createFAQSection(primaryColor);
-                            else if (secType === 'features') newSec = this.createFeaturesSection(primaryColor);
-                            else if (secType === 'stats') newSec = this.createStatsSection(primaryColor);
-                            else if (secType === 'team') newSec = this.createTeamSection(primaryColor);
-                            else if (secType === 'contact') newSec = this.createContactSection(primaryColor);
-                            else if (secType === 'hero') newSec = this.createHeroSection(siteName, parsed.headline, primaryColor);
-                            else if (secType === 'cta') newSec = this.createCtaSection(parsed.headline, primaryColor);
-
-                            if (newSec) {
-                                activeSections.push(newSec);
-                                currentConfig.pages[activePageIndex].sections = activeSections;
-                                addedDetails.push(`Added new ${secType} section to ${activePage.name || activePage.id}`);
-                            }
-                        }
-
-                        if (parsed.reply && !aiReply) {
-                            aiReply = parsed.reply;
-                            aiHandled = true;
-                        }
-                    }
-                }
-            } catch (err) {
-                console.warn('[WebsiteAIBuilder] Live LLM patch error, running heuristic engine:', err);
-            }
+        const brandPatch = sanitizeBrand(parsed.brand);
+        if (Object.keys(brandPatch).length) {
+            currentConfig.brand = { ...currentConfig.brand, ...brandPatch };
+            if (brandPatch.bodyFont) currentConfig.brand.fontFamily = brandPatch.bodyFont;
+            changed = true;
         }
 
-        // 5. High-Precision Heuristic Fallback Engine
-        if (!aiHandled) {
-            // A. Color Palette Updates
-            if (lowerInstruction.includes('green') || lowerInstruction.includes('emerald')) {
-                currentConfig.brand.primaryColor = '#10b981';
-                addedDetails.push('Switched theme to Emerald Green (#10b981)');
-            } else if (lowerInstruction.includes('gold') || lowerInstruction.includes('amber') || lowerInstruction.includes('yellow')) {
-                currentConfig.brand.primaryColor = '#f59e0b';
-                addedDetails.push('Switched theme to Amber Gold (#f59e0b)');
-            } else if (lowerInstruction.includes('purple') || lowerInstruction.includes('violet')) {
-                currentConfig.brand.primaryColor = '#8b5cf6';
-                addedDetails.push('Switched theme to Royal Purple (#8b5cf6)');
-            } else if (lowerInstruction.includes('blue') || lowerInstruction.includes('indigo')) {
-                currentConfig.brand.primaryColor = '#4f46e5';
-                addedDetails.push('Switched theme to Indigo Blue (#4f46e5)');
-            } else if (lowerInstruction.includes('pink') || lowerInstruction.includes('rose')) {
-                currentConfig.brand.primaryColor = '#ec4899';
-                addedDetails.push('Switched theme to Rose Pink (#ec4899)');
-            } else if (lowerInstruction.includes('cyan') || lowerInstruction.includes('teal')) {
-                currentConfig.brand.primaryColor = '#06b6d4';
-                addedDetails.push('Switched theme to Cyan Teal (#06b6d4)');
-            }
-
-            // B. Add Testimonials
-            if (lowerInstruction.includes('testimonial') || lowerInstruction.includes('review') || lowerInstruction.includes('social proof')) {
-                activeSections.push(this.createTestimonialsSection(currentConfig.brand.primaryColor));
-                addedDetails.push('Appended customer testimonials review section');
-            }
-
-            // C. Add Pricing
-            if (lowerInstruction.includes('pricing') || lowerInstruction.includes('tier') || lowerInstruction.includes('plan') || lowerInstruction.includes('price')) {
-                activeSections.push(this.createPricingSection(currentConfig.brand.primaryColor));
-                addedDetails.push('Appended 3-tier transparent pricing table');
-            }
-
-            // D. Add FAQ
-            if (lowerInstruction.includes('faq') || lowerInstruction.includes('question') || lowerInstruction.includes('accordian') || lowerInstruction.includes('accordion')) {
-                activeSections.push(this.createFAQSection(currentConfig.brand.primaryColor));
-                addedDetails.push('Appended FAQ accordion section');
-            }
-
-            // E. Add Features
-            if (lowerInstruction.includes('feature') || lowerInstruction.includes('benefit') || lowerInstruction.includes('service')) {
-                activeSections.push(this.createFeaturesSection(currentConfig.brand.primaryColor));
-                addedDetails.push('Appended core features grid');
-            }
-
-            // F. Add Stats / Metrics
-            if (lowerInstruction.includes('stat') || lowerInstruction.includes('metric') || lowerInstruction.includes('counter') || lowerInstruction.includes('number')) {
-                activeSections.push(this.createStatsSection(currentConfig.brand.primaryColor));
-                addedDetails.push('Appended high-impact stats counter section');
-            }
-
-            // G. Add Team
-            if (lowerInstruction.includes('team') || lowerInstruction.includes('member') || lowerInstruction.includes('founder') || lowerInstruction.includes('leadership')) {
-                activeSections.push(this.createTeamSection(currentConfig.brand.primaryColor));
-                addedDetails.push('Appended leadership team showcase');
-            }
-
-            // H. Add Contact Form
-            if (lowerInstruction.includes('contact') || lowerInstruction.includes('lead') || lowerInstruction.includes('get in touch') || lowerInstruction.includes('inquiry')) {
-                activeSections.push(this.createContactSection(currentConfig.brand.primaryColor));
-                addedDetails.push('Appended contact & inquiry form section');
-            }
-
-            // I. Add CTA
-            if (lowerInstruction.includes('cta') || lowerInstruction.includes('call to action') || lowerInstruction.includes('banner')) {
-                activeSections.push(this.createCtaSection(undefined, currentConfig.brand.primaryColor));
-                addedDetails.push('Appended high-converting call to action banner');
-            }
-
-            currentConfig.pages[activePageIndex].sections = activeSections;
-
-            if (!aiReply) {
-                if (addedDetails.length > 0) {
-                    aiReply = `✨ **Website Updated**: ${addedDetails.join(', ')}! All other existing ${activeSections.length - addedDetails.length} sections have been preserved intact.`;
-                } else {
-                    activeSections.push(this.createFeaturesSection(currentConfig.brand.primaryColor));
-                    currentConfig.pages[activePageIndex].sections = activeSections;
-                    aiReply = `✨ **Canvas Enhanced**: Added the **Key Features & Benefits** section to your active page.\n\n---\n💬 **To help tailor your site further:**\n1. What is your product or company's primary focus?\n2. Would you like to add **Customer Testimonials**, a **Pricing Matrix**, or an **FAQ** next?\n3. Do you have a preferred visual brand color?`;
-                }
-            }
-        }
-
-        // Save updated config in PostgreSQL
-        if (website) {
-            await prisma.website.update({
-                where: { id: entityId },
-                data: {
-                    config: currentConfig,
-                    publishedConfig: currentConfig
-                }
-            }).catch((err) => {
-                console.warn('[WebsiteAIBuilder] DB save warning:', err.message);
-            });
-        }
-
-        return {
-            success: true,
-            builderType: this.builderType,
-            entityId,
-            title: siteName,
-            editUrl,
-            reply: aiReply,
-            ast: currentConfig,
-            actionCards: [
-                { type: 'edit', label: 'View in Website Builder →', url: editUrl }
-            ]
+        const needSections = () => {
+            const s = sanitizeSections(parsed.sections);
+            if (!s.length) throw new WebsiteBuilderError('AI_INVALID_OUTPUT', 'The AI response did not contain any valid sections.');
+            return s;
         };
+        const indexOf = (max: number) => {
+            const n = Number(parsed.index);
+            return Number.isInteger(n) && n >= 1 && n <= max ? n - 1 : -1;
+        };
+
+        switch (action) {
+            case 'ADD_SECTIONS': {
+                const s = needSections();
+                const at = indexOf(activeSections.length + 1);
+                if (at === -1) activeSections.push(...s); else activeSections.splice(at, 0, ...s);
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                changed = true;
+                break;
+            }
+            case 'REPLACE_SECTION': {
+                const at = indexOf(activeSections.length);
+                if (at === -1) throw new WebsiteBuilderError('AI_INVALID_OUTPUT', 'The AI referenced a section that does not exist.');
+                activeSections.splice(at, 1, needSections()[0]);
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                changed = true;
+                break;
+            }
+            case 'REPLACE_PAGE': {
+                currentConfig.pages[activePageIndex].sections = needSections();
+                changed = true;
+                break;
+            }
+            case 'ADD_PAGE': {
+                const s = needSections();
+                const name = sanitizePlainText(parsed.page?.name, 60) || 'New Page';
+                let slug = String(parsed.page?.slug || name).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+                slug = `/${slug || 'page'}`;
+                if (currentConfig.pages.some((p: any) => p.slug === slug)) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+                const newPageId = `page_${slug.slice(1).replace(/-/g, '_')}_${Date.now().toString(36).slice(-4)}`;
+                currentConfig.pages.push({ id: newPageId, name, slug, isEnabled: true, sections: s });
+                currentConfig.activePageId = newPageId;
+                changed = true;
+                break;
+            }
+            case 'REMOVE_SECTION': {
+                const at = indexOf(activeSections.length);
+                if (at === -1) throw new WebsiteBuilderError('AI_INVALID_OUTPUT', 'The AI referenced a section that does not exist.');
+                activeSections.splice(at, 1);
+                currentConfig.pages[activePageIndex].sections = activeSections;
+                changed = true;
+                break;
+            }
+            case 'UPDATE_BRAND':
+                if (!changed) throw new WebsiteBuilderError('AI_INVALID_OUTPUT', 'The AI did not return a valid brand change.');
+                break;
+            case 'REPLY_ONLY':
+                if (!llmReply) throw new WebsiteBuilderError('AI_INVALID_OUTPUT', 'The AI returned an empty reply.');
+                break;
+            default:
+                throw new WebsiteBuilderError('AI_INVALID_OUTPUT', `The AI returned an unknown action "${action || 'none'}".`);
+        }
+
+        return done(llmReply || 'Website updated.', changed);
     }
 
     async deleteEntity(entityId: string, companyId: string) {
-        await prisma.website.delete({ where: { id: entityId } }).catch(() => {});
-        await basePrisma.domainRegistry.deleteMany({ where: { targetId: entityId } }).catch(() => {});
+        if (!companyId) throw new WebsiteBuilderError('COMPANY_REQUIRED', 'A company context is required.');
+        const { count } = await basePrisma.website.deleteMany({ where: { id: entityId, companyId } });
+        if (!count) return { success: false, message: 'Website not found.' };
+        await basePrisma.domainRegistry.deleteMany({ where: { targetId: entityId, type: 'ADVERTISING_WEBSITE' } }).catch(() => {});
         return { success: true, message: 'Website deleted.' };
     }
 }

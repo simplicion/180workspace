@@ -1,8 +1,6 @@
-import { Settings, X, Image as ImageIcon, Video, Upload, Trash2, Plus } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { Settings, X, Upload, Trash2, Monitor, Tablet, Smartphone, RotateCcw, EyeOff } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import CustomSelect from '@/components/ui/CustomSelect';
 
 import TextProperties from './_components/properties/TextProperties';
 import ButtonProperties from './_components/properties/ButtonProperties';
@@ -13,6 +11,7 @@ import PaddingControl from './_components/properties/PaddingControl';
 import CodeProperties from './_components/properties/CodeProperties';
 import FloatingProperties from './_components/properties/FloatingProperties';
 import AnimationProperties from './_components/AnimationProperties';
+import { getEffectiveStyle } from './responsive-styles';
 
 interface PropertyPanelProps {
     selectedElement: any;
@@ -21,13 +20,52 @@ interface PropertyPanelProps {
     onUpdate: (key: string, value: any) => void;
     onClose: () => void;
     website?: any;
+    /** Device currently shown on the canvas. Tablet/mobile edits are written as `responsive.<bp>` overrides. */
+    viewMode?: 'desktop' | 'tablet' | 'mobile';
 }
 
-export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, onUpdate, onClose, website }: PropertyPanelProps) {
-    if (!selectedElement) return null;
+type Device = 'desktop' | 'tablet' | 'mobile';
 
-    const isHeader = selectedElement.type === 'header';
-    const isFooter = selectedElement.type === 'footer';
+/** Style keys that are structural (not CSS), so they are never overridden per device. */
+const DESKTOP_ONLY_STYLE_KEYS = new Set(['tagName']);
+
+const DEVICE_LABEL: Record<Device, string> = { desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' };
+const DEVICE_ICON: Record<Device, any> = { desktop: Monitor, tablet: Tablet, mobile: Smartphone };
+
+const humanizeKey = (k: string) => k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+
+const definedOnly = (o: any) => {
+    const out: Record<string, any> = {};
+    if (o && typeof o === 'object') for (const k of Object.keys(o)) if (o[k] !== undefined) out[k] = o[k];
+    return out;
+};
+
+
+export default function PropertyPanel({ selectedElement: rawElement, brand, onUpdateBrand, onUpdate: rawUpdate, onClose, website, viewMode = 'desktop' }: PropertyPanelProps) {
+    if (!rawElement) return null;
+
+    const isHeader = rawElement.type === 'header';
+    const isFooter = rawElement.type === 'footer';
+    // Header/footer are site chrome rendered by the page shell; they have one style for every device.
+    const supportsDevices = !isHeader && !isFooter;
+    const bp: 'tablet' | 'mobile' | null = supportsDevices && viewMode !== 'desktop' ? viewMode : null;
+    const overrides: Record<string, any> = bp ? definedOnly(rawElement.responsive?.[bp]) : {};
+    const overrideKeys = Object.keys(overrides);
+
+    // Controls read the effective (cascaded) value for the device being edited...
+    const selectedElement = bp ? { ...rawElement, style: definedOnly(getEffectiveStyle(rawElement, bp)) } : rawElement;
+    // ...and every `style.X` write is routed to `responsive.<bp>.X` while editing tablet/mobile.
+    const onUpdate = (key: string, value: any) => {
+        if (bp && key.startsWith('style.')) {
+            const prop = key.slice('style.'.length);
+            if (!DESKTOP_ONLY_STYLE_KEYS.has(prop.split('.')[0])) {
+                rawUpdate(`responsive.${bp}.${prop}`, value);
+                return;
+            }
+        }
+        rawUpdate(key, value);
+    };
+    const hiddenOn = rawElement.hiddenOn || {};
 
     return (
         <div className="h-full flex flex-col bg-white">
@@ -36,12 +74,82 @@ export default function PropertyPanel({ selectedElement, brand, onUpdateBrand, o
                     <Settings className="w-4 h-4 text-indigo-500" />
                     {selectedElement.type} Editor
                 </h3>
-                <button onClick={onClose} className="p-1.5 hover:bg-gray-200 rounded-md text-gray-400 hover:text-gray-600 transition-colors">
+                <button onClick={onClose} aria-label="Close editor" className="min-w-11 min-h-11 flex items-center justify-center hover:bg-gray-200 rounded-md text-gray-400 hover:text-gray-600 transition-colors">
                     <X className="w-4 h-4" />
                 </button>
             </div>
-            
+
+            {bp && (
+                <div className="px-4 py-3 border-b border-amber-200 bg-amber-50 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
+                        {bp === 'tablet' ? <Tablet className="w-4 h-4" /> : <Smartphone className="w-4 h-4" />}
+                        Editing {DEVICE_LABEL[bp]} overrides
+                    </div>
+                    <p className="text-[11px] leading-snug text-amber-700">
+                        Style changes here only apply on {bp === 'tablet' ? 'tablets (and phones, unless a phone override exists)' : 'phones'}. Desktop stays as it is.
+                    </p>
+                    {overrideKeys.length > 0 ? (
+                        <div className="space-y-1">
+                            {overrideKeys.map((k) => (
+                                <div key={k} className="flex items-center justify-between gap-2 text-[11px] bg-white/70 border border-amber-200 rounded-md pl-2">
+                                    <span className="flex items-center gap-1.5 min-w-0">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" aria-hidden />
+                                        <span className="font-semibold text-gray-700 truncate">{humanizeKey(k)}</span>
+                                        <span className="text-gray-400 font-mono truncate">{typeof overrides[k] === 'object' ? '…' : String(overrides[k])}</span>
+                                    </span>
+                                    <button
+                                        onClick={() => rawUpdate(`responsive.${bp}.${k}`, undefined)}
+                                        className="min-w-11 min-h-11 flex items-center justify-center text-amber-700 hover:text-amber-900 hover:bg-amber-100 rounded-md shrink-0"
+                                        title={`Reset ${humanizeKey(k)} to the ${bp === 'mobile' ? 'tablet/desktop' : 'desktop'} value`}
+                                        aria-label={`Reset ${humanizeKey(k)}`}
+                                    >
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                            <button
+                                onClick={() => rawUpdate(`responsive.${bp}`, undefined)}
+                                className="w-full min-h-11 text-xs font-bold text-amber-800 bg-white border border-amber-300 hover:bg-amber-100 rounded-md transition-colors"
+                            >
+                                Clear all {DEVICE_LABEL[bp]} overrides
+                            </button>
+                        </div>
+                    ) : (
+                        <p className="text-[11px] text-amber-700/80 italic">No overrides yet: this element matches {bp === 'mobile' ? 'tablet/desktop' : 'desktop'}.</p>
+                    )}
+                </div>
+            )}
+            {!supportsDevices && viewMode !== 'desktop' && (
+                <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 text-[11px] text-gray-500">
+                    {isHeader ? 'Header' : 'Footer'} settings apply to every device.
+                </div>
+            )}
+
             <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-6">
+
+                {supportsDevices && (
+                    <div className="space-y-2">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Visibility</h4>
+                        <div className="grid grid-cols-3 gap-1.5">
+                            {(['desktop', 'tablet', 'mobile'] as Device[]).map((d) => {
+                                const Icon = DEVICE_ICON[d];
+                                const hidden = !!hiddenOn[d];
+                                return (
+                                    <button
+                                        key={d}
+                                        onClick={() => rawUpdate(`hiddenOn.${d}`, hidden ? undefined : true)}
+                                        aria-pressed={hidden}
+                                        title={hidden ? `Show on ${DEVICE_LABEL[d]}` : `Hide on ${DEVICE_LABEL[d]}`}
+                                        className={`min-h-11 px-1 flex flex-col items-center justify-center gap-0.5 rounded-lg border text-[10px] font-bold transition-colors ${hidden ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-400'}`}
+                                    >
+                                        {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
+                                        {hidden ? `Hidden: ${DEVICE_LABEL[d]}` : `Hide on ${DEVICE_LABEL[d]}`}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
                 
                 {/* Company Information (Header/Footer Only) */}
                 {(isHeader || isFooter) && (

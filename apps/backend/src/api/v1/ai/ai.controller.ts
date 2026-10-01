@@ -457,30 +457,60 @@ export class AIController {
      */
     static async generateWebsite(req: Request, res: Response) {
         try {
-            const { prompt, theme } = req.body;
+            const { prompt, theme, mode } = req.body || {};
             const companyId = req.user?.companyId;
             const userId = req.user?.id;
+            if (!companyId || !userId) {
+                return res.status(403).json({ success: false, error: 'COMPANY_REQUIRED', code: 'COMPANY_REQUIRED', message: 'A company context is required.' });
+            }
 
-            // Anti-Exploitation Credit Guard (20 Credits for Website Synthesis)
-            const allowed = await AIController.checkAndDeductCredits(companyId, 20, 'WEBSITE_BUILDER', { prompt, theme });
-            if (!allowed) {
-                return res.status(402).json({
-                    success: false,
-                    error: 'INSUFFICIENT_AI_CREDITS',
-                    message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance to generate websites.',
-                });
+            // `mode: 'template'` = user-chosen starter template (no model call, no AI credits).
+            const isTemplate = mode === 'template';
+            const cost = 20;
+
+            // Credit guard: check first, debit only after a successful generation.
+            if (!isTemplate) {
+                const balance = await AICreditMeterService.checkBalance(companyId, cost);
+                if (!balance || !balance.sufficient) {
+                    return res.status(402).json({
+                        success: false,
+                        error: 'INSUFFICIENT_AI_CREDITS',
+                        code: 'INSUFFICIENT_AI_CREDITS',
+                        message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance to generate websites.',
+                    });
+                }
             }
 
             const result = await UniversalBuilderRegistry.compile('website', {
                 prompt: prompt || 'Modern marketing landing page',
                 theme,
                 companyId,
-                userId
-            });
+                userId,
+                ...(isTemplate ? { mode: 'template' } : {})
+            } as any);
+
+            if (!isTemplate && result?.success) {
+                try {
+                    await AICreditMeterService.settleCredits({
+                        companyId,
+                        actualCredits: cost,
+                        finalCreditCost: cost,
+                        appId: 'ai',
+                        featureKey: 'WEBSITE_BUILDER',
+                        operation: 'WEBSITE_BUILDER',
+                        metadata: { prompt, theme, websiteId: result.entityId },
+                    });
+                } catch (settleErr: any) {
+                    console.error('[AIController.generateWebsite] Credit settlement failed:', settleErr?.message);
+                }
+            }
 
             return res.json({ success: true, ...result });
         } catch (error: any) {
             console.error('[AIController.generateWebsite] Error:', error);
+            if (error?.code && typeof error.statusCode === 'number') {
+                return res.status(error.statusCode).json({ success: false, error: error.code, code: error.code, message: error.message });
+            }
             return res.status(500).json({ success: false, message: error.message });
         }
     }
@@ -496,15 +526,20 @@ export class AIController {
             const userId = req.user?.id;
 
             if (!websiteId) {
-                return res.status(400).json({ success: false, message: 'Website ID is required for patching.' });
+                return res.status(400).json({ success: false, error: 'INVALID_INPUT', code: 'INVALID_INPUT', message: 'Website ID is required for patching.' });
+            }
+            if (!companyId) {
+                return res.status(403).json({ success: false, error: 'COMPANY_REQUIRED', code: 'COMPANY_REQUIRED', message: 'A company context is required.' });
             }
 
-            // Anti-Exploitation Credit Guard (2 Credits for Iterative Website Patch)
-            const allowed = await AIController.checkAndDeductCredits(companyId, 2, 'WEBSITE_PATCH', { websiteId, instruction: instruction || prompt });
-            if (!allowed) {
+            // Credit guard: check first, debit only after a successful patch (2 credits).
+            const cost = 2;
+            const balance = await AICreditMeterService.checkBalance(companyId, cost);
+            if (!balance || !balance.sufficient) {
                 return res.status(402).json({
                     success: false,
                     error: 'INSUFFICIENT_AI_CREDITS',
+                    code: 'INSUFFICIENT_AI_CREDITS',
                     message: 'Your monthly AI credit quota is exhausted. Please recharge your AI balance to edit websites.',
                 });
             }
@@ -514,11 +549,30 @@ export class AIController {
                 userId,
                 stateContext,
                 history
-            });
+            } as any);
+
+            if (result?.success) {
+                try {
+                    await AICreditMeterService.settleCredits({
+                        companyId,
+                        actualCredits: cost,
+                        finalCreditCost: cost,
+                        appId: 'ai',
+                        featureKey: 'WEBSITE_PATCH',
+                        operation: 'WEBSITE_PATCH',
+                        metadata: { websiteId, instruction: instruction || prompt },
+                    });
+                } catch (settleErr: any) {
+                    console.error('[AIController.patchWebsite] Credit settlement failed:', settleErr?.message);
+                }
+            }
 
             return res.json({ success: true, ...result });
         } catch (error: any) {
             console.error('[AIController.patchWebsite] Error:', error);
+            if (error?.code && typeof error.statusCode === 'number') {
+                return res.status(error.statusCode).json({ success: false, error: error.code, code: error.code, message: error.message });
+            }
             return res.status(500).json({ success: false, message: error.message });
         }
     }
