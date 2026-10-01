@@ -121,9 +121,24 @@ editor mobile frame and a real 375px viewport render the same, and update this d
 - Not verified: floating elements on a physical iOS device, and AI generation with a live provider key.
 - Known gap: the editor's header shows the nav links in phone view, while the live site shows the hamburger.
 
+### Round 2 fixes (2026-10-02)
+- **The live site ignored Publish.** `PublicService.resolveDomain` (the resolver the live page uses) returned the raw
+  Website row with the *draft* `config`, so every autosave went live. It now serves only active + published sites, returns
+  just `{id,name,slug,customDomain,config: publishedConfig}`, and includes active pixels. Verified: unpublished → not found;
+  published → snapshot + pixel; a draft edit after publishing does not leak.
+- Facebook Pixel never fired: the component checked `pixel.type` (the DB field is `provider`) and the resolver returned no
+  pixels. Both fixed, and the pixel ID is sanitized to digits before it goes into the inline script.
+- The editor Publish button shows the state: "Publish" (never live), "Publish changes" with a dot (the draft differs from
+  live), or "Published".
+- The editor phone frame uses a hamburger header like the live site (`.wb-ed-nav` / `.wb-ed-nav-toggle`).
+- AI chat (`ai-chat.service.ts`) no longer falls back to the model's "I built it" text when website generation fails.
+  It shows a clear error (`AI_NOT_CONFIGURED` → points the user to Settings → AI or templates).
+- AI websites provider `delete` uses tenant-scoped `deleteMany` and frees the domain registry entry.
+- In tablet/mobile view, PropertyPanel explains that automatic phone adjustments apply until a value is set.
+
 ### Open decisions / follow-ups
-1. The public resolver serves the **draft** `config` when `isPublished` is false (`websites.service.ts` `publicGetWebsite`).
-   Should unpublished sites be hidden? That could take down live sites that never pressed Publish, so it needs an owner decision.
-2. Websites with `companyId = NULL` (legacy) now return 404 to everyone. They need a data backfill (no migration was run).
-3. `ai-chat.service.ts` and `providers/websites.provider.ts` call `compile('website')`; they now surface typed errors when no AI key is set.
-4. In tablet/mobile view, PropertyPanel shows explicit overrides only, not the automatic smart mobile defaults.
+- Resolved: legacy `companyId = NULL` websites. A read-only count of the shared DB found 0 (2 websites total).
+- Resolved: unpublished sites are no longer served. The shared DB had 0 active unpublished sites. **Production may differ**:
+  any site there that was never published will show "Website Unavailable" until its owner clicks Publish.
+- The running dev backend must be restarted to load the new resolver (nodemon did not detect the change).
+

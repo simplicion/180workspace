@@ -1,7 +1,7 @@
 'use client';
 
 import { LogoLoader } from "@workspace/ui";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -12,7 +12,7 @@ import { SITE_ROOT_CLASS, SITE_ROOT_STYLE, ResponsiveStyles } from './responsive
 
 import {
     Eye, ArrowLeft, Monitor, Tablet, Smartphone, ChevronLeft, ChevronRight, Palette, Sparkles,
-    CheckCircle2, Plus, Undo2, Redo2, Upload, AlertCircle, RefreshCw
+    CheckCircle2, Plus, Undo2, Redo2, Upload, AlertCircle, RefreshCw, Menu, X
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -41,7 +41,8 @@ const EDITOR_CHROME_CSS = `
 .wb-ed-header{flex-direction:row}
 .wb-ed-footer-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 @container site (max-width: 1024px){.wb-ed-footer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@container site (max-width: 767px){.wb-ed-header{flex-direction:column}.wb-ed-footer-grid{grid-template-columns:minmax(0,1fr)}}
+.wb-ed-nav-toggle{display:none}
+@container site (max-width: 767px){.wb-ed-nav{display:none}.wb-ed-nav-toggle{display:inline-flex}.wb-ed-footer-grid{grid-template-columns:minmax(0,1fr)}}
 `;
 
 const deepClone = <T,>(v: T): T => (typeof structuredClone === 'function' ? structuredClone(v) : JSON.parse(JSON.stringify(v)));
@@ -260,6 +261,8 @@ export default function WebsiteEditorPage() {
 
     // View Modes
     const [viewMode, setViewMode] = useState<ViewMode>('desktop');
+    // Mirrors the live site's hamburger menu inside the phone frame.
+    const [edMobileNavOpen, setEdMobileNavOpen] = useState(false);
 
     // Multi-Page State
     const [activePageId, setActivePageId] = useState<string>('home');
@@ -410,6 +413,8 @@ export default function WebsiteEditorPage() {
 
             setConfig(loadedConfig);
             lastSavedConfigRef.current = JSON.stringify(loadedConfig);
+            const loadedSite = res.data.website;
+            setPublishedSnapshot(loadedSite?.isPublished && loadedSite?.publishedConfig ? JSON.stringify(loadedSite.publishedConfig) : null);
             lastSavedConfigObjRef.current = loadedConfig;
             lastSavedNameRef.current = res.data.website?.name || '';
             setHistory([deepClone(loadedConfig)]);
@@ -465,6 +470,12 @@ export default function WebsiteEditorPage() {
     };
 
     const [isPublishing, setIsPublishing] = useState(false);
+    // JSON of what visitors currently see (null = never published). Visitors only get the published snapshot.
+    const [publishedSnapshot, setPublishedSnapshot] = useState<string | null>(null);
+    const hasUnpublishedChanges = useMemo(
+        () => !!config && (publishedSnapshot === null || publishedSnapshot !== JSON.stringify(config)),
+        [config, publishedSnapshot]
+    );
     const performPublish = async () => {
         if (!config || !id) return;
         setIsPublishing(true);
@@ -475,6 +486,7 @@ export default function WebsiteEditorPage() {
                 publishedConfig: config,
                 isPublished: true
             });
+            setPublishedSnapshot(JSON.stringify(config));
             toast.success('Website published successfully!');
         } catch (err) {
             console.error('Publish error:', err);
@@ -1211,14 +1223,15 @@ export default function WebsiteEditorPage() {
                         onClick={performPublish}
                         disabled={isPublishing}
                         className="min-h-11 px-4 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200 border border-indigo-700 shadow-xs flex items-center gap-2 active:scale-95"
-                        title="Publish current changes to the live website"
+                        title={hasUnpublishedChanges ? (publishedSnapshot === null ? "Not live yet — publish to make this website visible to visitors" : "You have changes visitors can't see yet — publish to make them live") : "Visitors see the latest version"}
                     >
                         {isPublishing ? (
                             <LogoLoader className="w-4 h-4 animate-spin text-white" />
                         ) : (
                             <Upload className="w-4 h-4" />
                         )}
-                        <span>Publish</span>
+                        <span>{hasUnpublishedChanges ? (publishedSnapshot === null ? 'Publish' : 'Publish changes') : 'Published'}</span>
+                        {hasUnpublishedChanges && publishedSnapshot !== null && <span className="w-2 h-2 rounded-full bg-amber-300" aria-hidden="true" />}
                     </button>
                 </div>
             </div>
@@ -1390,18 +1403,64 @@ export default function WebsiteEditorPage() {
                                 />
                             </div>
 
-                            <nav className="flex flex-wrap justify-center items-center gap-6 text-sm font-bold opacity-80">
-                                {config.pages?.filter((p: any) => p.isEnabled && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header')).map((p: any) => (
-                                    <button
-                                        key={p.id}
-                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }}
-                                        className={`hover:opacity-100 transition-opacity py-1 ${activePageId === p.id ? 'border-b-2 border-current' : ''}`}
-                                        style={{ color: 'inherit' }}
-                                    >
-                                        {p.name}
-                                    </button>
-                                ))}
-                            </nav>
+                            {(() => {
+                                const headerPages = (config.pages || []).filter((p: any) => p.isEnabled && (!p.navVisibility || p.navVisibility === 'both' || p.navVisibility === 'header'));
+                                return (
+                                    <>
+                                        <nav className="wb-ed-nav flex flex-wrap justify-end items-center gap-6 text-sm font-bold opacity-80">
+                                            {headerPages.map((p: any) => (
+                                                <button
+                                                    key={p.id}
+                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeActivePage(p.id); }}
+                                                    className={`hover:opacity-100 transition-opacity py-1 ${activePageId === p.id ? 'border-b-2 border-current' : ''}`}
+                                                    style={{ color: 'inherit' }}
+                                                >
+                                                    {p.name}
+                                                </button>
+                                            ))}
+                                        </nav>
+                                        {headerPages.length > 0 && (
+                                            <div className="wb-ed-nav-toggle">
+                                                <button
+                                                    type="button"
+                                                    aria-expanded={edMobileNavOpen}
+                                                    aria-label={edMobileNavOpen ? 'Close menu' : 'Open menu'}
+                                                    onClick={(e) => { e.stopPropagation(); setEdMobileNavOpen(v => !v); }}
+                                                    className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg hover:bg-black/5"
+                                                    style={{ color: 'inherit' }}
+                                                >
+                                                    {edMobileNavOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                                                </button>
+                                                {edMobileNavOpen && (
+                                                    <nav
+                                                        className="absolute left-0 right-0 top-full border-b border-black/10 shadow-lg z-50"
+                                                        style={{
+                                                            backgroundColor: '#ffffff',
+                                                            backgroundImage: `linear-gradient(${config.header?.style?.backgroundColor || hfStyles.backgroundColor}, ${config.header?.style?.backgroundColor || hfStyles.backgroundColor})`,
+                                                            color: config.header?.style?.color || hfStyles.color,
+                                                        }}
+                                                    >
+                                                        <ul className="flex flex-col py-2">
+                                                            {headerPages.map((p: any) => (
+                                                                <li key={p.id}>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => { e.stopPropagation(); changeActivePage(p.id); setEdMobileNavOpen(false); }}
+                                                                        className={`w-full text-left flex items-center min-h-[44px] px-6 text-base font-semibold ${activePageId === p.id ? 'underline underline-offset-4' : 'opacity-90 hover:opacity-100'}`}
+                                                                        style={{ color: 'inherit' }}
+                                                                    >
+                                                                        {p.name}
+                                                                    </button>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </nav>
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </header>
                         )}
 
@@ -1619,14 +1678,15 @@ export default function WebsiteEditorPage() {
                                         onClick={performPublish}
                                         disabled={isPublishing}
                                         className="min-h-11 px-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200 border border-indigo-700 shadow-xs flex items-center gap-1.5 active:scale-95 shrink-0"
-                                        title="Publish current changes to the live website"
+                                        title={hasUnpublishedChanges ? (publishedSnapshot === null ? "Not live yet — publish to make this website visible to visitors" : "You have changes visitors can't see yet — publish to make them live") : "Visitors see the latest version"}
                                     >
                                         {isPublishing ? (
                                             <LogoLoader className="w-3.5 h-3.5 animate-spin text-white" />
                                         ) : (
                                             <Upload className="w-3.5 h-3.5" />
                                         )}
-                                        <span>Publish</span>
+                                        <span>{hasUnpublishedChanges ? (publishedSnapshot === null ? 'Publish' : 'Publish changes') : 'Published'}</span>
+                        {hasUnpublishedChanges && publishedSnapshot !== null && <span className="w-2 h-2 rounded-full bg-amber-300" aria-hidden="true" />}
                                     </button>
                                 </div>
                             </div>

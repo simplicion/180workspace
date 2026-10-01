@@ -16,6 +16,14 @@ import { OrbitPolicyEngine } from '../control-plane/policy/policy-engine';
 import { OrbitCapabilityResolver } from '../control-plane/registry/capability-resolver';
 import { OrbitVerifier } from '../control-plane/reconciler/verifier';
 
+/** User-facing reply when website generation fails (typed WebsiteBuilderError codes from the website builder). */
+function websiteBuildFailureReply(err: any): string {
+    if (err?.code === 'AI_NOT_CONFIGURED') {
+        return '⚠️ **Website not created**: AI is not configured for this workspace. Add an AI provider key in Settings → AI, or start from a template in the Website Builder.';
+    }
+    return `⚠️ **Website not created**: ${err?.message || 'the AI website builder failed'}. Nothing was saved — please try again.`;
+}
+
 export class AIChatService {
     /**
      * Resolves settings and metadata for a user's company
@@ -222,11 +230,18 @@ export class AIChatService {
                         } else {
                             const { UniversalBuilderRegistry } = require('../builders');
                             const promptText = `${payload.title ? `website name will be ${payload.title}. ` : ''}${payload.prompt || ''} ${payload.theme || ''}`.trim();
-                            const compileRes = await UniversalBuilderRegistry.compile('website', {
-                                prompt: promptText || message,
-                                companyId,
-                                userId: user.id
-                            });
+                            let compileRes: any = null;
+                            try {
+                                compileRes = await UniversalBuilderRegistry.compile('website', {
+                                    prompt: promptText || message,
+                                    companyId,
+                                    userId: user.id
+                                });
+                            } catch (buildErr: any) {
+                                // Never fall back to the model's own "I built it" text when nothing was created.
+                                actionResult = websiteBuildFailureReply(buildErr);
+                            }
+                            if (compileRes) {
                             actionResult = compileRes.reply;
                             documentPreview = {
                                 id: compileRes.entityId,
@@ -236,6 +251,7 @@ export class AIChatService {
                                 editUrl: compileRes.editUrl,
                                 blocksCount: Array.isArray(compileRes.ast) ? compileRes.ast.length : 4
                             };
+                            }
                         }
                     } else if (['create_document', 'generate_document_ast'].includes(command.action)) {
                         const { AIDocumentArchitectService } = require('../documents/ai-document-architect.service');
@@ -420,6 +436,7 @@ export class AIChatService {
                     };
                 } catch (e) {
                     console.error('[AIChatService] Smart website builder fallback failed:', e);
+                    finalStoredReply = websiteBuildFailureReply(e);
                 }
             } else if (isDocIntent) {
                 try {

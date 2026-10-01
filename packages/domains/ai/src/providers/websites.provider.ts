@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { prisma } from '@workspace/db';
+import { prisma, basePrisma } from '@workspace/db';
 import { ResourceDefinition } from '../control-plane/types/resource.types';
 import { AIToolDefinition } from '../tools/ai-tool-registry';
 
@@ -51,9 +51,11 @@ export const websiteResource: ResourceDefinition = {
         },
         delete: async (id, context) => {
             const { companyId } = context;
-            if (prisma.website) {
-                await prisma.website.delete({ where: { id, companyId } });
-            }
+            if (!companyId) return { success: false, error: 'COMPANY_REQUIRED', message: 'A workspace is required to delete a website.' };
+            const { count } = await prisma.website.deleteMany({ where: { id, companyId } });
+            if (!count) return { success: false, error: 'WEBSITE_NOT_FOUND', message: `Website \`${id}\` not found.` };
+            // Free the subdomain/custom domain so it can be reused.
+            await basePrisma.domainRegistry.deleteMany({ where: { type: 'ADVERTISING_WEBSITE', targetId: id } });
             return { success: true, message: `Website \`${id}\` deleted.` };
         }
     }
