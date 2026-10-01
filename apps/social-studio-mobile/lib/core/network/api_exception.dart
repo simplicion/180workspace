@@ -109,9 +109,16 @@ class ApiException implements Exception {
         if (response == null) {
           final inner = e.error;
           if (inner is ApiException) return inner;
+          final innerStr = inner?.toString() ?? e.message ?? 'no response';
+          String userMsg = 'Cannot reach 180 Workspace ($innerStr).';
+          if (innerStr.contains('Broken pipe') || innerStr.contains('errno = 32') || innerStr.contains('Connection reset')) {
+            userMsg = 'Connection to 180 Workspace was interrupted during transfer (Broken pipe). The file may be too large or the network dropped.';
+          } else if (innerStr.contains('Connection refused')) {
+            userMsg = 'Cannot connect to 180 Workspace server. Please check your network or server status.';
+          }
           return ApiException(
             kind: ApiErrorKind.network,
-            message: 'Cannot reach 180 Workspace (${inner ?? e.message ?? 'no response'}).',
+            message: userMsg,
           );
         }
         return ApiException.fromResponse(response.statusCode ?? 0, response.data);
@@ -175,6 +182,8 @@ class ApiException implements Exception {
     message ??= switch (kind) {
       ApiErrorKind.unauthorized => 'Your session has expired. Please sign in again.',
       ApiErrorKind.notFound => 'Not found (HTTP 404). This feature may not be available on the server yet.',
+      ApiErrorKind.tooLarge => 'File size exceeds server upload limit (HTTP 413). Please choose a smaller file.',
+      ApiErrorKind.rateLimited => 'Too many requests (HTTP 429). Please wait a moment and try again.',
       ApiErrorKind.server => 'The server failed to handle the request (HTTP $status).',
       ApiErrorKind.unavailable => 'The service is temporarily unavailable (HTTP 503).',
       _ => 'Request failed (HTTP $status).',

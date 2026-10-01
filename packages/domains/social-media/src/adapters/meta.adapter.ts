@@ -9,13 +9,13 @@
  *     ≤ 300 MB; Stories video 3–60s ≤ 100 MB; image ≤ 8 MB, aspect 4:5–1.91:1, alt_text ≤ 1000)
  *   developers.facebook.com/docs/pages-api/posts, /docs/video-api/guides/reels-publishing (Reels 3–90s, 9:16)
  */
-import { META_GRAPH_VERSION, intEnv } from '../publishing/config';
+import { META_GRAPH_VERSION, intEnv, metaGraphUrl, isInstagramUserToken } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
 import { isSandboxToken, requireToken } from "./engagement-token";
 import { pollUntil, providerFailure, providerFetch, readBody, timing } from '../publishing/http';
 import { PlatformPublisher, PublishInput, PublishOutcome, charLength, checkAspect, checkUrls, checkVideo } from './types';
 
-const graph = (path: string) => `https://graph.facebook.com/${META_GRAPH_VERSION()}/${path}`;
+const graph = (path: string, token?: string, platform?: string) => metaGraphUrl(path, token, platform);
 
 /**
  * Meta error codes that mean "slow down / try later" rather than "this request is wrong":
@@ -45,7 +45,7 @@ async function metaOk(platform: string, res: Response, what: string) {
 }
 
 async function graphPost(platform: string, path: string, token: string, body: Record<string, any>, what: string) {
-    const res = await providerFetch(platform, graph(path), {
+    const res = await providerFetch(platform, graph(path, token, platform), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -54,7 +54,7 @@ async function graphPost(platform: string, path: string, token: string, body: Re
 }
 
 async function graphGet(platform: string, path: string, token: string, what: string) {
-    const res = await providerFetch(platform, graph(path), { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
+    const res = await providerFetch(platform, graph(path, token, platform), { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
     return metaOk(platform, res, what);
 }
 

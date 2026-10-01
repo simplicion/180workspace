@@ -140,13 +140,24 @@ export function OAuthErrorCard({
         referenceCode,
         details,
       };
+      const mobileChannel = (window as any).OneEightyMobileChannel;
+      if (mobileChannel && typeof mobileChannel.postMessage === 'function') {
+        try {
+          mobileChannel.postMessage(JSON.stringify(errorPayload));
+          mobileChannel.postMessage(JSON.stringify({ type: '180_IDENTITY_CLOSE' }));
+        } catch (_) {}
+      }
+      try {
+        window.postMessage(errorPayload, '*');
+        window.postMessage({ type: '180_IDENTITY_CLOSE' }, '*');
+      } catch (_) {}
       if (window.opener && !window.opener.closed) {
         window.opener.postMessage(errorPayload, '*');
         window.close();
       } else if (window.parent && window.parent !== window) {
         window.parent.postMessage(errorPayload, '*');
         window.parent.postMessage({ type: '180_IDENTITY_CLOSE' }, '*');
-      } else {
+      } else if (!mobileChannel) {
         window.history.back();
       }
     }

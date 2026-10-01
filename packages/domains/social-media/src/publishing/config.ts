@@ -1,4 +1,5 @@
 import { PublishError } from './errors';
+import { linkedInApiVersion } from './linkedin-version';
 
 /** Canonical platform ids used by accounts, variants and publishers. `twitter` is an alias of `x`. */
 export type PublishPlatform = 'instagram' | 'facebook' | 'youtube' | 'linkedin' | 'x' | 'tiktok' | 'threads' | 'pinterest' | 'reddit';
@@ -124,7 +125,7 @@ export function oauthCallbackUrl(platform: PublishPlatform): string {
 }
 
 export const META_GRAPH_VERSION = () => process.env.META_GRAPH_VERSION?.trim() || 'v21.0';
-export const LINKEDIN_API_VERSION = () => process.env.LINKEDIN_API_VERSION?.trim() || '202507';
+export const LINKEDIN_API_VERSION = () => linkedInApiVersion();
 
 /**
  * Meta webhook hub.verify_token. Read from env only; there is deliberately no fallback (a literal default
@@ -142,4 +143,36 @@ export const intEnv = (name: string, def: number) => {
     const n = Number(process.env[name]);
     return Number.isFinite(n) && n > 0 ? n : def;
 };
+
+/**
+ * Detects whether an access token belongs to Instagram Direct / Instagram User Login
+ * (e.g. IGAA..., IGAQ..., IGQV...) vs a Facebook Page / User Token (e.g. EAAB...).
+ */
+export function isInstagramUserToken(token?: string | null): boolean {
+    if (!token) return false;
+    const t = token.trim();
+    return t.startsWith('IGA') || t.startsWith('IGAA') || t.startsWith('IGQ') || t.startsWith('IGD');
+}
+
+/**
+ * Resolves the appropriate Meta Graph host depending on token type and target platform.
+ * Direct Instagram User access tokens MUST call `https://graph.instagram.com`.
+ * Facebook tokens and legacy Page-linked tokens call `https://graph.facebook.com`.
+ */
+export function metaGraphHost(token?: string | null, platform?: string | null): string {
+    if (token && isInstagramUserToken(token)) {
+        return 'https://graph.instagram.com';
+    }
+    return 'https://graph.facebook.com';
+}
+
+/**
+ * Constructs a fully qualified Graph API URL respecting Instagram User Tokens.
+ */
+export function metaGraphUrl(path: string, token?: string | null, platform?: string | null): string {
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const cleanPath = path.replace(/^\/+/, '');
+    return `${metaGraphHost(token, platform)}/${META_GRAPH_VERSION()}/${cleanPath}`;
+}
+
 

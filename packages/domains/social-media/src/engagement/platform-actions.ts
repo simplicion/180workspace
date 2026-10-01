@@ -7,7 +7,7 @@ import { YouTubeAdapter } from '../adapters/youtube.adapter';
 import { LinkedInAdapter } from '../adapters/linkedin.adapter';
 import { ThreadsAdapter } from '../adapters/threads.adapter';
 import { TikTokAdapter } from '../adapters/tiktok.adapter';
-import { META_GRAPH_VERSION } from '../publishing/config';
+import { META_GRAPH_VERSION, metaGraphUrl } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
 import { expectOk, providerFetch } from '../publishing/http';
 import { canonicalEngagementPlatform } from './capabilities';
@@ -16,7 +16,7 @@ export interface ActionAccount {
     platformAccountId: string;
 }
 
-const graph = (path: string) => `https://graph.facebook.com/${META_GRAPH_VERSION()}/${path}`;
+const graph = (path: string, token?: string, platform?: string) => metaGraphUrl(path, token, platform);
 const xApi = () => (process.env.X_API_BASE_URL?.trim() || 'https://api.x.com').replace(/\/+$/, '');
 
 async function post(platform: string, url: string, token: string, body: Record<string, any>, what: string) {

@@ -452,9 +452,49 @@ class AiDirectorService {
     return null;
   }
 
-  /// Downloads a remote media file for the renderer (which only takes local paths).
+  /// Downloads a remote media file for the renderer (which only takes local paths)
+  /// with automatic retries and exponential backoff on 429/5xx and structured ApiException wrapping.
   Future<String> download(String url, String destPath, {CancelToken? cancelToken}) async {
-    await Dio(BaseOptions(receiveTimeout: AppConfig.uploadTimeout)).download(url, destPath, cancelToken: cancelToken);
-    return destPath;
+    final dio = Dio(BaseOptions(
+      receiveTimeout: AppConfig.uploadTimeout,
+      headers: {'User-Agent': '180Workspace-SocialStudio/1.0'},
+    ));
+
+    int attempt = 0;
+    const maxAttempts = 3;
+
+    while (true) {
+      attempt++;
+      try {
+        await dio.download(url, destPath, cancelToken: cancelToken);
+        return destPath;
+      } on DioException catch (e) {
+        final status = e.response?.statusCode;
+        final isRateLimited = status == 429;
+        final isServerError = status != null && status >= 500 && status < 600;
+
+        if ((isRateLimited || isServerError) && attempt < maxAttempts) {
+          int delayMs = attempt * 1500;
+          final retryAfter = e.response?.headers.value('retry-after');
+          if (retryAfter != null) {
+            final parsed = int.tryParse(retryAfter);
+            if (parsed != null && parsed > 0 && parsed <= 10) {
+              delayMs = parsed * 1000;
+            }
+          }
+          await Future.delayed(Duration(milliseconds: delayMs));
+          continue;
+        }
+
+        throw ApiException.fromDio(e);
+      } catch (e) {
+        if (e is ApiException) rethrow;
+        throw ApiException(
+          kind: ApiErrorKind.network,
+          message: 'Failed to download asset: $e',
+        );
+      }
+    }
   }
 }
+

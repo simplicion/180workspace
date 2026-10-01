@@ -83,6 +83,19 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
   const isApex = cleanCustomInput ? cleanCustomInput.split('.').filter(Boolean).length <= 2 : false;
   const cleanSubdomain = subdomainSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 
+  const getApiUrl = (endpoint: string) => {
+    let base = apiBaseUrl || '';
+    if (!base && typeof window !== 'undefined') {
+      base = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/+$/, '');
+      if (!base) {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        base = isLocal ? 'http://localhost:4002' : 'https://api.180workspace.com';
+      }
+    }
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    return `${base}${cleanEndpoint}`;
+  };
+
   // Live debounced availability check
   useEffect(() => {
     if (domainMode !== 'subdomain' || !cleanSubdomain || cleanSubdomain.length < 2) {
@@ -94,8 +107,7 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
     setCheckingAvailability(true);
     const timer = setTimeout(async () => {
       try {
-        const base = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-        const res = await fetch(`${base}/api/v1/domains/check-availability?slug=${encodeURIComponent(cleanSubdomain)}&targetId=${encodeURIComponent(targetId)}`);
+        const res = await fetch(getApiUrl(`/api/v1/domains/check-availability?slug=${encodeURIComponent(cleanSubdomain)}&targetId=${encodeURIComponent(targetId)}`));
         if (res.ok) {
           const json = await res.json();
           setAvailabilityResult({
@@ -150,8 +162,7 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
   const fetchDomainStatus = async (domainToFetch: string) => {
     try {
       setLoading(true);
-      const base = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      const res = await fetch(`${base}/api/v1/domains/${encodeURIComponent(domainToFetch)}/status`);
+      const res = await fetch(getApiUrl(`/api/v1/domains/${encodeURIComponent(domainToFetch)}/status`));
       if (res.ok) {
         const json = await res.json();
         setActiveDomainData(json.data);
@@ -181,8 +192,7 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
     setSuccessMessage(null);
 
     try {
-      const base = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      const res = await fetch(`${base}/api/v1/domains`, {
+      const res = await fetch(getApiUrl('/api/v1/domains'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -216,8 +226,7 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
     setSuccessMessage(null);
 
     try {
-      const base = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      const res = await fetch(`${base}/api/v1/domains`, {
+      const res = await fetch(getApiUrl('/api/v1/domains'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -280,8 +289,7 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
 
     setLoading(true);
     try {
-      const base = apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-      await fetch(`${base}/api/v1/domains/${encodeURIComponent(activeDomainData.domain)}`, {
+      await fetch(getApiUrl(`/api/v1/domains/${encodeURIComponent(activeDomainData.domain)}`), {
         method: 'DELETE'
       });
 

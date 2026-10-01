@@ -586,7 +586,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
     setState(() {});
   }
 
-  Future<void> _showLinkInstagramReelDialog() async {
+  Future<void> _showLinkPostDialog() async {
     final urlCtl = TextEditingController();
     final titleCtl = TextEditingController();
     final formKey = GlobalKey<FormState>();
@@ -600,7 +600,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
           children: [
             Icon(Icons.link_rounded, color: AppTheme.primary, size: 22),
             const SizedBox(width: 8),
-            const Text('Link Instagram Reel', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Link Post / Video', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
         content: Form(
@@ -610,23 +610,26 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Link a reel or video you already posted directly on Instagram so you can target this automation rule to it.',
+                'Link an Instagram Reel/Post or LinkedIn Post you already published so you can target this automation rule to it.',
                 style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: urlCtl,
-                decoration: fieldDecoration('Instagram Reel URL *', hint: 'https://instagram.com/reel/C-xyz/'),
+                decoration: fieldDecoration('Post or Reel URL / URN *', hint: 'https://instagram.com/reel/... or https://linkedin.com/posts/...'),
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Please enter the Instagram URL';
-                  if (!v.contains('instagram.com/')) return 'Must be a valid instagram.com URL';
+                  if (v == null || v.trim().isEmpty) return 'Please enter the URL or URN';
+                  final s = v.trim().toLowerCase();
+                  if (!s.contains('instagram.com/') && !s.contains('linkedin.com/') && !s.contains('facebook.com/') && !s.startsWith('urn:li:')) {
+                    return 'Must be an Instagram, LinkedIn, or Facebook URL';
+                  }
                   return null;
                 },
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: titleCtl,
-                decoration: fieldDecoration('Video Title / Label (Optional)', hint: 'e.g. Scaling AI Systems Reel'),
+                decoration: fieldDecoration('Video / Post Title (Optional)', hint: 'e.g. Scaling AI Systems Breakdown'),
               ),
             ],
           ),
@@ -650,26 +653,31 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
     );
 
     if (result == true && mounted) {
-      final reelUrl = urlCtl.text.trim();
+      final postUrl = urlCtl.text.trim();
+      final isLi = postUrl.contains('linkedin.com') || postUrl.startsWith('urn:li:');
+      final isFb = postUrl.contains('facebook.com');
+      final platformStr = isLi ? 'linkedin' : (isFb ? 'facebook' : 'instagram');
+      final prefixLabel = isLi ? 'LinkedIn Post' : (isFb ? 'FB Post' : 'IG Reel');
+      final cleanSnippet = postUrl.split('?').first.split('/').where((s) => s.isNotEmpty).last;
       final title = titleCtl.text.trim().isNotEmpty
           ? titleCtl.text.trim()
-          : 'IG Reel: ${reelUrl.split('?').first.split('/').where((s) => s.isNotEmpty).last}';
+          : '$prefixLabel: $cleanSnippet';
 
       final postOutcome = await guarded(
         context,
         () => ref.read(socialApiProvider).createPost({
           'projectId': widget.projectId,
           'title': title,
-          'content': 'Targeted Instagram Reel: $reelUrl',
-          'mediaType': 'video',
+          'content': 'Targeted $prefixLabel: $postUrl',
+          'mediaType': isLi ? 'article' : 'video',
           'status': 'published',
           'publishedAt': DateTime.now().toIso8601String(),
           'socialAccountId': _selectedAccountId,
           'variants': [
             {
-              'platform': 'instagram',
+              'platform': platformStr,
               'publishStatus': 'published',
-              'externalUrl': reelUrl,
+              'externalUrl': postUrl,
               'socialAccountId': _selectedAccountId,
             }
           ],
@@ -677,7 +685,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       );
 
       if (mounted && postOutcome != null) {
-        showInfo(context, 'Linked Instagram Reel: $title', color: AppTheme.success);
+        showInfo(context, 'Linked $prefixLabel: $title', color: AppTheme.success);
         ref.invalidate(projectPostsProvider(PostQuery(projectId: widget.projectId)));
         final created = jMapOrNull(postOutcome.data?['post']);
         final id = created == null ? null : jStr(created['id']);
@@ -699,6 +707,10 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       return;
     }
 
+    final allAccs = ref.read(allAccountsProvider).valueOrNull ?? [];
+    final selectedAcc = allAccs.where((a) => a.id == _selectedAccountId).firstOrNull;
+    final isLinkedIn = selectedAcc?.platform == SocialPlatform.linkedin;
+
     List<String> rawKeywords = [];
     if (_triggerType == 'comment_keyword') {
       rawKeywords = _keywordsCtl.text
@@ -713,8 +725,13 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
     }
 
     final dmTemplate = _dmTemplateCtl.text.trim();
-    if (dmTemplate.isEmpty) {
+    if (!isLinkedIn && dmTemplate.isEmpty) {
       showError(context, 'Direct Message Template is required.');
+      return;
+    }
+
+    if (isLinkedIn && !_autoLike && _publicReplyCtl.text.trim().isEmpty) {
+      showError(context, 'Please enable Auto-Like or provide a Public Comment Reply for LinkedIn.');
       return;
     }
 
@@ -729,8 +746,8 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       'matchMode': _matchMode,
       'actionAutoLike': _triggerType == 'dm_inbound' ? false : _autoLike,
       'actionPublicReplies': _triggerType == 'dm_inbound' || _publicReplyCtl.text.trim().isEmpty ? [] : [_publicReplyCtl.text.trim()],
-      'actionSendDm': _sendDm,
-      'actionDmTemplate': dmTemplate,
+      'actionSendDm': isLinkedIn ? false : _sendDm,
+      'actionDmTemplate': dmTemplate.isNotEmpty ? dmTemplate : 'Thanks for reaching out! Check our link: {link}',
       'actionDmDeliverableUrl': _deliverableUrlCtl.text.trim().isEmpty ? null : _deliverableUrlCtl.text.trim(),
       'actionEnableAiAgent': _enableAiAgent,
       'aiAgentGoal': _aiAgentGoal,
@@ -970,7 +987,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                               border: Border.all(color: AppTheme.primary.withValues(alpha: 0.25)),
                             ),
                             child: Text(
-                              'Instagram & Facebook Only',
+                              'Instagram, Facebook & LinkedIn',
                               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.primary),
                             ),
                           ),
@@ -981,7 +998,9 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                         data: (allAccs) {
                           final accounts = allAccs.where((a) =>
                               a.projectId == widget.projectId &&
-                              (a.platform == SocialPlatform.instagram || a.platform == SocialPlatform.facebook)
+                              (a.platform == SocialPlatform.instagram ||
+                               a.platform == SocialPlatform.facebook ||
+                               a.platform == SocialPlatform.linkedin)
                           ).toList();
 
                           if (accounts.isEmpty) {
@@ -998,7 +1017,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'No Instagram or Facebook accounts linked to this project. Comment-to-DM automation is officially supported by Meta APIs on Instagram & Facebook. Connect an account in Channels.',
+                                      'No Instagram, Facebook, or LinkedIn accounts linked to this project. Connect an account in Channels to enable automation.',
                                       style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                                     ),
                                   ),
@@ -1012,7 +1031,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                             decoration: fieldDecoration(
                               'Select Target Account',
                               prefix: Icon(Icons.account_circle_outlined, size: 18, color: AppTheme.primary),
-                              helper: 'Automate comments & DMs on Instagram & Facebook (Meta Graph API verified).',
+                              helper: 'Automate comments & DMs on Instagram/Facebook, or auto-like & public replies on LinkedIn.',
                             ),
                             items: [
                               DropdownMenuItem<String?>(
@@ -1058,9 +1077,9 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                           ),
                           const Spacer(),
                           TextButton.icon(
-                            onPressed: _showLinkInstagramReelDialog,
+                            onPressed: _showLinkPostDialog,
                             icon: Icon(Icons.link_rounded, size: 15, color: AppTheme.primary),
-                            label: Text('Link Reel URL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                            label: Text('Link Post URL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary)),
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               minimumSize: Size.zero,
@@ -1078,7 +1097,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                             decoration: fieldDecoration(
                               'Select Target Video/Post',
                               prefix: Icon(Icons.video_collection_outlined, size: 18, color: AppTheme.accent),
-                              helper: 'Link to an existing Instagram video/reel or apply to all posts.',
+                              helper: 'Link to an existing Instagram video/reel or LinkedIn post, or apply to all posts.',
                             ),
                             items: [
                               const DropdownMenuItem<String?>(
@@ -1121,7 +1140,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '💡 Automate existing videos: Choose "All Videos & Posts" to trigger on ANY past or future video uploaded directly to Instagram. Or tap "Link Reel URL" to target one specific Reel.',
+                                '💡 Automate existing content: Choose "All Videos & Posts" to trigger on ANY past or future post on Instagram or LinkedIn. Or tap "Link Post URL" to target one specific Reel or LinkedIn Post.',
                                 style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.35),
                               ),
                             ),
@@ -1190,6 +1209,35 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                     icon: Icons.flash_on_rounded,
                     title: 'Automation Actions & DM',
                     children: [
+                      // LinkedIn Mode Banner
+                      if (accountsAsync.valueOrNull?.where((a) => a.id == _selectedAccountId).firstOrNull?.platform == SocialPlatform.linkedin)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0A66C2).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF0A66C2).withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF0A66C2)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('LinkedIn Mode: Likes & Public Replies Active', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0A66C2))),
+                                    const SizedBox(height: 2),
+                                    Text('LinkedIn official API supports auto-likes and public threaded replies. Direct Messages (DMs) are restricted by LinkedIn. Your deliverable link ({link}) will be delivered directly via the public reply!', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.35)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                       // Auto-Like Container (only if comment trigger)
                       if (_triggerType != 'dm_inbound') ...[
                         Container(
@@ -1219,8 +1267,8 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                           controller: _publicReplyCtl,
                           decoration: fieldDecoration(
                             'Public Comment Reply',
-                            hint: 'e.g. Sent to your DMs, {handle}! Check your inbox',
-                            helper: 'Visible comment reply posted under their comment',
+                            hint: 'e.g. Thanks {name}! Here is your access link: {link}',
+                            helper: 'Visible comment reply posted under their comment with deliverable link',
                             prefix: Icon(Icons.chat_bubble_outline_rounded, size: 18, color: AppTheme.textSecondary),
                           ),
                         ),
@@ -1233,52 +1281,75 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                         decoration: fieldDecoration(
                           'Deliverable / Link URL',
                           hint: 'https://yoursite.com/free-blueprint',
-                          helper: 'The resource/link delivered in the DM (PDF guide, Notion doc, webinar, or booking page)',
+                          helper: 'The resource/link delivered in the response (PDF guide, Notion doc, webinar, or booking page)',
                           prefix: Icon(Icons.link_rounded, size: 18, color: AppTheme.textSecondary),
                         ),
                       ),
                       const SizedBox(height: 14),
 
-                      TextField(
-                        controller: _dmTemplateCtl,
-                        maxLines: 3,
-                        decoration: fieldDecoration(
-                          'Direct Message Template *',
-                          hint: 'Hey {name}! Here is your link: {link} Let me know if you have any questions!',
-                          prefix: Icon(Icons.mark_chat_unread_outlined, size: 18, color: AppTheme.textSecondary),
+                      if (accountsAsync.valueOrNull?.where((a) => a.id == _selectedAccountId).firstOrNull?.platform != SocialPlatform.linkedin) ...[
+                        TextField(
+                          controller: _dmTemplateCtl,
+                          maxLines: 3,
+                          decoration: fieldDecoration(
+                            'Direct Message Template *',
+                            hint: 'Hey {name}! Here is your link: {link} Let me know if you have any questions!',
+                            prefix: Icon(Icons.mark_chat_unread_outlined, size: 18, color: AppTheme.textSecondary),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
+                        const SizedBox(height: 8),
 
-                      // Interactive Token Pills
-                      Row(
-                        children: [
-                          Text('Insert token: ', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-                          const SizedBox(width: 4),
-                          Wrap(
-                            spacing: 6,
-                            children: [
-                              for (final token in ['{name}', '{handle}', '{link}'])
-                                InkWell(
-                                  onTap: () => _insertToken(token),
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.surface,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: AppTheme.border),
-                                    ),
-                                    child: Text(
-                                      '+ $token',
-                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                        // Interactive Token Pills
+                        Row(
+                          children: [
+                            Text('Insert token: ', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                            const SizedBox(width: 4),
+                            Wrap(
+                              spacing: 6,
+                              children: [
+                                for (final token in ['{name}', '{handle}', '{link}'])
+                                  InkWell(
+                                    onTap: () => _insertToken(token),
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.surface,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: AppTheme.border),
+                                      ),
+                                      child: Text(
+                                        '+ $token',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                                      ),
                                     ),
                                   ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceElevated,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppTheme.border),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.shield_outlined, size: 18, color: AppTheme.primary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Automated DMs disabled for LinkedIn per API platform policies. Public comment replies and auto-likes are 100% active.',
+                                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                                 ),
+                              ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 16),

@@ -8,6 +8,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import CustomSelect from '@/components/ui/CustomSelect';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import { LogoLoader } from '@workspace/ui';
+import { ensureExternalUrl } from '@/lib/url';
 import ConditionRow, { ConditionItem } from './ConditionRow';
 import { getDefaultValueForType } from './TargetingSignalPresets';
 
@@ -65,9 +66,10 @@ export default function CreateRuleModal({ isOpen, onClose, linkId, onSuccess }: 
 
     try {
       setLoading(true);
+      const cleanDestination = ensureExternalUrl(destinationUrl);
       const res = await api.post(`/api/v1/traffic-director/links/${linkId}/rules`, {
         name,
-        destinationUrl,
+        destinationUrl: cleanDestination,
         actionType,
         weight: Number(weight),
         conditions

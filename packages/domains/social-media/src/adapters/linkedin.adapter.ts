@@ -243,11 +243,12 @@ export class LinkedInAdapter {
         if (isSandboxToken(accessToken)) {
             return { commentUrn: `urn:li:comment:sim_${Date.now()}` };
         }
+        const author = actorUrn.startsWith('urn:li:') ? actorUrn : `urn:li:organization:${actorUrn}`;
         const res = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(targetUrn)}/comments`, {
             method: 'POST',
             headers: headers(accessToken),
             body: JSON.stringify({
-                actor: actorUrn,
+                actor: author,
                 object: targetUrn,
                 message: { text },
             }),
@@ -262,11 +263,12 @@ export class LinkedInAdapter {
         if (isSandboxToken(accessToken)) {
             return true;
         }
+        const author = actorUrn.startsWith('urn:li:') ? actorUrn : `urn:li:organization:${actorUrn}`;
         const res = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(targetUrn)}/reactions`, {
             method: 'POST',
             headers: headers(accessToken),
             body: JSON.stringify({
-                actor: actorUrn,
+                actor: author,
                 root: targetUrn,
                 reactionType: 'LIKE',
             }),
@@ -283,6 +285,9 @@ export class LinkedInAdapter {
         const res = await providerFetch('linkedin', `${REST}/socialActions/${encodeURIComponent(targetUrn)}/comments?count=${limit}`, {
             headers: headers(accessToken),
         });
+        if (res.status === 404) {
+            return [];
+        }
         const data = await expectOk('linkedin', res, 'LinkedIn fetch comments');
         return data.elements || [];
     }

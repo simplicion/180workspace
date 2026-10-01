@@ -113,7 +113,12 @@ export const FIRST_PARTY_APPS = [
         name: '180 Social Studio',
         description: 'Multi-Channel Social Media Automation & Analytics',
         redirectUris: [
+            'workspace180://oauth/callback',
+            'workspace180://oauth-callback',
             '180social://oauth-callback',
+            '180social://oauth/callback',
+            'socialstudio://oauth-callback',
+            'socialstudio://oauth/callback',
             'http://localhost:3007/#/oauth-callback',
             'http://localhost:3007/oauth-callback',
             'http://localhost:3000/social/callback'

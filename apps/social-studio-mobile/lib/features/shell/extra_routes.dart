@@ -107,4 +107,5 @@ List<RouteBase> extraRoutes() => [
       ),
       GoRoute(path: '/review/:token', builder: (_, s) => PublicReviewScreen(token: s.pathParameters['token']!)),
       GoRoute(path: '/oauth-callback', builder: (_, s) => OAuthCallbackScreen(query: s.uri.queryParameters)),
+      GoRoute(path: '/oauth/callback', builder: (_, s) => OAuthCallbackScreen(query: s.uri.queryParameters)),
     ];

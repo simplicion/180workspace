@@ -27,17 +27,26 @@ export interface EvaluatableLink {
   rules: EvaluatableRule[];
 }
 
+function ensureAbsoluteUrl(url?: string | null): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 export class DecisionEngine {
   static evaluate(link: EvaluatableLink, signals: ExtractedSignals): EvaluationResult {
     const startTime = performance.now();
     const fallbackAction = link.safePageProxyMode === true ? 'proxy_safe_page' : 'redirect_302';
+    const safeFallbackUrl = ensureAbsoluteUrl(link.fallbackUrl);
 
     if (!link.isActive) {
       const elapsed = Math.round(performance.now() - startTime);
       return {
         matchedRuleId: null,
         matchedRuleName: null,
-        destinationUrl: link.fallbackUrl,
+        destinationUrl: safeFallbackUrl,
         actionType: fallbackAction,
         isFallback: true,
         evaluationLatencyMs: elapsed,
@@ -55,7 +64,7 @@ export class DecisionEngine {
         return {
           matchedRuleId: null,
           matchedRuleName: 'Temporal Warmup Safe Mode',
-          destinationUrl: link.fallbackUrl,
+          destinationUrl: safeFallbackUrl,
           actionType: fallbackAction,
           isFallback: true,
           warmupBlocked: true,
@@ -71,7 +80,7 @@ export class DecisionEngine {
       return {
         matchedRuleId: null,
         matchedRuleName: 'Datacenter ASN Firewall Drop',
-        destinationUrl: link.fallbackUrl,
+        destinationUrl: safeFallbackUrl,
         actionType: fallbackAction,
         isFallback: true,
         datacenterBlocked: true,
@@ -86,7 +95,7 @@ export class DecisionEngine {
       return {
         matchedRuleId: null,
         matchedRuleName: `Spy Service Block (${signals.spyServiceName || 'Ad Intelligence'})`,
-        destinationUrl: link.fallbackUrl,
+        destinationUrl: safeFallbackUrl,
         actionType: fallbackAction,
         isFallback: true,
         evaluationLatencyMs: elapsed,
@@ -100,7 +109,7 @@ export class DecisionEngine {
       return {
         matchedRuleId: null,
         matchedRuleName: `VPN / Proxy Firewall (${signals.vpnReason || 'VPN Detected'})`,
-        destinationUrl: link.fallbackUrl,
+        destinationUrl: safeFallbackUrl,
         actionType: fallbackAction,
         isFallback: true,
         evaluationLatencyMs: elapsed,
@@ -115,7 +124,7 @@ export class DecisionEngine {
       return {
         matchedRuleId: null,
         matchedRuleName: `Global Threat Defense (${threatCheck.matchedFeed || 'Blacklisted Threat'})`,
-        destinationUrl: link.fallbackUrl,
+        destinationUrl: safeFallbackUrl,
         actionType: fallbackAction,
         isFallback: true,
         evaluationLatencyMs: elapsed,
@@ -143,7 +152,7 @@ export class DecisionEngine {
           return {
             matchedRuleId: null,
             matchedRuleName: `Stealth Ramp-Up (${Math.round(rampFactor * 100)}%)`,
-            destinationUrl: link.fallbackUrl,
+            destinationUrl: safeFallbackUrl,
             actionType: fallbackAction,
             isFallback: true,
             rampUpApplied: true,
@@ -183,7 +192,7 @@ export class DecisionEngine {
         return {
           matchedRuleId: rule.id,
           matchedRuleName: rule.name,
-          destinationUrl: rule.destinationUrl || (rule as any).targetUrl,
+          destinationUrl: ensureAbsoluteUrl(rule.destinationUrl || (rule as any).targetUrl),
           actionType: (rule.actionType as any) || (rule as any).action || 'redirect_302',
           isFallback: false,
           evaluationLatencyMs: elapsed,
@@ -197,7 +206,7 @@ export class DecisionEngine {
     return {
       matchedRuleId: null,
       matchedRuleName: null,
-      destinationUrl: link.fallbackUrl,
+      destinationUrl: safeFallbackUrl,
       actionType: fallbackAction,
       isFallback: true,
       evaluationLatencyMs: elapsed,

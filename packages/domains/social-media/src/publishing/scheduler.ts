@@ -67,6 +67,10 @@ export class SocialPublishScheduler {
         await SocialTokenVault.proactiveRefreshExpiringTokens().catch(() => ({ refreshed: 0, failed: 0 }));
         // 180 Engagement: replay comment/DM automations that were deferred by the per-account rate limit.
         await require('../engagement/engagement-dispatcher').EngagementDispatcher.retryDeferred().catch((e: any) => result.errors.push({ postId: "engagement-retry", error: String(e?.message || e) }));
+        // 180 Engagement: poll LinkedIn comments for automated like/reply engagement and lead ingestion.
+        await require('../engagement/linkedin-comment-poller').LinkedInCommentPoller.pollActivePosts().catch((e: any) => {
+            console.warn('[SocialScheduler] LinkedIn comment poller error:', e?.message || e);
+        });
 
         const now = new Date(timing.now());
         const due = await db.socialPost.findMany({

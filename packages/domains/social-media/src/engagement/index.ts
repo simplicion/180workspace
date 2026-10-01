@@ -8,3 +8,4 @@ export * from './capabilities';
 export * from './rate-limiter';
 export * from './platform-actions';
 export * from './engagement-ai';
+export * from './linkedin-comment-poller';

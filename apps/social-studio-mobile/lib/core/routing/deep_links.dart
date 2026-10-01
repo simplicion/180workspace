@@ -71,7 +71,8 @@ class DeepLinkService {
 
     if (isOAuth) {
       _oauth.add(OAuthCallback(uri));
-      return null;
+      final query = uri.hasQuery ? '?${uri.query}' : (uri.fragment.contains('?') ? '?${uri.fragment.substring(uri.fragment.indexOf('?') + 1)}' : '');
+      return '/oauth-callback$query';
     }
 
     final segments = [if (isCustomScheme && uri.host.isNotEmpty) uri.host, ...uri.pathSegments];
@@ -80,7 +81,8 @@ class DeepLinkService {
       case 'oauth':
       case 'oauth-callback':
         _oauth.add(OAuthCallback(uri));
-        return null;
+        final query = uri.hasQuery ? '?${uri.query}' : '';
+        return '/oauth-callback$query';
       case 'review':
         return segments.length > 1 ? '/review/${segments[1]}' : null;
       case 'posts':

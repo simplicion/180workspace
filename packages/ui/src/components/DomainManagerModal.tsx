@@ -92,6 +92,10 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
     let base = apiBaseUrl || '';
     if (!base && typeof window !== 'undefined') {
       base = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/+$/, '');
+      if (!base) {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        base = isLocal ? 'http://localhost:4002' : 'https://api.180workspace.com';
+      }
     }
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     return `${base}${cleanEndpoint}`;
