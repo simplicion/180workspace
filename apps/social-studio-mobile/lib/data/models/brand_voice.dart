@@ -23,6 +23,10 @@ class BrandVoice {
     this.accentColor,
     this.font,
     this.captionStylePreset,
+    this.brandType,
+    this.industry,
+    this.mission,
+    this.primaryGoal,
     this.metadata = const {},
   });
 
@@ -42,6 +46,10 @@ class BrandVoice {
   final String? accentColor;
   final String? font;
   final String? captionStylePreset;
+  final String? brandType;
+  final String? industry;
+  final String? mission;
+  final String? primaryGoal;
   final Json metadata;
 
   /// True when the server returned its synthetic default (no row yet).
@@ -49,24 +57,30 @@ class BrandVoice {
 
   factory BrandVoice.fromJson(Json j, {String? projectId}) {
     final meta = jMap(j['metadata']);
-    final colors = jMap(j['colors'] ?? meta['colors']);
+    final brand = jMap(meta['brand']);
+    final colors = jMap(j['colors'] ?? meta['colors'] ?? brand['colors']);
+    final objectives = jMap(meta['objectives'] ?? brand['objectives']);
     return BrandVoice(
       id: jStr(j['id']),
       projectId: jStr(j['projectId']) ?? projectId ?? '',
-      tone: jStr(j['tone']) ?? '',
-      targetAudience: jStr(j['targetAudience']) ?? '',
+      tone: jStr(j['tone'] ?? brand['tone']) ?? '',
+      targetAudience: jStr(j['targetAudience'] ?? j['audience'] ?? brand['audience']) ?? '',
       sampleViralPosts: jStrList(j['sampleViralPosts']),
       forbiddenWords: jStrList(j['forbiddenWords']),
       defaultHashtags: jStrList(j['defaultHashtags']),
       standardCtas: jStrList(j['standardCtas']),
-      contentPillars: jStrList(meta['contentPillars'] ?? j['contentPillars']),
+      contentPillars: jStrList(meta['contentPillars'] ?? brand['contentPillars'] ?? j['contentPillars']),
       hookStyle: jStr(meta['hookStyle']) ?? '',
       hooks: jStrList(meta['hooks']),
-      logoUrl: jStr(j['logoUrl'] ?? meta['logoUrl']),
+      logoUrl: jStr(j['logoUrl'] ?? meta['logoUrl'] ?? brand['logoUrl']),
       primaryColor: jStr(colors['primary'] ?? meta['primaryColor']),
-      accentColor: jStr(colors['accent'] ?? meta['accentColor']),
-      font: jStr(j['font'] ?? meta['font']),
-      captionStylePreset: jStr(j['captionStylePreset'] ?? meta['captionStylePreset']),
+      accentColor: jStr(colors['accent'] ?? colors['secondary'] ?? meta['accentColor']),
+      font: jStr(j['font'] ?? meta['font'] ?? brand['font']),
+      captionStylePreset: jStr(j['captionStylePreset'] ?? meta['captionStylePreset'] ?? brand['captionStylePreset']),
+      brandType: jStr(j['brandType'] ?? meta['brandType'] ?? brand['brandType']),
+      industry: jStr(j['industry'] ?? meta['industry'] ?? brand['industry']),
+      mission: jStr(j['description'] ?? j['positioning'] ?? meta['mission'] ?? brand['description'] ?? brand['positioning']),
+      primaryGoal: jStr(meta['primaryGoal'] ?? objectives['primary']),
       metadata: meta,
     );
   }
@@ -80,8 +94,16 @@ class BrandVoice {
         'defaultHashtags': defaultHashtags,
         'standardCtas': standardCtas,
         'logoUrl': logoUrl,
-        'font': font,
-        'captionStylePreset': captionStylePreset,
+        if (font != null) 'font': font,
+        if (captionStylePreset != null) 'captionStylePreset': captionStylePreset,
+        if (brandType != null && brandType!.isNotEmpty) 'brandType': brandType,
+        if (industry != null && industry!.isNotEmpty) 'industry': industry,
+        if (mission != null && mission!.isNotEmpty) ...{
+          'description': mission,
+          'positioning': mission,
+        },
+        if (primaryGoal != null && primaryGoal!.isNotEmpty)
+          'objectives': {'primary': primaryGoal},
         'colors': {
           if (primaryColor != null) 'primary': primaryColor,
           if (accentColor != null) 'accent': accentColor,
@@ -91,6 +113,10 @@ class BrandVoice {
           'contentPillars': contentPillars,
           'hookStyle': hookStyle,
           'hooks': hooks,
+          if (brandType != null && brandType!.isNotEmpty) 'brandType': brandType,
+          if (industry != null && industry!.isNotEmpty) 'industry': industry,
+          if (mission != null && mission!.isNotEmpty) 'mission': mission,
+          if (primaryGoal != null && primaryGoal!.isNotEmpty) 'primaryGoal': primaryGoal,
           if (logoUrl != null) 'logoUrl': logoUrl,
           if (primaryColor != null) 'primaryColor': primaryColor,
           if (accentColor != null) 'accentColor': accentColor,
@@ -110,11 +136,14 @@ class BrandVoice {
     String? hookStyle,
     List<String>? hooks,
     String? logoUrl,
-    // Object? + sentinel so callers can clear a visual choice by passing null explicitly.
     Object? primaryColor = _keep,
     Object? accentColor = _keep,
     Object? font = _keep,
     Object? captionStylePreset = _keep,
+    Object? brandType = _keep,
+    Object? industry = _keep,
+    Object? mission = _keep,
+    Object? primaryGoal = _keep,
   }) =>
       BrandVoice(
         id: id,
@@ -133,6 +162,10 @@ class BrandVoice {
         accentColor: identical(accentColor, _keep) ? this.accentColor : accentColor as String?,
         font: identical(font, _keep) ? this.font : font as String?,
         captionStylePreset: identical(captionStylePreset, _keep) ? this.captionStylePreset : captionStylePreset as String?,
+        brandType: identical(brandType, _keep) ? this.brandType : brandType as String?,
+        industry: identical(industry, _keep) ? this.industry : industry as String?,
+        mission: identical(mission, _keep) ? this.mission : mission as String?,
+        primaryGoal: identical(primaryGoal, _keep) ? this.primaryGoal : primaryGoal as String?,
         metadata: metadata,
       );
 
@@ -159,6 +192,27 @@ class BrandVoice {
     'Montserrat',
     'Roboto',
     'Playfair Display',
+  ];
+
+  static const industryPresets = [
+    'Tech & AI',
+    'B2B SaaS & Startups',
+    'E-Commerce & DTC',
+    'Finance & Investing',
+    'Fitness & Health',
+    'Real Estate',
+    'Coaching & Education',
+    'Marketing & Agency',
+    'Creator & Media',
+    'Lifestyle & Fashion',
+  ];
+
+  static const primaryGoalPresets = [
+    'Audience Growth & Virality',
+    'Inbound Lead Generation',
+    'Thought Leadership & Authority',
+    'Community Building',
+    'Direct Sales & Conversions',
   ];
 }
 

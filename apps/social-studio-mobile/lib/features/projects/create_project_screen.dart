@@ -33,6 +33,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   bool _newClient = false;
   final Set<String> _services = {'content_calendar', 'short_form_video', 'publishing'};
   BrandVoice _voice = BrandVoice(projectId: '');
+  String? _pickedLogoPath;
   final Set<String> _accountIds = {};
   bool _approval = true;
   String _tz = 'UTC';
@@ -77,8 +78,20 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
     );
     final project = await guarded(context, () => ref.read(socialApiProvider).createProject(input));
     if (!mounted) return;
+    if (project == null) {
+      setState(() => _saving = false);
+      return;
+    }
+
+    if (_pickedLogoPath != null) {
+      try {
+        await ref.read(socialApiProvider).uploadBrandLogo(project.id, _pickedLogoPath!);
+      } catch (_) {
+        // Upload failure should not prevent user from entering project; can be retried in Brand tab.
+      }
+    }
+
     setState(() => _saving = false);
-    if (project == null) return;
     ref.invalidate(allProjectsProvider);
     ref.invalidate(projectListProvider);
     await ref.read(activeProjectIdProvider.notifier).select(project.id);
@@ -170,7 +183,11 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
             title: Text('Brand identity'),
             subtitle: Text('Optional, and editable later'),
             isActive: _step >= 2,
-            content: BrandVoiceForm(initial: _voice, onChanged: (v) => _voice = v),
+            content: BrandVoiceForm(
+              initial: _voice,
+              onChanged: (v) => _voice = v,
+              onLogoPicked: (path) => setState(() => _pickedLogoPath = path),
+            ),
           ),
           Step(
             title: Text('Channels & workflow'),
