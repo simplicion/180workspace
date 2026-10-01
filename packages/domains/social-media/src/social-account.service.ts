@@ -73,7 +73,14 @@ export class SocialAccountService {
         const companyId = requestContext.getStore()?.companyId as string;
         if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
 
-        const whereClause: any = { companyId, isActive: true };
+        const whereClause: any = {
+            companyId,
+            isActive: true,
+            OR: [
+                { projectId: null },
+                { project: { deletedAt: null } }
+            ]
+        };
         if (projectId) whereClause.projectId = projectId;
 
         const rows = await (prisma as any).socialAccount.findMany({

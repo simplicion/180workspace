@@ -357,7 +357,7 @@ export class ReverseProxyService {
     // Helper to resolve full asset URL
     function resolveAssetUrl(u) {
       if (!u || typeof u !== 'string') return u;
-      if (u.startsWith('data:') || u.startsWith('blob:') || u.startsWith(assetProxyBase)) return u;
+      if (u.startsWith('data:') || u.startsWith('blob:') || u.startsWith(assetProxyBase) || u.startsWith('/r/')) return u;
       var full = '';
       if (u.startsWith('//')) {
         full = window.location.protocol + u;
@@ -365,8 +365,17 @@ export class ReverseProxyService {
         full = targetOrigin + u;
       } else if (u.startsWith(targetOrigin)) {
         full = u;
+      } else if (u.startsWith(window.location.origin)) {
+        if (!u.startsWith(window.location.origin + assetProxyBase) && !u.startsWith(window.location.origin + '/r/')) {
+          full = targetOrigin + u.substring(window.location.origin.length);
+        }
       } else if (!u.startsWith('http://') && !u.startsWith('https://')) {
-        full = targetOrigin + '/' + u;
+        full = targetOrigin + '/' + u.replace(/^\.\//, '');
+      } else {
+        var isAnalytics = /google-analytics\.com|googletagmanager\.com|analytics\.google\.com|doubleclick\.net|connect\.facebook\.net|facebook\.com\/tr|analytics\.tiktok\.com|bat\.bing\.com|clarity\.ms|hotjar\.com/i.test(u);
+        if (!isAnalytics) {
+          full = u;
+        }
       }
       return full ? (assetProxyBase + '?url=' + encodeURIComponent(full)) : u;
     }
@@ -413,28 +422,40 @@ export class ReverseProxyService {
       }
     });
 
-    // Intercept window.fetch for RSC flight payloads, RUM beacons, dynamic audio/asset chunks
+    // Intercept window.fetch for RSC flight payloads, RUM beacons, dynamic audio/asset chunks, and backend API calls
     var originalFetch = window.fetch;
     if (originalFetch) {
       window.fetch = function(resource, init) {
         try {
           var urlStr = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
-          if (urlStr) {
+          if (urlStr && !urlStr.startsWith('data:') && !urlStr.startsWith('blob:') && !urlStr.startsWith(assetProxyBase) && !urlStr.startsWith('/r/')) {
             var fullTarget = '';
-            if (urlStr.startsWith('/') && !urlStr.startsWith('/r/_proxy/')) {
+            if (urlStr.startsWith('//')) {
+              fullTarget = window.location.protocol + urlStr;
+            } else if (urlStr.startsWith('/')) {
               fullTarget = targetOrigin + urlStr;
             } else if (urlStr.startsWith(targetOrigin)) {
               fullTarget = urlStr;
+            } else if (urlStr.startsWith(window.location.origin)) {
+              if (!urlStr.startsWith(window.location.origin + assetProxyBase) && !urlStr.startsWith(window.location.origin + '/r/')) {
+                fullTarget = targetOrigin + urlStr.substring(window.location.origin.length);
+              }
+            } else if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+              fullTarget = targetOrigin + '/' + urlStr.replace(/^\.\//, '');
+            } else if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+              var isAnalytics = /google-analytics\.com|googletagmanager\.com|analytics\.google\.com|doubleclick\.net|connect\.facebook\.net|facebook\.com\/tr|analytics\.tiktok\.com|bat\.bing\.com|clarity\.ms|hotjar\.com/i.test(urlStr);
+              if (!isAnalytics) {
+                fullTarget = urlStr;
+              }
             }
             if (fullTarget) {
-              var isGet = !init || !init.method || init.method.toUpperCase() === 'GET';
-              if (isGet) {
-                var proxiedUrl = assetProxyBase + '?url=' + encodeURIComponent(fullTarget);
-                if (typeof resource === 'string') {
-                  resource = proxiedUrl;
-                } else {
-                  resource = new Request(proxiedUrl, resource);
-                }
+              var proxiedUrl = assetProxyBase + '?url=' + encodeURIComponent(fullTarget);
+              if (typeof resource === 'string') {
+                resource = proxiedUrl;
+              } else if (resource && typeof resource === 'object' && resource instanceof Request) {
+                resource = new Request(proxiedUrl, resource);
+              } else {
+                resource = proxiedUrl;
               }
             }
           }
@@ -443,20 +464,33 @@ export class ReverseProxyService {
       };
     }
 
-    // Intercept XMLHttpRequest for relative XHR / Audio buffer calls
+    // Intercept XMLHttpRequest for relative XHR / Audio buffer calls / backend API calls
     var OriginalXHR = window.XMLHttpRequest;
     if (OriginalXHR) {
       var origOpen = OriginalXHR.prototype.open;
       OriginalXHR.prototype.open = function(method, url, async, user, password) {
         try {
-          if (typeof url === 'string') {
+          if (typeof url === 'string' && !url.startsWith('data:') && !url.startsWith('blob:') && !url.startsWith(assetProxyBase) && !url.startsWith('/r/')) {
             var fullTarget = '';
-            if (url.startsWith('/') && !url.startsWith('/r/_proxy/')) {
+            if (url.startsWith('//')) {
+              fullTarget = window.location.protocol + url;
+            } else if (url.startsWith('/')) {
               fullTarget = targetOrigin + url;
             } else if (url.startsWith(targetOrigin)) {
               fullTarget = url;
+            } else if (url.startsWith(window.location.origin)) {
+              if (!url.startsWith(window.location.origin + assetProxyBase) && !url.startsWith(window.location.origin + '/r/')) {
+                fullTarget = targetOrigin + url.substring(window.location.origin.length);
+              }
+            } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+              fullTarget = targetOrigin + '/' + url.replace(/^\.\//, '');
+            } else if (url.startsWith('http://') || url.startsWith('https://')) {
+              var isAnalytics = /google-analytics\.com|googletagmanager\.com|analytics\.google\.com|doubleclick\.net|connect\.facebook\.net|facebook\.com\/tr|analytics\.tiktok\.com|bat\.bing\.com|clarity\.ms|hotjar\.com/i.test(url);
+              if (!isAnalytics) {
+                fullTarget = url;
+              }
             }
-            if (fullTarget && (!method || method.toUpperCase() === 'GET')) {
+            if (fullTarget) {
               url = assetProxyBase + '?url=' + encodeURIComponent(fullTarget);
             }
           }
@@ -541,6 +575,8 @@ export class ReverseProxyService {
   static async fetchAndStreamAsset(
     assetUrl: string,
     options: {
+      method?: string;
+      body?: any;
       customHeaders?: Record<string, string>;
       timeoutMs?: number;
       bypassCache?: boolean;
@@ -555,9 +591,11 @@ export class ReverseProxyService {
 
     const now = Date.now();
     const cacheKey = cleanUrl;
+    const method = (options.method || 'GET').toUpperCase();
+    const isGetOrHead = method === 'GET' || method === 'HEAD';
 
-    // 1. Check memory cache for static assets
-    if (!options.bypassCache) {
+    // 1. Check memory cache for static assets (only for GET/HEAD)
+    if (!options.bypassCache && isGetOrHead) {
       const cached = this.assetCache.get(cacheKey);
       if (cached && cached.expiresAt > now) {
         const latencyMs = Math.round(performance.now() - startTime);
@@ -581,14 +619,19 @@ export class ReverseProxyService {
       'Accept-Language': options.customHeaders?.['accept-language'] || 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br'
     };
-    if (options.customHeaders?.['range']) {
-      requestHeaders['Range'] = options.customHeaders['range'];
+    if (options.customHeaders) {
+      for (const [key, val] of Object.entries(options.customHeaders)) {
+        if (val) {
+          requestHeaders[key] = val;
+        }
+      }
     }
 
     try {
       const response = await fetch(cleanUrl, {
-        method: 'GET',
+        method,
         headers: requestHeaders,
+        body: !isGetOrHead ? options.body : undefined,
         signal: controller.signal
       });
 
@@ -602,9 +645,9 @@ export class ReverseProxyService {
       const headers: Record<string, string> = {
         'Content-Type': contentType,
         'Accept-Ranges': 'bytes',
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'Cache-Control': isGetOrHead ? 'public, max-age=86400, stale-while-revalidate=604800' : 'no-cache, no-store',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD',
         'Access-Control-Allow-Headers': '*',
         'Access-Control-Expose-Headers': '*',
         'Timing-Allow-Origin': '*',
@@ -615,8 +658,8 @@ export class ReverseProxyService {
         headers['Content-Range'] = response.headers.get('content-range')!;
       }
 
-      // Cache if under 10MB
-      if (body.length < 10 * 1024 * 1024) {
+      // Cache if under 10MB and is GET/HEAD
+      if (isGetOrHead && body.length < 10 * 1024 * 1024) {
         if (this.assetCache.size >= this.MAX_ASSET_CACHE_ENTRIES) {
           const firstKey = this.assetCache.keys().next().value;
           if (firstKey) this.assetCache.delete(firstKey);

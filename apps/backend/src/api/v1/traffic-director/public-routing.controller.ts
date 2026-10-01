@@ -491,13 +491,37 @@ export class PublicRoutingController {
         return res.status(400).send('Invalid or blocked asset URL');
       }
 
-      const assetResult = await ReverseProxyService.fetchAndStreamAsset(assetUrl, {
-        customHeaders: {
-          'user-agent': req.get('user-agent') || '',
-          'accept-language': req.get('accept-language') || '',
-          'accept': req.get('accept') || '*/*',
-          'range': req.get('range') || ''
+      const method = (req.method || 'GET').toUpperCase();
+      let body: any = undefined;
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        if ((req as any).rawBody && Buffer.isBuffer((req as any).rawBody) && (req as any).rawBody.length > 0) {
+          body = (req as any).rawBody;
+        } else if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+          body = JSON.stringify(req.body);
+        } else if (typeof req.body === 'string') {
+          body = req.body;
         }
+      }
+
+      const customHeaders: Record<string, string> = {
+        'user-agent': req.get('user-agent') || '',
+        'accept-language': req.get('accept-language') || '',
+        'accept': req.get('accept') || '*/*',
+        'range': req.get('range') || ''
+      };
+
+      if (req.get('content-type')) {
+        customHeaders['content-type'] = req.get('content-type')!;
+      }
+      if (req.get('authorization')) {
+        customHeaders['authorization'] = req.get('authorization')!;
+      }
+
+      const assetResult = await ReverseProxyService.fetchAndStreamAsset(assetUrl, {
+        method,
+        body,
+        bypassCache: method !== 'GET' && method !== 'HEAD',
+        customHeaders
       });
 
       res.removeHeader('Cross-Origin-Opener-Policy');
@@ -510,9 +534,9 @@ export class PublicRoutingController {
       if (assetResult.headers['Content-Range']) {
         res.setHeader('Content-Range', assetResult.headers['Content-Range']);
       }
-      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+      res.setHeader('Cache-Control', method === 'GET' ? 'public, max-age=86400, stale-while-revalidate=604800' : 'no-cache, no-store');
       res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD');
       res.setHeader('Access-Control-Allow-Headers', '*');
       res.setHeader('Timing-Allow-Origin', '*');
       return res.status(assetResult.statusCode || 200).send(assetResult.body);

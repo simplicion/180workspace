@@ -116,12 +116,8 @@ export const basePrisma: any = (rawPrisma as any).$extends({
     $allModels: {
       async $allOperations({ model, operation, args, query }: any) {
         let anyArgs: any = args || {};
-        if (operation === 'create' || operation === 'update' || operation === 'updateMany') {
-          if (anyArgs.data) sanitizeModelData(model, anyArgs.data, operation.startsWith('update'));
-        } else if (operation === 'createMany' && Array.isArray(anyArgs.data)) {
-          for (let i = 0; i < anyArgs.data.length; i++) {
-            sanitizeModelData(model, anyArgs.data[i], false);
-          }
+        if (operation === 'create' || operation === 'update') {
+          if (anyArgs.data) sanitizeModelData(model, anyArgs.data, operation === 'update');
         } else if (operation === 'upsert') {
           if (anyArgs.create) sanitizeModelData(model, anyArgs.create, false);
           if (anyArgs.update) sanitizeModelData(model, anyArgs.update, true);
@@ -149,6 +145,7 @@ export const prisma: any = new Proxy(basePrisma, {
 
 // Precompute models that have companyId to avoid O(N) traversal on every query
 const modelsWithCompanyId = new Set<string>();
+const modelsWithCompanyIdScalar = new Set<string>();
 const modelCompanyStrategy = new Map<string, 'tenantCompany' | 'company' | 'companyId'>();
 
 if ((Prisma as any).dmmf && (Prisma as any).dmmf.datamodel && (Prisma as any).dmmf.datamodel.models) {
@@ -161,6 +158,12 @@ if ((Prisma as any).dmmf && (Prisma as any).dmmf.datamodel && (Prisma as any).dm
       modelsWithCompanyId.add(m.name);
       modelsWithCompanyId.add(m.name.toLowerCase());
       modelsWithCompanyId.add(m.name.charAt(0).toLowerCase() + m.name.slice(1));
+    }
+
+    if (hasCompanyIdScalar) {
+      modelsWithCompanyIdScalar.add(m.name);
+      modelsWithCompanyIdScalar.add(m.name.toLowerCase());
+      modelsWithCompanyIdScalar.add(m.name.charAt(0).toLowerCase() + m.name.slice(1));
     }
 
     const strat = hasTenantCompany ? 'tenantCompany' : hasCompanyObj ? 'company' : 'companyId';
@@ -185,10 +188,26 @@ const FILTER_OPERATIONS = new Set([
 ]);
 
 // Helper to inject company into data object according to model DMMF strategy
-const injectCompanyOnData = (modelName: string, dataObj: any, cId: string) => {
+const injectCompanyOnData = (modelName: string, dataObj: any, cId: string, isCreateMany = false) => {
   if (!dataObj || typeof dataObj !== 'object') return;
-  sanitizeModelData(modelName, dataObj, false);
+  // NEVER sanitize model data (converting foreign keys to relation objects) on createMany!
+  if (!isCreateMany) {
+    sanitizeModelData(modelName, dataObj, false);
+  }
   if (!cId || cId === 'global') return;
+
+  if (isCreateMany) {
+    // In createMany, Prisma strictly forbids relation objects (e.g. company: { connect: ... }).
+    // Only flat scalar companyId is supported.
+    const hasScalar = modelsWithCompanyIdScalar.has(modelName) ||
+                      modelsWithCompanyIdScalar.has(modelName.toLowerCase()) ||
+                      'companyId' in dataObj;
+    if (hasScalar && !dataObj.companyId) {
+      dataObj.companyId = cId;
+    }
+    return;
+  }
+
   const strategy = modelCompanyStrategy.get(modelName) ||
                    modelCompanyStrategy.get(modelName.toLowerCase()) ||
                    modelCompanyStrategy.get(modelName.charAt(0).toLowerCase() + modelName.slice(1));
@@ -237,12 +256,8 @@ export const getCompanyPrisma = (
           let anyArgs: any = args || {};
 
           // Sanitize data relation inputs
-          if (operation === 'create' || operation === 'update' || operation === 'updateMany') {
-            if (anyArgs.data) sanitizeModelData(model, anyArgs.data, operation.startsWith('update'));
-          } else if (operation === 'createMany' && Array.isArray(anyArgs.data)) {
-            for (let i = 0; i < anyArgs.data.length; i++) {
-              sanitizeModelData(model, anyArgs.data[i], false);
-            }
+          if (operation === 'create' || operation === 'update') {
+            if (anyArgs.data) sanitizeModelData(model, anyArgs.data, operation === 'update');
           } else if (operation === 'upsert') {
             if (anyArgs.create) sanitizeModelData(model, anyArgs.create, false);
             if (anyArgs.update) sanitizeModelData(model, anyArgs.update, true);
@@ -261,16 +276,16 @@ export const getCompanyPrisma = (
             if (operation === 'create' || operation === 'createMany') {
               if (operation === 'createMany' && Array.isArray(anyArgs.data)) {
                 for (let i = 0; i < anyArgs.data.length; i++) {
-                  injectCompanyOnData(model, anyArgs.data[i], companyId);
+                  injectCompanyOnData(model, anyArgs.data[i], companyId, true);
                 }
               } else if (anyArgs.data) {
-                injectCompanyOnData(model, anyArgs.data, companyId);
+                injectCompanyOnData(model, anyArgs.data, companyId, false);
               }
             }
             
             if (operation === 'upsert') {
                if (anyArgs.create) {
-                 injectCompanyOnData(model, anyArgs.create, companyId);
+                 injectCompanyOnData(model, anyArgs.create, companyId, false);
                }
             }
           }

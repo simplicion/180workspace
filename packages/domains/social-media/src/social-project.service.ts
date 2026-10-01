@@ -1,5 +1,6 @@
 import { prisma, requestContext } from '@workspace/db';
 import { SAFE_ACCOUNT_SELECT, notFound } from './tenant-scope';
+import { SocialTokenVault } from './publishing/token-vault';
 
 import {
     brandPatchFromCreateBody,
@@ -666,7 +667,7 @@ export class SocialProjectService {
     }
 
     /**
-     * Soft deletes a social media project
+     * Soft deletes a social media project and permanently removes all its connected social accounts
      */
     static async deleteProject(projectId: string, explicitCompanyId?: string) {
         const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
@@ -675,6 +676,26 @@ export class SocialProjectService {
         const existing = await (prisma as any).project.findUnique({ where: { id: projectId } });
         if (!existing || existing.companyId !== companyId || existing.projectType !== 'social_media') {
             throw new Error('Project not found');
+        }
+
+        // 1. Find all connected accounts for this project
+        const accounts = await (prisma as any).socialAccount.findMany({
+            where: { projectId, companyId },
+            select: { id: true }
+        });
+
+        // 2. Revoke token vault credentials
+        for (const acc of accounts) {
+            try {
+                await SocialTokenVault.revoke(acc.id);
+            } catch (_) {}
+        }
+
+        // 3. Delete all connected social accounts for this project
+        if (accounts.length > 0) {
+            await (prisma as any).socialAccount.deleteMany({
+                where: { projectId, companyId }
+            });
         }
 
         const updated = await (prisma as any).project.update({
