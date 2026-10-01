@@ -484,7 +484,8 @@ export class PublicService {
         }
 
         // Based on type, fetch the actual payload
-        let payload = null;
+        let payload: any = null;
+        let pixels: any[] | undefined;
 
         if (registry.type === 'COMPANY_PROFILE') {
             // Import CompanyProfileService dynamically or use Prisma directly to avoid circular deps
@@ -509,9 +510,25 @@ export class PublicService {
                 }
             }
         } else if (registry.type === 'ADVERTISING_WEBSITE') {
-            payload = await prisma.website.findUnique({
+            const site = await prisma.website.findUnique({
                 where: { id: registry.targetId }
             });
+            // Visitors only ever see the published snapshot. Drafts (autosaved editor state, AI patches) and
+            // unpublished/inactive sites are never served.
+            if (site && site.status === 'active' && site.isPublished && site.publishedConfig) {
+                payload = {
+                    id: site.id,
+                    name: site.name,
+                    slug: site.slug,
+                    customDomain: site.customDomain,
+                    config: site.publishedConfig,
+                    updatedAt: site.updatedAt
+                };
+                pixels = await prisma.pixel.findMany({
+                    where: { websiteId: site.id, status: 'active' },
+                    select: { id: true, provider: true, pixelId: true }
+                });
+            }
         } else if (registry.type === 'TRAFFIC_LINK') {
             payload = await prisma.trafficLink.findUnique({
                 where: { id: registry.targetId },
@@ -531,7 +548,8 @@ export class PublicService {
 
         return {
             type: registry.type,
-            payload
+            payload,
+            ...(pixels ? { pixels } : {})
         };
     }
 }

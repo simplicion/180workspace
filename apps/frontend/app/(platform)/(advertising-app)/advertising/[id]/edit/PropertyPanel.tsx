@@ -115,7 +115,10 @@ export default function PropertyPanel({ selectedElement: rawElement, brand, onUp
                             </button>
                         </div>
                     ) : (
-                        <p className="text-[11px] text-amber-700/80 italic">No overrides yet: this element matches {bp === 'mobile' ? 'tablet/desktop' : 'desktop'}.</p>
+                        <p className="text-[11px] text-amber-700/80 italic">
+                            No overrides yet: values below are inherited from {bp === 'mobile' ? 'tablet/desktop' : 'desktop'}.
+                            {bp === 'mobile' && ' Automatic phone adjustments (stacked rows, scaled headings, tighter side padding) still apply until you set a value here.'}
+                        </p>
                     )}
                 </div>
             )}
