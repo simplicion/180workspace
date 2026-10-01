@@ -1,45 +1,26 @@
 import React from 'react';
-import { ElementProps } from './BoxElement';
-import { motion } from 'framer-motion';
+import { ElementProps, containerTag, animationAttrs, cx, safeHref } from './shared';
 
-export function TextElement({ node, brand, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement, isReadOnly, viewMode, animationProps, animKey }: ElementProps) {
-    const Tag = (node.style?.tagName || 'div') as React.ElementType;
-    const isMobileView = viewMode === 'mobile';
-    
+const TEXT_TAGS = new Set(['div', 'p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'label', 'small', 'strong', 'em']);
+
+export function TextElement({ node, brand, setNodeRef, style, className, wrapperClass, handleClick, renderControls, renderPaddingControls, updateElement, isReadOnly, animationProps, animKey }: ElementProps) {
+    const requestedTag = String(node.style?.tagName || 'div').toLowerCase();
+    const Tag = (TEXT_TAGS.has(requestedTag) ? requestedTag : 'div') as React.ElementType;
+
     // Process variables like {{brand.companyName}}
     let displayContent = node.data?.content || 'Text';
     if (brand && typeof displayContent === 'string') {
-        displayContent = displayContent.replace(/\{\{brand\.([a-zA-Z0-9_]+)\}\}/g, (match, key) => {
+        displayContent = displayContent.replace(/\{\{brand\.([a-zA-Z0-9_]+)\}\}/g, (match: string, key: string) => {
             return brand[key] !== undefined ? brand[key] : match;
         });
     }
 
-    const textStyle: React.CSSProperties = {
-        fontSize: style.fontSize || node.style?.fontSize,
-        fontWeight: node.style?.fontWeight,
-        fontFamily: node.style?.fontFamily,
-        fontStyle: node.style?.fontStyle,
-        textDecoration: node.style?.textDecoration,
-        textTransform: node.style?.textTransform,
-        lineHeight: isMobileView ? '1.3' : (node.style?.lineHeight || '1.4'),
-        letterSpacing: node.style?.letterSpacing,
-        textAlign: node.style?.textAlign,
-        textShadow: node.style?.textShadow,
-        color: node.style?.color,
-        opacity: node.style?.opacity,
-        marginBottom: node.style?.marginBottom,
-        maxWidth: '100%',
-        overflowWrap: 'break-word',
-        wordBreak: 'break-word',
-        boxSizing: 'border-box',
-        outline: 'none'
-    };
-
     const isLink = !!node.data?.link;
 
+    // Typography lives on the compiled wrapper class and is inherited (preflight resets heading/paragraph font + margins).
     const textElement = (
         <Tag
-            style={textStyle}
+            className="max-w-full outline-none"
             contentEditable={!isReadOnly}
             suppressContentEditableWarning={true}
             onBlur={isReadOnly ? undefined : (e: React.FocusEvent<HTMLElement>) => {
@@ -50,24 +31,23 @@ export function TextElement({ node, brand, setNodeRef, style, wrapperClass, hand
         />
     );
 
-    const hasAnimation = animationProps && Object.keys(animationProps).length > 0;
-    const TextContainerTag = hasAnimation ? motion.div : 'div';
+    const TextContainerTag = containerTag(animationProps);
 
     return (
-        <TextContainerTag 
+        <TextContainerTag
             key={animKey}
-            ref={setNodeRef as any} 
+            ref={setNodeRef as any}
             data-element-type="text"
-            style={style} 
-            onClick={isReadOnly ? undefined : handleClick} 
-            className={`w-full max-w-full ${wrapperClass}`}
-            {...(hasAnimation ? animationProps : {})}
+            style={style}
+            onClick={isReadOnly ? undefined : handleClick}
+            className={cx(className, wrapperClass)}
+            {...animationAttrs(animationProps)}
         >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
             {isLink && isReadOnly ? (
                 <a
-                    href={node.data.link}
+                    href={safeHref(node.data.link)}
                     target={node.data.openInNewTab ? '_blank' : '_self'}
                     rel={node.data.openInNewTab ? 'noopener noreferrer' : undefined}
                     className="no-underline text-inherit block max-w-full"

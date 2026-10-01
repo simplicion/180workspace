@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
-import { ElementNode } from './types';
+import { ElementNode, Breakpoint } from './types';
 import { GripVertical, Trash2, Copy, ChevronUp, ChevronDown } from 'lucide-react';
 import { BoxElement } from './_components/elements/BoxElement';
 import { RowElement } from './_components/elements/RowElement';
@@ -14,277 +14,13 @@ import { ButtonElement } from './_components/elements/ButtonElement';
 import { LineElement } from './_components/elements/LineElement';
 import { FloatingElement } from './_components/elements/FloatingElement';
 import CodeElement from './_components/elements/CodeElement';
-import { motion } from 'framer-motion';
+import { MotionTag } from './_components/elements/MotionTag';
+import { getAdvancedAnimationProps } from './_components/elements/animation';
+import { nodeClassName, getEffectiveStyle } from './responsive-styles';
 
-export const getAdvancedAnimationProps = (config?: any, legacyAnimation?: string) => {
-    if (!config && (!legacyAnimation || legacyAnimation === 'none')) return null;
-    
-    // Normalize to config object
-    const animationConfig = config || {
-        entrance: { preset: legacyAnimation || 'none', duration: 0.6, delay: 0, easing: 'easeOut' }
-    };
-
-    let initial: any = {};
-    let whileInView: any = {};
-    let whileHover: any = {};
-    let animate: any = {};
-    let transition: any = { duration: 0.6 };
-
-    // Entrance
-    const ent = animationConfig.entrance;
-    if (ent && ent.preset && ent.preset !== 'none') {
-        transition.duration = ent.duration || 0.6;
-        transition.delay = ent.delay || 0;
-        transition.ease = ent.easing || "easeOut";
-
-        switch (ent.preset) {
-            case 'fade-in': initial = { ...initial, opacity: 0 }; whileInView = { ...whileInView, opacity: 1 }; break;
-            case 'fade-up': initial = { ...initial, opacity: 0, y: 40 }; whileInView = { ...whileInView, opacity: 1, y: 0 }; break;
-            case 'fade-down': initial = { ...initial, opacity: 0, y: -40 }; whileInView = { ...whileInView, opacity: 1, y: 0 }; break;
-            case 'fade-left': initial = { ...initial, opacity: 0, x: -40 }; whileInView = { ...whileInView, opacity: 1, x: 0 }; break;
-            case 'fade-right': initial = { ...initial, opacity: 0, x: 40 }; whileInView = { ...whileInView, opacity: 1, x: 0 }; break;
-            case 'scale-up': initial = { ...initial, opacity: 0, scale: 0.8 }; whileInView = { ...whileInView, opacity: 1, scale: 1 }; break;
-            case 'scale-down': initial = { ...initial, opacity: 0, scale: 1.2 }; whileInView = { ...whileInView, opacity: 1, scale: 1 }; break;
-            case 'flip-in-x': initial = { ...initial, opacity: 0, rotateX: 90 }; whileInView = { ...whileInView, opacity: 1, rotateX: 0 }; break;
-            case 'flip-in-y': initial = { ...initial, opacity: 0, rotateY: 90 }; whileInView = { ...whileInView, opacity: 1, rotateY: 0 }; break;
-            case 'bounce-in': initial = { ...initial, opacity: 0, y: 40 }; whileInView = { ...whileInView, opacity: 1, y: 0 }; transition.type = 'spring'; transition.bounce = 0.5; break;
-        }
-    }
-
-    // Hover
-    const hov = animationConfig.hover;
-    if (hov && hov.preset && hov.preset !== 'none') {
-        switch (hov.preset) {
-            case 'scale-up': whileHover = { ...whileHover, scale: 1.05 }; break;
-            case 'scale-down': whileHover = { ...whileHover, scale: 0.95 }; break;
-            case 'lift': whileHover = { ...whileHover, y: -5 }; break;
-            case 'glow': whileHover = { ...whileHover, boxShadow: "0px 0px 15px rgba(99, 102, 241, 0.5)" }; break;
-        }
-    }
-
-    // Loop
-    const lp = animationConfig.loop;
-    if (lp && lp.preset && lp.preset !== 'none') {
-        switch (lp.preset) {
-            case 'pulse': animate = { ...animate, scale: [1, 1.05, 1] }; break;
-            case 'shake': animate = { ...animate, x: [0, -10, 10, -10, 10, 0] }; break;
-            case 'spin': animate = { ...animate, rotate: [0, 360] }; break;
-            case 'bounce': animate = { ...animate, y: [0, -20, 0] }; break;
-            case 'float': animate = { ...animate, y: [0, -10, 0] }; break;
-        }
-        transition = { ...transition, repeat: Infinity, duration: lp.duration || 2, ease: lp.easing || 'easeInOut' };
-    }
-
-    const props: any = {};
-    if (Object.keys(initial).length > 0) props.initial = initial;
-    if (Object.keys(whileInView).length > 0) {
-        props.whileInView = whileInView;
-        props.viewport = { once: true, margin: "-50px" };
-    }
-    if (Object.keys(whileHover).length > 0) props.whileHover = whileHover;
-    if (Object.keys(animate).length > 0) props.animate = animate;
-    if (Object.keys(transition).length > 0) props.transition = transition;
-
-    return Object.keys(props).length > 0 ? props : null;
-};
-
-
-function scaleMobileFontSize(val: any): string | undefined {
-    if (!val) return undefined;
-    const str = String(val).trim();
-    
-    if (str.endsWith('px')) {
-        const num = parseFloat(str);
-        if (isNaN(num)) return str;
-        if (num >= 48) return '24px';
-        if (num >= 40) return '21px';
-        if (num >= 36) return '19px';
-        if (num >= 32) return '18px';
-        if (num >= 28) return '17px';
-        if (num >= 24) return '16px';
-        return str;
-    }
-    
-    if (str.endsWith('rem')) {
-        const num = parseFloat(str);
-        if (isNaN(num)) return str;
-        if (num >= 3) return '1.5rem';
-        if (num >= 2.5) return '1.35rem';
-        if (num >= 2) return '1.25rem';
-        if (num >= 1.5) return '1.1rem';
-        return str;
-    }
-    
-    if (typeof val === 'number') {
-        if (val >= 48) return '24px';
-        if (val >= 40) return '21px';
-        if (val >= 36) return '19px';
-        if (val >= 32) return '18px';
-        if (val >= 24) return '16px';
-    }
-    
-    return str;
-}
-
-function toFluidFontSize(val: any): string | undefined {
-    if (!val) return undefined;
-    const str = String(val).trim();
-    
-    if (str.includes('clamp') || str.includes('calc') || str.includes('vw')) return str;
-    
-    if (str.endsWith('px')) {
-        const num = parseFloat(str);
-        if (isNaN(num) || num <= 24) return str;
-        const minRem = Math.max(1.25, parseFloat((num * 0.55 / 16).toFixed(2)));
-        const maxRem = parseFloat((num / 16).toFixed(2));
-        return `clamp(${minRem}rem, 4vw + 0.5rem, ${maxRem}rem)`;
-    }
-    
-    if (str.endsWith('rem')) {
-        const num = parseFloat(str);
-        if (isNaN(num) || num <= 1.5) return str;
-        const minRem = Math.max(1.25, parseFloat((num * 0.6).toFixed(2)));
-        return `clamp(${minRem}rem, 4vw + 0.5rem, ${num}rem)`;
-    }
-    
-    if (str.endsWith('em')) {
-        const num = parseFloat(str);
-        if (isNaN(num) || num <= 1.5) return str;
-        const minRem = Math.max(1.25, parseFloat((num * 0.6).toFixed(2)));
-        return `clamp(${minRem}em, 4vw + 0.5em, ${num}em)`;
-    }
-    
-    if (typeof val === 'number') {
-        if (val > 24) {
-            const minRem = Math.max(1.25, parseFloat((val * 0.55 / 16).toFixed(2)));
-            const maxRem = parseFloat((val / 16).toFixed(2));
-            return `clamp(${minRem}rem, 4vw + 0.5rem, ${maxRem}rem)`;
-        }
-    }
-    
-    return str;
-}
-
-export function normalizeStyle(rawStyle: any = {}, isMobileView: boolean = false): React.CSSProperties {
-    if (!rawStyle) return {};
-    const style: any = { ...rawStyle };
-
-    // Fluid typography scaling for headings and large text
-    if (style.fontSize) {
-        style.fontSize = isMobileView ? scaleMobileFontSize(style.fontSize) : toFluidFontSize(style.fontSize);
-    }
-
-    // Always decompose shorthand 'padding' into individual longhands to prevent React conflicting property warnings
-    if (style.padding !== undefined) {
-        const p = String(style.padding).trim();
-        delete style.padding;
-        
-        if (style.paddingTop === undefined || style.paddingBottom === undefined || style.paddingLeft === undefined || style.paddingRight === undefined) {
-            const parts = p.split(/\s+/);
-            let top = p, right = p, bottom = p, left = p;
-            if (parts.length === 1) {
-                top = right = bottom = left = parts[0];
-            } else if (parts.length === 2) {
-                top = bottom = parts[0];
-                right = left = parts[1];
-            } else if (parts.length === 3) {
-                top = parts[0];
-                right = left = parts[1];
-                bottom = parts[2];
-            } else if (parts.length >= 4) {
-                top = parts[0];
-                right = parts[1];
-                bottom = parts[2];
-                left = parts[3];
-            }
-            if (style.paddingTop === undefined) style.paddingTop = top;
-            if (style.paddingRight === undefined) style.paddingRight = right;
-            if (style.paddingBottom === undefined) style.paddingBottom = bottom;
-            if (style.paddingLeft === undefined) style.paddingLeft = left;
-        }
-    }
-
-    if (style.paddingY !== undefined) {
-        const val = typeof style.paddingY === 'number' ? `${style.paddingY}rem` : style.paddingY;
-        if (style.paddingTop === undefined) style.paddingTop = val;
-        if (style.paddingBottom === undefined) style.paddingBottom = val;
-        delete style.paddingY;
-    }
-    if (style.paddingX !== undefined) {
-        const val = typeof style.paddingX === 'number' ? `${style.paddingX}rem` : style.paddingX;
-        if (style.paddingLeft === undefined) style.paddingLeft = val;
-        if (style.paddingRight === undefined) style.paddingRight = val;
-        delete style.paddingX;
-    }
-
-    // Always decompose shorthand 'margin' if any longhand or axis is present or might be toggled
-    if (style.margin !== undefined && (style.marginTop !== undefined || style.marginBottom !== undefined || style.marginLeft !== undefined || style.marginRight !== undefined || style.marginY !== undefined || style.marginX !== undefined)) {
-        const m = String(style.margin).trim();
-        delete style.margin;
-        const parts = m.split(/\s+/);
-        let top = m, right = m, bottom = m, left = m;
-        if (parts.length === 1) {
-            top = right = bottom = left = parts[0];
-        } else if (parts.length === 2) {
-            top = bottom = parts[0];
-            right = left = parts[1];
-        } else if (parts.length === 3) {
-            top = parts[0];
-            right = left = parts[1];
-            bottom = parts[2];
-        } else if (parts.length >= 4) {
-            top = parts[0];
-            right = parts[1];
-            bottom = parts[2];
-            left = parts[3];
-        }
-        if (style.marginTop === undefined) style.marginTop = top;
-        if (style.marginRight === undefined) style.marginRight = right;
-        if (style.marginBottom === undefined) style.marginBottom = bottom;
-        if (style.marginLeft === undefined) style.marginLeft = left;
-    }
-    if (style.marginY !== undefined) {
-        const val = typeof style.marginY === 'number' ? `${style.marginY}rem` : style.marginY;
-        if (style.marginTop === undefined) style.marginTop = val;
-        if (style.marginBottom === undefined) style.marginBottom = val;
-        delete style.marginY;
-    }
-    if (style.marginX !== undefined) {
-        const val = typeof style.marginX === 'number' ? `${style.marginX}rem` : style.marginX;
-        if (style.marginLeft === undefined) style.marginLeft = val;
-        if (style.marginRight === undefined) style.marginRight = val;
-        delete style.marginX;
-    }
-
-    // Mobile specific spacing caps
-    if (isMobileView) {
-        const capSpacing = (v: any, maxRem: number = 1.25) => {
-            if (!v) return v;
-            const str = String(v).trim();
-            if (str.endsWith('rem')) {
-                const n = parseFloat(str);
-                return !isNaN(n) && n > maxRem ? `${maxRem}rem` : v;
-            }
-            if (str.endsWith('px')) {
-                const n = parseFloat(str);
-                const maxPx = maxRem * 16;
-                return !isNaN(n) && n > maxPx ? `${maxPx}px` : v;
-            }
-            return v;
-        };
-
-        style.paddingLeft = capSpacing(style.paddingLeft, 1);
-        style.paddingRight = capSpacing(style.paddingRight, 1);
-        style.marginLeft = capSpacing(style.marginLeft, 0.5);
-        style.marginRight = capSpacing(style.marginRight, 0.5);
-    }
-
-    // Ensure layout containment defaults
-    style.maxWidth = '100%';
-    style.boxSizing = 'border-box';
-
-    return style;
-}
+// Re-exported for existing importers (tests, legacy callers).
+export { getAdvancedAnimationProps } from './_components/elements/animation';
+export { normalizeStyle } from './responsive-styles';
 
 export interface BuilderElementProps {
     node: ElementNode;
@@ -317,8 +53,7 @@ export function BuilderElement({
     isReadOnly = false,
     viewMode = 'desktop'
 }: BuilderElementProps) {
-    const isMobileView = viewMode === 'mobile';
-
+    const bp: Breakpoint = viewMode;
     const isFloating = node.type === 'floating';
 
     const {
@@ -334,26 +69,6 @@ export function BuilderElement({
         disabled: isReadOnly || isFloating
     });
 
-    let display = node.style?.display;
-    let flexDirection = node.style?.flexDirection;
-    let flexWrap = node.style?.flexWrap;
-
-    if (node.type === 'row') {
-        display = 'flex';
-        flexDirection = isMobileView ? 'column' : (flexDirection || 'row');
-        flexWrap = flexWrap || 'wrap';
-    } else if (node.type === 'column') {
-        display = 'flex';
-        flexDirection = 'column';
-    } else if (node.type === 'box') {
-        display = display || 'flex';
-        if (isMobileView && (flexDirection === 'row' || (!flexDirection && display === 'flex'))) {
-            flexDirection = 'column';
-        }
-    } else if (node.type === 'section') {
-        display = display || 'block';
-    }
-
     // --- Outer Spacing (Margin) Drag Logic ---
     const startPosRef = useRef({ x: 0, y: 0 });
     const startMarginRef = useRef(0);
@@ -361,28 +76,23 @@ export function BuilderElement({
     const [draggingSide, setDraggingSide] = useState<string | null>(null);
     const [localMargin, setLocalMargin] = useState<Record<string, string> | null>(null);
 
-    const rawStyle = {
-        ...(isReadOnly || isFloating ? {} : {
-            transform: CSS.Transform.toString(transform),
-            transition,
-            opacity: isDragging ? 0.5 : 1,
-        }),
-        ...node.style,
-        ...(display && { display }),
-        ...(flexDirection && { flexDirection }),
-        ...(flexWrap && { flexWrap }),
-        ...(localMargin || {})
-    };
-
-    if (isMobileView && (node.type === 'column' || node.type === 'row' || node.type === 'box')) {
-        rawStyle.width = '100%';
-        rawStyle.maxWidth = '100%';
+    // Persisted styles are compiled into the node class (responsive-styles.ts). Inline style carries only
+    // transient editor state: dnd transform/transition/opacity and the live margin-drag preview.
+    const transientStyle: React.CSSProperties = {};
+    if (!isReadOnly && !isFloating) {
+        const t = CSS.Transform.toString(transform);
+        if (t) transientStyle.transform = t;
+        if (transition) transientStyle.transition = transition;
+        if (isDragging) transientStyle.opacity = 0.5;
     }
-
-    const style = isFloating ? { ...node.style } : normalizeStyle(rawStyle, isMobileView);
+    if (localMargin) Object.assign(transientStyle, localMargin);
+    const style = Object.keys(transientStyle).length > 0 ? transientStyle : undefined;
+    const nodeClass = nodeClassName(node.id);
+    // Style as seen on the device being previewed (used by editor affordances only).
+    const effectiveStyle = getEffectiveStyle(node, bp);
     const isSelected = !isReadOnly && selectedElementId === node.id;
 
-    const handleMarginDragStart = (e: React.MouseEvent, side: string) => {
+    const handleMarginDragStart = (e: React.PointerEvent, side: string) => {
         if (isReadOnly || !updateElement) return;
         e.preventDefault();
         e.stopPropagation();
@@ -394,14 +104,17 @@ export function BuilderElement({
             return isNaN(parsed) ? undefined : parsed;
         };
 
+        const s = effectiveStyle;
         let currentMargin = 0;
-        if (side === 'top') currentMargin = parseMargin(node.style?.marginTop) ?? parseMargin(node.style?.marginY) ?? parseMargin(node.style?.margin) ?? 0;
-        if (side === 'bottom') currentMargin = parseMargin(node.style?.marginBottom) ?? parseMargin(node.style?.marginY) ?? parseMargin(node.style?.margin) ?? 0;
-        if (side === 'left') currentMargin = parseMargin(node.style?.marginLeft) ?? parseMargin(node.style?.marginX) ?? parseMargin(node.style?.margin) ?? 0;
-        if (side === 'right') currentMargin = parseMargin(node.style?.marginRight) ?? parseMargin(node.style?.marginX) ?? parseMargin(node.style?.margin) ?? 0;
+        if (side === 'top') currentMargin = parseMargin(s.marginTop) ?? parseMargin(s.marginY) ?? parseMargin(s.margin) ?? 0;
+        if (side === 'bottom') currentMargin = parseMargin(s.marginBottom) ?? parseMargin(s.marginY) ?? parseMargin(s.margin) ?? 0;
+        if (side === 'left') currentMargin = parseMargin(s.marginLeft) ?? parseMargin(s.marginX) ?? parseMargin(s.margin) ?? 0;
+        if (side === 'right') currentMargin = parseMargin(s.marginRight) ?? parseMargin(s.marginX) ?? parseMargin(s.margin) ?? 0;
         
-        let currentMarginStr = `${currentMargin}rem`;
+        const currentMarginStr = `${currentMargin}rem`;
         const marginKey = `margin${side.charAt(0).toUpperCase() + side.slice(1)}`;
+        // Desktop edits the base style; tablet/mobile edit that device's override.
+        const targetPath = bp === 'desktop' ? `style.${marginKey}` : `responsive.${bp}.${marginKey}`;
 
         startPosRef.current = { x: e.clientX, y: e.clientY };
         startMarginRef.current = currentMargin;
@@ -410,10 +123,15 @@ export function BuilderElement({
         setDraggingSide(side);
         setLocalMargin({ [marginKey]: currentMarginStr });
 
+        const handleEl = e.currentTarget as HTMLElement;
+        const pointerId = e.pointerId;
+        try { handleEl.setPointerCapture(pointerId); } catch { /* capture is best-effort */ }
+
         document.body.style.userSelect = 'none';
         document.body.style.cursor = (side === 'top' || side === 'bottom') ? 'ns-resize' : 'ew-resize';
 
-        const handleMouseMove = (moveEvent: MouseEvent) => {
+        const handlePointerMove = (moveEvent: PointerEvent) => {
+            if (moveEvent.pointerId !== pointerId) return;
             const deltaX = moveEvent.clientX - startPosRef.current.x;
             const deltaY = moveEvent.clientY - startPosRef.current.y;
 
@@ -430,27 +148,27 @@ export function BuilderElement({
             setLocalMargin({ [marginKey]: newMarginStr });
         };
 
-        const handleMouseUp = () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
+        const handlePointerUp = (upEvent: PointerEvent) => {
+            if (upEvent.pointerId !== pointerId) return;
+            document.removeEventListener('pointermove', handlePointerMove);
+            document.removeEventListener('pointerup', handlePointerUp);
+            document.removeEventListener('pointercancel', handlePointerUp);
+            try { handleEl.releasePointerCapture(pointerId); } catch { /* already released */ }
             document.body.style.userSelect = '';
             document.body.style.cursor = '';
             setDraggingSide(null);
             
-            if (latestMarginRef.current) {
-                if (side === 'top') updateElement(node.id, 'style.marginTop', latestMarginRef.current);
-                if (side === 'bottom') updateElement(node.id, 'style.marginBottom', latestMarginRef.current);
-                if (side === 'left') updateElement(node.id, 'style.marginLeft', latestMarginRef.current);
-                if (side === 'right') updateElement(node.id, 'style.marginRight', latestMarginRef.current);
+            if (latestMarginRef.current && upEvent.type === 'pointerup') {
+                updateElement(node.id, targetPath, latestMarginRef.current);
             }
             
             setLocalMargin(null);
         };
 
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
+        document.addEventListener('pointermove', handlePointerMove);
+        document.addEventListener('pointerup', handlePointerUp);
+        document.addEventListener('pointercancel', handlePointerUp);
     };
-
     const renderPaddingControls = () => {
         if (isReadOnly || !isSelected) return null;
         
@@ -459,10 +177,10 @@ export function BuilderElement({
         };
 
         const getMarginStr = (val: any) => val !== undefined ? (typeof val === 'number' ? `${val}rem` : String(val)) : undefined;
-        const mtStr = localMargin?.marginTop || getMarginStr(node.style?.marginTop) || getMarginStr(node.style?.marginY) || getMarginStr(node.style?.margin) || '0rem';
-        const mbStr = localMargin?.marginBottom || getMarginStr(node.style?.marginBottom) || getMarginStr(node.style?.marginY) || getMarginStr(node.style?.margin) || '0rem';
-        const mlStr = localMargin?.marginLeft || getMarginStr(node.style?.marginLeft) || getMarginStr(node.style?.marginX) || getMarginStr(node.style?.margin) || '0rem';
-        const mrStr = localMargin?.marginRight || getMarginStr(node.style?.marginRight) || getMarginStr(node.style?.marginX) || getMarginStr(node.style?.margin) || '0rem';
+        const mtStr = localMargin?.marginTop || getMarginStr(effectiveStyle.marginTop) || getMarginStr(effectiveStyle.marginY) || getMarginStr(effectiveStyle.margin) || '0rem';
+        const mbStr = localMargin?.marginBottom || getMarginStr(effectiveStyle.marginBottom) || getMarginStr(effectiveStyle.marginY) || getMarginStr(effectiveStyle.margin) || '0rem';
+        const mlStr = localMargin?.marginLeft || getMarginStr(effectiveStyle.marginLeft) || getMarginStr(effectiveStyle.marginX) || getMarginStr(effectiveStyle.margin) || '0rem';
+        const mrStr = localMargin?.marginRight || getMarginStr(effectiveStyle.marginRight) || getMarginStr(effectiveStyle.marginX) || getMarginStr(effectiveStyle.margin) || '0rem';
 
         const mtVal = parseFloat(mtStr) || 0;
         const mbVal = parseFloat(mbStr) || 0;
@@ -483,8 +201,8 @@ export function BuilderElement({
                     </div>
                 )}
                 <div
-                    onMouseDown={(e) => handleMarginDragStart(e, 'top')}
-                    className="absolute -top-2.5 left-1/2 -translate-x-1/2 cursor-ns-resize z-30 p-1 group/thandle flex items-center justify-center"
+                    onPointerDown={(e) => handleMarginDragStart(e, 'top')}
+                    className="absolute -top-3.5 left-1/2 -translate-x-1/2 cursor-ns-resize z-30 p-2 touch-none group/thandle flex items-center justify-center"
                     title="Drag DOWN to increase outer top spacing, UP to decrease"
                 >
                     <div className={`w-8 h-2 rounded-full border border-indigo-500 shadow-sm flex items-center justify-center transition-all ${
@@ -511,8 +229,8 @@ export function BuilderElement({
                     </div>
                 )}
                 <div
-                    onMouseDown={(e) => handleMarginDragStart(e, 'bottom')}
-                    className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 cursor-ns-resize z-30 p-1 group/bhandle flex items-center justify-center"
+                    onPointerDown={(e) => handleMarginDragStart(e, 'bottom')}
+                    className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 cursor-ns-resize z-30 p-2 touch-none group/bhandle flex items-center justify-center"
                     title="Drag UP to increase outer bottom spacing, DOWN to decrease"
                 >
                     <div className={`w-8 h-2 rounded-full border border-indigo-500 shadow-sm flex items-center justify-center transition-all ${
@@ -539,8 +257,8 @@ export function BuilderElement({
                     </div>
                 )}
                 <div
-                    onMouseDown={(e) => handleMarginDragStart(e, 'left')}
-                    className="absolute -left-2.5 top-1/2 -translate-y-1/2 cursor-ew-resize z-30 p-1 group/lhandle flex items-center justify-center"
+                    onPointerDown={(e) => handleMarginDragStart(e, 'left')}
+                    className="absolute -left-3.5 top-1/2 -translate-y-1/2 cursor-ew-resize z-30 p-2 touch-none group/lhandle flex items-center justify-center"
                     title="Drag RIGHT to increase outer left spacing, LEFT to decrease"
                 >
                     <div className={`h-8 w-2 rounded-full border border-indigo-500 shadow-sm flex items-center justify-center transition-all ${
@@ -567,8 +285,8 @@ export function BuilderElement({
                     </div>
                 )}
                 <div
-                    onMouseDown={(e) => handleMarginDragStart(e, 'right')}
-                    className="absolute -right-2.5 top-1/2 -translate-y-1/2 cursor-ew-resize z-30 p-1 group/rhandle flex items-center justify-center"
+                    onPointerDown={(e) => handleMarginDragStart(e, 'right')}
+                    className="absolute -right-3.5 top-1/2 -translate-y-1/2 cursor-ew-resize z-30 p-2 touch-none group/rhandle flex items-center justify-center"
                     title="Drag LEFT to increase outer right spacing, RIGHT to decrease"
                 >
                     <div className={`h-8 w-2 rounded-full border border-indigo-500 shadow-sm flex items-center justify-center transition-all ${
@@ -598,7 +316,7 @@ export function BuilderElement({
 
         return (
             <>
-                <div className={`absolute -top-[21px] -left-[2px] z-50 ${bgColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-t-md rounded-br-md shadow-sm tracking-wide`}>
+                <div className={`absolute -top-[21px] -left-[2px] z-50 pointer-events-none ${bgColor} text-white text-[10px] font-bold px-2 py-0.5 rounded-t-md rounded-br-md shadow-sm tracking-wide`}>
                     {node.name ? (
                         <>
                             <span className="font-normal opacity-90">{node.name}</span>
@@ -609,28 +327,28 @@ export function BuilderElement({
                     )}
                 </div>
 
-                <div className="absolute -top-[26px] -right-[2px] z-50 flex items-center gap-0.5 bg-gray-900 text-white rounded-t-md px-1 py-0.5 shadow-md border border-gray-700">
-                    <div {...attributes} {...listeners} className="p-1 hover:bg-gray-700 rounded cursor-grab active:cursor-grabbing text-gray-300 hover:text-white" title="Drag to reorder">
+                <div className="absolute -top-[36px] -right-[2px] z-50 flex items-center gap-0.5 bg-gray-900 text-white rounded-t-md px-0.5 py-0.5 shadow-md border border-gray-700">
+                    <div {...attributes} {...listeners} className="min-w-[32px] min-h-[32px] flex items-center justify-center touch-none hover:bg-gray-700 rounded cursor-grab active:cursor-grabbing text-gray-300 hover:text-white" title="Drag to reorder" aria-label="Drag to reorder">
                         <GripVertical className="w-3.5 h-3.5" />
                     </div>
 
                     {moveElementUp && (
-                        <button onClick={(e) => { e.stopPropagation(); moveElementUp(node.id); }} className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white" title="Move Up">
+                        <button onClick={(e) => { e.stopPropagation(); moveElementUp(node.id); }} type="button" className="min-w-[32px] min-h-[32px] flex items-center justify-center hover:bg-gray-700 rounded text-gray-300 hover:text-white" title="Move Up" aria-label="Move Up">
                             <ChevronUp className="w-3.5 h-3.5" />
                         </button>
                     )}
                     {moveElementDown && (
-                        <button onClick={(e) => { e.stopPropagation(); moveElementDown(node.id); }} className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white" title="Move Down">
+                        <button onClick={(e) => { e.stopPropagation(); moveElementDown(node.id); }} type="button" className="min-w-[32px] min-h-[32px] flex items-center justify-center hover:bg-gray-700 rounded text-gray-300 hover:text-white" title="Move Down" aria-label="Move Down">
                             <ChevronDown className="w-3.5 h-3.5" />
                         </button>
                     )}
                     {duplicateElement && (
-                        <button onClick={(e) => { e.stopPropagation(); duplicateElement(node.id); }} className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white" title="Duplicate">
+                        <button onClick={(e) => { e.stopPropagation(); duplicateElement(node.id); }} type="button" className="min-w-[32px] min-h-[32px] flex items-center justify-center hover:bg-gray-700 rounded text-gray-300 hover:text-white" title="Duplicate" aria-label="Duplicate">
                             <Copy className="w-3.5 h-3.5" />
                         </button>
                     )}
                     {removeElement && (
-                        <button onClick={(e) => { e.stopPropagation(); removeElement(node.id); }} className="p-1 hover:bg-red-600 rounded text-gray-300 hover:text-white" title="Delete">
+                        <button onClick={(e) => { e.stopPropagation(); removeElement(node.id); }} type="button" className="min-w-[32px] min-h-[32px] flex items-center justify-center hover:bg-red-600 rounded text-gray-300 hover:text-white" title="Delete" aria-label="Delete">
                             <Trash2 className="w-3.5 h-3.5" />
                         </button>
                     )}
@@ -655,7 +373,9 @@ export function BuilderElement({
             ));
         }
 
-        const strategy = node.style?.flexDirection === 'row' && !isMobileView ? horizontalListSortingStrategy : verticalListSortingStrategy;
+        const dir = String(effectiveStyle.flexDirection || '');
+        const horizontal = dir.startsWith('row') && (bp !== 'mobile' || !!node.responsive?.mobile?.flexDirection);
+        const strategy = horizontal ? horizontalListSortingStrategy : verticalListSortingStrategy;
 
         return (
             <SortableContext items={node.children.map(c => c.id)} strategy={strategy}>
@@ -807,6 +527,7 @@ export function BuilderElement({
         brand,
         setNodeRef: isReadOnly ? undefined : setNodeRef,
         style,
+        className: nodeClass,
         wrapperClass,
         handleClick,
         renderControls,
@@ -820,75 +541,68 @@ export function BuilderElement({
         animKey
     };
 
-    if (node.type === 'section') {
-        const finalStyle = { ...style };
-        if (finalStyle.paddingY !== undefined) {
-            const pyVal = isMobileView ? Math.min(2.5, Number(finalStyle.paddingY)) : finalStyle.paddingY;
-            if (finalStyle.paddingTop === undefined) finalStyle.paddingTop = `${pyVal}rem`;
-            if (finalStyle.paddingBottom === undefined) finalStyle.paddingBottom = `${pyVal}rem`;
-            delete finalStyle.paddingY;
-        }
-        if (finalStyle.paddingX !== undefined) {
-            const pxVal = isMobileView ? Math.min(1, Number(finalStyle.paddingX)) : finalStyle.paddingX;
-            if (finalStyle.paddingLeft === undefined) finalStyle.paddingLeft = `${pxVal}rem`;
-            if (finalStyle.paddingRight === undefined) finalStyle.paddingRight = `${pxVal}rem`;
-            delete finalStyle.paddingX;
-        }
-        
-        if (!finalStyle.backgroundColor || finalStyle.backgroundColor === 'transparent') {
-            finalStyle.backgroundColor = '#ffffff';
-        }
+    const ContainerTag: React.ElementType = hasAnimation ? MotionTag : 'div';
 
-        const SectionTag = hasAnimation ? motion.div : 'div';
+    if (node.type === 'section') {
         return (
-            <SectionTag 
+            <ContainerTag 
                 key={animKey}
                 ref={isReadOnly ? undefined : (setNodeRef as any)} 
                 data-element-type="section"
-                style={finalStyle} 
+                style={style} 
                 onClick={isReadOnly ? undefined : handleClick} 
-                className={`w-full max-w-full relative ${wrapperClass}`} 
+                className={`${nodeClass} ${wrapperClass}`} 
                 {...dragHandlers}
                 {...(hasAnimation ? animationProps : {})}
             >
                 {!isReadOnly && renderControls()}
                 {!isReadOnly && renderPaddingControls()}
                 {renderChildren()}
-            </SectionTag>
+            </ContainerTag>
         );
     }
 
-    const renderElementComponent = () => {
-        switch (node.type) {
-            case 'box': return <BoxElement {...props} />;
-            case 'floating': return <FloatingElement {...props} />;
-            case 'row': return <RowElement {...props} />;
-            case 'column': return <ColumnElement {...props} />;
-            case 'text': return <TextElement {...props} />;
-            case 'media': return <MediaElement {...props} />;
-            case 'button': return <ButtonElement {...props} />;
-            case 'line': return <LineElement {...props} />;
-            case 'code': {
-                const CodeTag = hasAnimation ? motion.div : 'div';
-                return (
-                    <CodeTag 
-                        key={animKey}
-                        ref={isReadOnly ? undefined : (setNodeRef as any)} 
-                        data-element-type="code"
-                        style={style} 
-                        onClick={isReadOnly ? undefined : handleClick} 
-                        className={`w-full max-w-full ${wrapperClass}`} 
-                        {...dragHandlers}
-                        {...(hasAnimation ? animationProps : {})}
-                    >
-                        {!isReadOnly && renderControls()}
-                        <CodeElement element={node} isReadOnly={isReadOnly} />
-                    </CodeTag>
-                );
-            }
-            default: return null;
-        }
-    };
-
-    return renderElementComponent();
+    switch (node.type) {
+        case 'box': return <BoxElement {...props} />;
+        case 'floating': return <FloatingElement {...props} />;
+        case 'row': return <RowElement {...props} />;
+        case 'column': return <ColumnElement {...props} />;
+        case 'text': return <TextElement {...props} />;
+        case 'media':
+        case 'image': return <MediaElement {...props} />;
+        case 'button': return <ButtonElement {...props} />;
+        case 'line': return <LineElement {...props} />;
+        case 'code':
+            return (
+                <ContainerTag 
+                    key={animKey}
+                    ref={isReadOnly ? undefined : (setNodeRef as any)} 
+                    data-element-type="code"
+                    style={style} 
+                    onClick={isReadOnly ? undefined : handleClick} 
+                    className={`${nodeClass} ${wrapperClass}`} 
+                    {...dragHandlers}
+                    {...(hasAnimation ? animationProps : {})}
+                >
+                    {!isReadOnly && renderControls()}
+                    <CodeElement element={node} isReadOnly={isReadOnly} />
+                </ContainerTag>
+            );
+        default:
+            // Legacy/unknown types: never crash; keep any nested content visible.
+            if (!node.children || node.children.length === 0) return null;
+            return (
+                <div
+                    ref={isReadOnly ? undefined : (setNodeRef as any)}
+                    data-element-type={String(node.type || 'unknown')}
+                    style={style}
+                    onClick={isReadOnly ? undefined : handleClick}
+                    className={`${nodeClass} ${wrapperClass}`}
+                    {...dragHandlers}
+                >
+                    {!isReadOnly && renderControls()}
+                    {renderChildren()}
+                </div>
+            );
+    }
 }

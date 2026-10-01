@@ -142,7 +142,6 @@ export default function CodeElement({ element, isReadOnly = false }: CodeElement
         return (
             <div 
                 ref={containerRef}
-                style={element.style} 
                 className="w-full relative custom-code-container"
                 dangerouslySetInnerHTML={{ __html: html }}
             />
@@ -154,7 +153,6 @@ export default function CodeElement({ element, isReadOnly = false }: CodeElement
         return (
             <div 
                 className="w-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-xl bg-indigo-50/30 text-gray-500 transition-all cursor-pointer group"
-                style={element.style}
             >
                 <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                     <Code2 className="w-6 h-6" />
@@ -174,7 +172,6 @@ export default function CodeElement({ element, isReadOnly = false }: CodeElement
     if (hasVisualContent && showPreview) {
         return (
             <div 
-                style={element.style} 
                 className="w-full relative group"
             >
                 {/* Visual Preview */}
@@ -193,7 +190,6 @@ export default function CodeElement({ element, isReadOnly = false }: CodeElement
     // For invisible scripts (pixels, analytics) or if preview is disabled, show the code snippet card
     return (
         <div 
-            style={element.style} 
             className="w-full relative border border-gray-200 rounded-xl bg-white shadow-xs overflow-hidden"
         >
             {/* Header bar */}

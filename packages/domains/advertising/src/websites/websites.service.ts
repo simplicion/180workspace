@@ -1,13 +1,65 @@
 import { prisma, basePrisma } from '@workspace/db';
-import { eventBus } from '@workspace/backend-infra';
+import { buildDefaultWebsiteConfig } from './default-config';
 
+export { buildDefaultWebsiteConfig } from './default-config';
+
+/**
+ * Typed service error. `statusCode` is what the controller returns; `code` is stable for the frontend.
+ */
+export class WebsiteServiceError extends Error {
+  readonly code: string;
+  readonly statusCode: number;
+  constructor(code: string, message: string, statusCode: number) {
+    super(message);
+    this.name = 'WebsiteServiceError';
+    this.code = code;
+    this.statusCode = statusCode;
+  }
+}
+
+const notFound = () => new WebsiteServiceError('WEBSITE_NOT_FOUND', 'Website not found', 404);
+
+function requireCompany(companyId: string | undefined | null): string {
+  if (!companyId || typeof companyId !== 'string') {
+    throw new WebsiteServiceError('COMPANY_REQUIRED', 'A company context is required for websites', 403);
+  }
+  return companyId;
+}
+
+/** Public-safe company fields attached to editor responses (never credentials or admin contact data). */
+const SAFE_COMPANY_SELECT = {
+  id: true,
+  name: true,
+  slug: true,
+  logoUrl: true,
+  tagline: true,
+  oneLineDescription: true,
+  industry: true,
+  website: true,
+  headquarters: true,
+  socialLinks: true,
+  currency: true,
+  currencySymbol: true,
+};
+
+/**
+ * Tenant isolation: every authenticated method takes the caller's `companyId` (from `req.user.companyId`,
+ * never from body/query/headers) and filters by `{ id, companyId }`. The Prisma tenant extension does not
+ * scope findUnique/update/delete by id, so those are not used for websites here. A website owned by another
+ * company (or a legacy row with a null companyId) is reported as "Website not found" (404).
+ */
 export class WebsitesService {
-  static async getWebsites() {
-    const websites = await prisma.website.findMany({
+  static async getWebsites(companyId: string) {
+    const cId = requireCompany(companyId);
+    const websites = await basePrisma.website.findMany({
+      where: { companyId: cId },
       orderBy: { createdAt: 'desc' }
     });
+    const company = await basePrisma.company
+      .findUnique({ where: { id: cId }, select: SAFE_COMPANY_SELECT })
+      .catch(() => null);
 
-    return { websites };
+    return { websites, company };
   }
 
   static async checkAvailability(slug?: string, customDomain?: string) {
@@ -28,145 +80,165 @@ export class WebsitesService {
     return { available: true };
   }
 
-  static async createWebsite(userId: string, data: any) {
-    const { name, slug, template, config, customDomain } = data;
+  static async createWebsite(companyId: string, userId: string, data: any) {
+    const cId = requireCompany(companyId);
+    const { name, slug, template, config, customDomain } = data || {};
+
+    if (!name || typeof name !== 'string' || !slug || typeof slug !== 'string') {
+      throw new WebsiteServiceError('INVALID_INPUT', 'Website name and slug are required.', 400);
+    }
 
     const existing = await basePrisma.domainRegistry.findFirst({ where: { domain: slug } });
     if (existing) {
-      throw new Error('This subdomain is already in use by a company profile or website.');
+      throw new WebsiteServiceError('DOMAIN_TAKEN', 'This subdomain is already in use by a company profile or website.', 409);
     }
 
     if (customDomain) {
       const existingDomain = await basePrisma.domainRegistry.findFirst({ where: { domain: customDomain } });
       if (existingDomain) {
-        throw new Error('This custom domain is already taken.');
+        throw new WebsiteServiceError('DOMAIN_TAKEN', 'This custom domain is already taken.', 409);
       }
     }
 
-    const initialConfig = {
-      brand: { primaryColor: '#4f46e5', font: 'inter' },
-      sections: [
-        { id: 'sec-' + Date.now() + '-1', type: 'hero', data: { title: name, subtitle: 'Welcome to our business.', buttonText: 'Contact Us' } },
-        { id: 'sec-' + Date.now() + '-2', type: 'services', data: { items: [{ title: 'Our Core Service', description: 'Description of what we do best.' }] } },
-        { id: 'sec-' + Date.now() + '-3', type: 'about', data: { content: 'We are a dedicated team providing top-notch services.' } },
-        { id: 'sec-' + Date.now() + '-4', type: 'contact', data: { email: 'hello@example.com', phone: '1-800-000-0000' } }
-      ]
-    };
-
-    const website = await prisma.website.create({
+    const website = await basePrisma.website.create({
       data: {
+        companyId: cId,
         name,
         slug,
         customDomain: customDomain || null,
         template: template || 'default',
-        config: config || initialConfig,
+        config: config || buildDefaultWebsiteConfig(name),
         owner: userId,
         status: 'active'
       }
     });
 
-    // Add to DomainRegistry
     await basePrisma.domainRegistry.create({
       data: {
         domain: slug,
         type: 'ADVERTISING_WEBSITE',
         targetId: website.id,
-        // companyId is omitted unless we have it in context, but Website owner could be mapped later
+        companyId: cId
       }
     });
-    
+
     if (customDomain) {
-        await basePrisma.domainRegistry.create({
-            data: {
-                domain: customDomain,
-                type: 'ADVERTISING_WEBSITE',
-                targetId: website.id
-            }
-        });
+      await basePrisma.domainRegistry.create({
+        data: {
+          domain: customDomain,
+          type: 'ADVERTISING_WEBSITE',
+          targetId: website.id,
+          companyId: cId
+        }
+      });
     }
 
     return website;
   }
 
-  static async getWebsite(id: string) {
-    const website = await prisma.website.findUnique({
-      where: { id }
-    });
-    if (!website) {
-      throw new Error('Website not found');
-    }
+  /** Loads a website owned by the company, or throws WEBSITE_NOT_FOUND (404). */
+  static async findOwnedWebsite(companyId: string, id: string) {
+    const cId = requireCompany(companyId);
+    if (!id || typeof id !== 'string') throw notFound();
+    const website = await basePrisma.website.findFirst({ where: { id, companyId: cId } });
+    if (!website) throw notFound();
+    return website;
+  }
 
-    try {
-      const company = await prisma.company.findFirst();
-      if (company) {
-        (website as any).company = company;
-      }
-    } catch (e) {}
+  static async getWebsite(companyId: string, id: string) {
+    const website = await WebsitesService.findOwnedWebsite(companyId, id);
+
+    // Attach the owner company (safe fields only); never "whichever company comes first".
+    const company = await basePrisma.company
+      .findUnique({ where: { id: website.companyId }, select: SAFE_COMPANY_SELECT })
+      .catch(() => null);
+    if (company) {
+      (website as any).company = company;
+    }
 
     return website;
   }
 
-  static async updateWebsite(id: string, data: any) {
-    const { name, slug, template, config, publishedConfig, isPublished, status, customDomain } = data;
+  static async updateWebsite(companyId: string, id: string, data: any) {
+    const { name, slug, template, config, publishedConfig, isPublished, status, customDomain } = data || {};
 
-    const currentWebsite = await prisma.website.findUnique({ where: { id } });
-    if (!currentWebsite) {
-      throw new Error('Website not found');
-    }
+    const currentWebsite = await WebsitesService.findOwnedWebsite(companyId, id);
+    const cId = currentWebsite.companyId as string;
 
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
-    if (slug !== undefined) updateData.slug = slug;
     if (template !== undefined) updateData.template = template;
     if (config !== undefined) updateData.config = config;
     if (publishedConfig !== undefined) updateData.publishedConfig = publishedConfig;
     if (isPublished !== undefined) updateData.isPublished = isPublished;
     if (status !== undefined) updateData.status = status;
-    
+
+    const slugChanged = typeof slug === 'string' && slug.length > 0 && slug !== currentWebsite.slug;
+    if (slugChanged) {
+      const existing = await basePrisma.domainRegistry.findFirst({ where: { domain: slug } });
+      if (existing && (existing.type !== 'ADVERTISING_WEBSITE' || existing.targetId !== id)) {
+        throw new WebsiteServiceError('DOMAIN_TAKEN', 'This subdomain is already in use by a company profile or website.', 409);
+      }
+      updateData.slug = slug;
+    }
+
     if (customDomain !== undefined) {
       if (customDomain) {
         const existing = await basePrisma.domainRegistry.findFirst({ where: { domain: customDomain } });
         if (existing && (existing.type !== 'ADVERTISING_WEBSITE' || existing.targetId !== id)) {
-           throw new Error('Custom domain already taken');
+          throw new WebsiteServiceError('DOMAIN_TAKEN', 'Custom domain already taken', 409);
         }
       }
       updateData.customDomain = customDomain || null;
     }
 
-    const website = await prisma.website.update({
-      where: { id },
+    const { count } = await basePrisma.website.updateMany({
+      where: { id, companyId: cId },
       data: updateData
     });
+    if (!count) throw notFound();
+    const website = await basePrisma.website.findFirst({ where: { id, companyId: cId } });
+
+    if (slugChanged) {
+      await basePrisma.domainRegistry.deleteMany({
+        where: { domain: currentWebsite.slug, type: 'ADVERTISING_WEBSITE', targetId: id }
+      });
+      const alreadyRegistered = await basePrisma.domainRegistry.findFirst({ where: { domain: slug } });
+      if (!alreadyRegistered) {
+        await basePrisma.domainRegistry.create({
+          data: { domain: slug, type: 'ADVERTISING_WEBSITE', targetId: id, companyId: cId }
+        });
+      }
+    }
 
     if (customDomain !== undefined) {
-       // Check if there was an old custom domain and remove it
-       if (currentWebsite.customDomain && currentWebsite.customDomain !== customDomain) {
-           await basePrisma.domainRegistry.deleteMany({
-               where: { domain: currentWebsite.customDomain, type: 'ADVERTISING_WEBSITE', targetId: id }
-           });
-       }
-       // Add new custom domain
-       if (customDomain && customDomain !== currentWebsite.customDomain) {
-           await basePrisma.domainRegistry.create({
-               data: {
-                   domain: customDomain,
-                   type: 'ADVERTISING_WEBSITE',
-                   targetId: id
-               }
-           });
-       }
+      // Remove the old custom domain mapping
+      if (currentWebsite.customDomain && currentWebsite.customDomain !== customDomain) {
+        await basePrisma.domainRegistry.deleteMany({
+          where: { domain: currentWebsite.customDomain, type: 'ADVERTISING_WEBSITE', targetId: id }
+        });
+      }
+      // Register the new custom domain
+      if (customDomain && customDomain !== currentWebsite.customDomain) {
+        await basePrisma.domainRegistry.create({
+          data: {
+            domain: customDomain,
+            type: 'ADVERTISING_WEBSITE',
+            targetId: id,
+            companyId: cId
+          }
+        });
+      }
     }
 
     return website;
   }
 
-  static async deleteWebsite(id: string) {
-    const currentWebsite = await prisma.website.findUnique({ where: { id } });
-    if (!currentWebsite) {
-      throw new Error('Website not found');
-    }
+  static async deleteWebsite(companyId: string, id: string) {
+    const currentWebsite = await WebsitesService.findOwnedWebsite(companyId, id);
 
-    await prisma.website.delete({ where: { id } });
+    const { count } = await basePrisma.website.deleteMany({ where: { id, companyId: currentWebsite.companyId } });
+    if (!count) throw notFound();
 
     // Clean up domain registry
     await basePrisma.domainRegistry.deleteMany({
@@ -176,40 +248,32 @@ export class WebsitesService {
     return true;
   }
 
-
-
-  static async getWebsitePixels(websiteId: string) {
-    const currentWebsite = await prisma.website.findUnique({ where: { id: websiteId } });
-    if (!currentWebsite) {
-      throw new Error('Website not found');
-    }
-
-    const pixels = await prisma.pixel.findMany({ where: { websiteId } });
-    return pixels;
+  static async getWebsitePixels(companyId: string, websiteId: string) {
+    await WebsitesService.findOwnedWebsite(companyId, websiteId);
+    return basePrisma.pixel.findMany({ where: { websiteId } });
   }
 
-  static async createWebsitePixel(websiteId: string, data: any) {
-    const currentWebsite = await prisma.website.findUnique({ where: { id: websiteId } });
-    if (!currentWebsite) {
-      throw new Error('Website not found');
+  static async createWebsitePixel(companyId: string, websiteId: string, data: any) {
+    const website = await WebsitesService.findOwnedWebsite(companyId, websiteId);
+    const { provider, pixelId, status } = data || {};
+    if (!provider || typeof provider !== 'string' || !pixelId || typeof pixelId !== 'string') {
+      throw new WebsiteServiceError('INVALID_INPUT', 'provider and pixelId are required.', 400);
     }
 
-    const pixel = await prisma.pixel.create({
+    // Whitelisted fields only: the body cannot set websiteId/companyId.
+    return basePrisma.pixel.create({
       data: {
-        ...data,
-        websiteId
+        provider,
+        pixelId,
+        ...(typeof status === 'string' ? { status } : {}),
+        websiteId,
+        companyId: website.companyId
       }
     });
-
-    return pixel;
   }
 
-  static async getWebsiteStats(websiteId: string) {
-    const website = await prisma.website.findUnique({ where: { id: websiteId } });
-    if (!website) {
-      throw new Error('Website not found');
-    }
-
+  static async getWebsiteStats(companyId: string, websiteId: string) {
+    const website = await WebsitesService.findOwnedWebsite(companyId, websiteId);
     return {
       views: (website.stats as any)?.views || 0,
     };
@@ -218,7 +282,7 @@ export class WebsitesService {
   // --- Public Endpoints ---
   static async publicGetWebsite(domain: string) {
     if (!domain) throw new Error('Domain is required');
-    
+
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
     const isSubdomain = domain.includes(rootDomain) || domain.includes('localhost');
     const subdomainSlug = isSubdomain ? domain.split('.')[0] : null;
@@ -275,4 +339,3 @@ export class WebsitesService {
 
 
 }
-

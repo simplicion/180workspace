@@ -27,6 +27,57 @@ interface SettingsSidebarProps {
     sections: any[];
     website?: any;
     onOpenAIDrawer?: () => void;
+    /** Layers tab: select a node on the canvas. */
+    onSelectElement?: (id: string) => void;
+    selectedElementId?: string | null;
+}
+
+const LAYER_TYPE_LABEL: Record<string, string> = {
+    section: 'Section', box: 'Container', row: 'Row', column: 'Column', text: 'Text', media: 'Media', image: 'Image',
+    button: 'Button', line: 'Divider', code: 'Code', floating: 'Floating button',
+};
+
+const stripHtml = (s: any) => (typeof s === 'string' ? s.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : '');
+
+function layerLabel(node: any): string {
+    if (node?.name) return node.name;
+    const text = stripHtml(node?.data?.content);
+    if (text) return text.length > 32 ? text.slice(0, 32) + '…' : text;
+    if (node?.data?.preset) return `${String(node.data.preset).replace(/^./, (c: string) => c.toUpperCase())} section`;
+    return LAYER_TYPE_LABEL[node?.type] || node?.type || 'Element';
+}
+
+function LayerTree({ nodes, depth, selectedId, onSelect }: { nodes: any[]; depth: number; selectedId?: string | null; onSelect: (id: string) => void }) {
+    return (
+        <ul className="space-y-0.5">
+            {nodes.filter(Boolean).map((node: any) => {
+                const hidden = node.hiddenOn || {};
+                const hiddenBadges = (['desktop', 'tablet', 'mobile'] as const).filter((d) => hidden[d]);
+                const isSel = node.id === selectedId;
+                return (
+                    <li key={node.id}>
+                        <button
+                            type="button"
+                            onClick={() => onSelect(node.id)}
+                            className={`w-full min-h-11 flex items-center gap-2 pr-2 rounded-lg text-left text-xs transition-colors ${isSel ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'text-gray-700 hover:bg-gray-50'}`}
+                            style={{ paddingLeft: `${8 + depth * 14}px` }}
+                        >
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 w-16 shrink-0 truncate">{LAYER_TYPE_LABEL[node.type] || node.type}</span>
+                            <span className="truncate flex-1 font-medium">{layerLabel(node)}</span>
+                            {hiddenBadges.map((d) => (
+                                <span key={d} title={`Hidden on ${d}`} className="shrink-0 px-1.5 py-0.5 rounded bg-gray-800 text-white text-[9px] font-bold uppercase">
+                                    {d === 'desktop' ? 'no PC' : d === 'tablet' ? 'no tab' : 'no mob'}
+                                </span>
+                            ))}
+                        </button>
+                        {Array.isArray(node.children) && node.children.length > 0 && (
+                            <LayerTree nodes={node.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} />
+                        )}
+                    </li>
+                );
+            })}
+        </ul>
+    );
 }
 
 export default function SettingsSidebar({
@@ -38,9 +89,11 @@ export default function SettingsSidebar({
     changeActivePage,
     sections,
     website,
-    onOpenAIDrawer
+    onOpenAIDrawer,
+    onSelectElement,
+    selectedElementId
 }: SettingsSidebarProps) {
-    const [sidebarTab, setSidebarTab] = useState<'styles' | 'sections' | 'pages' | 'seo' | 'media'>('sections');
+    const [sidebarTab, setSidebarTab] = useState<'styles' | 'sections' | 'layers' | 'pages' | 'seo' | 'media'>('sections');
     const [uploadingFavicon, setUploadingFavicon] = useState(false);
     const [uploadingOgImage, setUploadingOgImage] = useState(false);
     const [showScriptsModal, setShowScriptsModal] = useState(false);
@@ -162,6 +215,9 @@ export default function SettingsSidebar({
             {/* Tab Bar */}
             <div className="flex border-b border-gray-200 bg-gray-50/50">
                 <button onClick={() => setSidebarTab('sections')} className={`flex-1 py-3 px-1 text-[11px] font-bold border-b-2 uppercase tracking-wider transition-colors ${sidebarTab === 'sections' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'}`}>Sections</button>
+                {onSelectElement && (
+                    <button onClick={() => setSidebarTab('layers')} className={`flex-1 py-3 px-1 text-[11px] font-bold border-b-2 uppercase tracking-wider transition-colors ${sidebarTab === 'layers' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'}`}>Layers</button>
+                )}
                 <button onClick={() => setSidebarTab('pages')} className={`flex-1 py-3 px-1 text-[11px] font-bold border-b-2 uppercase tracking-wider transition-colors ${sidebarTab === 'pages' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'}`}>Pages</button>
                 <button onClick={() => setSidebarTab('styles')} className={`flex-1 py-3 px-1 text-[11px] font-bold border-b-2 uppercase tracking-wider transition-colors ${sidebarTab === 'styles' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'}`}>Theme</button>
                 <button onClick={() => setSidebarTab('seo')} className={`flex-1 py-3 px-1 text-[11px] font-bold border-b-2 uppercase tracking-wider transition-colors ${sidebarTab === 'seo' ? 'border-indigo-600 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'}`}>SEO</button>
@@ -639,6 +695,25 @@ export default function SettingsSidebar({
                 </div>
             ) : sidebarTab === 'media' ? (
                 <MediaLibrary websiteId={website?.id} config={config} />
+            ) : sidebarTab === 'layers' && onSelectElement ? (
+                <div className="p-3">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2 px-1">Page Layers</h4>
+                    {sections.length > 0 ? (
+                        <LayerTree nodes={sections} depth={0} selectedId={selectedElementId} onSelect={onSelectElement} />
+                    ) : (
+                        <div className="text-center py-10 px-4 border-2 border-dashed border-gray-200 rounded-xl">
+                            <p className="text-sm font-bold text-gray-700 mb-1">This page is empty</p>
+                            <p className="text-xs text-gray-500 mb-4">Add a section to start building, then pick any element here.</p>
+                            <button
+                                type="button"
+                                onClick={() => setSidebarTab('sections')}
+                                className="min-h-11 px-4 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
+                            >
+                                Browse sections
+                            </button>
+                        </div>
+                    )}
+                </div>
             ) : (
                 <div className="p-4 space-y-6">
                     <div>
@@ -783,7 +858,7 @@ export default function SettingsSidebar({
                         <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Pre-built Sections</h4>
                         <div className="space-y-2">
                             {(() => {
-                                const hasVideoSection = sections.some((s: any) => s.type === 'video');
+                                const hasVideoSection = sections.some((s: any) => s?.type === 'video' || s?.data?.preset === 'video');
                                 return ['hero', 'grid', 'about', 'portfolio', 'faq', 'contact', 'video'].map(type => {
                                     const isVideoDisabled = type === 'video' && hasVideoSection;
                                     return (

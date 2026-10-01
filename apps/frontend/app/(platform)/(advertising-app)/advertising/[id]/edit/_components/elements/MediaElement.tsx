@@ -1,56 +1,86 @@
+'use client';
 import React, { useEffect, useRef } from 'react';
-import { ElementProps } from './BoxElement';
-import Hls from 'hls.js';
-import { motion } from 'framer-motion';
+import { ElementProps, containerTag, animationAttrs, cx } from './shared';
 
-export function MediaElement({ node, setNodeRef, style, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly, viewMode, animationProps, animKey }: ElementProps) {
+const VIDEO_EXT = /\.(mp4|webm|ogv|m3u8)$/;
+
+export function MediaElement({ node, setNodeRef, style, className, wrapperClass, handleClick, renderControls, renderPaddingControls, isReadOnly, animationProps, animKey }: ElementProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const mediaUrl = node.data?.imageUrl || node.data?.videoUrl;
-    const isVideo = mediaUrl && (mediaUrl.endsWith('.m3u8') || mediaUrl.endsWith('.mp4'));
+    const mediaUrl: string | undefined = node.data?.imageUrl || node.data?.videoUrl;
+    const path = typeof mediaUrl === 'string' ? mediaUrl.split(/[?#]/)[0].toLowerCase() : '';
+    const isHls = path.endsWith('.m3u8');
+    const isVideo = !!mediaUrl && VIDEO_EXT.test(path);
 
+    // Existing nodes keep their behaviour (autoplay muted loop); `data.autoplay === false` opts out.
+    const autoplay = node.data?.autoplay !== false;
+    const muted = autoplay ? true : !!node.data?.muted;
+    const loop = node.data?.loop !== false;
+    const controls = node.data?.controls !== false;
+    const eager = node.data?.priority === true || node.data?.loading === 'eager';
+
+    // HLS only: hls.js is loaded on demand and destroyed on cleanup. Plain files use the `src` attribute.
     useEffect(() => {
-        if (isVideo && videoRef.current && mediaUrl) {
-            if (mediaUrl.endsWith('.m3u8') && Hls.isSupported()) {
-                const hls = new Hls();
-                hls.loadSource(mediaUrl);
-                hls.attachMedia(videoRef.current);
-            } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-                // For Safari
-                videoRef.current.src = mediaUrl;
-            } else {
-                videoRef.current.src = mediaUrl;
-            }
-        }
-    }, [mediaUrl, isVideo]);
+        const video = videoRef.current;
+        if (!isHls || !video || !mediaUrl) return;
+        let cancelled = false;
+        let hls: { destroy: () => void } | null = null;
+        import('hls.js')
+            .then(({ default: Hls }) => {
+                if (cancelled) return;
+                if (Hls.isSupported()) {
+                    const instance = new Hls();
+                    instance.loadSource(mediaUrl);
+                    instance.attachMedia(video);
+                    hls = instance;
+                } else {
+                    video.src = mediaUrl; // Safari / iOS native HLS
+                }
+            })
+            .catch(() => {
+                if (!cancelled && video.canPlayType('application/vnd.apple.mpegurl')) video.src = mediaUrl;
+            });
+        return () => {
+            cancelled = true;
+            hls?.destroy();
+        };
+    }, [mediaUrl, isHls]);
 
-    const hasAnimation = animationProps && Object.keys(animationProps).length > 0;
-    const MediaContainerTag = hasAnimation ? motion.div : 'div';
+    const MediaContainerTag = containerTag(animationProps);
 
     return (
-        <MediaContainerTag 
+        <MediaContainerTag
             key={animKey}
-            ref={setNodeRef as any} 
+            ref={setNodeRef as any}
             data-element-type="media"
-            style={style} 
-            onClick={isReadOnly ? undefined : handleClick} 
-            className={`w-full max-w-full overflow-hidden ${wrapperClass}`}
-            {...(hasAnimation ? animationProps : {})}
+            style={style}
+            onClick={isReadOnly ? undefined : handleClick}
+            className={cx(className, wrapperClass)}
+            {...animationAttrs(animationProps)}
         >
             {!isReadOnly && renderControls?.()}
             {!isReadOnly && renderPaddingControls?.()}
             {mediaUrl ? (
                 isVideo ? (
-                    <video 
+                    <video
                         ref={videoRef}
-                        controls 
-                        autoPlay 
-                        muted 
-                        loop
+                        src={isHls ? undefined : mediaUrl}
+                        controls={controls}
+                        autoPlay={autoplay}
+                        muted={muted}
+                        loop={loop}
                         playsInline
-                        style={{ width: '100%', height: '100%', maxWidth: '100%', objectFit: 'cover', borderRadius: node.style?.borderRadius }} 
+                        preload={autoplay ? 'auto' : 'metadata'}
+                        poster={node.data?.poster || undefined}
                     />
                 ) : (
-                    <img src={mediaUrl} alt={node.data?.alt || ''} style={{ width: '100%', height: '100%', maxWidth: '100%', objectFit: 'cover', borderRadius: node.style?.borderRadius }} />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src={mediaUrl}
+                        alt={node.data?.alt || ''}
+                        loading={eager ? 'eager' : 'lazy'}
+                        decoding="async"
+                        {...(eager ? { fetchPriority: 'high' as const } : {})}
+                    />
                 )
             ) : isReadOnly ? null : (
                 <div className="w-full h-full min-h-[150px] bg-gray-100 flex items-center justify-center rounded-xl border border-gray-200">
