@@ -42,6 +42,9 @@ interface PlanTierItem {
   interval: string;
   maxLinks: number;
   features: string[];
+  basePriceUsd?: number;
+  currencySymbol?: string;
+  exchangeRate?: number;
 }
 
 export default function SubscriptionPage() {
@@ -190,6 +193,43 @@ export default function SubscriptionPage() {
   const targetPlan = plans.find((p) => p.tier === selectedTier) || plans[0] || {
     price: selectedTier === 'STARTER' ? 25 : selectedTier === 'PRO' ? 50 : 75,
     name: selectedTier,
+    currency: 'USD',
+    currencySymbol: '$',
+    basePriceUsd: selectedTier === 'STARTER' ? 25 : selectedTier === 'PRO' ? 50 : 75,
+  };
+
+  const starterPlan = plans.find((p) => p.tier === 'STARTER') || {
+    tier: 'STARTER' as const,
+    name: 'Starter Edge',
+    price: 25,
+    currency: 'USD',
+    currencySymbol: '$',
+    basePriceUsd: 25,
+    interval: 'monthly',
+    maxLinks: 2,
+    features: [],
+  };
+  const proPlan = plans.find((p) => p.tier === 'PRO') || {
+    tier: 'PRO' as const,
+    name: 'Pro Armor',
+    price: 50,
+    currency: 'USD',
+    currencySymbol: '$',
+    basePriceUsd: 50,
+    interval: 'monthly',
+    maxLinks: 5,
+    features: [],
+  };
+  const enterprisePlan = plans.find((p) => p.tier === 'ENTERPRISE') || {
+    tier: 'ENTERPRISE' as const,
+    name: 'Enterprise Sovereign',
+    price: 75,
+    currency: 'USD',
+    currencySymbol: '$',
+    basePriceUsd: 75,
+    interval: 'monthly',
+    maxLinks: -1,
+    features: [],
   };
 
   const discountedPrice = appliedCoupon ? appliedCoupon.finalPrice : targetPlan.price;
@@ -265,7 +305,8 @@ export default function SubscriptionPage() {
           <div className="space-y-1">
             <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Billed Amount</span>
             <div className="text-xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
-              ${subData?.amountCharged?.toFixed(2) || '25.00'}
+              {subData?.currency === 'INR' ? '₹' : '$'}
+              {subData?.amountCharged !== undefined ? subData.amountCharged.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '25.00'}
               <span className="text-xs text-zinc-400 font-normal"> / month</span>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
@@ -354,8 +395,17 @@ export default function SubscriptionPage() {
               </div>
 
               <div className="mb-4">
-                <span className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">$25</span>
-                <span className="text-xs text-zinc-400 font-medium"> / month</span>
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <span className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+                    {starterPlan.currencySymbol}{starterPlan.price.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-zinc-400 font-medium"> / month</span>
+                  {starterPlan.currency !== 'USD' && (
+                    <span className="text-[11px] font-medium text-zinc-400 ml-1">
+                      (≈ ${starterPlan.basePriceUsd} USD)
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                   Ideal for single campaign arbitrage & lightweight safe page testing.
                 </p>
@@ -407,7 +457,11 @@ export default function SubscriptionPage() {
                     : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 shadow-sm'
                 }`}
               >
-                <span>{currentTier === 'STARTER' ? 'Current Active Tier' : 'Select Starter ($25/mo)'}</span>
+                <span>
+                  {currentTier === 'STARTER'
+                    ? 'Current Active Tier'
+                    : `Select Starter (${starterPlan.currencySymbol}${starterPlan.price}/mo)`}
+                </span>
               </button>
             </div>
           </div>
@@ -435,8 +489,17 @@ export default function SubscriptionPage() {
               </div>
 
               <div className="mb-4">
-                <span className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">$50</span>
-                <span className="text-xs text-zinc-400 font-medium"> / month</span>
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <span className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+                    {proPlan.currencySymbol}{proPlan.price.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-zinc-400 font-medium"> / month</span>
+                  {proPlan.currency !== 'USD' && (
+                    <span className="text-[11px] font-medium text-zinc-400 ml-1">
+                      (≈ ${proPlan.basePriceUsd} USD)
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                   Engineered for high-volume advertisers requiring multi-ad network cloaking.
                 </p>
@@ -493,7 +556,11 @@ export default function SubscriptionPage() {
                 }`}
               >
                 <Zap className="w-3.5 h-3.5" />
-                <span>{currentTier === 'PRO' ? 'Current Active Tier' : 'Upgrade to Pro ($50/mo)'}</span>
+                <span>
+                  {currentTier === 'PRO'
+                    ? 'Current Active Tier'
+                    : `Upgrade to Pro (${proPlan.currencySymbol}${proPlan.price}/mo)`}
+                </span>
               </button>
             </div>
           </div>
@@ -517,8 +584,17 @@ export default function SubscriptionPage() {
               </div>
 
               <div className="mb-4">
-                <span className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">$75</span>
-                <span className="text-xs text-zinc-400 font-medium"> / month</span>
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <span className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+                    {enterprisePlan.currencySymbol}{enterprisePlan.price.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-zinc-400 font-medium"> / month</span>
+                  {enterprisePlan.currency !== 'USD' && (
+                    <span className="text-[11px] font-medium text-zinc-400 ml-1">
+                      (≈ ${enterprisePlan.basePriceUsd} USD)
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                   Full sovereign allocation with unlimited links, dedicated RAM blacklists and safe pages.
                 </p>
@@ -575,7 +651,11 @@ export default function SubscriptionPage() {
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>{currentTier === 'ENTERPRISE' ? 'Current Active Tier' : 'Upgrade to Enterprise ($75/mo)'}</span>
+                <span>
+                  {currentTier === 'ENTERPRISE'
+                    ? 'Current Active Tier'
+                    : `Upgrade to Enterprise (${enterprisePlan.currencySymbol}${enterprisePlan.price}/mo)`}
+                </span>
               </button>
             </div>
           </div>

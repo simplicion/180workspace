@@ -483,18 +483,45 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
     final job = _job;
     if (job != null && job.isFailed) {
       return Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.error_outline_rounded, size: 40, color: AppTheme.error),
-            SizedBox(height: 12),
-            Text('The calendar could not be finished', style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
-            SizedBox(height: 8),
-            Text(job.errorMessage ?? 'The server stopped at "${job.stageLabel}".', textAlign: TextAlign.center),
-            SizedBox(height: 20),
-            ElevatedButton(onPressed: () => setState(() => _jobId = null), child: Text('Try again')),
-            TextButton(onPressed: widget.onUseClassic, child: Text('Use the classic generator')),
-          ]),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline_rounded, size: 48, color: AppTheme.error),
+              SizedBox(height: 16),
+              Text(
+                'The calendar could not be finished',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 12),
+              Container(
+                constraints: BoxConstraints(maxHeight: 200),
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.error.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.error.withValues(alpha: 0.2)),
+                ),
+                child: SingleChildScrollView(
+                  child: Text(
+                    job.errorMessage ?? 'The server stopped at "${job.stageLabel}".',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    textAlign: TextAlign.left,
+                  ),
+                ),
+              ),
+              SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => setState(() => _jobId = null),
+                icon: Icon(Icons.refresh_rounded),
+                label: Text('Try again'),
+              ),
+              SizedBox(height: 8),
+              TextButton(onPressed: widget.onUseClassic, child: Text('Use the classic generator')),
+            ],
+          ),
         ),
       );
     }

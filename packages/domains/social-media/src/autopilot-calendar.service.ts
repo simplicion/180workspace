@@ -311,7 +311,14 @@ export class AutopilotCalendarService {
             await persist();
 
             const rows = result.pieces.map((p) => pieceToRow(p, calendarId, companyId));
-            await db.calendarContentPiece.createMany({ data: rows });
+            try {
+                await db.calendarContentPiece.createMany({ data: rows });
+            } catch (batchErr: any) {
+                this.deps.log('autopilot_createmany_fallback', { error: batchErr?.message });
+                for (const row of rows) {
+                    await db.calendarContentPiece.create({ data: row });
+                }
+            }
 
             let draftsCreated = 0;
             if (ctx.request.createDrafts) {

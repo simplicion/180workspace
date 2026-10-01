@@ -7,14 +7,13 @@ import '../../core/providers.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/brand_voice.dart';
 import '../../data/models/project.dart';
-import '../../data/models/social_account.dart';
 import 'brand_voice_form.dart';
 import 'project_provider.dart';
 
 final clientsProvider = FutureProvider.autoDispose<List<ClientRef>>((ref) => ref.watch(socialApiProvider).listClients());
-final _accountsProvider = FutureProvider.autoDispose<List<SocialAccount>>((ref) => ref.watch(socialApiProvider).listAccounts());
 
-/// New project wizard (web create modal): basics & client → services → brand → channels & workflow.
+/// New project wizard: basics & client → services → brand identity → create project.
+/// Channels are connected subsequently from the project workspace.
 class CreateProjectScreen extends ConsumerStatefulWidget {
   const CreateProjectScreen({super.key});
 
@@ -34,8 +33,6 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   final Set<String> _services = {'content_calendar', 'short_form_video', 'publishing'};
   BrandVoice _voice = BrandVoice(projectId: '');
   String? _pickedLogoPath;
-  final Set<String> _accountIds = {};
-  bool _approval = true;
   String _tz = 'UTC';
 
   @override
@@ -73,8 +70,8 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
       clientEmail: _newClient ? _clientEmail.text : null,
       socialServices: _services.toList(),
       brandVoice: _voice,
-      connectedAccountIds: _accountIds.toList(),
-      settings: ProjectSettings(approvalRequired: _approval, defaultTimezone: _tz),
+      connectedAccountIds: const [],
+      settings: ProjectSettings(approvalRequired: true, defaultTimezone: _tz),
     );
     final project = await guarded(context, () => ref.read(socialApiProvider).createProject(input));
     if (!mounted) return;
@@ -103,7 +100,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   @override
   Widget build(BuildContext context) {
     final clients = ref.watch(clientsProvider);
-    final accounts = ref.watch(_accountsProvider);
+
     return Scaffold(
       appBar: AppBar(title: Text('New project')),
       body: Stepper(
@@ -113,7 +110,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
         onStepContinue: () {
           final err = _validate();
           if (err != null) return showError(context, err);
-          if (_step < 3) {
+          if (_step < 2) {
             setState(() => _step++);
           } else {
             _create();
@@ -126,7 +123,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
               onPressed: _saving ? null : d.onStepContinue,
               child: _saving
                   ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text(_step == 3 ? 'Create project' : 'Next'),
+                  : Text(_step == 2 ? 'Create project' : 'Next'),
             ),
             if (d.onStepCancel != null) TextButton(onPressed: d.onStepCancel, child: Text('Back')),
           ]),
@@ -188,45 +185,6 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
               onChanged: (v) => _voice = v,
               onLogoPicked: (path) => setState(() => _pickedLogoPath = path),
             ),
-          ),
-          Step(
-            title: Text('Channels & workflow'),
-            isActive: _step >= 3,
-            content: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              accounts.when(
-                loading: () => LinearProgressIndicator(),
-                error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(_accountsProvider)),
-                data: (list) {
-                  final unassigned = list.where((a) => a.projectId == null).toList();
-                  if (unassigned.isEmpty) {
-                    return Text('No unassigned channels available. You can connect fresh channels from the project\'s Channels section.');
-                  }
-                  return Column(children: [
-                    for (final a in unassigned)
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _accountIds.contains(a.id),
-                        onChanged: (v) => setState(() => v == true ? _accountIds.add(a.id) : _accountIds.remove(a.id)),
-                        secondary: Icon(a.platform.icon, color: a.platform.color),
-                        title: Text(a.accountName),
-                        subtitle: Text(a.platform.label),
-                      ),
-                  ]);
-                },
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _approval,
-                onChanged: (v) => setState(() => _approval = v),
-                title: Text('Client approval required'),
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: _tz,
-                decoration: fieldDecoration('Timezone'),
-                items: [for (final t in timezoneOptions) DropdownMenuItem(value: t, child: Text(t))],
-                onChanged: (v) => setState(() => _tz = v ?? _tz),
-              ),
-            ]),
           ),
         ],
       ),
