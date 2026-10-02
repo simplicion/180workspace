@@ -683,3 +683,13 @@ PUBLISHING.md §6.
   - No desktop OCR.
   - Performance memory needs a live insights sync.
   - `user-assisted-publishing.test.ts` case 1 conflicts with the committed manual-handoff rule; case 3 needs a DB.
+
+## Re-audit 2026-10-02: start from PRODUCTION_READINESS_PLAN.md
+Covers the 180 Manager, engagement automations, AI inbox, composer, shoot → Director loop, four-agent calendar and the
+CapCut-style editor. It lists the gates, which have regressed since 2026-09-27:
+- Flutter: 163/169 tests pass and analyze reports 19 issues;
+- engagement: 66/67;
+- autopilot: 16/17.
+
+It also lists 23 bugs, including fake Manager and stock data, clip loss from the cache, and the 1-piece-a-day cadence
+cap. Work proceeds in phases P0–P5.

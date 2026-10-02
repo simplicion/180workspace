@@ -1387,9 +1387,24 @@ class TimelineOps {
   /// Every placed item, per track, in timeline order. Clips are the video track.
   static List<TimelineItem> items(MobileEditIr ir) => [
         for (var i = 0; i < ir.clips.length; i++)
-          TimelineItem(TrackKind.video, ir.clips[i].id, ir.clips[i].timelineStartMs, ir.clips[i].timelineEndMs, 'Clip ${i + 1}'),
+          TimelineItem(
+            TrackKind.video,
+            ir.clips[i].id,
+            ir.clips[i].timelineStartMs,
+            ir.clips[i].timelineEndMs,
+            'Clip ${i + 1}',
+          ),
         for (final o in ir.overlays)
-          TimelineItem(TrackKind.broll, o.id, o.timelineStartMs, o.timelineEndMs, '${o.isImage ? 'Photo' : 'Video'}: ${o.source['query'] ?? 'B-roll'}'),
+          TimelineItem(
+            TrackKind.broll,
+            o.id,
+            o.timelineStartMs,
+            o.timelineEndMs,
+            '${o.isImage ? 'Photo' : 'B-roll'}: ${o.source['title'] ?? o.source['query'] ?? 'Overlay'}',
+            mediaUrl: (o.source['url'] ?? o.source['downloadUrl'] ?? o.source['path']) as String?,
+            thumbnailUrl: (o.source['thumbnailUrl'] ?? o.source['previewUrl'] ?? (o.isImage ? o.source['url'] : null)) as String?,
+            isImage: o.isImage,
+          ),
         for (final e in ir.effects) TimelineItem(TrackKind.effect, e.id, e.startMs, e.endMs, e.label),
         for (final c in ir.captions)
           TimelineItem(c.kind == 'text' ? TrackKind.text : TrackKind.captions, c.id, c.startMs, c.endMs, c.text),
@@ -1594,12 +1609,24 @@ enum TrackKind {
 }
 
 class TimelineItem {
-  TimelineItem(this.kind, this.id, this.startMs, this.endMs, this.label);
+  TimelineItem(
+    this.kind,
+    this.id,
+    this.startMs,
+    this.endMs,
+    this.label, {
+    this.mediaUrl,
+    this.thumbnailUrl,
+    this.isImage = false,
+  });
   final TrackKind kind;
   final String id;
   final int startMs;
   final int endMs;
   final String label;
+  final String? mediaUrl;
+  final String? thumbnailUrl;
+  final bool isImage;
 }
 
 class _Seg {

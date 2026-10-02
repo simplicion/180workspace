@@ -206,8 +206,8 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
             return next();
         }
 
-        // Validate companyId format (CUID/UUID/ObjectId)
-        if (typeof companyId === 'string' && companyId.length !== 24 && companyId.length !== 25 && companyId.length !== 36) { 
+        // Validate companyId format (CUID/UUID/ObjectId/Custom trial ID)
+        if (typeof companyId !== 'string' || companyId.trim().length < 3 || companyId.length > 100) { 
             console.error(`[Company Context] Invalid companyId format: "${companyId}".`);
             return res.status(400).json({ error: 'Invalid company workspace identifier provided.' });
         }
@@ -268,7 +268,9 @@ async function companyContextMiddleware(req: any, res: Response, next: NextFunct
             '/api/notifications',
             '/api/users',
             '/api/user',
-            '/api/files'
+            '/api/files',
+            '/api/v1/media-editor',
+            '/api/v1/social-media'
         ];
         const is180workspaceRoute = workspaceRoutes.some(route => req.path.startsWith(route));
 

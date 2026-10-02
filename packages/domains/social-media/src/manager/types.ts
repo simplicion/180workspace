@@ -75,19 +75,33 @@ export interface VideoTraitAnalysis {
     detectedFormat: 'talking_head' | 'tutorial' | 'breakdown' | 'meme' | 'pov' | 'lifestyle';
     speechTranscript: string;
     viralityHypothesis: string;
+    /** What the score was derived from. Media is never sent to the server. */
+    basis: 'transcript' | 'caption';
+}
+
+export interface AccountMetricsSnapshot {
+    /** live = fetched just now; stored = last saved value; unavailable = see `unavailable`. Never estimated. */
+    source: string;
+    followers: number | null;
+    reach: number | null;
+    views: number | null;
+    engagements: number | null;
+    periodDays: number | null;
+    unavailable: string | null;
 }
 
 export interface CrossAccountAnalyticsSummary {
     totalAccounts: number;
+    /** Start of the calendar month the counts cover (ISO). */
+    periodStart: string;
     accounts: Array<{
         id: string;
         platform: string;
         username: string;
-        postsThisMonth: number;
-        estimatedReach: number;
-        engagements: number;
+        /** Variants published by this account since periodStart. */
+        publishedThisMonth: number;
+        /** Engagement automation events (comment/DM triggers) since periodStart. */
+        automationEventsThisMonth: number;
+        metrics: AccountMetricsSnapshot | null;
     }>;
-    bestPerformingFormat: string;
-    worstPerformingFormat: string;
-    keyLearning: string;
 }
