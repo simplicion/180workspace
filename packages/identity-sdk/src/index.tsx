@@ -672,7 +672,7 @@ export const OneEightyIdentity = {
       prefetchAppConfig(clientId, options.authServerUrl).catch(() => {});
     }
 
-    const authUrl = `${authServer}/auth/login?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}&response_type=${encodeURIComponent(responseType)}&ux_mode=${effectiveMode}&env=${encodeURIComponent(env)}`;
+    const authUrl = `${authServer}/auth/login?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}&response_type=${encodeURIComponent(responseType)}&ux_mode=${effectiveMode}&env=${encodeURIComponent(env)}&app=auth`;
 
     // 1. Fullscreen / Redirect Mode
     if (effectiveMode === 'fullscreen') {
@@ -1126,6 +1126,7 @@ export const OneEightyPay = {
       options.description ? `description=${encodeURIComponent(options.description)}` : '',
       options.couponCode ? `coupon=${encodeURIComponent(options.couponCode)}` : '',
       `appName=${encodeURIComponent('180 Workspace')}`,
+      'app=pay',
       `ux_mode=${encodeURIComponent(effectiveMode)}`,
       `env=${encodeURIComponent(env)}`,
     ].filter(Boolean).join('&');
