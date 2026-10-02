@@ -1,5 +1,7 @@
+import 'dart:io' as io;
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -183,6 +185,17 @@ class _StudioTimelineState extends State<StudioTimeline> {
                                         muted: TimelineOps.mutableTracks.contains(k) && TimelineOps.isTrackMuted(ir, k),
                                       ),
                                     if (k == TrackKind.video) ...[
+                                      // Prepend '+' button at the beginning of the video timeline
+                                      Positioned(
+                                        left: math.max(0.0, x(0) - 28),
+                                        width: 24,
+                                        top: 7,
+                                        bottom: 7,
+                                        child: _AddClipButton(
+                                          tooltip: 'Add video to beginning',
+                                          onTap: () => _showAddVideoSheet(context, atIndex: 0),
+                                        ),
+                                      ),
                                       // Append '+' button at the very end of the video timeline
                                       Positioned(
                                         left: x(ir.durationMs) + 4,
@@ -483,7 +496,16 @@ class _Drag {
   double accumPx = 0;
 
   _Drag withPreview(int start, int end) =>
-      _Drag(item, mode, TimelineItem(item.kind, item.id, start, end, item.label))..accumPx = accumPx;
+      _Drag(item, mode, TimelineItem(
+        item.kind,
+        item.id,
+        start,
+        end,
+        item.label,
+        mediaUrl: item.mediaUrl,
+        thumbnailUrl: item.thumbnailUrl,
+        isImage: item.isImage,
+      ))..accumPx = accumPx;
 }
 
 class _Block extends StatelessWidget {
@@ -507,32 +529,125 @@ class _Block extends StatelessWidget {
   final VoidCallback? onLongPressEnd;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: '${item.kind.label}: ${item.label}, ${timecode(item.startMs)} to ${timecode(item.endMs)}'
-            '${muted ? ', muted' : ''}',
-        child: GestureDetector(
-          onTap: onTap,
-          onLongPressStart: onLongPressStart == null ? null : (_) => onLongPressStart!(),
-          onLongPressMoveUpdate: onLongPressMove == null ? null : (d) => onLongPressMove!(d.offsetFromOrigin.dx),
-          onLongPressEnd: onLongPressEnd == null ? null : (_) => onLongPressEnd!(),
-          child: Opacity(
-            opacity: muted ? 0.45 : 1,
-            child: Container(
-              margin: EdgeInsets.symmetric(horizontal: 0.5),
-              padding: EdgeInsets.symmetric(horizontal: 4),
-              alignment: Alignment.centerLeft,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: selected ? 0.6 : 0.3),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: selected ? color : color.withValues(alpha: 0.6)),
+  Widget build(BuildContext context) {
+    final hasVisual = (item.kind == TrackKind.broll || item.kind == TrackKind.video) &&
+        (item.thumbnailUrl != null || item.mediaUrl != null);
+    final thumb = item.thumbnailUrl ?? item.mediaUrl;
+
+    return Semantics(
+      button: true,
+      label: '${item.kind.label}: ${item.label}, ${timecode(item.startMs)} to ${timecode(item.endMs)}'
+          '${muted ? ', muted' : ''}',
+      child: GestureDetector(
+        onTap: onTap,
+        onLongPressStart: onLongPressStart == null ? null : (_) => onLongPressStart!(),
+        onLongPressMoveUpdate: onLongPressMove == null ? null : (d) => onLongPressMove!(d.offsetFromOrigin.dx),
+        onLongPressEnd: onLongPressEnd == null ? null : (_) => onLongPressEnd!(),
+        child: Opacity(
+          opacity: muted ? 0.55 : 1,
+          child: Container(
+            margin: EdgeInsets.symmetric(horizontal: 0.5),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: selected ? 0.7 : 0.35),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: selected ? Colors.white : color.withValues(alpha: 0.8),
+                width: selected ? 2.0 : 1.0,
               ),
-              child: Text(item.label,
-                  maxLines: 1, overflow: TextOverflow.clip, style: TextStyle(fontSize: 10, color: AppTheme.textPrimary)),
+              boxShadow: selected
+                  ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 4, spreadRadius: 1)]
+                  : null,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (hasVisual && thumb != null) ...[
+                  // Visual Thumbnail Background
+                  Positioned.fill(
+                    child: thumb.startsWith('http')
+                        ? Image.network(
+                            thumb,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => Container(color: color.withValues(alpha: 0.3)),
+                          )
+                        : (kIsWeb
+                            ? Image.network(
+                                thumb,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Container(color: color.withValues(alpha: 0.3)),
+                              )
+                            : Image.file(
+                                io.File(thumb),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Container(color: color.withValues(alpha: 0.3)),
+                              )),
+                  ),
+                  // Dark gradient overlay for text readability
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.35),
+                            Colors.black.withValues(alpha: 0.75),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                // Content Label and Badges
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  child: Row(
+                    children: [
+                      if (item.kind == TrackKind.broll)
+                        Icon(
+                          item.isImage ? Icons.image_rounded : Icons.movie_filter_rounded,
+                          size: 11,
+                          color: selected ? Colors.white : color,
+                        )
+                      else if (item.kind == TrackKind.video)
+                        Icon(Icons.videocam_rounded, size: 11, color: Colors.white)
+                      else if (muted)
+                        Icon(Icons.volume_off_rounded, size: 11, color: AppTheme.error),
+                      if (item.kind == TrackKind.broll || item.kind == TrackKind.video || muted)
+                        SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.clip,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            shadows: const [Shadow(color: Colors.black, blurRadius: 2)],
+                          ),
+                        ),
+                      ),
+                      if (muted)
+                        Padding(
+                          padding: EdgeInsets.only(left: 2),
+                          child: Container(
+                            padding: EdgeInsets.all(1),
+                            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(2)),
+                            child: Icon(Icons.volume_off_rounded, size: 9, color: AppTheme.error),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _AddClipButton extends StatelessWidget {

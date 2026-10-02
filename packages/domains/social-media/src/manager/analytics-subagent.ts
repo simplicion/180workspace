@@ -1,60 +1,78 @@
 import { prisma } from '@workspace/db';
 import { CrossAccountAnalyticsSummary } from './types';
 import { requireCompanyId } from '../tenant-scope';
+import { fetchLivePlatformMetrics } from '../social-insights.service';
 
+/**
+ * Cross-account telemetry for the 180 Manager. Only stored or live platform numbers are returned; nothing is
+ * estimated or invented. Format-level learnings require performance memory (Phase P4) and are omitted until then.
+ */
 export class AnalyticsSubagent {
-    /**
-     * Aggregates telemetry across all connected accounts for the project or company.
-     */
-    static async getCrossAccountSummary(companyId: string, projectId?: string): Promise<CrossAccountAnalyticsSummary> {
+    static async getCrossAccountSummary(
+        companyId: string,
+        projectId?: string,
+        deps: { liveMetrics?: typeof fetchLivePlatformMetrics; now?: Date } = {},
+    ): Promise<CrossAccountAnalyticsSummary> {
         requireCompanyId(companyId);
+        const db = prisma as any;
         const whereAccount: any = { companyId, isActive: true };
         if (projectId) whereAccount.projectId = projectId;
 
-        const accounts = await (prisma as any).socialAccount.findMany({
+        const now = deps.now || new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const accounts = await db.socialAccount.findMany({
             where: whereAccount,
             select: { id: true, platform: true, username: true, accountName: true },
         });
+        const ids = accounts.map((a: any) => a.id);
 
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
+        // One grouped query per metric instead of two queries per account.
+        const [published, interactions] = ids.length
+            ? await Promise.all([
+                  db.socialPostVariant.groupBy({
+                      by: ['socialAccountId'],
+                      where: { socialAccountId: { in: ids }, publishStatus: 'published', publishedAt: { gte: startOfMonth }, post: { companyId } },
+                      _count: { _all: true },
+                  }),
+                  db.socialInteractionLog.groupBy({
+                      by: ['socialAccountId'],
+                      where: { companyId, socialAccountId: { in: ids }, createdAt: { gte: startOfMonth } },
+                      _count: { _all: true },
+                  }),
+              ])
+            : [[], []];
+        const countOf = (rows: any[], id: string) => rows.find((r) => r.socialAccountId === id)?._count?._all ?? 0;
 
-        const accountSummaries: CrossAccountAnalyticsSummary['accounts'] = [];
-
-        for (const acc of accounts) {
-            const postsCount = await (prisma as any).socialPost.count({
-                where: {
-                    companyId,
-                    socialAccountId: acc.id,
-                    createdAt: { gte: startOfMonth },
-                },
-            });
-
-            const triggersCount = await (prisma as any).socialInteractionLog.count({
-                where: {
-                    companyId,
-                    socialAccountId: acc.id,
-                    createdAt: { gte: startOfMonth },
-                },
-            });
-
-            accountSummaries.push({
-                id: acc.id,
-                platform: acc.platform,
-                username: acc.username || acc.accountName || 'Account',
-                postsThisMonth: postsCount,
-                estimatedReach: Math.max(postsCount * 1250, 450),
-                engagements: triggersCount,
-            });
+        let live: Awaited<ReturnType<typeof fetchLivePlatformMetrics>> = [];
+        if (projectId) {
+            live = await (deps.liveMetrics || fetchLivePlatformMetrics)({ projectId, companyId }).catch(() => []);
         }
 
         return {
             totalAccounts: accounts.length,
-            accounts: accountSummaries,
-            bestPerformingFormat: 'Talking-Head Breakdown + On-Screen Blueprint Hook',
-            worstPerformingFormat: 'Static Image Quotes / Plain Link Posts',
-            keyLearning: 'Videos starting with a high-contrast visual hook in the first 2 seconds convert 3.4x more comments into qualified DM leads.',
+            periodStart: startOfMonth.toISOString(),
+            accounts: accounts.map((acc: any) => {
+                const m: any = live.find((l) => l.socialAccountId === acc.id) || null;
+                return {
+                    id: acc.id,
+                    platform: acc.platform,
+                    username: acc.username || acc.accountName || acc.platform,
+                    publishedThisMonth: countOf(published, acc.id),
+                    automationEventsThisMonth: countOf(interactions, acc.id),
+                    metrics: m
+                        ? {
+                              source: m.source || 'stored',
+                              followers: m.followersCount ?? null,
+                              reach: m.reach ?? null,
+                              views: m.views ?? null,
+                              engagements: m.engagements ?? null,
+                              periodDays: m.periodDays ?? null,
+                              unavailable: m.unavailable?.message ?? null,
+                          }
+                        : null,
+                };
+            }),
         };
     }
 }

@@ -437,6 +437,66 @@ async function runHookScriptBatch(slots: WorkingSlot[], input: AutopilotRunInput
                 '',
                 'Return JSON only: {"items":[{"slotId":"","headline":"","hookType":"","psychologicalJob":"","designSystem":"","whatContentDelivers":"","visualDirection":"","spokenHook":"","onScreenHook":"","script":{},"shotNotes":[],"carouselBrief":{},"visualBrief":""}]} (omit keys that do not apply).',
             ].join('\n'),
+            normalize: (raw: any) => {
+                if (!raw || typeof raw !== 'object') return { items: [] };
+                const rawList = Array.isArray(raw) ? raw : Array.isArray(raw.items) ? raw.items : [raw];
+                return {
+                    items: rawList.map((item: any, idx: number) => {
+                        if (!item || typeof item !== 'object') item = {};
+                        const fallbackSlot = chunk[idx] || chunk[0];
+                        const slotId = String(item.slotId || fallbackSlot?.slotId || `slot_${idx + 1}`);
+                        const slot = bySlot.get(slotId) || fallbackSlot;
+                        const spoken = String(item.spokenHook || item.hook || 'Here is what you need to know today.').trim();
+                        const onScreen = String(item.onScreenHook || item.headline || spoken.slice(0, 50) || 'Key Insight').trim();
+                        const headline = String(item.headline || slot?.topic || 'Master SOP Content Piece').trim();
+
+                        const resItem: any = {
+                            ...item,
+                            slotId,
+                            headline: headline || 'Master SOP Content Piece',
+                            spokenHook: spoken || 'Stop scrolling and listen to this.',
+                            onScreenHook: onScreen || 'Must Watch Insight',
+                            hookType: item.hookType || slot?.hookType || 'curiosity_gap',
+                            psychologicalJob: item.psychologicalJob || slot?.psychologicalJob || 'curiosity',
+                        };
+
+                        if (slot?.format === 'reel') {
+                            const existingScript = item.script && typeof item.script === 'object' ? item.script : {};
+                            resItem.script = {
+                                hook: String(existingScript.hook || resItem.spokenHook).trim() || 'Stop scrolling.',
+                                body: Array.isArray(existingScript.body) && existingScript.body.length > 0
+                                    ? existingScript.body.map((b: any) => typeof b === 'string' ? { beat: b } : { beat: String(b?.beat || slot.topic) })
+                                    : [{ beat: slot?.angle || 'Core actionable insight' }, { beat: slot?.topic || 'Practical application' }],
+                                retentionLoop: String(existingScript.retentionLoop || 'Pay close attention to this next step.').trim(),
+                                cta: String(existingScript.cta || 'Save this and follow for part two.').trim(),
+                                estimatedDurationSec: Number(existingScript.estimatedDurationSec || slot?.targetDurationSec || 60),
+                                psychologicalJob: resItem.psychologicalJob,
+                                visualDirection: item.visualDirection || slot?.visualDirection,
+                                whatContentDelivers: item.whatContentDelivers || slot?.whatContentDelivers,
+                            };
+                        } else if (slot?.format === 'carousel') {
+                            const existingBrief = item.carouselBrief && typeof item.carouselBrief === 'object' ? item.carouselBrief : {};
+                            const slides = Array.isArray(existingBrief.slides) && existingBrief.slides.length >= 3
+                                ? existingBrief.slides
+                                : [
+                                    { index: 1, role: 'hook', headline: resItem.onScreenHook, body: resItem.spokenHook, visualIdea: 'Bold typography' },
+                                    { index: 2, role: 'reveal', headline: 'The Core Shift', body: slot?.angle || 'Insight', visualIdea: 'Split contrast' },
+                                    { index: 3, role: 'value', headline: 'Framework', body: slot?.topic || 'Strategy', visualIdea: 'Step-by-step layout' },
+                                    { index: 4, role: 'cta', headline: 'Take Action', body: 'Comment below for more.', visualIdea: 'CTA slide' },
+                                ];
+                            resItem.carouselBrief = {
+                                title: String(existingBrief.title || resItem.headline).trim(),
+                                psychologicalJob: resItem.psychologicalJob,
+                                designSystem: existingBrief.designSystem || slot?.designSystem || 'brand_iterative',
+                                visualDirection: item.visualDirection || slot?.visualDirection,
+                                whatContentDelivers: item.whatContentDelivers || slot?.whatContentDelivers,
+                                slides,
+                            };
+                        }
+                        return resItem;
+                    }),
+                };
+            },
             check: (batch) => {
                 const problems: string[] = [];
                 for (const item of batch.items) {
@@ -556,6 +616,56 @@ async function runCopyBatch(pieces: AutopilotPiece[], input: AutopilotRunInput, 
                 'Return JSON only: {"items":[{"slotId":"","copies":[{"platform":"instagram","caption":"","cta":"","hashtags":["#tag"],"postingTime":"18:30"}]}]}',
                 'Every piece needs one copy per listed platform.',
             ].filter((l) => l !== '').join('\n'),
+            normalize: (raw: any) => {
+                if (!raw || typeof raw !== 'object') return { items: [] };
+                const rawList = Array.isArray(raw) ? raw : Array.isArray(raw.items) ? raw.items : [raw];
+                const itemBySlot = new Map<string, any>();
+                for (const it of rawList) {
+                    if (it && typeof it === 'object' && it.slotId) {
+                        itemBySlot.set(String(it.slotId), it);
+                    }
+                }
+                const resultItems = [];
+                for (const piece of chunk) {
+                    let it = itemBySlot.get(piece.slotId);
+                    if (!it) {
+                        it = { slotId: piece.slotId, copies: [] };
+                    }
+                    const copies = Array.isArray(it.copies) ? it.copies : [];
+                    const copyByPlat = new Map<string, any>();
+                    for (const c of copies) {
+                        if (c && typeof c === 'object' && c.platform) {
+                            copyByPlat.set(String(c.platform).toLowerCase().trim(), c);
+                        }
+                    }
+                    const resolvedCopies = [];
+                    for (const plat of piece.platforms) {
+                        const existing = copyByPlat.get(plat.toLowerCase());
+                        if (existing) {
+                            resolvedCopies.push({
+                                platform: plat,
+                                caption: String(existing.caption || piece.spokenHook || piece.headline || 'Check out this insight.').trim(),
+                                cta: String(existing.cta || piece.script?.cta || 'Save and follow for more.').trim(),
+                                hashtags: Array.isArray(existing.hashtags) ? existing.hashtags.map((h: any) => String(h).trim()).filter(Boolean) : (input.brand.defaultHashtags || []),
+                                postingTime: String(existing.postingTime || '18:00').trim(),
+                            });
+                        } else {
+                            resolvedCopies.push({
+                                platform: plat,
+                                caption: `${piece.spokenHook}\n\n${piece.headline}`,
+                                cta: piece.script?.cta || 'Save and follow for more.',
+                                hashtags: input.brand.defaultHashtags || [],
+                                postingTime: '18:00',
+                            });
+                        }
+                    }
+                    resultItems.push({
+                        slotId: piece.slotId,
+                        copies: resolvedCopies,
+                    });
+                }
+                return { items: resultItems };
+            },
             check: (batch) => {
                 const problems: string[] = [];
                 const seen = new Set<string>();

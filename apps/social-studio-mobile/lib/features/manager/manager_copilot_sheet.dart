@@ -141,9 +141,25 @@ class _ManagerCopilotSheetState extends ConsumerState<ManagerCopilotSheet> {
       return;
     }
 
-    if (act.type == 'open_inbox_conversation') {
+    if (act.type == 'open_inbox_conversation' || act.type == 'open_deal_inbox') {
       Navigator.of(context).pop();
-      context.push('/inbox');
+      final convId = act.payload['conversationId'] as String?;
+      if (convId != null && convId.isNotEmpty) {
+        context.push('/inbox?conversationId=$convId');
+      } else {
+        context.push('/inbox');
+      }
+      return;
+    }
+
+    if (act.type == 'open_calendar') {
+      Navigator.of(context).pop();
+      final calId = act.payload['calendarId'] as String?;
+      if (calId != null && calId.isNotEmpty) {
+        context.push('/planner?calendarId=$calId');
+      } else {
+        context.push('/planner');
+      }
       return;
     }
 

@@ -1403,13 +1403,20 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
     }
   }
 
-  void _addClip(String url, String label, {String? credit}) {
+  void _addClip(String url, String label, {String? credit, String? thumbnailUrl, String? previewUrl}) {
     if (credit != null && credit.isNotEmpty) widget.c.mediaCredits[url] = credit;
     _close(context);
     widget.onEdit(
       (ir) => TimelineOps.addBroll(
         ir,
-        {'kind': 'url', 'url': url, 'query': label},
+        {
+          'kind': url.startsWith('http') ? 'url' : 'file',
+          'url': url,
+          'path': url,
+          'query': label,
+          'thumbnailUrl': thumbnailUrl ?? previewUrl ?? url,
+          'previewUrl': previewUrl ?? url,
+        },
         startMs: widget.c.playheadMs,
         durationMs: (seconds * 1000).round(),
       ),
@@ -1437,7 +1444,13 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                 label: Text('Add as B-roll Cutaway (Overlay)'),
                 onPressed: () {
                   Navigator.pop(ctx);
-                  _addClip(v.downloadUrl, '${v.provider}: ${v.author ?? v.id}', credit: v.attribution);
+                  _addClip(
+                    v.downloadUrl,
+                    '${v.provider}: ${v.author ?? v.id}',
+                    credit: v.attribution,
+                    thumbnailUrl: v.thumbnailUrl,
+                    previewUrl: v.previewUrl,
+                  );
                 },
               ),
               SizedBox(height: 8),
@@ -1486,7 +1499,7 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                 label: Text('Add as B-roll Cutaway (Overlay)'),
                 onPressed: () {
                   Navigator.pop(ctx);
-                  _addClip(f.path, f.name);
+                  _addClip(f.path, f.name, thumbnailUrl: f.path, previewUrl: f.path);
                 },
               ),
               SizedBox(height: 8),
