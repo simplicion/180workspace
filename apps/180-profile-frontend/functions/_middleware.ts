@@ -28,30 +28,63 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return context.next();
   }
 
+  // Helper to attach permissive framing and CORS headers for 180 Pay & Auth iframes/modals
+  const respondWithFrameHeaders = async (assetUrl: URL) => {
+    try {
+      const response = await context.env.ASSETS.fetch(assetUrl);
+      const newHeaders = new Headers(response.headers);
+      newHeaders.set('Access-Control-Allow-Origin', '*');
+      newHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS');
+      newHeaders.set('Access-Control-Allow-Headers', '*');
+      newHeaders.delete('X-Frame-Options');
+      newHeaders.set('Content-Security-Policy', 'frame-ancestors *');
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders,
+      });
+    } catch (err) {
+      return context.next();
+    }
+  };
+
   // 1. 180 AUTH (auth.180workspace.com / 180auth.* / ?app=auth)
   if (hostname.startsWith('auth.') || hostname.startsWith('180auth.') || appParam === 'auth') {
     if (pathname === '/' || pathname === '' || pathname === '/login') {
-      return context.env.ASSETS.fetch(new URL('/auth/login', context.request.url));
+      return respondWithFrameHeaders(new URL('/auth/login', context.request.url));
     }
     if (pathname === '/consent') {
-      return context.env.ASSETS.fetch(new URL('/auth/consent', context.request.url));
+      return respondWithFrameHeaders(new URL('/auth/consent', context.request.url));
     }
     if (pathname === '/register' || pathname === '/signup') {
-      return context.env.ASSETS.fetch(new URL('/auth/register', context.request.url));
+      return respondWithFrameHeaders(new URL('/auth/register', context.request.url));
     }
     if (!pathname.startsWith('/auth')) {
-      return context.env.ASSETS.fetch(new URL(`/auth${pathname}`, context.request.url));
+      return respondWithFrameHeaders(new URL(`/auth${pathname}`, context.request.url));
     }
+    return respondWithFrameHeaders(new URL(pathname, context.request.url));
   }
 
   // 2. 180 PAY (pay.180workspace.com / 180pay.* / ?app=pay)
   if (hostname.startsWith('pay.') || hostname.startsWith('180pay.') || appParam === 'pay') {
     if (pathname.startsWith('/checkout/manage-subscription')) {
-      return context.env.ASSETS.fetch(new URL('/checkout/manage-subscription/default.html', context.request.url));
+      return respondWithFrameHeaders(new URL('/checkout/manage-subscription/default', context.request.url));
     }
-    return context.env.ASSETS.fetch(new URL('/checkout/default.html', context.request.url));
+    return respondWithFrameHeaders(new URL('/checkout/default', context.request.url));
   }
 
   // 3. 180 PROFILE (profile.180workspace.com / 180profile.* / default)
-  return context.next();
+  const response = await context.next();
+  if (pathname.startsWith('/checkout') || pathname.startsWith('/auth')) {
+    const newHeaders = new Headers(response.headers);
+    newHeaders.set('Access-Control-Allow-Origin', '*');
+    newHeaders.delete('X-Frame-Options');
+    newHeaders.set('Content-Security-Policy', 'frame-ancestors *');
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders,
+    });
+  }
+  return response;
 };
