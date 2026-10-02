@@ -442,7 +442,8 @@
         'code_challenge=' + encodeURIComponent(pkce.challenge),
         'code_challenge_method=S256',
         'ux_mode=' + encodeURIComponent(effectiveMode),
-        'env=' + encodeURIComponent(env)
+        'env=' + encodeURIComponent(env),
+        'app=auth'
       ].join('&');
 
       var authUrl = authServer + '/auth/login?' + params;
@@ -521,6 +522,8 @@
         options.title ? 'title=' + encodeURIComponent(options.title) : '',
         options.planCode ? 'plan=' + encodeURIComponent(options.planCode) : '',
         options.description ? 'description=' + encodeURIComponent(options.description) : '',
+        'appName=' + encodeURIComponent('180 Workspace'),
+        'app=pay',
         'ux_mode=' + encodeURIComponent(options.uxMode || 'bottom_sheet'),
         'env=' + encodeURIComponent(env)
       ].filter(Boolean).join('&');

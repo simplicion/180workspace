@@ -164,9 +164,57 @@ jobs:
                 } catch (e) {
                   console.log(`Notice for pay.180workspace.com domain: ${e.message}`);
                 }
+
+                // Add auth.180workspace.com to 180workspace-profile
+                console.log('==> Ensuring auth.180workspace.com is bound to 180workspace-profile Pages project...');
+                try {
+                  const addAuthRes = await cfRequest(`/accounts/${actualAccountId}/pages/projects/180workspace-profile/domains`, 'POST', {
+                    name: 'auth.180workspace.com'
+                  });
+                  console.log(`✓ Added auth.180workspace.com to 180workspace-profile:`, addAuthRes);
+                } catch (e) {
+                  console.log(`Notice for auth.180workspace.com domain: ${e.message}`);
+                }
               } catch (e) {
                 console.error(`Error querying Pages projects: ${e.message}`);
               }
+            }
+
+            // Check Page Rules for auth.180workspace.com redirect
+            console.log('\n--- CLOUDFLARE PAGE RULES ---');
+            try {
+              const pageRules = await cfRequest(`/zones/${zoneId}/pagerules`);
+              console.log(`Page rules count: ${pageRules?.length || 0}`);
+              for (const rule of pageRules || []) {
+                console.log(`  - Page Rule: ${rule.id} | Status: ${rule.status} | Targets: ${JSON.stringify(rule.targets)} | Actions: ${JSON.stringify(rule.actions)}`);
+                const isAuthRedirect = rule.targets?.some(t => t.constraint?.value?.includes('auth.180workspace.com'));
+                if (isAuthRedirect && rule.status === 'active') {
+                  console.log(`  ==> Disabling legacy auth.180workspace.com page redirect rule (${rule.id})...`);
+                  await cfRequest(`/zones/${zoneId}/pagerules/${rule.id}`, 'PATCH', { status: 'disabled' });
+                  console.log(`  ✓ Disabled page rule ${rule.id}`);
+                }
+              }
+            } catch (e) {
+              console.log(`Could not fetch page rules: ${e.message}`);
+            }
+
+            // Check Redirect Rules (Dynamic redirects)
+            console.log('\n--- CLOUDFLARE REDIRECT RULES (Rulesets) ---');
+            try {
+              const entrypoint = await cfRequest(`/zones/${zoneId}/rulesets/phases/http_request_dynamic_redirect/entrypoint`);
+              console.log(`Redirect rules count: ${entrypoint?.rules?.length || 0}`);
+              for (const rule of entrypoint?.rules || []) {
+                console.log(`  - Redirect Rule: ${rule.id} | Expression: ${rule.expression} | Enabled: ${rule.enabled}`);
+                if (rule.expression?.includes('auth.180workspace.com') && rule.enabled) {
+                  console.log(`  ==> Disabling dynamic redirect for auth.180workspace.com (${rule.id})...`);
+                  await cfRequest(`/zones/${zoneId}/rulesets/phases/http_request_dynamic_redirect/entrypoint/rules/${rule.id}`, 'PATCH', {
+                    enabled: false
+                  });
+                  console.log(`  ✓ Disabled redirect rule ${rule.id}`);
+                }
+              }
+            } catch (e) {
+              console.log(`Notice checking dynamic redirect rules: ${e.message}`);
             }
 
             // 5. List all DNS records
@@ -181,6 +229,7 @@ jobs:
               { name: 'traffic.180workspace.com', target: '180workspace-traffic.pages.dev' },
               { name: 'profile.180workspace.com', target: '180workspace-profile.pages.dev' },
               { name: 'pay.180workspace.com', target: '180workspace-profile.pages.dev' },
+              { name: 'auth.180workspace.com', target: '180workspace-profile.pages.dev' },
               { name: 'developers.180workspace.com', target: '180workspace-developer.pages.dev' },
               { name: 'docs.180workspace.com', target: '180workspace-docs.pages.dev' },
               { name: '180workspace.com', target: '180workspace-marketing.pages.dev' },

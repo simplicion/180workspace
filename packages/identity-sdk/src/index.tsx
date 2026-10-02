@@ -74,6 +74,8 @@ export interface CheckoutOptions {
   couponCode?: string;
   metadata?: Record<string, any>;
   checkoutServerUrl?: string;
+  payServerUrl?: string;
+  authServerUrl?: string;
   uxMode?: PayUxMode;
   environment?: EnvironmentMode;
   onSuccess?: (response: CheckoutResponse) => void;
@@ -84,6 +86,8 @@ export interface CheckoutOptions {
 export interface ManageSubscriptionOptions {
   subscriptionId: string;
   checkoutServerUrl?: string;
+  payServerUrl?: string;
+  authServerUrl?: string;
   uxMode?: PayUxMode;
   environment?: EnvironmentMode;
   onCancelled?: (data: any) => void;
