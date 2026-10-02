@@ -122,7 +122,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/180-profile-frontend/out --project-name=180workspace-profile --branch=main --commit-dirty=true
+          workingDirectory: apps/180-profile-frontend
+          command: pages deploy out --project-name=180workspace-profile --branch=main --commit-dirty=true
 
   deploy-developer-cloudflare:
     name: Deploy 180 Developer Portal to Cloudflare Pages
@@ -606,10 +607,25 @@ jobs:
               { project: '180workspace-docs', domain: 'docs.180workspace.com' },
               { project: '180workspace-profile', domain: 'profile.180workspace.com' },
               { project: '180workspace-profile', domain: 'pay.180workspace.com' },
+              { project: '180workspace-profile', domain: 'auth.180workspace.com' },
               { project: '180workspace-developer', domain: 'developers.180workspace.com' },
               { project: '180workspace-traffic', domain: 'traffic.180workspace.com' },
               { project: '180workspace-traffic', domain: 'traffic-director.180workspace.com' }
             ];
+
+            // Disable legacy auth.180workspace.com redirect page rules if active
+            try {
+              const pageRules = await cfRequest(`/zones/${zoneId}/pagerules`);
+              for (const rule of pageRules || []) {
+                const isAuthRedirect = rule.targets?.some(t => t.constraint?.value?.includes('auth.180workspace.com'));
+                if (isAuthRedirect && rule.status === 'active') {
+                  console.log(`==> Disabling legacy auth.180workspace.com redirect rule (${rule.id})...`);
+                  await cfRequest(`/zones/${zoneId}/pagerules/${rule.id}`, 'PATCH', { status: 'disabled' });
+                }
+              }
+            } catch (e) {
+              console.log(`Page rules note: ${e.message}`);
+            }
 
             if (accountId) {
               for (const p of pagesProjects) {
@@ -658,7 +674,6 @@ jobs:
               'services.180workspace.com',
               'app.180workspace.com',
               'admin.180workspace.com',
-              'auth.180workspace.com',
               '180identity.180workspace.com',
               'livekit.180workspace.com',
               'cname.180workspace.com',
