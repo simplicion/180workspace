@@ -8,6 +8,9 @@ class EngagementRule {
     this.projectId,
     this.socialAccountId,
     this.postId,
+    this.platformMediaId,
+    this.platformMediaPermalink,
+    this.platformMediaThumbnail,
     this.status = 'active',
     required this.triggerType,
     this.triggerKeywords = const [],
@@ -33,6 +36,10 @@ class EngagementRule {
   final String? projectId;
   final String? socialAccountId;
   final String? postId;
+  /// Existing platform post (published outside the app) this rule targets; see [AccountMediaItem].
+  final String? platformMediaId;
+  final String? platformMediaPermalink;
+  final String? platformMediaThumbnail;
   final String status;
   final String triggerType;
   final List<String> triggerKeywords;
@@ -60,6 +67,9 @@ class EngagementRule {
         projectId: jStr(j['projectId']),
         socialAccountId: jStr(j['socialAccountId']),
         postId: jStr(j['postId']),
+        platformMediaId: jStr(j['platformMediaId']),
+        platformMediaPermalink: jStr(j['platformMediaPermalink']),
+        platformMediaThumbnail: jStr(j['platformMediaThumbnail']),
         status: jStrOr(j['status'], 'active'),
         triggerType: jStrOr(j['triggerType'], 'comment_keyword'),
         triggerKeywords: jStrList(j['triggerKeywords']),
@@ -84,6 +94,9 @@ class EngagementRule {
         if (projectId != null) 'projectId': projectId,
         if (socialAccountId != null) 'socialAccountId': socialAccountId,
         if (postId != null) 'postId': postId,
+        if (platformMediaId != null) 'platformMediaId': platformMediaId,
+        if (platformMediaPermalink != null) 'platformMediaPermalink': platformMediaPermalink,
+        if (platformMediaThumbnail != null) 'platformMediaThumbnail': platformMediaThumbnail,
         'status': status,
         'triggerType': triggerType,
         'triggerKeywords': triggerKeywords,
@@ -166,5 +179,39 @@ class BatchAiReplySuggestion {
         intent: jStr(j['intent']),
         canSend: jBool(j['canSend'], true),
         blockedReason: jStr(j['blockedReason']),
+      );
+}
+
+/// A post already published on the platform (GET /accounts/:id/media), pickable as an automation target.
+class AccountMediaItem {
+  AccountMediaItem({
+    required this.id,
+    required this.platform,
+    this.caption,
+    this.mediaType,
+    this.thumbnailUrl,
+    this.permalink,
+    this.timestamp,
+    this.commentsCount,
+  });
+
+  final String id;
+  final String platform;
+  final String? caption;
+  final String? mediaType;
+  final String? thumbnailUrl;
+  final String? permalink;
+  final DateTime? timestamp;
+  final int? commentsCount;
+
+  factory AccountMediaItem.fromJson(Json j) => AccountMediaItem(
+        id: jStrOr(j['id'], ''),
+        platform: jStrOr(j['platform'], ''),
+        caption: jStr(j['caption']),
+        mediaType: jStr(j['mediaType']),
+        thumbnailUrl: jStr(j['thumbnailUrl']),
+        permalink: jStr(j['permalink']),
+        timestamp: DateTime.tryParse(jStrOr(j['timestamp'], '')),
+        commentsCount: (j['commentsCount'] as num?)?.toInt(),
       );
 }

@@ -87,15 +87,68 @@ export class CalendarSubagent {
     }
 
     /**
-     * Applying a pivot regenerates the remaining calendar pieces with the four-agent calendar engine
-     * (PRODUCTION_READINESS_PLAN P3/P4). Until that lands this refuses honestly instead of writing placeholder posts.
+     * Applies a pivot: rewrites this month's upcoming autopilot pieces (from `fromDay`, never before today) with the
+     * calendar agents, one piece at a time. Pieces already shot, in review or published are never touched. At most
+     * [MAX_PIVOT_PIECES] per action; the rest are reported so the user can run it again.
      */
-    static async executeCalendarPivot(companyId: string, _projectId: string, proposal: CalendarPivotProposal): Promise<never> {
+    static async executeCalendarPivot(
+        companyId: string,
+        projectId: string,
+        proposal: CalendarPivotProposal,
+        deps: { regenerate?: PivotRegenerate; now?: Date } = {},
+    ): Promise<CalendarPivotResult> {
         requireCompanyId(companyId);
-        throw new SocialDomainError(
-            'CALENDAR_PIVOT_UNAVAILABLE',
-            501,
-            `Automatic calendar pivots are not available yet. Open the calendar and use "AI Autopilot Rewrite" on pieces from day ${proposal.fromDay}.`,
-        );
+        const format = String(proposal.newWinningFormat || '').trim().slice(0, 120);
+        if (!format) throw new SocialDomainError('VALIDATION_FAILED', 400, 'Say which format or angle the remaining pieces should use.');
+        const db = getDb() as any;
+        const now = deps.now || new Date();
+        const from = new Date(now.getFullYear(), now.getMonth(), proposal.fromDay);
+        const to = new Date(now.getFullYear(), now.getMonth(), proposal.toDay, 23, 59, 59);
+        const calendars = await db.contentCalendar.findMany({ where: { companyId, projectId, status: 'active' }, select: { id: true } });
+        if (!calendars.length) throw new SocialDomainError('NO_ACTIVE_CALENDAR', 404, 'This project has no active content calendar to update.');
+        const pieces = await db.calendarContentPiece.findMany({
+            where: {
+                companyId,
+                calendarId: { in: calendars.map((c: any) => c.id) },
+                status: { in: PIVOTABLE_STATUSES },
+                dateScheduled: { gte: from, lte: to },
+            },
+            orderBy: { dateScheduled: 'asc' },
+            select: { id: true, headline: true, dateScheduled: true },
+        });
+        const regenerate: PivotRegenerate =
+            deps.regenerate ||
+            (async (params) => {
+                const { getAutopilotCalendarService } = await import('../autopilot-calendar.service');
+                return getAutopilotCalendarService().regeneratePiece(params);
+            });
+        const instruction =
+            `Calendar pivot requested in the 180 Manager (${String(proposal.pivotReason || '').slice(0, 200)}): ` +
+            `rework this piece around "${format}" while keeping its day, platform and pillar.`;
+        const updated: Array<{ pieceId: string; headline: string }> = [];
+        const failed: Array<{ pieceId: string; error: string }> = [];
+        for (const p of pieces.slice(0, MAX_PIVOT_PIECES)) {
+            try {
+                const r: any = await regenerate({ companyId, projectId, pieceId: p.id, instruction });
+                updated.push({ pieceId: p.id, headline: r?.piece?.headline || p.headline });
+            } catch (err: any) {
+                failed.push({ pieceId: p.id, error: String(err?.message || err).slice(0, 200) });
+            }
+        }
+        return { fromDay: proposal.fromDay, toDay: proposal.toDay, format, updated, failed, remaining: Math.max(0, pieces.length - MAX_PIVOT_PIECES) };
     }
+}
+
+/** Piece statuses a pivot may rewrite (nothing shot, in review or published). */
+export const PIVOTABLE_STATUSES = ['ready', 'in_progress'];
+export const MAX_PIVOT_PIECES = 12;
+export type PivotRegenerate = (params: { companyId: string; projectId: string; pieceId: string; instruction: string }) => Promise<unknown>;
+export interface CalendarPivotResult {
+    fromDay: number;
+    toDay: number;
+    format: string;
+    updated: Array<{ pieceId: string; headline: string }>;
+    failed: Array<{ pieceId: string; error: string }>;
+    /** Matching pieces beyond the per-action cap (run the pivot again for them). */
+    remaining: number;
 }

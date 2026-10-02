@@ -103,7 +103,7 @@ class _PublicReviewScreenState extends ConsumerState<PublicReviewScreen> {
                       SizedBox(height: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: Image.network(p.thumbnailUrl!, height: 220, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, _, _) => SizedBox.shrink()),
+                        child: Image.network(p.thumbnailUrl!, cacheWidth: 1080, height: 220, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, _, _) => SizedBox.shrink()),
                       ),
                     ],
                     SizedBox(height: 8),

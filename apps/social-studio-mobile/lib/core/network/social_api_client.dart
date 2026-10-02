@@ -294,8 +294,8 @@ class SocialApi {
       if (structureDirectives != null && structureDirectives.trim().isNotEmpty) 'structureDirectives': structureDirectives.trim(),
       if (referenceInspirations != null && referenceInspirations.trim().isNotEmpty) 'referenceInspirations': referenceInspirations.trim(),
       if (contentMix != null && contentMix.isNotEmpty) 'contentMix': contentMix,
-      if (targetReelDurationSec != null) 'targetReelDurationSec': targetReelDurationSec,
-      if (carouselSlideCount != null) 'carouselSlideCount': carouselSlideCount,
+      'targetReelDurationSec': ?targetReelDurationSec,
+      'carouselSlideCount': ?carouselSlideCount,
     }), idempotencyKey: _uuid.v4());
     final jobId = jStr(r['jobId']);
     final calendarId = jStr(r['calendarId']);
@@ -653,6 +653,32 @@ class SocialApi {
     return jMap(r);
   }
 
+  // ── Studio library metadata (media stays on the device) ──
+  Future<({List<Json> folders, List<Json> items})> pullStudioLibrary({String? projectId, String? since}) async {
+    final r = await _api.get('$base/library/sync', query: {'projectId': ?projectId, 'since': ?since});
+    return (folders: jList(r['folders'], (j) => j), items: jList(r['items'], (j) => j));
+  }
+
+  /// Queued in the outbox when offline, like every other write.
+  Future<MutationOutcome> pushStudioLibrary(Json body) => _mutate('PUT', '$base/library/sync', body: body, label: 'Sync library');
+
+  // ── AI inbox per account ──
+  Future<List<AiInboxAccount>> aiInboxSettings({String? projectId}) async {
+    final r = await _api.get('$base/inbox/ai-settings', query: {'projectId': ?projectId});
+    return jList(r['accounts'], AiInboxAccount.fromJson);
+  }
+
+  Future<AiInboxAccount> setAiInboxMode(String accountId, String mode, {String? instructions}) async {
+    final r = await _api.put('$base/inbox/ai-settings/accounts/$accountId', body: {'mode': mode, 'instructions': ?instructions});
+    return AiInboxAccount.fromJson(jMap(r['account']));
+  }
+
+  /// Sets [mode] on every supported account (optionally one platform / project). Returns how many changed.
+  Future<int> setAiInboxModeBulk(String mode, {String? platform, String? projectId}) async {
+    final r = await _api.put('$base/inbox/ai-settings/bulk', body: {'mode': mode, 'platform': ?platform, 'projectId': ?projectId});
+    return (r['updated'] as num?)?.toInt() ?? 0;
+  }
+
   Future<Map<String, dynamic>> toggleConversationAiAgent(String conversationId, {bool? active}) async {
     final r = await _api.post('$base/inbox/conversations/$conversationId/toggle-agent', body: compact({
       'active': active,
@@ -667,13 +693,20 @@ class SocialApi {
 
   // ── 180 Engagement Automation Rules ────────────────────────────────────────
 
-  Future<List<EngagementRule>> listEngagementRules({String? projectId, String? socialAccountId, String? status}) async {
+  Future<List<EngagementRule>> listEngagementRules({String? projectId, String? socialAccountId, String? status, String? postId}) async {
     final r = await _api.get('$base/engagement/rules', query: compact({
       'projectId': projectId,
       'socialAccountId': socialAccountId,
       'status': status,
+      'postId': postId,
     }));
     return jList(r['rules'], EngagementRule.fromJson);
+  }
+
+  /// Recent posts of an Instagram/Facebook account, live from the platform (paged by [cursor]).
+  Future<({List<AccountMediaItem> items, String? nextCursor})> listAccountMedia(String accountId, {String? cursor}) async {
+    final r = await _api.get('$base/accounts/$accountId/media', query: {'cursor': ?cursor});
+    return (items: jList(r['items'], AccountMediaItem.fromJson), nextCursor: jStr(r['nextCursor']));
   }
 
   Future<EngagementRule> createEngagementRule(Map<String, dynamic> data) async {

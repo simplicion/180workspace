@@ -31,7 +31,17 @@ Json _extra(GoRouterState s) => s.extra is Map ? (s.extra as Map).cast<String, d
 /// Bottom-nav branches after Home, in [AppShell] order: Planner, Inbox, Library, Studio.
 List<StatefulShellBranch> shellBranches() => [
       StatefulShellBranch(routes: [GoRoute(path: '/planner', builder: (_, _) => PlannerScreen())]),
-      StatefulShellBranch(routes: [GoRoute(path: '/inbox', builder: (_, _) => InboxScreen())]),
+      StatefulShellBranch(routes: [
+        GoRoute(
+          path: '/inbox',
+          // Deep link from the 180 Manager / notifications: /inbox?conversationId=… opens that thread.
+          redirect: (_, s) {
+            final id = s.uri.queryParameters['conversationId'];
+            return id == null || id.isEmpty ? null : '/inbox/${Uri.encodeComponent(id)}';
+          },
+          builder: (_, _) => InboxScreen(),
+        ),
+      ]),
       StatefulShellBranch(routes: [GoRoute(path: '/library', builder: (_, _) => LibraryScreen())]),
       StatefulShellBranch(routes: [GoRoute(path: '/studio', builder: (_, _) => StudioScreen())]),
     ];
@@ -92,6 +102,7 @@ List<RouteBase> extraRoutes() => [
           return studioSupported
               ? StudioSessionScreen(
                   sourcePath: jStr(x['sourcePath']),
+                  sourcePaths: jStrList(x['sourcePaths']),
                   postId: _q(s, 'postId') ?? jStr(x['postId']),
                   projectId: _q(s, 'projectId') ?? jStr(x['projectId']),
                   pieceId: _q(s, 'pieceId') ?? jStr(x['pieceId']),

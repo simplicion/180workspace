@@ -23,6 +23,7 @@ import 'studio_controller.dart';
 import 'studio_drafts_service.dart';
 import 'studio_timeline.dart';
 import 'studio_tools.dart';
+import 'text_motion.dart';
 import 'timeline_ops.dart';
 
 String timecode(int ms) {
@@ -38,6 +39,7 @@ class StudioSessionScreen extends ConsumerStatefulWidget {
   const StudioSessionScreen({
     super.key,
     this.sourcePath,
+    this.sourcePaths = const [],
     this.postId,
     this.projectId,
     this.pieceId,
@@ -49,6 +51,8 @@ class StudioSessionScreen extends ConsumerStatefulWidget {
     this.draft,
   });
   final String? sourcePath;
+  /// Several clips opened together (e.g. every take of a calendar piece), in timeline order.
+  final List<String> sourcePaths;
   final String? postId;
   final String? projectId;
   final String? pieceId;
@@ -74,7 +78,10 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     script: widget.script,
     draftId: widget.draftId ?? widget.draft?.id,
   );
+  /// The player currently shown; one per timeline asset (clips can come from different files).
   VideoPlayerController? _player;
+  final Map<String, VideoPlayerController> _players = {};
+  String _activeAsset = 'primary';
   Object? _loadError;
   bool _loading = false;
   bool _playing = false;
@@ -88,6 +95,8 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
       _loadDraft(widget.draft!);
     } else if (widget.draftId != null) {
       _loadDraftById(widget.draftId!);
+    } else if (widget.sourcePaths.isNotEmpty) {
+      _loadMany(widget.sourcePaths);
     } else if (widget.sourcePath != null && widget.sourcePath!.isNotEmpty) {
       _load(widget.sourcePath!);
     } else if (widget.folderId != null) {
@@ -95,12 +104,30 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     }
   }
 
+  /// Every video of the folder, in take order (then recording order), one after another on the timeline.
   Future<void> _loadFromFolder(String folderId) async {
     final allItems = ref.read(vaultItemsProvider).valueOrNull ?? [];
-    final folderItems = allItems.where((i) => i.folderId == folderId).toList();
-    final videos = folderItems.where((i) => i.type == VaultItemType.video && (i.localPath?.isNotEmpty ?? false)).toList();
-    if (videos.isNotEmpty && videos.first.localPath != null) {
-      await _load(videos.first.localPath!);
+    final videos = allItems
+        .where((i) => i.folderId == folderId && i.type == VaultItemType.video && (i.localPath?.isNotEmpty ?? false))
+        .toList()
+      ..sort((a, b) {
+        final t = (a.takeIndex ?? 1 << 30).compareTo(b.takeIndex ?? 1 << 30);
+        return t != 0 ? t : a.createdAt.compareTo(b.createdAt);
+      });
+    await _loadMany([for (final v in videos) v.localPath!]);
+  }
+
+  /// First path becomes the original video; the rest are appended as clips.
+  Future<void> _loadMany(List<String> paths) async {
+    if (paths.isEmpty) return;
+    await _load(paths.first);
+    if (_loadError != null) return;
+    for (final path in paths.skip(1)) {
+      try {
+        await c.addVideoClip(path);
+      } catch (e) {
+        if (mounted) showError(context, 'One clip could not be added: ${errorText(e)}');
+      }
     }
   }
 
@@ -117,9 +144,12 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
             ? VideoPlayerController.networkUrl(Uri.parse(path))
             : VideoPlayerController.file(File(path));
         await p.initialize();
-        await _player?.dispose();
+        await _disposePlayers();
+        _players['primary'] = p;
         _player = p;
-        await p.seekTo(Duration(milliseconds: c.sourcePositionMs));
+        _activeAsset = 'primary';
+        await _activateAsset(c.assetAtPlayhead);
+        await _player?.seekTo(Duration(milliseconds: c.sourcePositionMs));
       }
     } catch (e) {
       _loadError = e;
@@ -155,14 +185,58 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     _tick?.cancel();
     c.removeListener(_onChange);
     c.dispose();
-    _player?.dispose();
+    _disposePlayers();
     super.dispose();
+  }
+
+  Future<void> _disposePlayers() async {
+    final all = _players.values.toList();
+    _players.clear();
+    _player = null;
+    for (final p in all) {
+      await p.dispose();
+    }
+  }
+
+  Future<VideoPlayerController?> _playerFor(String assetId) async {
+    final existing = _players[assetId];
+    if (existing != null) return existing;
+    final path = c.pathForAsset(assetId);
+    if (path == null || path.isEmpty) return null;
+    // Stock clips added to the main track are https URLs; recorded and gallery clips are local files.
+    final remote = kIsWeb || path.startsWith('http://') || path.startsWith('https://');
+    final p = remote ? VideoPlayerController.networkUrl(Uri.parse(path)) : VideoPlayerController.file(File(path));
+    await p.initialize();
+    if (!mounted) {
+      await p.dispose();
+      return null;
+    }
+    _players[assetId] = p;
+    return p;
+  }
+
+  /// Shows the video of [assetId] in the preview (lazy-initialises its player).
+  Future<void> _activateAsset(String assetId) async {
+    if (assetId == _activeAsset && _player != null) return;
+    final p = await _playerFor(assetId);
+    if (p == null || !mounted) return;
+    await _player?.pause();
+    setState(() {
+      _player = p;
+      _activeAsset = assetId;
+    });
   }
 
   void _onChange() {
     if (!mounted) return;
     setState(() {});
-    if (!_playing) _player?.seekTo(Duration(milliseconds: c.sourcePositionMs));
+    if (_playing) return;
+    final asset = c.assetAtPlayhead;
+    if (asset != _activeAsset) {
+      _activateAsset(asset).then((_) => _player?.seekTo(Duration(milliseconds: c.sourcePositionMs)));
+    } else {
+      _player?.seekTo(Duration(milliseconds: c.sourcePositionMs));
+    }
   }
 
   Future<void> _load(String path) async {
@@ -176,8 +250,10 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
           ? VideoPlayerController.networkUrl(Uri.parse(path))
           : VideoPlayerController.file(File(path));
       await p.initialize();
-      await _player?.dispose();
+      await _disposePlayers();
+      _players['primary'] = p;
       _player = p;
+      _activeAsset = 'primary';
     } catch (e) {
       _loadError = e;
     }
@@ -189,46 +265,51 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     if (f != null) await _load(f.path);
   }
 
-  /// Plays the edited timeline by stepping through clips on the source file.
+  /// Plays the edited timeline clip by clip; a clip from another file switches the preview to that file's player.
   void _togglePlay() {
-    final p = _player;
     final ir = c.ir;
-    if (p == null || ir == null) return;
+    if (_player == null || ir == null) return;
     if (_playing) {
       _tick?.cancel();
-      p.pause();
+      _player?.pause();
       setState(() => _playing = false);
       return;
     }
     if (c.playheadMs >= ir.durationMs - 50) c.seek(0);
     setState(() => _playing = true);
-    var clipIndex = TimelineOps.clipIndexAt(ir, c.playheadMs);
-    p.seekTo(Duration(milliseconds: c.sourcePositionMs));
-    p.setPlaybackSpeed(ir.clips[clipIndex].speed);
-    p.setVolume(ir.clips[clipIndex].volumeDb <= -60 ? 0 : 1);
-    p.play();
-    _tick = Timer.periodic(Duration(milliseconds: 40), (_) {
+    _playClip(TimelineOps.clipIndexAt(ir, c.playheadMs), fromSourceMs: c.sourcePositionMs);
+  }
+
+  Future<void> _playClip(int clipIndex, {int? fromSourceMs}) async {
+    _tick?.cancel();
+    final ir = c.ir;
+    if (ir == null || !_playing || !mounted) return;
+    if (clipIndex >= ir.clips.length) {
+      _player?.pause();
+      c.seek(ir.durationMs);
+      setState(() => _playing = false);
+      return;
+    }
+    final clip = ir.clips[clipIndex];
+    await _activateAsset(clip.assetId);
+    final p = _player;
+    if (p == null || !_playing || !mounted) return;
+    await p.seekTo(Duration(milliseconds: fromSourceMs ?? clip.sourceStartMs));
+    await p.setPlaybackSpeed(clip.speed);
+    await p.setVolume(clip.volumeDb <= -60 ? 0 : 1);
+    await p.play();
+    _tick = Timer.periodic(const Duration(milliseconds: 40), (_) {
       final cur = c.ir;
-      if (cur == null || !mounted) return;
-      final clip = cur.clips[clipIndex.clamp(0, cur.clips.length - 1)];
-      final src = p.value.position.inMilliseconds;
-      if (src >= clip.sourceEndMs - 20) {
-        clipIndex++;
-        if (clipIndex >= cur.clips.length) {
-          _tick?.cancel();
-          p.pause();
-          c.seek(cur.durationMs);
-          setState(() => _playing = false);
-          return;
-        }
-        final next = cur.clips[clipIndex];
-        p.seekTo(Duration(milliseconds: next.sourceStartMs));
-        p.setPlaybackSpeed(next.speed);
-        p.setVolume(next.volumeDb <= -60 ? 0 : 1);
-        c.playheadMs = next.timelineStartMs;
-      } else {
-        c.playheadMs = clip.timelineStartMs + ((src - clip.sourceStartMs).clamp(0, clip.sourceEndMs) / clip.speed).round();
+      if (cur == null || !mounted || clipIndex >= cur.clips.length) return;
+      final cl = cur.clips[clipIndex];
+      final pos = p.value.position.inMilliseconds;
+      if (pos >= cl.sourceEndMs - 20) {
+        _tick?.cancel();
+        if (clipIndex + 1 < cur.clips.length) c.playheadMs = cur.clips[clipIndex + 1].timelineStartMs;
+        _playClip(clipIndex + 1);
+        return;
       }
+      c.playheadMs = cl.timelineStartMs + ((pos - cl.sourceStartMs).clamp(0, cl.sourceEndMs) / cl.speed).round();
       setState(() {});
     });
   }
@@ -451,7 +532,9 @@ class _Preview extends StatelessWidget {
     final t = controller.playheadMs;
     final captions = ir.captions.where((c) => t >= c.startMs && t < c.endMs).toList();
     final zoom = ir.zooms.where((z) => t >= z.startMs && t < z.endMs).firstOrNull;
-    final broll = ir.overlays.where((o) => t >= o.timelineStartMs && t < o.timelineEndMs).firstOrNull;
+    // Every overlay active at the playhead, stacked in timeline order like the export (last = on top).
+    final brolls = ir.overlays.where((o) => t >= o.timelineStartMs && t < o.timelineEndMs).toList();
+    final broll = brolls.lastOrNull;
     final p = player;
     final canvasAspect = ir.canvas.width / ir.canvas.height;
 
@@ -474,19 +557,22 @@ class _Preview extends StatelessWidget {
                   ),
 
                 // B-roll Video or Image Overlay
-                if (broll != null) ...[
-                  if (broll.isImage)
+                for (final o in brolls)
+                  if (o.isImage)
                     _BrollOverlayImage(
-                      broll: broll,
+                      key: ValueKey('ov_${o.id}'),
+                      broll: o,
                       onTap: () => onOpenTool(StudioTool.broll),
                     )
                   else
                     _BrollOverlayVideo(
-                      broll: broll,
+                      key: ValueKey('ov_${o.id}'),
+                      broll: o,
                       playheadMs: t,
                       playing: playing,
                       onTap: () => onOpenTool(StudioTool.broll),
                     ),
+                if (broll != null) ...[
 
                   // Overlay status chip with mute indicator & shortcut
                   Positioned(
@@ -510,7 +596,8 @@ class _Preview extends StatelessWidget {
                             ConstrainedBox(
                               constraints: BoxConstraints(maxWidth: 160),
                               child: Text(
-                                '${broll.isImage ? 'Photo' : 'B-roll'}: ${broll.source['query'] ?? broll.source['kind'] ?? 'Cutaway'}',
+                                '${broll.isImage ? 'Photo' : 'B-roll'}: ${broll.source['title'] ?? broll.source['query'] ?? broll.source['kind'] ?? 'Cutaway'}'
+                                '${brolls.length > 1 ? ' +${brolls.length - 1}' : ''}',
                                 style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -554,7 +641,7 @@ class _Preview extends StatelessWidget {
 
 /// Image B-roll cutaway overlay
 class _BrollOverlayImage extends StatelessWidget {
-  const _BrollOverlayImage({required this.broll, required this.onTap});
+  const _BrollOverlayImage({super.key, required this.broll, required this.onTap});
   final EditIrOverlay broll;
   final VoidCallback onTap;
 
@@ -567,7 +654,7 @@ class _BrollOverlayImage extends StatelessWidget {
     final boxFit = fit == 'contain' ? BoxFit.contain : BoxFit.cover;
 
     Widget img = Image.network(
-      url,
+      url, cacheWidth: 1080,
       fit: boxFit,
       errorBuilder: (_, o, s) => Container(color: Colors.black54, child: Icon(Icons.broken_image_rounded, color: AppTheme.textMuted)),
     );
@@ -600,6 +687,7 @@ class _BrollOverlayImage extends StatelessWidget {
 /// Synchronized B-roll Video Player with PiP, framing, cropping, volume and opacity controls
 class _BrollOverlayVideo extends StatefulWidget {
   const _BrollOverlayVideo({
+    super.key,
     required this.broll,
     required this.playheadMs,
     required this.playing,
@@ -711,7 +799,7 @@ class _BrollOverlayVideoState extends State<_BrollOverlayVideo> {
     } else {
       final thumb = broll.source['thumbnailUrl'] as String?;
       content = thumb != null
-          ? Image.network(thumb, fit: boxFit, errorBuilder: (_, o, s) => _placeholder())
+          ? Image.network(thumb, cacheWidth: 1080, fit: boxFit, errorBuilder: (_, o, s) => _placeholder())
           : _placeholder();
     }
 
@@ -833,11 +921,24 @@ class _DraggableCaptionState extends State<_DraggableCaption> {
                     color: Colors.black.withValues(alpha: 0.2),
                   )
                 : null,
-            child: _CaptionPreview(caption: widget.caption, t: widget.t),
+            child: _withMotion(constraints, _CaptionPreview(caption: widget.caption, t: widget.t)),
           ),
         ),
       );
     });
+  }
+
+  /// In / out / loop motion, identical to the Android renderer (text_motion.dart).
+  Widget _withMotion(BoxConstraints box, Widget child) {
+    final m = textMotionAt(widget.caption.style, widget.caption.startMs, widget.caption.endMs, widget.t);
+    if (identical(m, TextMotion.none)) return child;
+    return Transform.translate(
+      offset: Offset(m.dx * box.maxWidth, m.dy * box.maxHeight),
+      child: Transform.rotate(
+        angle: m.rotationDeg * math.pi / 180,
+        child: Transform.scale(scale: m.scale, child: Opacity(opacity: m.opacity, child: child)),
+      ),
+    );
   }
 }
 
@@ -929,11 +1030,11 @@ class _CaptionPreview extends StatelessWidget {
     final elapsedMs = (t - caption.startMs).clamp(0, caption.endMs - caption.startMs);
     final textStr = caption.text;
 
-    // Typewriter effect
+    // Typewriter (enter motion): the same character count as the renderer.
     String renderedText = textStr;
-    if (anim == 'typewriter' && textStr.isNotEmpty) {
-      final chars = ((elapsedMs / 80).floor()).clamp(1, textStr.length);
-      renderedText = textStr.substring(0, chars);
+    final reveal = textMotionAt(st, caption.startMs, caption.endMs, t).reveal;
+    if (reveal < 1 && textStr.isNotEmpty) {
+      renderedText = textStr.substring(0, (textStr.length * reveal).ceil().clamp(0, textStr.length));
     }
 
     final spans = caption.words.isEmpty || caption.kind == 'text'

@@ -61,6 +61,6 @@ class ManagerTurnResponse {
         intent: jStrOr(j['intent'], 'general_query'),
         delegatedAgents: jStrList(j['delegatedAgents']),
         suggestedActions: jList(j['suggestedActions'], ManagerActionModel.fromJson),
-        conversationId: jStrOr(j['conversationId'], 'session'),
+        conversationId: jStrOr(j['conversationId'], ''),
       );
 }

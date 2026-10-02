@@ -30,7 +30,7 @@ export class SocialInboxService {
             where: whereClause,
             orderBy: { lastMessageAt: 'desc' },
             include: {
-                socialAccount: { select: { id: true, accountName: true, username: true, platform: true } },
+                socialAccount: { select: { id: true, accountName: true, username: true, platform: true, aiInboxMode: true } },
                 project: { select: { id: true, name: true } },
                 messages: { orderBy: { createdAt: 'asc' }, take: 50 }
             }
@@ -45,7 +45,7 @@ export class SocialInboxService {
         const conversation = await db.socialConversation.findUnique({
             where: { id },
             include: {
-                socialAccount: { select: SAFE_ACCOUNT_SELECT },
+                socialAccount: { select: { ...SAFE_ACCOUNT_SELECT, aiInboxMode: true } },
                 project: true,
                 messages: { orderBy: { createdAt: 'asc' } }
             }

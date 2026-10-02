@@ -130,10 +130,11 @@ export class EngagementMatcher {
                         ],
                     },
                     {
+                        // Account-wide rules, rules on a 180 Workspace post, and rules on an existing platform post.
                         OR: [
-                            { postId: null },
+                            { postId: null, platformMediaId: null },
                             ...(event.postId ? [{ postId: event.postId }] : []),
-                            ...(event.mediaId ? [{ postId: event.mediaId }] : []),
+                            ...(event.mediaId ? [{ platformMediaId: event.mediaId }] : []),
                         ],
                     },
                 ],
@@ -141,20 +142,20 @@ export class EngagementMatcher {
             orderBy: { createdAt: 'desc' },
         });
 
-        for (const rule of candidateRules) {
+        // Most specific first: a rule on this exact post beats an account rule, which beats a workspace-wide rule.
+        // Array.sort is stable, so equally specific rules keep newest-first order.
+        const specificity = (r: any) => (r.postId || r.platformMediaId ? 2 : 0) + (r.socialAccountId ? 1 : 0);
+        const ordered = [...candidateRules].sort((a: any, b: any) => specificity(b) - specificity(a));
+
+        for (const rule of ordered) {
             // Check specific target account matching
             if (rule.socialAccountId && event.socialAccountId && rule.socialAccountId !== event.socialAccountId) {
                 continue;
             }
 
-            // Check specific target post/media matching if rule is post-scoped
-            if (rule.postId) {
-                const matchesTarget = (event.postId && rule.postId === event.postId) ||
-                                      (event.mediaId && rule.postId === event.mediaId);
-                if (!matchesTarget) {
-                    continue;
-                }
-            }
+            // A post-scoped rule only fires for comments on that post (app post id or platform media id).
+            if (rule.postId && !(event.postId && rule.postId === event.postId)) continue;
+            if (rule.platformMediaId && !(event.mediaId && rule.platformMediaId === event.mediaId)) continue;
 
             // If triggerType is comment_any or dm_inbound without keywords, it matches
             if (rule.triggerType === 'comment_any' || (rule.triggerType === 'dm_inbound' && !rule.triggerKeywords?.length)) {

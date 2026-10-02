@@ -26,3 +26,4 @@ export * from './linkedin';
 export * from './youtube';
 export * from './agent-os';
 export * from './manager';
+export * from './studio-library.service';

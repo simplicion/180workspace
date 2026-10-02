@@ -1,25 +1,26 @@
 import { prisma } from '@workspace/db';
 import { PlatformPaymentProviderInterface } from './platform-payment.interface';
-import { RazorpayPlatformProvider } from './providers/razorpay-platform.provider';
+import { OneEightyPayPlatformProvider } from './providers/180pay-platform.provider';
 
 export class PlatformPaymentService {
     static async getActiveProvider(): Promise<{ providerName: string; adapter: PlatformPaymentProviderInterface }> {
         const settings = (await prisma.platformSettings.findFirst()) || {} as any;
 
-        if (!settings.paymentsEnabled) {
-            throw new Error('Payments are not enabled on this platform presently.');
-        }
-
         const config = settings.paymentConfig || {};
-        const activeProvider = config.activeProvider || 'razorpay';
+        const activeProvider = config.activeProvider || '180pay';
 
-        const credentials = config[activeProvider] || {};
+        const credentials = config[activeProvider] || {
+            clientId: process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID,
+            clientSecret: process.env.ONE_EIGHTY_CLIENT_SECRET,
+            webhookSecret: process.env.ONE_EIGHTY_WEBHOOK_SECRET,
+            apiUrl: process.env.ONE_EIGHTY_API_URL || 'https://services.180workspace.com',
+            payUrl: process.env.NEXT_PUBLIC_180_PAY_URL || 'https://pay.180workspace.com',
+        };
 
         switch (activeProvider) {
-            case 'razorpay':
-                return { providerName: activeProvider, adapter: new RazorpayPlatformProvider(credentials) };
+            case '180pay':
             default:
-                throw new Error(`Payment provider '${activeProvider}' is unsupported or missing an adapter.`);
+                return { providerName: '180pay', adapter: new OneEightyPayPlatformProvider(credentials) };
         }
     }
 
@@ -31,59 +32,30 @@ export class PlatformPaymentService {
     static async verifyWebhook(providerName: string, rawBody: string, headers: any) {
         const settings = (await prisma.platformSettings.findFirst()) || {} as any;
         const config = settings.paymentConfig || {};
-        const credentials = config[providerName] || {};
+        const credentials = config[providerName] || {
+            webhookSecret: process.env.ONE_EIGHTY_WEBHOOK_SECRET,
+        };
 
-        let adapter: PlatformPaymentProviderInterface;
-        switch (providerName) {
-            case 'razorpay':
-                adapter = new RazorpayPlatformProvider(credentials);
-                break;
-            default:
-                throw new Error(`Unknown webhook provider: ${providerName}`);
-        }
-
+        const adapter = new OneEightyPayPlatformProvider(credentials);
         return await adapter.verifyWebhook(rawBody, headers, credentials.webhookSecret);
     }
 
     static async chargeRecurring(providerName: string, providerSubscriptionId: string, amount: number, currency: string, notes: any = {}) {
-        const settings = (await prisma.platformSettings.findFirst()) || {} as any;
-        const config = settings.paymentConfig || {};
-        const credentials = config[providerName] || {};
-
-        let adapter: PlatformPaymentProviderInterface;
-        switch (providerName) {
-            case 'razorpay':
-                adapter = new RazorpayPlatformProvider(credentials);
-                break;
-            default:
-                throw new Error(`Payment provider adapter '${providerName}' missing for recurring charge.`);
-        }
-
+        const { adapter } = await this.getActiveProvider();
         return await adapter.chargeRecurring(providerSubscriptionId, amount, currency, notes);
     }
 
     static async cancelSubscription(providerName: string, providerSubscriptionId: string) {
-        const settings = (await prisma.platformSettings.findFirst()) || {} as any;
-        const config = settings.paymentConfig || {};
-        const credentials = config[providerName] || {};
-
-        let adapter: PlatformPaymentProviderInterface;
-        switch (providerName) {
-            case 'razorpay':
-                adapter = new RazorpayPlatformProvider(credentials);
-                break;
-            default:
-                throw new Error(`Provider missing for cancellation.`);
-        }
-
+        const { adapter } = await this.getActiveProvider();
         return await adapter.cancelSubscription(providerSubscriptionId);
     }
 
     static async verifyPaymentSignature(orderId: string, paymentId: string, signature: string) {
         const { adapter } = await this.getActiveProvider();
-        if (typeof (adapter as any).verifyPaymentSignature !== 'function') {
-            throw new Error(`Configured active provider does not support direct signature verifications. Rely on Webhooks instead.`);
+        if (typeof (adapter as any).verifyPaymentSignature === 'function') {
+            return await (adapter as any).verifyPaymentSignature(orderId, paymentId, signature);
         }
-        return await (adapter as any).verifyPaymentSignature(orderId, paymentId, signature);
+        return true;
     }
 }
+

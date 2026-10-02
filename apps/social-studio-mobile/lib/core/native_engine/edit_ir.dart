@@ -424,7 +424,7 @@ class EditIrCaption {
         endMs: _int(j, 'endMs'),
         text: j['text'] as String? ?? '',
         words: _list(j, 'words', EditIrWord.fromJson),
-        style: (j['style'] as Map?)?.cast<String, dynamic>() ?? {},
+        style: normaliseCaptionStyle((j['style'] as Map?)?.cast<String, dynamic>() ?? {}),
       );
 
   Map<String, dynamic> toJson() => {
@@ -688,4 +688,20 @@ class EditIrEffect {
       );
 
   Map<String, dynamic> toJson() => {'id': id, 'type': type, 'startMs': startMs, 'endMs': endMs, 'intensity': intensity};
+}
+
+/// `animation` only allows word_pop | karaoke | none (contract + renderer). Older text styles stored motion there
+/// (fade_in, slide_up, typewriter, pulse), which the export ignored and the server rejected; they become the
+/// `enter` / `loop` motion fields that both the preview and the renderer apply.
+Map<String, dynamic> normaliseCaptionStyle(Map<String, dynamic> style) {
+  const legacyEnter = {'fade_in': 'fade', 'slide_up': 'slide_up', 'typewriter': 'typewriter'};
+  final anim = style['animation'];
+  if (anim is! String || const {'word_pop', 'karaoke', 'none'}.contains(anim)) return style;
+  final out = {...style, 'animation': 'none'};
+  if (legacyEnter.containsKey(anim)) {
+    out['enter'] ??= {'type': legacyEnter[anim], 'durationMs': anim == 'typewriter' ? 1200 : 400};
+  } else if (anim == 'pulse') {
+    out['loop'] ??= {'type': 'pulse', 'periodMs': 1200};
+  }
+  return out;
 }

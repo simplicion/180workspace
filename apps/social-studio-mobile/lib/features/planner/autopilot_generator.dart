@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/util/poll_backoff.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -55,6 +56,7 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
   AutopilotJob? _job;
   Object? _pollError;
   Timer? _timer;
+  int _polls = 0;
 
   @override
   void dispose() {
@@ -162,7 +164,7 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
       setState(() => _pollError = e);
       if (e is ApiException && !e.isTransient) return;
     }
-    _timer = Timer(widget.pollInterval ?? Duration(seconds: 2), _poll);
+    _timer = Timer(pollDelay(_polls++, override: widget.pollInterval), _poll);
   }
 
   @override
@@ -302,9 +304,9 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppTheme.accent.withOpacity(0.12),
+                    color: AppTheme.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
+                    border: Border.all(color: AppTheme.accent.withValues(alpha: 0.3)),
                   ),
                   child: Text('Preset Active (Prioritized)',
                       style: TextStyle(fontSize: 10, color: AppTheme.accent, fontWeight: FontWeight.w700)),
@@ -313,9 +315,9 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppTheme.success.withOpacity(0.12),
+                    color: AppTheme.success.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppTheme.success.withOpacity(0.3)),
+                    border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
                   ),
                   child: Text('Custom Mode Active',
                       style: TextStyle(fontSize: 10, color: AppTheme.success, fontWeight: FontWeight.w700)),
@@ -565,9 +567,9 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
         Container(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: agentColor.withOpacity(0.12),
+            color: agentColor.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: agentColor.withOpacity(0.3)),
+            border: Border.all(color: agentColor.withValues(alpha: 0.3)),
           ),
           child: Row(children: [
             Icon(agentIcon, color: agentColor, size: 24),

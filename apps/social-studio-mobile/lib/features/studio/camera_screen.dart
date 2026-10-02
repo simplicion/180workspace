@@ -222,9 +222,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
       fileSize = await file.length();
     } catch (_) {}
 
-    // Ensure we have a destination folder
+    // Ensure we have a destination folder (named after the calendar piece when shooting for one)
     if (_folderId == null || _folderId!.isEmpty) {
-      final folderName = 'Shoot · ${DateTime.now().month}/${DateTime.now().day}';
+      final folderName = (widget.folderName?.trim().isNotEmpty ?? false)
+          ? widget.folderName!.trim()
+          : 'Shoot · ${DateTime.now().month}/${DateTime.now().day}';
       try {
         final newFolder = await ref.read(vaultFoldersProvider.notifier).createFolder(name: folderName);
         _folderId = newFolder.id;
@@ -232,8 +234,39 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
       } catch (_) {}
     }
 
-    final takeNumber = _savedClips.length + 1;
-    final defaultClipName = '${_folderName ?? "Take"} · Take $takeNumber (${timecode(durationSeconds * 1000)})';
+    final pieceId = widget.pieceId;
+    // For a calendar piece the takes are numbered across sessions (Clip 1…N); otherwise per shoot.
+    final takeNumber = pieceId != null
+        ? (ref.read(vaultItemsProvider).valueOrNull?.where((i) => i.pieceId == pieceId).length ?? _savedClips.length) + 1
+        : _savedClips.length + 1;
+    final defaultClipName = pieceId != null
+        ? 'Clip $takeNumber'
+        : '${_folderName ?? "Take"} · Take $takeNumber (${timecode(durationSeconds * 1000)})';
+
+    VaultItem? saved;
+    // Saves the take once. A failure is shown and keeps the sheet open, so a clip is never lost silently.
+    Future<VaultItem?> saveTake() async {
+      if (saved != null) return saved;
+      try {
+        final item = await ref.read(vaultItemsProvider.notifier).addItem(
+              folderId: _folderId,
+              name: defaultClipName,
+              type: VaultItemType.video,
+              localPath: file.path,
+              fileSizeBytes: fileSize,
+              durationMs: durationSeconds * 1000,
+              tags: ['take-$takeNumber', 'teleprompter'],
+              pieceId: pieceId,
+              takeIndex: pieceId == null ? null : takeNumber,
+            );
+        saved = item;
+        if (mounted) setState(() => _savedClips.add(item));
+        return item;
+      } catch (e) {
+        if (mounted) showError(context, 'The clip could not be saved: ${errorText(e)}');
+        return null;
+      }
+    }
 
     // Show modal action sheet to Add to Folder or Edit
     if (!mounted) return;
@@ -336,29 +369,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
                           ? null
                           : () async {
                               setModalState(() => savingToFolder = true);
-                              try {
-                                final item = await ref.read(vaultItemsProvider.notifier).addItem(
-                                      folderId: _folderId,
-                                      name: defaultClipName,
-                                      type: VaultItemType.video,
-                                      localPath: file.path,
-                                      fileSizeBytes: fileSize,
-                                      durationMs: durationSeconds * 1000,
-                                      tags: ['take-$takeNumber', 'teleprompter'],
-                                    );
-                                setState(() {
-                                  _savedClips.add(item);
-                                });
-                                setModalState(() {
-                                  savingToFolder = false;
-                                  added = true;
-                                });
-                                if (mounted) {
-                                  showInfo(context, 'Clip added to ${_folderName ?? "folder"}!');
-                                }
-                              } catch (e) {
-                                setModalState(() => savingToFolder = false);
-                                if (mounted) showError(context, 'Failed to save clip: $e');
+                              final item = await saveTake();
+                              setModalState(() {
+                                savingToFolder = false;
+                                added = item != null;
+                              });
+                              if (item != null && mounted) {
+                                showInfo(context, 'Clip added to ${_folderName ?? "folder"}!');
                               }
                             },
                     )
@@ -401,24 +418,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
                           label: const Text('Shoot Next Clip', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                           onPressed: () async {
                             // If user didn't explicitly tap Add to Folder, auto-add now
-                            if (!added) {
-                              try {
-                                final item = await ref.read(vaultItemsProvider.notifier).addItem(
-                                      folderId: _folderId,
-                                      name: defaultClipName,
-                                      type: VaultItemType.video,
-                                      localPath: file.path,
-                                      fileSizeBytes: fileSize,
-                                      durationMs: durationSeconds * 1000,
-                                      tags: ['take-$takeNumber', 'teleprompter'],
-                                    );
-                                if (mounted) {
-                                  setState(() {
-                                    _savedClips.add(item);
-                                  });
-                                }
-                              } catch (_) {}
-                            }
+                            if (await saveTake() == null) return;
                             if (modalCtx.mounted) {
                               Navigator.of(modalCtx).pop();
                             }
@@ -446,23 +446,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
                           icon: const Icon(Icons.movie_edit, size: 18),
                           label: const Text('Edit in Studio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                           onPressed: () async {
-                            if (!added) {
-                              try {
-                                final item = await ref.read(vaultItemsProvider.notifier).addItem(
-                                      folderId: _folderId,
-                                      name: defaultClipName,
-                                      type: VaultItemType.video,
-                                      localPath: file.path,
-                                      fileSizeBytes: fileSize,
-                                      durationMs: durationSeconds * 1000,
-                                    );
-                                if (mounted) {
-                                  setState(() {
-                                    _savedClips.add(item);
-                                  });
-                                }
-                              } catch (_) {}
-                            }
+                            if (await saveTake() == null) return;
 
                             if (modalCtx.mounted) {
                               Navigator.of(modalCtx).pop();
@@ -495,27 +479,18 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
                   // Option to Finish & View Folder in Library
                   TextButton.icon(
                     icon: const Icon(Icons.folder_open_rounded, size: 16),
-                    label: Text('Finish & View all clips in Library (${_folderName ?? "Folder"})'),
+                    label: Text(pieceId != null
+                        ? 'Done: back to this calendar day'
+                        : 'Finish & View all clips in Library (${_folderName ?? "Folder"})'),
                     onPressed: () async {
-                      if (!added) {
-                        try {
-                          final item = await ref.read(vaultItemsProvider.notifier).addItem(
-                                folderId: _folderId,
-                                name: defaultClipName,
-                                type: VaultItemType.video,
-                                localPath: file.path,
-                                fileSizeBytes: fileSize,
-                                durationMs: durationSeconds * 1000,
-                              );
-                          if (mounted) {
-                            setState(() {
-                              _savedClips.add(item);
-                            });
-                          }
-                        } catch (_) {}
-                      }
+                      if (await saveTake() == null) return;
                       if (modalCtx.mounted) {
                         Navigator.of(modalCtx).pop();
+                      }
+                      // Shooting for a calendar piece: go back to its sheet, which lists the clips.
+                      if (pieceId != null) {
+                        if (mounted) context.pop(true);
+                        return;
                       }
                       if (_folderId != null) {
                         ref.read(activeFolderIdProvider.notifier).state = _folderId;

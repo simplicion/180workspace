@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/util/poll_backoff.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -50,6 +51,7 @@ class _CarouselSheetState extends ConsumerState<CarouselSheet> {
   bool _starting = false;
   int? _regenerating;
   Timer? _timer;
+  int _polls = 0;
 
   @override
   void dispose() {
@@ -84,7 +86,7 @@ class _CarouselSheetState extends ConsumerState<CarouselSheet> {
   void _schedule() {
     _timer?.cancel();
     if (_job == null || _job!.isFinished) return;
-    _timer = Timer(widget.pollInterval ?? Duration(seconds: 2), _poll);
+    _timer = Timer(pollDelay(_polls++, override: widget.pollInterval), _poll);
   }
 
   Future<void> _poll() async {
@@ -233,7 +235,7 @@ class _CarouselSheetState extends ConsumerState<CarouselSheet> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: Image.network(
-                      s.url,
+                      s.url, cacheWidth: 720,
                       fit: BoxFit.cover,
                       semanticLabel: 'Slide ${s.index + 1}',
                       loadingBuilder: (_, child, p) => p == null ? child : Container(color: AppTheme.surface),

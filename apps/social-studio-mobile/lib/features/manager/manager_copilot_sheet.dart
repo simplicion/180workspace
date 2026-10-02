@@ -32,12 +32,12 @@ class _ManagerCopilotSheetState extends ConsumerState<ManagerCopilotSheet> {
   final _scrollCtl = ScrollController();
   final List<ManagerChatMessage> _messages = [];
   bool _thinking = false;
-  String _conversationId = 'session_1';
+  /// Assigned by the server on the first reply; null starts a new conversation.
+  String? _conversationId;
 
   @override
   void initState() {
     super.initState();
-    _conversationId = 'session_${DateTime.now().millisecondsSinceEpoch}';
 
     final pId = widget.projectId ?? ref.read(activeProjectProvider).valueOrNull?.id;
     final project = pId != null
@@ -53,7 +53,7 @@ class _ManagerCopilotSheetState extends ConsumerState<ManagerCopilotSheet> {
       ManagerChatMessage(
         senderType: 'manager',
         content: '👋 **Hello! I am your 180 Manager.**\n\n'
-            'I have live consciousness over **$projectName**, $accountsDesc, content calendar, inbox opportunities, and video editor styles.\n\n'
+            'I answer from the real data of **$projectName**: $accountsDesc, the content calendar, inbox conversations and your editing preferences.\n\n'
             'Ask me anything or pick a quick command below:',
         suggestedActions: [
           ManagerActionModel(id: 'q1', label: '📊 Project Reach & Stats', type: 'quick_reply', payload: {'text': 'What is our total reach, engagement, and videos uploaded this month for $projectName?'}),
@@ -106,6 +106,7 @@ class _ManagerCopilotSheetState extends ConsumerState<ManagerCopilotSheet> {
       if (mounted) {
         setState(() {
           _thinking = false;
+          if (res.conversationId.isNotEmpty) _conversationId = res.conversationId;
           _messages.add(
             ManagerChatMessage(
               senderType: 'manager',
@@ -125,7 +126,8 @@ class _ManagerCopilotSheetState extends ConsumerState<ManagerCopilotSheet> {
           _messages.add(
             ManagerChatMessage(
               senderType: 'manager',
-              content: '⚠️ Unable to connect to 180 Manager brain right now: ${e.toString()}',
+              // The server's own reason (e.g. no AI key configured, timeout); nothing is invented.
+              content: '⚠️ ${errorText(e)}',
             ),
           );
         });
@@ -163,26 +165,52 @@ class _ManagerCopilotSheetState extends ConsumerState<ManagerCopilotSheet> {
       return;
     }
 
+    // Writes need the user's consent first (proposal → confirm → apply).
+    final ok = await confirm(
+      context,
+      title: act.label,
+      message: act.type == 'update_calendar'
+          ? "Rewrite this month's upcoming calendar pieces (from today, at most 12 per run) around \"${act.payload['format'] ?? ''}\"? Shot, in-review and published pieces are kept."
+          : 'Save this editing rule for the AI Director: "${act.payload['rule'] ?? ''}"?',
+      action: 'Apply',
+    );
+    if (!ok || !mounted) return;
+
     // Execute server action (e.g. calendar pivot, director rule)
     setState(() => _thinking = true);
     final res = await guarded(
       context,
       () => ref.read(socialApiProvider).executeManagerAction({
         'type': act.type,
-        'payload': {...act.payload, 'projectId': widget.projectId},
+        // The server already put the verified project in the payload; only fill it when missing.
+        'payload': {
+          ...act.payload,
+          if (act.payload['projectId'] == null) 'projectId': widget.projectId ?? ref.read(activeProjectProvider).valueOrNull?.id,
+        },
       }),
     );
     if (!mounted) return;
     setState(() => _thinking = false);
 
     if (res != null) {
-      showInfo(context, 'Action executed by 180 Manager!', color: AppTheme.success);
+      // Report what the server actually stored (e.g. the director rules), not a generic success line.
+      final result = res['result'] is Map ? res['result'] as Map : const {};
+      final applied = (result['rulesApplied'] as List?)?.map((e) => '$e').toList() ?? const <String>[];
+      final updated = (result['updated'] as List?)?.whereType<Map>().map((u) => '${u['headline']}').toList();
+      final failed = (result['failed'] as List?)?.length ?? 0;
+      final remaining = (result['remaining'] as num?)?.toInt() ?? 0;
+      showInfo(context, 'Done', color: AppTheme.success);
       setState(() {
         _messages.add(
           ManagerChatMessage(
             senderType: 'manager',
-            content: '✅ **Action Successfully Executed**\n\n'
-                'The updates have been synchronized to your workspace and active agent consciousness.',
+            content: updated != null
+                ? '✅ Updated ${updated.length} calendar piece(s)${updated.isEmpty ? '' : ':\n• ${updated.join('\n• ')}'}'
+                    '${failed > 0 ? '\n⚠️ $failed could not be rewritten (only autopilot pieces can be).' : ''}'
+                    '${remaining > 0 ? '\n$remaining more remain: run the action again to continue.' : ''}'
+                : applied.isEmpty
+                    ? '✅ ${act.label}: done.'
+                    : '✅ Saved for the AI Director:\n• ${applied.join('\n• ')}',
           ),
         );
       });
@@ -239,43 +267,15 @@ class _ManagerCopilotSheetState extends ConsumerState<ManagerCopilotSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const Text(
-                            '180 MANAGER AI',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppTheme.success.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.success,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'SWARM ACTIVE',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.success),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      const Text(
+                        '180 MANAGER AI',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Aware of all 5 accounts, calendar, inboxes & video director',
+                        'Answers from your accounts, calendar, inbox and editing rules',
                         style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                         overflow: TextOverflow.ellipsis,
                       ),

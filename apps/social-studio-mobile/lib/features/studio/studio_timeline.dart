@@ -14,6 +14,7 @@ import 'studio_session_screen.dart' show timecode;
 import 'studio_tools.dart';
 import 'text_templates.dart';
 import 'timeline_ops.dart';
+import 'video_thumbnails.dart';
 
 /// Multi-track timeline: one row per track (video, B-roll, text, captions, zoom, music, SFX) with every
 /// placed item — including everything the AI Director added — as a tappable block. Tap an item to edit it.
@@ -87,7 +88,20 @@ class _StudioTimelineState extends State<StudioTimeline> {
   Widget build(BuildContext context) {
     final c = widget.controller;
     final ir = c.ir!;
-    final items = TimelineOps.items(ir);
+    // Main-track clips show a frame of their own file (the original video or a clip added later).
+    final items = [
+      for (final i in TimelineOps.items(ir))
+        if (i.kind == TrackKind.video && i.mediaUrl == null)
+          () {
+            final clip = ir.clips.where((x) => x.id == i.id).firstOrNull;
+            final path = clip == null ? null : c.pathForAsset(clip.assetId);
+            return path == null
+                ? i
+                : TimelineItem(i.kind, i.id, i.startMs, i.endMs, i.label, mediaUrl: path, thumbnailUrl: i.thumbnailUrl, isImage: i.isImage);
+          }()
+        else
+          i,
+    ];
     final tracks = [
       for (final k in TrackKind.values)
         if (k == TrackKind.video ||
@@ -332,8 +346,11 @@ class _StudioTimelineState extends State<StudioTimeline> {
                 onTap: () async {
                   Navigator.pop(ctx);
                   final f = await ImagePicker().pickVideo(source: ImageSource.gallery);
-                  if (f != null) {
+                  if (f == null) return;
+                  try {
                     await widget.controller.addVideoClip(f.path, atIndex: atIndex);
+                  } catch (e) {
+                    if (context.mounted) showError(context, 'This video could not be added: ${errorText(e)}');
                   }
                 },
               ),
@@ -565,7 +582,15 @@ class _Block extends StatelessWidget {
                 if (hasVisual && thumb != null) ...[
                   // Visual Thumbnail Background
                   Positioned.fill(
-                    child: thumb.startsWith('http')
+                    child: VideoThumbnails.isLocalVideo(thumb)
+                        ? FutureBuilder<String?>(
+                            future: VideoThumbnails.frameFor(thumb),
+                            builder: (_, snap) => snap.data == null
+                                ? Container(color: color.withValues(alpha: 0.3))
+                                : Image.file(io.File(snap.data!), fit: BoxFit.cover, cacheWidth: 240,
+                                    errorBuilder: (_, _, _) => Container(color: color.withValues(alpha: 0.3))),
+                          )
+                        : thumb.startsWith('http')
                         ? Image.network(
                             thumb,
                             fit: BoxFit.cover,
@@ -573,7 +598,7 @@ class _Block extends StatelessWidget {
                           )
                         : (kIsWeb
                             ? Image.network(
-                                thumb,
+                                thumb, cacheWidth: 240,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, _, _) => Container(color: color.withValues(alpha: 0.3)),
                               )
@@ -604,18 +629,19 @@ class _Block extends StatelessWidget {
                   padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   child: Row(
                     children: [
+                      // Flexible: on very short items the icons shrink instead of overflowing the block.
                       if (item.kind == TrackKind.broll)
-                        Icon(
-                          item.isImage ? Icons.image_rounded : Icons.movie_filter_rounded,
-                          size: 11,
-                          color: selected ? Colors.white : color,
+                        Flexible(
+                          child: Icon(
+                            item.isImage ? Icons.image_rounded : Icons.movie_filter_rounded,
+                            size: 11,
+                            color: selected ? Colors.white : color,
+                          ),
                         )
                       else if (item.kind == TrackKind.video)
-                        Icon(Icons.videocam_rounded, size: 11, color: Colors.white)
-                      else if (muted)
-                        Icon(Icons.volume_off_rounded, size: 11, color: AppTheme.error),
-                      if (item.kind == TrackKind.broll || item.kind == TrackKind.video || muted)
-                        SizedBox(width: 3),
+                        Flexible(child: Icon(Icons.videocam_rounded, size: 11, color: Colors.white)),
+                      if (item.kind == TrackKind.broll || item.kind == TrackKind.video)
+                        Flexible(child: SizedBox(width: 3)),
                       Expanded(
                         child: Text(
                           item.label,
@@ -630,12 +656,14 @@ class _Block extends StatelessWidget {
                         ),
                       ),
                       if (muted)
-                        Padding(
-                          padding: EdgeInsets.only(left: 2),
-                          child: Container(
-                            padding: EdgeInsets.all(1),
-                            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(2)),
-                            child: Icon(Icons.volume_off_rounded, size: 9, color: AppTheme.error),
+                        Flexible(
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 2),
+                            child: Container(
+                              padding: EdgeInsets.all(1),
+                              decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(2)),
+                              child: Icon(Icons.volume_off_rounded, size: 9, color: AppTheme.error),
+                            ),
                           ),
                         ),
                     ],

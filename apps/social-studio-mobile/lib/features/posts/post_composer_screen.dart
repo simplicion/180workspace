@@ -8,6 +8,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/json.dart';
 import '../../core/widgets/common.dart';
+import '../../data/models/engagement_rule.dart';
 import '../../data/models/platform.dart';
 import '../../data/models/project.dart';
 import '../../data/models/social_post.dart';
@@ -143,10 +144,12 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
 
   // 180 Engagement Automation (Auto DM & Comment Funnel)
   bool _enableEngagement = false;
-  late final _engagementKeyword = TextEditingController(text: 'GROWTH');
-  late final _engagementCommentReply = TextEditingController(text: 'Check your DMs! Sent you the full link 🚀');
-  late final _engagementDmTemplate = TextEditingController(text: 'Hey {name}! Here is your requested link: {link} 🔥');
+  late final _engagementKeyword = TextEditingController();
+  late final _engagementCommentReply = TextEditingController();
+  late final _engagementDmTemplate = TextEditingController();
   bool _engagementAutoLike = true;
+  /// The funnel rule already attached to the post being edited (loaded in initState), updated instead of duplicated.
+  EngagementRule? _existingFunnel;
 
   late final _redditTitle = TextEditingController(
       text: _p?.variants.where((v) => v.platform == SocialPlatform.reddit).firstOrNull?.platformMeta['title']?.toString() ?? '');
@@ -157,6 +160,70 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
   @override
   void initState() {
     super.initState();
+    if (_p != null) _loadExistingFunnel(_p.id);
+    // Opened from a Studio export: the rendered video is attached right away.
+    final local = jStr(widget.prefill['localMediaPath']);
+    if (_p == null && local != null && local.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _uploadLocal(XFile(local, mimeType: 'video/mp4'));
+      });
+    }
+  }
+
+  Future<void> _loadExistingFunnel(String postId) async {
+    try {
+      final rules = await ref.read(socialApiProvider).listEngagementRules(postId: postId);
+      final rule = rules.where((r) => r.postId == postId).firstOrNull;
+      if (rule == null || !mounted) return;
+      setState(() {
+        _existingFunnel = rule;
+        _enableEngagement = rule.status == 'active';
+        _engagementKeyword.text = rule.triggerType == 'comment_any' ? '' : rule.triggerKeywords.join(', ');
+        _engagementCommentReply.text = rule.actionPublicReplies.firstOrNull ?? '';
+        _engagementDmTemplate.text = rule.actionDmTemplate;
+        _engagementAutoLike = rule.actionAutoLike;
+      });
+    } catch (_) {
+      // The editor still works; the funnel section just starts empty. Saving reports any real error.
+    }
+  }
+
+  /// Comment → DM funnel for [postId]: empty keywords = every comment. Errors are returned, never swallowed.
+  Future<Object?> _syncFunnel(String postId, String? projectId) async {
+    final api = ref.read(socialApiProvider);
+    final existing = _existingFunnel;
+    try {
+      if (!_enableEngagement) {
+        if (existing != null && existing.status == 'active') await api.updateEngagementRule(existing.id, {'status': 'paused'});
+        return null;
+      }
+      final keywords = _engagementKeyword.text.split(RegExp(r'[,\n]')).map((k) => k.trim()).where((k) => k.isNotEmpty).toList();
+      final reply = _engagementCommentReply.text.trim();
+      final label = _title.text.trim().isNotEmpty ? _title.text.trim() : _content.text.trim();
+      final data = {
+        'name': 'Comment funnel: ${label.length > 40 ? label.substring(0, 40) : label}',
+        'projectId': projectId,
+        'postId': postId,
+        'status': 'active',
+        'triggerType': keywords.isEmpty ? 'comment_any' : 'comment_keyword',
+        'triggerKeywords': keywords,
+        'matchMode': 'contains',
+        'actionAutoLike': _engagementAutoLike,
+        'actionPublicReplies': reply.isEmpty ? <String>[] : [reply],
+        'actionSendDm': true,
+        'actionDmTemplate': _engagementDmTemplate.text.trim(),
+        // Follow-up conversations belong to the inbox AI, not to this funnel.
+        'actionEnableAiAgent': false,
+      };
+      if (existing != null) {
+        await api.updateEngagementRule(existing.id, data);
+      } else {
+        _existingFunnel = await api.createEngagementRule(data);
+      }
+      return null;
+    } catch (e) {
+      return e;
+    }
   }
 
   @override
@@ -227,6 +294,11 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         ? await picker.pickVideo(source: ImageSource.gallery)
         : await picker.pickImage(source: ImageSource.gallery);
     if (file == null || !mounted) return;
+    await _uploadLocal(file);
+  }
+
+  /// Uploads one local file (picked, or the video just exported from Studio) and attaches it to the post.
+  Future<void> _uploadLocal(XFile file) async {
     setState(() => _uploadProgress = 0);
     List<int>? bytes;
     if (kIsWeb) {
@@ -256,14 +328,27 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
     return forbidden.where((w) => w.trim().isNotEmpty && text.contains(w.toLowerCase())).toList();
   }
 
+  /// What was auto-copied into a platform's fields; an untouched copy keeps following the main title/caption.
+  final Map<SocialPlatform, String> _copiedCaption = {};
+  final Map<SocialPlatform, String> _copiedTitle = {};
+
+  /// The platform's own text, or null when it should inherit the main field (empty, or the untouched copy).
+  String? _ownText(TextEditingController? c, String? copied, String main) {
+    final v = c?.text.trim() ?? '';
+    return v.isEmpty || v == main || v == copied ? null : v;
+  }
+
   void _openPlatformCustomization(SocialPlatform platform) {
     final captionCtrl = _variantText.putIfAbsent(platform, TextEditingController.new);
-    if (captionCtrl.text.isEmpty && _content.text.trim().isNotEmpty) {
+    // Refresh an untouched copy so the sheet shows the current main caption/title.
+    if (_ownText(captionCtrl, _copiedCaption[platform], _content.text.trim()) == null && _content.text.trim().isNotEmpty) {
       captionCtrl.text = _content.text.trim();
+      _copiedCaption[platform] = captionCtrl.text;
     }
     final titleCtrl = _variantTitle.putIfAbsent(platform, TextEditingController.new);
-    if (titleCtrl.text.isEmpty && _title.text.trim().isNotEmpty) {
+    if (_ownText(titleCtrl, _copiedTitle[platform], _title.text.trim()) == null && _title.text.trim().isNotEmpty) {
       titleCtrl.text = _title.text.trim();
+      _copiedTitle[platform] = titleCtrl.text;
     }
 
     showModalBottomSheet<void>(
@@ -344,6 +429,10 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
       showError(context, 'Please select at least one social channel to publish to.');
       return;
     }
+    if (_enableEngagement && _engagementDmTemplate.text.trim().isEmpty) {
+      showError(context, 'Write the direct message the funnel sends (put your link inside it), or turn the funnel off.');
+      return;
+    }
 
     setState(() => _saving = true);
     final project = widget.project;
@@ -366,21 +455,20 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         for (final p in _platforms)
           PostVariant(
             platform: p,
-            customContent: (_variantText[p]?.text.trim() == _content.text.trim())
-                ? ''
-                : (_variantText[p]?.text.trim() ?? ''),
+            // '' = use the main caption (also when the platform copy was never edited).
+            customContent: _ownText(_variantText[p], _copiedCaption[p], _content.text.trim()) ?? '',
             firstComment: metadata['firstComment'] as String?,
             platformMeta: p == SocialPlatform.reddit
                 ? compact({
                     'publishingMode': 'user_assisted',
                     'subreddit': _redditSubreddit.text.trim().replaceFirst(RegExp(r'^/?r/'), ''),
-                    'title': _variantTitle[p]?.text.trim().isNotEmpty ?? false
+                    'title': _ownText(_variantTitle[p], _copiedTitle[p], _title.text.trim()) != null
                         ? _variantTitle[p]!.text.trim()
                         : (_title.text.trim().isNotEmpty ? _title.text.trim() : null),
                   })
                 : p == SocialPlatform.youtube
                     ? compact({
-                        'title': _variantTitle[p]?.text.trim().isNotEmpty ?? false
+                        'title': _ownText(_variantTitle[p], _copiedTitle[p], _title.text.trim()) != null
                             ? _variantTitle[p]!.text.trim()
                             : (_title.text.trim().isNotEmpty ? _title.text.trim() : null),
                         'visibility': _visibility,
@@ -406,6 +494,9 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
     showMutation(context, outcome, _p == null ? 'Post created' : 'Post saved');
     if (project != null) ref.refreshProjectData(project.id);
     if (_p != null) {
+      final funnelError = await _syncFunnel(_p.id, project?.id);
+      if (!mounted) return;
+      if (funnelError != null) showError(context, 'Post saved, but the comment automation was not: ${errorText(funnelError)}');
       ref.refreshPost(_p.id, projectId: project?.id);
       context.pop();
       return;
@@ -414,26 +505,11 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
     final created = jMapOrNull(outcome.data?['post']);
     final id = _p?.id ?? (created == null ? null : jStr(created['id']));
 
-    // Save Auto-DM & Comment Funnel Rule if enabled
-    if (_enableEngagement && id != null) {
-      final titleStr = _title.text.trim();
-      final contentStr = _content.text.trim();
-      final postLabel = titleStr.isNotEmpty ? titleStr : (contentStr.length > 20 ? contentStr.substring(0, 20) : contentStr);
-      try {
-        await api.createEngagementRule({
-          'name': 'Auto-DM: $postLabel',
-          'projectId': project?.id,
-          'postId': id,
-          'triggerType': 'comment_keyword',
-          'triggerKeywords': _engagementKeyword.text.trim().isNotEmpty ? [_engagementKeyword.text.trim()] : [],
-          'matchMode': 'contains',
-          'actionAutoLike': _engagementAutoLike,
-          'actionSendDm': true,
-          'actionDmTemplate': _engagementDmTemplate.text.trim(),
-          'actionReplyComment': _engagementCommentReply.text.trim().isNotEmpty,
-          'actionCommentReplyTemplate': _engagementCommentReply.text.trim(),
-        });
-      } catch (_) {}
+    if (id != null) {
+      final funnelError = await _syncFunnel(id, project?.id);
+      if (mounted && funnelError != null) {
+        showError(context, 'Post created, but the comment automation was not: ${errorText(funnelError)}. Open the post to try again.');
+      }
     }
 
     ref.invalidate(projectPostsProvider);
@@ -660,10 +736,8 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                         platform: p,
                         isSelected: _platforms.contains(p),
                         account: accounts.where((a) => a.platform == p).firstOrNull,
-                        hasCustomOverride: (_variantText[p]?.text.trim().isNotEmpty == true &&
-                                _variantText[p]?.text.trim() != _content.text.trim()) ||
-                            (_variantTitle[p]?.text.trim().isNotEmpty == true &&
-                                _variantTitle[p]?.text.trim() != _title.text.trim()),
+                        hasCustomOverride: _ownText(_variantText[p], _copiedCaption[p], _content.text.trim()) != null ||
+                            _ownText(_variantTitle[p], _copiedTitle[p], _title.text.trim()) != null,
                         onToggle: () {
                           setState(() => _platforms.add(p));
                           _openPlatformCustomization(p);
@@ -823,8 +897,8 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                         TextField(
                           controller: _engagementKeyword,
                           decoration: fieldDecoration(
-                            'Trigger Keyword (optional)',
-                            hint: 'e.g. GROWTH, GUIDE, SEND (leave empty to reply to every comment)',
+                            'Trigger keywords (optional)',
+                            hint: 'e.g. GUIDE, SEND. Leave empty to answer every comment',
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -833,8 +907,8 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                         TextField(
                           controller: _engagementCommentReply,
                           decoration: fieldDecoration(
-                            'Public Comment Reply',
-                            hint: 'e.g. Check your DMs! Sent you the full access link 🚀',
+                            'Comment reply (optional)',
+                            hint: 'Posted under the comment, e.g. Sent it to your DMs!',
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -845,8 +919,8 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                           minLines: 2,
                           maxLines: 4,
                           decoration: fieldDecoration(
-                            'Direct Message (DM) Template',
-                            hint: 'Hey {name}! Here is your download link: https://180workspace.com/resource 🚀',
+                            'Direct message *',
+                            hint: 'Hey {name}! Here is the guide: https://your-site.com/guide',
                           ),
                         ),
                         const SizedBox(height: 8),

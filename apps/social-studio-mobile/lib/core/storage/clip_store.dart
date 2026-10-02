@@ -49,6 +49,18 @@ class ClipStore {
     }
   }
 
+  /// Deletes [path] only when it is a take inside the clip store (never a gallery or user-picked file).
+  Future<bool> deleteIfOwned(String? path) async {
+    if (kIsWeb || path == null || path.isEmpty) return false;
+    final root = '${(await _baseDir()).path}/clips/';
+    String norm(String p) => p.replaceAll(r'\', '/');
+    if (!norm(path).startsWith(norm(root))) return false;
+    final f = File(path);
+    if (!await f.exists()) return false;
+    await f.delete();
+    return true;
+  }
+
   /// For takes saved before the clip store existed: if [path] still lives in the temporary (cache) directory and
   /// the file is there, moves it into the store and returns the new path. Otherwise returns null.
   Future<String?> rescueIfTemporary(String? path, {String? projectId}) async {

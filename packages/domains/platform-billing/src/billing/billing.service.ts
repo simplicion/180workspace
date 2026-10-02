@@ -105,7 +105,7 @@ export class BillingService {
     static async initiateMandateOrder(planId: string) {
         const settings = await this.getPlatformSettingsInstance();
         const config = settings.paymentConfig as any || {};
-        const providerName = config.activeProvider || 'razorpay';
+        const providerName = config.activeProvider || '180pay';
 
         const plan = await prisma.plan.findUnique({ where: { id: planId } });
         if (!plan || !plan.isActive) throw new Error('Plan not found or inactive');
@@ -144,7 +144,7 @@ export class BillingService {
 
         const settings = await this.getPlatformSettingsInstance();
         const config = settings.paymentConfig as any || {};
-        const providerName = config.activeProvider || 'razorpay';
+        const providerName = config.activeProvider || '180pay';
 
         const plan = await prisma.plan.findUnique({ where: { id: planId } });
         if (!plan) throw new Error('Plan not found');
@@ -220,7 +220,7 @@ export class BillingService {
 
         // Rely on Payment Service Abstractor
         const transaction = await PaymentService.chargeRecurring(
-            subscription.provider || 'razorpay',
+            subscription.provider || '180pay',
             subscription.providerSubscriptionId,
             amountInPaise,
             plan.currency || 'INR',
@@ -374,7 +374,7 @@ export class BillingService {
 
         const settings = await this.getPlatformSettingsInstance();
         const config = settings.paymentConfig as any || {};
-        const defaultProvider = config.activeProvider || 'razorpay';
+        const defaultProvider = config.activeProvider || '180pay';
         const providerName = providerOverride || defaultProvider;
 
         let finalAmount = plan.price;
@@ -672,15 +672,15 @@ export class BillingService {
         return { discountAmount, finalAmount: Math.max(0, originalAmount - discountAmount), coupon };
     }
 
-    // â”€â”€â”€ Legacy Mapping
-    static async processPayment({ planId, razorpayOrderId, razorpayPaymentId, razorpaySignature, couponCode, companyId }: any) {
+    // Legacy Mapping
+    static async processPayment({ planId, orderId, paymentId, signature, razorpayOrderId, razorpayPaymentId, razorpaySignature, couponCode, companyId }: any) {
         return this.activateManualPlan({
             planId,
-            orderId: razorpayOrderId,
-            paymentId: razorpayPaymentId,
-            signature: razorpaySignature,
+            orderId: orderId || razorpayOrderId,
+            paymentId: paymentId || razorpayPaymentId,
+            signature: signature || razorpaySignature,
             couponCode,
-            providerOverride: 'razorpay',
+            providerOverride: '180pay',
             companyId
         });
     }
@@ -791,7 +791,7 @@ export class BillingService {
         // Save the processed webhook to prevent double processing
         if (eventId) {
             await prisma.processedWebhook.create({
-                data: { eventId, provider: 'razorpay' }
+                data: { eventId, provider: '180pay' }
             });
         }
 
