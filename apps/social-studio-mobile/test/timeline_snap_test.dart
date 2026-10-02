@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:social_studio_mobile/core/native_engine/edit_ir.dart';
 import 'package:social_studio_mobile/features/studio/timeline_ops.dart';
 
 void main() {
@@ -41,5 +42,35 @@ void main() {
     expect(out.clips[2].sourceStartMs, 4000);
     expect(out.zooms.single.startMs, 9000, reason: 'later items move by the hold');
     expect(out.sources.any((s) => s.assetId == 'still_1'), isTrue);
+  });
+
+  test('crossfadeAt mirrors the renderer: pre-roll of the incoming clip, else post-roll of the outgoing one', () {
+    var ir = TimelineOps.initial(projectId: 'p', durationMs: 10000, width: 1080, height: 1920);
+    ir = TimelineOps.split(ir, 4000); // a: 0-4000 (src 0-4000), b: 4000-10000 (src 4000-10000)
+    ir = TimelineOps.setTransition(ir, EditIrTransition(type: 'CROSSFADE', durationMs: 1000), index: 1);
+    expect(TimelineOps.crossfadeAt(ir, 2900), isNull);
+    final mid = TimelineOps.crossfadeAt(ir, 3500)!;
+    expect(mid.clipIndex, 1);
+    expect(mid.sourceMs, 3500); // b's footage before its in-point, in step with the timeline
+    expect(mid.opacity, closeTo(0.5, 1e-9));
+    expect(TimelineOps.crossfadeAt(ir, 4000), isNull);
+  });
+
+  test('queued processing round-trips, a processed copy takes the clip slot in place, and the flag clears', () {
+    var ir = TimelineOps.initial(projectId: 'p', durationMs: 10000, width: 1080, height: 1920);
+    ir = TimelineOps.split(ir, 4000);
+    ir = MobileEditIr.fromJson({
+      ...ir.toJson(),
+      'clips': [for (final c in ir.toJson()['clips'] as List) {...(c as Map<String, dynamic>), if (c['timelineStartMs'] == 4000) 'process': 'stabilize'}],
+    });
+    expect(ir.clips[1].process, 'stabilize');
+    expect(MobileEditIr.fromJson(ir.toJson()).clips[1].process, 'stabilize');
+    final swapped = TimelineOps.replaceClipSource(ir, 1, assetId: 'stab_1', durationMs: 6000, width: 1080, height: 1920);
+    expect(swapped.clips[1].assetId, 'stab_1');
+    expect([swapped.clips[1].sourceStartMs, swapped.clips[1].sourceEndMs], [0, 6000]);
+    expect(swapped.clips[1].timelineStartMs, 4000);
+    expect(swapped.durationMs, 10000);
+    expect(swapped.clips[1].process, isNull, reason: 'the processed copy is done');
+    expect(TimelineOps.clearClipProcess(ir, 1).clips[1].process, isNull);
   });
 }

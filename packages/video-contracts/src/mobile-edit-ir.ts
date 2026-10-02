@@ -1,11 +1,11 @@
 import { z } from "zod";
 import {
   EditIR, VideoClip, CaptionSegment, VIDEO_EFFECT_TYPES,
-  TEXT_ENTER_TYPES, TEXT_EXIT_TYPES, TEXT_LOOP_TYPES, TextEnterSchema, TextExitSchema, TextLoopSchema, OverlayLayerSchema, ChromaKeySchema,
+  TEXT_ENTER_TYPES, TEXT_EXIT_TYPES, TEXT_LOOP_TYPES, TextEnterSchema, TextExitSchema, TextLoopSchema, OverlayLayerSchema, ChromaKeySchema, LayerMaskSchema,
 } from "./edit-ir.schema";
 import { RationalTimeMath } from "./time";
 import { ORIGINAL_AUDIO_TRACK_ID } from "./creative-plan.schema";
-import { MobileWatermarkSchema } from "./director-context";
+import { MobileWatermarkSchema, MobileWatermark } from "./director-context";
 
 /**
  * MobileEditIR ("mobile-editir/1") — the millisecond, renderer-oriented projection of the
@@ -64,6 +64,10 @@ export const MobileClipSchema = z.object({
   /** Fade of the clip's own sound at its start / end (added 2026-10, editor E2.2). Absent = 0. */
   audioFadeInMs: ms.optional(),
   audioFadeOutMs: ms.optional(),
+  /** Reduce background noise on the clip's own sound (added 2026-10, editor E3). */
+  voiceCleanup: z.boolean().optional(),
+  /** On-device processing still to run (set by the AI Director; the phone clears it). */
+  process: z.enum(["reverse", "stabilize"]).optional(),
 });
 
 export const MobileMediaSourceSchema = z.discriminatedUnion("kind", [
@@ -88,6 +92,9 @@ export const MobileOverlaySchema = z.object({
   layer: OverlayLayerSchema.optional(),
   /** Green / blue screen key on a layer (added 2026-10, editor E2.3). */
   chromaKey: ChromaKeySchema.optional(),
+  mask: LayerMaskSchema.optional(),
+  /** On-device processing still to run (set by the AI Director; the phone clears it). */
+  process: z.enum(["remove_background"]).optional(),
 });
 
 /** Timeline effect (optional `effects`, added 2026-09); ids from VIDEO_EFFECT_TYPES. Older clients ignore it. */
@@ -285,6 +292,14 @@ export const MobileMediaDescriptorSchema = z.object({
   scenesMs: z.array(ms).max(20000).optional(),
   /** On-device OCR (on-screen text) per source range. Untrusted: fenced as data in prompts. */
   ocr: z.array(z.object({ startMs: ms, endMs: ms, text: z.string().max(500) })).max(2000).optional(),
+  /**
+   * On-device scene labels (ML Kit image labeling, offline): what each source range shows ("laptop", "food").
+   * Words only, never pixels. Untrusted client data: sanitised before it reaches a prompt.
+   */
+  labels: z
+    .array(z.object({ startMs: ms, endMs: ms, labels: z.array(z.string().max(40)).max(10) }))
+    .max(500)
+    .optional(),
   /** Loudness of the clip's own audio (EBU R128 integrated LUFS, true peak dBTP, % of clipped samples). */
   loudness: z
     .object({
@@ -505,6 +520,8 @@ export interface MobileProjectionInput {
   faceCenter?: { x: number; y: number } | null;
   /** Credit line per SFX clip id (canonical clips have no credit field). */
   sfxCredits?: Record<string, string>;
+  /** Optional brand watermark explicitly provided or passed down. */
+  watermark?: MobileWatermark | null;
 }
 
 /**
@@ -588,6 +605,8 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
       ...(t.flipH ? { flipH: true } : {}),
       ...(c.audioFadeInMs ? { audioFadeInMs: c.audioFadeInMs } : {}),
       ...(c.audioFadeOutMs ? { audioFadeOutMs: c.audioFadeOutMs } : {}),
+      ...(c.voiceCleanup ? { voiceCleanup: true } : {}),
+      ...(c.process === "reverse" || c.process === "stabilize" ? { process: c.process } : {}),
     };
   });
   const durationMs = cursor;
@@ -619,6 +638,8 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
         ...(c.mediaType === "image" ? { mediaType: "image" as const } : {}),
         ...(c.layer ? { layer: c.layer } : {}),
         ...(c.chromaKey ? { chromaKey: c.chromaKey } : {}),
+        ...(c.mask ? { mask: c.mask } : {}),
+        ...(c.process === "remove_background" ? { process: c.process } : {}),
       });
     }
   }
@@ -781,6 +802,22 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
     .map(([s, e]) => [clampT(s), clampT(e)] as [number, number])
     .filter(([s, e]) => e > s);
 
+  const rawWm = input.watermark ?? (editIR.meta as any).watermark;
+  let watermark: MobileEditIR["watermark"];
+  if (rawWm && rawWm.imageUrl) {
+    watermark = {
+      imageUrl: rawWm.imageUrl,
+      position: rawWm.position ?? "top_right",
+      opacityPct: rawWm.opacityPct ?? 85,
+      widthFraction: rawWm.widthFraction ?? 0.14,
+      ...(rawWm.localPath ? { localPath: rawWm.localPath } : {}),
+      ...(rawWm.x !== undefined ? { x: rawWm.x } : {}),
+      ...(rawWm.y !== undefined ? { y: rawWm.y } : {}),
+      ...(rawWm.width !== undefined ? { width: rawWm.width } : {}),
+      ...(rawWm.height !== undefined ? { height: rawWm.height } : {}),
+    };
+  }
+
   const background = editIR.meta.background && HEX_RE.test(editIR.meta.background) ? editIR.meta.background.toUpperCase() : "#000000";
   const mobile: MobileEditIR = {
     schemaVersion: "mobile-editir/1",
@@ -794,6 +831,7 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
     zooms,
     ...(effects.length > 0 ? { effects } : {}),
     audio: { originalTrack: { volumeDb: originalVolumeDb }, music, speechRangesMs: speech, ...(sfx.length ? { sfx: sfx.sort((a, b) => a.timelineStartMs - b.timelineStartMs) } : {}), ...(voiceovers.length ? { voiceovers: voiceovers.sort((a, b) => a.timelineStartMs - b.timelineStartMs) } : {}) },
+    ...(watermark ? { watermark } : {}),
   };
   return { editIR: MobileEditIRSchema.parse(mobile), warnings: Array.from(new Set(warnings)) };
 }
@@ -826,6 +864,7 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
       fps,
       totalDuration: S(m.durationMs),
       background: m.canvas.background.toUpperCase(),
+      ...(m.watermark ? { watermark: m.watermark } : {}),
     },
     directorStyle: { preset: "CUSTOM", pacingMultiplier: 1, zoomAggressiveness: 0.5, brollFrequencySeconds: 15 },
     tracks: {
@@ -867,6 +906,8 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
             effects: [],
             ...(c.audioFadeInMs ? { audioFadeInMs: c.audioFadeInMs } : {}),
             ...(c.audioFadeOutMs ? { audioFadeOutMs: c.audioFadeOutMs } : {}),
+            ...(c.voiceCleanup ? { voiceCleanup: true } : {}),
+            ...(c.process ? { process: c.process } : {}),
           })),
         },
         ...(m.overlays.length > 0
@@ -887,6 +928,8 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
                 ...(o.mediaType === "image" ? { mediaType: "image" as const } : {}),
                 ...(o.layer ? { layer: o.layer } : {}),
                 ...(o.chromaKey ? { chromaKey: o.chromaKey } : {}),
+                ...(o.mask ? { mask: o.mask } : {}),
+                ...(o.process ? { process: o.process } : {}),
                 ...(o.fit && o.fit !== "cover" ? { fit: o.fit } : {}),
               })),
             }]

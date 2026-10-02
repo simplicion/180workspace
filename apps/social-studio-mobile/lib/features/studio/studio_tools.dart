@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/media/asset_cache.dart';
 import '../../core/native_engine/edit_ir.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -29,6 +30,7 @@ enum StudioTool {
   delete('Delete', Icons.delete_outline_rounded),
   duplicate('Duplicate', Icons.copy_all_rounded),
   freeze('Freeze', Icons.pause_circle_outline_rounded),
+  stabilize('Stabilise', Icons.video_stable_rounded),
   order('Reorder', Icons.swap_horiz_rounded),
   speed('Speed', Icons.speed_rounded),
   volume('Volume', Icons.volume_up_rounded),
@@ -78,6 +80,7 @@ Future<void> showStudioTool(BuildContext context, StudioTool tool, StudioControl
           StudioTool.delete => _DeleteSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.duplicate => _DuplicateSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.freeze => _FreezeSheet(c: c),
+          StudioTool.stabilize => _StabilizeSheet(c: c, index: clipIndex),
           StudioTool.order => _OrderSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.speed => _SpeedSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.volume => _VolumeSheet(c: c, index: clipIndex, onEdit: onEdit),
@@ -211,6 +214,53 @@ class _DuplicateSheet extends StatelessWidget {
       ),
     ]);
   }
+}
+
+/// Stabilise: shaky handheld footage is steadied on the phone (slight zoom hides the moved edges).
+class _StabilizeSheet extends StatefulWidget {
+  const _StabilizeSheet({required this.c, required this.index});
+  final StudioController c;
+  final int index;
+
+  @override
+  State<_StabilizeSheet> createState() => _StabilizeSheetState();
+}
+
+class _StabilizeSheetState extends State<_StabilizeSheet> {
+  double strength = 1;
+  bool busy = false;
+
+  Future<void> _go() async {
+    setState(() => busy = true);
+    try {
+      await widget.c.stabilizeClip(widget.index, strength: strength);
+      if (!mounted) return;
+      _close(context);
+      showSuccess(context, 'Clip ${widget.index + 1} stabilised');
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _Title('Stabilise clip ${widget.index + 1}', subtitle: 'Smooths out hand shake. The picture is zoomed in slightly to hide the moving edges.'),
+        Wrap(spacing: 8, children: [
+          for (final (label, s) in const [('Light', 0.5), ('Recommended', 1.0), ('Smoothest', 2.0)])
+            ChoiceChip(label: Text(label), selected: strength == s, onSelected: busy ? null : (_) => setState(() => strength = s)),
+        ]),
+        SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: FilledButton.icon(
+            onPressed: busy ? null : _go,
+            icon: Icon(Icons.video_stable_rounded),
+            label: Text(busy ? 'Stabilising on this phone…' : 'Stabilise'),
+          ),
+        ),
+      ]);
 }
 
 /// Freeze frame: holds the exact frame under the playhead; everything after moves later.
@@ -359,6 +409,7 @@ class _SpeedSheet extends StatefulWidget {
 class _SpeedSheetState extends State<_SpeedSheet> {
   late double speed = widget.c.ir!.clips[widget.index].speed;
   bool all = false;
+  bool busy = false;
 
   @override
   Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -376,6 +427,40 @@ class _SpeedSheetState extends State<_SpeedSheet> {
           },
           child: Text('Set ${speed.toStringAsFixed(2)}x'),
         ),
+        SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: busy
+              ? null
+              : () async {
+                  setState(() => busy = true);
+                  try {
+                    await widget.c.reverseClip(widget.index);
+                    if (context.mounted) {
+                      _close(context);
+                      showSuccess(context, 'Clip ${widget.index + 1} now plays backwards');
+                    }
+                  } catch (e) {
+                    if (context.mounted) showError(context, e);
+                  } finally {
+                    if (mounted) setState(() => busy = false);
+                  }
+                },
+          icon: Icon(Icons.fast_rewind_rounded),
+          label: Text(busy ? 'Reversing on this phone… (up to a minute)' : 'Play this clip backwards'),
+        ),
+        SizedBox(height: 12),
+        Text('Speed ramp (this clip)', style: Theme.of(context).textTheme.labelMedium),
+        SizedBox(height: 6),
+        Wrap(spacing: 8, runSpacing: 6, children: [
+          for (final (key, label) in const [('montage', 'Montage'), ('hero', 'Hero slow-mo'), ('bullet', 'Bullet'), ('flash_in', 'Flash in'), ('flash_out', 'Flash out')])
+            ActionChip(
+              label: Text(label),
+              onPressed: () {
+                _close(context);
+                widget.onEdit((ir) => TimelineOps.speedRamp(ir, widget.index, key), done: 'Speed ramp: $label');
+              },
+            ),
+        ]),
       ]);
 }
 
@@ -394,6 +479,7 @@ class _VolumeSheetState extends State<_VolumeSheet> {
   late double masterDb = widget.c.ir!.audio.originalVolumeDb.clamp(-60, 12);
   late double fadeIn = widget.c.ir!.clips[widget.index].audioFadeInMs / 1000;
   late double fadeOut = widget.c.ir!.clips[widget.index].audioFadeOutMs / 1000;
+  late bool cleanup = widget.c.ir!.clips[widget.index].voiceCleanup;
   bool all = false;
 
   String _fmt(double db) => db <= -60 ? 'Muted' : '${db >= 0 ? '+' : ''}${db.toStringAsFixed(0)} dB';
@@ -410,6 +496,13 @@ class _VolumeSheetState extends State<_VolumeSheet> {
         Slider(value: fadeIn.clamp(0, 3), min: 0, max: 3, divisions: 30, onChanged: (v) => setState(() => fadeIn = v)),
         Text('Fade out: ${fadeOut == 0 ? 'Off' : '${fadeOut.toStringAsFixed(1)} s'}'),
         Slider(value: fadeOut.clamp(0, 3), min: 0, max: 3, divisions: 30, onChanged: (v) => setState(() => fadeOut = v)),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: cleanup,
+          onChanged: (v) => setState(() => cleanup = v),
+          title: Text('Reduce background noise'),
+          subtitle: Text('Cuts rumble, hiss and hum between words. Applied in the exported video.'),
+        ),
         Row(children: [
           TextButton(onPressed: () => setState(() => clipDb = -60), child: Text('Mute clip')),
           Spacer(),
@@ -417,10 +510,14 @@ class _VolumeSheetState extends State<_VolumeSheet> {
             onPressed: () {
               _close(context);
               final index = all ? null : widget.index;
-              widget.onEdit((ir) => TimelineOps.setClipAudioFades(
-                    TimelineOps.setOriginalVolume(TimelineOps.setClipVolume(ir, clipDb, index: index), masterDb),
-                    fadeInMs: (fadeIn * 1000).round(),
-                    fadeOutMs: (fadeOut * 1000).round(),
+              widget.onEdit((ir) => TimelineOps.setVoiceCleanup(
+                    TimelineOps.setClipAudioFades(
+                      TimelineOps.setOriginalVolume(TimelineOps.setClipVolume(ir, clipDb, index: index), masterDb),
+                      fadeInMs: (fadeIn * 1000).round(),
+                      fadeOutMs: (fadeOut * 1000).round(),
+                      index: index,
+                    ),
+                    cleanup,
                     index: index,
                   ));
             },
@@ -636,12 +733,22 @@ class _VoiceoverSheet extends StatefulWidget {
 }
 
 class _VoiceoverSheetState extends State<_VoiceoverSheet> {
+  final _narration = TextEditingController();
   Timer? _tick;
   DateTime? _since;
   bool _busy = false;
 
+  Future<void> _speak() => _run(() async {
+        await widget.c.addNarration(_narration.text);
+        if (mounted) {
+          _close(context);
+          showSuccess(context, 'AI voice added');
+        }
+      });
+
   @override
   void dispose() {
+    _narration.dispose();
     _tick?.cancel();
     // Closing the sheet mid-recording discards it rather than leaving the microphone on.
     if (widget.c.recordingVoiceover) unawaited(widget.c.cancelVoiceover());
@@ -701,6 +808,20 @@ class _VoiceoverSheetState extends State<_VoiceoverSheet> {
       ),
       if (recording)
         TextButton(onPressed: _busy ? null : () => _run(c.cancelVoiceover), child: Text('Discard')),
+      if (!recording) ...[
+        Divider(height: 28),
+        Text("Or type it and let the phone's AI voice read it", style: TextStyle(color: AppTheme.textSecondary)),
+        SizedBox(height: 8),
+        TextField(controller: _narration, minLines: 2, maxLines: 4, maxLength: 400, decoration: fieldDecoration('Narration text')),
+        SizedBox(
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: _busy ? null : _speak,
+            icon: Icon(Icons.record_voice_over_rounded),
+            label: Text(_busy ? 'Generating voice…' : 'Generate AI voice'),
+          ),
+        ),
+      ],
       if (!recording && count > 0)
         Padding(
           padding: EdgeInsets.only(top: 8),
@@ -725,6 +846,57 @@ class _StickerSheet extends StatefulWidget {
 
 class _StickerSheetState extends State<_StickerSheet> {
   String? _busy;
+  final _q = TextEditingController();
+  List<StockPhotoResult>? _found;
+  Object? _error;
+  bool _searching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _search(); // popular 3D stickers
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search([String? q]) async {
+    if (q != null) _q.text = q;
+    setState(() {
+      _searching = true;
+      _error = null;
+    });
+    try {
+      final r = await widget.c.director.searchStickers(_q.text.trim());
+      if (mounted) setState(() => _found = r);
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  /// 3D sticker: downloaded first (progress on the tile), then placed like any sticker.
+  Future<void> _add3d(StockPhotoResult s) async {
+    setState(() => _busy = s.url);
+    try {
+      await AssetCache.instance.ensure(s.url, kind: AssetKind.image);
+      if (!mounted) return;
+      if (s.attribution != null) widget.c.mediaCredits[s.url] = s.attribution!;
+      _close(context);
+      widget.onEdit(
+        (ir) => TimelineOps.addSticker(ir, {'kind': 'url', 'url': s.url, 'query': s.title}, startMs: widget.c.playheadMs),
+        done: 'Sticker added. Drag it on the preview to move it.',
+      );
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
 
   Future<void> _add(String emoji) async {
     setState(() => _busy = emoji);
@@ -746,6 +918,63 @@ class _StickerSheetState extends State<_StickerSheet> {
   @override
   Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _Title('Stickers', subtitle: 'Added at ${timecode(widget.c.playheadMs)} for 2.5 s. Resize, rotate and animate it in the B-roll inspector.'),
+        Text('3D stickers', style: Theme.of(context).textTheme.labelLarge),
+        SizedBox(height: 6),
+        TextField(
+          controller: _q,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _search(),
+          decoration: fieldDecoration('Search 3D stickers', hint: 'fire, rocket, money, trophy…').copyWith(
+            suffixIcon: IconButton(tooltip: 'Search', icon: Icon(Icons.search_rounded), onPressed: () => _search()),
+          ),
+        ),
+        SizedBox(height: 8),
+        if (_searching) SizedBox(height: 120, child: UniversalSkeleton(type: SkeletonType.projects)),
+        if (_error != null && !_searching) ErrorView(error: _error!, compact: true, onRetry: _search),
+        if (!_searching && _error == null && (_found?.isEmpty ?? false))
+          EmptyView(
+            icon: Icons.emoji_emotions_outlined,
+            title: 'No 3D stickers found',
+            message: 'Try one simple word, or use an emoji below.',
+            actionLabel: 'Show popular',
+            onAction: () => _search(''),
+          ),
+        if (!_searching && (_found?.isNotEmpty ?? false))
+          SizedBox(
+            height: 132,
+            child: ListView(scrollDirection: Axis.horizontal, children: [
+              for (final s in _found!)
+                Padding(
+                  padding: EdgeInsets.only(right: 6),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: _busy == null ? () => _add3d(s) : null,
+                    child: SizedBox(
+                      width: 96,
+                      child: Column(children: [
+                        SizedBox(
+                          width: 88,
+                          height: 88,
+                          child: Stack(fit: StackFit.expand, children: [
+                            Opacity(
+                              opacity: _busy == s.url ? 0.4 : 1,
+                              child: Image.network(s.thumbnailUrl, cacheWidth: 200, fit: BoxFit.contain,
+                                  errorBuilder: (_, _, _) => Icon(Icons.broken_image_rounded, color: AppTheme.textMuted)),
+                            ),
+                            Positioned(top: 0, right: 0, child: AssetDownloadBadge(url: s.url)),
+                          ]),
+                        ),
+                        SizedBox(height: 4),
+                        Text(s.title, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11)),
+                      ]),
+                    ),
+                  ),
+                ),
+            ]),
+          ),
+        SizedBox(height: 12),
+        Text('Emoji', style: Theme.of(context).textTheme.labelLarge),
+        SizedBox(height: 6),
         Wrap(spacing: 4, runSpacing: 4, children: [
           for (final e in stickerEmojis)
             SizedBox(
@@ -1379,6 +1608,15 @@ class _MusicSheetState extends ConsumerState<_MusicSheet> {
   Future<void> _applyTrack(String url, String title, String? credit) async {
     await _previewPlayer?.dispose();
     _previewPlayer = null;
+    // Online tracks are downloaded first (progress shown on the row), so preview and export use the same file.
+    if (url.startsWith('http')) {
+      try {
+        await AssetCache.instance.ensure(url, kind: AssetKind.audio);
+      } catch (e) {
+        if (mounted) showError(context, e);
+        return;
+      }
+    }
     if (credit != null && credit.isNotEmpty) {
       widget.c.mediaCredits[url] = credit;
     }
@@ -1522,11 +1760,15 @@ class _MusicSheetState extends ConsumerState<_MusicSheet> {
                           ],
                         ],
                       ),
-                      trailing: FilledButton.tonal(
-                        style: FilledButton.styleFrom(padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6)),
-                        onPressed: () => _applyTrack(t.url, t.title, t.attribution),
-                        child: Text('Use', style: TextStyle(fontSize: 12)),
-                      ),
+                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                        AssetDownloadBadge(url: t.url),
+                        SizedBox(width: 6),
+                        FilledButton.tonal(
+                          style: FilledButton.styleFrom(padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6)),
+                          onPressed: () => _applyTrack(t.url, t.title, t.attribution),
+                          child: Text('Use', style: TextStyle(fontSize: 12)),
+                        ),
+                      ]),
                     );
                   },
                 ),
@@ -1693,6 +1935,18 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
     );
   }
 
+  Future<void> _downloadThenSelect(StockVideoResult v) async {
+    if (!AssetCache.instance.isCached(v.downloadUrl)) {
+      try {
+        await AssetCache.instance.ensure(v.downloadUrl, kind: AssetKind.video);
+      } catch (e) {
+        if (mounted) showError(context, e);
+        return;
+      }
+    }
+    if (mounted) _onSelectClip(v);
+  }
+
   void _onSelectClip(StockVideoResult v) {
     showModalBottomSheet<void>(
       context: context,
@@ -1732,7 +1986,8 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                   Navigator.pop(ctx);
                   _close(context);
                   try {
-                    await widget.c.addVideoClip(v.downloadUrl, label: '${v.provider}: ${v.author ?? v.id}');
+                    // Already downloaded: the main track uses the phone's copy (no second download at export).
+                    await widget.c.addVideoClip(AssetCache.instance.cachedPath(v.downloadUrl) ?? v.downloadUrl, label: '${v.provider}: ${v.author ?? v.id}');
                   } catch (e) {
                     messenger.showSnackBar(SnackBar(content: Text('This video could not be added: ${errorText(e)}'), backgroundColor: AppTheme.error));
                   }
@@ -1878,7 +2133,8 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                     final v = _results![i];
                     return InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap: () => _onSelectClip(v),
+                      // Download first (progress on the tile), then choose where it goes.
+                      onTap: () => _downloadThenSelect(v),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: Stack(
@@ -1918,6 +2174,8 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                                 child: Text(v.provider.toUpperCase(), style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
                               ),
                             ),
+                            // Download state: cloud = not on the phone yet, ring = downloading, tick = ready.
+                            Positioned(top: 4, right: 4, child: AssetDownloadBadge(url: v.downloadUrl)),
                             // Duration
                             if (v.durationSec != null)
                               Positioned(
@@ -2381,7 +2639,14 @@ class _SfxTabState extends ConsumerState<_SfxTab> {
     }
   }
 
-  void _add(StockAudioResult r) {
+  Future<void> _add(StockAudioResult r) async {
+    try {
+      await AssetCache.instance.ensure(r.url, kind: AssetKind.audio);
+    } catch (e) {
+      if (mounted) showError(context, e);
+      return;
+    }
+    if (!mounted) return;
     if (r.attribution != null && r.attribution!.isNotEmpty) widget.c.mediaCredits[r.url] = r.attribution!;
     final ms = r.durationSec == null ? null : (r.durationSec! * 1000).round();
     _close(context);
@@ -2434,7 +2699,10 @@ class _SfxTabState extends ConsumerState<_SfxTab> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            trailing: TextButton(onPressed: () => _add(r), child: Text('Add')),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              AssetDownloadBadge(url: r.url),
+              TextButton(onPressed: () => _add(r), child: Text('Add')),
+            ]),
           ),
     ]);
   }
@@ -2600,7 +2868,14 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
     }
   }
 
-  void _add(String url, String label, String? credit) {
+  Future<void> _add(String url, String label, String? credit) async {
+    try {
+      await AssetCache.instance.ensure(url, kind: AssetKind.image);
+    } catch (e) {
+      if (mounted) showError(context, e);
+      return;
+    }
+    if (!mounted) return;
     if (credit != null && credit.isNotEmpty) widget.c.mediaCredits[url] = credit;
     _close(context);
     widget.onEdit(
@@ -2676,12 +2951,15 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                   borderRadius: BorderRadius.circular(8),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      p.thumbnailUrl, cacheWidth: 360,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (_, child, prog) => prog == null ? child : Container(color: AppTheme.surfaceElevated),
-                      errorBuilder: (_, _, _) => Container(color: AppTheme.surfaceElevated, child: Icon(Icons.broken_image_rounded)),
-                    ),
+                    child: Stack(fit: StackFit.expand, children: [
+                      Image.network(
+                        p.thumbnailUrl, cacheWidth: 360,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (_, child, prog) => prog == null ? child : Container(color: AppTheme.surfaceElevated),
+                        errorBuilder: (_, _, _) => Container(color: AppTheme.surfaceElevated, child: Icon(Icons.broken_image_rounded)),
+                      ),
+                      Positioned(top: 4, right: 4, child: AssetDownloadBadge(url: p.url)),
+                    ]),
                   ),
                 ),
               ),
@@ -2738,3 +3016,28 @@ class _EffectsTabState extends State<_EffectsTab> {
           ),
       ]);
 }
+
+/// Small badge on an online asset tile: cloud (not downloaded), progress ring (downloading), tick (on the phone).
+class AssetDownloadBadge extends StatelessWidget {
+  const AssetDownloadBadge({super.key, required this.url});
+  final String url;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<Map<String, double>>(
+        valueListenable: AssetCache.instance.progress,
+        builder: (context, progress, _) {
+          final p = progress[url];
+          final cached = p == null && AssetCache.instance.isCached(url);
+          return Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), shape: BoxShape.circle),
+            padding: EdgeInsets.all(5),
+            child: p != null
+                ? CircularProgressIndicator(strokeWidth: 2.5, value: p < 0 ? null : p, color: Colors.white)
+                : Icon(cached ? Icons.check_rounded : Icons.download_rounded, size: 16, color: cached ? AppTheme.success : Colors.white),
+          );
+        },
+      );
+}
+

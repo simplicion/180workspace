@@ -353,7 +353,15 @@ class EditIrClip {
     this.flipH = false,
     this.audioFadeInMs = 0,
     this.audioFadeOutMs = 0,
+    this.voiceCleanup = false,
+    this.process,
   });
+
+  /// "Reduce background noise" on this clip's own sound (applied by the export).
+  final bool voiceCleanup;
+
+  /// `reverse` / `stabilize` queued by the AI Director; the phone runs it and swaps in the processed file.
+  final String? process;
 
   final String id;
   final String assetId;
@@ -387,6 +395,8 @@ class EditIrClip {
         flipH: j['flipH'] as bool? ?? false,
         audioFadeInMs: (j['audioFadeInMs'] as num?)?.toInt() ?? 0,
         audioFadeOutMs: (j['audioFadeOutMs'] as num?)?.toInt() ?? 0,
+        voiceCleanup: j['voiceCleanup'] as bool? ?? false,
+        process: j['process'] == 'reverse' || j['process'] == 'stabilize' ? j['process'] as String : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -406,6 +416,8 @@ class EditIrClip {
         if (flipH) 'flipH': true,
         if (audioFadeInMs > 0) 'audioFadeInMs': audioFadeInMs,
         if (audioFadeOutMs > 0) 'audioFadeOutMs': audioFadeOutMs,
+        if (voiceCleanup) 'voiceCleanup': true,
+        'process': ?process,
       };
 }
 
@@ -422,7 +434,15 @@ class EditIrOverlay {
     this.fit = 'cover',
     this.layer,
     this.chromaKey,
+    this.mask,
+    this.process,
   });
+
+  /// `remove_background` queued by the AI Director; the phone cuts the person out and clears it.
+  final String? process;
+
+  /// Circle / rounded-corner shape (layers only).
+  final EditIrMask? mask;
 
   final String id;
   final int timelineStartMs, timelineEndMs, sourceStartMs;
@@ -451,6 +471,9 @@ class EditIrOverlay {
     Map<String, dynamic>? source,
     EditIrChromaKey? chromaKey,
     bool clearChromaKey = false,
+    EditIrMask? mask,
+    bool clearMask = false,
+    bool clearProcess = false,
   }) =>
       EditIrOverlay(
         id: id,
@@ -464,6 +487,8 @@ class EditIrOverlay {
         fit: fit ?? this.fit,
         layer: clearLayer ? null : (layer ?? this.layer),
         chromaKey: clearChromaKey ? null : (chromaKey ?? this.chromaKey),
+        mask: clearMask ? null : (mask ?? this.mask),
+        process: clearProcess ? null : process,
       );
 
   /// `{kind:"url"|"asset"|"stock_query", ...}` — resolve to a local file before rendering.
@@ -488,6 +513,8 @@ class EditIrOverlay {
       fit: j['fit'] == 'contain' ? 'contain' : (legacyFit ?? 'cover'),
       layer: layer,
       chromaKey: EditIrChromaKey.fromJson(j['chromaKey']),
+      mask: EditIrMask.fromJson(j['mask']),
+      process: j['process'] == 'remove_background' ? 'remove_background' : null,
     );
   }
 
@@ -504,6 +531,8 @@ class EditIrOverlay {
         if (isImage) 'mediaType': 'image',
         if (layer != null) 'layer': layer!.toJson(),
         if (chromaKey != null) 'chromaKey': chromaKey!.toJson(),
+        if (mask != null) 'mask': mask!.toJson(),
+        'process': ?process,
       };
 }
 

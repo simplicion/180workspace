@@ -223,6 +223,8 @@ class TimelineOps {
             flipH: c.flipH,
             audioFadeInMs: c.audioFadeInMs,
             audioFadeOutMs: c.audioFadeOutMs,
+            voiceCleanup: c.voiceCleanup,
+            process: c.process,
           );
           t += len;
           return out;
@@ -384,6 +386,25 @@ class TimelineOps {
     return out;
   }
 
+  /// Points the music bed at a resolved file (a search phrase became a real track); everything else is kept.
+  static MobileEditIr setMusicSource(MobileEditIr ir, Map<String, dynamic> source) {
+    final m = ir.audio.music.firstOrNull;
+    if (m == null) return ir;
+    return _withAudio(ir, music: [
+      EditIrMusic(
+        id: m.id,
+        timelineStartMs: m.timelineStartMs,
+        timelineEndMs: m.timelineEndMs,
+        sourceStartMs: m.sourceStartMs,
+        source: source,
+        volumeDb: m.volumeDb,
+        fadeInMs: m.fadeInMs,
+        fadeOutMs: m.fadeOutMs,
+        duck: m.duck,
+      ),
+    ]);
+  }
+
   static EditIrMusic _music(
     EditIrMusic m, {
     int? start,
@@ -461,6 +482,7 @@ class TimelineOps {
     bool? flipH,
     int? audioFadeInMs,
     int? audioFadeOutMs,
+    bool? voiceCleanup,
   }) => EditIrClip(
     id: id ?? c.id,
     assetId: c.assetId,
@@ -477,6 +499,8 @@ class TimelineOps {
     flipH: flipH ?? c.flipH,
     audioFadeInMs: audioFadeInMs ?? c.audioFadeInMs,
     audioFadeOutMs: audioFadeOutMs ?? c.audioFadeOutMs,
+    voiceCleanup: voiceCleanup ?? c.voiceCleanup,
+    process: c.process,
   );
 
   static int clipIndexAt(MobileEditIr ir, int timelineMs) {
@@ -690,6 +714,113 @@ class TimelineOps {
     if (fadeIn > 0) g *= ramp(relMs.toDouble(), 0, fadeIn);
     if (fadeOut > 0) g *= 1 - ramp(relMs.toDouble(), dur - fadeOut, dur);
     return g.clamp(0.0, 1.0);
+  }
+
+  /// Points clip [index] at a processed copy of its footage (reversed / background removed): same timeline slot,
+  /// speed and look; only the file changes. The copy covers exactly the clip's old source range.
+  static MobileEditIr replaceClipSource(MobileEditIr ir, int index, {required String assetId, required int durationMs, required int width, required int height}) {
+    final c = ir.clips[index];
+    final len = math.min(c.sourceEndMs - c.sourceStartMs, durationMs);
+    final sources = [
+      ...ir.sources.where((s) => s.assetId != assetId),
+      EditIrSource(assetId: assetId, durationMs: durationMs, width: width, height: height),
+    ];
+    final clip = EditIrClip(
+      id: c.id,
+      assetId: assetId,
+      sourceStartMs: 0,
+      sourceEndMs: len,
+      timelineStartMs: c.timelineStartMs,
+      timelineEndMs: c.timelineStartMs + (len / c.speed).round(),
+      speed: c.speed,
+      volumeDb: c.volumeDb,
+      crop: c.crop,
+      filter: c.filter,
+      transitionIn: c.transitionIn,
+      // Frames are extracted upright like the original's display; the creator's own rotation still applies.
+      rotationDeg: c.rotationDeg,
+      flipH: c.flipH,
+      audioFadeInMs: c.audioFadeInMs,
+      audioFadeOutMs: c.audioFadeOutMs,
+      voiceCleanup: c.voiceCleanup,
+    );
+    // Same length within a frame: everything else keeps its place.
+    final clips = [...ir.clips]..[index] = clip;
+    return ir.copyWith(sources: sources, clips: _relayout(clips), durationMs: _relayout(clips).last.timelineEndMs);
+  }
+
+  /// The crossfade layer on screen at [tMs], mirroring `crossfades` in the Android renderer: the incoming clip's
+  /// footage from before its in-point fades in during [cut - d, cut]; without such footage the outgoing clip's
+  /// footage after its out-point fades out during [cut, cut + d]. [isStill] tells photo clips apart (always enough
+  /// footage). Null when no crossfade is drawn at [tMs].
+  static ({int clipIndex, int sourceMs, double opacity})? crossfadeAt(MobileEditIr ir, int tMs, {bool Function(String assetId)? isStill}) {
+    for (var i = 1; i < ir.clips.length; i++) {
+      final a = ir.clips[i - 1], b = ir.clips[i];
+      final tr = b.transitionIn;
+      if (tr == null || !(tr.type == 'CROSSFADE' || tr.type == 'DISSOLVE' || !EditIrTransition.types.containsKey(tr.type))) continue;
+      final cut = b.timelineStartMs;
+      final d = math.min(tr.durationMs, math.min(a.timelineEndMs - a.timelineStartMs, b.timelineEndMs - b.timelineStartMs));
+      if (d < 100 || tMs < cut - d || tMs >= cut + d) continue;
+      final bStill = isStill?.call(b.assetId) ?? false;
+      final aStill = isStill?.call(a.assetId) ?? false;
+      final pre = bStill ? d : (b.sourceStartMs / b.speed).floor();
+      final aDur = ir.sources.where((s) => s.assetId == a.assetId).firstOrNull?.durationMs ?? a.sourceEndMs;
+      final post = aStill ? d : ((aDur - a.sourceEndMs) / a.speed).floor();
+      if (pre >= 100) {
+        final w = math.min(d, pre);
+        if (tMs < cut - w || tMs >= cut) continue;
+        final rel = tMs - (cut - w);
+        return (clipIndex: i, sourceMs: bStill ? 0 : b.sourceStartMs - ((w - rel) * b.speed).round(), opacity: rel / w);
+      }
+      if (post >= 100) {
+        final w = math.min(d, post);
+        if (tMs < cut || tMs >= cut + w) continue;
+        final rel = tMs - cut;
+        return (clipIndex: i - 1, sourceMs: aStill ? 0 : a.sourceEndMs + (rel * a.speed).round(), opacity: 1 - rel / w);
+      }
+    }
+    return null;
+  }
+
+  /// Speed-ramp presets: [share of the clip's source, speed] per part (same as SPEED_RAMP_PRESETS in the contract).
+  static const speedRampPresets = <String, List<(double, double)>>{
+    'montage': [(0.33, 2), (0.34, 1), (0.33, 2)],
+    'hero': [(0.35, 1), (0.3, 0.4), (0.35, 1)],
+    'bullet': [(0.4, 1), (0.2, 0.3), (0.4, 2)],
+    'flash_in': [(0.25, 3), (0.75, 1)],
+    'flash_out': [(0.75, 1), (0.25, 3)],
+  };
+
+  /// Splits clip [index] into the preset's parts, each at its own speed (relative to the clip's current speed).
+  static MobileEditIr speedRamp(MobileEditIr ir, int index, String preset) {
+    final shape = speedRampPresets[preset];
+    if (shape == null) throw MediaEngineException('INVALID_EDIT', 'Unknown speed ramp "$preset".');
+    final c = ir.clips[index];
+    final len = c.sourceEndMs - c.sourceStartMs;
+    if (len < shape.length * 400) throw MediaEngineException('INVALID_EDIT', 'This clip is too short for a speed ramp.');
+    final parts = <EditIrClip>[];
+    var at = c.sourceStartMs;
+    for (var i = 0; i < shape.length; i++) {
+      final end = i == shape.length - 1 ? c.sourceEndMs : at + (len * shape[i].$1).round();
+      parts.add(_clip(
+        c,
+        id: i == 0 ? c.id : _id('c'),
+        sourceStartMs: at,
+        sourceEndMs: end,
+        speed: (c.speed * shape[i].$2).clamp(0.25, 4.0),
+        clearTransition: i > 0,
+        audioFadeInMs: i == 0 ? c.audioFadeInMs : 0,
+        audioFadeOutMs: i == shape.length - 1 ? c.audioFadeOutMs : 0,
+      ));
+      at = end;
+    }
+    return _replaceClips(ir, [...ir.clips]..replaceRange(index, index + 1, parts));
+  }
+
+  /// Turns "Reduce background noise" on or off for the clip(s)' own sound.
+  static MobileEditIr setVoiceCleanup(MobileEditIr ir, bool on, {int? index}) {
+    final targets = _targets(ir, index).toSet();
+    return _copy(ir, clips: [for (var i = 0; i < ir.clips.length; i++) targets.contains(i) ? _clip(ir.clips[i], voiceCleanup: on) : ir.clips[i]]);
   }
 
   /// Fades the clip's own sound in / out (0 = off). Each fade is at most half the clip.
@@ -1017,11 +1148,18 @@ class TimelineOps {
     for (final w in words) {
       final s = sourceToTimeline(ir, w.startMs);
       if (s == null) continue;
-      final e = sourceToTimeline(ir, math.max(w.startMs, w.endMs - 1)) ?? s;
+      var e = sourceToTimeline(ir, math.max(w.startMs, w.endMs - 1)) ?? s;
+      // A word that straddles a cut (or a re-ordered clip) ends where its own clip ends.
+      if (e < s || e - s > w.endMs - w.startMs + 50) {
+        final clip = ir.clips[clipIndexAt(ir, s)];
+        e = math.min(clip.timelineEndMs - 1, s + math.max(1, w.endMs - w.startMs));
+      }
       mapped.add(
         EditIrWord(text: w.text, startMs: s, endMs: math.max(e + 1, s + 1)),
       );
     }
+    // Clips can be re-ordered, so source order is not timeline order.
+    mapped.sort((a, b) => a.startMs.compareTo(b.startMs));
     final captions = <EditIrCaption>[];
     var group = <EditIrWord>[];
     void flush() {
@@ -1069,7 +1207,7 @@ class TimelineOps {
     }
     return _copy(
       ir,
-      captions: [...ir.captions.where((c) => c.kind == 'text'), ...captions]
+      captions: [...ir.captions.where((c) => c.kind == 'text'), ...captions.where((c) => c.endMs > c.startMs)]
         ..sort((a, b) => a.startMs.compareTo(b.startMs)),
     );
   }
@@ -1222,6 +1360,19 @@ class TimelineOps {
     return _copy(ir, overlays: [...ir.overlays, o]..sort((a, b) => a.timelineStartMs.compareTo(b.timelineStartMs)));
   }
 
+  static MobileEditIr clearOverlayProcess(MobileEditIr ir, String id) =>
+      _copy(ir, overlays: [for (final o in ir.overlays) o.id == id ? o.copyWith(clearProcess: true) : o]);
+
+  static MobileEditIr clearClipProcess(MobileEditIr ir, int index) {
+    final c = ir.clips[index];
+    final cleared = EditIrClip.fromJson({...c.toJson()}..remove('process'));
+    return _copy(ir, clips: [...ir.clips]..[index] = cleared);
+  }
+
+  /// Replaces an overlay's whole source (a processed copy) — unlike `sourceUpdates`, old keys are not kept.
+  static MobileEditIr replaceOverlaySource(MobileEditIr ir, String id, Map<String, dynamic> source) =>
+      _copy(ir, overlays: [for (final o in ir.overlays) o.id == id ? o.copyWith(source: source) : o]);
+
   static MobileEditIr removeOverlay(MobileEditIr ir, String id) =>
       _copy(ir, overlays: ir.overlays.where((o) => o.id != id).toList());
 
@@ -1238,6 +1389,8 @@ class TimelineOps {
     bool clearLayer = false,
     EditIrChromaKey? chromaKey,
     bool clearChromaKey = false,
+    EditIrMask? mask,
+    bool clearMask = false,
   }) {
     if (!ir.overlays.any((o) => o.id == id)) throw MediaEngineException('INVALID_EDIT', 'That overlay no longer exists.');
     if (opacity != null && (opacity < 0 || opacity > 1)) throw MediaEngineException('INVALID_EDIT', 'Opacity must be between 0 and 100%.');
@@ -1255,6 +1408,9 @@ class TimelineOps {
         chromaKey: chromaKey,
         // A full-screen cutaway replaces the picture, so a key there would show black: keying keeps it a layer.
         clearChromaKey: clearChromaKey || (clearLayer && chromaKey == null),
+        mask: mask,
+        // Shapes apply to floating layers only.
+        clearMask: clearMask || (clearLayer && mask == null),
       );
     }).toList();
     return _copy(ir, overlays: overlays);

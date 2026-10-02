@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/media/asset_cache.dart';
 import 'core/providers.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/push_notifications.dart';
@@ -13,6 +14,8 @@ import 'features/auth/auth_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Shared cache of online media (stock B-roll, music, SFX): indexed once so the editor can use it synchronously.
+  unawaited(AssetCache.instance.init());
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);

@@ -21,6 +21,7 @@ export * from "./sourcing/asset-search.tool";
 export * from "./sourcing/sfx-search.tool";
 export * from "./sourcing/bgm-search.tool";
 export * from "./sourcing/free-media-providers";
+export * from "./sourcing/sticker-library";
 
 // Composition Tools
 export * from "./composition/take-curation.tool";

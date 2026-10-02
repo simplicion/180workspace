@@ -234,6 +234,12 @@ function touchedRanges(op: any, tl: ConstraintTimeline): { ranges: Array<[number
   switch (op.type) {
     case "removeRange":
       return { ranges: [r(op.startSec, op.durationSec)], points: [] };
+    case "processFootage":
+      if (op.action === "remove_background") return { ranges: [], points: [] };
+      {
+        const c = clip(op.targetId);
+        return { ranges: c ? [[c.startSec, c.endSec]] : [], points: [] };
+      }
     case "rippleDelete":
     case "duplicateClip":
     case "replaceClip":
@@ -273,6 +279,9 @@ function touchedRanges(op: any, tl: ConstraintTimeline): { ranges: Array<[number
       return { ranges: [r(op.startSec, op.durationSec)], points: [] };
     case "addSoundEffect":
       return { ranges: [r(op.timelineStartSec, 0.5)], points: [] };
+    case "addNarration":
+      // Estimated spoken length (~2.6 words/s), as the compiler places it.
+      return { ranges: [r(op.timelineStartSec, 0.4 + String(op.text || "").split(/\s+/).filter(Boolean).length / 2.6)], points: [] };
     case "removeItem":
       // By time it touches that moment; by id / "all" the item's span is unknown here, so treat it as the whole video.
       return typeof op.atSec === "number" && !op.id ? { ranges: [], points: [op.atSec] } : { ranges: [[0, tl.durationSec]], points: [] };
@@ -286,6 +295,7 @@ export function constraintViolation(op: CreativeOperation | any, c: ResolvedDire
   for (const track of c.lockedTracks) {
     if (TRACK_OPS[track].includes(op.type)) return `${op.type} would change the locked ${track}`;
     if (op.type === "removeItem" && REMOVE_KIND_TRACK[op.kind as string] === track) return `removeItem would change the locked ${track}`;
+    if (op.type === "processFootage" && op.action === "remove_background" && track === "broll") return `processFootage would change the locked broll`;
     if (track === "music" && op.type === "adjustVolume" && (op.trackId === "music" || tl.musicTrackIds.includes(op.trackId))) {
       return `adjustVolume would change the locked music`;
     }

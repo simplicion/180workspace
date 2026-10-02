@@ -35,7 +35,11 @@ class MediaAnalysis {
     this.silences,
     this.faces,
     this.beatsMs,
+    this.intelligence,
   });
+
+  /// On-device scene cuts, on-screen text, scene labels and loudness (all optional, computed on the phone).
+  final MediaIntelligence? intelligence;
 
   final String assetId;
   final int durationMs;
@@ -63,6 +67,7 @@ class MediaAnalysis {
         'silences': silences?.map((s) => s.toJson()).toList(),
         'faces': faces == null || faces!.isEmpty ? null : faces!.map((f) => f.toJson()).toList(),
         'beatsMs': beatsMs == null || beatsMs!.isEmpty ? null : beatsMs,
+        ...?intelligence?.toJson(),
       });
 }
 
@@ -277,6 +282,22 @@ class AiDirectorService {
 
   /// Free stock photos (Pexels / Pixabay / other free sources) for photo overlays. Errors propagate so the
   /// UI can show them with a retry.
+  /// 3D stickers (Fluent Emoji, MIT) by name; popular picks for an empty query. Reuses the photo result shape.
+  Future<List<StockPhotoResult>> searchStickers(String query) async {
+    final r = await _api.get('/api/v1/media-editor/stock/stickers', query: {'query': query, 'limit': 30});
+    return [
+      for (final s in (r['stickers'] as List?)?.whereType<Map>() ?? const <Map>[])
+        if (jStr(s['url']) case final url? when url.startsWith('https://'))
+          StockPhotoResult(
+            id: jStr(s['id']) ?? url,
+            url: url,
+            thumbnailUrl: jStr(s['previewUrl']) ?? url,
+            title: jStr(s['title']) ?? query,
+            attribution: jStr(s['attribution']),
+          ),
+    ];
+  }
+
   Future<List<StockPhotoResult>> searchStockPhotos(String query, {String orientation = 'portrait'}) async {
     final r = await _api.get('/api/v1/media-editor/stock/unified', query: {
       'query': query,

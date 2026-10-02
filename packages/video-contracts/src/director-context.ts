@@ -90,11 +90,16 @@ export type BrandCaptionPreset = (typeof CAPTION_PRESETS)[number];
 export const MobileWatermarkSchema = z.object({
   /** HTTPS image (PNG with alpha preferred). The client downloads it and passes a local path to the renderer. */
   imageUrl: z.string().url().refine((u) => /^https:\/\//i.test(u), "watermark imageUrl must be https"),
-  position: z.enum(["top_left", "top_right", "bottom_left", "bottom_right"]),
+  position: z.enum(["top_left", "top_right", "bottom_left", "bottom_right"]).default("top_right"),
   /** 0..100 */
-  opacityPct: z.number().min(0).max(100),
+  opacityPct: z.number().min(0).max(100).default(85),
   /** Logo width as a fraction of the canvas width (0.04..0.5). Height keeps the image aspect. */
-  widthFraction: z.number().min(0.04).max(0.5),
+  widthFraction: z.number().min(0.04).max(0.5).default(0.14),
+  localPath: z.string().optional(),
+  x: z.number().min(0).max(1).optional(),
+  y: z.number().min(0).max(1).optional(),
+  width: z.number().min(0).max(1).optional(),
+  height: z.number().min(0).max(1).optional(),
 });
 export type MobileWatermark = z.infer<typeof MobileWatermarkSchema>;
 

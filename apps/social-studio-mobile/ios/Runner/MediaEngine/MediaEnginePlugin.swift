@@ -13,7 +13,7 @@ public class MediaEnginePlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             binaryMessenger: registrar.messenger()
         )
         let eventChannel = FlutterEventChannel(
-            name: "com.workspace180.socialmanager/media_engine/events",
+            name: "com.workspace180.socialmanager/media_engine/render_events",
             binaryMessenger: registrar.messenger()
         )
 
@@ -27,7 +27,7 @@ public class MediaEnginePlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
 
         switch call.method {
         case "getVideoInfo":
-            guard let path = args["path"] as? String else {
+            guard let path = (args["sourcePath"] as? String) ?? (args["path"] as? String) else {
                 result(FlutterError(code: "INVALID_ARGS", message: "Path is required", details: nil))
                 return
             }

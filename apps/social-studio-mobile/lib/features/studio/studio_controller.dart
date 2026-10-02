@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/media/asset_cache.dart';
 import '../../core/native_engine/media_engine_service.dart';
 import '../../core/network/audio_transcription_service.dart';
 import '../director/ai_director_service.dart';
@@ -269,6 +271,7 @@ class StudioController extends ChangeNotifier {
         unawaited(_generateProxy('primary', path));
       }
       unawaited(_detectFaces(path));
+      unawaited(_analyseVisuals(path, hasAudio: info.hasAudio));
       if (info.hasAudio) {
         unawaited(_detectSilences(path));
         unawaited(_detectBeats(path));
@@ -308,6 +311,7 @@ class StudioController extends ChangeNotifier {
       sourcePaths['main'] = draft.sourcePath;
     }
     _ir = _migrateLocalOverlays(draft.ir);
+    unawaited(prefetchRemoteMedia());
     unawaited(materializeEmojiStickers(_ir!).then((_) => _notify(), onError: (_) {}));
     playheadMs = draft.playheadMs.clamp(0, draft.ir.durationMs);
     _undo.clear();
@@ -452,6 +456,35 @@ class StudioController extends ChangeNotifier {
     }
   }
 
+  /// What the AI Director "sees", computed on the phone one after another (they share the decoder): scene cuts,
+  /// scene labels, on-screen text and loudness. Each is optional; a failure only leaves that part out.
+  MediaIntelligence intelligence = MediaIntelligence();
+
+  Future<void> _analyseVisuals(String path, {required bool hasAudio}) async {
+    Future<T?> attempt<T>(Future<T> Function() f) async {
+      try {
+        return await f();
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final scenes = await attempt(() => MediaEngineService.detectScenes(sourcePath: path));
+    if (_disposed) return;
+    intelligence = intelligence.merge(scenesMs: scenes);
+    final labels = await attempt(() => MediaEngineService.labelScenes(sourcePath: path));
+    if (_disposed) return;
+    intelligence = intelligence.merge(labels: labels);
+    final ocr = await attempt(() => MediaEngineService.recognizeText(sourcePath: path));
+    if (_disposed) return;
+    intelligence = intelligence.merge(ocr: ocr);
+    if (hasAudio) {
+      final loud = await attempt(() => MediaEngineService.measureLoudness(sourcePath: path));
+      if (_disposed) return;
+      intelligence = intelligence.merge(loudness: loud);
+    }
+  }
+
   Future<void> _detectBeats(String path) async {
     try {
       beatsMs = (await MediaEngineService.detectBeats(audioPath: path)).beatsMs;
@@ -567,6 +600,50 @@ class StudioController extends ChangeNotifier {
     }
   }
 
+  /// AI narration: [text] spoken by the phone's text-to-speech voice, placed at [atMs] (default: the playhead).
+  Future<void> addNarration(String text, {int? atMs, double rate = 1}) async {
+    if (_ir == null) return;
+    final path = await MediaEngineService.getVoiceoverPath('tts_${DateTime.now().millisecondsSinceEpoch}.wav');
+    final r = await MediaEngineService.synthesizeSpeech(text: text, outputPath: path, rate: rate);
+    final assetId = 'tts_asset_${DateTime.now().millisecondsSinceEpoch}';
+    sourcePaths[assetId] = r.path;
+    final at = atMs ?? playheadMs;
+    apply((ir) => TimelineOps.addVoiceover(ir, assetId: assetId, atMs: at, durationMs: r.durationMs));
+  }
+
+  /// Real lengths of narration the Director asked for (`tts:<text>` assets), measured after synthesis.
+  final Map<String, int> _generatedDurations = {};
+
+  /// Narration the AI Director placed references `tts:<text>`; it is spoken here, on the phone, before the edit is
+  /// shown. A phone without a voice engine leaves it out with the engine's reason.
+  Future<void> materializeNarration(MobileEditIr ir) async {
+    if (kIsWeb) return;
+    for (final v in ir.audio.voiceovers) {
+      if (!v.assetId.startsWith('tts:')) continue;
+      final existing = sourcePaths[v.assetId];
+      if (existing != null && File(existing).existsSync()) continue;
+      final path = await MediaEngineService.getVoiceoverPath('tts_${DateTime.now().microsecondsSinceEpoch}.wav');
+      final r = await MediaEngineService.synthesizeSpeech(text: v.assetId.substring(4), outputPath: path);
+      sourcePaths[v.assetId] = r.path;
+      _generatedDurations[v.assetId] = r.durationMs;
+    }
+  }
+
+  /// Corrects generated narration to its real spoken length (the server can only estimate it).
+  MobileEditIr _withGeneratedDurations(MobileEditIr ir) {
+    var out = ir;
+    // Narration whose voice could not be made on this phone is left out (already reported in the chat).
+    for (final v in ir.audio.voiceovers) {
+      if (v.assetId.startsWith('tts:') && !sourcePaths.containsKey(v.assetId)) out = TimelineOps.removeVoiceover(out, v.id);
+    }
+    for (final v in ir.audio.voiceovers) {
+      final real = _generatedDurations[v.assetId];
+      if (real == null || real == v.durationMs) continue;
+      out = TimelineOps.setItemRange(out, TrackKind.voiceover, v.id, v.timelineStartMs, math.min(ir.durationMs, v.timelineStartMs + real));
+    }
+    return out;
+  }
+
   Future<void> cancelVoiceover() async {
     if (!recordingVoiceover) return;
     voiceoverStartMs = null;
@@ -675,8 +752,250 @@ class StudioController extends ChangeNotifier {
   String? localOverlayPath(Map<String, dynamic> source) {
     if (source['kind'] == 'asset') return pathForAsset('${source['assetId']}');
     final url = (source['path'] ?? source['url']) as String?;
-    if (url == null || url.isEmpty || url.startsWith('http://') || url.startsWith('https://')) return null;
+    if (url == null || url.isEmpty) return null;
+    // Online media already in the shared asset cache plays from the phone (fast, offline, same file as export).
+    if (url.startsWith('http://') || url.startsWith('https://')) return AssetCache.instance.cachedPath(url);
     return url.startsWith('file://') ? Uri.parse(url).toFilePath() : url;
+  }
+
+  /// Online media of the timeline being downloaded into the shared cache (Director picks, reopened drafts).
+  /// Null when there is nothing to fetch; [failed] lists what could not be downloaded, with the reason.
+  ({int done, int total, Map<String, String> failed})? mediaDownload;
+
+  void dismissMediaDownload() {
+    mediaDownload = null;
+    _notify();
+  }
+
+  /// Resolves search-phrase B-roll / music to real files and downloads every online asset of the timeline, at most
+  /// three at a time, so preview and export use local files. Safe to call again (cached files are skipped).
+  Future<void> prefetchRemoteMedia() async {
+    var ir = _ir;
+    if (ir == null || kIsWeb) return;
+    await AssetCache.instance.init();
+    if (!AssetCache.instance.available) return;
+    // 1. Search phrases → real files (the Director can leave B-roll / music as a phrase to resolve on the phone).
+    for (final o in ir.overlays.where((o) => o.source['kind'] == 'stock_query' && !o.isImage)) {
+      try {
+        final hit = await director.resolveStockVideo('${o.source['query'] ?? ''}');
+        if (hit == null || _disposed) continue;
+        if (hit.credit != null) mediaCredits[hit.url] = hit.credit!;
+        applyWithoutHistory((cur) => TimelineOps.replaceOverlaySource(cur, o.id, {'kind': 'url', 'url': hit.url, 'query': o.source['query']}));
+      } catch (_) {
+        // Left as a phrase; the export reports it if it still cannot be found.
+      }
+    }
+    // 3D stickers the Director named ("sticker3d:<name>|<emoji>"): library search → download; the emoji, drawn on
+    // the phone, when the library cannot be reached.
+    for (final o in (_ir?.overlays ?? const <EditIrOverlay>[]).where((o) => o.isImage && '${o.source['query'] ?? ''}'.startsWith('sticker3d:'))) {
+      final spec = '${o.source['query']}'.substring('sticker3d:'.length);
+      final bar = spec.lastIndexOf('|');
+      final name = bar > 0 ? spec.substring(0, bar) : spec;
+      final emoji = bar > 0 ? spec.substring(bar + 1) : '';
+      Map<String, dynamic>? source;
+      try {
+        final hit = (await director.searchStickers(name)).firstOrNull;
+        if (hit != null) {
+          await AssetCache.instance.ensure(hit.url, kind: AssetKind.image);
+          if (hit.attribution != null) mediaCredits[hit.url] = hit.attribution!;
+          source = {'kind': 'url', 'url': hit.url, 'query': name};
+        }
+      } catch (_) {}
+      if (source == null && emoji.isNotEmpty) {
+        try {
+          final docs = await getApplicationDocumentsDirectory();
+          final file = emoji.runes.map((r) => r.toRadixString(16)).join('_');
+          source = localOverlaySource(await renderEmojiSticker(emoji, '${docs.path}/stickers/emoji_$file.png'), label: 'Sticker $emoji');
+        } catch (_) {}
+      }
+      if (source != null && !_disposed) {
+        final s = source;
+        applyWithoutHistory((cur) => TimelineOps.replaceOverlaySource(cur, o.id, s));
+      }
+    }
+    final m = _ir?.audio.music.firstOrNull;
+    if (m != null && m.source['kind'] == 'stock_query') {
+      try {
+        final t = await director.resolveMusicTrack('${m.source['query'] ?? ''}');
+        if (t != null && !_disposed) {
+          if (t.credit != null) mediaCredits[t.url] = t.credit!;
+          applyWithoutHistory((cur) => TimelineOps.setMusicSource(cur, {'kind': 'url', 'url': t.url, 'query': m.source['query']}));
+        }
+      } catch (_) {}
+    }
+    ir = _ir;
+    if (ir == null) return;
+    // 2. Everything online on the timeline.
+    final wanted = <String, (AssetKind, String)>{};
+    bool remote(Object? u) => u is String && (u.startsWith('https://') || u.startsWith('http://'));
+    for (final o in ir.overlays) {
+      final u = o.source['url'];
+      if (remote(u)) wanted[u as String] = (o.isImage ? AssetKind.image : AssetKind.video, '${o.source['query'] ?? (o.isImage ? 'Photo' : 'B-roll')}');
+    }
+    for (final mm in ir.audio.music) {
+      final u = mm.source['url'];
+      if (remote(u)) wanted[u as String] = (AssetKind.audio, 'Music');
+    }
+    for (final e in ir.audio.sfx) {
+      final u = e.source['url'];
+      if (remote(u)) wanted[u as String] = (AssetKind.audio, e.credit ?? 'Sound effect');
+    }
+    final wm = ir.watermark;
+    if (wm != null && remote(wm.imageUrl)) wanted[wm.imageUrl] = (AssetKind.image, 'Logo');
+    final todo = wanted.entries.where((e) => !AssetCache.instance.isCached(e.key)).toList();
+    if (todo.isEmpty) {
+      mediaDownload = null;
+      _notify();
+      return;
+    }
+    var done = 0;
+    final failed = <String, String>{};
+    mediaDownload = (done: 0, total: todo.length, failed: failed);
+    _notify();
+    await Future.wait(todo.map((e) async {
+      try {
+        await AssetCache.instance.ensure(e.key, kind: e.value.$1);
+      } catch (err) {
+        failed[e.value.$2] = '$err';
+      }
+      done++;
+      if (!_disposed) {
+        mediaDownload = (done: done, total: todo.length, failed: failed);
+        _notify(); // the preview switches to the local file as each one lands
+      }
+    }));
+    if (!_disposed) {
+      mediaDownload = failed.isEmpty ? null : (done: done, total: todo.length, failed: failed);
+      _notify();
+    }
+  }
+
+  /// Long-running frame jobs (reverse, background removal) — shown as a busy state in the tool sheet.
+  String? processing;
+
+  /// Plays clip [index] backwards (picture and sound). The reversed footage is made on the phone and saved with
+  /// the draft; the clip keeps its place, speed and look.
+  Future<void> reverseClip(int index) async {
+    final ir = _ir;
+    if (ir == null || kIsWeb || processing != null) return;
+    final c = ir.clips[index];
+    if (isStillAsset(c.assetId)) throw MediaEngineException('INVALID_EDIT', 'A still has nothing to reverse.');
+    final path = pathForAsset(c.assetId);
+    if (path == null) throw MediaEngineException('FILE_NOT_FOUND', 'This clip is no longer on this phone.');
+    processing = 'Reversing clip ${index + 1}…';
+    _notify();
+    try {
+      final out = await MediaEngineService.getProcessedPath('rev_${DateTime.now().millisecondsSinceEpoch}.mp4');
+      final r = await MediaEngineService.reverseClip(sourcePath: path, startMs: c.sourceStartMs, endMs: c.sourceEndMs, outputPath: out);
+      final assetId = 'rev_${DateTime.now().millisecondsSinceEpoch}';
+      sourcePaths[assetId] = r.path;
+      apply((cur) => TimelineOps.replaceClipSource(cur, index, assetId: assetId, durationMs: r.durationMs, width: r.width, height: r.height));
+    } finally {
+      processing = null;
+      _notify();
+    }
+  }
+
+  /// Runs the frame jobs the AI Director queued (`process` on clips / overlays), one after another, on the phone.
+  /// Each finished job swaps in its file and clears the flag; a failed one clears it and says why in the chat.
+  Future<void> runPendingProcesses() async {
+    while (true) {
+      final ir = _ir;
+      if (ir == null || _disposed) return;
+      final ci = ir.clips.indexWhere((c) => c.process != null);
+      final ov = ir.overlays.where((o) => o.process != null).firstOrNull;
+      if (ci < 0 && ov == null) return;
+      try {
+        if (ci >= 0) {
+          final job = ir.clips[ci].process!;
+          if (job == 'reverse') {
+            await reverseClip(ci);
+          } else {
+            await stabilizeClip(ci);
+          }
+        } else {
+          await removeOverlayBackground(ov!.id);
+          applyWithoutHistory((cur) => TimelineOps.clearOverlayProcess(cur, ov.id));
+        }
+      } catch (e) {
+        messages.add(DirectorMessage(fromUser: false, text: 'I could not finish that on this phone: ${e is MediaEngineException ? e.message : e}'));
+        applyWithoutHistory((cur) => ci >= 0 ? TimelineOps.clearClipProcess(cur, ci) : TimelineOps.clearOverlayProcess(cur, ov!.id));
+        _notify();
+      }
+    }
+  }
+
+  /// Steadies shaky footage of clip [index] on the phone ([strength]: seconds of camera path smoothing).
+  Future<void> stabilizeClip(int index, {double strength = 1}) async {
+    final ir = _ir;
+    if (ir == null || kIsWeb || processing != null) return;
+    final c = ir.clips[index];
+    if (isStillAsset(c.assetId)) throw MediaEngineException('INVALID_EDIT', 'A still does not shake.');
+    final path = pathForAsset(c.assetId);
+    if (path == null) throw MediaEngineException('FILE_NOT_FOUND', 'This clip is no longer on this phone.');
+    processing = 'Stabilising clip ${index + 1}…';
+    _notify();
+    try {
+      final out = await MediaEngineService.getProcessedPath('stab_${DateTime.now().millisecondsSinceEpoch}.mp4');
+      final r = await MediaEngineService.stabilizeClip(sourcePath: path, startMs: c.sourceStartMs, endMs: c.sourceEndMs, outputPath: out, strength: strength);
+      final assetId = 'stab_${DateTime.now().millisecondsSinceEpoch}';
+      sourcePaths[assetId] = r.path;
+      apply((cur) => TimelineOps.replaceClipSource(cur, index, assetId: assetId, durationMs: r.durationMs, width: r.width, height: r.height));
+    } finally {
+      processing = null;
+      _notify();
+    }
+  }
+
+  /// "Remove background" on an overlay: the person is cut out on the phone. Videos become a person-on-green copy
+  /// keyed out as a full-frame layer; photos become a transparent PNG. Remote media is downloaded first.
+  Future<void> removeOverlayBackground(String overlayId) async {
+    final ir = _ir;
+    if (ir == null || kIsWeb || processing != null) return;
+    final o = ir.overlays.where((x) => x.id == overlayId).firstOrNull;
+    if (o == null) throw MediaEngineException('INVALID_EDIT', 'That overlay no longer exists.');
+    processing = 'Removing the background…';
+    _notify();
+    try {
+      var path = localOverlayPath(o.source);
+      final url = o.source['url'] as String?;
+      if (path == null && url != null && url.startsWith('http')) {
+        path = await AssetCache.instance.ensure(url, kind: o.isImage ? AssetKind.image : AssetKind.video);
+      }
+      if (path == null) throw MediaEngineException('FILE_NOT_FOUND', 'This overlay has no file on this phone yet.');
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      if (o.isImage) {
+        final out = await MediaEngineService.removeImageBackground(sourcePath: path, outputPath: await MediaEngineService.getProcessedPath('cutout_$stamp.png'));
+        final source = localOverlaySource(out, label: '${o.source['query'] ?? 'Photo'} (cut out)');
+        // A cut-out photo floats above the video (transparent PNG; no key needed).
+        apply((cur) => TimelineOps.replaceOverlaySource(
+              TimelineOps.updateOverlay(cur, overlayId, fit: 'contain', layer: o.layer ?? const EditIrLayer(x: 0.5, y: 0.6, scale: 0.8)),
+              overlayId,
+              source,
+            ));
+      } else {
+        final len = o.timelineEndMs - o.timelineStartMs;
+        final r = await MediaEngineService.removeBackground(
+          sourcePath: path,
+          startMs: o.sourceStartMs,
+          endMs: o.sourceStartMs + len,
+          outputPath: await MediaEngineService.getProcessedPath('cutout_$stamp.mp4'),
+        );
+        final source = localOverlaySource(r.path, label: '${o.source['query'] ?? 'Clip'} (cut out)');
+        apply((cur) => TimelineOps.replaceOverlaySource(
+              TimelineOps.updateOverlay(cur, overlayId,
+                  fit: 'contain',
+                  sourceStartMs: 0,
+                  layer: o.layer ?? const EditIrLayer(x: 0.5, y: 0.5, scale: 1),
+                  chromaKey: const EditIrChromaKey(similarity: 0.32, smoothness: 0.12, spill: 0.6)),
+              overlayId,
+              source,
+            ));
+      }
+    } finally {
+      processing = null;
+      _notify();
+    }
   }
 
   /// True when [assetId] is a photo / freeze-frame still rather than a video.
@@ -732,7 +1051,10 @@ class StudioController extends ChangeNotifier {
     final overlays = <EditIrOverlay>[];
     for (final o in ir.overlays) {
       final kind = o.source['kind'];
-      final path = kind == 'asset' || kind == 'stock_query' ? null : localOverlayPath(o.source);
+      final raw = '${o.source['url'] ?? o.source['path'] ?? ''}';
+      // Online media keeps its URL (credits, server round trip); only raw device paths are migrated.
+      final remote = raw.startsWith('http://') || raw.startsWith('https://');
+      final path = kind == 'asset' || kind == 'stock_query' || remote ? null : localOverlayPath(o.source);
       if (path == null) {
         overlays.add(o);
       } else {
@@ -804,6 +1126,7 @@ class StudioController extends ChangeNotifier {
       silences: silences,
       faces: faces,
       beatsMs: beatsMs,
+      intelligence: intelligence.isEmpty ? null : intelligence,
     );
   }
 
@@ -832,6 +1155,12 @@ class StudioController extends ChangeNotifier {
       );
       r.editIr.validate();
       await materializeEmojiStickers(r.editIr);
+      try {
+        await materializeNarration(r.editIr);
+      } on MediaEngineException catch (e) {
+        // The edit still applies; the narration that could not be spoken is reported, not faked.
+        messages.add(DirectorMessage(fromUser: false, text: 'I could not create the narration voice on this phone: ${e.message}'));
+      }
       final autoApply =
           !r.requiresConfirmation && r.appliedOperations.isNotEmpty;
       messages.add(
@@ -879,7 +1208,13 @@ class StudioController extends ChangeNotifier {
             effects: next.effects,
           );
     _push(ir);
-    _ir = withSources;
+    _ir = _withGeneratedDurations(withSources);
+    // Download what the Director picked (B-roll, photos, music, SFX) right away, with progress on screen.
+    unawaited(prefetchRemoteMedia());
+    // Heavy jobs the Director queued (reverse / stabilise / cut-out) run on the phone now.
+    if (withSources.clips.any((c) => c.process != null) || withSources.overlays.any((o) => o.process != null)) {
+      unawaited(runPendingProcesses());
+    }
     playheadMs = playheadMs.clamp(0, withSources.durationMs);
     selectedClip = null;
   }
@@ -895,20 +1230,24 @@ class StudioController extends ChangeNotifier {
 
   // ── Export ─────────────────────────────────────────────────────────────────
 
-  Future<Directory> _tempDir() async {
-    final d = Directory('${(await getTemporaryDirectory()).path}/studio_media');
-    if (!await d.exists()) await d.create(recursive: true);
-    return d;
-  }
-
   /// Resolves remote B-roll and music to local files, then renders on the device.
   /// Resolution / frame rate / quality picked on the export sheet; kept for the session.
   ExportSettings exportSettings = const ExportSettings();
 
   Future<void> startExport() async {
+    if (_ir == null || sourcePath == null || (export?.running ?? false)) return;
+    // Everything online is resolved and downloaded first (usually already cached), so nothing is skipped silently.
+    // It can rewrite sources (search phrase → file), so the timeline is read after it.
+    await prefetchRemoteMedia();
     final ir = _ir;
     final src = sourcePath;
-    if (ir == null || src == null || (export?.running ?? false)) return;
+    if (ir == null || src == null) return;
+    // Frame jobs (reverse / stabilise / cut-out) change the files the export reads: wait for them.
+    if (processing != null || ir.clips.any((c) => c.process != null) || ir.overlays.any((o) => o.process != null)) {
+      export = ExportState(error: MediaEngineException('PROCESSING', '${processing ?? 'Footage is still being processed'}. Export again when it is done.'));
+      _notify();
+      return;
+    }
     final warnings = <String>[];
     if (kIsWeb) {
       export = ExportState(
@@ -931,7 +1270,6 @@ class StudioController extends ChangeNotifier {
     export = ExportState(stage: 'Preparing media…');
     _notify();
     try {
-      final dir = await _tempDir();
       final overlayPaths = <String, String>{};
       final usedUrls =
           <String>[]; // resolved remote media in this export, for the credits
@@ -966,6 +1304,7 @@ class StudioController extends ChangeNotifier {
             working = TimelineOps.removeOverlay(working, o.id);
           } else {
             overlayPaths[o.id] = local;
+            if (url != null && url.startsWith('http')) usedUrls.add(url); // cached stock media still needs its credit
           }
           continue;
         }
@@ -978,18 +1317,10 @@ class StudioController extends ChangeNotifier {
         }
         export = ExportState(stage: 'Downloading B-roll…', warnings: warnings);
         _notify();
-        // The renderer detects photos by file type, so keep the image extension.
-        final imgExt = Uri.tryParse(url)?.path.split('.').last.toLowerCase();
-        final ext = !o.isImage
-            ? 'mp4'
-            : {'jpg', 'jpeg', 'png', 'webp'}.contains(imgExt)
-                ? imgExt!
-                : 'jpg';
         try {
-          overlayPaths[o.id] = await director.download(
-            url,
-            '${dir.path}/${o.id}.$ext',
-          );
+          // Shared asset cache: usually already downloaded when the clip was added or the Director picked it;
+          // the cache keeps the right file type for the renderer.
+          overlayPaths[o.id] = await AssetCache.instance.ensure(url, kind: o.isImage ? AssetKind.image : AssetKind.video);
           usedUrls.add(url);
         } catch (e) {
           warnings.add(
@@ -1025,12 +1356,8 @@ class StudioController extends ChangeNotifier {
         }
         export = ExportState(stage: 'Downloading music…', warnings: warnings);
         _notify();
-        final ext = Uri.tryParse(url)?.path.split('.').last.toLowerCase();
         try {
-          musicPaths[m.id] = await director.download(
-            url,
-            '${dir.path}/${m.id}.${{'mp3', 'm4a', 'aac', 'wav', 'ogg'}.contains(ext) ? ext : 'mp3'}',
-          );
+          musicPaths[m.id] = await AssetCache.instance.ensure(url, kind: AssetKind.audio);
           usedUrls.add(url);
         } catch (e) {
           warnings.add(
@@ -1048,15 +1375,7 @@ class StudioController extends ChangeNotifier {
           continue;
         }
         try {
-          final ext = Uri.tryParse(url)?.path.split('.').last.toLowerCase();
-          final safeExt =
-              {'mp3', 'm4a', 'aac', 'wav', 'ogg'}.contains(ext)
-              ? ext
-              : 'mp3';
-          sfxPaths[e.id] = await director.download(
-            url,
-            '${dir.path}/${e.id}.$safeExt',
-          );
+          sfxPaths[e.id] = await AssetCache.instance.ensure(url, kind: AssetKind.audio);
           keptSfx.add(e);
           if (e.credit != null) mediaCredits[url] = e.credit!;
         } catch (_) {
@@ -1096,17 +1415,7 @@ class StudioController extends ChangeNotifier {
           try {
             export = ExportState(stage: 'Downloading logo…', warnings: warnings);
             _notify();
-            final ext = Uri.tryParse(wm.imageUrl)?.path
-                .split('.')
-                .last
-                .toLowerCase();
-            final safeExt = {'png', 'jpg', 'jpeg', 'webp'}.contains(ext)
-                ? ext
-                : 'png';
-            watermarkPath = await director.download(
-              wm.imageUrl,
-              '${dir.path}/watermark.$safeExt',
-            );
+            watermarkPath = await AssetCache.instance.ensure(wm.imageUrl, kind: AssetKind.image);
           } catch (_) {
             warnings.add(
               'The brand logo could not be downloaded, so the video was exported without the watermark.',
@@ -1131,7 +1440,7 @@ class StudioController extends ChangeNotifier {
         if (path.startsWith('http://') || path.startsWith('https://')) {
           export = ExportState(stage: 'Downloading clips…', warnings: warnings);
           _notify();
-          assetPaths[id] = await director.download(path, '${dir.path}/$id.mp4');
+          assetPaths[id] = await AssetCache.instance.ensure(path, kind: AssetKind.video);
           usedUrls.add(path);
         } else {
           assetPaths[id] = path;

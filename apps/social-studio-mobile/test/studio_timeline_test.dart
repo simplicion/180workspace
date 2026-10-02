@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:social_studio_mobile/core/media/asset_cache.dart';
 import 'package:social_studio_mobile/core/native_engine/edit_ir.dart';
 import 'package:social_studio_mobile/core/network/api_client.dart';
 import 'package:social_studio_mobile/core/network/audio_transcription_service.dart';
@@ -27,6 +28,10 @@ const _engines = [
 ];
 
 void main() {
+  // Widget tests cannot reach the network: online assets "download" to a placeholder path instantly.
+  setUpAll(() => AssetCache.instance.fetchOverride = (url, kind) async => '${Directory.systemTemp.path}/asset_${url.hashCode}');
+  tearDownAll(() => AssetCache.instance.fetchOverride = null);
+
   TestWidgetsFlutterBinding.ensureInitialized();
   final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 

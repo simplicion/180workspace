@@ -39,6 +39,24 @@ class LayerPlacement extends StatefulWidget {
   State<LayerPlacement> createState() => _LayerPlacementState();
 }
 
+/// Same shapes as LayerMaskEffect in the renderer: a circle on the short side, or corners of radius × short side.
+Widget _shape(EditIrMask? mask, Size size, Widget child) {
+  if (mask == null) return ClipRect(child: child);
+  final short = size.shortestSide;
+  if (mask.shape == 'circle') {
+    return ClipPath(clipper: _CircleClip(), child: child);
+  }
+  return ClipRRect(borderRadius: BorderRadius.circular(mask.radius * short), child: child);
+}
+
+class _CircleClip extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) => Path()..addOval(Rect.fromCircle(center: size.center(Offset.zero), radius: size.shortestSide / 2));
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
 class _LayerPlacementState extends State<LayerPlacement> {
   bool _dragging = false;
 
@@ -85,7 +103,11 @@ class _LayerPlacementState extends State<LayerPlacement> {
                 child: DecoratedBox(
                   position: DecorationPosition.foreground,
                   decoration: BoxDecoration(border: _dragging ? Border.all(color: AppTheme.primary, width: 2) : null),
-                  child: ClipRect(child: widget.overlay.chromaKey == null ? widget.child : ChromaKeyed(keyed: widget.overlay.chromaKey!, child: widget.child)),
+                  child: _shape(
+                    o.mask,
+                    size,
+                    widget.overlay.chromaKey == null ? widget.child : ChromaKeyed(keyed: widget.overlay.chromaKey!, child: widget.child),
+                  ),
                 ),
               ),
             ),

@@ -318,6 +318,25 @@ class SocialApi {
     String format = 'portrait',
     bool useImageModel = true,
   }) async {
+    return _startCreativeJob(projectId, carousel: carousel, pieceId: pieceId, postId: postId, format: format, useImageModel: useImageModel);
+  }
+
+  /// AI thumbnail team: real frames in (base64 JPEG + face boxes), three QA'd designs out (slow: LLM team + render).
+  Future<Json> designThumbnails(String projectId, Json body) =>
+      _api.post('$base/projects/$projectId/creative/thumbnails', body: body, timeout: AppConfig.aiReceiveTimeout, idempotencyKey: _uuid.v4());
+
+  /// Manual thumbnail (no AI): one frame + the creator's text through the same compositor and QA.
+  Future<Json> renderThumbnail(String projectId, Json body) =>
+      _api.post('$base/projects/$projectId/creative/thumbnails/render', body: body, timeout: AppConfig.aiReceiveTimeout, idempotencyKey: _uuid.v4());
+
+  Future<CreativeJob> _startCreativeJob(
+    String projectId, {
+    required bool carousel,
+    String? pieceId,
+    String? postId,
+    required String format,
+    required bool useImageModel,
+  }) async {
     final r = await _api.post('$base/projects/$projectId/creative/${carousel ? 'carousels' : 'static-posts'}',
         body: {'pieceId': ?pieceId, 'postId': ?postId, 'format': format, 'useImageModel': useImageModel},
         idempotencyKey: _uuid.v4());

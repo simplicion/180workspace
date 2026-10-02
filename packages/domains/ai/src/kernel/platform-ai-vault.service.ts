@@ -119,7 +119,10 @@ export class PlatformAiVaultService {
             }
         } else {
             // Safe HKDF key derivation from platform JWT_SECRET
-            const secret = process.env.JWT_SECRET || process.env.SUPERADMIN_JWT_SECRET || '180workspace-platform-ai-vault-seed';
+            const secret = process.env.JWT_SECRET || process.env.SUPERADMIN_JWT_SECRET;
+            if (!secret) {
+                throw new Error('PLATFORM_AI_VAULT_NOT_CONFIGURED: set PLATFORM_AI_VAULT_KEY or JWT_SECRET to encrypt/decrypt platform AI keys.');
+            }
             keyBuf = Buffer.from(
                 crypto.hkdfSync('sha256', Buffer.from(secret, 'utf8'), Buffer.alloc(0), Buffer.from('180-platform-ai-vault-v1'), 32)
             );

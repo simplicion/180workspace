@@ -123,6 +123,7 @@ export interface WalletCouponValidationResult {
 export interface WalletOrderResult {
   success: boolean;
   orderId?: string;
+  sessionId?: string;
   amountInr: number;
   amountPaise?: number;
   creditedAmount: number;

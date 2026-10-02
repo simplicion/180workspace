@@ -8,6 +8,7 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -214,9 +215,24 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                     val every = call.argument<Number>("sampleEveryMs")?.toLong() ?: 1000L
                     analysis(call, result) { MediaIntelligence.recognizeText(src, every, it) }
                 }
+                "thumbnailCandidates" -> {
+                    val src = call.req<String>("sourcePath")
+                    val out = call.req<String>("outputDir")
+                    val count = (call.argument<Number>("count")?.toInt() ?: 4).coerceIn(1, 6)
+                    analysis(call, result) { ThumbnailScout.candidates(src, out, count, it) }
+                }
+                "labelScenes" -> {
+                    val src = call.req<String>("sourcePath")
+                    val every = call.argument<Number>("sampleEveryMs")?.toLong() ?: 2000L
+                    analysis(call, result) { MediaIntelligence.labelScenes(src, every, it) }
+                }
                 "measureLoudness" -> {
                     val src = call.req<String>("sourcePath")
                     analysis(call, result) { MediaIntelligence.measureLoudness(src, it) }
+                }
+                "countVideoFrames" -> {
+                    val src = call.req<String>("path")
+                    background(result) { MediaTools.countVideoFrames(src) }
                 }
                 "probeExport" -> {
                     val src = call.req<String>("path")
@@ -255,6 +271,76 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                     RenderForegroundService.start(context, jobs.size)
                     renderer.start()
                     result.success(jobId)
+                }
+                "reverseClip" -> {
+                    val src = call.req<String>("sourcePath")
+                    val start = call.req<Number>("startMs").toLong()
+                    val end = call.req<Number>("endMs").toLong()
+                    val out = call.req<String>("outputPath")
+                    val maxShort = call.argument<Number>("maxShortSide")?.toInt() ?: 1080
+                    val (control, done) = analysisControl(call.argument<String>("jobId"))
+                    val work = File(context.cacheDir, "frames_${System.nanoTime()}")
+                    FrameJobs.run(context, io, work, out, {
+                        val frames = FrameJobs.extractFrames(src, start, end, File(work, "v"), maxShort, reverse = true, control = control)
+                        frames to FrameJobs.audioWav(src, start, end, reverse = true, outWav = File(work, "a.wav"), control = control)
+                    }) { r ->
+                        done()
+                        r.fold({ result.success(it) }, { e ->
+                            result.error((e as? MediaEngineError)?.code ?: "REVERSE_FAILED", e.message ?: e.toString(), null)
+                        })
+                    }
+                }
+                "removeBackground" -> {
+                    val src = call.req<String>("sourcePath")
+                    val start = call.req<Number>("startMs").toLong()
+                    val end = call.req<Number>("endMs").toLong()
+                    val out = call.req<String>("outputPath")
+                    val maxShort = call.argument<Number>("maxShortSide")?.toInt() ?: 720
+                    val (control, done) = analysisControl(call.argument<String>("jobId"))
+                    val work = File(context.cacheDir, "frames_${System.nanoTime()}")
+                    FrameJobs.run(context, io, work, out, {
+                        FrameJobs.BackgroundRemover().use { remover ->
+                            val frames = FrameJobs.extractFrames(src, start, end, File(work, "v"), maxShort, reverse = false, control = control, transform = remover::apply)
+                            frames to FrameJobs.audioWav(src, start, end, reverse = false, outWav = File(work, "a.wav"), control = control)
+                        }
+                    }) { r ->
+                        done()
+                        r.fold({ result.success(it) }, { e ->
+                            result.error((e as? MediaEngineError)?.code ?: "BACKGROUND_REMOVAL_FAILED", e.message ?: e.toString(), null)
+                        })
+                    }
+                }
+                "stabilizeClip" -> {
+                    val src = call.req<String>("sourcePath")
+                    val start = call.req<Number>("startMs").toLong()
+                    val end = call.req<Number>("endMs").toLong()
+                    val out = call.req<String>("outputPath")
+                    val strength = call.argument<Number>("strength")?.toDouble() ?: 1.0
+                    val maxShort = call.argument<Number>("maxShortSide")?.toInt() ?: 1080
+                    val (control, done) = analysisControl(call.argument<String>("jobId"))
+                    val work = File(context.cacheDir, "frames_${System.nanoTime()}")
+                    FrameJobs.run(context, io, work, out, {
+                        val (frames, _) = FrameJobs.stabilizeFrames(src, start, end, File(work, "v"), maxShort, strength, control)
+                        frames to FrameJobs.audioWav(src, start, end, reverse = false, outWav = File(work, "a.wav"), control = control)
+                    }) { r ->
+                        done()
+                        r.fold({ result.success(it) }, { e ->
+                            result.error((e as? MediaEngineError)?.code ?: "STABILIZE_FAILED", e.message ?: e.toString(), null)
+                        })
+                    }
+                }
+                "removeImageBackground" -> {
+                    val src = call.req<String>("sourcePath")
+                    val out = call.req<String>("outputPath")
+                    background(result) { FrameJobs.removeImageBackground(src, out) }
+                }
+                "synthesizeSpeech" -> {
+                    val text = call.req<String>("text")
+                    val out = call.req<String>("outputPath")
+                    val lang = call.argument<String>("language")
+                    val rate = call.argument<Number>("rate")?.toFloat() ?: 1f
+                    val pitch = call.argument<Number>("pitch")?.toFloat() ?: 1f
+                    background(result) { SpeechSynth.synthesize(context, text, out, lang, rate, pitch) }
                 }
                 "startVoiceRecording" -> {
                     voiceRecorder.start(call.req("outputPath"))

@@ -141,3 +141,79 @@ test("insertBroll greenScreen keys out the background as a full-frame layer, and
   const back = toMobileEditIR({ editIR: editIRFromMobile(mobile), sources, primaryAssetId: "primary" }).editIR.overlays[0];
   assert.deepEqual(back.chromaKey, o.chromaKey);
 });
+
+test("beatAlign trims cuts back onto real beats, and refuses to guess without beat analysis", () => {
+  const base = editIRFromMobileMedia(media, "p1");
+  // Two clips: cut at 8.0 s (split), beats every 0.5 s with one at 7.85 s.
+  const split = EditIRCompiler.compile(base, CreativeEditPlanSchema.parse({ intent, operations: [{ type: "splitClip", clipId: base.tracks.videoTracks[0].clips[0].id, splitTimeSec: 8 }], explanation: "t" })).updatedEditIR;
+  const ops = validateDirectorToolCalls([{ name: "beatAlign", args: { snapToleranceSec: 0.3 } }]).operations as any[];
+  const withBeats = [{ ...ops[0], beatsSec: [7.35, 7.85, 8.35] }];
+  const r = EditIRCompiler.compile(split, CreativeEditPlanSchema.parse({ intent, operations: withBeats, explanation: "t" }));
+  assert.match(r.appliedOperations.join("\n"), /Moved 1 cut\(s\) onto the beat/);
+  const clips = r.updatedEditIR.tracks.videoTracks[0].clips;
+  assert.ok(Math.abs(clips[0].timelineRange.duration.value / clips[0].timelineRange.duration.timescale - 7.85) < 0.01);
+  const none = EditIRCompiler.compile(split, CreativeEditPlanSchema.parse({ intent, operations: ops, explanation: "t" }));
+  assert.match(none.rejectedOperations.join(), /no beat analysis/);
+  assert.equal(none.appliedOperations.some((a) => /beat|bpm/i.test(a)), false);
+});
+
+test("addNarration becomes a voiceover the phone speaks (tts:<text>) and round-trips", () => {
+  const { mobile, r } = run([{ name: "addNarration", args: { text: "Wait for the last tip", timelineStartSec: 2 } }]);
+  assert.match(r.appliedOperations.join("\n"), /AI narration/);
+  const v = mobile.audio.voiceovers![0];
+  assert.deepEqual(v.source, { kind: "asset", assetId: "tts:Wait for the last tip" });
+  assert.equal(v.timelineStartMs, 2000);
+  assert.ok(v.durationMs > 1500 && v.durationMs < 3000);
+  const back = toMobileEditIR({ editIR: editIRFromMobile(mobile), sources, primaryAssetId: "primary" }).editIR.audio.voiceovers![0];
+  assert.deepEqual(back.source, v.source);
+});
+
+test("cleanVoice turns on noise reduction for the clips and it round-trips", () => {
+  const { mobile, r } = run([{ name: "cleanVoice", args: {} }]);
+  assert.match(r.appliedOperations.join("\n"), /Reduced background noise on 1 clip/);
+  assert.equal(mobile.clips[0].voiceCleanup, true);
+  assert.equal(toMobileEditIR({ editIR: editIRFromMobile(mobile), sources, primaryAssetId: "primary" }).editIR.clips[0].voiceCleanup, true);
+});
+
+test("insertBroll pip with shape circle carries a mask that round-trips", () => {
+  const { mobile } = run([{ name: "insertBroll", args: { sourceUrl: "https://cdn.test/cam.mp4", timelineStartSec: 1, durationSec: 3, layout: "pip", shape: "circle" } }]);
+  assert.deepEqual(mobile.overlays[0].mask, { shape: "circle", radius: 0.15, feather: 0.01 });
+  assert.deepEqual(toMobileEditIR({ editIR: editIRFromMobile(mobile), sources, primaryAssetId: "primary" }).editIR.overlays[0].mask, mobile.overlays[0].mask);
+});
+
+test("speedRamp splits the clip into the preset's parts with their speeds", () => {
+  const base = editIRFromMobileMedia(media, "p1");
+  const clipId = base.tracks.videoTracks[0].clips[0].id;
+  const r = EditIRCompiler.compile(base, CreativeEditPlanSchema.parse({ intent, operations: validateDirectorToolCalls([{ name: "speedRamp", args: { clipId, preset: "hero" } }]).operations, explanation: "t" }));
+  assert.match(r.appliedOperations.join("\n"), /Speed ramp "hero"/);
+  const clips = r.updatedEditIR.tracks.videoTracks[0].clips;
+  assert.deepEqual(clips.map((c) => c.speedMultiplier), [1, 0.4, 1]);
+  // The slow middle part is longer on the timeline than in the source.
+  const mid = clips[1];
+  const tl = mid.timelineRange.duration.value / mid.timelineRange.duration.timescale;
+  const src = mid.sourceRange.duration.value / mid.sourceRange.duration.timescale;
+  assert.ok(tl > src * 2.4, `${tl} vs ${src}`);
+});
+
+test("processFootage queues phone-side reverse / stabilise / cut-out flags that round-trip to the phone", () => {
+  const base = editIRFromMobileMedia(media, "p1");
+  const clipId = base.tracks.videoTracks[0].clips[0].id;
+  const r = EditIRCompiler.compile(base, CreativeEditPlanSchema.parse({ intent, operations: validateDirectorToolCalls([{ name: "processFootage", args: { action: "stabilize", targetId: clipId } }]).operations, explanation: "t" }));
+  assert.match(r.appliedOperations.join("\n"), /Queued stabilize/);
+  const mobile = toMobileEditIR({ editIR: r.updatedEditIR, sources, primaryAssetId: "primary" }).editIR;
+  assert.equal(mobile.clips[0].process, "stabilize");
+  assert.equal(toMobileEditIR({ editIR: editIRFromMobile(mobile), sources, primaryAssetId: "primary" }).editIR.clips[0].process, "stabilize");
+  const withPip = run([{ name: "insertBroll", args: { sourceUrl: "https://cdn.test/p.mp4", timelineStartSec: 1, durationSec: 2 } }]).mobile;
+  const cut = EditIRCompiler.compile(editIRFromMobile(withPip), CreativeEditPlanSchema.parse({ intent, operations: validateDirectorToolCalls([{ name: "processFootage", args: { action: "remove_background", targetId: withPip.overlays[0].id } }]).operations, explanation: "t" }));
+  const o = toMobileEditIR({ editIR: cut.updatedEditIR, sources, primaryAssetId: "primary" }).editIR.overlays[0];
+  assert.equal(o.process, "remove_background");
+  assert.equal(o.layer?.mode, "overlay");
+});
+
+test("addSticker style 3d leaves a named library lookup (with the emoji as fallback) for the phone", () => {
+  const { mobile } = run([{ name: "addSticker", args: { emoji: "🚀", name: "rocket", style: "3d", timelineStartSec: 2 } }]);
+  const o = mobile.overlays[0];
+  assert.deepEqual(o.source, { kind: "stock_query", query: "sticker3d:rocket|🚀", url: null });
+  assert.equal(o.mediaType, "image");
+  assert.equal(o.layer?.mode, "overlay");
+});

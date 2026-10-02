@@ -65,7 +65,43 @@ export interface PlannerOutcome {
 }
 
 const MAX_TRANSCRIPT_WORDS = 2500;
+const SPOKEN_LINE_PAUSE_SEC = 0.6;
 const MAX_HISTORY_TURNS = 12;
+
+/**
+ * What the creator explicitly asked for, as tool families. A plan that skips one of these is sent back to the model
+ * once ("you skipped …"); weaker models often stop after the cuts. Negated asks ("no music", "don't zoom") and asks
+ * that cannot be done (captions without a transcript) are not required.
+ */
+const COVERAGE_RULES: Array<{ label: string; ask: RegExp; ops: string[]; needsTranscript?: boolean; removal?: boolean }> = [
+  { label: "captions", ask: /\b(captions?|subtitles?)\b/, ops: ["autoCaptions", "styleCaption"], needsTranscript: true },
+  { label: "zoom / punch-in", ask: /\b(zooms?|punch[- ]?ins?)\b/, ops: ["addZoom", "reframeSubject"] },
+  { label: "B-roll", ask: /\b(b[- ]?roll|cutaways?|stock (clip|footage|video))\b/, ops: ["insertBroll"] },
+  { label: "sticker", ask: /\b(stickers?|emojis?)\b/, ops: ["addSticker"] },
+  { label: "background music", ask: /\b(music|soundtrack|bgm)\b/, ops: ["addBackgroundMusic"] },
+  { label: "colour grade", ask: /\b(colou?r ?grad\w*|grade|filter|lut)\b/, ops: ["applyFilter"] },
+  { label: "title text", ask: /\b(title|headline|hook text|text overlay)\b/, ops: ["addText"] },
+  { label: "transitions", ask: /\b(transitions?|crossfades?|dissolves?)\b/, ops: ["addTransition"] },
+  { label: "filler-word removal", ask: /\bfillers?\b/, ops: ["cleanFillers"], needsTranscript: true, removal: true },
+  { label: "sound effects", ask: /\b(sound effects?|sfx|whoosh\w*)\b/, ops: ["addSoundEffect", "autoSoundDesign"] },
+];
+const NEGATION = /\b(no|not|don'?t|do not|without|remove|keep|skip|never)\b[\w\s,'-]{0,24}$/;
+
+/** Requested tool families the plan does not contain. */
+export function missingRequestedOperations(prompt: string, operationTypes: string[], hasTranscript: boolean): string[] {
+  const text = prompt.toLowerCase();
+  const have = new Set(operationTypes);
+  const missing: string[] = [];
+  for (const r of COVERAGE_RULES) {
+    const m = r.ask.exec(text);
+    if (!m) continue;
+    // "remove / cut the fillers" is the ask itself, not a negation.
+    if (!r.removal && NEGATION.test(text.slice(Math.max(0, m.index - 30), m.index))) continue;
+    if (r.needsTranscript && !hasTranscript) continue;
+    if (!r.ops.some((o) => have.has(o))) missing.push(`${r.label} (${r.ops.join(" / ")})`);
+  }
+  return missing;
+}
 
 /** Model defaults per provider. Anthropic default follows the product decision (latest Sonnet). */
 function modelFor(provider: string, override?: string): string | undefined {
@@ -166,11 +202,34 @@ export class CreativePlanner {
       validation = retry;
     }
 
+    // Coverage: everything the creator explicitly asked for must be planned (or honestly skipped by the model).
+    const hasTranscript = (params.mediaGraph?.transcript?.length ?? 0) > 0;
+    const missing = missingRequestedOperations(params.prompt, validation.operations.map((o: any) => o.type), hasTranscript);
+    let coverageNote = "";
+    if (missing.length > 0) {
+      const calls = validation.operations.map((o: any) => ({ name: o.type, args: o }));
+      const prompt = this.buildCoveragePrompt(basePrompt, calls, missing);
+      try {
+        const third = await withTimeout(client.generateWithTools(prompt, tools, options), timeoutMs, "LLM coverage call");
+        const retry = validateDirectorToolCalls(third?.toolCalls || []);
+        const stillMissing = missingRequestedOperations(params.prompt, retry.operations.map((o: any) => o.type), hasTranscript);
+        if (retry.errors.length === 0 && retry.operations.length > 0 && stillMissing.length < missing.length) {
+          validation = retry;
+          coverageNote = `, completed ${missing.length - stillMissing.length} skipped request(s)`;
+        } else {
+          coverageNote = ", coverage retry not better";
+        }
+      } catch {
+        coverageNote = ", coverage retry failed";
+      }
+      attempts += 1;
+    }
+
     const summary = validation.finish?.summary || this.summarizeOperations(validation.operations);
     return {
       plan: this.buildPlan(params, validation.operations, summary, validation.finish?.requiresConfirmation ?? false),
       plannerSource: "llm",
-      plannerReason: `${label} tool-calling plan (${attempts} attempt${attempts === 1 ? "" : "s"}${repairedErrors ? ", repaired" : ""})`,
+      plannerReason: `${label} tool-calling plan (${attempts} attempt${attempts === 1 ? "" : "s"}${repairedErrors ? ", repaired" : ""}${coverageNote})`,
       llmAttempts: attempts,
       repairedErrors,
       brandWatermark: validation.finish?.brandWatermark,
@@ -319,6 +378,18 @@ export class CreativePlanner {
       // Phrase detection runs on the joined words (the timed listing would hide "ignore previous instructions").
       const safeWords = neutraliseWordSequence(shown.map((w) => w.word)).words;
       lines.push(fenceUntrusted("transcript", shown.map((w, i) => `${w.startSeconds.toFixed(2)}-${w.endSeconds.toFixed(2)}:${safeWords[i]}`).join(" "), { maxChars: 120000 }).block);
+      // The same words as spoken lines (split at pauses), so sentences, questions and changes of speaker are
+      // readable; a long pause before/after a line that sounds like a question usually means another speaker.
+      const spoken: string[] = [];
+      let from = 0;
+      for (let i = 1; i <= shown.length; i++) {
+        if (i < shown.length && shown[i].startSeconds - shown[i - 1].endSeconds < SPOKEN_LINE_PAUSE_SEC) continue;
+        const gapBefore = from > 0 ? shown[from].startSeconds - shown[from - 1].endSeconds : shown[0].startSeconds;
+        spoken.push(`[${shown[from].startSeconds.toFixed(2)}-${shown[i - 1].endSeconds.toFixed(2)}, pause before ${gapBefore.toFixed(1)}s] ${safeWords.slice(from, i).join(" ")}`);
+        from = i;
+      }
+      lines.push(`Spoken lines (split at pauses of ${SPOKEN_LINE_PAUSE_SEC}s+; speakers are NOT labelled, judge from wording and pauses):`);
+      lines.push(fenceUntrusted("transcript", spoken.join("\n"), { maxChars: 60000 }).block);
     }
     const sil = g.silences || [];
     lines.push(
@@ -392,6 +463,19 @@ export class CreativePlanner {
     // Measured edit style + the still-raw tail, so "complete / continue this video" follows the creator's own style.
     out.push(...describeEditStyle(deriveEditStyle(ir)));
     return out;
+  }
+
+  private static buildCoveragePrompt(basePrompt: string, calls: Array<{ name: string; args: any }>, missing: string[]): string {
+    return [
+      basePrompt,
+      ``,
+      `## Your previous plan skipped part of the creator's request`,
+      `Previous tool calls: ${truncate(JSON.stringify(calls), 6000)}`,
+      `The creator explicitly asked for these, and the plan has none of them:`,
+      ...missing.map((m) => `- ${m}`),
+      ``,
+      `Call the tools again with the COMPLETE set of operations (keep the good ones, add the missing ones), then finish_edit. If one is truly impossible with this footage, skip it and say why in finish_edit.`,
+    ].join("\n");
   }
 
   private static buildRepairPrompt(basePrompt: string, calls: Array<{ name: string; args: any }>, errors: string[]): string {

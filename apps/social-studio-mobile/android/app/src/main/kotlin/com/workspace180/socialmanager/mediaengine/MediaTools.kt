@@ -30,6 +30,7 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.exp
+import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -48,6 +49,43 @@ object MediaTools {
     // -----------------------------------------------------------------------------------------
     // getVideoInfo
 
+    /**
+     * Duration from the samples themselves (last sample end of the longest track), for files whose header carries no
+     * duration (fragmented MP4: mvhd/mdhd = 0, timing in moof boxes). Reads sample timestamps only, not frames.
+     */
+    fun sampledDurationMs(path: String): Long? {
+        val ex = MediaExtractor()
+        return try {
+            ex.setDataSource(path)
+            var maxUs = 0L
+            for (t in 0 until ex.trackCount) {
+                val f = ex.getTrackFormat(t)
+                if (f.containsKey(MediaFormat.KEY_DURATION) && f.getLong(MediaFormat.KEY_DURATION) > 0) {
+                    maxUs = max(maxUs, f.getLong(MediaFormat.KEY_DURATION))
+                    continue
+                }
+                ex.selectTrack(t)
+                var last = -1L
+                var prev = -1L
+                while (true) {
+                    val ts = ex.sampleTime
+                    if (ts < 0) break
+                    prev = last
+                    last = ts
+                    if (!ex.advance()) break
+                }
+                ex.unselectTrack(t)
+                // End of the last sample ≈ its start + one sample interval.
+                if (last >= 0) maxUs = max(maxUs, last + if (prev >= 0) last - prev else 0)
+            }
+            if (maxUs > 0) (maxUs + 500) / 1000 else null
+        } catch (_: Exception) {
+            null
+        } finally {
+            ex.release()
+        }
+    }
+
     fun getVideoInfo(path: String): Map<String, Any?> {
         requireFile(path)
         val r = MediaMetadataRetriever()
@@ -60,7 +98,9 @@ object MediaTools {
             fun meta(key: Int) = r.extractMetadata(key)
             val hasVideo = meta(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes"
             val hasAudio = meta(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) == "yes"
-            val durationMs = meta(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            val headerMs = meta(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            // Fragmented MP4 (common for stock clips) has 0 in its header; the real length is in the fragments.
+            val durationMs = headerMs?.takeIf { it > 0 } ?: sampledDurationMs(path)
                 ?: throw MediaEngineError("UNSUPPORTED_MEDIA", "Media has no duration: $path")
             val width = meta(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
             val height = meta(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
@@ -536,6 +576,37 @@ object MediaTools {
 
     // -----------------------------------------------------------------------------------------
     // Thumbnails
+
+    /**
+     * Exact number of video frames and the real average frame rate, from the container's sample table (no decoding).
+     * The format's KEY_FRAME_RATE is only an encoder hint and can be wrong.
+     */
+    fun countVideoFrames(path: String): Map<String, Any> {
+        requireFile(path)
+        val ex = MediaExtractor()
+        try {
+            ex.setDataSource(path)
+            val track = (0 until ex.trackCount).firstOrNull { ex.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true }
+                ?: throw MediaEngineError("NO_VIDEO_TRACK", "No video track in $path")
+            ex.selectTrack(track)
+            var n = 0
+            var first = -1L
+            var last = 0L
+            while (true) {
+                val t = ex.sampleTime
+                if (t < 0) break
+                if (first < 0) first = t
+                last = maxOf(last, t)
+                n++
+                if (!ex.advance()) break
+            }
+            // Average spacing between frame starts (the last frame's own duration is not in the table).
+            val fps = if (n > 1 && last > first) (n - 1) * 1_000_000.0 / (last - first) else 0.0
+            return mapOf("frames" to n, "fps" to fps)
+        } finally {
+            ex.release()
+        }
+    }
 
     fun generateThumbnails(
         sourcePath: String,

@@ -47,4 +47,13 @@ void main() {
     expect(TimelineOps.items(ir).where((i) => i.kind == TrackKind.voiceover).length, 1);
     expect(TimelineOps.deleteItem(ir, TrackKind.voiceover, id).audio.voiceovers, isEmpty);
   });
+
+  test('speed ramp splits the clip into parts with the preset speeds and the right length', () {
+    final ir = TimelineOps.speedRamp(base(), 0, 'hero');
+    expect(ir.clips.map((c) => c.speed), [1.0, 0.4, 1.0]);
+    expect(ir.clips.first.sourceStartMs, 0);
+    expect(ir.clips.last.sourceEndMs, 10000);
+    // 3.5 s + 3 s / 0.4 + 3.5 s = 14.5 s
+    expect(ir.durationMs, closeTo(14500, 5));
+  });
 }

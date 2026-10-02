@@ -81,8 +81,16 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     script: widget.script,
     draftId: widget.draftId ?? widget.draft?.id,
   );
-  /// The player currently shown; one per timeline asset (clips can come from different files).
-  VideoPlayerController? _player;
+  /// Two-slot controller pool for zero-jitter multi-clip transitions and background proxy hot-swapping.
+  VideoPlayerController? _slotA;
+  VideoPlayerController? _slotB;
+  String? _slotAPath;
+  String? _slotBPath;
+  bool _isSlotAPrimary = true;
+  final Map<String, String> _loadedProxyPaths = {};
+
+  VideoPlayerController? get _player => _isSlotAPrimary ? _slotA : _slotB;
+
   final Map<String, VideoPlayerController> _players = {};
   String _activeAsset = 'primary';
   Object? _loadError;
@@ -93,6 +101,12 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
   /// One audio player per voiceover recording (keyed by asset id), started / stopped as the playhead crosses it.
   final Map<String, VideoPlayerController> _voPlayers = {};
   int _voFrame = 0;
+
+  /// Second player for true crossfades: the other side of the cut, faded over the main picture (as in the export).
+  VideoPlayerController? _xfPlayer;
+  String? _xfPath;
+  ({int clipIndex, int sourceMs, double opacity})? _xf;
+  bool _xfBusy = false;
   final Stopwatch _playbackStopwatch = Stopwatch();
   bool _dismissedProposal = false;
 
@@ -152,15 +166,18 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
       await c.restoreFromDraft(draft);
       final path = draft.sourcePath;
       if (path.isNotEmpty) {
-        final p = kIsWeb
-            ? VideoPlayerController.networkUrl(Uri.parse(path))
-            : VideoPlayerController.file(File(path));
-        await p.initialize();
         await _disposePlayers();
-        _players['primary'] = p;
-        _player = p;
+        final previewPath = c.previewPathForAsset('primary') ?? path;
+        final p = await _createControllerForPath(previewPath);
+        _slotA = p;
+        _slotAPath = previewPath;
+        _isSlotAPrimary = true;
         _activeAsset = 'primary';
-        await _activateAsset(c.assetAtPlayhead);
+        _players['primary'] = p;
+        final initialAsset = c.assetAtPlayhead;
+        if (initialAsset != 'primary') {
+          await _activateAsset(initialAsset);
+        }
         await _player?.seekTo(Duration(milliseconds: c.sourcePositionMs));
       }
     } catch (e) {
@@ -202,7 +219,58 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     for (final p in _voPlayers.values) {
       p.dispose();
     }
+    _xfPlayer?.dispose();
     super.dispose();
+  }
+
+  /// Loads the crossfade player for [path] ahead of time (muted).
+  Future<void> _prepareCrossfade(String path) async {
+    if (_xfPath == path) return;
+    final old = _xfPlayer;
+    _xfPlayer = null;
+    _xfPath = path;
+    await old?.dispose();
+    final p = VideoPlayerController.file(File(path));
+    await p.initialize();
+    await p.setVolume(0);
+    if (!mounted || _xfPath != path) {
+      await p.dispose();
+      return;
+    }
+    _xfPlayer = p;
+  }
+
+  /// Shows / hides the crossfade layer for the playhead and keeps its player in step (`TimelineOps.crossfadeAt`).
+  Future<void> _syncCrossfade() async {
+    if (_xfBusy) return;
+    _xfBusy = true;
+    try {
+      final ir = c.ir;
+      final xf = ir == null || !_playing ? null : TimelineOps.crossfadeAt(ir, c.playheadMs, isStill: c.isStillAsset);
+      if (xf == null) {
+        if (_xf != null) {
+          _xf = null;
+          await _xfPlayer?.pause();
+        }
+        return;
+      }
+      final clip = ir!.clips[xf.clipIndex];
+      if (!c.isStillAsset(clip.assetId)) {
+        final path = c.pathForAsset(clip.assetId);
+        if (path == null) return;
+        await _prepareCrossfade(path);
+        final p = _xfPlayer;
+        if (p == null) return;
+        if (p.value.playbackSpeed != clip.speed) await p.setPlaybackSpeed(clip.speed);
+        if (!p.value.isPlaying || (p.value.position.inMilliseconds - xf.sourceMs).abs() > 150) {
+          await p.seekTo(Duration(milliseconds: xf.sourceMs));
+          await p.play();
+        }
+      }
+      _xf = xf;
+    } finally {
+      _xfBusy = false;
+    }
   }
 
   /// Keeps voiceover playback in step with the timeline preview (same volume and fades as the export).
@@ -237,53 +305,154 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
   }
 
   Future<void> _disposePlayers() async {
-    final all = _players.values.toList();
+    final all = [_slotA, _slotB, ..._players.values].whereType<VideoPlayerController>().toSet().toList();
     _players.clear();
-    _player = null;
+    _slotA = null;
+    _slotB = null;
+    _slotAPath = null;
+    _slotBPath = null;
+    _isSlotAPrimary = true;
     for (final p in all) {
       await p.dispose();
     }
   }
 
-  Future<VideoPlayerController?> _playerFor(String assetId) async {
-    final existing = _players[assetId];
-    if (existing != null) return existing;
-    final path = c.previewPathForAsset(assetId);
-    if (path == null || path.isEmpty) return null;
-    // Stock clips added to the main track are https URLs; recorded and gallery clips are local files.
+  Future<VideoPlayerController> _createControllerForPath(String path) async {
     final remote = kIsWeb || path.startsWith('http://') || path.startsWith('https://');
-    final p = remote ? VideoPlayerController.networkUrl(Uri.parse(path)) : VideoPlayerController.file(File(path));
+    final p = remote
+        ? VideoPlayerController.networkUrl(Uri.parse(path))
+        : VideoPlayerController.file(File(path));
     await p.initialize();
-    if (!mounted) {
-      await p.dispose();
-      return null;
-    }
-    _players[assetId] = p;
     return p;
+  }
+
+  String? get _activeSlotPath => _isSlotAPrimary ? _slotAPath : _slotBPath;
+
+  Future<VideoPlayerController?> _ensureActiveSlot(String path) async {
+    if (_isSlotAPrimary) {
+      if (_slotA != null && _slotAPath == path && _slotA!.value.isInitialized) {
+        return _slotA;
+      }
+      final old = _slotA;
+      final p = await _createControllerForPath(path);
+      if (!mounted) {
+        await p.dispose();
+        return null;
+      }
+      _slotA = p;
+      _slotAPath = path;
+      await old?.dispose();
+      return p;
+    } else {
+      if (_slotB != null && _slotBPath == path && _slotB!.value.isInitialized) {
+        return _slotB;
+      }
+      final old = _slotB;
+      final p = await _createControllerForPath(path);
+      if (!mounted) {
+        await p.dispose();
+        return null;
+      }
+      _slotB = p;
+      _slotBPath = path;
+      await old?.dispose();
+      return p;
+    }
   }
 
   /// Shows the video of [assetId] in the preview (lazy-initialises its player).
   Future<void> _activateAsset(String assetId) async {
-    if (assetId == _activeAsset && _player != null) return;
-    final p = await _playerFor(assetId);
+    final path = c.previewPathForAsset(assetId);
+    if (path == null || path.isEmpty) return;
+    if (_activeAsset == assetId && _player != null && _activeSlotPath == path) return;
+    final p = await _ensureActiveSlot(path);
     if (p == null || !mounted) return;
-    await _player?.pause();
     setState(() {
-      _player = p;
       _activeAsset = assetId;
     });
   }
 
+  void _checkProxyHotSwap() {
+    for (final entry in c.proxyPaths.entries) {
+      final assetId = entry.key;
+      final proxyPath = entry.value;
+      if (_loadedProxyPaths[assetId] == proxyPath) continue;
+      _loadedProxyPaths[assetId] = proxyPath;
+      unawaited(_hotSwapProxy(assetId, proxyPath));
+    }
+  }
+
+  /// Swaps a slot playing the full-resolution file of [assetId] to its 720p proxy at the same position, speed and
+  /// play state. The export keeps reading the original (StudioController._assetPathForExport).
+  Future<void> _hotSwapProxy(String assetId, String proxyPath) async {
+    if (!mounted) return;
+    final originalPath = c.sourcePaths[assetId == 'primary' ? 'main' : assetId] ?? c.sourcePaths[assetId];
+    if (originalPath == null) return;
+
+    Future<VideoPlayerController?> swap(VideoPlayerController old, bool active) async {
+      final VideoPlayerController next;
+      try {
+        next = VideoPlayerController.file(File(proxyPath));
+        await next.initialize();
+        await next.setPlaybackSpeed(old.value.playbackSpeed);
+        await next.setVolume(old.value.volume);
+        await next.seekTo(old.value.position);
+        if (active && _playing && old.value.isPlaying) await next.play();
+      } catch (_) {
+        return null; // keep the full-resolution player; the proxy is only an optimisation
+      }
+      if (!mounted) {
+        await next.dispose();
+        return null;
+      }
+      return next;
+    }
+
+    final replaced = <VideoPlayerController, VideoPlayerController>{};
+    final a = _slotA;
+    if (a != null && _slotAPath == originalPath) {
+      final next = await swap(a, _isSlotAPrimary);
+      if (next != null && identical(_slotA, a)) {
+        setState(() {
+          _slotA = next;
+          _slotAPath = proxyPath;
+        });
+        replaced[a] = next;
+      }
+    }
+    final b = _slotB;
+    if (b != null && _slotBPath == originalPath) {
+      final next = await swap(b, !_isSlotAPrimary);
+      if (next != null && identical(_slotB, b)) {
+        setState(() {
+          _slotB = next;
+          _slotBPath = proxyPath;
+        });
+        replaced[b] = next;
+      }
+    }
+    // `_players` may hold the very controller a slot used: point it at the replacement instead of disposing twice.
+    _players.updateAll((_, v) => replaced[v] ?? v);
+    for (final old in replaced.keys) {
+      await old.pause();
+      await old.dispose();
+    }
+  }
+
   void _onChange() {
     if (!mounted) return;
+    _checkProxyHotSwap();
     setState(() {});
     if (_playing) return;
     final asset = c.assetAtPlayhead;
     if (c.isStillAsset(asset)) return; // stills are drawn from the file, no player
-    if (asset != _activeAsset) {
-      _activateAsset(asset).then((_) => _player?.seekTo(Duration(milliseconds: c.sourcePositionMs)));
-    } else {
-      _player?.seekTo(Duration(milliseconds: c.sourcePositionMs));
+    final path = c.previewPathForAsset(asset);
+    if (path != null) {
+      _ensureActiveSlot(path).then((p) {
+        if (mounted && !_playing) {
+          p?.seekTo(Duration(milliseconds: c.sourcePositionMs));
+        }
+      });
     }
   }
 
@@ -294,14 +463,14 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     });
     try {
       await c.load(path);
-      final p = kIsWeb
-          ? VideoPlayerController.networkUrl(Uri.parse(path))
-          : VideoPlayerController.file(File(path));
-      await p.initialize();
       await _disposePlayers();
-      _players['primary'] = p;
-      _player = p;
+      final previewPath = c.previewPathForAsset('primary') ?? path;
+      final p = await _createControllerForPath(previewPath);
+      _slotA = p;
+      _slotAPath = previewPath;
+      _isSlotAPrimary = true;
       _activeAsset = 'primary';
+      _players['primary'] = p;
     } catch (e) {
       _loadError = e;
     }
@@ -313,6 +482,53 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     if (f != null) await _load(f.path);
   }
 
+  Future<void> _prewarmNextSlot(int nextIndex) async {
+    final ir = c.ir;
+    if (ir == null || nextIndex >= ir.clips.length || !_playing || !mounted) return;
+    final nextClip = ir.clips[nextIndex];
+    if (c.isStillAsset(nextClip.assetId)) return;
+    final nextPath = c.previewPathForAsset(nextClip.assetId);
+    if (nextPath == null || nextPath.isEmpty) return;
+
+    if (_isSlotAPrimary) {
+      if (_slotB == null || _slotBPath != nextPath || !_slotB!.value.isInitialized) {
+        final old = _slotB;
+        final p = await _createControllerForPath(nextPath);
+        if (!mounted || !_playing) {
+          await p.dispose();
+          return;
+        }
+        _slotB = p;
+        _slotBPath = nextPath;
+        await old?.dispose();
+      }
+      if (_slotB != null && mounted && _playing) {
+        await _slotB!.setVolume(0);
+        await _slotB!.setPlaybackSpeed(nextClip.speed);
+        await _slotB!.seekTo(Duration(milliseconds: nextClip.sourceStartMs));
+        await _slotB!.pause();
+      }
+    } else {
+      if (_slotA == null || _slotAPath != nextPath || !_slotA!.value.isInitialized) {
+        final old = _slotA;
+        final p = await _createControllerForPath(nextPath);
+        if (!mounted || !_playing) {
+          await p.dispose();
+          return;
+        }
+        _slotA = p;
+        _slotAPath = nextPath;
+        await old?.dispose();
+      }
+      if (_slotA != null && mounted && _playing) {
+        await _slotA!.setVolume(0);
+        await _slotA!.setPlaybackSpeed(nextClip.speed);
+        await _slotA!.seekTo(Duration(milliseconds: nextClip.sourceStartMs));
+        await _slotA!.pause();
+      }
+    }
+  }
+
   /// Plays the edited timeline clip by clip; a clip from another file switches the preview to that file's player.
   void _togglePlay() {
     final ir = c.ir;
@@ -320,9 +536,11 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     if (_playing) {
       _tick?.cancel();
       _playbackStopwatch.stop();
-      _player?.pause();
+      _slotA?.pause();
+      _slotB?.pause();
       setState(() => _playing = false);
       unawaited(_syncVoiceovers(stop: true));
+      unawaited(_syncCrossfade());
       return;
     }
     if (c.playheadMs >= ir.durationMs - 50) c.seek(0);
@@ -336,7 +554,8 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     if (ir == null || !_playing || !mounted) return;
     if (clipIndex >= ir.clips.length) {
       _playbackStopwatch.stop();
-      _player?.pause();
+      _slotA?.pause();
+      _slotB?.pause();
       unawaited(_syncVoiceovers(stop: true));
       c.seek(ir.durationMs);
       setState(() => _playing = false);
@@ -345,7 +564,8 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     final clip = ir.clips[clipIndex];
     if (c.isStillAsset(clip.assetId)) {
       // A still has no player: hold it for its length, then carry on.
-      await _player?.pause();
+      _slotA?.pause();
+      _slotB?.pause();
       final from = (c.playheadMs >= clip.timelineStartMs && c.playheadMs < clip.timelineEndMs) ? c.playheadMs : clip.timelineStartMs;
       final sw = Stopwatch()..start();
       _tick = Timer.periodic(const Duration(milliseconds: 16), (_) {
@@ -364,19 +584,18 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
       });
       return;
     }
-    await _activateAsset(clip.assetId);
-    final p = _player;
-    if (p == null || !_playing || !mounted) return;
 
-    // Pre-warm the next clip so the cut transition is instantaneous without texture stalls
-    if (clipIndex + 1 < ir.clips.length && !c.isStillAsset(ir.clips[clipIndex + 1].assetId)) {
-      final nextClip = ir.clips[clipIndex + 1];
-      _playerFor(nextClip.assetId).then((nextP) {
-        if (nextP != null && mounted && _playing) {
-          nextP.seekTo(Duration(milliseconds: nextClip.sourceStartMs));
-          nextP.setPlaybackSpeed(nextClip.speed);
-        }
-      });
+    final activePath = c.previewPathForAsset(clip.assetId);
+    if (activePath == null || activePath.isEmpty) return;
+    final p = await _ensureActiveSlot(activePath);
+    if (p == null || !_playing || !mounted) return;
+    _activeAsset = clip.assetId;
+
+    // Load the other side of an upcoming crossfade before its window starts.
+    final next = clipIndex + 1 < ir.clips.length ? ir.clips[clipIndex + 1] : null;
+    if (next?.transitionIn != null && !c.isStillAsset(next!.assetId)) {
+      final path = c.pathForAsset(next.assetId);
+      if (path != null) unawaited(_prepareCrossfade(path));
     }
 
     final startMs = fromSourceMs ?? clip.sourceStartMs;
@@ -388,6 +607,17 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
 
     _playbackStopwatch.reset();
     _playbackStopwatch.start();
+
+    // Pre-warm the inactive slot for the next clip
+    unawaited(_prewarmNextSlot(clipIndex + 1));
+
+    _startClipPlaybackLoop(clipIndex, startMs);
+  }
+
+  void _startClipPlaybackLoop(int clipIndex, int startMs) {
+    _tick?.cancel();
+    final p = _player;
+    if (p == null) return;
 
     _tick = Timer.periodic(const Duration(milliseconds: 16), (_) {
       final cur = c.ir;
@@ -404,8 +634,38 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
       if (effectiveSourceMs >= cl.sourceEndMs - 20) {
         _tick?.cancel();
         _playbackStopwatch.stop();
-        if (clipIndex + 1 < cur.clips.length) c.playheadMs = cur.clips[clipIndex + 1].timelineStartMs;
-        _playClip(clipIndex + 1);
+        final nextIdx = clipIndex + 1;
+        if (nextIdx < cur.clips.length) {
+          c.playheadMs = cur.clips[nextIdx].timelineStartMs;
+          final nextCl = cur.clips[nextIdx];
+          final nextSlot = _isSlotAPrimary ? _slotB : _slotA;
+          final prevSlot = _isSlotAPrimary ? _slotA : _slotB;
+
+          // Only swap to a slot that was pre-warmed for THIS clip (right file, parked at its in-point); otherwise
+          // fall back to loading it, rather than showing the wrong footage after the cut.
+          final nextSlotPath = _isSlotAPrimary ? _slotBPath : _slotAPath;
+          final ready = nextSlot != null &&
+              nextSlot.value.isInitialized &&
+              !c.isStillAsset(nextCl.assetId) &&
+              nextSlotPath == c.previewPathForAsset(nextCl.assetId) &&
+              (nextSlot.value.position.inMilliseconds - nextCl.sourceStartMs).abs() < 250;
+          if (ready) {
+            // Instantaneous zero-latency swap between slot A and slot B!
+            _isSlotAPrimary = !_isSlotAPrimary;
+            prevSlot?.pause();
+            nextSlot.setPlaybackSpeed(nextCl.speed);
+            nextSlot.setVolume(c.recordingVoiceover ? 0 : TimelineOps.clipPreviewGain(cur, nextIdx, 0));
+            nextSlot.play();
+            _activeAsset = nextCl.assetId;
+            _playbackStopwatch.reset();
+            _playbackStopwatch.start();
+            _startClipPlaybackLoop(nextIdx, nextCl.sourceStartMs);
+            unawaited(_prewarmNextSlot(nextIdx + 1));
+            setState(() {});
+            return;
+          }
+        }
+        _playClip(nextIdx);
         return;
       }
       c.playheadMs = cl.timelineStartMs + ((effectiveSourceMs - cl.sourceStartMs).clamp(0, cl.sourceEndMs) / cl.speed).round();
@@ -413,6 +673,7 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
       // Footage sound is muted while a voiceover records, so the microphone does not pick it up.
       p.setVolume(c.recordingVoiceover ? 0 : TimelineOps.clipPreviewGain(cur, clipIndex, c.playheadMs - cl.timelineStartMs));
       if (_voFrame++ % 6 == 0 && cur.audio.voiceovers.isNotEmpty) unawaited(_syncVoiceovers());
+      unawaited(_syncCrossfade());
       setState(() {});
     });
   }
@@ -621,10 +882,13 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
                 : Column(children: [
                     if (_unappliedProposalIndex case final idx?)
                       _buildProposalBanner(context, idx),
+                    if (c.mediaDownload case final dl?)
+                      _MediaDownloadBanner(state: dl, onRetry: () => c.prefetchRemoteMedia(), onDismiss: c.dismissMediaDownload),
                     Expanded(
                       child: _Preview(
                         controller: c,
                         player: _player,
+                        crossfade: _xf == null ? null : (player: _xfPlayer, clipIndex: _xf!.clipIndex, opacity: _xf!.opacity),
                         playing: _playing,
                         onOpenTool: _openTool,
                         onEdit: _edit,
@@ -680,6 +944,7 @@ class _Preview extends StatelessWidget {
   const _Preview({
     required this.controller,
     required this.player,
+    this.crossfade,
     required this.playing,
     required this.onOpenTool,
     required this.onEdit,
@@ -687,6 +952,9 @@ class _Preview extends StatelessWidget {
 
   final StudioController controller;
   final VideoPlayerController? player;
+
+  /// The other side of a crossfade, drawn over the picture at [opacity] (same look as its clip).
+  final ({VideoPlayerController? player, int clipIndex, double opacity})? crossfade;
   final bool playing;
   final ValueChanged<StudioTool> onOpenTool;
   final EditFn onEdit;
@@ -728,12 +996,30 @@ class _Preview extends StatelessWidget {
                   Transform.scale(
                     scale: zoom?.scale ?? 1,
                     alignment: Alignment(((zoom?.centerX ?? 0.5) * 2) - 1, ((zoom?.centerY ?? 0.5) * 2) - 1),
-                    child: (clip.filter?.vignette ?? 0) > 0
-                        ? Stack(fit: StackFit.expand, children: [
-                            base(),
-                            ClipVignette(strength: clip.filter!.vignette),
-                          ])
-                        : base(),
+                    child: Stack(fit: StackFit.expand, children: [
+                      base(),
+                      if ((clip.filter?.vignette ?? 0) > 0) ClipVignette(strength: clip.filter!.vignette),
+                      if (crossfade case final xf? when xf.clipIndex < ir.clips.length)
+                        () {
+                          final other = ir.clips[xf.clipIndex];
+                          final otherStill = !kIsWeb && controller.isStillAsset(other.assetId) ? controller.pathForAsset(other.assetId) : null;
+                          final otherSrc = ir.sources.where((s) => s.assetId == other.assetId).firstOrNull;
+                          if (otherStill == null && (xf.player == null || !xf.player!.value.isInitialized)) return const SizedBox.shrink();
+                          return Opacity(
+                            opacity: xf.opacity.clamp(0.0, 1.0),
+                            child: Stack(fit: StackFit.expand, children: [
+                              _CroppedVideo(
+                                player: xf.player,
+                                clip: other,
+                                filter: other.filter,
+                                stillPath: otherStill,
+                                stillSize: otherStill == null ? null : Size((otherSrc?.width ?? 1080).toDouble(), (otherSrc?.height ?? 1920).toDouble()),
+                              ),
+                              if ((other.filter?.vignette ?? 0) > 0) ClipVignette(strength: other.filter!.vignette),
+                            ]),
+                          );
+                        }(),
+                    ]),
                   ),
 
                 // B-roll Video or Image Overlay
@@ -839,6 +1125,9 @@ class _BrollOverlayImageState extends State<_BrollOverlayImage> {
   ImageStream? _stream;
   ImageStreamListener? _listener;
 
+  String? _resolvedFor;
+  String _sourceKey() => '${widget.broll.source}|${kIsWeb ? '' : widget.controller.localOverlayPath(widget.broll.source) ?? ''}';
+
   ImageProvider? _provider() {
     // Gallery photos and stickers are files on this phone; stock photos are URLs.
     final local = kIsWeb ? null : widget.controller.localOverlayPath(widget.broll.source);
@@ -857,10 +1146,12 @@ class _BrollOverlayImageState extends State<_BrollOverlayImage> {
   @override
   void didUpdateWidget(covariant _BrollOverlayImage old) {
     super.didUpdateWidget(old);
-    if (old.broll.source != widget.broll.source) _resolve();
+    // Re-resolve when the source changes or its download finishes (remote URL → cached file).
+    if (old.broll.source != widget.broll.source || _resolvedFor != _sourceKey()) _resolve();
   }
 
   void _resolve() {
+    _resolvedFor = _sourceKey();
     final p = _provider();
     if (p == null) return;
     final next = p.resolve(createLocalImageConfiguration(context));
@@ -1368,3 +1659,49 @@ class _ToolBar extends StatelessWidget {
         ),
       );
 }
+
+/// Progress of the timeline's online media (Director picks / reopened drafts) and a retry when some failed.
+class _MediaDownloadBanner extends StatelessWidget {
+  const _MediaDownloadBanner({required this.state, required this.onRetry, required this.onDismiss});
+  final ({int done, int total, Map<String, String> failed}) state;
+  final VoidCallback onRetry;
+
+  /// Second way out: carry on; the export leaves the missing items out and says which.
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = state.failed;
+    final running = state.done < state.total;
+    return Container(
+      color: failed.isNotEmpty && !running ? AppTheme.error.withValues(alpha: 0.12) : AppTheme.surfaceElevated,
+      padding: EdgeInsets.fromLTRB(12, 8, 8, 8),
+      child: Row(children: [
+        Icon(running ? Icons.cloud_download_rounded : Icons.cloud_off_rounded, size: 20, color: running ? AppTheme.primary : AppTheme.error),
+        SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text(
+              running
+                  ? 'Downloading media ${state.done}/${state.total}…'
+                  : '${failed.length} item${failed.length == 1 ? '' : 's'} could not be downloaded: ${failed.keys.take(2).join(', ')}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13),
+            ),
+            if (running) ...[
+              SizedBox(height: 6),
+              LinearProgressIndicator(value: state.total == 0 ? null : state.done / state.total),
+            ] else
+              Text(failed.values.first, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+          ]),
+        ),
+        if (!running && failed.isNotEmpty) ...[
+          SizedBox(height: 44, child: TextButton(onPressed: onRetry, child: Text('Retry'))),
+          SizedBox(height: 44, child: TextButton(onPressed: onDismiss, child: Text('Continue without'))),
+        ],
+      ]),
+    );
+  }
+}
+

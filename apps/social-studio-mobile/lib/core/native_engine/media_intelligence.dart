@@ -49,24 +49,42 @@ class LoudnessStats {
   }
 }
 
-/// A cached on-device analysis of one source file (OCR, scene cuts, loudness).
+/// What the picture shows in [startMs, endMs) of the source: on-device ML Kit labels (sent as `media.labels`).
+class SceneLabelSpan {
+  SceneLabelSpan({required this.startMs, required this.endMs, required this.labels});
+  final int startMs, endMs;
+  final List<String> labels;
+
+  factory SceneLabelSpan.fromMap(Map<String, dynamic> m) => SceneLabelSpan(
+        startMs: (m['startMs'] as num).toInt(),
+        endMs: (m['endMs'] as num).toInt(),
+        labels: [for (final l in (m['labels'] as List? ?? [])) '$l'],
+      );
+
+  Map<String, dynamic> toJson() => {'startMs': startMs, 'endMs': endMs, 'labels': labels};
+}
+
+/// A cached on-device analysis of one source file (OCR, scene cuts, scene labels, loudness).
 class MediaIntelligence {
-  MediaIntelligence({this.scenesMs, this.ocr, this.loudness});
+  MediaIntelligence({this.scenesMs, this.ocr, this.loudness, this.labels});
   final List<int>? scenesMs;
   final List<OcrSpan>? ocr;
   final LoudnessStats? loudness;
+  final List<SceneLabelSpan>? labels;
 
-  bool get isEmpty => scenesMs == null && ocr == null && loudness == null;
+  bool get isEmpty => scenesMs == null && ocr == null && loudness == null && labels == null;
 
-  MediaIntelligence merge({List<int>? scenesMs, List<OcrSpan>? ocr, LoudnessStats? loudness}) => MediaIntelligence(
+  MediaIntelligence merge({List<int>? scenesMs, List<OcrSpan>? ocr, LoudnessStats? loudness, List<SceneLabelSpan>? labels}) => MediaIntelligence(
         scenesMs: scenesMs ?? this.scenesMs,
         ocr: ocr ?? this.ocr,
         loudness: loudness ?? this.loudness,
+        labels: labels ?? this.labels,
       );
 
   Map<String, dynamic> toJson() => {
         'scenesMs': ?scenesMs,
         if (ocr != null) 'ocr': [for (final o in ocr!) o.toJson()],
+        if (labels != null) 'labels': [for (final l in labels!) l.toJson()],
         if (loudness != null)
           'loudness': {
             'integratedLufs': loudness!.integratedLufs,
@@ -79,6 +97,7 @@ class MediaIntelligence {
         scenesMs: (j['scenesMs'] as List?)?.whereType<num>().map((e) => e.toInt()).toList(),
         ocr: (j['ocr'] as List?)?.whereType<Map>().map((m) => OcrSpan.fromMap(m.cast<String, dynamic>())).toList(),
         loudness: j['loudness'] is Map ? LoudnessStats.fromMap((j['loudness'] as Map).cast<String, dynamic>()) : null,
+        labels: (j['labels'] as List?)?.whereType<Map>().map((m) => SceneLabelSpan.fromMap(m.cast<String, dynamic>())).toList(),
       );
 }
 

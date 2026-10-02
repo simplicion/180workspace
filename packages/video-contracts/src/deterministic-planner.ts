@@ -497,8 +497,10 @@ export class DeterministicPlanner {
     if (wantsBeatAlign) {
       operations.push({
         type: "beatAlign",
-        targetTrackId: "track_v1",
+        targetTrackId: "main",
         snapToleranceSec: 0.25,
+        // Real beats in timeline seconds (on-device analysis); without them the compiler says so instead of guessing.
+        beatsSec: graph.beats?.beatTimestamps ?? [],
       });
     }
 

@@ -6,6 +6,7 @@
  *   POST /static-posts                             start a single-image post job   -> 202 {job}
  *   GET  /jobs/:jobId                              job status + result             -> 200 {job}
  *   POST /jobs/:jobId/slides/:index/regenerate     redo one slide                  -> 202 {job}
+ *   POST /thumbnails                               AI thumbnail team (real frames) -> 200 {variants, hooks}
  *
  * Tenant = the authenticated user's company; every lookup is scoped to (companyId, projectId).
  * See docs/social-studio-mobile/CREATIVE_ENGINE.md.
@@ -71,6 +72,16 @@ export function createCreativeRouter(getService: () => CreativeService = default
             sendError(res, err);
         }
     };
+
+    // AI thumbnail design team: frames in, three QA'd thumbnails out (synchronous).
+    router.post('/thumbnails', guard(async (req, res, ctx) => {
+        res.json({ success: true, ...(await getService().designThumbnails(ctx, req.body || {})) });
+    }));
+
+    // Manual thumbnail (no AI): one frame + the creator's text through the same compositor and QA.
+    router.post('/thumbnails/render', guard(async (req, res, ctx) => {
+        res.json({ success: true, ...(await getService().renderThumbnailManual(ctx, req.body || {})) });
+    }));
 
     router.get('/status', guard(async (_req, res, ctx) => {
         res.json({ success: true, ...(await getService().getStatus(ctx)) });
