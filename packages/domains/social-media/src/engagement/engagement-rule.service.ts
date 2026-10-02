@@ -8,7 +8,8 @@ const TRIGGERS = ['comment_keyword', 'comment_any', 'dm_inbound', 'mention'];
 const MODES = ['contains', 'exact', 'regex'];
 
 /** Shape checks shared by create/update: enums, keyword limits, regex that compiles and stays short, https deliverable. */
-function validateRuleShape(dto: Partial<CreateEngagementRuleDTO>) {
+function validateRuleShape(dto: Partial<CreateEngagementRuleDTO> & { status?: string }) {
+    if (dto.status !== undefined && !['active', 'paused', 'archived'].includes(dto.status)) throw invalid('status must be active, paused or archived');
     if (dto.triggerType !== undefined && !TRIGGERS.includes(dto.triggerType)) throw invalid(`triggerType must be one of ${TRIGGERS.join(', ')}`);
     if (dto.matchMode !== undefined && !MODES.includes(dto.matchMode)) throw invalid(`matchMode must be one of ${MODES.join(', ')}`);
     if (dto.triggerKeywords !== undefined) {
@@ -25,6 +26,22 @@ function validateRuleShape(dto: Partial<CreateEngagementRuleDTO>) {
     }
     if (dto.actionDmTemplate !== undefined && String(dto.actionDmTemplate).length > 1000) throw invalid('actionDmTemplate is limited to 1000 characters');
     if (dto.actionDmDeliverableUrl && !/^https:\/\/\S+$/i.test(String(dto.actionDmDeliverableUrl))) throw invalid('actionDmDeliverableUrl must be an https:// link');
+    if (dto.platformMediaId != null && dto.platformMediaId !== '' && !/^[A-Za-z0-9_:.-]{1,128}$/.test(String(dto.platformMediaId))) {
+        throw invalid('platformMediaId must be a platform media id');
+    }
+    for (const k of ['platformMediaPermalink', 'platformMediaThumbnail'] as const) {
+        const v = dto[k];
+        if (v != null && v !== '' && !/^https:\/\/\S{1,2000}$/i.test(String(v))) throw invalid(`${k} must be an https:// link`);
+    }
+    if (dto.triggerType === 'comment_keyword' && dto.triggerKeywords !== undefined && !dto.triggerKeywords.some((k) => String(k).trim())) {
+        throw invalid('comment_keyword needs at least one keyword; use comment_any to reply to every comment');
+    }
+}
+
+/** A media-targeted rule must name the account the media belongs to, and cannot also target an app post. */
+function validateTarget(t: { socialAccountId?: string | null; postId?: string | null; platformMediaId?: string | null }) {
+    if (t.platformMediaId && !t.socialAccountId) throw invalid('platformMediaId requires socialAccountId');
+    if (t.platformMediaId && t.postId) throw invalid('Target either a 180 Workspace post (postId) or an existing platform post (platformMediaId), not both');
 }
 
 export class EngagementRuleService {
@@ -54,6 +71,7 @@ export class EngagementRuleService {
         if (!dto.triggerType) throw invalid('triggerType is required');
         if (typeof dto.actionDmTemplate !== 'string') throw invalid('actionDmTemplate is required');
         validateRuleShape(dto);
+        validateTarget(dto);
         await this.assertReferencesOwned(companyId, dto);
         const db = getDb();
 
@@ -63,6 +81,9 @@ export class EngagementRuleService {
                 projectId: dto.projectId ?? null,
                 socialAccountId: dto.socialAccountId ?? null,
                 postId: dto.postId ?? null,
+                platformMediaId: dto.platformMediaId || null,
+                platformMediaPermalink: dto.platformMediaId ? dto.platformMediaPermalink || null : null,
+                platformMediaThumbnail: dto.platformMediaId ? dto.platformMediaThumbnail || null : null,
                 name: dto.name.trim(),
                 status: 'active',
                 triggerType: dto.triggerType,
@@ -135,16 +156,29 @@ export class EngagementRuleService {
      */
     static async updateRule(companyId: string, ruleId: string, dto: UpdateEngagementRuleDTO): Promise<any> {
         const db = getDb();
-        await this.getRule(companyId, ruleId); // asserts ownership
+        const current = await this.getRule(companyId, ruleId); // asserts ownership
         validateRuleShape(dto || {});
+        // Validate the target the rule will have after this update.
+        validateTarget({
+            socialAccountId: dto.socialAccountId !== undefined ? dto.socialAccountId : current.socialAccountId,
+            postId: dto.postId !== undefined ? dto.postId : current.postId,
+            platformMediaId: dto.platformMediaId !== undefined ? dto.platformMediaId : current.platformMediaId,
+        });
         await this.assertReferencesOwned(companyId, dto || {});
 
-        return db.socialEngagementRule.update({
-            where: { id: ruleId },
+        await db.socialEngagementRule.updateMany({
+            where: { id: ruleId, companyId },
             data: {
                 ...(dto.projectId !== undefined ? { projectId: dto.projectId || null } : {}),
                 ...(dto.socialAccountId !== undefined ? { socialAccountId: dto.socialAccountId || null } : {}),
                 ...(dto.postId !== undefined ? { postId: dto.postId || null } : {}),
+                ...(dto.platformMediaId !== undefined
+                    ? {
+                          platformMediaId: dto.platformMediaId || null,
+                          platformMediaPermalink: dto.platformMediaId ? dto.platformMediaPermalink || null : null,
+                          platformMediaThumbnail: dto.platformMediaId ? dto.platformMediaThumbnail || null : null,
+                      }
+                    : {}),
                 ...(dto.name ? { name: dto.name.trim() } : {}),
                 ...(dto.status ? { status: dto.status } : {}),
                 ...(dto.triggerType ? { triggerType: dto.triggerType } : {}),
@@ -161,6 +195,7 @@ export class EngagementRuleService {
                 ...(dto.aiAgentPromptOverride !== undefined ? { aiAgentPromptOverride: dto.aiAgentPromptOverride } : {}),
             },
         });
+        return this.getRule(companyId, ruleId);
     }
 
     /**

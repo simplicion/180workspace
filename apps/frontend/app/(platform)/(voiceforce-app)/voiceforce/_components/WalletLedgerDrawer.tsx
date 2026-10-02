@@ -173,7 +173,7 @@ export function WalletLedgerDrawer({ isOpen, onClose, onBalanceUpdated }: Wallet
       isOpen={isOpen}
       onClose={onClose}
       title="180 Voiceforce Wallet & Billing"
-      subtitle="Corporate balance, Razorpay instant top-ups, and transaction statement."
+      subtitle="Corporate balance, 180 Pay sovereign top-ups, and transaction statement."
       icon={Coins}
       iconColorClass="text-amber-600 dark:text-amber-400"
       iconBgClass="bg-amber-50 dark:bg-amber-950/60"

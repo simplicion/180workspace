@@ -106,11 +106,11 @@ function fakeLlm(opts: FakeOptions = {}) {
                     spokenHook: 'Stop buying cheap beans today',
                     onScreenHook: 'Your beans are lying',
                     ...(s.format === 'reel' ? {
-                        script: { hook: 'Stop buying cheap beans today', body: [{ beat: 'Here is why freshness matters', retentionDevice: 'open loop' }, { beat: 'Grind right before brewing' }], retentionLoop: 'But the third tip matters most', cta: 'Follow for tip three', estimatedDurationSec: 35 },
-                        shotNotes: ['Close-up of beans', 'Pour-over in slow motion'],
+                        script: { hook: 'Stop buying cheap beans today', body: [{ beat: 'Here is why freshness matters', retentionDevice: 'open loop' }, { beat: 'Grind right before brewing' }, { beat: 'Weigh your water' }], retentionLoop: 'But the third tip matters most', cta: 'Follow for tip three', estimatedDurationSec: 35 },
+                        shotNotes: ['Close-up of beans', 'Pour-over in slow motion', 'Cut to the scale'],
                     } : {}),
                     ...(s.format === 'carousel' ? { carouselBrief: { title: 'Five brew fixes', slides: [
-                        { index: 1, role: 'hook', headline: 'Bitter coffee?' }, { index: 2, role: 'value', headline: 'Grind finer' }, { index: 3, role: 'cta', headline: 'Save this' },
+                        { index: 1, role: 'hook', headline: 'Bitter coffee?' }, { index: 2, role: 'value', headline: 'Grind finer' }, { index: 3, role: 'value', headline: 'Cooler water' }, { index: 4, role: 'cta', headline: 'Save this' },
                     ] } } : {}),
                     ...(s.format === 'static' ? { visualBrief: 'Flat lay of a V60' } : {}),
                 })) }));

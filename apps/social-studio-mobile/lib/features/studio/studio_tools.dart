@@ -15,6 +15,7 @@ import '../projects/project_provider.dart';
 import 'caption_fonts.dart';
 import 'studio_controller.dart';
 import 'studio_session_screen.dart' show timecode;
+import 'text_motion.dart';
 import 'text_templates.dart';
 import 'timeline_ops.dart';
 
@@ -544,7 +545,11 @@ class _TextSheetState extends State<_TextSheet> {
   late int _strokeWidth = (_existing?.style['strokeWidthPx'] as num?)?.toInt() ?? 0;
   late bool _shadow = _existing?.style['shadow'] == true;
   late bool _glow = _existing?.style['glow'] == true;
-  late String _animation = (_existing?.style['animation'] as String?) ?? 'none';
+  late final Map<String, dynamic> _initialStyle = normaliseCaptionStyle(_existing?.style ?? const {});
+  late String _animation = (_initialStyle['animation'] as String?) ?? 'none';
+  late String? _enter = (_initialStyle['enter'] as Map?)?['type'] as String?;
+  late String? _exit = (_initialStyle['exit'] as Map?)?['type'] as String?;
+  late String? _loop = (_initialStyle['loop'] as Map?)?['type'] as String?;
 
   static const _emojis = ['🔥', '🚀', '❤️', '💡', '👏', '😂', '✨', '🎯', '📈', '⚡', '🎬', '💥', '💰', '👑', '🎉', '💯'];
   static const _fonts = ['Inter', 'Anton', 'Montserrat', 'Poppins', 'Syne', 'Outfit', 'Roboto', 'Bebas Neue'];
@@ -565,13 +570,11 @@ class _TextSheetState extends State<_TextSheet> {
     ('#4D22D3EE', 'Cyan'),
     ('#80EF4444', 'Red'),
   ];
+  /// Word highlighting (captions); motion lives in the In / Out / Loop pickers below.
   static const _animations = [
     ('none', 'None'),
-    ('fade_in', 'Fade In'),
     ('word_pop', 'Word Pop'),
-    ('slide_up', 'Slide Up'),
-    ('typewriter', 'Typewriter'),
-    ('pulse', 'Pulse (Loop)'),
+    ('karaoke', 'Karaoke'),
   ];
 
   @override
@@ -606,6 +609,9 @@ class _TextSheetState extends State<_TextSheet> {
         'shadow': _shadow,
         'glow': _glow,
         'animation': _animation,
+        if (_enter != null) 'enter': {'type': _enter, 'durationMs': _enter == 'typewriter' ? 1200 : 400},
+        if (_exit != null) 'exit': {'type': _exit, 'durationMs': 400},
+        if (_loop != null) 'loop': {'type': _loop, 'periodMs': 1200},
       };
 
   @override
@@ -759,8 +765,8 @@ class _TextSheetState extends State<_TextSheet> {
           ]),
           SizedBox(height: 12),
 
-          // CapCut Animations
-          Text('Motion & Animations (CapCut Presets)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+          // Word highlighting
+          Text('Word highlight', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
           SizedBox(height: 6),
           Wrap(spacing: 8, runSpacing: 6, children: [
             for (final (animKey, animLabel) in _animations)
@@ -771,6 +777,22 @@ class _TextSheetState extends State<_TextSheet> {
               ),
           ]),
           SizedBox(height: 12),
+
+          // Motion: the same In / Out / Loop the export renders.
+          for (final (label, types, value, set) in [
+            ('In', textEnterTypes, _enter, (String? v) => _enter = v),
+            ('Out', textExitTypes, _exit, (String? v) => _exit = v),
+            ('Loop', textLoopTypes, _loop, (String? v) => _loop = v),
+          ]) ...[
+            Text('Animation: $label', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+            SizedBox(height: 6),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              ChoiceChip(label: Text('None'), selected: value == null, onSelected: (_) => setState(() => set(null))),
+              for (final t in types)
+                ChoiceChip(label: Text(textMotionLabels[t] ?? t), selected: value == t, onSelected: (_) => setState(() => set(t))),
+            ]),
+            SizedBox(height: 12),
+          ],
 
           // Effects: Stroke, Shadow, Glow
           Text('Effects & Styling', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
@@ -1460,9 +1482,15 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                 icon: Icon(Icons.movie_rounded),
                 label: Text('Add to Main Timeline (Video Track)'),
                 onPressed: () async {
+                  // Captured before the sheets close, so a failure can still be shown.
+                  final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(ctx);
                   _close(context);
-                  await widget.c.addVideoClip(v.downloadUrl, label: '${v.provider}: ${v.author ?? v.id}');
+                  try {
+                    await widget.c.addVideoClip(v.downloadUrl, label: '${v.provider}: ${v.author ?? v.id}');
+                  } catch (e) {
+                    messenger.showSnackBar(SnackBar(content: Text('This video could not be added: ${errorText(e)}'), backgroundColor: AppTheme.error));
+                  }
                 },
               ),
             ],
@@ -1509,9 +1537,15 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                 icon: Icon(Icons.movie_rounded),
                 label: Text('Add to Main Timeline'),
                 onPressed: () async {
+                  // Captured before the sheets close, so a failure can still be shown.
+                  final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(ctx);
                   _close(context);
-                  await widget.c.addVideoClip(f.path, label: f.name);
+                  try {
+                    await widget.c.addVideoClip(f.path, label: f.name);
+                  } catch (e) {
+                    messenger.showSnackBar(SnackBar(content: Text('This video could not be added: ${errorText(e)}'), backgroundColor: AppTheme.error));
+                  }
                 },
               ),
             ],
@@ -1607,7 +1641,7 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
                           children: [
                             if (v.thumbnailUrl != null)
                               Image.network(
-                                v.thumbnailUrl!,
+                                v.thumbnailUrl!, cacheWidth: 360,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, _, _) => Container(color: AppTheme.surfaceElevated, child: Icon(Icons.videocam_rounded, color: AppTheme.textMuted)),
                               )
@@ -1882,9 +1916,15 @@ class _UploadsTabState extends ConsumerState<_UploadsTab> {
                 icon: Icon(Icons.movie_rounded),
                 label: Text('Add to Main Video Timeline'),
                 onPressed: () async {
+                  // Captured before the sheets close, so a failure can still be shown.
+                  final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(ctx);
                   _close(context);
-                  await widget.c.addVideoClip(path, label: name);
+                  try {
+                    await widget.c.addVideoClip(path, label: name);
+                  } catch (e) {
+                    messenger.showSnackBar(SnackBar(content: Text('This video could not be added: ${errorText(e)}'), backgroundColor: AppTheme.error));
+                  }
                 },
               ),
               SizedBox(height: 8),
@@ -2390,7 +2430,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(
-                      p.thumbnailUrl,
+                      p.thumbnailUrl, cacheWidth: 360,
                       fit: BoxFit.cover,
                       loadingBuilder: (_, child, prog) => prog == null ? child : Container(color: AppTheme.surfaceElevated),
                       errorBuilder: (_, _, _) => Container(color: AppTheme.surfaceElevated, child: Icon(Icons.broken_image_rounded)),

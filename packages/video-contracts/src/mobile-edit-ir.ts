@@ -94,6 +94,15 @@ export const MobileCaptionWordSchema = z.object({
   scale: z.number().positive(),
 });
 
+/** Text motion (CapCut-style in / out / loop). Evaluated identically by the phone preview and the Android renderer. */
+export const TEXT_ENTER_TYPES = ["fade", "slide_up", "slide_down", "slide_left", "slide_right", "pop", "typewriter"] as const;
+export const TEXT_EXIT_TYPES = ["fade", "slide_up", "slide_down", "slide_left", "slide_right", "pop"] as const;
+export const TEXT_LOOP_TYPES = ["pulse", "wiggle", "bounce", "float"] as const;
+const motionMs = z.number().int().min(50).max(5000);
+export const MobileTextEnterSchema = z.object({ type: z.enum(TEXT_ENTER_TYPES), durationMs: motionMs });
+export const MobileTextExitSchema = z.object({ type: z.enum(TEXT_EXIT_TYPES), durationMs: motionMs });
+export const MobileTextLoopSchema = z.object({ type: z.enum(TEXT_LOOP_TYPES), periodMs: z.number().int().min(200).max(10000) });
+
 export const MobileCaptionStyleSchema = z.object({
   preset: z.string(),
   animation: z.enum(["word_pop", "karaoke", "none"]),
@@ -110,6 +119,11 @@ export const MobileCaptionStyleSchema = z.object({
   positionX: z.number().min(0).max(1),
   positionY: z.number().min(0).max(1),
   maxWidthFraction: z.number().gt(0).max(1),
+  /** Neon glow in the highlight colour (renderer-supported; kept so AI round-trips do not drop it). */
+  glow: z.boolean().optional(),
+  enter: MobileTextEnterSchema.optional(),
+  exit: MobileTextExitSchema.optional(),
+  loop: MobileTextLoopSchema.optional(),
 });
 
 export const MobileCaptionSchema = z.object({

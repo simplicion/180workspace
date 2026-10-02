@@ -304,7 +304,8 @@ export class MetaWebhooksService {
                         await EngagementDispatcher.executeEngagement(rule, event).catch((err: any) => console.error('[MetaWebhook] DM rule failed:', err?.message));
                     } else {
                         const conv = (ingest as any).conversation;
-                        if (conv?.aiAgentActive && !conv.isHumanTakeover) {
+                        // The agent itself checks the thread switch and the account's AI inbox mode.
+                        if (conv && !conv.isHumanTakeover) {
                             const r = await AiEngagementAgent.handleIncomingDm(conv.id, text, account.companyId).catch((err: any) => ({ error: err?.message } as any));
                             if (r?.error) console.warn(`[MetaWebhook] AI agent did not reply (${r.errorCode || 'error'}): ${r.error}`);
                         }

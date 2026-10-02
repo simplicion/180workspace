@@ -277,6 +277,9 @@ void main() {
     ));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    // The library tab bar scrolls (Uploads is first), so bring the tab into view before tapping it.
+    await tester.ensureVisible(find.text('Sound FX'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sound FX'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ActionChip, 'whoosh'));

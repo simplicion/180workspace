@@ -12,6 +12,9 @@ import { randomUUID } from 'crypto';
 import { prisma } from '@workspace/db';
 import {
     AutopilotError,
+    ContentMixConfig,
+    ContentMixConfigSchema,
+    planCadence,
     AutopilotLLM,
     AutopilotPiece,
     AutopilotPlatform,
@@ -210,9 +213,22 @@ export class AutopilotCalendarService {
         const campaignName = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 120) : undefined;
         const structureDirectives = typeof body.structureDirectives === 'string' && body.structureDirectives.trim() ? body.structureDirectives.trim().slice(0, 2000) : undefined;
         const referenceInspirations = typeof body.referenceInspirations === 'string' && body.referenceInspirations.trim() ? body.referenceInspirations.trim().slice(0, 4000) : undefined;
-        const contentMix = body.contentMix && typeof body.contentMix === 'object' ? body.contentMix : undefined;
         const targetReelDurationSec = typeof body.targetReelDurationSec === 'number' ? body.targetReelDurationSec : undefined;
         const carouselSlideCount = typeof body.carouselSlideCount === 'number' ? body.carouselSlideCount : undefined;
+        // The mix is validated (and its defaults applied) here, so a bad mix is a 400 before anything is created.
+        let contentMix: ContentMixConfig | undefined;
+        if (body.contentMix && typeof body.contentMix === 'object') {
+            const parsed = ContentMixConfigSchema.safeParse({
+                ...(body.contentMix as object),
+                ...(targetReelDurationSec !== undefined ? { targetReelDurationSec } : {}),
+                ...(carouselSlideCount !== undefined ? { carouselSlideCount } : {}),
+            });
+            if (!parsed.success) {
+                throw new AutopilotError('INVALID_INPUT', `contentMix: ${parsed.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`);
+            }
+            contentMix = parsed.data;
+            planCadence(days, contentMix, platforms);
+        }
 
         const request = {
             days, startDate, timezone, platforms, goals, createDrafts: body.createDrafts === true,

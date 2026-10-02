@@ -155,6 +155,20 @@ function fakeLlm() {
                 if (cMatch) carouselsPerDay = parseInt(cMatch[1], 10);
 
                 const strategy = buildStrategySlots(days, cadence, reelsPerDay, carouselsPerDay);
+                // A compliant model follows the exact per-day plan when the prompt gives one ("Day N: reel, carousel").
+                const planLines = [...req.prompt.matchAll(/^Day (\d+): ([a-z, ]+)$/gm)];
+                if (planLines.length) {
+                    const template = strategy.slots[0];
+                    strategy.slots = planLines.flatMap((m, li) => m[2].split(', ').map((format, fi) => ({
+                        ...template,
+                        day: Number(m[1]),
+                        format,
+                        platforms: format === 'reel' ? ['instagram'] : ['instagram', 'linkedin'],
+                        topic: `Day ${m[1]} ${format} ${fi + 1} Strategic Narrative`,
+                        hookType: HOOK_TYPES[(li + fi) % HOOK_TYPES.length],
+                        psychologicalJob: PSYCHOLOGICAL_JOBS[(li * 3 + fi) % PSYCHOLOGICAL_JOBS.length],
+                    })));
+                }
                 return reply('```json\n' + JSON.stringify(strategy) + '\n```');
             }
 
@@ -177,12 +191,13 @@ function fakeLlm() {
                                 body: [
                                     { beat: 'First, recognize the broken pattern.', retentionDevice: 'Pattern interrupt' },
                                     { beat: 'Second, implement the 3-tier system.', retentionDevice: 'Open loop' },
+                                    { beat: 'Third, review the results weekly.' },
                                 ],
                                 retentionLoop: 'Watch until the end for the exact prompt.',
                                 cta: 'Save this reel to execute today.',
                                 estimatedDurationSec: 30,
                             },
-                            shotNotes: ['Extreme close-up on mic', 'Screen recording breakdown with mouse highlight'],
+                            shotNotes: ['Extreme close-up on mic', 'Screen recording breakdown with mouse highlight', 'Wide shot for the CTA'],
                         } : {}),
                         ...(s.format === 'carousel' ? {
                             carouselBrief: {

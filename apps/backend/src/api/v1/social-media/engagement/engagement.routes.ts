@@ -20,10 +20,11 @@ function getCompanyId(req: Request): string {
 router.get('/rules', async (req: Request, res: Response) => {
     try {
         const companyId = getCompanyId(req);
-        const { projectId, socialAccountId, status } = req.query;
+        const { projectId, socialAccountId, status, postId } = req.query;
         const rules = await EngagementRuleService.listRules(companyId, {
             projectId: projectId as string,
             socialAccountId: socialAccountId as string,
+            postId: typeof postId === 'string' ? postId : undefined,
             status: status as any,
         });
         res.json({ success: true, rules });

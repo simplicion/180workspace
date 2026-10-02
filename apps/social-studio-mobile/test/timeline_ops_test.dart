@@ -168,8 +168,11 @@ void main() {
       expect(() => TimelineOps.setCrop(base(), EditIrCrop(x: 0.8, y: 0, width: 0.5, height: 1)), throwsA(isA<MediaEngineException>()));
     });
 
-    test('music needs https and ducks only with speech', () {
-      expect(() => TimelineOps.setMusic(base(), url: 'file:///sdcard/a.mp3'), throwsA(isA<MediaEngineException>()));
+    test('music needs a device file or web URL and ducks only with speech', () {
+      // Device music is allowed (uploads from the phone); anything that is neither a path nor http(s) is rejected.
+      expect(TimelineOps.setMusic(base(), url: 'file:///sdcard/a.mp3').audio.music, hasLength(1));
+      expect(() => TimelineOps.setMusic(base(), url: 'ftp://host/a.mp3'), throwsA(isA<MediaEngineException>()));
+      expect(() => TimelineOps.setMusic(base(), url: 'not a url'), throwsA(isA<MediaEngineException>()));
       final noSpeech = TimelineOps.initial(projectId: 'p', durationMs: 5000, width: 1080, height: 1920);
       expect(TimelineOps.setMusic(noSpeech, url: 'https://x.test/m.mp3').audio.music.single.duck!.enabled, isFalse);
       expect(TimelineOps.setMusic(base(), url: 'https://x.test/m.mp3').audio.music.single.duck!.enabled, isTrue);
@@ -272,7 +275,8 @@ void main() {
       final back = MobileEditIr.fromJson(ir.toJson());
       expect(back.audio.sfx.single.credit, 'CC0');
       expect(TimelineOps.deleteItem(ir, TrackKind.sfx, id).audio.sfx, isEmpty);
-      expect(() => TimelineOps.addSfx(base(), url: '/local/file.mp3', startMs: 0), throwsA(isA<MediaEngineException>()));
+      expect(TimelineOps.addSfx(base(), url: '/local/file.mp3', startMs: 0).audio.sfx, hasLength(1));
+      expect(() => TimelineOps.addSfx(base(), url: 'ftp://host/file.mp3', startMs: 0), throwsA(isA<MediaEngineException>()));
     });
 
     test('text template: style applied with brand font, text and style editable, move keeps length', () {

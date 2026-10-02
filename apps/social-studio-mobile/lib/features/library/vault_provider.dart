@@ -4,6 +4,7 @@ import '../../core/storage/clip_store.dart';
 import '../../data/models/vault_item.dart';
 import '../auth/auth_provider.dart';
 import '../projects/project_provider.dart';
+import 'library_sync.dart';
 import 'vault_storage_service.dart';
 
 final vaultStorageServiceProvider = Provider<VaultStorageService>((ref) => VaultStorageService());
@@ -21,9 +22,16 @@ class VaultFoldersNotifier extends AsyncNotifier<List<VaultFolder>> {
   String? get _companyId => ref.watch(sessionProvider).valueOrNull?.company.id;
   String? get _projectId => ref.watch(activeProjectProvider).valueOrNull?.id;
 
+  LibrarySync get _sync => ref.read(librarySyncProvider);
+
   @override
   Future<List<VaultFolder>> build() async {
-    return _storage.loadFolders(companyId: _companyId, projectId: _projectId);
+    final local = await _storage.loadFolders(companyId: _companyId, projectId: _projectId);
+    final server = await _sync.pull();
+    if (server == null) return local;
+    final merged = await _sync.mergeFolders(local, server.folders);
+    await _storage.saveFolders(merged, companyId: _companyId, projectId: _projectId);
+    return merged;
   }
 
   Future<VaultFolder> createFolder({
@@ -41,6 +49,7 @@ class VaultFoldersNotifier extends AsyncNotifier<List<VaultFolder>> {
     final updated = [...current, newFolder];
     state = AsyncData(updated);
     await _storage.saveFolders(updated, companyId: _companyId, projectId: _projectId);
+    _sync.push(folders: [newFolder]);
     return newFolder;
   }
 
@@ -57,6 +66,7 @@ class VaultFoldersNotifier extends AsyncNotifier<List<VaultFolder>> {
     }).toList();
     state = AsyncData(updated);
     await _storage.saveFolders(updated, companyId: _companyId, projectId: _projectId);
+    _sync.push(folders: updated.where((f) => f.id == id).toList());
   }
 
   Future<void> deleteFolder(String id) async {
@@ -64,6 +74,7 @@ class VaultFoldersNotifier extends AsyncNotifier<List<VaultFolder>> {
     final updated = current.where((f) => f.id != id && f.parentId != id).toList();
     state = AsyncData(updated);
     await _storage.saveFolders(updated, companyId: _companyId, projectId: _projectId);
+    _sync.push(deletedFolderIds: [for (final f in current) if (f.id == id || f.parentId == id) f.id]);
 
     // Delete or unassign items in this folder
     await ref.read(vaultItemsProvider.notifier).deleteItemsInFolder(id);
@@ -83,10 +94,16 @@ class VaultItemsNotifier extends AsyncNotifier<List<VaultItem>> {
   String? get _companyId => ref.watch(sessionProvider).valueOrNull?.company.id;
   String? get _projectId => ref.watch(activeProjectProvider).valueOrNull?.id;
 
+  LibrarySync get _sync => ref.read(librarySyncProvider);
+
   @override
   Future<List<VaultItem>> build() async {
-    final items = await _storage.loadItems(companyId: _companyId, projectId: _projectId);
-    return _rescueCachedTakes(items);
+    final items = await _rescueCachedTakes(await _storage.loadItems(companyId: _companyId, projectId: _projectId));
+    final server = await _sync.pull();
+    if (server == null) return items;
+    final merged = await _sync.mergeItems(items, server.items);
+    await _storage.saveItems(merged, companyId: _companyId, projectId: _projectId);
+    return merged;
   }
 
   /// One-time move of takes recorded before clips were stored durably (they pointed into the OS cache).
@@ -118,6 +135,8 @@ class VaultItemsNotifier extends AsyncNotifier<List<VaultItem>> {
     String? noteContent,
     VaultNoteCategory noteCategory = VaultNoteCategory.general,
     List<String> tags = const [],
+    String? pieceId,
+    int? takeIndex,
   }) async {
     final current = state.valueOrNull ?? [];
     final newItem = VaultItem(
@@ -131,10 +150,13 @@ class VaultItemsNotifier extends AsyncNotifier<List<VaultItem>> {
       noteContent: noteContent,
       noteCategory: noteCategory,
       tags: tags,
+      pieceId: pieceId,
+      takeIndex: takeIndex,
     );
     final updated = [newItem, ...current];
     state = AsyncData(updated);
     await _storage.saveItems(updated, companyId: _companyId, projectId: _projectId);
+    _sync.push(items: [newItem]);
     return newItem;
   }
 
@@ -143,20 +165,39 @@ class VaultItemsNotifier extends AsyncNotifier<List<VaultItem>> {
     final updated = current.map((i) => i.id == item.id ? item : i).toList();
     state = AsyncData(updated);
     await _storage.saveItems(updated, companyId: _companyId, projectId: _projectId);
+    _sync.push(items: [item]);
   }
 
   Future<void> deleteItem(String id) async {
     final current = state.valueOrNull ?? [];
+    final removed = current.where((i) => i.id == id).toList();
     final updated = current.where((i) => i.id != id).toList();
     state = AsyncData(updated);
     await _storage.saveItems(updated, companyId: _companyId, projectId: _projectId);
+    await _deleteOwnedFiles(removed);
+    _sync.push(deletedItemIds: [for (final r in removed) r.id]);
   }
 
   Future<void> deleteItemsInFolder(String folderId) async {
     final current = state.valueOrNull ?? [];
+    final removed = current.where((i) => i.folderId == folderId).toList();
     final updated = current.where((i) => i.folderId != folderId).toList();
     state = AsyncData(updated);
     await _storage.saveItems(updated, companyId: _companyId, projectId: _projectId);
+    await _deleteOwnedFiles(removed);
+    _sync.push(deletedItemIds: [for (final r in removed) r.id]);
+  }
+
+  /// Frees the space of deleted takes recorded in the app; files picked from the gallery are never touched.
+  Future<void> _deleteOwnedFiles(List<VaultItem> removed) async {
+    final store = ref.read(clipStoreProvider);
+    for (final it in removed) {
+      try {
+        await store.deleteIfOwned(it.localPath);
+      } catch (_) {
+        // The item is already gone from the library; a leftover file only costs space.
+      }
+    }
   }
 
   Future<void> moveItem(String itemId, String? newFolderId) async {
@@ -169,6 +210,7 @@ class VaultItemsNotifier extends AsyncNotifier<List<VaultItem>> {
     }).toList();
     state = AsyncData(updated);
     await _storage.saveItems(updated, companyId: _companyId, projectId: _projectId);
+    _sync.push(items: updated.where((i) => i.id == itemId).toList());
   }
 }
 

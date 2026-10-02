@@ -107,25 +107,25 @@ export type Strategy = z.infer<typeof StrategySchema>;
 // ---------------------------------------------------------------- hook & script
 
 export const ScriptSchema = z.object({
-    hook: z.string().min(1).default('Here is what you need to know.'),
+    hook: z.string().min(1),
     body: z.preprocess((val) => {
         if (Array.isArray(val)) {
             return val.map((b) => typeof b === 'string' ? { beat: b } : b);
         }
         return val;
     }, z.array(z.object({
-        beat: z.string().min(1).default('Focus on this key takeaway.'),
+        beat: z.string().min(1),
         retentionDevice: z.string().max(400).optional(),
     })).min(1).max(20)),
-    retentionLoop: z.string().default('Watch to the end for the key framework.'),
-    cta: z.string().default('Save this reel and follow for more.'),
+    retentionLoop: z.string().min(1),
+    cta: z.string().min(1),
     estimatedDurationSec: z.preprocess((val) => {
         if (typeof val === 'string') {
             const num = parseInt(val.replace(/\D/g, ''), 10);
-            return isNaN(num) ? 60 : num;
+            return isNaN(num) ? undefined : num;
         }
         return val;
-    }, z.coerce.number().int().min(5).max(180).default(60)),
+    }, z.coerce.number().int().min(5).max(180)),
     psychologicalJob: psychologicalJobSchema.optional(),
     visualDirection: z.string().max(800).optional(),
     whatContentDelivers: z.string().max(1000).optional(),
@@ -133,7 +133,7 @@ export const ScriptSchema = z.object({
 export type Script = z.infer<typeof ScriptSchema>;
 
 export const CarouselBriefSchema = z.object({
-    title: z.string().min(1).default('Carousel Content Brief'),
+    title: z.string().min(1),
     psychologicalJob: psychologicalJobSchema.optional(),
     designSystem: designSystemSchema.optional(),
     visualDirection: z.string().max(800).optional(),
@@ -148,7 +148,7 @@ export const CarouselBriefSchema = z.object({
             if (['cta', 'action', 'conclusion', 'outro', 'follow', 'save'].includes(low)) return 'cta';
             return 'value';
         }),
-        headline: z.string().min(1).default('Key Insight'),
+        headline: z.string().min(1),
         body: z.string().max(800).default(''),
         visualIdea: z.string().max(600).default(''),
     })).min(1).max(20),
@@ -157,7 +157,7 @@ export type CarouselBrief = z.infer<typeof CarouselBriefSchema>;
 
 export const HookScriptItemSchema = z.object({
     slotId: z.string().min(1),
-    headline: z.string().min(1).default('Master SOP Content Piece'),
+    headline: z.string().min(1),
     hookType: z.string().transform((h) => {
         const low = (h || '').toLowerCase().trim();
         if (HOOK_TYPES.includes(low as any)) return low as HookType;
@@ -171,7 +171,7 @@ export const HookScriptItemSchema = z.object({
     designSystem: designSystemSchema.optional(),
     whatContentDelivers: z.string().max(1000).optional(),
     visualDirection: z.string().max(800).optional(),
-    spokenHook: z.string().min(1).default('Stop scrolling and listen to this.'),
+    spokenHook: z.string().min(1),
     onScreenHook: z.string().min(1).transform((s) => s.slice(0, 120)),
     script: ScriptSchema.optional(),
     shotNotes: z.array(z.string().min(1)).max(25).optional(),

@@ -117,6 +117,8 @@ class VaultItem {
     this.noteContent,
     this.noteCategory = VaultNoteCategory.general,
     this.tags = const [],
+    this.pieceId,
+    this.takeIndex,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -132,6 +134,10 @@ class VaultItem {
   final String? noteContent;
   final VaultNoteCategory noteCategory;
   final List<String> tags;
+  /// Calendar piece this take was shot for (the piece sheet lists them as Clip 1…N).
+  final String? pieceId;
+  /// 1-based order of the take within its piece; the editor uses this order.
+  final int? takeIndex;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -163,6 +169,8 @@ class VaultItem {
     String? noteContent,
     VaultNoteCategory? noteCategory,
     List<String>? tags,
+    String? pieceId,
+    int? takeIndex,
   }) =>
       VaultItem(
         id: id,
@@ -175,6 +183,8 @@ class VaultItem {
         noteContent: noteContent ?? this.noteContent,
         noteCategory: noteCategory ?? this.noteCategory,
         tags: tags ?? this.tags,
+        pieceId: pieceId ?? this.pieceId,
+        takeIndex: takeIndex ?? this.takeIndex,
         createdAt: createdAt,
         updatedAt: DateTime.now(),
       );
@@ -190,6 +200,8 @@ class VaultItem {
         'noteContent': noteContent,
         'noteCategory': noteCategory.name,
         'tags': tags,
+        'pieceId': pieceId,
+        'takeIndex': takeIndex,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
       };
@@ -205,6 +217,8 @@ class VaultItem {
         noteContent: jStr(j['noteContent']),
         noteCategory: VaultNoteCategory.fromString(jStr(j['noteCategory'])),
         tags: jStrList(j['tags']),
+        pieceId: jStr(j['pieceId']),
+        takeIndex: jInt(j['takeIndex']),
         createdAt: jDate(j['createdAt']),
         updatedAt: jDate(j['updatedAt']),
       );

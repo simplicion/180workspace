@@ -172,16 +172,30 @@ class CaptionOverlay(
         val st = cap.style
         val w = canvas.width.toFloat()
         val h = canvas.height.toFloat()
+        val motion = TextMotion.at(st.enter, st.exit, st.loop, cap.startMs, cap.endMs, t)
+        if (motion.opacity <= 0.0) return
         val tf = typefaceFor(st.fontFamily, st.fontWeight)
         val size = st.fontSizePx.toFloat()
         for (p in listOf(fill, stroke)) {
             p.typeface = tf
             p.textSize = size
         }
-        val words = cap.words.ifEmpty {
+        val allWords = cap.words.ifEmpty {
             // A caption without word timings is still drawn, as a single static word run.
             listOf(IrWord(cap.text, cap.startMs, cap.endMs, false, null, 1.0))
         }
+        // Typewriter: the same number of characters as the preview (ceil(total * reveal)), cut at that point.
+        val words = if (motion.reveal >= 1.0) allWords else {
+            var left = kotlin.math.ceil(allWords.sumOf { it.text.length } * motion.reveal).toInt()
+            allWords.mapNotNull { wd ->
+                if (left <= 0) null else {
+                    val take = minOf(left, wd.text.length)
+                    left -= take
+                    if (take == wd.text.length) wd else wd.copy(text = wd.text.substring(0, take))
+                }
+            }
+        }
+        if (words.isEmpty()) return
         val tokens = words.map {
             val text = if (st.uppercase) it.text.uppercase() else it.text
             Token(it, text, fill.measureText(text))
@@ -215,8 +229,16 @@ class CaptionOverlay(
         val cy = (st.positionY * h).toFloat()
         val top = cy - blockH / 2f
 
+        // Motion: move, rotate and scale the whole block around its centre; fade through the paints' alpha.
+        canvas.save()
+        canvas.translate((motion.dx * w).toFloat(), (motion.dy * h).toFloat())
+        if (motion.rotationDeg != 0.0) canvas.rotate(motion.rotationDeg.toFloat(), cx, cy)
+        if (motion.scale != 1.0) canvas.scale(motion.scale.toFloat(), motion.scale.toFloat(), cx, cy)
+        val alpha = (motion.opacity * 255).toInt().coerceIn(0, 255)
+
         st.background?.let { b ->
             bg.color = b.color
+            bg.alpha = Color.alpha(b.color) * alpha / 255
             val pad = b.paddingPx.toFloat()
             val r = b.radiusPx.toFloat()
             canvas.drawRoundRect(RectF(cx - blockW / 2 - pad, top - pad, cx + blockW / 2 + pad, top + blockH + pad), r, r, bg)
@@ -224,6 +246,7 @@ class CaptionOverlay(
 
         stroke.strokeWidth = (st.strokeWidthPx * 2).toFloat() // stroke is centred on the glyph edge
         stroke.color = st.strokeColor
+        stroke.alpha = Color.alpha(st.strokeColor) * alpha / 255
         when {
             st.glow -> fill.setShadowLayer(size * 0.25f, 0f, 0f, st.highlightColor)
             st.shadow -> fill.setShadowLayer(6f, 0f, 4f, 0xA0000000.toInt())
@@ -241,11 +264,13 @@ class CaptionOverlay(
                 canvas.scale(scale, scale, wordCx, wordCy)
                 if (st.strokeWidthPx > 0) canvas.drawText(tok.text, x, baseline, stroke)
                 fill.color = color
+                fill.alpha = Color.alpha(color) * alpha / 255
                 canvas.drawText(tok.text, x, baseline, fill)
                 canvas.restore()
                 x += tok.width + space
             }
         }
+        canvas.restore() // motion transform
     }
 
     private fun styleFor(word: IrWord, st: IrCaptionStyle, t: Double): Pair<Int, Float> {

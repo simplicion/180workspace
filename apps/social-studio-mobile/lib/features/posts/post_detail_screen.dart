@@ -450,7 +450,7 @@ class _PostBodyState extends ConsumerState<_PostBody> {
         if (p.thumbnailUrl != null)
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.network(p.thumbnailUrl!, height: 200, fit: BoxFit.cover,
+            child: Image.network(p.thumbnailUrl!, cacheWidth: 1080, height: 200, fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => SizedBox.shrink()),
           ),
         if (p.finalVideoUrl != null)

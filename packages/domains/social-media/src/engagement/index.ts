@@ -9,3 +9,5 @@ export * from './rate-limiter';
 export * from './platform-actions';
 export * from './engagement-ai';
 export * from './linkedin-comment-poller';
+export * from './account-media.service';
+export * from './ai-inbox.service';

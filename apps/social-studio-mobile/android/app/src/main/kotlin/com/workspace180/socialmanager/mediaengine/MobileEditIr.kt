@@ -91,8 +91,12 @@ data class IrCaptionStyle(
     val positionX: Double,
     val positionY: Double,
     val maxWidthFraction: Double,
-    /** Optional (not in the contract schema): neon glow in the highlight colour. */
+    /** Optional: neon glow in the highlight colour. */
     val glow: Boolean = false,
+    /** Optional text motion (see TextMotion.kt). */
+    val enter: IrTextMotionSpec? = null,
+    val exit: IrTextMotionSpec? = null,
+    val loop: IrTextMotionSpec? = null,
 )
 
 data class IrCaption(
@@ -287,6 +291,9 @@ data class MobileEditIr(
                         positionY = s.optDouble("positionY", 0.72),
                         maxWidthFraction = s.optDouble("maxWidthFraction", 0.86),
                         glow = s.optBoolean("glow", false),
+                        enter = s.optNullableObject("enter")?.motion("durationMs", TextMotion.ENTER_TYPES),
+                        exit = s.optNullableObject("exit")?.motion("durationMs", TextMotion.EXIT_TYPES),
+                        loop = s.optNullableObject("loop")?.motion("periodMs", TextMotion.LOOP_TYPES),
                     ),
                 )
             }
@@ -385,6 +392,13 @@ data class MobileEditIr(
 
         private fun JSONObject.optNullableString(key: String): String? =
             if (!has(key) || isNull(key)) null else optString(key)
+
+        /** A motion block, or null when its type is unknown or the time is missing (unknown motion is ignored). */
+        private fun JSONObject.motion(msKey: String, allowed: Set<String>): IrTextMotionSpec? {
+            val type = optNullableString("type") ?: return null
+            val ms = optLong(msKey, 0L)
+            return if (type in allowed && ms > 0) IrTextMotionSpec(type, ms) else null
+        }
 
         private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
     }

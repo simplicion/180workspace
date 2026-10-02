@@ -13,8 +13,6 @@ import { useSettings } from '@/lib/settings-context';
 import { useOfflineSync } from '@/lib/offline/useOfflineSync';
 import { OneEightyPay } from '@workspace/identity-sdk';
 
-declare global { interface Window { Razorpay: any; } }
-
 function CheckoutContent() {
     const { isOnline } = useOfflineSync();
     const searchParams = useSearchParams();
@@ -117,13 +115,6 @@ function CheckoutContent() {
         fetchPlan();
     }, [planId, addonType, router, currency]);
 
-    useEffect(() => {
-        if (typeof window !== 'undefined' && !window.Razorpay) {
-            const s = document.createElement('script');
-            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            document.head.appendChild(s);
-        }
-    }, []);
 
     const validateCoupon = async () => {
         if (!coupon || !plan) return;
@@ -160,77 +151,43 @@ function CheckoutContent() {
                     apps: plan.addonType === 'app' ? plan.quantity || 1 : undefined
                 });
 
-                if (order.providerName === '180pay' || !order.providerName) {
-                    await OneEightyPay.checkout({
-                        amount: plan.price,
-                        currency: order.currency || platform?.currency || 'INR',
-                        title: plan.planName || 'Workspace Add-on',
-                        description: `Add-on purchase for ${user?.name || 'Workspace'}`,
-                        couponCode: couponResult?.code || coupon,
-                        metadata: {
-                            companyId: (user as any)?.companyId || (user as any)?.company?._id,
-                            addonType: plan.addonType,
-                            quantity: plan.quantity || 1,
-                        },
-                        onSuccess: async () => {
+                await OneEightyPay.checkout({
+                    sessionId: order?.sessionId,
+                    amount: plan.price,
+                    currency: order?.currency || platform?.currency || 'INR',
+                    title: plan.planName || 'Workspace Add-on',
+                    description: `Add-on purchase for ${user?.name || 'Workspace'}`,
+                    couponCode: couponResult?.code || coupon,
+                    metadata: {
+                        companyId: (user as any)?.companyId || (user as any)?.company?._id,
+                        addonType: plan.addonType,
+                        quantity: plan.quantity || 1,
+                    },
+                    onSuccess: async (data: any) => {
+                        try {
+                            await api.post(`/api/v1/platform-billing/${plan.addonType}/verify`, {
+                                sessionId: data?.sessionId || order?.sessionId,
+                                transactionId: data?.transactionId,
+                                ...(plan.addonType === 'team' ? { users: plan.quantity || 1 } : {}),
+                                ...(plan.addonType === 'storage' ? { gigabytes: 5 * (plan.quantity || 1) } : {}),
+                                ...(plan.addonType === 'app' ? { apps: plan.quantity || 1 } : {}),
+                            });
                             toast.success('Add-on activated successfully!');
                             refresh();
                             router.push(`/settings/platform-billing/success?planId=${plan.id || ''}`);
-                        },
-                        onError: (err) => {
-                            toast.error(err.message || 'Payment failed');
-                            setPaymentLoading(false);
-                        },
-                        onCancel: () => {
-                            setPaymentLoading(false);
+                        } catch (err) {
+                            router.push('/settings/platform-billing/failed');
                         }
-                    });
-                    return;
-                }
-
-                if (order.providerName === 'razorpay') {
-                    if (typeof window !== 'undefined' && !window.Razorpay) {
-                        toast.error('Payment gateway SDK not loaded');
+                    },
+                    onError: (err) => {
+                        toast.error(err.message || 'Payment failed');
                         setPaymentLoading(false);
-                        return;
+                    },
+                    onCancel: () => {
+                        setPaymentLoading(false);
                     }
-
-                    const options = {
-                        key: order.keyId,
-                        amount: order.amount,
-                        currency: order.currency || platform?.currency || 'INR',
-                        name: '180workspace',
-                        order_id: order.orderId,
-                        handler: async (response: any) => {
-                            try {
-                                await api.post(`/api/v1/platform-billing/${plan.addonType}/verify`, {
-                                    razorpay_payment_id: response.razorpay_payment_id,
-                                    razorpay_order_id: response.razorpay_order_id,
-                                    razorpay_signature: response.razorpay_signature,
-                                    ...(plan.addonType === 'team' ? { users: plan.quantity || 1 } : {}),
-                                    ...(plan.addonType === 'storage' ? { gigabytes: 5 * (plan.quantity || 1) } : {}),
-                                    ...(plan.addonType === 'app' ? { apps: plan.quantity || 1 } : {}),
-                                });
-                                refresh();
-                                router.push(`/settings/platform-billing/success?planId=${plan.id || ''}`);
-                            } catch (err) {
-                                router.push('/settings/platform-billing/failed');
-                            }
-                        },
-                        prefill: {
-                            name: user?.name,
-                            email: user?.email,
-                        },
-                        theme: { color: '#4f46e5' },
-                        modal: {
-                            ondismiss: () => setPaymentLoading(false)
-                        },
-                    };
-                    const rz = new window.Razorpay(options);
-                    rz.open();
-                    return;
-                }
-                throw new Error(`Unsupported payment provider for addons: ${order.providerName}`);
+                });
+                return;
             }
 
             const { data: order } = await api.post('/api/v1/platform-billing/plan/checkout', {
@@ -246,86 +203,48 @@ function CheckoutContent() {
                 return;
             }
 
-            // ... (rest of the Razorypay/Stripe logic stays same)
-
-            if (order.providerName === 'stripe') {
-                if (order.url) {
-                    window.location.href = order.url;
-                } else {
-                    throw new Error('Missing redirect URL from Stripe provider.');
-                }
+            if (order.providerName === 'stripe' && order.url) {
+                window.location.href = order.url;
                 return;
             }
 
-            if (order.providerName === '180pay' || !order.providerName) {
-                await OneEightyPay.checkout({
-                    amount: plan.price,
-                    currency: order.currency || platform?.currency || 'INR',
-                    title: plan.planName || '180 Workspace Plan',
-                    description: `Subscription upgrade for ${user?.name || 'Workspace'}`,
-                    couponCode: couponResult?.code || coupon,
-                    metadata: {
-                        companyId: (user as any)?.companyId || (user as any)?.company?._id,
-                        planId: plan.id,
-                        orderId: order.orderId,
-                    },
-                    onSuccess: async () => {
+            // 180 Pay Sovereign 1-Click Checkout
+            await OneEightyPay.checkout({
+                sessionId: order.sessionId,
+                amount: order.amount || plan.price,
+                currency: order.currency || platform?.currency || 'INR',
+                title: plan.planName || '180 Workspace Plan',
+                description: `Subscription upgrade for ${user?.name || 'Workspace'}`,
+                couponCode: couponResult?.code || coupon,
+                metadata: {
+                    companyId: (user as any)?.companyId || (user as any)?.company?._id,
+                    planId: plan.id,
+                    orderId: order.orderId || order.sessionId,
+                },
+                onSuccess: async (data: any) => {
+                    try {
+                        await api.post('/api/v1/platform-billing/plan/verify', {
+                            sessionId: data?.sessionId || order.sessionId,
+                            transactionId: data?.transactionId,
+                            planId: plan.id,
+                            couponCode: couponResult?.code || coupon
+                        });
                         toast.success('Plan activated successfully!');
                         refresh();
                         router.push(`/settings/platform-billing/success?planId=${plan.id || ''}`);
-                    },
-                    onError: (err) => {
-                        toast.error(err.message || 'Payment failed');
-                        setPaymentLoading(false);
-                    },
-                    onCancel: () => {
-                        setPaymentLoading(false);
+                    } catch (err) {
+                        router.push('/settings/platform-billing/failed');
                     }
-                });
-                return;
-            }
-
-            if (order.providerName === 'razorpay') {
-                if (typeof window !== 'undefined' && !window.Razorpay) {
-                    toast.error('Payment gateway SDK not loaded');
+                },
+                onError: (err) => {
+                    toast.error(err.message || 'Payment failed');
                     setPaymentLoading(false);
-                    return;
+                },
+                onCancel: () => {
+                    setPaymentLoading(false);
                 }
-
-                const options = {
-                    key: order.keyId,
-                    name: '180workspace',
-                    subscription_id: order.subscriptionId,
-                    handler: async (response: any) => {
-                        try {
-                            await api.post('/api/v1/platform-billing/plan/verify', {
-                                razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_subscription_id: response.razorpay_subscription_id, 
-                                razorpay_signature: response.razorpay_signature,
-                                planId: plan.id,
-                                ...(couponResult && { couponCode: couponResult.code || coupon })
-                            });
-                            refresh();
-                            router.push(`/settings/platform-billing/success?planId=${plan.id || ''}`);
-                        } catch (err) {
-                            router.push('/settings/platform-billing/failed');
-                        }
-                    },
-                    prefill: {
-                        name: user?.name,
-                        email: user?.email,
-                    },
-                    theme: { color: '#4f46e5' },
-                    modal: {
-                        ondismiss: () => setPaymentLoading(false)
-                    },
-                };
-                const rz = new window.Razorpay(options);
-                rz.open();
-                return;
-            }
-
-            throw new Error(`Unsupported payment provider configured explicitly: ${order.providerName}`);
+            });
+            return;
         } catch (err: any) {
             // If payment initiation fails, generate a new idempotency key so the user can try again
             setIdempotencyKey(crypto.randomUUID());

@@ -36,6 +36,7 @@ enum CalendarStatus {
 enum PieceStatus {
   ready('ready', 'Ready'),
   inProgress('in_progress', 'In progress'),
+  shot('shot', 'Shot, ready to edit'),
   pendingReview('pending_review', 'Pending review'),
   published('published', 'Published'),
   unknown('unknown', 'Unknown');
@@ -48,13 +49,14 @@ enum PieceStatus {
     switch (this) {
       case PieceStatus.ready: return AppTheme.accentBlue;
       case PieceStatus.inProgress: return AppTheme.accent;
+      case PieceStatus.shot: return AppTheme.primary;
       case PieceStatus.pendingReview: return AppTheme.warning;
       case PieceStatus.published: return AppTheme.success;
       case PieceStatus.unknown: return AppTheme.textMuted;
     }
   }
 
-  static const settable = [ready, inProgress, pendingReview, published];
+  static const settable = [ready, inProgress, shot, pendingReview, published];
 
   static PieceStatus parse(Object? raw) =>
       PieceStatus.values.firstWhere((s) => s.id == raw, orElse: () => PieceStatus.unknown);

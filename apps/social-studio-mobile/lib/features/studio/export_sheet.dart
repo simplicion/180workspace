@@ -114,7 +114,8 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
       color: AppTheme.success,
     );
     Navigator.pop(context);
-    context.push('/posts/${post.id}');
+    // Straight into the post editor with the video attached: add title/caption per platform, then publish.
+    context.push(c.pieceId != null ? '/posts/${post.id}/edit' : '/posts/${post.id}');
   }
 
   Future<void> _pickPostAndSubmit() async {
@@ -324,6 +325,24 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                       : 'Attach to a post & send for approval',
                 ),
               ),
+              if (c.pieceId == null && c.postId == null) ...[
+                SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.push(
+                      '/posts/new${c.projectId == null ? '' : '?projectId=${c.projectId}'}',
+                      extra: {
+                        'localMediaPath': result.outputPath,
+                        'mediaType': 'video',
+                        if (c.hook != null && c.hook!.trim().isNotEmpty) 'title': c.hook!.trim(),
+                      },
+                    );
+                  },
+                  icon: Icon(Icons.post_add_rounded),
+                  label: Text('New post with this video'),
+                ),
+              ],
               SizedBox(height: 8),
               FilledButton.icon(
                 style: FilledButton.styleFrom(

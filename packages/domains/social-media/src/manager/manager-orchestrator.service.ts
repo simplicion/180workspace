@@ -2,7 +2,7 @@ import { fenceUntrusted, sanitizeInlineUntrusted, UNTRUSTED_DATA_POLICY } from '
 import { getDb } from '../publishing/http';
 import { ManagerTurnResult, ManagerAction, ManagerUserIntent, DelegatedAgentType } from './types';
 import { AnalyticsSubagent } from './analytics-subagent';
-import { CalendarSubagent } from './calendar-subagent';
+import { CalendarSubagent, PivotRegenerate } from './calendar-subagent';
 import { InboxSubagent } from './inbox-subagent';
 import { DirectorSubagent } from './director-subagent';
 import { requireCompanyId, SocialDomainError, notFound } from '../tenant-scope';
@@ -196,18 +196,19 @@ Payloads: open_inbox_conversation {"conversationId"}, update_calendar {"fromDay"
      * Runs an action chip the user confirmed. The project always comes from the action payload and is checked
      * against the caller's company before anything is written.
      */
-    static async executeAction(companyId: string, action: ManagerAction) {
+    static async executeAction(companyId: string, action: ManagerAction, deps: { regenerate?: PivotRegenerate; now?: Date } = {}) {
         requireCompanyId(companyId);
         const payload = action?.payload && typeof action.payload === 'object' ? action.payload : {};
         if (action?.type === 'update_calendar') {
             const projectId = await this.requireProject(companyId, payload.projectId);
             if (!projectId) throw new SocialDomainError('VALIDATION_FAILED', 400, 'projectId is required');
-            const proposal = CalendarSubagent.planCalendarPivot(companyId, projectId, {
-                fromDay: payload.fromDay,
-                newWinningFormat: String(payload.format || ''),
-                pivotReason: 'Requested in 180 Manager',
-            });
-            return CalendarSubagent.executeCalendarPivot(companyId, projectId, proposal);
+            const proposal = CalendarSubagent.planCalendarPivot(
+                companyId,
+                projectId,
+                { fromDay: payload.fromDay, newWinningFormat: String(payload.format || ''), pivotReason: 'Requested in 180 Manager' },
+                deps.now,
+            );
+            return CalendarSubagent.executeCalendarPivot(companyId, projectId, proposal, deps);
         }
         if (action?.type === 'apply_director_rule') {
             const projectId = await this.requireProject(companyId, payload.projectId);

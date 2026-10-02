@@ -15,6 +15,7 @@ import creativeRoutes from './creative/creative.routes';
 import engagementRoutes from './engagement/engagement.routes';
 import agentOsRoutes from './projects/agent-os.routes';
 import managerRoutes from './manager/manager.routes';
+import studioLibraryRoutes from './library/studio-library.routes';
 
 const router = Router();
 
@@ -37,5 +38,6 @@ router.use('/inbox', socialInboxRoutes);
 router.use('/evergreen', evergreenQueueRoutes);
 router.use('/engagement', engagementRoutes);
 router.use('/manager', managerRoutes);
+router.use('/library', studioLibraryRoutes);
 
 export default router;

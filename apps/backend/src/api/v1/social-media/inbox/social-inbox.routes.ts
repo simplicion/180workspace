@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { SocialInboxService, AiReplyAllService } from '@workspace/social-media';
+import { SocialInboxService, AiReplyAllService, AiInboxService } from '@workspace/social-media';
 import { prisma, requestContext } from '@workspace/db';
 import { sendRouteError } from '../route-errors';
 
@@ -118,10 +118,9 @@ router.post('/conversations/:id/toggle-agent', async (req: Request, res: Respons
         if (!conv) {
             return res.status(404).json({ success: false, error: 'Conversation not found' });
         }
-        const data = {
-            aiAgentActive: req.body.active !== undefined ? Boolean(req.body.active) : !conv.aiAgentActive,
-            isHumanTakeover: false, // Reset human takeover when agent is manually toggled
-        };
+        const on = req.body.active !== undefined ? Boolean(req.body.active) : !(conv.aiAgentActive && !conv.isHumanTakeover);
+        // Off means a person handles this thread: it must stay off even when the account's AI inbox mode is on.
+        const data = on ? { aiAgentActive: true, isHumanTakeover: false } : { aiAgentActive: false, isHumanTakeover: true };
         await (prisma as any).socialConversation.updateMany({ where: { id: String(req.params.id), companyId }, data });
         const updated = { ...conv, ...data };
         res.json({ success: true, aiAgentActive: updated.aiAgentActive, isHumanTakeover: updated.isHumanTakeover });
@@ -147,6 +146,35 @@ router.post('/conversations/:id/takeover', async (req: Request, res: Response) =
         await (prisma as any).socialConversation.updateMany({ where: { id: String(req.params.id), companyId }, data });
         const updated = { ...conv, ...data };
         res.json({ success: true, isHumanTakeover: updated.isHumanTakeover });
+    } catch (error: any) {
+        sendRouteError(res, error, 'inbox');
+    }
+});
+
+/**
+ * AI inbox per account. GET /ai-settings?projectId= lists accounts with { aiInboxMode, dmSupported };
+ * PUT /ai-settings/accounts/:id { mode: off|reply|qualify, instructions? }; PUT /ai-settings/bulk { mode, platform?, projectId? }.
+ */
+router.get('/ai-settings', async (req: Request, res: Response) => {
+    try {
+        const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
+        res.json({ success: true, accounts: await AiInboxService.listSettings(getCompanyId(req), projectId) });
+    } catch (error: any) {
+        sendRouteError(res, error, 'inbox');
+    }
+});
+
+router.put('/ai-settings/bulk', async (req: Request, res: Response) => {
+    try {
+        res.json({ success: true, ...(await AiInboxService.setModeBulk(getCompanyId(req), req.body || {})) });
+    } catch (error: any) {
+        sendRouteError(res, error, 'inbox');
+    }
+});
+
+router.put('/ai-settings/accounts/:id', async (req: Request, res: Response) => {
+    try {
+        res.json({ success: true, account: await AiInboxService.setAccountMode(getCompanyId(req), String(req.params.id), req.body || {}) });
     } catch (error: any) {
         sendRouteError(res, error, 'inbox');
     }

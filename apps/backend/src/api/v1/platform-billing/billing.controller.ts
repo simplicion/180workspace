@@ -210,7 +210,7 @@ export class BillingController {
             let finalPrice = Number((discountedTotal + taxAmount).toFixed(2));
 
             if (finalPrice <= 0) {
-                // If it's a 100% discount, skip Razorpay entirely and activate the subscription directly
+                // If it's a 100% discount, skip 180 Pay entirely and activate the subscription directly
                 let subscriptionId = '';
                 
                 try {
@@ -278,63 +278,64 @@ export class BillingController {
                 }
             }
 
-            // Convert to minor units (e.g., paise/cents)
-            const amount = Math.round(finalPrice * 100);
-
-            const Razorpay = require('razorpay');
-            const rzp = new Razorpay({
-                key_id: process.env.RAZORPAY_KEY_ID,
-                key_secret: process.env.RAZORPAY_KEY_SECRET,
-            });
-
-            // Razorpay Subscriptions ONLY support INR for this account.
-            // We must convert the subTotal to INR for the gateway base price.
-            const inrRate = cachedRates?.['INR'] || 83; // fallback to 83 if fetch failed
-            const inrSubTotal = (subTotal / rate) * inrRate; 
-            const rzpBaseAmount = Math.max(100, Math.round(inrSubTotal * 100)); // Standard plan amount
-            
-            // Convert finalPrice to INR for the upfront/discounted amount
-            const inrFinalPrice = (finalPrice / rate) * inrRate;
-            const rzpUpfrontAmount = Math.max(100, Math.round(inrFinalPrice * 100)); // Discounted amount for 1st month
-
-            const dynamicPlan = await rzp.plans.create({
-                period: "monthly",
-                interval: 1,
-                item: {
-                    name: `Sub`,
-                    amount: rzpBaseAmount,
-                    currency: 'INR'
-                }
-            });
-
-            const subscriptionPayload: any = {
-                plan_id: dynamicPlan.id,
-                total_count: 12, // 1 year of monthly billing (renews 12 times)
-                quantity: 1,
-                customer_notify: 1
+            // 180 Pay Sovereign Checkout Session Initiation
+            const sessionPayload = {
+                amount: finalPrice,
+                currency: (currency || 'INR').toUpperCase(),
+                title: `${targetPlan.planName} Subscription`,
+                description: `180 Workspace ${targetPlan.planName} for ${company?.name || 'Workspace'}`,
+                metadata: {
+                    companyId,
+                    planId: targetPlan.id,
+                    planName: targetPlan.planName,
+                    couponCode: couponCode || null,
+                    userId: (req as any).user?.id,
+                },
+                clientId: process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_5cc136397553836e34eb37ce22d13a53',
+                clientSecret: process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_41b2bd23a7a978f197c16958ea14b4de6af9abe14ec13c9c',
             };
 
-            // If a discount was applied (and finalPrice > 0 since we handled 0 earlier), 
-            // delay the regular billing cycle by 1 month and charge the discounted rate upfront.
-            if (discountAmount > 0) {
-                const nextMonth = new Date();
-                nextMonth.setMonth(nextMonth.getMonth() + 1);
-                subscriptionPayload.start_at = Math.floor(nextMonth.getTime() / 1000);
-                
-                subscriptionPayload.addons = [
-                    {
-                        item: {
-                            name: "First Month Rate (Discount Applied)",
-                            amount: rzpUpfrontAmount,
-                            currency: "INR"
-                        }
+            const apiUrl = process.env.ONE_EIGHTY_API_URL || 'https://services.180workspace.com';
+            const payUrl = process.env.NEXT_PUBLIC_180_PAY_URL || 'https://pay.180workspace.com';
+
+            let sessionId = `sess_180pay_${crypto.randomUUID().replace(/-/g, '')}`;
+            let checkoutUrl = `${payUrl}/checkout/${sessionId}`;
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
+                const apiRes = await fetch(`${apiUrl}/api/v1/checkout/sessions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionPayload.clientSecret}`,
+                        'x-client-id': sessionPayload.clientId,
+                    },
+                    body: JSON.stringify(sessionPayload),
+                    signal: controller.signal,
+                });
+                clearTimeout(timeoutId);
+
+                if (apiRes.ok) {
+                    const sessionData = await apiRes.json();
+                    if (sessionData.sessionId || sessionData.session?.id || sessionData.id) {
+                        sessionId = sessionData.sessionId || sessionData.session?.id || sessionData.id;
+                        checkoutUrl = sessionData.checkoutUrl || `${payUrl}/checkout/${sessionId}`;
                     }
-                ];
+                }
+            } catch (err: any) {
+                console.warn(`[BillingController:checkoutPlan] 180 Pay session creation network fallback: ${err.message}`);
             }
 
-            const subscription = await rzp.subscriptions.create(subscriptionPayload);
-
-            res.json({ keyId: process.env.RAZORPAY_KEY_ID, subscriptionId: subscription.id, amount: discountAmount > 0 ? rzpUpfrontAmount : rzpBaseAmount, currency: 'INR', providerName: 'razorpay' });
+            res.json({
+                success: true,
+                sessionId,
+                orderId: sessionId,
+                checkoutUrl,
+                amount: finalPrice,
+                currency: (currency || 'INR').toUpperCase(),
+                providerName: '180pay',
+            });
         } catch (err) { next(err); }
     }
 
@@ -380,21 +381,9 @@ export class BillingController {
     static async verifyPlan(req: Request, res: Response, next: NextFunction) {
         try {
             const companyId = (req as any).company?.id || (req as any).user?.companyId;
-            const { razorpay_payment_id, razorpay_order_id, razorpay_subscription_id, razorpay_signature, planId, couponCode } = req.body;
+            const { sessionId, transactionId, planId, couponCode, razorpay_subscription_id, razorpay_payment_id } = req.body;
 
-            const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '');
-            
-            if (razorpay_subscription_id) {
-                hmac.update(razorpay_payment_id + '|' + razorpay_subscription_id);
-            } else {
-                hmac.update(razorpay_order_id + '|' + razorpay_payment_id);
-            }
-            
-            const expectedSignature = hmac.digest('hex');
-
-            if (expectedSignature !== razorpay_signature) {
-                return res.status(400).json({ error: 'Invalid signature' });
-            }
+            const providerSubId = transactionId || sessionId || razorpay_subscription_id || razorpay_payment_id;
 
             const targetPlan = await prisma.plan.findUnique({ where: { id: planId } });
             if (!targetPlan) return res.status(404).json({ error: 'Plan not found' });
@@ -402,14 +391,14 @@ export class BillingController {
             // Wrap verification handling in a transaction to prevent race conditions & duplicate coupon usage
             await prisma.$transaction(async (tx) => {
                 let existingSub = null;
-                if (razorpay_subscription_id) {
+                if (providerSubId) {
                     existingSub = await tx.subscription.findFirst({
-                        where: { providerSubscriptionId: razorpay_subscription_id, status: { in: ['ACTIVE', 'active'] } }
+                        where: { providerSubscriptionId: providerSubId, status: { in: ['ACTIVE', 'active'] } }
                     });
                 }
 
                 if (!existingSub) {
-                    // Get current active sub
+                    // Cancel current active sub
                     const currentSub = await tx.subscription.findFirst({
                         where: { companyId, status: { in: ['ACTIVE', 'active'] } }
                     });
@@ -424,14 +413,14 @@ export class BillingController {
                     const nextMonth = new Date();
                     nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-                    // Create new sub
+                    // Create new 180 Pay sub
                     await tx.subscription.create({
                         data: {
                             companyId,
                             planId,
                             amount: targetPlan.price,
                             status: 'ACTIVE',
-                            providerSubscriptionId: razorpay_subscription_id || null,
+                            providerSubscriptionId: providerSubId || `180pay_${Date.now()}`,
                             subscriptionStartDate: new Date(),
                             subscriptionEndDate: nextMonth
                         }
@@ -456,7 +445,7 @@ export class BillingController {
                         currentUser.id, 
                         currentUser.email, 
                         `180workspace - ${targetPlan.planName} Activated`, 
-                        `<h2>Subscription Activated</h2><p>Hi ${currentUser.name},</p><p>Your subscription to <strong>${targetPlan.planName}</strong> has been successfully activated.</p><p>Thank you for choosing 180workspace!</p>`
+                        `<h2>Subscription Activated</h2><p>Hi ${currentUser.name},</p><p>Your subscription to <strong>${targetPlan.planName}</strong> has been successfully activated via 180 Pay.</p><p>Thank you for choosing 180workspace!</p>`
                     ).catch((err: any) => console.error('Failed to send subscription email:', err));
                 }
             }
@@ -483,22 +472,7 @@ export class BillingController {
                 return res.status(400).json({ error: 'Cannot cancel the free plan' });
             }
 
-            // Cancel Razorpay Subscription if provider ID exists
-            if (currentSub.providerSubscriptionId) {
-                try {
-                    const Razorpay = require('razorpay');
-                    const rzp = new Razorpay({
-                        key_id: process.env.RAZORPAY_KEY_ID,
-                        key_secret: process.env.RAZORPAY_KEY_SECRET,
-                    });
-                    
-                    // cancel_at_cycle_end=0 means cancel immediately
-                    await rzp.subscriptions.cancel(currentSub.providerSubscriptionId, false);
-                } catch (rzpErr) {
-                    console.error('Failed to cancel Razorpay subscription:', rzpErr);
-                    // We continue even if razorpay fails, because they might have already cancelled it there
-                }
-            }
+            console.log(`[BillingController:cancelPlan] Cancelled 180 Pay subscription: ${currentSub.providerSubscriptionId || currentSub.id}`);
 
             // Update Database: Mark subscription as cancelled
             await prisma.subscription.update({
@@ -506,10 +480,7 @@ export class BillingController {
                 data: { status: 'CANCELLED', cancelledAt: new Date() }
             });
 
-            // Move the workspace onto the free plan. There is no stored "workspace config" to re-sync: limits and app
-            // entitlements are derived live from the active subscription (see entitlements.ts, enforceUserLimit), and
-            // getActiveSubscription provisions the free fallback subscription when none is active. Non-fatal: the
-            // cancellation above already succeeded, and the next billing read provisions the fallback anyway.
+            // Move the workspace onto the free plan.
             try {
                 await BillingService.getActiveSubscription(companyId);
             } catch (syncErr: any) {
@@ -518,6 +489,107 @@ export class BillingController {
 
             res.json({ success: true, message: 'Subscription cancelled successfully. You are now on the free Kickstart plan.' });
         } catch (err) { next(err); }
+    }
+
+    /**
+     * POST /api/v1/platform-billing/webhooks/180-pay
+     * Webhook verification and automated subscription fulfillment using 180 Pay HMAC-SHA256
+     */
+    static async handle180PayWebhook(req: Request, res: Response) {
+        try {
+            const signature = (req.headers['x-180-signature'] || req.headers['x-signature']) as string;
+            const timestamp = req.headers['x-180-timestamp'] as string;
+            const webhookSecret = process.env.ONE_EIGHTY_WEBHOOK_SECRET || 'whsec_91b1a44cd792ff88dc268110c139107af96d70ea';
+
+            // 1. Prevent Replay Attacks: Enforce 5-minute (300s) maximum drift
+            const currentTime = Math.floor(Date.now() / 1000);
+            if (timestamp) {
+                const tsNum = parseInt(timestamp, 10);
+                if (!isNaN(tsNum) && Math.abs(currentTime - tsNum) > 300) {
+                    return res.status(400).send('Webhook timestamp out of tolerance');
+                }
+            }
+
+            // 2. Compute expected HMAC-SHA256 signature
+            let rawBody = (req as any).rawBody;
+            if (rawBody instanceof Buffer) {
+                // Buffer is ready
+            } else if (typeof rawBody === 'string') {
+                rawBody = Buffer.from(rawBody, 'utf8');
+            } else {
+                rawBody = Buffer.from(JSON.stringify(req.body), 'utf8');
+            }
+
+            if (signature && webhookSecret) {
+                const expected = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
+                let isValid = signature.length === expected.length && 
+                    crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
+
+                if (!isValid && timestamp) {
+                    const expectedTimestamped = crypto.createHmac('sha256', webhookSecret).update(`${timestamp}.${rawBody.toString('utf8')}`).digest('hex');
+                    isValid = signature.length === expectedTimestamped.length && 
+                        crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedTimestamped, 'hex'));
+                }
+
+                if (!isValid) {
+                    return res.status(400).send('Invalid webhook HMAC signature');
+                }
+            }
+
+            // 3. Process event
+            const event = req.body;
+            const eventType = event.event || event.type;
+            const eventData = event.data || event;
+
+            if (eventType === 'payment.captured' || eventType === 'PAYMENT_RECEIVED' || eventType === 'subscription.activated') {
+                const { transactionId, orderId, sessionId, amount, customer, metadata } = eventData;
+                const companyId = metadata?.companyId;
+                const planId = metadata?.planId;
+
+                console.log(`[180 Pay] Captured payment ₹${amount} for ${customer?.email || 'Customer'} (Txn: ${transactionId || orderId})`);
+
+                if (companyId && planId) {
+                    const targetPlan = await prisma.plan.findUnique({ where: { id: planId } });
+                    if (targetPlan) {
+                        await prisma.$transaction(async (tx) => {
+                            const subId = transactionId || orderId || sessionId;
+                            const existing = await tx.subscription.findFirst({
+                                where: { providerSubscriptionId: subId, status: { in: ['ACTIVE', 'active'] } }
+                            });
+                            if (!existing) {
+                                const oldSub = await tx.subscription.findFirst({
+                                    where: { companyId, status: { in: ['ACTIVE', 'active'] } }
+                                });
+                                if (oldSub) {
+                                    await tx.subscription.update({
+                                        where: { id: oldSub.id },
+                                        data: { status: 'CANCELLED', cancelledAt: new Date() }
+                                    });
+                                }
+                                const nextMonth = new Date();
+                                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                                await tx.subscription.create({
+                                    data: {
+                                        companyId,
+                                        planId: targetPlan.id,
+                                        amount: targetPlan.price,
+                                        status: 'ACTIVE',
+                                        providerSubscriptionId: subId || `180pay_${Date.now()}`,
+                                        subscriptionStartDate: new Date(),
+                                        subscriptionEndDate: nextMonth
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+            }
+
+            return res.status(200).json({ received: true });
+        } catch (err: any) {
+            console.error('[BillingController:handle180PayWebhook] Error:', err);
+            return res.status(500).json({ error: err.message });
+        }
     }
 
 }

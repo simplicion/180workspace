@@ -184,9 +184,8 @@ class StudioController extends ChangeNotifier {
   }
 
   Future<VideoMetadata> _inspectVideoWithPlayer(String path) async {
-    final controller = kIsWeb
-        ? VideoPlayerController.networkUrl(Uri.parse(path))
-        : VideoPlayerController.file(File(path));
+    final remote = kIsWeb || path.startsWith('http://') || path.startsWith('https://');
+    final controller = remote ? VideoPlayerController.networkUrl(Uri.parse(path)) : VideoPlayerController.file(File(path));
     try {
       await controller.initialize();
       final d = controller.value.duration.inMilliseconds;
@@ -597,6 +596,16 @@ class StudioController extends ChangeNotifier {
     _notify();
   }
 
+  /// Local file of a timeline asset: the original video for `primary`, otherwise a clip added to the timeline.
+  String? pathForAsset(String assetId) => assetId == 'primary' ? sourcePaths['main'] : sourcePaths[assetId];
+
+  /// Asset of the clip under the playhead (which video the preview must show).
+  String get assetAtPlayhead {
+    final ir = _ir;
+    if (ir == null || ir.clips.isEmpty) return 'primary';
+    return ir.clips[TimelineOps.clipIndexAt(ir, playheadMs)].assetId;
+  }
+
   /// Source position shown in the preview for the current playhead.
   int get sourcePositionMs {
     final ir = _ir;
@@ -605,6 +614,15 @@ class StudioController extends ChangeNotifier {
     return (c.sourceStartMs + (playheadMs - c.timelineStartMs) * c.speed)
         .round()
         .clamp(c.sourceStartMs, c.sourceEndMs - 1);
+  }
+
+  String _assetPathForExport(String assetId, String primary) {
+    if (assetId == 'primary') return primary;
+    final path = sourcePaths[assetId];
+    if (path == null || path.isEmpty) {
+      throw MediaEngineException('FILE_NOT_FOUND', 'A clip on the timeline is no longer on this device. Remove it or add it again.');
+    }
+    return path;
   }
 
   // ── AI Director ────────────────────────────────────────────────────────────
@@ -918,6 +936,20 @@ class StudioController extends ChangeNotifier {
         fontPaths = paths;
         warnings.addAll(fontWarnings);
       }
+      // The renderer reads local files only: stock clips placed on the main track are downloaded first.
+      // A main clip cannot be skipped like B-roll, so a failed download stops the export with its reason.
+      final assetPaths = <String, String>{};
+      for (final id in working.assetIds) {
+        final path = _assetPathForExport(id, src);
+        if (path.startsWith('http://') || path.startsWith('https://')) {
+          export = ExportState(stage: 'Downloading clips…', warnings: warnings);
+          _notify();
+          assetPaths[id] = await director.download(path, '${dir.path}/$id.mp4');
+          usedUrls.add(path);
+        } else {
+          assetPaths[id] = path;
+        }
+      }
       final out = await MediaEngineService.getOutputVideoPath(
         'export_${DateTime.now().millisecondsSinceEpoch}.mp4',
       );
@@ -928,7 +960,8 @@ class StudioController extends ChangeNotifier {
           MediaEngineService.renderEditIr(
             editIr: working,
             outputPath: out,
-            assetPaths: {for (final id in working.assetIds) id: src},
+            // Each clip renders from its own file; only the original video is `primary`.
+            assetPaths: assetPaths,
             overlayPaths: overlayPaths,
             musicPaths: musicPaths,
             watermarkPath: watermarkPath,

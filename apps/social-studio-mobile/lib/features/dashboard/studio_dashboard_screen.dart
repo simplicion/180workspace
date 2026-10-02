@@ -129,7 +129,7 @@ void showProfileAndAccountsSheet(BuildContext context, WidgetRef ref) {
                         child: session?.user.imageUrl != null && session!.user.imageUrl!.isNotEmpty
                             ? ClipOval(
                                 child: Image.network(
-                                  session.user.imageUrl!,
+                                  session.user.imageUrl!, cacheWidth: 240,
                                   width: 52,
                                   height: 52,
                                   fit: BoxFit.cover,

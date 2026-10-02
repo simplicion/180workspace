@@ -7,6 +7,10 @@ import { fetchLivePlatformMetrics } from '../social-insights.service';
  * Cross-account telemetry for the 180 Manager. Only stored or live platform numbers are returned; nothing is
  * estimated or invented. Format-level learnings require performance memory (Phase P4) and are omitted until then.
  */
+/** A chat turn reuses the summary for a minute instead of calling every platform API again. */
+const CACHE_MS = 60_000;
+const cache = new Map<string, { at: number; value: Promise<CrossAccountAnalyticsSummary> }>();
+
 export class AnalyticsSubagent {
     static async getCrossAccountSummary(
         companyId: string,
@@ -14,6 +18,23 @@ export class AnalyticsSubagent {
         deps: { liveMetrics?: typeof fetchLivePlatformMetrics; now?: Date } = {},
     ): Promise<CrossAccountAnalyticsSummary> {
         requireCompanyId(companyId);
+        // Injected dependencies (tests) always compute fresh.
+        if (deps.liveMetrics || deps.now) return this.compute(companyId, projectId, deps);
+        const key = `${companyId}:${projectId || '*'}`;
+        const hit = cache.get(key);
+        if (hit && Date.now() - hit.at < CACHE_MS) return hit.value;
+        const value = this.compute(companyId, projectId, deps);
+        cache.set(key, { at: Date.now(), value });
+        value.catch(() => cache.delete(key)); // a failure is never cached
+        if (cache.size > 500) cache.delete(cache.keys().next().value as string);
+        return value;
+    }
+
+    private static async compute(
+        companyId: string,
+        projectId: string | undefined,
+        deps: { liveMetrics?: typeof fetchLivePlatformMetrics; now?: Date },
+    ): Promise<CrossAccountAnalyticsSummary> {
         const db = getDb() as any;
         const whereAccount: any = { companyId, isActive: true };
         if (projectId) whereAccount.projectId = projectId;

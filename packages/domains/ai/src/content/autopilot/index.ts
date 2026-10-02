@@ -6,6 +6,8 @@ export * from './platform-rules';
 export * from './critic';
 export * from './brand-context';
 export * from './pipeline';
+export * from './cadence';
+export * from './normalizers';
 export * from './persistence';
 export * from './types';
 export * from './agents/neuromarketing-research.agent';

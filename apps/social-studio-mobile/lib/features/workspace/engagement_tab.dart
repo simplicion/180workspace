@@ -5,11 +5,12 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/universal_skeleton.dart';
-import '../../core/util/json.dart';
+import '../../data/models/social_account.dart';
 import '../../data/models/engagement_rule.dart';
 import '../../data/models/platform.dart';
 import '../../data/models/project.dart';
 import '../posts/post_providers.dart';
+import 'account_media_picker.dart';
 import 'accounts_tab.dart';
 
 final engagementRulesProvider = FutureProvider.autoDispose.family<List<EngagementRule>, String>((ref, projectId) {
@@ -269,7 +270,7 @@ class _RuleCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isGlobalAccount = rule.socialAccountId == null;
-    final isGlobalPost = rule.postId == null;
+    final isGlobalPost = rule.postId == null && rule.platformMediaId == null;
 
     return Container(
       padding: EdgeInsets.all(16),
@@ -483,6 +484,8 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
   String _aiAgentGoal = 'qualify_lead'; // 'qualify_lead', 'book_demo', 'answer_support', 'deliver_resource'
   String? _selectedAccountId; // null = all connected accounts (e.g. all 5 accounts)
   String? _selectedPostId; // null = all posts & reels
+  /// An existing platform post picked from the account (published outside the app); excludes [_selectedPostId].
+  AccountMediaItem? _selectedMedia;
   bool _autoLike = true;
   final bool _sendDm = true;
   bool _enableAiAgent = true;
@@ -508,7 +511,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       _triggerType = 'comment_keyword';
       _keywordsCtl.text = 'BLUEPRINT, GUIDE, LINK, SEND';
       _dmTemplateCtl.text = 'Hey {name}! Here is your VIP Blueprint link: {link} Let me know if you have any questions!';
-      _deliverableUrlCtl.text = 'https://180workspace.com/blueprint';
+      _deliverableUrlCtl.clear(); // the creator's own link, never a placeholder
       _publicReplyCtl.text = 'Sent to your DMs, {handle}! Check your inbox';
       _aiAgentGoal = 'qualify_lead';
       _aiPromptOverrideCtl.text = 'Ask what business/niche they are running and collect their best email to send follow-up growth assets.';
@@ -521,7 +524,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       _triggerType = 'comment_any';
       _keywordsCtl.clear();
       _dmTemplateCtl.text = 'Hey {name}! Thanks for checking out our video! Here is the link you requested: {link}';
-      _deliverableUrlCtl.text = 'https://180workspace.com/resources';
+      _deliverableUrlCtl.clear(); // the creator's own link, never a placeholder
       _publicReplyCtl.text = 'Just sent you a DM with the details!';
       _aiAgentGoal = 'qualify_lead';
       _aiPromptOverrideCtl.text = 'Check if they watched the full breakdown and ask if they would like help implementing it.';
@@ -534,7 +537,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       _triggerType = 'dm_inbound';
       _keywordsCtl.clear();
       _dmTemplateCtl.text = 'Hi {name}! Thanks for reaching out. Here is our official portal: {link} How can we help you today?';
-      _deliverableUrlCtl.text = 'https://180workspace.com';
+      _deliverableUrlCtl.clear(); // the creator's own link, never a placeholder
       _publicReplyCtl.clear();
       _aiAgentGoal = 'qualify_lead';
       _aiPromptOverrideCtl.text = 'Qualify the inbound prospect: ask what services they are interested in and capture their email/phone number.';
@@ -548,7 +551,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       _triggerType = 'comment_keyword';
       _keywordsCtl.text = 'HELP, SUPPORT, PRICING, COST';
       _dmTemplateCtl.text = 'Hi {name}! I am the 180 AI Assistant. How can I help you today? Check our options here: {link}';
-      _deliverableUrlCtl.text = 'https://180workspace.com/pricing';
+      _deliverableUrlCtl.clear(); // the creator's own link, never a placeholder
       _publicReplyCtl.text = 'Just messaged you with details!';
       _aiAgentGoal = 'answer_support';
       _aiPromptOverrideCtl.text = 'Answer product and pricing questions accurately according to our brand context. If unsure, escalate to human.';
@@ -561,7 +564,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       _triggerType = 'comment_keyword';
       _keywordsCtl.text = 'DISCOUNT, PROMO, CODE, VIP';
       _dmTemplateCtl.text = 'Hey {name}! Use code VIP20 for 20% off your next purchase: {link}';
-      _deliverableUrlCtl.text = 'https://180workspace.com/store';
+      _deliverableUrlCtl.clear(); // the creator's own link, never a placeholder
       _publicReplyCtl.text = 'Code sent to your DM! Enjoy';
       _aiAgentGoal = 'deliver_resource';
       _aiPromptOverrideCtl.clear();
@@ -586,118 +589,30 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
     setState(() {});
   }
 
-  Future<void> _showLinkPostDialog() async {
-    final urlCtl = TextEditingController();
-    final titleCtl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (dlgContext) => AlertDialog(
-        backgroundColor: AppTheme.surfaceElevated,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.link_rounded, color: AppTheme.primary, size: 22),
-            const SizedBox(width: 8),
-            const Text('Link Post / Video', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Link an Instagram Reel/Post or LinkedIn Post you already published so you can target this automation rule to it.',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: urlCtl,
-                decoration: fieldDecoration('Post or Reel URL / URN *', hint: 'https://instagram.com/reel/... or https://linkedin.com/posts/...'),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Please enter the URL or URN';
-                  final s = v.trim().toLowerCase();
-                  if (!s.contains('instagram.com/') && !s.contains('linkedin.com/') && !s.contains('facebook.com/') && !s.startsWith('urn:li:')) {
-                    return 'Must be an Instagram, LinkedIn, or Facebook URL';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: titleCtl,
-                decoration: fieldDecoration('Video / Post Title (Optional)', hint: 'e.g. Scaling AI Systems Breakdown'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dlgContext).pop(false),
-            child: Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                Navigator.of(dlgContext).pop(true);
-              }
-            },
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
-            child: const Text('Link & Select'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true && mounted) {
-      final postUrl = urlCtl.text.trim();
-      final isLi = postUrl.contains('linkedin.com') || postUrl.startsWith('urn:li:');
-      final isFb = postUrl.contains('facebook.com');
-      final platformStr = isLi ? 'linkedin' : (isFb ? 'facebook' : 'instagram');
-      final prefixLabel = isLi ? 'LinkedIn Post' : (isFb ? 'FB Post' : 'IG Reel');
-      final cleanSnippet = postUrl.split('?').first.split('/').where((s) => s.isNotEmpty).last;
-      final title = titleCtl.text.trim().isNotEmpty
-          ? titleCtl.text.trim()
-          : '$prefixLabel: $cleanSnippet';
-
-      final postOutcome = await guarded(
-        context,
-        () => ref.read(socialApiProvider).createPost({
-          'projectId': widget.projectId,
-          'title': title,
-          'content': 'Targeted $prefixLabel: $postUrl',
-          'mediaType': isLi ? 'article' : 'video',
-          'status': 'published',
-          'publishedAt': DateTime.now().toIso8601String(),
-          'socialAccountId': _selectedAccountId,
-          'variants': [
-            {
-              'platform': platformStr,
-              'publishStatus': 'published',
-              'externalUrl': postUrl,
-              'socialAccountId': _selectedAccountId,
-            }
-          ],
-        }),
-      );
-
-      if (mounted && postOutcome != null) {
-        showInfo(context, 'Linked $prefixLabel: $title', color: AppTheme.success);
-        ref.invalidate(projectPostsProvider(PostQuery(projectId: widget.projectId)));
-        final created = jMapOrNull(postOutcome.data?['post']);
-        final id = created == null ? null : jStr(created['id']);
-        if (id != null) {
-          setState(() {
-            _selectedPostId = id;
-          });
-        }
-      }
+  /// Picks one of the account's real, already-published posts (Instagram/Facebook) as the rule target.
+  Future<void> _pickExistingPost() async {
+    final accounts = ref.read(allAccountsProvider).valueOrNull ?? const <SocialAccount>[];
+    final account = accounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+    if (account == null) {
+      showError(context, 'Choose the Instagram or Facebook account first, then pick one of its posts.');
+      return;
     }
-    urlCtl.dispose();
-    titleCtl.dispose();
+    if (account.platform != SocialPlatform.instagram && account.platform != SocialPlatform.facebook) {
+      showError(context, 'Picking an existing post works for Instagram and Facebook. For ${account.platform.label}, keep "All videos & posts".');
+      return;
+    }
+    final picked = await showModalBottomSheet<AccountMediaItem>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface,
+      builder: (_) => AccountMediaPickerSheet(account: account),
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedMedia = picked;
+        _selectedPostId = null;
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -740,14 +655,18 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
       'name': name,
       'projectId': widget.projectId,
       'socialAccountId': _selectedAccountId,
-      'postId': _selectedPostId,
+      'postId': _selectedMedia == null ? _selectedPostId : null,
+      'platformMediaId': _selectedMedia?.id,
+      'platformMediaPermalink': _selectedMedia?.permalink,
+      'platformMediaThumbnail': (_selectedMedia?.thumbnailUrl?.startsWith('https://') ?? false) ? _selectedMedia!.thumbnailUrl : null,
       'triggerType': _triggerType,
       'triggerKeywords': rawKeywords,
       'matchMode': _matchMode,
       'actionAutoLike': _triggerType == 'dm_inbound' ? false : _autoLike,
       'actionPublicReplies': _triggerType == 'dm_inbound' || _publicReplyCtl.text.trim().isEmpty ? [] : [_publicReplyCtl.text.trim()],
       'actionSendDm': isLinkedIn ? false : _sendDm,
-      'actionDmTemplate': dmTemplate.isNotEmpty ? dmTemplate : 'Thanks for reaching out! Check our link: {link}',
+      // LinkedIn sends no DM; the brand's words are never invented for it.
+      'actionDmTemplate': dmTemplate,
       'actionDmDeliverableUrl': _deliverableUrlCtl.text.trim().isEmpty ? null : _deliverableUrlCtl.text.trim(),
       'actionEnableAiAgent': _enableAiAgent,
       'aiAgentGoal': _aiAgentGoal,
@@ -1056,7 +975,10 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                                   ),
                                 ),
                             ],
-                            onChanged: (val) => setState(() => _selectedAccountId = val),
+                            onChanged: (val) => setState(() {
+                              _selectedAccountId = val;
+                              _selectedMedia = null; // a picked post belongs to the previous account
+                            }),
                           );
                         },
                         loading: () => const LinearProgressIndicator(),
@@ -1077,18 +999,17 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                           ),
                           const Spacer(),
                           TextButton.icon(
-                            onPressed: _showLinkPostDialog,
-                            icon: Icon(Icons.link_rounded, size: 15, color: AppTheme.primary),
-                            label: Text('Link Post URL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary)),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
+                            onPressed: _pickExistingPost,
+                            icon: Icon(Icons.grid_view_rounded, size: 15, color: AppTheme.primary),
+                            label: Text('Pick existing post', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                            style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6),
+                      if (_selectedMedia != null)
+                        SelectedMediaCard(item: _selectedMedia!, onClear: () => setState(() => _selectedMedia = null))
+                      else
                       postsAsync.when(
                         data: (posts) {
                           return DropdownButtonFormField<String?>(
@@ -1140,7 +1061,7 @@ class _EngagementRuleFormSheetState extends ConsumerState<_EngagementRuleFormShe
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '💡 Automate existing content: Choose "All Videos & Posts" to trigger on ANY past or future post on Instagram or LinkedIn. Or tap "Link Post URL" to target one specific Reel or LinkedIn Post.',
+                                'Choose "All Videos & Posts" to run on every past and future post of the account, or tap "Pick existing post" to run on one Reel or post you already published.',
                                 style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.35),
                               ),
                             ),

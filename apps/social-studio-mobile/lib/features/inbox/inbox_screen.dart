@@ -8,6 +8,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/universal_skeleton.dart';
 import '../../data/models/engagement_rule.dart';
 import '../../data/models/inbox.dart';
+import 'ai_inbox_settings_sheet.dart';
 import '../../data/models/platform.dart';
 import '../dashboard/studio_dashboard_screen.dart';
 import '../projects/project_provider.dart';
@@ -106,6 +107,13 @@ class _ConversationListState extends ConsumerState<ConversationList> {
       SizedBox(
         height: 52,
         child: ListView(scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
+          ActionChip(
+            avatar: Icon(Icons.smart_toy_outlined, size: 16, color: AppTheme.accent),
+            label: Text('AI auto-reply'),
+            tooltip: 'AI auto-reply settings',
+            onPressed: () => showAiInboxSettings(context, projectId: widget.projectId),
+          ),
+          SizedBox(width: 8),
           FilterChip(label: Text('Unread'), selected: _unread, onSelected: (v) => setState(() => _unread = v)),
           SizedBox(width: 8),
           ChoiceChip(label: Text('All channels'), selected: _platform == null, onSelected: (_) => setState(() => _platform = null)),
@@ -210,7 +218,7 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (c.aiAgentActive && !c.isHumanTakeover)
+                      if (c.aiAnswers)
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -218,6 +226,18 @@ class _ConversationListState extends ConsumerState<ConversationList> {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text('🤖 AI Active', style: TextStyle(fontSize: 10, color: AppTheme.accent, fontWeight: FontWeight.bold)),
+                        ),
+                      if (c.isHotLead)
+                        Padding(
+                          padding: EdgeInsets.only(right: 4),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: AppTheme.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
+                            child: Text(
+                              c.leadStage == 'handoff' ? 'Wants to talk' : 'Lead${c.leadScore == null ? '' : ' ${c.leadScore}'}',
+                              style: TextStyle(fontSize: 10, color: AppTheme.success, fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ),
                       if (c.isHumanTakeover)
                         Container(

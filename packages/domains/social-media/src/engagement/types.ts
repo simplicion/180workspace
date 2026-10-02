@@ -12,6 +12,10 @@ export interface CreateEngagementRuleDTO {
     projectId?: string;
     socialAccountId?: string;
     postId?: string;
+    /** Platform media id of an existing post (from GET /accounts/:id/media). Requires socialAccountId. */
+    platformMediaId?: string | null;
+    platformMediaPermalink?: string | null;
+    platformMediaThumbnail?: string | null;
     triggerType: EngagementTriggerType;
     triggerKeywords?: string[];
     matchMode?: EngagementMatchMode;

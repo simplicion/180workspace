@@ -14,6 +14,7 @@ import '../../data/models/content_calendar.dart';
 import '../posts/platform_post_preview.dart';
 import '../projects/project_provider.dart';
 import 'carousel_sheet.dart';
+import 'piece_clips_section.dart';
 import 'planner_providers.dart';
 import 'raw_footage_upload.dart';
 
@@ -321,17 +322,17 @@ class _CalendarDateGrid extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppTheme.primary.withOpacity(0.25)
+                      ? AppTheme.primary.withValues(alpha: 0.25)
                       : hasPieces
-                          ? AppTheme.primary.withOpacity(0.10)
-                          : AppTheme.surfaceElevated.withOpacity(0.35),
+                          ? AppTheme.primary.withValues(alpha: 0.10)
+                          : AppTheme.surfaceElevated.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isSelected
                         ? AppTheme.primary
                         : hasPieces
-                            ? AppTheme.primary.withOpacity(0.45)
-                            : AppTheme.border.withOpacity(0.3),
+                            ? AppTheme.primary.withValues(alpha: 0.45)
+                            : AppTheme.border.withValues(alpha: 0.3),
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
@@ -344,7 +345,7 @@ class _CalendarDateGrid extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: hasPieces ? FontWeight.bold : FontWeight.normal,
-                        color: hasPieces ? Colors.white : AppTheme.textSecondary.withOpacity(0.7),
+                        color: hasPieces ? Colors.white : AppTheme.textSecondary.withValues(alpha: 0.7),
                       ),
                     ),
                     if (hasPieces)
@@ -532,7 +533,7 @@ class _DayPieceCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.surfaceElevated,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppTheme.border.withOpacity(0.5)),
+              border: Border.all(color: AppTheme.border.withValues(alpha: 0.5)),
             ),
             child: Row(
               children: [
@@ -680,6 +681,11 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
     final b = _brief;
     if (b == null) return _script.text;
     return b.hasScript ? b.teleprompterText : '';
+  }
+
+  bool get _isVideoPiece {
+    final t = _currentPiece.contentType.toLowerCase();
+    return t.contains('video') || t.contains('reel') || t.contains('short') || t.contains('tiktok');
   }
 
   bool get _isCarousel =>
@@ -917,7 +923,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
             decoration: BoxDecoration(
               color: AppTheme.surfaceElevated,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
+              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
@@ -952,6 +958,18 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
         ),
         SizedBox(height: 12),
 
+        if (_isVideoPiece) ...[
+          PieceClipsSection(
+            piece: p,
+            status: _status,
+            projectId: projectId,
+            hook: prefill['hook']?.toString() ?? p.headline,
+            script: _prompterScript,
+            onStatusChanged: (s) => setState(() => _status = s),
+          ),
+          SizedBox(height: 12),
+        ],
+
         // Action Toolbar
         Row(children: [
           Expanded(
@@ -967,10 +985,13 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
           SizedBox(width: 8),
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                context.push('/camera', extra: {'hook': prefill['hook'] ?? p.headline, 'script': _prompterScript, 'projectId': projectId});
-              },
+              // The camera opens on top of this sheet and its takes are linked to the piece (listed under Clips).
+              onPressed: () => context.push('/camera', extra: {
+                'hook': prefill['hook'] ?? p.headline,
+                'script': _prompterScript,
+                'projectId': projectId,
+                'pieceId': p.id,
+              }),
               icon: Icon(Icons.videocam_rounded, size: 16),
               label: Text('Shoot'),
             ),
@@ -1052,7 +1073,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
           SizedBox(height: 10),
           FilledButton.tonalIcon(
             style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.success.withOpacity(0.15),
+              backgroundColor: AppTheme.success.withValues(alpha: 0.15),
               foregroundColor: AppTheme.success,
             ),
             onPressed: () => showCarouselSheet(context, projectId: projectId, pieceId: p.id, title: p.headline),
@@ -1115,14 +1136,14 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
                 decoration: BoxDecoration(
                   color: AppTheme.surfaceElevated,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.border.withOpacity(0.4)),
+                  border: Border.all(color: AppTheme.border.withValues(alpha: 0.4)),
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppTheme.success.withOpacity(0.2),
+                        color: AppTheme.success.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(

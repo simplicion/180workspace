@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import {
     SocialAccountService,
     SocialOAuthService,
+    AccountMediaService,
     MetaWebhooksService,
     isPublishError,
     toPublicAccount,
@@ -97,6 +98,21 @@ router.post('/connect', requireRole('admin'), async (req: Request, res: Response
         }
         const account = await SocialAccountService.connectAccount(req.body);
         res.status(201).json({ success: true, account: publicAccount(account) });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
+/**
+ * Recent posts of a connected Instagram/Facebook account, read live from the platform, for picking an existing post
+ * as an engagement-automation target. GET /:id/media?cursor= → { items, nextCursor }.
+ */
+router.get('/:id/media', async (req: Request, res: Response) => {
+    try {
+        const companyId = (req as any).user?.companyId;
+        const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : null;
+        const page = await AccountMediaService.listRecentMedia(companyId, String(req.params.id), { cursor });
+        res.json({ success: true, ...page });
     } catch (error: any) {
         sendError(res, error);
     }

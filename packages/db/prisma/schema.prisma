@@ -3642,6 +3642,11 @@ model SocialAccount {
   reauthReason        String?              @db.Text
   lastHealthCheckAt   DateTime?
   isActive            Boolean              @default(true)
+  /// AI inbox: off | reply (answer every DM) | qualify (qualify the lead, then hand off). A thread a human took over
+  /// is never answered by the AI.
+  aiInboxMode         String               @default("off")
+  /// Extra instructions for the AI inbox of this account (offer, ideal customer, qualification criteria).
+  aiInboxInstructions String?              @db.Text
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -3903,6 +3908,12 @@ model SocialConversation {
   aiAgentActive       Boolean              @default(false) // opt-in: a rule with actionEnableAiAgent or a manual toggle
   isHumanTakeover     Boolean              @default(false)
   convertedLeadId     String?
+  /// Lead qualification written by the AI inbox agent: 0-100 and new | engaged | qualified | disqualified | handoff.
+  leadScore           Int?
+  leadStage           String?
+  /// { need, budget, timeline, authority, fit, reason }; values are what the person said, never inferred numbers.
+  leadQualification   Json?
+  leadQualifiedAt     DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -3913,6 +3924,7 @@ model SocialConversation {
 
   @@unique([companyId, platform, platformThreadId])
   @@index([companyId, projectId])
+  @@index([companyId, leadStage])
 }
 
 model SocialMessage {
@@ -3951,6 +3963,11 @@ model SocialEngagementRule {
   projectId               String?
   socialAccountId         String?
   postId                  String?                 // Target specific post/reel, or null for account-wide
+  /// Platform media id of a post published outside 180 Workspace (requires socialAccountId); matched against the
+  /// webhook's media id. Null with postId null = every post of the account.
+  platformMediaId         String?
+  platformMediaPermalink  String?                 @db.Text
+  platformMediaThumbnail  String?                 @db.Text
   name                    String                  // e.g. "Viral Reel Blueprint Auto-DM"
   status                  String                  @default("active") // "active", "paused", "archived"
   
@@ -3991,6 +4008,7 @@ model SocialEngagementRule {
   @@index([companyId, projectId])
   @@index([socialAccountId, triggerType])
   @@index([postId])
+  @@index([socialAccountId, platformMediaId])
 }
 
 model SocialInteractionLog {
@@ -4138,5 +4156,46 @@ model PostVideoIntelligence {
   post                 SocialPost?  @relation(fields: [postId], references: [id], onDelete: SetNull)
 
   @@index([companyId, projectId])
+}
+
+/// Studio library folder (metadata only; media files stay on the device that recorded them).
+model StudioMediaFolder {
+  id         String    @id
+  companyId  String
+  projectId  String?
+  name       String
+  colorValue BigInt    @default(4283385573)
+  parentId   String?
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([companyId, projectId])
+}
+
+/// Studio library item: clip/photo/note metadata, piece link and take order. `localPath` is only meaningful on
+/// the device named by `deviceId`; the file itself is never uploaded by the library sync.
+model StudioMediaAsset {
+  id            String    @id
+  companyId     String
+  projectId     String?
+  folderId      String?
+  pieceId       String?
+  name          String
+  type          String
+  durationMs    Int       @default(0)
+  fileSizeBytes BigInt    @default(0)
+  takeIndex     Int?
+  tags          String[]  @default([])
+  noteContent   String?   @db.Text
+  noteCategory  String?
+  deviceId      String?
+  localPath     String?   @db.Text
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([companyId, projectId])
+  @@index([companyId, pieceId])
 }
 

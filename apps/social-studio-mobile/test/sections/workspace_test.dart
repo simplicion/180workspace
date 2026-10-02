@@ -132,7 +132,7 @@ void main() {
   appTest('Brand: edit and save posts the brand voice to /brand-voice/:projectId', (tester) async {
     final b = seededBackend()..json('POST', '$sm/brand-voice/:projectId', {'success': true, 'profile': {'id': 'bv1', 'projectId': 'p1'}});
     await pumpApp(tester, b, location: '/projects/p1/brand');
-    await tester.enterText(find.widgetWithText(TextField, 'Tone of voice'), 'Bold, never salesy');
+    await tester.enterText(find.widgetWithText(TextField, 'Custom tone & persona nuances'), 'Bold, never salesy');
     await tester.pump();
     await tapVisible(tester, find.widgetWithText(ElevatedButton, 'Save brand identity'));
     final body = b.last('POST', '$sm/brand-voice/p1')!.json;
@@ -175,7 +175,7 @@ void main() {
   appTest('Brand: offline save is queued in the outbox', (tester) async {
     final b = seededBackend()..networkError('POST', '$sm/brand-voice/:projectId');
     final h = await pumpApp(tester, b, location: '/projects/p1/brand');
-    await tester.enterText(find.widgetWithText(TextField, 'Tone of voice'), 'Calm');
+    await tester.enterText(find.widgetWithText(TextField, 'Custom tone & persona nuances'), 'Calm');
     await tester.pump();
     await tapVisible(tester, find.widgetWithText(ElevatedButton, 'Save brand identity'));
     expect(find.text('Saved offline. It will sync when you are back online.'), findsOneWidget);
@@ -183,13 +183,12 @@ void main() {
     expect(find.byTooltip('Sync status'), findsOneWidget);
   });
 
-  appTest('Channels: linking another workspace account posts its id', (tester) async {
-    final b = seededBackend()..json('POST', '$sm/projects/:id/accounts', {'success': true, 'result': {}});
+  appTest('Channels: accounts of other projects are never offered here (project isolation)', (tester) async {
+    final b = seededBackend();
     await pumpApp(tester, b, location: '/projects/p1/accounts');
-    expect(find.text('Acme LinkedIn'), findsOneWidget);
-    await tapVisible(tester, find.widgetWithText(TextButton, 'Link'));
-    expect(b.last('POST', '$sm/projects/p1/accounts')!.json, {'accountId': 'a2'});
-    expect(find.text('Acme LinkedIn linked'), findsOneWidget);
+    expect(find.text('Acme LinkedIn'), findsNothing);
+    expect(find.widgetWithText(TextButton, 'Link'), findsNothing);
+    expect(b.calls('POST', '$sm/projects/p1/accounts'), isEmpty);
   });
 
   appTest('Evergreen: adding a slot posts it and reloads the slots', (tester) async {

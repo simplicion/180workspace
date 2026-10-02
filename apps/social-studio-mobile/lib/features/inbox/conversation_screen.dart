@@ -77,7 +77,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   Future<void> _toggleAiAgent(Conversation c) async {
-    final next = !c.aiAgentActive;
+    final next = !c.aiAnswers;
     final res = await guarded(
       context,
       () => ref.read(socialApiProvider).toggleConversationAiAgent(c.id, active: next),
@@ -85,7 +85,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     if (res != null && mounted) {
       showInfo(
         context,
-        next ? '🤖 Autonomous AI Agent activated for this chat' : 'AI Agent paused',
+        next ? 'The AI answers this chat' : 'AI off: you handle this chat',
         color: next ? AppTheme.accent : AppTheme.textSecondary,
       );
       ref.invalidate(conversationProvider(widget.conversationId));
@@ -122,7 +122,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         ]),
         actions: [
           if (c != null) ...[
-            if (c.aiAgentActive && !c.isHumanTakeover)
+            if (c.aiAnswers)
               IconButton(
                 tooltip: 'AI Agent is Active. Tap to take over.',
                 icon: Icon(Icons.smart_toy_rounded, color: AppTheme.accent),

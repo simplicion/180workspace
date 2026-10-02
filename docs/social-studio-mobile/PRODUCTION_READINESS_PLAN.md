@@ -341,3 +341,172 @@ These are unchanged from `PRODUCTION_GAP_AUDIT.md` §4. In addition:
 - Meta App Review for `instagram_business_manage_messages` and `instagram_business_manage_comments`, needed for P1;
 - an optional `GIPHY_API_KEY`;
 - a live AI key for the P3.6 live run.
+
+## Status: P0 (2026-10-02)
+
+Done and verified:
+- **P0.1–P0.5 Manager** (`social-media/src/manager/*`, `manager.routes.ts`):
+  - no keyword fallback and no invented numbers (no AI → 503 `AI_NOT_CONFIGURED`, bad output → 502 `AI_INVALID_OUTPUT`);
+  - conversations are server-owned and company-scoped, with history replayed;
+  - new routes `GET /manager/conversations` and `/conversations/:id/messages`;
+  - DMs are fenced as untrusted data, and actions are sanitised so invented inbox ids are dropped and the project is
+    server-verified;
+  - analytics uses `groupBy` counts plus labelled live metrics, with nothing estimated;
+  - video intelligence validates the AI output, takes text only (`basis`), and writes per tenant (no shared
+    `'standalone'` row);
+  - Director rules use `AgentMemoryService`, so there are no duplicates;
+  - the calendar pivot returns 501 `CALENDAR_PIVOT_UNAVAILABLE` instead of writing placeholder posts.
+  - Migration `20261002100000_manager_agent` (not applied). Tests: `test/manager.test.ts` 11/11.
+- **P0.6 OAuth demo.** `getYouTubeProviderMode`/`getLinkedInProviderMode` return `live` in production. They used to
+  fall back to mock when credentials were missing, which was the source of the "(Demo)" channel. Cleanup:
+  `apps/backend/scripts/deactivate-simulated-social-accounts.ts` (dry run by default, `--apply`).
+- **P0.7 Stock.** The fake sample catalogue is gone. Provider errors come back as `warnings[]`, and `shape=unified` is
+  supported. The client used `/stock/search?type=videos`, which returns 0 from Pexels (it needs `video`); it now makes
+  one unified call that throws `StockSearchException`. The B-roll sheet shows the reason, and export skips B-roll with
+  the reason.
+- **P0.8 Clips.** `core/storage/clip_store.dart` moves each take into `<docs>/clips/<project>/`. Existing cached takes
+  are rescued when the library loads. Tests: `test/core/clip_store_test.dart`.
+- **P0.9** The canned public reply was removed (engagement 67/67).
+- **P0.10 Flutter.** analyze clean, `flutter test` **174/174**. Stale tests were updated to the intentional changes:
+  device music/SFX, the Uploads tab, the renamed brand tone field, and no cross-project account linking. The timeline
+  label overflow on short items is fixed. Manager sheet:
+  - uses the server conversation id;
+  - shows real errors;
+  - fake "SWARM ACTIVE" and "all 5 accounts" header removed.
+  - Tests: `test/sections/manager_test.dart`.
+
+Open:
+- **Autopilot 15/17.** The `normalize` step added to `autopilot/pipeline.ts` in `6893b5e1` (another tool) fills invalid
+  AI output with canned copy, so the "job failure" and "repair retry" tests fail. Per the no-fake-content rule, the
+  code must change, not the tests. This is part of P3.1.
+- **Schema drift.** The `User` (`age`, …) and `TrafficDirectorSubscription` schema changes have no migration
+  (outside this scope).
+- Apply the migrations with `prisma migrate deploy`. Run the demo cleanup script with `--apply` on production after
+  reviewing the dry run.
+
+## Status: P1 (2026-10-02)
+
+Done and verified:
+- **P1.1 Existing posts.**
+  - `SocialEngagementRule.platformMediaId`/`Permalink`/`Thumbnail` (migration `20261002120000_engagement_existing_media`).
+    A media id requires `socialAccountId` and cannot be combined with `postId`.
+  - New route `GET /accounts/:id/media?cursor=`: IG media and FB page posts, live, tenant-checked. Other platforms get
+    422 `MEDIA_LISTING_UNSUPPORTED`.
+  - The matcher fires a media rule only for that media, and the most specific rule wins.
+  - The phone has a "Pick existing post" grid (`workspace/account_media_picker.dart`) that replaces the fake
+    "published post" created by "Link Post URL". Presets no longer pre-fill 180workspace.com links.
+- **P1.2 Composer funnel.**
+  - Empty keywords send `comment_any`, and the comment reply goes into `actionPublicReplies` (it was dropped before).
+  - `actionEnableAiAgent: false`. The DM text is required. Editing a post updates or pauses its rule, and errors are
+    shown instead of swallowed.
+  - The `keyword` trigger with no keywords is rejected server-side. Rule `status` is validated, and `updateRule` is
+    company-scoped.
+- **P1.3 AI inbox.**
+  - `SocialAccount.aiInboxMode` (`off|reply|qualify`) and `aiInboxInstructions` (migration
+    `20261002130000_ai_inbox_mode`).
+  - Routes: `GET /inbox/ai-settings`, `PUT /inbox/ai-settings/accounts/:id`, and `PUT /inbox/ai-settings/bulk`
+    (IG/FB only).
+  - The agent answers when the thread switch or the account mode is on, unless a human took the thread over.
+    Toggling AI off on a thread now means a human handles it.
+  - DM text is fenced as untrusted. Phone: Inbox → "AI auto-reply" sheet (per account, plus "All N Instagram
+    accounts", plus instructions).
+- **P1.4** `/inbox?conversationId=` redirects to the thread. Used by the Manager and lead notifications.
+- **P1.5** Opportunities come from one query and are ranked by the AI lead score. Unread chit-chat is no longer an
+  "opportunity".
+- **P1.6 Lead qualification.**
+  - Need, budget, timeline, authority and fit, plus score and stage, are stored on the conversation.
+  - The first qualified or handoff event triggers a notification to the project owner and marks the thread unread.
+  - `handoff` hands the thread to a human. Malformed AI output is ignored.
+- **Security (found during P1).** `publishing/config.ts` had base64-embedded app IDs and **secrets** for
+  Facebook/Instagram/Threads/LinkedIn (commit `38f5a1a3`). They are removed; credentials now come from the environment
+  only. **Rotate those four app secrets**: they are in git history.
+
+Tests:
+- social-media: `engagement-p1` 10/10, manager 11, engagement 67/67, engagement-production 16, tenant-isolation 16,
+  post-edge-cases 15, social-os 7, webhooks-meta 6, sandbox-e2e 11 (was failing because of the embedded keys),
+  publishers 16, adapters-verified 16, oauth-meta 7.
+- Flutter: analyze clean, **177/177** (new: `test/sections/engagement_p1_test.dart`).
+
+Open:
+- Apply the 3 new migrations.
+- Rotate the Meta and LinkedIn app secrets.
+- Meta App Review for the messaging/comments permissions.
+
+## Status: P2 (2026-10-02)
+
+Done:
+- **P2.1/P2.2 Shoot loop.**
+  - Takes carry `pieceId` and `takeIndex` and are named Clip N.
+  - The camera's "Done" returns to the piece sheet. The four duplicated save blocks became one, and save errors are
+    shown instead of swallowed.
+  - The piece sheet has a Clips section (`planner/piece_clips_section.dart`) with play, rename, retake, delete,
+    move up/down, "Shooting done" (new piece status `shot`) and "Edit N clips in Studio".
+  - A Studio folder or piece opens **all** of its clips, not just the first.
+- **Multi-clip bug.** Export used to map every clip asset to the original video. Each clip now renders from its own
+  file, stock main-track clips are downloaded first, and the preview switches player per asset.
+- **P2.3** Export after a calendar piece opens the post editor. Otherwise "New post with this video" attaches the
+  rendered file (`localMediaPath`).
+- **P2.5** The preview stacks every active overlay, and local videos show real frame thumbnails
+  (`studio/video_thumbnails.dart`). Add-clip errors are surfaced.
+- **P2.6** The +start/end buttons and assets sheet were already present.
+- **P2.7 Text motion.**
+  - In (7 types), Out (6) and Loop (4) via `studio/text_motion.dart` and the Kotlin `TextMotion.kt`, using the same
+    maths.
+  - Contract `MobileCaptionStyleSchema` gains `enter`/`exit`/`loop`/`glow`; it used to strip them.
+  - Legacy invalid `animation` values (fade_in, slide_up, typewriter, pulse) are migrated when a timeline loads.
+- **P2.8 Library in the database.**
+  - `StudioMediaFolder`/`StudioMediaAsset` (migration `20261002140000_studio_media_library`).
+  - `GET`/`PUT /library/sync`: tenant-safe, soft deletes, ids owned by another company → 409.
+  - The phone pushes every change through the outbox and merges on load. Media stays on the device (`deviceId`).
+  - Deleting an item now removes the take file the app owns.
+- **P2.9** An untouched per-platform caption/title copy now follows edits to the main caption; it used to publish the
+  stale copy.
+
+Tests:
+- Flutter: analyze clean, **191/191**.
+- New Flutter tests: `piece_clips`, `library_sync`, `text_motion`, `composer_variants`.
+- social-media: `studio-library` 4/4.
+- video-contracts: director-os 13, effects-photos 3.
+- Kotlin compiles.
+
+Next: P3 (four-agent calendar: fix the `normalize` canned fallbacks, cadence mix), P4 (Manager tool-calling),
+P5 (performance and release).
+
+## Status: P3 (2026-10-02)
+
+Done:
+- **No canned content.** `autopilot/normalizers.ts` replaces the inline normalisers that invented content when the AI
+  output was incomplete:
+  - strategy: audience psychology, pillars, "Strategic Content Insight Day N" slots;
+  - hooks: "Stop scrolling…", "Save this and follow for part two", stock carousel slides;
+  - copy: "Check out this insight.", 18:00 posting times.
+
+  The new normalisers only fix shape and use the strategist's, brand's or platform's own data. The zod `.default(...)`
+  stock texts in `schemas.ts` are removed. Hook/script problems (hook over 12 words, fewer than 3 beats, missing
+  CTA/retention loop, fewer than 3 shot notes, fewer than 4 slides or the creator's slide count) go back to the agent
+  for repair instead of being truncated or padded.
+- **P3.2 Cadence.** `autopilot/cadence.ts`:
+  - The mix decides the exact slots in code: daily N reels + M carousels; `alternate` = reel on odd days, carousel on
+    even days.
+  - Unsupported formats and plans over 120 slots return 400 at start.
+  - The strategist gets an exact per-day plan and is checked against it. Reel duration and slide count apply to
+    every slot.
+  - The service validates `contentMix` with zod (it was passed through unvalidated).
+- **P3.3 Prompts.**
+  - Reference text is fenced as untrusted and judged: keep its topics and facts, upgrade weak hooks. With no
+    reference, the SOP chain is used.
+  - No psychological job may exceed about a third of the slots (checked).
+  - The example JSON in the prompt uses `<placeholders>` and is checked so they are never copied.
+- **P3.4** Progress names the agent: research & psychology → strategy & cadence → SOP writer → quality control.
+
+Tests:
+- `autopilot` **17/17** (repair-retry fixed).
+- `multi_calendar_loop` **11/11**: exact counts for 1 reel/day, 1 carousel/day, 1+1, alternate, 2 carousels + 1 reel
+  (90), custom mixes, references, structure.
+- New `packages/domains/ai/tests/autopilot-cadence.test.ts` 8/8.
+- Director 58/58 and director-os 12/12 unchanged.
+
+Open:
+- The files under `autopilot/agents/*.agent.ts` (from another tool) are still unused. The four agent roles are the
+  pipeline stages above.
+- A live-key run of the 10-calendar loop (costs real AI tokens) is waiting for the owner's go-ahead.
