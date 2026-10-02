@@ -66,7 +66,7 @@ void main() {
 
   appTest('company-suspended on a media-editor route still locks the app', (tester) async {
     final b = seededBackend()
-      ..json('GET', '/api/v1/media-editor/stock/search',
+      ..json('GET', '/api/v1/media-editor/stock/unified',
           {'companySuspended': true, 'status': 'suspended', 'message': 'Your company workspace has been suspended.'},
           status: 403);
     final h = await pumpApp(tester, b);

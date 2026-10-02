@@ -55,7 +55,7 @@ export class EngagementDispatcher {
     }
 
     /**
-     * Selects a public comment reply from configured rotating templates to prevent spam flags.
+     * Selects a public comment reply from configured rotating templates to prevent spam flags ('' when none are set).
      * Interpolates {name}, {handle}, {firstname}, {link}, {deliverable_link}, {url}.
      */
     static pickRotatingPublicReply(
@@ -65,21 +65,9 @@ export class EngagementDispatcher {
     ): string {
         const cleanHandle = (recipientHandle || 'there').startsWith('@') ? recipientHandle : `@${recipientHandle || 'there'}`;
         const validTemplates = (templates || []).filter((t) => t && typeof t === 'string' && t.trim().length > 0);
-        const platform = opts.platform || opts.event?.platform || 'instagram';
-        const hasDmSupport = platform === 'instagram' || platform === 'facebook' || platform === 'x';
-
-        let template: string;
-        if (!validTemplates.length) {
-            if (hasDmSupport) {
-                template = `Sent to your DMs, ${cleanHandle}! Check your messages 📩`;
-            } else {
-                template = opts.deliverableUrl
-                    ? `Thanks for checking this out, ${cleanHandle}! Here is your link: {link}`
-                    : `Thanks for the comment, ${cleanHandle}! Glad to connect.`;
-            }
-        } else {
-            template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
-        }
+        // No templates configured → no public reply. The brand's words are never invented for it.
+        if (!validTemplates.length) return '';
+        const template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
 
         if (opts.event) {
             return this.interpolateTemplate(template, opts.event, opts.deliverableUrl);

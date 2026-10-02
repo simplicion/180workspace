@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/storage/clip_store.dart';
 import '../../data/models/vault_item.dart';
 import '../auth/auth_provider.dart';
 import '../projects/project_provider.dart';
 import 'vault_storage_service.dart';
 
 final vaultStorageServiceProvider = Provider<VaultStorageService>((ref) => VaultStorageService());
+final clipStoreProvider = Provider<ClipStore>((ref) => ClipStore());
 
 final activeFolderIdProvider = StateProvider<String?>((ref) => null);
 final vaultSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -83,7 +85,27 @@ class VaultItemsNotifier extends AsyncNotifier<List<VaultItem>> {
 
   @override
   Future<List<VaultItem>> build() async {
-    return _storage.loadItems(companyId: _companyId, projectId: _projectId);
+    final items = await _storage.loadItems(companyId: _companyId, projectId: _projectId);
+    return _rescueCachedTakes(items);
+  }
+
+  /// One-time move of takes recorded before clips were stored durably (they pointed into the OS cache).
+  Future<List<VaultItem>> _rescueCachedTakes(List<VaultItem> items) async {
+    var changed = false;
+    final store = ref.read(clipStoreProvider);
+    final out = <VaultItem>[];
+    for (final it in items) {
+      String? moved;
+      try {
+        moved = await store.rescueIfTemporary(it.localPath, projectId: _projectId);
+      } catch (_) {
+        moved = null; // Left in place; the next load retries.
+      }
+      if (moved != null) changed = true;
+      out.add(moved == null ? it : it.copyWith(localPath: moved));
+    }
+    if (changed) await _storage.saveItems(out, companyId: _companyId, projectId: _projectId);
+    return out;
   }
 
   Future<VaultItem> addItem({

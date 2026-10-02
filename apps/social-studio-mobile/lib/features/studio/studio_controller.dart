@@ -752,11 +752,18 @@ class StudioController extends ChangeNotifier {
         final kind = o.source['kind'];
         String? url = kind == 'url' ? o.source['url'] as String? : null;
         if (kind == 'stock_query' && !o.isImage) {
-          final hit = await director.resolveStockVideo(
-            '${o.source['query'] ?? ''}',
-          );
-          url = hit?.url;
-          if (hit?.credit != null) mediaCredits[hit!.url] = hit.credit!;
+          try {
+            final hit = await director.resolveStockVideo(
+              '${o.source['query'] ?? ''}',
+            );
+            url = hit?.url;
+            if (hit?.credit != null) mediaCredits[hit!.url] = hit.credit!;
+          } on StockSearchException catch (e) {
+            // Providers failed: export the rest and say why this B-roll is missing.
+            warnings.add('Skipped B-roll "${o.source['query'] ?? o.id}": ${e.warnings.take(2).join('; ')}');
+            working = TimelineOps.removeOverlay(working, o.id);
+            continue;
+          }
         }
         if (kind == 'asset' && o.source['assetId'] == 'primary') {
           overlayPaths[o.id] = src;

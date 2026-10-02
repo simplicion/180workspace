@@ -1397,9 +1397,11 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
         _results = res;
         _searching = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _searching = false);
+      // The provider's real reason (keys, quota, offline) instead of a silent "no clips".
+      showError(context, e);
     }
   }
 
