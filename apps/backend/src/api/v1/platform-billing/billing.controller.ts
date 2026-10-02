@@ -298,8 +298,16 @@ export class BillingController {
             const apiUrl = process.env.ONE_EIGHTY_API_URL || 'https://services.180workspace.com';
             const payUrl = process.env.NEXT_PUBLIC_180_PAY_URL || 'https://pay.180workspace.com';
 
+            const queryParams = new URLSearchParams({
+                amount: String(finalPrice),
+                currency: (currency || 'INR').toUpperCase(),
+                title: `${targetPlan.planName} Subscription`,
+                description: `180 Workspace ${targetPlan.planName} for ${company?.name || 'Workspace'}`,
+                appName: '180 Workspace'
+            }).toString();
+
             let sessionId = `sess_180pay_${crypto.randomUUID().replace(/-/g, '')}`;
-            let checkoutUrl = `${payUrl}/checkout/${sessionId}`;
+            let checkoutUrl = `${payUrl}/checkout/${sessionId}?${queryParams}`;
 
             try {
                 const controller = new AbortController();
@@ -320,7 +328,7 @@ export class BillingController {
                     const sessionData = await apiRes.json();
                     if (sessionData.sessionId || sessionData.session?.id || sessionData.id) {
                         sessionId = sessionData.sessionId || sessionData.session?.id || sessionData.id;
-                        checkoutUrl = sessionData.checkoutUrl || `${payUrl}/checkout/${sessionId}`;
+                        checkoutUrl = sessionData.checkoutUrl || `${payUrl}/checkout/${sessionId}?${queryParams}`;
                     }
                 }
             } catch (err: any) {

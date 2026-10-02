@@ -144,6 +144,10 @@ function CheckoutContent() {
         setPaymentLoading(true);
         try {
 
+            const checkoutServerUrl = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'http://localhost:3009'
+                : (process.env.NEXT_PUBLIC_180_PAY_URL || 'https://pay.180workspace.com');
+
             if (plan.isAddon) {
                 const { data: order } = await api.post(`/api/v1/platform-billing/${plan.addonType}/checkout`, {
                     gigabytes: plan.addonType === 'storage' ? 5 * (plan.quantity || 1) : undefined,
@@ -158,6 +162,7 @@ function CheckoutContent() {
                     title: plan.planName || 'Workspace Add-on',
                     description: `Add-on purchase for ${user?.name || 'Workspace'}`,
                     couponCode: couponResult?.code || coupon,
+                    checkoutServerUrl,
                     metadata: {
                         companyId: (user as any)?.companyId || (user as any)?.company?._id,
                         addonType: plan.addonType,
@@ -216,6 +221,7 @@ function CheckoutContent() {
                 title: plan.planName || '180 Workspace Plan',
                 description: `Subscription upgrade for ${user?.name || 'Workspace'}`,
                 couponCode: couponResult?.code || coupon,
+                checkoutServerUrl,
                 metadata: {
                     companyId: (user as any)?.companyId || (user as any)?.company?._id,
                     planId: plan.id,
