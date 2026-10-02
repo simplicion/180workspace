@@ -41,6 +41,7 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
     private var eventChannel: EventChannel? = null
     private var eventSink: EventChannel.EventSink? = null
     private val main = Handler(Looper.getMainLooper())
+    private val voiceRecorder by lazy { VoiceRecorder(context) }
     private val io = Executors.newFixedThreadPool(2)
     private val jobs = HashMap<String, EditIrRenderer>()
     private val jobProgress = HashMap<String, Double>()
@@ -53,6 +54,7 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        voiceRecorder.cancel()
         analysisCancel.values.forEach { it.set(true) }
         jobs.values.forEach { it.cancel() }
         jobs.clear()
@@ -162,6 +164,25 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                     val exact = call.argument<Boolean>("exact") ?: false
                     background(result) { MediaTools.generateThumbnails(src, dir, times, width, exact) }
                 }
+                "generateProxy" -> {
+                    val src = call.req<String>("sourcePath")
+                    val dest = call.req<String>("destPath")
+                    val targetHeight = call.argument<Number>("targetHeight")?.toInt() ?: 720
+                    main.post {
+                        try {
+                            MediaTools.generateProxy(context, src, dest, targetHeight) { r ->
+                                main.post {
+                                    r.fold(
+                                        { result.success(it) },
+                                        { e -> result.error((e as? MediaEngineError)?.code ?: "PROXY_FAILED", e.message, null) },
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            result.error((e as? MediaEngineError)?.code ?: "PROXY_FAILED", e.message ?: e.toString(), null)
+                        }
+                    }
+                }
                 "sliceVideo" -> {
                     val src = call.req<String>("sourcePath")
                     val dest = call.req<String>("destPath")
@@ -213,7 +234,14 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                 "renderEditIr" -> {
                     val jobId = call.req<String>("jobId")
                     if (jobs.containsKey(jobId)) throw MediaEngineError("JOB_EXISTS", "Render job '$jobId' is already running")
-                    val ir = MobileEditIr.parse(call.req("editIrJson"))
+                    val parsed = MobileEditIr.parse(call.req("editIrJson"))
+                    // Export frame rate overrides the canvas rate for this render only.
+                    val fps = call.argument<Number>("fps")?.toDouble()?.takeIf { it in 1.0..120.0 }
+                    val ir = if (fps == null) parsed else parsed.copy(canvas = parsed.canvas.copy(fps = fps))
+                    val options = RenderOptions(
+                        maxShortSide = call.argument<Number>("maxShortSide")?.toInt()?.takeIf { it >= 144 },
+                        quality = if (call.argument<String>("quality") == "high") "high" else "standard",
+                    )
                     val media = RenderMedia(
                         assetPaths = call.argument<Map<String, String>>("assetPaths") ?: emptyMap(),
                         overlayPaths = call.argument<Map<String, String>>("overlayPaths") ?: emptyMap(),
@@ -222,11 +250,20 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                         watermarkPath = call.argument<String>("watermarkPath"),
                         sfxPaths = call.argument<Map<String, String>>("sfxPaths") ?: emptyMap(),
                     )
-                    val renderer = EditIrRenderer(context, jobId, ir, media, call.req("outputPath"), ::emit)
+                    val renderer = EditIrRenderer(context, jobId, ir, media, call.req("outputPath"), ::emit, options)
                     jobs[jobId] = renderer
                     RenderForegroundService.start(context, jobs.size)
                     renderer.start()
                     result.success(jobId)
+                }
+                "startVoiceRecording" -> {
+                    voiceRecorder.start(call.req("outputPath"))
+                    result.success(null)
+                }
+                "stopVoiceRecording" -> result.success(voiceRecorder.stop())
+                "cancelVoiceRecording" -> {
+                    voiceRecorder.cancel()
+                    result.success(null)
                 }
                 "cancelRender" -> {
                     val jobId = call.req<String>("jobId")

@@ -3,12 +3,14 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/native_engine/media_engine_service.dart';
 import '../../core/network/audio_transcription_service.dart';
 import '../director/ai_director_service.dart';
 import 'caption_fonts.dart';
+import 'sticker_maker.dart';
 import 'studio_drafts_service.dart';
 import 'timeline_ops.dart';
 
@@ -130,6 +132,7 @@ class StudioController extends ChangeNotifier {
 
   String? sourcePath;
   final Map<String, String> sourcePaths = {};
+  final Map<String, String> proxyPaths = {};
   VideoMetadata? meta;
   MobileEditIr? _ir;
   final List<MobileEditIr> _undo = [];
@@ -262,6 +265,9 @@ class StudioController extends ChangeNotifier {
     selectedClip = null;
     _notify();
     if (!kIsWeb) {
+      if (info.displayWidth > 1080 || info.displayHeight > 1080) {
+        unawaited(_generateProxy('primary', path));
+      }
       unawaited(_detectFaces(path));
       if (info.hasAudio) {
         unawaited(_detectSilences(path));
@@ -301,7 +307,8 @@ class StudioController extends ChangeNotifier {
     if (!sourcePaths.containsKey('main') && draft.sourcePath.isNotEmpty) {
       sourcePaths['main'] = draft.sourcePath;
     }
-    _ir = draft.ir;
+    _ir = _migrateLocalOverlays(draft.ir);
+    unawaited(materializeEmojiStickers(_ir!).then((_) => _notify(), onError: (_) {}));
     playheadMs = draft.playheadMs.clamp(0, draft.ir.durationMs);
     _undo.clear();
     _redo.clear();
@@ -390,6 +397,7 @@ class StudioController extends ChangeNotifier {
           music: ir.audio.music,
           speechRangesMs: TimelineOps.speechRanges(transcriptWords, ir),
           sfx: ir.audio.sfx,
+          voiceovers: ir.audio.voiceovers,
         ),
       );
     }
@@ -497,6 +505,7 @@ class StudioController extends ChangeNotifier {
             music: ir.audio.music,
             speechRangesMs: TimelineOps.speechRanges(t.words, ir),
             sfx: ir.audio.sfx,
+            voiceovers: ir.audio.voiceovers,
           ),
         );
       }
@@ -512,6 +521,52 @@ class StudioController extends ChangeNotifier {
     }
     _notify();
     unawaited(greet());
+  }
+
+  // ── Voiceover ──────────────────────────────────────────────────────────────
+
+  /// Timeline position the current recording started at; null when not recording.
+  int? voiceoverStartMs;
+  bool get recordingVoiceover => voiceoverStartMs != null;
+
+  /// Starts recording at the playhead. Throws `PERMISSION_DENIED` when the microphone is not allowed.
+  Future<void> startVoiceover() async {
+    if (_ir == null || recordingVoiceover) return;
+    final mic = await Permission.microphone.request();
+    if (!mic.isGranted) {
+      throw MediaEngineException('PERMISSION_DENIED', 'Allow microphone access to record a voiceover (Settings > Apps > permissions).');
+    }
+    final path = await MediaEngineService.getVoiceoverPath('vo_${DateTime.now().millisecondsSinceEpoch}.m4a');
+    await MediaEngineService.startVoiceRecording(path);
+    voiceoverStartMs = playheadMs;
+    _notify();
+  }
+
+  /// Stops and places the recording where it started. The file is kept with the draft.
+  Future<void> stopVoiceover() async {
+    final at = voiceoverStartMs;
+    if (at == null) return;
+    voiceoverStartMs = null;
+    _notify();
+    final r = await MediaEngineService.stopVoiceRecording();
+    final assetId = 'vo_asset_${DateTime.now().millisecondsSinceEpoch}';
+    sourcePaths[assetId] = r.path;
+    try {
+      apply((ir) => TimelineOps.addVoiceover(ir, assetId: assetId, atMs: at, durationMs: r.durationMs));
+    } catch (_) {
+      sourcePaths.remove(assetId);
+      try {
+        File(r.path).deleteSync();
+      } catch (_) {}
+      rethrow;
+    }
+  }
+
+  Future<void> cancelVoiceover() async {
+    if (!recordingVoiceover) return;
+    voiceoverStartMs = null;
+    _notify();
+    await MediaEngineService.cancelVoiceRecording();
   }
 
   /// Applies a manual edit. Throws (without changing anything) if the edit is invalid.
@@ -551,6 +606,9 @@ class StudioController extends ChangeNotifier {
     }
     final assetId = 'asset_${DateTime.now().millisecondsSinceEpoch}';
     sourcePaths[assetId] = path;
+    if (!kIsWeb && (info.displayWidth > 1080 || info.displayHeight > 1080)) {
+      unawaited(_generateProxy(assetId, path));
+    }
     apply((ir) => TimelineOps.addTimelineClip(
       ir,
       assetId: assetId,
@@ -598,6 +656,108 @@ class StudioController extends ChangeNotifier {
 
   /// Local file of a timeline asset: the original video for `primary`, otherwise a clip added to the timeline.
   String? pathForAsset(String assetId) => assetId == 'primary' ? sourcePaths['main'] : sourcePaths[assetId];
+
+  /// Registers a file on this phone (gallery photo / video, sticker, recording) and returns the overlay source that
+  /// references it. The server only ever sees `{kind: asset, assetId}`; the path stays in the draft.
+  Map<String, dynamic> localOverlaySource(String path, {String? label}) {
+    final assetId = 'local_${DateTime.now().microsecondsSinceEpoch}';
+    sourcePaths[assetId] = path;
+    return {'kind': 'asset', 'assetId': assetId, 'query': ?label};
+  }
+
+  /// Local file behind an overlay source (asset reference, or a legacy local path), or null for remote media.
+  String? localOverlayPath(Map<String, dynamic> source) {
+    if (source['kind'] == 'asset') return pathForAsset('${source['assetId']}');
+    final url = (source['path'] ?? source['url']) as String?;
+    if (url == null || url.isEmpty || url.startsWith('http://') || url.startsWith('https://')) return null;
+    return url.startsWith('file://') ? Uri.parse(url).toFilePath() : url;
+  }
+
+  /// True when [assetId] is a photo / freeze-frame still rather than a video.
+  bool isStillAsset(String assetId) {
+    final p = pathForAsset(assetId)?.toLowerCase() ?? '';
+    return p.endsWith('.jpg') || p.endsWith('.jpeg') || p.endsWith('.png') || p.endsWith('.webp');
+  }
+
+  /// Freezes the frame under the playhead for [durationMs]: the exact frame is extracted on the phone and held.
+  Future<void> freezeFrame({int durationMs = 2000}) async {
+    final ir = _ir;
+    if (ir == null || kIsWeb) return;
+    final clip = ir.clips[TimelineOps.clipIndexAt(ir, playheadMs)];
+    if (isStillAsset(clip.assetId)) throw MediaEngineException('INVALID_EDIT', 'This is already a still. Trim it to change how long it holds.');
+    final path = pathForAsset(clip.assetId);
+    if (path == null) throw MediaEngineException('FILE_NOT_FOUND', 'This clip is no longer on this phone.');
+    final docs = await getApplicationDocumentsDirectory();
+    final frames = await MediaEngineService.generateThumbnails(
+      sourcePath: path,
+      outputDir: '${docs.path}/stills/${DateTime.now().millisecondsSinceEpoch}',
+      timesMs: [sourcePositionMs],
+      maxWidth: 1920,
+      exact: true,
+    );
+    if (frames.isEmpty) throw MediaEngineException('NATIVE_ERROR', 'The frame could not be captured.');
+    final src = ir.sources.where((s) => s.assetId == clip.assetId).firstOrNull;
+    final assetId = 'still_${DateTime.now().millisecondsSinceEpoch}';
+    sourcePaths[assetId] = frames.first;
+    final at = playheadMs;
+    apply((cur) => TimelineOps.insertStill(cur, assetId: assetId, atMs: at, durationMs: durationMs, width: src?.width ?? 1080, height: src?.height ?? 1920));
+  }
+
+  /// Stickers the AI Director places reference `emoji:<emoji>` assets; they are drawn here, on the phone, before the
+  /// timeline is shown or exported. Already-drawn ones are reused.
+  Future<void> materializeEmojiStickers(MobileEditIr ir) async {
+    if (kIsWeb) return;
+    for (final o in ir.overlays) {
+      final id = o.source['kind'] == 'asset' ? '${o.source['assetId']}' : '';
+      if (!id.startsWith('emoji:')) continue;
+      final existing = sourcePaths[id];
+      if (existing != null && File(existing).existsSync()) continue;
+      final emoji = id.substring('emoji:'.length);
+      final docs = await getApplicationDocumentsDirectory();
+      final name = emoji.runes.map((r) => r.toRadixString(16)).join('_');
+      sourcePaths[id] = await renderEmojiSticker(emoji, '${docs.path}/stickers/emoji_$name.png');
+    }
+  }
+
+  /// Drafts saved before 2026-10 kept gallery overlays as raw device paths (`kind: url|file`), which the server
+  /// rejects. Turns them into asset references.
+  MobileEditIr _migrateLocalOverlays(MobileEditIr ir) {
+    var changed = false;
+    final overlays = <EditIrOverlay>[];
+    for (final o in ir.overlays) {
+      final kind = o.source['kind'];
+      final path = kind == 'asset' || kind == 'stock_query' ? null : localOverlayPath(o.source);
+      if (path == null) {
+        overlays.add(o);
+      } else {
+        changed = true;
+        overlays.add(o.copyWith(source: localOverlaySource(path, label: o.source['query'] as String?)));
+      }
+    }
+    return changed ? ir.copyWith(overlays: overlays) : ir;
+  }
+
+  /// Proxy file if available (e.g. 720p hardware-downscaled copy for fluid scrubbing), else the original source path.
+  String? previewPathForAsset(String assetId) => proxyPaths[assetId] ?? pathForAsset(assetId);
+
+  Future<void> _generateProxy(String assetId, String originalPath) async {
+    if (kIsWeb) return;
+    try {
+      final dir = await getTemporaryDirectory();
+      final proxyFile = '${dir.path}/proxy_${assetId}_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      final path = await MediaEngineService.generateProxy(
+        sourcePath: originalPath,
+        destPath: proxyFile,
+        targetHeight: 720,
+      );
+      if (File(path).existsSync()) {
+        proxyPaths[assetId] = path;
+        _notify();
+      }
+    } catch (_) {
+      // Non-fatal: if proxy creation fails, preview smoothly falls back to originalPath.
+    }
+  }
 
   /// Asset of the clip under the playhead (which video the preview must show).
   String get assetAtPlayhead {
@@ -665,6 +825,7 @@ class StudioController extends ChangeNotifier {
         currentEditIR: ir.toJson(),
       );
       r.editIr.validate();
+      await materializeEmojiStickers(r.editIr);
       final autoApply =
           !r.requiresConfirmation && r.appliedOperations.isNotEmpty;
       messages.add(
@@ -735,6 +896,9 @@ class StudioController extends ChangeNotifier {
   }
 
   /// Resolves remote B-roll and music to local files, then renders on the device.
+  /// Resolution / frame rate / quality picked on the export sheet; kept for the session.
+  ExportSettings exportSettings = const ExportSettings();
+
   Future<void> startExport() async {
     final ir = _ir;
     final src = sourcePath;
@@ -766,6 +930,7 @@ class StudioController extends ChangeNotifier {
       final usedUrls =
           <String>[]; // resolved remote media in this export, for the credits
       var working = ir;
+      await materializeEmojiStickers(ir);
       for (final o in ir.overlays) {
         final kind = o.source['kind'];
         String? url = kind == 'url' ? o.source['url'] as String? : null;
@@ -785,6 +950,17 @@ class StudioController extends ChangeNotifier {
         }
         if (kind == 'asset' && o.source['assetId'] == 'primary') {
           overlayPaths[o.id] = src;
+          continue;
+        }
+        // Gallery photos / videos and stickers are files on this phone.
+        final local = localOverlayPath(o.source);
+        if (local != null) {
+          if (!File(local).existsSync()) {
+            warnings.add('Skipped "${o.source['query'] ?? o.id}": the file is no longer on this phone.');
+            working = TimelineOps.removeOverlay(working, o.id);
+          } else {
+            overlayPaths[o.id] = local;
+          }
           continue;
         }
         if (url == null) {
@@ -900,6 +1076,7 @@ class StudioController extends ChangeNotifier {
             music: a.music,
             speechRangesMs: a.speechRangesMs,
             sfx: keptSfx,
+            voiceovers: a.voiceovers,
           ),
           watermark: working.watermark,
         );
@@ -907,25 +1084,29 @@ class StudioController extends ChangeNotifier {
       String? watermarkPath;
       final wm = working.watermark;
       if (wm != null) {
-        try {
-          export = ExportState(stage: 'Downloading logo…', warnings: warnings);
-          _notify();
-          final ext = Uri.tryParse(wm.imageUrl)?.path
-              .split('.')
-              .last
-              .toLowerCase();
-          final safeExt = {'png', 'jpg', 'jpeg', 'webp'}.contains(ext)
-              ? ext
-              : 'png';
-          watermarkPath = await director.download(
-            wm.imageUrl,
-            '${dir.path}/watermark.$safeExt',
-          );
-        } catch (_) {
-          warnings.add(
-            'The brand logo could not be downloaded, so the video was exported without the watermark.',
-          );
-          working = working.withWatermark(null);
+        if (wm.localPath != null && File(wm.localPath!).existsSync()) {
+          watermarkPath = wm.localPath;
+        } else {
+          try {
+            export = ExportState(stage: 'Downloading logo…', warnings: warnings);
+            _notify();
+            final ext = Uri.tryParse(wm.imageUrl)?.path
+                .split('.')
+                .last
+                .toLowerCase();
+            final safeExt = {'png', 'jpg', 'jpeg', 'webp'}.contains(ext)
+                ? ext
+                : 'png';
+            watermarkPath = await director.download(
+              wm.imageUrl,
+              '${dir.path}/watermark.$safeExt',
+            );
+          } catch (_) {
+            warnings.add(
+              'The brand logo could not be downloaded, so the video was exported without the watermark.',
+            );
+            working = working.withWatermark(null);
+          }
         }
       }
       var fontPaths = const <String, String>{};
@@ -950,6 +1131,14 @@ class StudioController extends ChangeNotifier {
           assetPaths[id] = path;
         }
       }
+      // Voiceover recordings are local files referenced by asset id.
+      for (final v in working.audio.voiceovers) {
+        final path = sourcePaths[v.assetId];
+        if (path == null || !File(path).existsSync()) {
+          throw MediaEngineException('FILE_NOT_FOUND', 'A voiceover recording is no longer on this phone. Record it again or remove it from the timeline.');
+        }
+        assetPaths[v.assetId] = path;
+      }
       final out = await MediaEngineService.getOutputVideoPath(
         'export_${DateTime.now().millisecondsSinceEpoch}.mp4',
       );
@@ -967,6 +1156,7 @@ class StudioController extends ChangeNotifier {
             watermarkPath: watermarkPath,
             sfxPaths: sfxPaths,
             fontPaths: fontPaths,
+            settings: exportSettings,
           ).listen(
             (p) {
               export = ExportState(

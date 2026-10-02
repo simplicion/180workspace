@@ -65,6 +65,7 @@ class _StudioTimelineState extends State<StudioTimeline> {
     TrackKind.zoom: AppTheme.warning,
     TrackKind.effect: AppTheme.accent,
     TrackKind.voice: AppTheme.accentBlue,
+    TrackKind.voiceover: AppTheme.warning,
     TrackKind.music: AppTheme.success,
     TrackKind.sfx: AppTheme.accentBlue,
   };
@@ -77,6 +78,7 @@ class _StudioTimelineState extends State<StudioTimeline> {
     TrackKind.zoom: Icons.zoom_in_rounded,
     TrackKind.effect: Icons.auto_fix_high_rounded,
     TrackKind.voice: Icons.record_voice_over_rounded,
+    TrackKind.voiceover: Icons.mic_rounded,
     TrackKind.music: Icons.music_note_rounded,
     TrackKind.sfx: Icons.graphic_eq_rounded,
   };
@@ -97,7 +99,8 @@ class _StudioTimelineState extends State<StudioTimeline> {
             final path = clip == null ? null : c.pathForAsset(clip.assetId);
             return path == null
                 ? i
-                : TimelineItem(i.kind, i.id, i.startMs, i.endMs, i.label, mediaUrl: path, thumbnailUrl: i.thumbnailUrl, isImage: i.isImage);
+                : TimelineItem(i.kind, i.id, i.startMs, i.endMs, i.label,
+                    mediaUrl: path, thumbnailUrl: i.thumbnailUrl, isImage: i.isImage || c.isStillAsset(clip!.assetId));
           }()
         else
           i,
@@ -449,15 +452,38 @@ class _StudioTimelineState extends State<StudioTimeline> {
 
   void _begin(TimelineItem it, _DragMode mode) {
     HapticFeedback.selectionClick();
+    final ir = widget.controller.ir;
+    _snapPoints = ir == null ? const [] : TimelineOps.snapPoints(ir, playheadMs: widget.controller.playheadMs, excludeId: it.id);
+    _snappedTo = null;
     setState(() => _drag = _Drag(it, mode, it));
   }
 
-  /// Long-press move: [dx] is the total offset from where the press started.
+  /// Snap targets for the item being dragged, and the last edge it snapped to (for the haptic tick).
+  List<int> _snapPoints = const [];
+  int? _snappedTo;
+
+  /// Snaps [ms] to a nearby cut / playhead / item edge within ~10 px; ticks once per new snap.
+  int? _snap(int ms, int Function(double) msPerPx) {
+    final hit = TimelineOps.snapMs(ms, _snapPoints, msPerPx(10).abs());
+    if (hit != null && hit != _snappedTo) HapticFeedback.selectionClick();
+    _snappedTo = hit;
+    return hit;
+  }
+
+  /// Long-press move: [dx] is the total offset from where the press started. Either edge can snap.
   void _moveTo(double dx, int Function(double) msPerPx, int total) {
     final d = _drag;
     if (d == null) return;
     final len = d.item.endMs - d.item.startMs;
-    final s = (d.item.startMs + msPerPx(dx)).clamp(0, math.max(0, total - len)).toInt();
+    var s = (d.item.startMs + msPerPx(dx)).clamp(0, math.max(0, total - len)).toInt();
+    final byStart = _snap(s, msPerPx);
+    if (byStart != null) {
+      s = byStart;
+    } else {
+      final byEnd = _snap(s + len, msPerPx);
+      if (byEnd != null) s = byEnd - len;
+    }
+    s = s.clamp(0, math.max(0, total - len)).toInt();
     setState(() => _drag = d.withPreview(s, s + len));
   }
 
@@ -467,9 +493,10 @@ class _StudioTimelineState extends State<StudioTimeline> {
     if (d == null) return;
     d.accumPx += delta;
     final shift = msPerPx(d.accumPx);
+    int edge(int raw) => _snap(raw, msPerPx) ?? raw;
     final p = d.mode == _DragMode.trimStart
-        ? d.withPreview((d.item.startMs + shift).clamp(0, d.item.endMs - 300).toInt(), d.item.endMs)
-        : d.withPreview(d.item.startMs, (d.item.endMs + shift).clamp(d.item.startMs + 300, total).toInt());
+        ? d.withPreview(edge(d.item.startMs + shift).clamp(0, d.item.endMs - 300).toInt(), d.item.endMs)
+        : d.withPreview(d.item.startMs, edge(d.item.endMs + shift).clamp(d.item.startMs + 300, total).toInt());
     setState(() => _drag = p);
   }
 
@@ -734,7 +761,10 @@ class TimelineItemInspector extends StatefulWidget {
 
 class _TimelineItemInspectorState extends State<TimelineItemInspector> {
   late RangeValues _range = RangeValues(widget.item.startMs.toDouble(), widget.item.endMs.toDouble());
-  late double _volume = _sfx?.volumeDb ?? widget.c.ir!.audio.music.firstOrNull?.volumeDb ?? -12;
+  late double _volume = _sfx?.volumeDb ??
+      widget.c.ir!.audio.voiceovers.where((v) => v.id == widget.item.id).firstOrNull?.volumeDb ??
+      widget.c.ir!.audio.music.firstOrNull?.volumeDb ??
+      -12;
   late final _text = TextEditingController(text: _caption?.text ?? '');
   late double _intensity = _effect?.intensity ?? 0.6;
   late double _brollOpacity = _overlay?.opacity ?? 1.0;
@@ -765,8 +795,9 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
     final movable = it.kind != TrackKind.music && it.kind != TrackKind.video;
     final total = ir.durationMs.toDouble();
     final o = _overlay;
-    final fit = (o?.source['fit'] as String?) ?? 'cover';
-    final isPip = o?.source['pip'] == true;
+    final fit = o?.fit ?? 'cover';
+    final layer = o?.layer;
+    final isPip = o?.isLayer ?? false;
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
       child: SingleChildScrollView(
@@ -808,13 +839,17 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
               child: Text('Apply timing'),
             ),
           ],
-          if (it.kind == TrackKind.sfx || it.kind == TrackKind.music) ...[
+          if (it.kind == TrackKind.sfx || it.kind == TrackKind.music || it.kind == TrackKind.voiceover) ...[
             SizedBox(height: 12),
             Text('Volume ${_volume.toStringAsFixed(0)} dB', style: Theme.of(context).textTheme.labelMedium),
             Slider(value: _volume.clamp(-40, 6).toDouble(), min: -40, max: 6, divisions: 46, onChanged: (v) => setState(() => _volume = v)),
             OutlinedButton(
               onPressed: () => _apply(
-                (ir) => it.kind == TrackKind.sfx ? TimelineOps.setSfxVolume(ir, it.id, _volume) : TimelineOps.updateMusic(ir, volumeDb: _volume),
+                (ir) => switch (it.kind) {
+                  TrackKind.sfx => TimelineOps.setSfxVolume(ir, it.id, _volume),
+                  TrackKind.voiceover => TimelineOps.updateVoiceover(ir, it.id, volumeDb: _volume),
+                  _ => TimelineOps.updateMusic(ir, volumeDb: _volume),
+                },
                 'Volume updated',
               ),
               child: Text('Apply volume'),
@@ -882,34 +917,77 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
             ),
 
             SizedBox(height: 12),
-            Text('Framing & Layout', style: Theme.of(context).textTheme.labelMedium),
+            Text('Layout', style: Theme.of(context).textTheme.labelMedium),
             SizedBox(height: 6),
-            Wrap(spacing: 8, children: [
+            Wrap(spacing: 8, runSpacing: 6, children: [
               ChoiceChip(
-                label: Text('Full Cover'),
+                label: Text('Full screen'),
                 selected: fit == 'cover' && !isPip,
-                onSelected: (_) => _apply(
-                  (ir) => TimelineOps.updateOverlay(ir, it.id, sourceUpdates: {'fit': 'cover', 'pip': false}),
-                  'Framing: Full Cover',
-                ),
+                onSelected: (_) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, fit: 'cover', clearLayer: true), 'Layout: full screen'),
               ),
               ChoiceChip(
-                label: Text('Fit Canvas'),
+                label: Text('Fit whole frame'),
                 selected: fit == 'contain' && !isPip,
-                onSelected: (_) => _apply(
-                  (ir) => TimelineOps.updateOverlay(ir, it.id, sourceUpdates: {'fit': 'contain', 'pip': false}),
-                  'Framing: Fit Canvas',
-                ),
+                onSelected: (_) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, fit: 'contain', clearLayer: true), 'Layout: whole frame'),
               ),
               ChoiceChip(
-                label: Text('Picture-in-Picture'),
+                label: Text('Picture-in-picture'),
                 selected: isPip,
                 onSelected: (_) => _apply(
-                  (ir) => TimelineOps.updateOverlay(ir, it.id, sourceUpdates: {'pip': true}),
-                  'Mode: Picture-in-Picture',
+                  (ir) => TimelineOps.updateOverlay(ir, it.id, fit: 'contain', layer: layer ?? EditIrLayer.legacyPip),
+                  'Layout: picture-in-picture (drag it on the preview to move it)',
                 ),
               ),
             ]),
+            if (isPip && layer != null) ...[
+              SizedBox(height: 10),
+              Text('Position', style: Theme.of(context).textTheme.labelMedium),
+              Wrap(spacing: 8, runSpacing: 6, children: [
+                for (final (label, x, y) in const [
+                  ('Top left', 0.25, 0.22), ('Top right', 0.75, 0.22), ('Centre', 0.5, 0.5), ('Bottom left', 0.25, 0.78), ('Bottom right', 0.75, 0.78),
+                ])
+                  ActionChip(
+                    label: Text(label),
+                    onPressed: () => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, layer: layer.copyWith(x: x, y: y)), 'Moved to ${label.toLowerCase()}'),
+                  ),
+              ]),
+              SizedBox(height: 8),
+              Text('Size ${(layer.scale * 100).round()}%', style: Theme.of(context).textTheme.labelMedium),
+              Slider(
+                value: layer.scale.clamp(0.1, 1.0),
+                min: 0.1,
+                max: 1.0,
+                divisions: 18,
+                label: '${(layer.scale * 100).round()}%',
+                onChanged: (v) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, layer: layer.copyWith(scale: v)), 'Size ${(v * 100).round()}%'),
+              ),
+              Text('Rotation ${layer.rotation.round()}°', style: Theme.of(context).textTheme.labelMedium),
+              Slider(
+                value: layer.rotation.clamp(-180, 180),
+                min: -180,
+                max: 180,
+                divisions: 72,
+                label: '${layer.rotation.round()}°',
+                onChanged: (v) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, layer: layer.copyWith(rotation: v)), 'Rotation ${v.round()}°'),
+              ),
+              Text('Animation in', style: Theme.of(context).textTheme.labelMedium),
+              SizedBox(height: 6),
+              Wrap(spacing: 8, runSpacing: 6, children: [
+                ChoiceChip(
+                  label: Text('None'),
+                  selected: layer.keyframes.isEmpty,
+                  onSelected: (_) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, layer: layer.copyWith(keyframes: const [])), 'No animation'),
+                ),
+                for (final (key, label) in const [('zoom_in', 'Zoom in'), ('slide_left', 'Slide in'), ('slide_up', 'Rise'), ('fade', 'Fade'), ('spin', 'Spin')])
+                  ActionChip(
+                    label: Text(label),
+                    onPressed: () => _apply(
+                      (ir) => TimelineOps.updateOverlay(ir, it.id, layer: layer.copyWith(keyframes: TimelineOps.layerEntrance(layer, key))),
+                      'Animation: ${label.toLowerCase()}',
+                    ),
+                  ),
+              ]),
+            ],
 
             SizedBox(height: 12),
             Text('Opacity ${(_brollOpacity * 100).round()}%', style: Theme.of(context).textTheme.labelMedium),

@@ -16,6 +16,8 @@ import androidx.media3.common.audio.ChannelMixingAudioProcessor
 import androidx.media3.common.audio.ChannelMixingMatrix
 import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.effect.Presentation
+import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
@@ -485,6 +487,47 @@ object MediaTools {
                 override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
                     File(destPath).delete()
                     onDone(Result.failure(MediaEngineError("EXTRACT_FAILED", "${exportException.errorCodeName}: ${exportException.message}")))
+                }
+            })
+            .build()
+            .start(item, destPath)
+    }
+
+    /**
+     * Generates a fast 720p hardware-accelerated H.264 proxy with Media3 Transformer.
+     * Downscales the video to targetHeight (preserving aspect ratio) to eliminate UI thread blocking and memory overflows.
+     * Must be called on the main thread (Transformer requirement).
+     */
+    fun generateProxy(
+        context: Context,
+        sourcePath: String,
+        destPath: String,
+        targetHeight: Int = 720,
+        onDone: (Result<String>) -> Unit,
+    ) {
+        requireFile(sourcePath)
+        val info = getVideoInfo(sourcePath)
+        val srcH = (info["displayHeight"] as? Int) ?: (info["height"] as? Int) ?: 0
+        val targetH = if (srcH in 1 until targetHeight) srcH else targetHeight
+
+        val presentationEffect = Presentation.createForHeight(targetH)
+        val item = EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(File(sourcePath))))
+            .setEffects(Effects(emptyList(), listOf(presentationEffect)))
+            .build()
+
+        File(destPath).parentFile?.mkdirs()
+        File(destPath).delete()
+
+        Transformer.Builder(context)
+            .setVideoMimeType(MimeTypes.VIDEO_H264)
+            .addListener(object : Transformer.Listener {
+                override fun onCompleted(composition: Composition, exportResult: ExportResult) {
+                    onDone(Result.success(destPath))
+                }
+
+                override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
+                    File(destPath).delete()
+                    onDone(Result.failure(MediaEngineError("PROXY_FAILED", "${exportException.errorCodeName}: ${exportException.message}")))
                 }
             })
             .build()

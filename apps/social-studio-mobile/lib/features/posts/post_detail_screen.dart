@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/util/poll_backoff.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/platform.dart';
 import '../../data/models/social_post.dart';
@@ -14,6 +17,7 @@ import '../../data/models/user_assisted_publish_package.dart';
 import '../projects/project_provider.dart';
 import 'finish_publishing_sheet.dart';
 import 'platform_post_preview.dart';
+import 'publish_status.dart';
 import 'post_providers.dart';
 
 Future<void> openExternal(BuildContext context, String url) async {
@@ -117,8 +121,45 @@ class _PostBody extends ConsumerStatefulWidget {
 class _PostBodyState extends ConsumerState<_PostBody> {
   String? _busy;
   double? _progress;
+  /// Platforms of a publish request in flight (shown as live rows).
+  List<SocialPlatform>? _publishing;
+  Timer? _poll;
+  int _polls = 0;
 
   SocialPost get p => widget.post;
+
+  /// Instagram/Facebook videos finish processing after the request returns: keep reloading until they settle.
+  bool get _inFlight =>
+      p.status == PostStatus.publishing || p.variants.any((v) => v.status == 'publishing' || v.status == 'processing');
+
+  @override
+  void initState() {
+    super.initState();
+    _schedulePoll();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PostBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _schedulePoll();
+  }
+
+  void _schedulePoll() {
+    _poll?.cancel();
+    if (!_inFlight) {
+      _polls = 0;
+      return;
+    }
+    _poll = Timer(pollDelay(_polls++), () {
+      if (mounted) _refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
 
   void _refresh() {
     ref.refreshPost(p.id, projectId: p.projectId);
@@ -253,7 +294,13 @@ class _PostBodyState extends ConsumerState<_PostBody> {
         final ok = await confirm(context,
             title: 'Publish now?', message: 'This posts to ${p.platforms.map((x) => x.label).join(', ')} immediately.$warn', action: 'Publish');
         if (!ok) return;
-        final result = await api.publish(p.id);
+        setState(() => _publishing = apiPlatforms);
+        final PublishResult result;
+        try {
+          result = await api.publish(p.id);
+        } finally {
+          if (mounted) setState(() => _publishing = null);
+        }
         _refresh();
         if (!mounted) return;
         await showDialog<void>(
@@ -270,7 +317,17 @@ class _PostBodyState extends ConsumerState<_PostBody> {
                 ),
               if (result.message.isNotEmpty) Text(result.message),
               for (final e in result.publishedLinks.entries)
-                Text(result.simulated ? '✓ ${e.key}: simulated (no live post)' : '✓ ${e.key}: ${e.value}', style: TextStyle(color: AppTheme.success)),
+                result.simulated
+                    ? Text('✓ ${e.key}: simulated (no live post)', style: TextStyle(color: AppTheme.success))
+                    : Row(children: [
+                        Expanded(child: Text('✓ ${e.key}: posted', style: TextStyle(color: AppTheme.success))),
+                        TextButton.icon(
+                          style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+                          onPressed: () => openExternal(ctx, e.value),
+                          icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                          label: const Text('Open'),
+                        ),
+                      ]),
               for (final e in result.errors.entries) Text('✗ ${e.key}: ${e.value}', style: TextStyle(color: AppTheme.error)),
             ]),
             actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text('OK'))],
@@ -388,7 +445,22 @@ class _PostBodyState extends ConsumerState<_PostBody> {
           ),
         ]),
       ),
-      if (busy)
+      if (p.scheduledFor != null &&
+          p.scheduledFor!.isAfter(DateTime.now().subtract(const Duration(minutes: 5))) &&
+          (p.status == PostStatus.scheduled || p.status == PostStatus.approved))
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: PublishCountdown(key: ValueKey(p.scheduledFor), scheduledFor: p.scheduledFor!, onDue: _refresh),
+        ),
+      if (_publishing != null)
+        Padding(padding: const EdgeInsets.only(top: 12), child: SectionCard(child: PublishingProgress(platforms: _publishing!)))
+      else if (_inFlight)
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Text('The platform is still processing the video; this page updates by itself.',
+              style: TextStyle(color: AppTheme.textSecondary)),
+        ),
+      if (busy && _publishing == null)
         Padding(padding: EdgeInsets.only(top: 12), child: LinearProgressIndicator(value: _progress)),
       SizedBox(height: 12),
       Wrap(spacing: 8, runSpacing: 8, children: [

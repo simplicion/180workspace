@@ -19,7 +19,17 @@ data class IrCanvas(val aspect: String, val width: Int, val height: Int, val fps
 
 data class IrCrop(val x: Double, val y: Double, val width: Double, val height: Double)
 
-data class IrFilter(val preset: String, val brightness: Double, val contrast: Double, val saturation: Double)
+/** Colour grade (contract MobileFilterSchema); exposure in stops, temperature / tint -1..1, vignette 0..1. */
+data class IrFilter(
+    val preset: String,
+    val brightness: Double,
+    val contrast: Double,
+    val saturation: Double,
+    val exposure: Double = 0.0,
+    val temperature: Double = 0.0,
+    val tint: Double = 0.0,
+    val vignette: Double = 0.0,
+)
 
 data class IrTransition(val type: String, val durationMs: Long)
 
@@ -39,6 +49,9 @@ data class IrClip(
     val rotationDeg: Int = 0,
     /** Mirror the (rotated) picture left-right, before [crop]. */
     val flipH: Boolean = false,
+    /** Fade of the clip's own sound at its start / end (contract `audioFadeInMs` / `audioFadeOutMs`). */
+    val audioFadeInMs: Long = 0,
+    val audioFadeOutMs: Long = 0,
 )
 
 data class IrOverlay(
@@ -51,8 +64,13 @@ data class IrOverlay(
     val muted: Boolean,
     /** "video" or "image" (a still photo held for the slot). */
     val mediaType: String = "video",
+    /** "cover" crops to fill; "contain" keeps the whole frame (cutaways only; layers always keep their shape). */
+    val fit: String = "cover",
+    /** Layer placement; null or cutaway = full-frame cutaway. */
+    val layer: IrLayer? = null,
 ) {
     val isImage: Boolean get() = mediaType == "image"
+    val isLayer: Boolean get() = layer?.isOverlay == true
 }
 
 /** Timeline effect (contract VIDEO_EFFECT_TYPES), drawn over the whole frame for [startMs, endMs). */
@@ -141,6 +159,10 @@ data class IrWatermark(
     val opacityPct: Double,
     /** Logo width as a fraction of the canvas width. */
     val widthFraction: Double,
+    val x: Double? = null,
+    val y: Double? = null,
+    val width: Double? = null,
+    val height: Double? = null,
 )
 
 /** One-shot sound effect on the timeline (contract §3.6 `audio.sfx`). */
@@ -152,12 +174,29 @@ data class IrSfx(
     val volumeDb: Double,
 )
 
+/** Voiceover recorded on the phone (contract MobileVoiceoverSchema); the file is the local asset [assetId]. */
+data class IrVoiceover(
+    val id: String,
+    val timelineStartMs: Long,
+    val durationMs: Long,
+    val sourceStartMs: Long,
+    val assetId: String,
+    val volumeDb: Double,
+    val fadeInMs: Long,
+    val fadeOutMs: Long,
+)
+
 data class IrAudio(
     val originalVolumeDb: Double,
     val music: List<IrMusic>,
     val speechRangesMs: List<LongArray>,
     val sfx: List<IrSfx> = emptyList(),
-)
+    val voiceovers: List<IrVoiceover> = emptyList(),
+) {
+    /** Where music ducks: speech in the footage plus every voiceover. */
+    val duckRangesMs: List<LongArray>
+        get() = speechRangesMs + voiceovers.map { longArrayOf(it.timelineStartMs, it.timelineStartMs + it.durationMs) }
+}
 
 data class MobileEditIr(
     val schemaVersion: String,
@@ -218,6 +257,10 @@ data class MobileEditIr(
                             brightness = it.optDouble("brightness", 1.0),
                             contrast = it.optDouble("contrast", 1.0),
                             saturation = it.optDouble("saturation", 1.0),
+                            exposure = it.optDouble("exposure", 0.0).coerceIn(-2.0, 2.0),
+                            temperature = it.optDouble("temperature", 0.0).coerceIn(-1.0, 1.0),
+                            tint = it.optDouble("tint", 0.0).coerceIn(-1.0, 1.0),
+                            vignette = it.optDouble("vignette", 0.0).coerceIn(0.0, 1.0),
                         )
                     },
                     transitionIn = j.optNullableObject("transitionIn")?.let {
@@ -225,6 +268,8 @@ data class MobileEditIr(
                     },
                     rotationDeg = if (j.has("rotationDeg") && !j.isNull("rotationDeg")) j.getInt("rotationDeg") else 0,
                     flipH = j.optBoolean("flipH", false),
+                    audioFadeInMs = j.optLong("audioFadeInMs", 0L).coerceAtLeast(0L),
+                    audioFadeOutMs = j.optLong("audioFadeOutMs", 0L).coerceAtLeast(0L),
                 )
             }
             val overlays = (o.optJSONArray("overlays") ?: JSONArray()).objects().map { j ->
@@ -237,6 +282,8 @@ data class MobileEditIr(
                     opacity = j.optDouble("opacity", 1.0),
                     muted = j.optBoolean("muted", true),
                     mediaType = if (j.optNullableString("mediaType") == "image") "image" else "video",
+                    fit = if (j.optNullableString("fit") == "contain") "contain" else "cover",
+                    layer = IrLayer.parse(j.optNullableObject("layer")),
                 )
             }
             val effects = (o.optJSONArray("effects") ?: JSONArray()).objects().map { j ->
@@ -310,6 +357,18 @@ data class MobileEditIr(
             }
             val a = o.optJSONObject("audio") ?: JSONObject()
             val audio = IrAudio(
+                voiceovers = (a.optJSONArray("voiceovers") ?: JSONArray()).objects().map { j ->
+                    IrVoiceover(
+                        id = j.req("id"),
+                        timelineStartMs = j.getLong("timelineStartMs").coerceAtLeast(0L),
+                        durationMs = j.getLong("durationMs").coerceAtLeast(0L),
+                        sourceStartMs = j.optLong("sourceStartMs", 0L).coerceAtLeast(0L),
+                        assetId = j.getJSONObject("source").getString("assetId"),
+                        volumeDb = j.optDouble("volumeDb", 0.0),
+                        fadeInMs = j.optLong("fadeInMs", 0L).coerceAtLeast(0L),
+                        fadeOutMs = j.optLong("fadeOutMs", 0L).coerceAtLeast(0L),
+                    )
+                },
                 sfx = (a.optJSONArray("sfx") ?: JSONArray()).objects().map { j ->
                     IrSfx(
                         id = j.req("id"),
@@ -362,6 +421,10 @@ data class MobileEditIr(
                         position = it.optNullableString("position") ?: "top_right",
                         opacityPct = it.optDouble("opacityPct", 100.0),
                         widthFraction = it.optDouble("widthFraction", 0.14),
+                        x = if (it.has("x") && !it.isNull("x")) it.optDouble("x") else null,
+                        y = if (it.has("y") && !it.isNull("y")) it.optDouble("y") else null,
+                        width = if (it.has("width") && !it.isNull("width")) it.optDouble("width") else null,
+                        height = if (it.has("height") && !it.isNull("height")) it.optDouble("height") else null,
                     )
                 },
             )
@@ -451,3 +514,9 @@ data class MobileEditIr(
         }
     }
 }
+
+/**
+ * Export settings chosen on the export sheet (not part of the edit): [maxShortSide] scales the finished frame down
+ * (e.g. 720 for 720p), [quality] "high" doubles the video bitrate. Frame rate is applied by the caller as canvas.fps.
+ */
+data class RenderOptions(val maxShortSide: Int? = null, val quality: String = "standard")

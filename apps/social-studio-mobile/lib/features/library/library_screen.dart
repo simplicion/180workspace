@@ -24,7 +24,6 @@ class LibraryScreen extends ConsumerWidget {
 
     final script = scriptNotes.isNotEmpty ? scriptNotes.first.noteContent : null;
     final hook = scriptNotes.isNotEmpty ? scriptNotes.first.name : null;
-    final sourcePath = videoClips.isNotEmpty ? videoClips.first.localPath : null;
     final activeProjectId = ref.read(activeProjectProvider).valueOrNull?.id;
 
     if (videoClips.isEmpty) {
@@ -38,10 +37,16 @@ class LibraryScreen extends ConsumerWidget {
       return;
     }
 
+    // Clips synced from another phone have no file here; only local takes can be edited.
+    if (!videoClips.any((c) => c.localPath?.isNotEmpty ?? false)) {
+      showError(context, 'These clips were recorded on another device. Open this folder on that phone to edit them.');
+      return;
+    }
+
+    // Studio loads every clip of the folder, in take order (folderId), not just the first one.
     context.push(
       '/studio/session${activeProjectId != null ? '?projectId=$activeProjectId' : ''}',
       extra: {
-        'sourcePath': sourcePath,
         'hook': hook,
         'script': script,
         'folderId': folder.id,

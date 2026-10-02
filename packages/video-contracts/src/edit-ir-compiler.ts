@@ -275,6 +275,25 @@ export class EditIRCompiler {
             appliedOperations.push(`Added title/lower-third text: "${op.text}"`);
             break;
           }
+          case "addSticker": {
+            const placed = this.applyAddSticker(updated, op);
+            if (placed) appliedOperations.push(`Added ${op.emoji} sticker at ${op.timelineStartSec.toFixed(1)}s`);
+            else rejectedOperations.push(`addSticker ${op.emoji}: ${op.timelineStartSec.toFixed(1)}s is past the end of the video`);
+            break;
+          }
+          case "fadeClipAudio": {
+            const n = this.applyFadeClipAudio(updated, op);
+            if (n > 0) appliedOperations.push(`Faded clip audio in ${op.fadeInSec}s / out ${op.fadeOutSec}s on ${n} clip(s)`);
+            else rejectedOperations.push(`fadeClipAudio: no main clip "${op.clipId}"`);
+            break;
+          }
+          case "removeItem": {
+            const n = this.applyRemoveItem(updated, op);
+            const which = op.id ? ` "${op.id}"` : typeof op.atSec === "number" ? ` at ${op.atSec.toFixed(1)}s` : "";
+            if (n > 0) appliedOperations.push(`Removed ${n} ${op.kind} item(s)${which}`);
+            else rejectedOperations.push(`removeItem: no ${op.kind}${which} on the timeline`);
+            break;
+          }
           default:
             // Never report an operation as done when the compiler has no implementation for it.
             rejectedOperations.push(`Operation ${(op as any).type} is not supported by the timeline compiler yet`);
@@ -1032,11 +1051,14 @@ export class EditIRCompiler {
         opacity: 1.0,
       },
       speedMultiplier: 1.0,
-      volumeDb: -60,
+      volumeDb: op.keepAudio && op.mediaType !== "image" ? 0 : -60,
       effects: [],
       ...(op.mediaType === "image" ? { mediaType: "image" as const } : {}),
+      ...(op.layout === "fit" || op.layout === "pip" || op.layout === "sticker" ? { fit: "contain" as const } : {}),
+      ...(op.layout === "pip" || op.layout === "sticker" ? { layer: overlayLayerFor(op) } : {}),
     });
-    return op.mediaType === "image" ? `photo ${label}` : label;
+    const where = op.layout === "pip" || op.layout === "sticker" ? ` as ${op.layout}` : "";
+    return `${op.mediaType === "image" ? `photo ${label}` : label}${where}`;
   }
 
   private static applyDuckAudio(editIR: EditIR, duckDb = -18.0, attackMs = 120, releaseMs = 350): number {
@@ -1094,6 +1116,11 @@ export class EditIRCompiler {
           brightness: op.brightness ?? clip.transform.brightness ?? 1.0,
           contrast: op.contrast ?? clip.transform.contrast ?? 1.0,
           saturation: op.saturation ?? clip.transform.saturation ?? 1.0,
+          // The op uses phone units (-1..1 / 0..1); EditIR keeps -100..100 / 0..100.
+          ...(op.exposure !== undefined ? { exposure: op.exposure } : {}),
+          ...(op.temperature !== undefined ? { temperature: op.temperature * 100 } : {}),
+          ...(op.tint !== undefined ? { tint: op.tint * 100 } : {}),
+          ...(op.vignette !== undefined ? { vignette: op.vignette * 100 } : {}),
         };
       }
     }
@@ -1314,21 +1341,136 @@ export class EditIRCompiler {
       }],
       style: {
         preset: "BOLD_CENTER",
-        fontFamily: "Inter",
+        fontFamily: op.fontFamily || "Inter",
         fontSize: op.style?.fontSize || 64,
-        textColor: op.style?.color || "#FFFFFF",
-        highlightColor: op.style?.color || "#FFFFFF",
+        textColor: op.color || op.style?.color || "#FFFFFF",
+        highlightColor: op.color || op.style?.color || "#FFFFFF",
         position: {
           // addText positions are -1..1 offsets from centre (legacy); normalise to 0..1 canvas fractions.
           x: Math.min(1, Math.max(0, 0.5 + (op.position?.x ?? 0) / 2)),
           y: Math.min(1, Math.max(0, 0.5 + (op.position?.y ?? -0.6) / 2)),
         },
         shadow: true,
-        ...(op.style?.backgroundColor ? { pillBackground: op.style.backgroundColor } : {}),
+        ...(op.backgroundColor || op.style?.backgroundColor ? { pillBackground: op.backgroundColor || op.style.backgroundColor } : {}),
+        ...(op.strokeColor ? { strokeColor: op.strokeColor, strokeWidth: 4 } : {}),
+        ...(op.uppercase ? { uppercase: true } : {}),
+        ...(op.glow ? { glow: true } : {}),
+        ...(op.enter ? { enter: op.enter } : {}),
+        ...(op.exit ? { exit: op.exit } : {}),
+        ...(op.loop ? { loop: op.loop } : {}),
         animation: "none",
         fontWeight: 800,
       },
     });
   }
+
+  /** Emoji sticker = an image layer whose asset (`emoji:<emoji>`) the phone draws itself. */
+  private static applyAddSticker(editIR: EditIR, op: any): boolean {
+    const totalSec = RationalTimeMath.toSeconds(editIR.meta.totalDuration);
+    if (op.timelineStartSec >= totalSec - 0.3) return false;
+    const durSec = Math.min(op.durationSec, totalSec - op.timelineStartSec);
+    // Same track as phone-made overlays (a sticker is a floating image layer), so it round-trips to mobile.
+    let track = editIR.tracks.videoTracks.find((t) => t.type === "B_ROLL_OVERLAY");
+    if (!track) {
+      track = { id: generateUUID(), type: "B_ROLL_OVERLAY", zIndex: 10, clips: [] };
+      editIR.tracks.videoTracks.push(track);
+    }
+    const assetId = `emoji:${op.emoji}`;
+    track.clips.push({
+      id: generateUUID(),
+      assetId,
+      sourcePath: `device-asset://${assetId}`,
+      sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: RationalTimeMath.fromSeconds(durSec) },
+      timelineRange: { start: RationalTimeMath.fromSeconds(op.timelineStartSec), duration: RationalTimeMath.fromSeconds(durSec) },
+      transform: { scale: { start: 1, end: 1, easing: "spring" }, position: { x: 0, y: 0 }, anchor: { x: 0.5, y: 0.5 }, rotationDeg: 0, opacity: 1 },
+      speedMultiplier: 1,
+      volumeDb: -60,
+      effects: [],
+      mediaType: "image",
+      fit: "contain",
+      layer: overlayLayerFor({ layout: "sticker", position: op.position ?? { x: 0.74, y: 0.22 }, scale: op.scale ?? 0.26, rotation: op.rotation, animationIn: op.animationIn }),
+    });
+    return true;
+  }
+
+  /** Sets audio fades on main clips (each capped at half the clip). Returns how many clips changed. */
+  private static applyFadeClipAudio(editIR: EditIR, op: { clipId: string; fadeInSec: number; fadeOutSec: number }): number {
+    const main = editIR.tracks.videoTracks.find((t) => t.type === "MAIN_VIDEO") ?? editIR.tracks.videoTracks[0];
+    let n = 0;
+    for (const clip of main?.clips ?? []) {
+      if (op.clipId !== "all" && clip.id !== op.clipId) continue;
+      const half = (RationalTimeMath.toSeconds(clip.timelineRange.duration) * 1000) / 2;
+      const fin = Math.round(Math.min(half, op.fadeInSec * 1000));
+      const fout = Math.round(Math.min(half, op.fadeOutSec * 1000));
+      if (fin > 0) clip.audioFadeInMs = fin;
+      else delete clip.audioFadeInMs;
+      if (fout > 0) clip.audioFadeOutMs = fout;
+      else delete clip.audioFadeOutMs;
+      n++;
+    }
+    return n;
+  }
+
+  /** Removes items of one kind by id, by the moment they are on screen, or all of them. Returns how many. */
+  private static applyRemoveItem(editIR: EditIR, op: { kind: string; id?: string; atSec?: number }): number {
+    const sec = (t: any) => RationalTimeMath.toSeconds(t);
+    const hit = (id: string, start: any, dur: any) =>
+      op.id ? id === op.id : typeof op.atSec === "number" ? sec(start) <= op.atSec && op.atSec < sec(start) + sec(dur) : true;
+    const t = editIR.tracks;
+    function drop<T>(xs: T[], match: (x: T) => boolean): [T[], number] {
+      const kept = xs.filter((x) => !match(x));
+      return [kept, xs.length - kept.length];
+    }
+    let n = 0;
+    switch (op.kind) {
+      case "caption":
+      case "title": {
+        const title = op.kind === "title";
+        [t.captionTrack, n] = drop(t.captionTrack, (c) => (title ? c.role === "title" : c.role !== "title") && hit(c.id, c.timeRange.start, c.timeRange.duration));
+        break;
+      }
+      case "zoom":
+        [t.cameraTrack, n] = drop(t.cameraTrack, (z) => hit(z.id, z.timeRange.start, z.timeRange.duration));
+        break;
+      case "effect":
+        if (t.effectTrack) [t.effectTrack, n] = drop(t.effectTrack, (e: any) => hit(e.id, e.timeRange.start, e.timeRange.duration));
+        break;
+      case "broll":
+        for (const track of t.videoTracks.filter((v) => v.type !== "MAIN_VIDEO")) {
+          let k = 0;
+          [track.clips, k] = drop(track.clips, (c) => hit(c.id, c.timelineRange.start, c.timelineRange.duration));
+          n += k;
+        }
+        break;
+      case "sfx":
+        for (const track of t.audioTracks.filter((a) => a.type === "SFX")) {
+          let k = 0;
+          [track.clips, k] = drop(track.clips as any[], (c: any) => hit(c.id, c.timelineRange.start, c.timelineRange.duration)) as any;
+          n += k;
+        }
+        break;
+    }
+    return n;
+  }
 }
 
+/** Layer for a pip/sticker insertBroll; entrance keyframes mirror TimelineOps.layerEntrance in the Flutter app. */
+function overlayLayerFor(op: { layout?: string; position?: { x: number; y: number }; scale?: number; rotation?: number; animationIn?: string }) {
+  const sticker = op.layout === "sticker";
+  const x = op.position?.x ?? (sticker ? 0.75 : 0.72);
+  const y = op.position?.y ?? (sticker ? 0.2 : 0.28);
+  const scale = op.scale ?? (sticker ? 0.25 : 0.42);
+  const rotation = op.rotation ?? 0;
+  const d = 400;
+  const keyframes = (() => {
+    switch (op.animationIn) {
+      case "zoom_in": return [{ atMs: 0, scale: scale * 0.2, opacity: 0 }, { atMs: d, scale, opacity: 1 }];
+      case "slide_left": return [{ atMs: 0, x: Math.min(1.5, x + 0.6) }, { atMs: d, x }];
+      case "slide_up": return [{ atMs: 0, y: Math.min(1.5, y + 0.5) }, { atMs: d, y }];
+      case "fade": return [{ atMs: 0, opacity: 0 }, { atMs: d, opacity: 1 }];
+      case "spin": return [{ atMs: 0, rotation: rotation - 180, scale: Math.max(0.05, scale * 0.3) }, { atMs: d, rotation, scale }];
+      default: return [];
+    }
+  })();
+  return { mode: "overlay" as const, x, y, scale, rotation, ...(keyframes.length ? { keyframes } : {}) };
+}

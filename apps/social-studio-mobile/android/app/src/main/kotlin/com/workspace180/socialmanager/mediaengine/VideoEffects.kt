@@ -341,6 +341,10 @@ class WatermarkOverlay(
     private val position: String,
     opacityPct: Double,
     private val widthFraction: Double,
+    private val normX: Double? = null,
+    private val normY: Double? = null,
+    private val normW: Double? = null,
+    private val normH: Double? = null,
 ) : CanvasOverlay(/* useInputFrameSize= */ true) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
         alpha = (opacityPct.coerceIn(0.0, 100.0) / 100.0 * 255).toInt()
@@ -352,12 +356,21 @@ class WatermarkOverlay(
         val w = canvas.width.toFloat()
         val h = canvas.height.toFloat()
         if (w <= 0f || h <= 0f || bitmap.width <= 0 || bitmap.height <= 0 || paint.alpha == 0) return
-        val drawW = (w * widthFraction).toFloat()
-        val drawH = drawW * bitmap.height / bitmap.width
-        val margin = min(w, h) * 0.04f
-        val left = if (position.endsWith("left")) margin else w - margin - drawW
-        val top = if (position.startsWith("top")) margin else h - margin - drawH
-        dst.set(left, top, left + drawW, top + drawH)
+        if (normX != null && normY != null && normW != null) {
+            val drawW = (w * normW).toFloat()
+            val drawH = if (normH != null) (h * normH).toFloat() else drawW * bitmap.height / bitmap.width
+            val left = (w * normX).toFloat()
+            val top = (h * normY).toFloat()
+            dst.set(left, top, left + drawW, top + drawH)
+        } else {
+            val drawW = (w * widthFraction).toFloat()
+            val drawH = drawW * bitmap.height / bitmap.width
+            val margin = min(w, h) * 0.04f
+            val left = if (position.endsWith("left")) margin else w - margin - drawW
+            val top = if (position.startsWith("top")) margin else h - margin - drawH
+            dst.set(left, top, left + drawW, top + drawH)
+        }
         canvas.drawBitmap(bitmap, null, dst, paint)
     }
 }
+

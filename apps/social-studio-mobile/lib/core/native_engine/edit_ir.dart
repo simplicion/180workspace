@@ -1,4 +1,7 @@
 import 'media_engine_exception.dart';
+import 'overlay_layer.dart';
+
+export 'overlay_layer.dart';
 
 /// Dart model of the `mobile-editir/1` timeline returned by `POST /media-editor/ai-direct`
 /// (docs/social-studio-mobile/AI_DIRECTOR_CONTRACT.md §3). All times are integer milliseconds.
@@ -66,6 +69,8 @@ class MobileEditIr {
     List<EditIrCaption>? captions,
     List<EditIrZoom>? zooms,
     EditIrAudio? audio,
+    EditIrWatermark? watermark,
+    bool clearWatermark = false,
     List<EditIrEffect>? effects,
   }) =>
       MobileEditIr(
@@ -78,9 +83,11 @@ class MobileEditIr {
         captions: captions ?? this.captions,
         zooms: zooms ?? this.zooms,
         audio: audio ?? this.audio,
-        watermark: watermark,
+        watermark: clearWatermark ? null : (watermark ?? this.watermark),
         effects: effects ?? this.effects,
       );
+
+  factory MobileEditIr.fromMap(Map<String, dynamic> map) => MobileEditIr.fromJson(map);
 
   factory MobileEditIr.fromJson(Map<String, dynamic> json) {
     final version = json['schemaVersion'];
@@ -101,6 +108,8 @@ class MobileEditIr {
       effects: _list(json, 'effects', EditIrEffect.fromJson),
     );
   }
+
+  Map<String, dynamic> toMap() => toJson();
 
   Map<String, dynamic> toJson() => {
         'schemaVersion': schemaVersion,
@@ -147,13 +156,28 @@ class MobileEditIr {
 }
 
 class EditIrWatermark {
-  EditIrWatermark({required this.imageUrl, this.position = 'top_right', this.opacityPct = 100, this.widthFraction = 0.14});
+  EditIrWatermark({
+    required this.imageUrl,
+    this.position = 'top_right',
+    this.opacityPct = 100,
+    this.widthFraction = 0.14,
+    this.localPath,
+    this.x,
+    this.y,
+    this.width,
+    this.height,
+  });
   final String imageUrl;
 
   /// top_left | top_right | bottom_left | bottom_right
   final String position;
   final double opacityPct;
   final double widthFraction;
+  final String? localPath;
+  final double? x;
+  final double? y;
+  final double? width;
+  final double? height;
 
   static const positions = ['top_left', 'top_right', 'bottom_left', 'bottom_right'];
 
@@ -162,9 +186,28 @@ class EditIrWatermark {
         position: j['position'] as String? ?? 'top_right',
         opacityPct: (j['opacityPct'] as num?)?.toDouble() ?? 100,
         widthFraction: (j['widthFraction'] as num?)?.toDouble() ?? 0.14,
+        localPath: j['localPath'] as String?,
+        x: (j['x'] as num?)?.toDouble(),
+        y: (j['y'] as num?)?.toDouble(),
+        width: (j['width'] as num?)?.toDouble(),
+        height: (j['height'] as num?)?.toDouble(),
       );
 
-  Map<String, dynamic> toJson() => {'imageUrl': imageUrl, 'position': position, 'opacityPct': opacityPct, 'widthFraction': widthFraction};
+  factory EditIrWatermark.fromMap(Map<String, dynamic> m) => EditIrWatermark.fromJson(m);
+
+  Map<String, dynamic> toJson() => {
+        'imageUrl': imageUrl,
+        'position': position,
+        'opacityPct': opacityPct,
+        'widthFraction': widthFraction,
+        if (localPath != null) 'localPath': localPath,
+        if (x != null) 'x': x,
+        if (y != null) 'y': y,
+        if (width != null) 'width': width,
+        if (height != null) 'height': height,
+      };
+
+  Map<String, dynamic> toMap() => toJson();
 }
 
 class EditIrSource {
@@ -212,18 +255,59 @@ class EditIrCrop {
 }
 
 class EditIrFilter {
-  EditIrFilter({this.preset = 'NORMAL', this.brightness = 1, this.contrast = 1, this.saturation = 1});
+  EditIrFilter({
+    this.preset = 'NORMAL',
+    this.brightness = 1,
+    this.contrast = 1,
+    this.saturation = 1,
+    this.exposure = 0,
+    this.temperature = 0,
+    this.tint = 0,
+    this.vignette = 0,
+  });
   final String preset;
   final double brightness, contrast, saturation;
+
+  /// Stops (-2..2), cool/warm and green/magenta (-1..1), edge darkening (0..1). See color_grade.dart.
+  final double exposure, temperature, tint, vignette;
 
   factory EditIrFilter.fromJson(Map<String, dynamic> j) => EditIrFilter(
         preset: j['preset'] as String? ?? 'NORMAL',
         brightness: (j['brightness'] as num?)?.toDouble() ?? 1,
         contrast: (j['contrast'] as num?)?.toDouble() ?? 1,
         saturation: (j['saturation'] as num?)?.toDouble() ?? 1,
+        exposure: ((j['exposure'] as num?)?.toDouble() ?? 0).clamp(-2.0, 2.0),
+        temperature: ((j['temperature'] as num?)?.toDouble() ?? 0).clamp(-1.0, 1.0),
+        tint: ((j['tint'] as num?)?.toDouble() ?? 0).clamp(-1.0, 1.0),
+        vignette: ((j['vignette'] as num?)?.toDouble() ?? 0).clamp(0.0, 1.0),
       );
 
-  Map<String, dynamic> toJson() => {'preset': preset, 'brightness': brightness, 'contrast': contrast, 'saturation': saturation};
+  EditIrFilter copyWith({String? preset, double? brightness, double? contrast, double? saturation, double? exposure, double? temperature, double? tint, double? vignette}) =>
+      EditIrFilter(
+        preset: preset ?? this.preset,
+        brightness: brightness ?? this.brightness,
+        contrast: contrast ?? this.contrast,
+        saturation: saturation ?? this.saturation,
+        exposure: exposure ?? this.exposure,
+        temperature: temperature ?? this.temperature,
+        tint: tint ?? this.tint,
+        vignette: vignette ?? this.vignette,
+      );
+
+  /// Nothing to apply (NORMAL preset, every adjustment neutral).
+  bool get isNeutral =>
+      preset == 'NORMAL' && brightness == 1 && contrast == 1 && saturation == 1 && exposure == 0 && temperature == 0 && tint == 0 && vignette == 0;
+
+  Map<String, dynamic> toJson() => {
+        'preset': preset,
+        'brightness': brightness,
+        'contrast': contrast,
+        'saturation': saturation,
+        if (exposure != 0) 'exposure': exposure,
+        if (temperature != 0) 'temperature': temperature,
+        if (tint != 0) 'tint': tint,
+        if (vignette != 0) 'vignette': vignette,
+      };
 }
 
 class EditIrTransition {
@@ -267,10 +351,15 @@ class EditIrClip {
     this.transitionIn,
     this.rotationDeg = 0,
     this.flipH = false,
+    this.audioFadeInMs = 0,
+    this.audioFadeOutMs = 0,
   });
 
   final String id;
   final String assetId;
+
+  /// Fade of the clip's own sound at its start / end (0 = none), on top of transition fades.
+  final int audioFadeInMs, audioFadeOutMs;
 
   /// Clockwise rotation applied before crop: 0, 90, 180 or 270.
   final int rotationDeg;
@@ -296,6 +385,8 @@ class EditIrClip {
         transitionIn: j['transitionIn'] == null ? null : EditIrTransition.fromJson(_obj(j, 'transitionIn')),
         rotationDeg: (j['rotationDeg'] as num?)?.toInt() ?? 0,
         flipH: j['flipH'] as bool? ?? false,
+        audioFadeInMs: (j['audioFadeInMs'] as num?)?.toInt() ?? 0,
+        audioFadeOutMs: (j['audioFadeOutMs'] as num?)?.toInt() ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -313,6 +404,8 @@ class EditIrClip {
         // Optional fields: omitted at their defaults so older servers accept the timeline.
         if (rotationDeg != 0) 'rotationDeg': rotationDeg,
         if (flipH) 'flipH': true,
+        if (audioFadeInMs > 0) 'audioFadeInMs': audioFadeInMs,
+        if (audioFadeOutMs > 0) 'audioFadeOutMs': audioFadeOutMs,
       };
 }
 
@@ -326,24 +419,44 @@ class EditIrOverlay {
     this.opacity = 1,
     this.muted = true,
     this.mediaType = 'video',
+    this.fit = 'cover',
+    this.layer,
   });
 
   final String id;
   final int timelineStartMs, timelineEndMs, sourceStartMs;
+  /// `cover` crops to fill; `contain` keeps the whole frame.
+  final String fit;
+  /// Layer placement; null = full-frame cutaway (the original behaviour).
+  final EditIrLayer? layer;
+  bool get isLayer => layer?.isOverlay ?? false;
 
   /// `video` or `image` (a still photo held for the slot).
   final String mediaType;
   bool get isImage => mediaType == 'image';
 
-  EditIrOverlay copyWith({int? timelineStartMs, int? timelineEndMs, int? sourceStartMs}) => EditIrOverlay(
+  EditIrOverlay copyWith({
+    int? timelineStartMs,
+    int? timelineEndMs,
+    int? sourceStartMs,
+    double? opacity,
+    bool? muted,
+    String? fit,
+    EditIrLayer? layer,
+    bool clearLayer = false,
+    Map<String, dynamic>? source,
+  }) =>
+      EditIrOverlay(
         id: id,
         timelineStartMs: timelineStartMs ?? this.timelineStartMs,
         timelineEndMs: timelineEndMs ?? this.timelineEndMs,
         sourceStartMs: sourceStartMs ?? this.sourceStartMs,
-        source: source,
-        opacity: opacity,
-        muted: muted,
+        source: source ?? this.source,
+        opacity: opacity ?? this.opacity,
+        muted: muted ?? this.muted,
         mediaType: mediaType,
+        fit: fit ?? this.fit,
+        layer: clearLayer ? null : (layer ?? this.layer),
       );
 
   /// `{kind:"url"|"asset"|"stock_query", ...}` — resolve to a local file before rendering.
@@ -351,16 +464,24 @@ class EditIrOverlay {
   final double opacity;
   final bool muted;
 
-  factory EditIrOverlay.fromJson(Map<String, dynamic> j) => EditIrOverlay(
-        id: _str(j, 'id'),
-        timelineStartMs: _int(j, 'timelineStartMs'),
-        timelineEndMs: _int(j, 'timelineEndMs'),
-        sourceStartMs: (j['sourceStartMs'] as num?)?.toInt() ?? 0,
-        source: (j['source'] as Map?)?.cast<String, dynamic>() ?? {},
-        opacity: (j['opacity'] as num?)?.toDouble() ?? 1,
-        muted: j['muted'] as bool? ?? true,
-        mediaType: j['mediaType'] == 'image' ? 'image' : 'video',
-      );
+  factory EditIrOverlay.fromJson(Map<String, dynamic> j) {
+    final source = (j['source'] as Map?)?.cast<String, dynamic>() ?? {};
+    // Older drafts kept framing in the source map (`pip`, `fit`), which the export ignored; they become real fields.
+    final legacyFit = source['fit'] == 'contain' ? 'contain' : null;
+    final layer = EditIrLayer.fromJson(j['layer']) ?? (source['pip'] == true ? EditIrLayer.legacyPip : null);
+    return EditIrOverlay(
+      id: _str(j, 'id'),
+      timelineStartMs: _int(j, 'timelineStartMs'),
+      timelineEndMs: _int(j, 'timelineEndMs'),
+      sourceStartMs: (j['sourceStartMs'] as num?)?.toInt() ?? 0,
+      source: {...source}..remove('pip')..remove('fit'),
+      opacity: (j['opacity'] as num?)?.toDouble() ?? 1,
+      muted: j['muted'] as bool? ?? true,
+      mediaType: j['mediaType'] == 'image' ? 'image' : 'video',
+      fit: j['fit'] == 'contain' ? 'contain' : (legacyFit ?? 'cover'),
+      layer: layer,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -369,10 +490,11 @@ class EditIrOverlay {
         'timelineEndMs': timelineEndMs,
         'sourceStartMs': sourceStartMs,
         'source': source,
-        'fit': 'cover',
+        'fit': fit,
         'opacity': opacity,
         'muted': muted,
         if (isImage) 'mediaType': 'image',
+        if (layer != null) 'layer': layer!.toJson(),
       };
 }
 
@@ -553,6 +675,10 @@ class EditIrSfx {
         credit: j['credit'] as String?,
       );
 
+  factory EditIrSfx.fromMap(Map<String, dynamic> m) => EditIrSfx.fromJson(m);
+
+  Map<String, dynamic> toMap() => toJson();
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'timelineStartMs': timelineStartMs,
@@ -563,29 +689,95 @@ class EditIrSfx {
       };
 }
 
+/// Voiceover recorded on this phone (contract MobileVoiceoverSchema). [assetId] is a local asset (draft sourcePaths).
+class EditIrVoiceover {
+  EditIrVoiceover({
+    required this.id,
+    required this.timelineStartMs,
+    required this.durationMs,
+    required this.assetId,
+    this.sourceStartMs = 0,
+    this.volumeDb = 0,
+    this.fadeInMs = 0,
+    this.fadeOutMs = 0,
+  });
+  final String id, assetId;
+  final int timelineStartMs, durationMs, sourceStartMs, fadeInMs, fadeOutMs;
+  final double volumeDb;
+
+  int get timelineEndMs => timelineStartMs + durationMs;
+
+  EditIrVoiceover copyWith({int? timelineStartMs, int? durationMs, int? sourceStartMs, double? volumeDb, int? fadeInMs, int? fadeOutMs}) =>
+      EditIrVoiceover(
+        id: id,
+        assetId: assetId,
+        timelineStartMs: timelineStartMs ?? this.timelineStartMs,
+        durationMs: durationMs ?? this.durationMs,
+        sourceStartMs: sourceStartMs ?? this.sourceStartMs,
+        volumeDb: volumeDb ?? this.volumeDb,
+        fadeInMs: fadeInMs ?? this.fadeInMs,
+        fadeOutMs: fadeOutMs ?? this.fadeOutMs,
+      );
+
+  factory EditIrVoiceover.fromJson(Map<String, dynamic> j) => EditIrVoiceover(
+        id: _str(j, 'id'),
+        timelineStartMs: _int(j, 'timelineStartMs'),
+        durationMs: _int(j, 'durationMs'),
+        sourceStartMs: (j['sourceStartMs'] as num?)?.toInt() ?? 0,
+        assetId: _str(_obj(j, 'source'), 'assetId'),
+        volumeDb: (j['volumeDb'] as num?)?.toDouble() ?? 0,
+        fadeInMs: (j['fadeInMs'] as num?)?.toInt() ?? 0,
+        fadeOutMs: (j['fadeOutMs'] as num?)?.toInt() ?? 0,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'timelineStartMs': timelineStartMs,
+        'durationMs': durationMs,
+        'sourceStartMs': sourceStartMs,
+        'source': {'kind': 'asset', 'assetId': assetId},
+        'volumeDb': volumeDb,
+        if (fadeInMs > 0) 'fadeInMs': fadeInMs,
+        if (fadeOutMs > 0) 'fadeOutMs': fadeOutMs,
+      };
+}
+
 class EditIrAudio {
-  const EditIrAudio({this.originalVolumeDb = 0, this.music = const [], this.speechRangesMs = const [], this.sfx = const []});
+  const EditIrAudio({
+    this.originalVolumeDb = 0,
+    this.music = const [],
+    this.speechRangesMs = const [],
+    this.sfx = const [],
+    this.voiceovers = const [],
+  });
   final double originalVolumeDb;
   final List<EditIrMusic> music;
   final List<EditIrSfx> sfx;
+  final List<EditIrVoiceover> voiceovers;
 
   /// Sorted, non-overlapping `[startMs, endMs]` pairs on the timeline.
   final List<List<int>> speechRangesMs;
+
+  factory EditIrAudio.fromMap(Map<String, dynamic> m) => EditIrAudio.fromJson(m);
 
   factory EditIrAudio.fromJson(Map<String, dynamic> j) => EditIrAudio(
         originalVolumeDb: ((j['originalTrack'] as Map?)?['volumeDb'] as num?)?.toDouble() ?? 0,
         music: _list(j, 'music', EditIrMusic.fromJson),
         sfx: _list(j, 'sfx', EditIrSfx.fromJson),
+        voiceovers: _list(j, 'voiceovers', EditIrVoiceover.fromJson),
         speechRangesMs: ((j['speechRangesMs'] as List?) ?? [])
             .map((r) => (r as List).map((v) => (v as num).toInt()).toList())
             .toList(),
       );
+
+  Map<String, dynamic> toMap() => toJson();
 
   Map<String, dynamic> toJson() => {
         'originalTrack': {'volumeDb': originalVolumeDb},
         'music': music.map((m) => m.toJson()).toList(),
         'speechRangesMs': speechRangesMs,
         if (sfx.isNotEmpty) 'sfx': sfx.map((e) => e.toJson()).toList(),
+        if (voiceovers.isNotEmpty) 'voiceovers': voiceovers.map((e) => e.toJson()).toList(),
       };
 }
 

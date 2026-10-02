@@ -1,9 +1,17 @@
-// Cloudflare Pages Edge Middleware for 180 Core Unified Subdomain Routing
 interface Env {
   ASSETS: {
     fetch: typeof fetch;
   };
 }
+
+type PagesFunction<T = any> = (context: {
+  request: Request;
+  env: T;
+  next: (input?: Request | string, init?: RequestInit) => Promise<Response>;
+  data: Record<string, any>;
+  waitUntil: (promise: Promise<any>) => void;
+  passThroughOnException: () => void;
+}) => Promise<Response> | Response;
 
 export const onRequest: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);

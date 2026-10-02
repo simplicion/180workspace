@@ -10,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/native_engine/color_grade.dart';
 import '../../core/native_engine/edit_ir.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -17,6 +18,7 @@ import '../../core/widgets/common.dart';
 import '../../data/models/vault_item.dart';
 import '../library/vault_provider.dart';
 import 'caption_fonts.dart';
+import 'clip_vignette.dart';
 import 'director_panel.dart';
 import 'export_sheet.dart';
 import 'studio_controller.dart';
@@ -24,6 +26,7 @@ import 'studio_drafts_service.dart';
 import 'studio_timeline.dart';
 import 'studio_tools.dart';
 import 'text_motion.dart';
+import 'layer_placement.dart';
 import 'timeline_ops.dart';
 
 String timecode(int ms) {
@@ -86,6 +89,12 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
   bool _loading = false;
   bool _playing = false;
   Timer? _tick;
+
+  /// One audio player per voiceover recording (keyed by asset id), started / stopped as the playhead crosses it.
+  final Map<String, VideoPlayerController> _voPlayers = {};
+  int _voFrame = 0;
+  final Stopwatch _playbackStopwatch = Stopwatch();
+  bool _dismissedProposal = false;
 
   @override
   void initState() {
@@ -183,10 +192,45 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
   @override
   void dispose() {
     _tick?.cancel();
+    _playbackStopwatch.stop();
     c.removeListener(_onChange);
     c.dispose();
     _disposePlayers();
+    for (final p in _voPlayers.values) {
+      p.dispose();
+    }
     super.dispose();
+  }
+
+  /// Keeps voiceover playback in step with the timeline preview (same volume and fades as the export).
+  Future<void> _syncVoiceovers({bool stop = false}) async {
+    final ir = c.ir;
+    if (ir == null) return;
+    for (final v in ir.audio.voiceovers) {
+      final path = c.sourcePaths[v.assetId];
+      if (path == null) continue;
+      final rel = c.playheadMs - v.timelineStartMs;
+      final inside = !stop && _playing && rel >= 0 && rel < v.durationMs;
+      var p = _voPlayers[v.assetId];
+      if (!inside) {
+        if (p != null && p.value.isPlaying) await p.pause();
+        continue;
+      }
+      if (p == null) {
+        p = VideoPlayerController.file(File(path));
+        _voPlayers[v.assetId] = p;
+        await p.initialize();
+      }
+      double ramp(double t, double a, double b) => b <= a ? 1 : ((t - a) / (b - a)).clamp(0.0, 1.0);
+      var g = math.pow(10, v.volumeDb / 20).toDouble();
+      if (v.fadeInMs > 0) g *= ramp(rel.toDouble(), 0, v.fadeInMs.toDouble());
+      if (v.fadeOutMs > 0) g *= 1 - ramp(rel.toDouble(), (v.durationMs - v.fadeOutMs).toDouble(), v.durationMs.toDouble());
+      await p.setVolume(g.clamp(0.0, 1.0));
+      if (!p.value.isPlaying) {
+        await p.seekTo(Duration(milliseconds: v.sourceStartMs + rel));
+        await p.play();
+      }
+    }
   }
 
   Future<void> _disposePlayers() async {
@@ -201,7 +245,7 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
   Future<VideoPlayerController?> _playerFor(String assetId) async {
     final existing = _players[assetId];
     if (existing != null) return existing;
-    final path = c.pathForAsset(assetId);
+    final path = c.previewPathForAsset(assetId);
     if (path == null || path.isEmpty) return null;
     // Stock clips added to the main track are https URLs; recorded and gallery clips are local files.
     final remote = kIsWeb || path.startsWith('http://') || path.startsWith('https://');
@@ -232,6 +276,7 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     setState(() {});
     if (_playing) return;
     final asset = c.assetAtPlayhead;
+    if (c.isStillAsset(asset)) return; // stills are drawn from the file, no player
     if (asset != _activeAsset) {
       _activateAsset(asset).then((_) => _player?.seekTo(Duration(milliseconds: c.sourcePositionMs)));
     } else {
@@ -271,8 +316,10 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     if (_player == null || ir == null) return;
     if (_playing) {
       _tick?.cancel();
+      _playbackStopwatch.stop();
       _player?.pause();
       setState(() => _playing = false);
+      unawaited(_syncVoiceovers(stop: true));
       return;
     }
     if (c.playheadMs >= ir.durationMs - 50) c.seek(0);
@@ -285,31 +332,83 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     final ir = c.ir;
     if (ir == null || !_playing || !mounted) return;
     if (clipIndex >= ir.clips.length) {
+      _playbackStopwatch.stop();
       _player?.pause();
+      unawaited(_syncVoiceovers(stop: true));
       c.seek(ir.durationMs);
       setState(() => _playing = false);
       return;
     }
     final clip = ir.clips[clipIndex];
+    if (c.isStillAsset(clip.assetId)) {
+      // A still has no player: hold it for its length, then carry on.
+      await _player?.pause();
+      final from = (c.playheadMs >= clip.timelineStartMs && c.playheadMs < clip.timelineEndMs) ? c.playheadMs : clip.timelineStartMs;
+      final sw = Stopwatch()..start();
+      _tick = Timer.periodic(const Duration(milliseconds: 16), (_) {
+        if (!mounted || !_playing) return;
+        final now = from + sw.elapsedMilliseconds;
+        if (now >= clip.timelineEndMs) {
+          _tick?.cancel();
+          c.playheadMs = clip.timelineEndMs;
+          _playClip(clipIndex + 1);
+          return;
+        }
+        c.playheadMs = now;
+        final cur = c.ir;
+        if (_voFrame++ % 6 == 0 && cur != null && cur.audio.voiceovers.isNotEmpty) unawaited(_syncVoiceovers());
+        setState(() {});
+      });
+      return;
+    }
     await _activateAsset(clip.assetId);
     final p = _player;
     if (p == null || !_playing || !mounted) return;
-    await p.seekTo(Duration(milliseconds: fromSourceMs ?? clip.sourceStartMs));
+
+    // Pre-warm the next clip so the cut transition is instantaneous without texture stalls
+    if (clipIndex + 1 < ir.clips.length && !c.isStillAsset(ir.clips[clipIndex + 1].assetId)) {
+      final nextClip = ir.clips[clipIndex + 1];
+      _playerFor(nextClip.assetId).then((nextP) {
+        if (nextP != null && mounted && _playing) {
+          nextP.seekTo(Duration(milliseconds: nextClip.sourceStartMs));
+          nextP.setPlaybackSpeed(nextClip.speed);
+        }
+      });
+    }
+
+    final startMs = fromSourceMs ?? clip.sourceStartMs;
+    await p.seekTo(Duration(milliseconds: startMs));
     await p.setPlaybackSpeed(clip.speed);
-    await p.setVolume(clip.volumeDb <= -60 ? 0 : 1);
+    final rel0 = (((startMs) - clip.sourceStartMs) / clip.speed).round();
+    await p.setVolume(TimelineOps.clipPreviewGain(ir, clipIndex, rel0));
     await p.play();
-    _tick = Timer.periodic(const Duration(milliseconds: 40), (_) {
+
+    _playbackStopwatch.reset();
+    _playbackStopwatch.start();
+
+    _tick = Timer.periodic(const Duration(milliseconds: 16), (_) {
       final cur = c.ir;
       if (cur == null || !mounted || clipIndex >= cur.clips.length) return;
       final cl = cur.clips[clipIndex];
-      final pos = p.value.position.inMilliseconds;
-      if (pos >= cl.sourceEndMs - 20) {
+
+      // High-precision timing via Stopwatch, calibrated with player position to prevent drift
+      final elapsedMs = _playbackStopwatch.elapsedMilliseconds;
+      final expectedSourceMs = startMs + (elapsedMs * cl.speed).round();
+      final playerPosMs = p.value.position.inMilliseconds;
+      final drift = (playerPosMs - expectedSourceMs).abs();
+      final effectiveSourceMs = drift > 150 ? playerPosMs : expectedSourceMs;
+
+      if (effectiveSourceMs >= cl.sourceEndMs - 20) {
         _tick?.cancel();
+        _playbackStopwatch.stop();
         if (clipIndex + 1 < cur.clips.length) c.playheadMs = cur.clips[clipIndex + 1].timelineStartMs;
         _playClip(clipIndex + 1);
         return;
       }
-      c.playheadMs = cl.timelineStartMs + ((pos - cl.sourceStartMs).clamp(0, cl.sourceEndMs) / cl.speed).round();
+      c.playheadMs = cl.timelineStartMs + ((effectiveSourceMs - cl.sourceStartMs).clamp(0, cl.sourceEndMs) / cl.speed).round();
+      // Volume, clip fades and transition fades, as in the export.
+      p.setVolume(TimelineOps.clipPreviewGain(cur, clipIndex, c.playheadMs - cl.timelineStartMs));
+      if (_voFrame++ % 6 == 0 && cur.audio.voiceovers.isNotEmpty) unawaited(_syncVoiceovers());
       setState(() {});
     });
   }
@@ -408,6 +507,67 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     );
   }
 
+  int? get _unappliedProposalIndex {
+    if (_dismissedProposal) return null;
+    for (var i = c.messages.length - 1; i >= 0; i--) {
+      final m = c.messages[i];
+      if (!m.fromUser && m.response != null && !m.applied) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  Widget _buildProposalBanner(BuildContext context, int index) {
+    final msg = c.messages[index];
+    final reply = msg.response?.reply ?? msg.text;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, color: AppTheme.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              reply.isNotEmpty ? reply : 'AI Director prepared a brand-conscious cut for this script.',
+              style: TextStyle(fontSize: 12, color: AppTheme.textPrimary, height: 1.3),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              minimumSize: const Size(0, 32),
+              visualDensity: VisualDensity.compact,
+            ),
+            onPressed: () {
+              c.applyProposal(index);
+              setState(() {});
+            },
+            child: const Text('Apply', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: Icon(Icons.close, size: 16, color: AppTheme.textSecondary),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            onPressed: () {
+              setState(() => _dismissedProposal = true);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ir = c.ir;
@@ -455,6 +615,8 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
                 ? _Empty(error: _loadError, onPick: _pick, onRecord: () => context.pushReplacement(
                     '/camera?projectId=${widget.projectId ?? ''}&postId=${widget.postId ?? ''}'))
                 : Column(children: [
+                    if (_unappliedProposalIndex case final idx?)
+                      _buildProposalBanner(context, idx),
                     Expanded(
                       child: _Preview(
                         controller: c,
@@ -537,6 +699,15 @@ class _Preview extends StatelessWidget {
     final broll = brolls.lastOrNull;
     final p = player;
     final canvasAspect = ir.canvas.width / ir.canvas.height;
+    final stillPath = !kIsWeb && controller.isStillAsset(clip.assetId) ? controller.pathForAsset(clip.assetId) : null;
+    final stillSrc = ir.sources.where((s) => s.assetId == clip.assetId).firstOrNull;
+    Widget base() => _CroppedVideo(
+          player: p,
+          clip: clip,
+          filter: clip.filter,
+          stillPath: stillPath,
+          stillSize: stillPath == null ? null : Size((stillSrc?.width ?? 1080).toDouble(), (stillSrc?.height ?? 1920).toDouble()),
+        );
 
     return Container(
       color: AppTheme.background,
@@ -549,11 +720,16 @@ class _Preview extends StatelessWidget {
               color: _hex(ir.canvas.background),
               child: Stack(fit: StackFit.expand, children: [
                 // Base primary video
-                if (p != null && p.value.isInitialized)
+                if (stillPath != null || (p != null && p.value.isInitialized))
                   Transform.scale(
                     scale: zoom?.scale ?? 1,
                     alignment: Alignment(((zoom?.centerX ?? 0.5) * 2) - 1, ((zoom?.centerY ?? 0.5) * 2) - 1),
-                    child: _CroppedVideo(player: p, clip: clip, filter: clip.filter),
+                    child: (clip.filter?.vignette ?? 0) > 0
+                        ? Stack(fit: StackFit.expand, children: [
+                            base(),
+                            ClipVignette(strength: clip.filter!.vignette),
+                          ])
+                        : base(),
                   ),
 
                 // B-roll Video or Image Overlay
@@ -562,6 +738,8 @@ class _Preview extends StatelessWidget {
                     _BrollOverlayImage(
                       key: ValueKey('ov_${o.id}'),
                       broll: o,
+                      playheadMs: t,
+                      controller: controller,
                       onTap: () => onOpenTool(StudioTool.broll),
                     )
                   else
@@ -570,6 +748,7 @@ class _Preview extends StatelessWidget {
                       broll: o,
                       playheadMs: t,
                       playing: playing,
+                      controller: controller,
                       onTap: () => onOpenTool(StudioTool.broll),
                     ),
                 if (broll != null) ...[
@@ -639,48 +818,84 @@ class _Preview extends StatelessWidget {
   }
 }
 
-/// Image B-roll cutaway overlay
-class _BrollOverlayImage extends StatelessWidget {
-  const _BrollOverlayImage({super.key, required this.broll, required this.onTap});
+/// Photo overlay: a full-frame cutaway, or a layer (PiP / sticker) placed like the export places it.
+class _BrollOverlayImage extends StatefulWidget {
+  const _BrollOverlayImage({super.key, required this.broll, required this.playheadMs, required this.controller, required this.onTap});
   final EditIrOverlay broll;
+  final int playheadMs;
+  final StudioController controller;
   final VoidCallback onTap;
 
   @override
+  State<_BrollOverlayImage> createState() => _BrollOverlayImageState();
+}
+
+class _BrollOverlayImageState extends State<_BrollOverlayImage> {
+  double? _aspect;
+  ImageStream? _stream;
+  ImageStreamListener? _listener;
+
+  ImageProvider? _provider() {
+    // Gallery photos and stickers are files on this phone; stock photos are URLs.
+    final local = kIsWeb ? null : widget.controller.localOverlayPath(widget.broll.source);
+    if (local != null) return ResizeImage.resizeIfNeeded(1080, null, FileImage(File(local)));
+    final url = widget.broll.source['url'] as String?;
+    if (url == null || url.isEmpty) return null;
+    return ResizeImage.resizeIfNeeded(1080, null, NetworkImage(url));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(covariant _BrollOverlayImage old) {
+    super.didUpdateWidget(old);
+    if (old.broll.source != widget.broll.source) _resolve();
+  }
+
+  void _resolve() {
+    final p = _provider();
+    if (p == null) return;
+    final next = p.resolve(createLocalImageConfiguration(context));
+    if (_stream?.key == next.key) return;
+    if (_listener != null) _stream?.removeListener(_listener!);
+    _listener = ImageStreamListener((info, _) {
+      if (mounted) setState(() => _aspect = info.image.width / info.image.height);
+    }, onError: (_, _) {});
+    _stream = next..addListener(_listener!);
+  }
+
+  @override
+  void dispose() {
+    if (_listener != null) _stream?.removeListener(_listener!);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final url = broll.source['url'] as String?;
-    if (url == null || url.isEmpty) return SizedBox.shrink();
-    final isPip = broll.source['pip'] == true;
-    final fit = (broll.source['fit'] as String?) ?? 'cover';
-    final boxFit = fit == 'contain' ? BoxFit.contain : BoxFit.cover;
-
-    Widget img = Image.network(
-      url, cacheWidth: 1080,
-      fit: boxFit,
-      errorBuilder: (_, o, s) => Container(color: Colors.black54, child: Icon(Icons.broken_image_rounded, color: AppTheme.textMuted)),
-    );
-
-    img = Opacity(opacity: broll.opacity.clamp(0.05, 1.0), child: img);
-
-    if (isPip) {
-      return Align(
-        alignment: Alignment(0.82, 0.72),
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: 120,
-            height: 180,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.accentBlue, width: 2),
-              boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4))],
-            ),
-            child: ClipRRect(borderRadius: BorderRadius.circular(10), child: img),
-          ),
-        ),
+    final broll = widget.broll;
+    final provider = _provider();
+    if (provider == null) return SizedBox.shrink();
+    Widget img(BoxFit fit) => Image(
+          image: provider,
+          fit: fit,
+          errorBuilder: (_, o, s) => Container(color: Colors.black54, child: Icon(Icons.broken_image_rounded, color: AppTheme.textMuted)),
+        );
+    if (broll.isLayer) {
+      return LayerPlacement(
+        overlay: broll,
+        playheadMs: widget.playheadMs,
+        mediaAspect: _aspect ?? 1,
+        controller: widget.controller,
+        onTap: widget.onTap,
+        child: img(BoxFit.fill),
       );
     }
-
-    return GestureDetector(onTap: onTap, child: img);
+    final content = Opacity(opacity: broll.opacity.clamp(0.05, 1.0), child: img(broll.fit == 'contain' ? BoxFit.contain : BoxFit.cover));
+    return GestureDetector(onTap: widget.onTap, child: content);
   }
 }
 
@@ -691,12 +906,14 @@ class _BrollOverlayVideo extends StatefulWidget {
     required this.broll,
     required this.playheadMs,
     required this.playing,
+    required this.controller,
     required this.onTap,
   });
 
   final EditIrOverlay broll;
   final int playheadMs;
   final bool playing;
+  final StudioController controller;
   final VoidCallback onTap;
 
   @override
@@ -717,7 +934,7 @@ class _BrollOverlayVideoState extends State<_BrollOverlayVideo> {
   @override
   void didUpdateWidget(_BrollOverlayVideo oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final url = widget.broll.source['url'] as String?;
+    final url = _url();
     if (url != _loadedUrl) {
       _initPlayer();
     } else {
@@ -731,8 +948,11 @@ class _BrollOverlayVideoState extends State<_BrollOverlayVideo> {
     super.dispose();
   }
 
+  /// Local file (gallery video) or remote URL for this overlay.
+  String? _url() => (kIsWeb ? null : widget.controller.localOverlayPath(widget.broll.source)) ?? widget.broll.source['url'] as String?;
+
   Future<void> _initPlayer() async {
-    final url = widget.broll.source['url'] as String?;
+    final url = _url();
     if (url == null || url.isEmpty) return;
     setState(() {
       _initializing = true;
@@ -779,9 +999,8 @@ class _BrollOverlayVideoState extends State<_BrollOverlayVideo> {
   Widget build(BuildContext context) {
     final c = _controller;
     final broll = widget.broll;
-    final isPip = broll.source['pip'] == true;
-    final fit = (broll.source['fit'] as String?) ?? 'cover';
-    final boxFit = fit == 'contain' ? BoxFit.contain : BoxFit.cover;
+    final isPip = broll.isLayer;
+    final boxFit = isPip ? BoxFit.fill : (broll.fit == 'contain' ? BoxFit.contain : BoxFit.cover);
 
     Widget content;
     if (c != null && c.value.isInitialized) {
@@ -803,52 +1022,22 @@ class _BrollOverlayVideoState extends State<_BrollOverlayVideo> {
           : _placeholder();
     }
 
+    if (isPip) {
+      final size = c?.value.isInitialized == true ? c!.value.size : null;
+      return LayerPlacement(
+        overlay: broll,
+        playheadMs: widget.playheadMs,
+        mediaAspect: size == null || size.height == 0 ? 16 / 9 : size.width / size.height,
+        controller: widget.controller,
+        onTap: widget.onTap,
+        child: content,
+      );
+    }
+
     content = Opacity(
       opacity: broll.opacity.clamp(0.05, 1.0),
       child: content,
     );
-
-    if (isPip) {
-      return Align(
-        alignment: Alignment(0.82, 0.72),
-        child: GestureDetector(
-          onTap: widget.onTap,
-          child: Container(
-            width: 125,
-            height: 190,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.accentBlue, width: 2),
-              boxShadow: [
-                BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4)),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  content,
-                  Positioned(
-                    top: 4,
-                    left: 4,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(4)),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.picture_in_picture_alt_rounded, size: 10, color: AppTheme.primary),
-                        SizedBox(width: 3),
-                        Text('PiP', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
-                      ]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -943,14 +1132,18 @@ class _DraggableCaptionState extends State<_DraggableCaption> {
 }
 
 class _CroppedVideo extends StatelessWidget {
-  const _CroppedVideo({required this.player, required this.clip, this.filter});
-  final VideoPlayerController player;
+  const _CroppedVideo({this.player, required this.clip, this.filter, this.stillPath, this.stillSize});
+  final VideoPlayerController? player;
   final EditIrClip clip;
   final EditIrFilter? filter;
 
+  /// Photo clip / freeze frame shown instead of the player (same crop, rotation and grade as the export).
+  final String? stillPath;
+  final Size? stillSize;
+
   @override
   Widget build(BuildContext context) {
-    final size = player.value.size;
+    final size = stillSize ?? player!.value.size;
     final sideways = clip.rotationDeg == 90 || clip.rotationDeg == 270;
     final srcW = sideways ? size.height : size.width;
     final srcH = sideways ? size.width : size.height;
@@ -960,27 +1153,16 @@ class _CroppedVideo extends StatelessWidget {
       transform: Matrix4.identity()
         ..rotateZ(clip.rotationDeg * 3.1415926535 / 180)
         ..scaleByDouble(clip.flipH ? -1.0 : 1.0, 1.0, 1.0, 1.0),
-      child: SizedBox(width: size.width, height: size.height, child: VideoPlayer(player)),
+      child: SizedBox(
+        width: size.width,
+        height: size.height,
+        child: stillPath != null ? Image.file(File(stillPath!), fit: BoxFit.fill, gaplessPlayback: true) : VideoPlayer(player!),
+      ),
     );
     video = SizedBox(width: srcW, height: srcH, child: FittedBox(child: video));
     final f = filter;
-    if (f != null) {
-      final b = (f.brightness - 1) * 255 * 0.5;
-      final ct = f.contrast;
-      final s = f.saturation;
-      const lr = 0.2126, lg = 0.7152, lb = 0.0722;
-      final sr = (1 - s) * lr, sg = (1 - s) * lg, sb = (1 - s) * lb;
-      final off = (1 - ct) * 128 + b;
-      video = ColorFiltered(
-        colorFilter: ColorFilter.matrix([
-          ct * (sr + s), ct * sg, ct * sb, 0, off,
-          ct * sr, ct * (sg + s), ct * sb, 0, off,
-          ct * sr, ct * sg, ct * (sb + s), 0, off,
-          0, 0, 0, 1, 0,
-        ]),
-        child: video,
-      );
-    }
+    // Same colour matrix as the export (color_grade.dart ⇄ ColorGrade.kt).
+    if (f != null && !f.isNeutral) video = ColorFiltered(colorFilter: ColorFilter.matrix(gradeMatrix(f)), child: video);
     // Show only the crop rect, scaled to fill (crop) or fit (no crop) the canvas.
     return FittedBox(
       fit: clip.crop == null ? BoxFit.contain : BoxFit.cover,

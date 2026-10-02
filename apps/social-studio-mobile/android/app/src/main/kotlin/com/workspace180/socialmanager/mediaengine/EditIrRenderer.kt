@@ -13,20 +13,21 @@ import androidx.media3.common.C
 import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.OverlaySettings
+import androidx.media3.common.VideoCompositorSettings
+import androidx.media3.common.util.Size
+import androidx.media3.effect.StaticOverlaySettings
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.SpeedProvider
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.effect.Brightness
-import androidx.media3.effect.Contrast
 import androidx.media3.effect.Crop
 import androidx.media3.effect.FrameDropEffect
-import androidx.media3.effect.HslAdjustment
 import androidx.media3.effect.OverlayEffect
 import androidx.media3.effect.Presentation
-import androidx.media3.effect.RgbAdjustment
-import androidx.media3.effect.RgbFilter
 import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultEncoderFactory
+import androidx.media3.transformer.VideoEncoderSettings
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
@@ -36,6 +37,7 @@ import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -81,8 +83,27 @@ class EditIrRenderer(
     private val media: RenderMedia,
     private val outputPath: String,
     private val emit: RenderEventSink,
+    private val options: RenderOptions = RenderOptions(),
 ) {
+    /** Final output size: the canvas, or scaled down so its short side is [RenderOptions.maxShortSide] (even sizes). */
+    private val outputSize: Pair<Int, Int> = run {
+        val short = minOf(ir.canvas.width, ir.canvas.height)
+        val target = options.maxShortSide
+        if (target == null || target >= short) ir.canvas.width to ir.canvas.height
+        else {
+            val k = target.toDouble() / short
+            ((ir.canvas.width * k).roundToInt() / 2 * 2) to ((ir.canvas.height * k).roundToInt() / 2 * 2)
+        }
+    }
+
+    /** Media3's default heuristic (w x h x fps x 0.07 x 2), doubled for "high". */
+    private val videoBitrate: Int get() =
+        (outputSize.first.toDouble() * outputSize.second * ir.canvas.fps * 0.07 * 2 * (if (options.quality == "high") 2 else 1)).toInt()
+
     private companion object {
+        /** Layers on screen at the same moment (each is one compositor input). */
+        const val MAX_LAYER_TRACKS = 4
+        val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
         val BUNDLED_INTER_WEIGHTS = listOf(400, 600, 800)
         const val MB = 1024L * 1024L
         const val STORAGE_HEADROOM_BYTES = 32 * MB
@@ -104,6 +125,8 @@ class EditIrRenderer(
         val displayHeight: Int,
         val frameRate: Double?,
         val isHdr: Boolean,
+        /** A photo (main-track still or freeze frame): shown for the clip's timeline length, no audio. */
+        val isImage: Boolean = false,
     )
     private val probes = HashMap<String, Probe>()
 
@@ -148,6 +171,12 @@ class EditIrRenderer(
     private fun probe(path: String): Probe = probes.getOrPut(path) {
         val f = File(path)
         if (!f.isFile) throw EditIrException("MISSING_MEDIA", "File not found: $path")
+        if (f.extension.lowercase() in IMAGE_EXTENSIONS) {
+            val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, o)
+            if (o.outWidth <= 0 || o.outHeight <= 0) throw EditIrException("MISSING_MEDIA", "Photo cannot be read: ${f.name}")
+            return@getOrPut Probe(Long.MAX_VALUE / 4_000, hasAudio = false, hasVideo = true, o.outWidth, o.outHeight, frameRate = null, isHdr = false, isImage = true)
+        }
         val info = MediaTools.getVideoInfo(path)
         Probe(
             durationMs = (info["durationMs"] as Number).toLong(),
@@ -209,30 +238,20 @@ class EditIrRenderer(
             }
         }
         clip.filter?.let { f ->
-            when (f.preset) {
-                "NOIR_BW" -> fx.add(RgbFilter.createGrayscaleFilter())
-                "VIVID" -> fx.add(HslAdjustment.Builder().adjustSaturation(25f).build())
-                "CINEMATIC_TEAL_ORANGE" -> fx.add(RgbAdjustment.Builder().setRedScale(1.08f).setGreenScale(1.0f).setBlueScale(0.92f).build())
-                "VINTAGE_WARM" -> fx.add(RgbAdjustment.Builder().setRedScale(1.1f).setGreenScale(1.02f).setBlueScale(0.85f).build())
-                "CYBER_NEON" -> fx.add(RgbAdjustment.Builder().setRedScale(1.05f).setGreenScale(0.9f).setBlueScale(1.15f).build())
-                "GLOW" -> fx.add(Brightness(0.06f))
-                "NORMAL" -> Unit
-                else -> warnings.add("filter preset '${f.preset}' unknown; only multipliers applied")
-            }
-            if (abs(f.brightness - 1.0) > 1e-3) fx.add(Brightness((f.brightness - 1.0).toFloat().coerceIn(-1f, 1f)))
-            if (abs(f.contrast - 1.0) > 1e-3) fx.add(Contrast((f.contrast - 1.0).toFloat().coerceIn(-1f, 1f)))
-            if (abs(f.saturation - 1.0) > 1e-3) {
-                fx.add(HslAdjustment.Builder().adjustSaturation(((f.saturation - 1.0) * 100).toFloat().coerceIn(-100f, 100f)).build())
-            }
+            if (f.preset !in ColorGrade.PRESETS) warnings.add("filter preset '${f.preset}' unknown; only the adjustments applied")
+            // One colour matrix, identical to the phone preview (ColorGrade.kt ⇄ color_grade.dart).
+            if (!ColorGrade.isIdentity(f)) fx.add(ColorGrade.effect(f))
+            if (f.vignette > 0.0) fx.add(OverlayEffect(listOf(ClipVignetteOverlay(f.vignette))))
         }
         return fx
     }
 
     private fun clipAudioProcessors(index: Int, clip: IrClip): List<AudioProcessor> {
         val durMs = (clip.timelineEndMs - clip.timelineStartMs).toDouble()
-        val fadeIn = clip.transitionIn?.takeIf { it.type != "CUT" }?.durationMs?.div(2.0) ?: 0.0
+        // The longer of the transition's half-fade and the clip's own audio fade (mirrored by clipPreviewGain in Dart).
+        val fadeIn = max(clip.transitionIn?.takeIf { it.type != "CUT" }?.durationMs?.div(2.0) ?: 0.0, clip.audioFadeInMs.toDouble())
         val next = ir.clips.getOrNull(index + 1)
-        val fadeOut = next?.transitionIn?.takeIf { it.type != "CUT" }?.durationMs?.div(2.0) ?: 0.0
+        val fadeOut = max(next?.transitionIn?.takeIf { it.type != "CUT" }?.durationMs?.div(2.0) ?: 0.0, clip.audioFadeOutMs.toDouble())
         val model = ClipAudioGainModel(durMs, ir.audio.originalVolumeDb + clip.volumeDb, fadeIn, fadeOut)
         return listOf(EnvelopeGainProcessor { tUs -> model.gainAtItemMs(tUs / 1000.0) })
     }
@@ -243,7 +262,7 @@ class EditIrRenderer(
     private fun effectiveOverlays(): List<Pair<IrOverlay, LongArray>> {
         val boundaries = ir.clips.map { it.timelineStartMs } + ir.durationMs
         fun snap(t: Long): Long = boundaries.minByOrNull { abs(it - t) }?.takeIf { abs(it - t) <= 40 } ?: t
-        return ir.overlays.sortedBy { it.timelineStartMs }.mapNotNull { ov ->
+        return ir.overlays.filter { !it.isLayer }.sortedBy { it.timelineStartMs }.mapNotNull { ov ->
             val path = media.overlayPaths[ov.id]
                 ?: throw EditIrException("MISSING_MEDIA", "No local file supplied for overlay '${ov.id}' (download/resolve it before rendering, or remove it)")
             if (ov.isImage) {
@@ -301,6 +320,15 @@ class EditIrRenderer(
         fun mainItem(clip: IrClip, index: Int, startMs: Double, endMs: Double, removeAudio: Boolean, removeVideo: Boolean): EditedMediaItem {
             val path = assetPath(clip.assetId)
             val p = probe(path)
+            if (p.isImage) {
+                // A still (photo clip / freeze frame) is held for its part of the timeline with the clip's look.
+                return EditedMediaItem.Builder(
+                    MediaItem.Builder().setUri(Uri.fromFile(File(path))).setImageDurationMs((endMs - startMs).roundToLong().coerceAtLeast(1L)).build(),
+                )
+                    .setFrameRate(ir.canvas.fps.roundToInt().coerceIn(1, 120))
+                    .setEffects(Effects(emptyList(), mainVideoEffects(clip)))
+                    .build()
+            }
             val srcStartUs = ((clip.sourceStartMs + (startMs - clip.timelineStartMs) * clip.speed) * 1000).roundToLong()
             val srcEndUs = ((clip.sourceStartMs + (endMs - clip.timelineStartMs) * clip.speed) * 1000).roundToLong()
             if (srcEndUs > p.durationMs * 1000 + 50_000) {
@@ -345,7 +373,7 @@ class EditIrRenderer(
                             .setEffects(
                                 Effects(
                                     emptyList(),
-                                    listOf(Presentation.createForWidthAndHeight(ir.canvas.width, ir.canvas.height, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)),
+                                    listOf(Presentation.createForWidthAndHeight(ir.canvas.width, ir.canvas.height, cutawayLayout(ov))),
                                 ),
                             )
                             .build()
@@ -357,7 +385,7 @@ class EditIrRenderer(
                         .setEffects(
                             Effects(
                                 emptyList(),
-                                listOf(Presentation.createForWidthAndHeight(ir.canvas.width, ir.canvas.height, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)),
+                                listOf(Presentation.createForWidthAndHeight(ir.canvas.width, ir.canvas.height, cutawayLayout(ov))),
                             ),
                         )
                         .build()
@@ -365,22 +393,27 @@ class EditIrRenderer(
             }
             sequences.add(EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_VIDEO)).addItems(videoItems).build())
             if (anyAudio) {
-                val audioItems = ir.clips.mapIndexed { i, c ->
-                    mainItem(c, i, c.timelineStartMs.toDouble(), c.timelineEndMs.toDouble(), removeAudio = false, removeVideo = true)
+                // Stills have no sound: their part of the voice lane is silence.
+                val audio = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
+                ir.clips.forEachIndexed { i, c ->
+                    if (probe(assetPath(c.assetId)).isImage) audio.addGap((c.timelineEndMs - c.timelineStartMs) * 1000)
+                    else audio.addItem(mainItem(c, i, c.timelineStartMs.toDouble(), c.timelineEndMs.toDouble(), removeAudio = false, removeVideo = true))
                 }
-                sequences.add(EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO)).addItems(audioItems).build())
+                sequences.add(audio.build())
             }
         }
 
         ir.audio.music.forEach { m -> sequences.add(musicSequence(m)) }
         ir.audio.sfx.forEach { s -> sfxSequence(s)?.let(sequences::add) }
+        ir.audio.voiceovers.forEach { v -> voiceoverSequence(v)?.let(sequences::add) }
 
         val compositionFx = mutableListOf<Effect>()
         // Cap the output at canvas.fps. Phone footage is often 60 fps or variable frame rate;
         // Media3 can drop frames but never duplicates them, so slower sources keep their rate.
         val videoPaths = ir.clips.map { assetPath(it.assetId) } +
-            overlays.filter { !it.first.isImage }.map { media.overlayPaths.getValue(it.first.id) }
-        val videoProbes = videoPaths.distinct().map { probe(it) }
+            overlays.filter { !it.first.isImage }.map { media.overlayPaths.getValue(it.first.id) } +
+            ir.overlays.filter { it.isLayer && !it.isImage }.mapNotNull { media.overlayPaths[it.id] }
+        val videoProbes = videoPaths.distinct().map { probe(it) }.filter { !it.isImage }
         if (videoProbes.any { it.frameRate == null || it.frameRate > ir.canvas.fps * 1.05 }) {
             compositionFx.add(FrameDropEffect.createDefaultFrameDropEffect(ir.canvas.fps.toFloat()))
         }
@@ -407,13 +440,138 @@ class EditIrRenderer(
         if (fx.any { it.type == "vignette" }) compositionFx.add(OverlayEffect(listOf(VignetteOverlay(fx))))
         if (ir.captions.isNotEmpty()) compositionFx.add(OverlayEffect(listOf(CaptionOverlay(ir.captions, ::typefaceFor))))
         watermarkOverlay()?.let { compositionFx.add(OverlayEffect(listOf(it))) }
+        // Export resolution: the finished frame (captions, logo and all) is scaled last, so the layout never changes.
+        if (outputSize != ir.canvas.width to ir.canvas.height) {
+            compositionFx.add(Presentation.createForWidthAndHeight(outputSize.first, outputSize.second, Presentation.LAYOUT_SCALE_TO_FIT))
+        }
 
-        return Composition.Builder(sequences)
+        // Layers (PiP / stickers / layered B-roll) are separate tracks composited above the main video.
+        val layerTracks = layerTracks()
+        val allSequences = if (layerTracks.isEmpty()) sequences else layerTrackSequences(layerTracks) + sequences + layerAudioSequences()
+        return Composition.Builder(allSequences)
             .setEffects(Effects(emptyList(), compositionFx))
+            .apply { if (layerTracks.isNotEmpty()) setVideoCompositorSettings(layerCompositor(layerTracks)) }
             // Output is 8-bit SDR H.264: tone-map only if an input is actually HDR.
             // On SDR sources, keeping HDR mode avoids unsupported OpenGL ES tone-mapping shader errors.
             .setHdrMode(hdrModeOverride ?: if (videoProbes.any { it.isHdr }) Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL else Composition.HDR_MODE_KEEP_HDR)
             .build()
+    }
+
+    private fun cutawayLayout(ov: IrOverlay): Int =
+        if (ov.fit == "contain") Presentation.LAYOUT_SCALE_TO_FIT else Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
+
+    /** Aspect (w/h) of a layer's media, as displayed (rotation applied). */
+    private fun layerAspect(ov: IrOverlay, path: String): Double {
+        if (ov.isImage) {
+            val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, o)
+            if (o.outWidth <= 0 || o.outHeight <= 0) throw EditIrException("MISSING_MEDIA", "Photo for layer '${ov.id}' cannot be read")
+            return o.outWidth.toDouble() / o.outHeight
+        }
+        val p = probe(path)
+        if (!p.hasVideo) throw EditIrException("MISSING_MEDIA", "Layer '${ov.id}' file has no video track")
+        return p.displayWidth.toDouble() / p.displayHeight.coerceAtLeast(1)
+    }
+
+    /**
+     * Layers grouped into tracks: overlapping layers go on separate tracks. Returned top-most first (input 0 of the
+     * compositor is drawn on top); later layers in the editIR are drawn above earlier ones, like a CapCut track stack.
+     */
+    private fun layerTracks(): List<List<IrOverlay>> {
+        val tracks = mutableListOf<MutableList<IrOverlay>>()
+        for (ov in ir.overlays.filter { it.isLayer }) {
+            if (min(ov.timelineEndMs, ir.durationMs) - ov.timelineStartMs < 1) continue
+            val t = tracks.firstOrNull { tr -> tr.none { it.timelineStartMs < ov.timelineEndMs && ov.timelineStartMs < it.timelineEndMs } }
+            if (t != null) t.add(ov) else tracks.add(mutableListOf(ov))
+        }
+        if (tracks.size > MAX_LAYER_TRACKS) {
+            throw EditIrException("INVALID_EDIT_IR", "At most $MAX_LAYER_TRACKS overlay layers can be on screen at the same time")
+        }
+        return tracks.map { tr -> tr.sortedBy { it.timelineStartMs } }.reversed()
+    }
+
+    /** One full-length video sequence per track: gap, layer, gap, … so every track spans the whole timeline. */
+    private fun layerTrackSequences(tracks: List<List<IrOverlay>>): List<EditedMediaItemSequence> = tracks.map { track ->
+        val b = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_VIDEO))
+        var cursorMs = 0L
+        for (ov in track) {
+            val path = media.overlayPaths[ov.id]
+                ?: throw EditIrException("MISSING_MEDIA", "No local file supplied for layer '${ov.id}' (download/resolve it before rendering, or remove it)")
+            val start = ov.timelineStartMs.coerceIn(0L, ir.durationMs)
+            var end = min(ov.timelineEndMs, ir.durationMs)
+            if (start > cursorMs) b.addGap((start - cursorMs) * 1000)
+            val (bw, bh) = LayerMotion.baseSize(ir.canvas.width, ir.canvas.height, layerAspect(ov, path))
+            val presentation = Presentation.createForWidthAndHeight(bw, bh, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
+            val item = if (ov.isImage) {
+                EditedMediaItem.Builder(MediaItem.Builder().setUri(Uri.fromFile(File(path))).setImageDurationMs((end - start).coerceAtLeast(1L)).build())
+                    .setFrameRate(ir.canvas.fps.roundToInt().coerceIn(1, 120))
+                    .setEffects(Effects(emptyList(), listOf(presentation)))
+                    .build()
+            } else {
+                val available = probe(path).durationMs - ov.sourceStartMs
+                if (available <= 0) throw EditIrException("MISSING_MEDIA", "Layer '${ov.id}' sourceStartMs is beyond the file duration")
+                if (start + available < end) {
+                    end = start + available
+                    warnings.add("layer ${ov.id}: source is ${available}ms, shorter than its slot; it ends early")
+                }
+                EditedMediaItem.Builder(clippedItem(path, ov.sourceStartMs * 1000, (ov.sourceStartMs + (end - start)) * 1000))
+                    .setRemoveAudio(true)
+                    .setEffects(Effects(emptyList(), listOf(presentation)))
+                    .build()
+            }
+            b.addItem(item)
+            cursorMs = end
+        }
+        if (cursorMs < ir.durationMs) b.addGap((ir.durationMs - cursorMs) * 1000)
+        b.build()
+    }
+
+    /** Sound of layers that are not muted, each placed at its slot on its own audio sequence. */
+    private fun layerAudioSequences(): List<EditedMediaItemSequence> = ir.overlays
+        .filter { it.isLayer && !it.isImage && !it.muted }
+        .mapNotNull { ov ->
+            val path = media.overlayPaths[ov.id] ?: return@mapNotNull null
+            if (!probe(path).hasAudio) return@mapNotNull null
+            val start = ov.timelineStartMs.coerceIn(0L, ir.durationMs)
+            val end = min(min(ov.timelineEndMs, ir.durationMs), start + (probe(path).durationMs - ov.sourceStartMs))
+            if (end - start < 1) return@mapNotNull null
+            val b = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
+            if (start > 0) b.addGap(start * 1000)
+            b.addItem(
+                EditedMediaItem.Builder(clippedItem(path, ov.sourceStartMs * 1000, (ov.sourceStartMs + (end - start)) * 1000))
+                    .setRemoveVideo(true)
+                    .build(),
+            )
+            if (end < ir.durationMs) b.addGap((ir.durationMs - end) * 1000)
+            b.build()
+        }
+
+    /**
+     * Places each layer track per frame: position / scale / rotation / opacity from the layer and its keyframes
+     * (`LayerMotion`, mirrored by the phone preview). A track with no layer active at that moment is invisible.
+     */
+    private fun layerCompositor(tracks: List<List<IrOverlay>>): VideoCompositorSettings {
+        val hidden = StaticOverlaySettings.Builder().setAlphaScale(0f).build()
+        val plain = StaticOverlaySettings.Builder().build()
+        return object : VideoCompositorSettings {
+            override fun getOutputSize(inputSizes: List<Size>): Size = Size(ir.canvas.width, ir.canvas.height)
+
+            override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): OverlaySettings {
+                if (inputId >= tracks.size) return plain // the main video (and anything below the layers)
+                val tMs = presentationTimeUs / 1000.0
+                val ov = tracks[inputId].firstOrNull { tMs >= it.timelineStartMs && tMs < it.timelineEndMs } ?: return hidden
+                val pose = LayerMotion.at(ov.layer!!, tMs - ov.timelineStartMs, ov.opacity)
+                return StaticOverlaySettings.Builder()
+                    .setScale(pose.scale.toFloat(), pose.scale.toFloat())
+                    .setOverlayFrameAnchor(0f, 0f)
+                    // Canvas fractions (y down) to normalised device coordinates (y up).
+                    .setBackgroundFrameAnchor((pose.x * 2 - 1).toFloat(), (1 - pose.y * 2).toFloat())
+                    // Layer rotation is clockwise; GL rotation is counter-clockwise.
+                    .setRotationDegrees((-pose.rotation).toFloat())
+                    .setAlphaScale(pose.opacity.toFloat())
+                    .build()
+            }
+        }
     }
 
     /**
@@ -436,7 +594,7 @@ class EditIrRenderer(
         while (opts.outWidth / (sample * 2) >= targetW * 2) sample *= 2
         val bitmap = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
             ?: throw EditIrException("MISSING_MEDIA", "Watermark file could not be decoded: $path")
-        return WatermarkOverlay(bitmap, wm.position, wm.opacityPct, wm.widthFraction)
+        return WatermarkOverlay(bitmap, wm.position, wm.opacityPct, wm.widthFraction, wm.x, wm.y, wm.width, wm.height)
     }
 
     /** A sound effect as its own audio sequence: gap until its start, the clip at a fixed gain, then silence. */
@@ -465,6 +623,32 @@ class EditIrRenderer(
         return b.build()
     }
 
+    /** Voiceover at its slot with its volume and fades (same gain model as clip audio). */
+    private fun voiceoverSequence(v: IrVoiceover): EditedMediaItemSequence? {
+        val path = media.assetPaths[v.assetId]
+            ?: throw EditIrException("MISSING_MEDIA", "The recording for voiceover '${v.id}' is not on this device (record it again, or remove it)")
+        val p = probe(path)
+        if (!p.hasAudio) throw EditIrException("MISSING_MEDIA", "Voiceover '${v.id}' file has no audio")
+        if (v.timelineStartMs >= ir.durationMs) {
+            synchronized(warnings) { warnings.add("voiceover ${v.id} starts after the video ends and was skipped") }
+            return null
+        }
+        val len = minOf(v.durationMs, p.durationMs - v.sourceStartMs, ir.durationMs - v.timelineStartMs)
+        if (len <= 0) return null
+        val model = ClipAudioGainModel(len.toDouble(), v.volumeDb, v.fadeInMs.toDouble(), v.fadeOutMs.toDouble())
+        val b = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
+        if (v.timelineStartMs > 0) b.addGap(v.timelineStartMs * 1000)
+        b.addItem(
+            EditedMediaItem.Builder(clippedItem(path, v.sourceStartMs * 1000, (v.sourceStartMs + len) * 1000))
+                .setRemoveVideo(true)
+                .setEffects(Effects(listOf(EnvelopeGainProcessor { tUs -> model.gainAtItemMs(tUs / 1000.0) }), emptyList()))
+                .build(),
+        )
+        val tail = ir.durationMs - v.timelineStartMs - len
+        if (tail > 0) b.addGap(tail * 1000)
+        return b.build()
+    }
+
     private fun musicSequence(m: IrMusic): EditedMediaItemSequence {
         val path = media.musicPaths[m.id]
             ?: throw EditIrException("MISSING_MEDIA", "No local file supplied for music '${m.id}' (resolve stock_query/url before rendering, or remove it)")
@@ -472,7 +656,7 @@ class EditIrRenderer(
         if (!p.hasAudio) throw EditIrException("MISSING_MEDIA", "Music '${m.id}' file has no audio track")
         val end = min(m.timelineEndMs, ir.durationMs)
         if (end <= m.timelineStartMs) throw EditIrException("INVALID_EDIT_IR", "music ${m.id} starts after the timeline ends")
-        val model = MusicGainModel(m, ir.audio.speechRangesMs)
+        val model = MusicGainModel(m, ir.audio.duckRangesMs)
         val b = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
         if (m.timelineStartMs > 0) b.addGap(m.timelineStartMs * 1000)
         var tl = m.timelineStartMs
@@ -534,7 +718,7 @@ class EditIrRenderer(
         } catch (e: IllegalArgumentException) {
             return // Not a statable path; let the export report the real I/O error.
         }
-        val videoBps = ir.canvas.width.toDouble() * ir.canvas.height * ir.canvas.fps * 0.07 * 2
+        val videoBps = videoBitrate.toDouble()
         val audioBps = 192_000.0
         val needed = (ir.durationMs / 1000.0 * (videoBps + audioBps) / 8 * 1.5).toLong() + STORAGE_HEADROOM_BYTES
         if (available < needed) {
@@ -553,9 +737,16 @@ class EditIrRenderer(
             fail("IO_ERROR", "Cannot overwrite $outputPath", null)
             return
         }
-        val hasAudio = ir.clips.any { probe(assetPath(it.assetId)).hasAudio } || ir.audio.music.isNotEmpty() || ir.audio.sfx.isNotEmpty()
+        val hasAudio = ir.clips.any { probe(assetPath(it.assetId)).hasAudio } || ir.audio.music.isNotEmpty() || ir.audio.sfx.isNotEmpty() || ir.audio.voiceovers.isNotEmpty()
         val builder = Transformer.Builder(context)
             .setVideoMimeType(MimeTypes.VIDEO_H264)
+        if (options.quality == "high") {
+            builder.setEncoderFactory(
+                DefaultEncoderFactory.Builder(context)
+                    .setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(videoBitrate).build())
+                    .build(),
+            )
+        }
         if (hasAudio) {
             builder.setAudioMimeType(MimeTypes.AUDIO_AAC)
         }

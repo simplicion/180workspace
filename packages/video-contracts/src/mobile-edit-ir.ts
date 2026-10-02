@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { EditIR, VideoClip, CaptionSegment, VIDEO_EFFECT_TYPES } from "./edit-ir.schema";
+import {
+  EditIR, VideoClip, CaptionSegment, VIDEO_EFFECT_TYPES,
+  TEXT_ENTER_TYPES, TEXT_EXIT_TYPES, TEXT_LOOP_TYPES, TextEnterSchema, TextExitSchema, TextLoopSchema, OverlayLayerSchema,
+} from "./edit-ir.schema";
 import { RationalTimeMath } from "./time";
 import { ORIGINAL_AUDIO_TRACK_ID } from "./creative-plan.schema";
 import { MobileWatermarkSchema } from "./director-context";
@@ -26,6 +29,11 @@ export const MobileFilterSchema = z.object({
   brightness: z.number(),
   contrast: z.number(),
   saturation: z.number(),
+  /** Added 2026-10 (editor E2.1); absent = neutral. Exposure in stops; temperature/tint -1..1; vignette 0..1. */
+  exposure: z.number().min(-2).max(2).optional(),
+  temperature: z.number().min(-1).max(1).optional(),
+  tint: z.number().min(-1).max(1).optional(),
+  vignette: z.number().min(0).max(1).optional(),
 });
 
 /** Transitions the Android renderer draws natively (added 2026-09: dips, zooms, glitch); others map to CROSSFADE. */
@@ -53,6 +61,9 @@ export const MobileClipSchema = z.object({
   rotationDeg: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).optional(),
   /** Horizontal mirror, applied with the rotation before `crop`. Absent = false (omitted on output when false). */
   flipH: z.boolean().optional(),
+  /** Fade of the clip's own sound at its start / end (added 2026-10, editor E2.2). Absent = 0. */
+  audioFadeInMs: ms.optional(),
+  audioFadeOutMs: ms.optional(),
 });
 
 export const MobileMediaSourceSchema = z.discriminatedUnion("kind", [
@@ -68,11 +79,13 @@ export const MobileOverlaySchema = z.object({
   timelineEndMs: ms,
   sourceStartMs: ms,
   source: MobileMediaSourceSchema,
-  fit: z.literal("cover"),
+  fit: z.enum(["cover", "contain"]),
   opacity: z.number().min(0).max(1),
   muted: z.boolean(),
   /** "image" = still photo held for the slot (added 2026-09). Absent = video. */
   mediaType: z.enum(["video", "image"]).optional(),
+  /** Layer placement (added 2026-10). Absent = full-frame cutaway (the original behaviour). */
+  layer: OverlayLayerSchema.optional(),
 });
 
 /** Timeline effect (optional `effects`, added 2026-09); ids from VIDEO_EFFECT_TYPES. Older clients ignore it. */
@@ -95,13 +108,11 @@ export const MobileCaptionWordSchema = z.object({
 });
 
 /** Text motion (CapCut-style in / out / loop). Evaluated identically by the phone preview and the Android renderer. */
-export const TEXT_ENTER_TYPES = ["fade", "slide_up", "slide_down", "slide_left", "slide_right", "pop", "typewriter"] as const;
-export const TEXT_EXIT_TYPES = ["fade", "slide_up", "slide_down", "slide_left", "slide_right", "pop"] as const;
-export const TEXT_LOOP_TYPES = ["pulse", "wiggle", "bounce", "float"] as const;
-const motionMs = z.number().int().min(50).max(5000);
-export const MobileTextEnterSchema = z.object({ type: z.enum(TEXT_ENTER_TYPES), durationMs: motionMs });
-export const MobileTextExitSchema = z.object({ type: z.enum(TEXT_EXIT_TYPES), durationMs: motionMs });
-export const MobileTextLoopSchema = z.object({ type: z.enum(TEXT_LOOP_TYPES), periodMs: z.number().int().min(200).max(10000) });
+export { TEXT_ENTER_TYPES, TEXT_EXIT_TYPES, TEXT_LOOP_TYPES };
+export const MobileTextEnterSchema = TextEnterSchema;
+export const MobileTextExitSchema = TextExitSchema;
+export const MobileTextLoopSchema = TextLoopSchema;
+export const MobileOverlayLayerSchema = OverlayLayerSchema;
 
 export const MobileCaptionStyleSchema = z.object({
   preset: z.string(),
@@ -181,6 +192,22 @@ export const MobileSfxSchema = z.object({
 });
 export type MobileSfx = z.infer<typeof MobileSfxSchema>;
 
+/**
+ * Voiceover recorded on the phone (optional `audio.voiceovers`, added 2026-10, editor E2.4). The file stays on the
+ * device: `source.assetId` is resolved through the draft's local asset paths at export. Music ducks under it.
+ */
+export const MobileVoiceoverSchema = z.object({
+  id: z.string().min(1),
+  timelineStartMs: ms,
+  durationMs: ms,
+  sourceStartMs: ms,
+  source: z.object({ kind: z.literal("asset"), assetId: z.string().min(1) }),
+  volumeDb: z.number(),
+  fadeInMs: ms.optional(),
+  fadeOutMs: ms.optional(),
+});
+export type MobileVoiceover = z.infer<typeof MobileVoiceoverSchema>;
+
 export const MobileEditIRSchema = z.object({
   schemaVersion: z.literal("mobile-editir/1"),
   projectId: z.string().min(1),
@@ -207,6 +234,8 @@ export const MobileEditIRSchema = z.object({
     speechRangesMs: z.array(z.tuple([ms, ms])),
     /** Optional SFX lane; omitted when empty. */
     sfx: z.array(MobileSfxSchema).max(40).optional(),
+    /** Optional voiceover lane; omitted when empty. */
+    voiceovers: z.array(MobileVoiceoverSchema).max(20).optional(),
   }),
   /**
    * Optional brand logo drawn over the whole output (above B-roll and captions, not zoomed).
@@ -519,7 +548,10 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
     }
     const hasFilter =
       (t.filterPreset && t.filterPreset !== "NORMAL") ||
-      (t.brightness ?? 1) !== 1 || (t.contrast ?? 1) !== 1 || (t.saturation ?? 1) !== 1;
+      (t.brightness ?? 1) !== 1 || (t.contrast ?? 1) !== 1 || (t.saturation ?? 1) !== 1 ||
+      !!t.exposure || !!t.temperature || !!t.tint || !!t.vignette;
+    // EditIR keeps temperature / tint / vignette in -100..100 (0..100); the phone uses -1..1 (0..1).
+    const unit = (v: number | undefined, lo: number, hi: number) => Math.min(hi, Math.max(lo, (v ?? 0) / 100));
     let transitionIn: MobileClip["transitionIn"] = null;
     if (i > 0 && c.transitionIn) {
       const t = c.transitionIn.type;
@@ -538,11 +570,22 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
       volumeDb: c.volumeDb ?? 0,
       crop,
       filter: hasFilter
-        ? { preset: t.filterPreset || "NORMAL", brightness: t.brightness ?? 1, contrast: t.contrast ?? 1, saturation: t.saturation ?? 1 }
+        ? {
+            preset: t.filterPreset || "NORMAL",
+            brightness: t.brightness ?? 1,
+            contrast: t.contrast ?? 1,
+            saturation: t.saturation ?? 1,
+            ...(t.exposure ? { exposure: Math.min(2, Math.max(-2, t.exposure)) } : {}),
+            ...(t.temperature ? { temperature: unit(t.temperature, -1, 1) } : {}),
+            ...(t.tint ? { tint: unit(t.tint, -1, 1) } : {}),
+            ...(t.vignette ? { vignette: unit(t.vignette, 0, 1) } : {}),
+          }
         : null,
       transitionIn,
       ...(rotationDeg !== 0 ? { rotationDeg } : {}),
       ...(t.flipH ? { flipH: true } : {}),
+      ...(c.audioFadeInMs ? { audioFadeInMs: c.audioFadeInMs } : {}),
+      ...(c.audioFadeOutMs ? { audioFadeOutMs: c.audioFadeOutMs } : {}),
     };
   });
   const durationMs = cursor;
@@ -569,9 +612,10 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
       }
       overlays.push({
         id: c.id, kind: "broll", timelineStartMs: start, timelineEndMs: end,
-        sourceStartMs: toMs(sec(c.sourceRange.start)), source, fit: "cover",
-        opacity: c.transform?.opacity ?? 1, muted: true,
+        sourceStartMs: toMs(sec(c.sourceRange.start)), source, fit: c.fit ?? "cover",
+        opacity: c.transform?.opacity ?? 1, muted: (c.volumeDb ?? -60) <= -60,
         ...(c.mediaType === "image" ? { mediaType: "image" as const } : {}),
+        ...(c.layer ? { layer: c.layer } : {}),
       });
     }
   }
@@ -618,6 +662,10 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
           positionX: clamp01(cap.style.position?.x ?? 0.5),
           positionY: clamp01(cap.style.position?.y ?? 0.8),
           maxWidthFraction: cap.style.maxWidthFraction && cap.style.maxWidthFraction > 0 && cap.style.maxWidthFraction <= 1 ? cap.style.maxWidthFraction : 0.86,
+          ...(cap.style.glow ? { glow: true } : {}),
+          ...(cap.style.enter ? { enter: cap.style.enter } : {}),
+          ...(cap.style.exit ? { exit: cap.style.exit } : {}),
+          ...(cap.style.loop ? { loop: cap.style.loop } : {}),
         },
       } as MobileEditIR["captions"][number];
     })
@@ -657,6 +705,7 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
 
   const music: MobileEditIR["audio"]["music"] = [];
   const sfx: MobileSfx[] = [];
+  const voiceovers: MobileVoiceover[] = [];
   for (const t of editIR.tracks.audioTracks) {
     if (t.type === "BGM") {
       const c = t.clips[0];
@@ -697,6 +746,25 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
         });
       }
       if (dropped) warnings.push(`${dropped} SFX clip(s) without an HTTPS file were dropped on mobile`);
+    } else if (t.type === "VOICEOVER") {
+      for (const c of t.clips) {
+        const assetId = c.sourcePath.startsWith("asset://") ? c.sourcePath.slice("asset://".length) : "";
+        const startMs = toMs(sec(c.timelineRange.start));
+        if (!assetId || startMs >= durationMs) {
+          warnings.push(`voiceover ${c.id} has no recording on this device or starts after the end, so it was dropped`);
+          continue;
+        }
+        voiceovers.push({
+          id: c.id,
+          timelineStartMs: clampT(startMs),
+          durationMs: toMs(sec(c.timelineRange.duration)),
+          sourceStartMs: toMs(sec(c.sourceRange.start)),
+          source: { kind: "asset", assetId },
+          volumeDb: (t.volumeDb ?? 0) + (c.volumeDb ?? 0),
+          ...(c.fadeInDuration ? { fadeInMs: toMs(sec(c.fadeInDuration)) } : {}),
+          ...(c.fadeOutDuration ? { fadeOutMs: toMs(sec(c.fadeOutDuration)) } : {}),
+        });
+      }
     } else if (t.clips.length > 0) {
       warnings.push(`${t.type} audio track (${t.clips.length} clip(s)) is not supported on mobile and was dropped`);
     }
@@ -722,7 +790,7 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
     captions,
     zooms,
     ...(effects.length > 0 ? { effects } : {}),
-    audio: { originalTrack: { volumeDb: originalVolumeDb }, music, speechRangesMs: speech, ...(sfx.length ? { sfx: sfx.sort((a, b) => a.timelineStartMs - b.timelineStartMs) } : {}) },
+    audio: { originalTrack: { volumeDb: originalVolumeDb }, music, speechRangesMs: speech, ...(sfx.length ? { sfx: sfx.sort((a, b) => a.timelineStartMs - b.timelineStartMs) } : {}), ...(voiceovers.length ? { voiceovers: voiceovers.sort((a, b) => a.timelineStartMs - b.timelineStartMs) } : {}) },
   };
   return { editIR: MobileEditIRSchema.parse(mobile), warnings: Array.from(new Set(warnings)) };
 }
@@ -777,12 +845,25 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
               ...(c.flipH ? { flipH: true } : {}),
               ...(c.crop ? { crop: rectToInsets(c.crop) } : explicitFit(c) ? { letterbox: true } : {}),
               opacity: 1,
-              ...(c.filter ? { filterPreset: c.filter.preset, brightness: c.filter.brightness, contrast: c.filter.contrast, saturation: c.filter.saturation } : {}),
+              ...(c.filter
+                ? {
+                    filterPreset: c.filter.preset,
+                    brightness: c.filter.brightness,
+                    contrast: c.filter.contrast,
+                    saturation: c.filter.saturation,
+                    ...(c.filter.exposure ? { exposure: c.filter.exposure } : {}),
+                    ...(c.filter.temperature ? { temperature: c.filter.temperature * 100 } : {}),
+                    ...(c.filter.tint ? { tint: c.filter.tint * 100 } : {}),
+                    ...(c.filter.vignette ? { vignette: c.filter.vignette * 100 } : {}),
+                  }
+                : {}),
             },
             ...(c.transitionIn ? { transitionIn: { type: c.transitionIn.type, duration: S(c.transitionIn.durationMs) } } : {}),
             speedMultiplier: c.speed,
             volumeDb: c.volumeDb,
             effects: [],
+            ...(c.audioFadeInMs ? { audioFadeInMs: c.audioFadeInMs } : {}),
+            ...(c.audioFadeOutMs ? { audioFadeOutMs: c.audioFadeOutMs } : {}),
           })),
         },
         ...(m.overlays.length > 0
@@ -798,9 +879,11 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
                 timelineRange: { start: S(o.timelineStartMs), duration: S(o.timelineEndMs - o.timelineStartMs) },
                 transform: { scale: { start: 1, end: 1, easing: "spring" as const }, position: { x: 0, y: 0 }, anchor: { x: 0.5, y: 0.5 }, rotationDeg: 0, opacity: o.opacity },
                 speedMultiplier: 1,
-                volumeDb: -60,
+                volumeDb: o.muted ? -60 : 0,
                 effects: [],
                 ...(o.mediaType === "image" ? { mediaType: "image" as const } : {}),
+                ...(o.layer ? { layer: o.layer } : {}),
+                ...(o.fit && o.fit !== "cover" ? { fit: o.fit } : {}),
               })),
             }]
           : []),
@@ -843,6 +926,10 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
           uppercase: c.style.uppercase,
           animation: c.style.animation,
           fontWeight: c.style.fontWeight,
+          ...(c.style.glow ? { glow: true } : {}),
+          ...(c.style.enter ? { enter: c.style.enter } : {}),
+          ...(c.style.exit ? { exit: c.style.exit } : {}),
+          ...(c.style.loop ? { loop: c.style.loop } : {}),
         },
       })),
       audioTracks: [
@@ -881,6 +968,23 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
               sourceRange: { start: S(0), duration: S(fx.durationMs ?? 1000) },
               timelineRange: { start: S(fx.timelineStartMs), duration: S(fx.durationMs ?? 1000) },
               volumeDb: fx.volumeDb,
+            })),
+          }]
+          : []),
+        ...(m.audio.voiceovers?.length
+          ? [{
+            id: "voiceover_lane",
+            type: "VOICEOVER" as const,
+            volumeDb: 0,
+            duckWithSpeech: false,
+            clips: m.audio.voiceovers.map((v) => ({
+              id: v.id,
+              sourcePath: `asset://${v.source.assetId}`,
+              sourceRange: { start: S(v.sourceStartMs), duration: S(v.durationMs) },
+              timelineRange: { start: S(v.timelineStartMs), duration: S(v.durationMs) },
+              volumeDb: v.volumeDb,
+              ...(v.fadeInMs ? { fadeInDuration: S(v.fadeInMs) } : {}),
+              ...(v.fadeOutMs ? { fadeOutDuration: S(v.fadeOutMs) } : {}),
             })),
           }]
           : []),

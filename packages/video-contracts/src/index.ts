@@ -29,3 +29,4 @@ export * from "./director-context";
 export * from "./director-constraints";
 export * from "./untrusted-content";
 export * from "./director-critic";
+export * from "./edit-style";
