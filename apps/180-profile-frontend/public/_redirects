@@ -1,8 +1,11 @@
-# Cloudflare Pages SPA Rewrites for 180 Profile / 180 Pay / 180 Auth routes
+# Specific exact paths mapping directly to static entrypoints
 /checkout/manage-subscription/*.txt  /checkout/manage-subscription/default.txt  200
-/checkout/manage-subscription/*      /checkout/manage-subscription/default      200
+/checkout/manage-subscription/default /checkout/manage-subscription/default.html 200
+/checkout/manage-subscription/*      /checkout/manage-subscription/default.html 200
 /checkout/*.txt                      /checkout/default.txt                      200
-/checkout/*                          /checkout/default                          200
+/checkout/default                    /checkout/default.html                     200
+/checkout/default/                   /checkout/default.html                     200
+/checkout/*                          /checkout/default.html                     200
 
 # 180 Auth SPA Routes
 /auth/login                          /auth/login                                200

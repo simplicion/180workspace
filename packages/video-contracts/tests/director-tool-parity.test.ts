@@ -131,3 +131,13 @@ test("addSticker places an emoji image layer the phone draws itself; non-emoji i
   assert.deepEqual(toMobileEditIR({ editIR: editIRFromMobile(mobile), sources, primaryAssetId: "primary" }).editIR.overlays[0].source, o.source);
   assert.match(validateDirectorToolCalls([{ name: "addSticker", args: { emoji: "<script>", timelineStartSec: 1 } }]).errors.join(), /emoji/);
 });
+
+test("insertBroll greenScreen keys out the background as a full-frame layer, and the key round-trips", () => {
+  const { mobile } = run([{ name: "insertBroll", args: { sourceUrl: "https://cdn.test/gs.mp4", timelineStartSec: 1, durationSec: 3, greenScreen: "green" } }]);
+  const o = mobile.overlays[0];
+  assert.deepEqual(o.chromaKey, { color: "#00FF00", similarity: 0.3, smoothness: 0.1, spill: 0.5 });
+  assert.equal(o.layer?.mode, "overlay");
+  assert.equal(o.layer?.scale, 1);
+  const back = toMobileEditIR({ editIR: editIRFromMobile(mobile), sources, primaryAssetId: "primary" }).editIR.overlays[0];
+  assert.deepEqual(back.chromaKey, o.chromaKey);
+});

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/native_engine/edit_ir.dart';
 import '../../core/theme/app_theme.dart';
+import 'chroma_keyed.dart';
 import 'studio_controller.dart';
 import 'timeline_ops.dart';
 
@@ -63,10 +64,14 @@ class _LayerPlacementState extends State<LayerPlacement> {
             onPanStart: (_) => setState(() => _dragging = true),
             onPanUpdate: (d) {
               if (canvas.width <= 0 || canvas.height <= 0) return;
-              // Dragging moves the layer's base position; keyframed positions keep their offsets.
-              final nx = (layer.x + d.delta.dx / canvas.width).clamp(-0.4, 1.4);
-              final ny = (layer.y + d.delta.dy / canvas.height).clamp(-0.4, 1.4);
-              widget.controller.applyWithoutHistory((ir) => TimelineOps.updateOverlay(ir, o.id, layer: layer.copyWith(x: nx, y: ny)));
+              final nx = (pose.x + d.delta.dx / canvas.width).clamp(-0.4, 1.4);
+              final ny = (pose.y + d.delta.dy / canvas.height).clamp(-0.4, 1.4);
+              // A layer whose position is keyframed is moved by editing the keyframe at the playhead (CapCut);
+              // otherwise the drag moves its base position.
+              final keyed = layer.keyframes.any((k) => k.x != null || k.y != null);
+              widget.controller.applyWithoutHistory((ir) => keyed
+                  ? TimelineOps.setLayerKeyframe(ir, o.id, widget.playheadMs, x: nx, y: ny)
+                  : TimelineOps.updateOverlay(ir, o.id, layer: layer.copyWith(x: nx, y: ny)));
             },
             onPanEnd: (_) {
               setState(() => _dragging = false);
@@ -80,7 +85,7 @@ class _LayerPlacementState extends State<LayerPlacement> {
                 child: DecoratedBox(
                   position: DecorationPosition.foreground,
                   decoration: BoxDecoration(border: _dragging ? Border.all(color: AppTheme.primary, width: 2) : null),
-                  child: ClipRect(child: widget.child),
+                  child: ClipRect(child: widget.overlay.chromaKey == null ? widget.child : ChromaKeyed(keyed: widget.overlay.chromaKey!, child: widget.child)),
                 ),
               ),
             ),

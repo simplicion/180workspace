@@ -146,6 +146,8 @@ export const InsertBrollOpSchema = z.object({
   animationIn: z.enum(LAYER_ENTRANCES).optional(),
   /** Keep the overlay clip's own sound (default muted). */
   keepAudio: z.boolean().optional(),
+  /** Footage shot on a green / blue screen: key the background out so the main video shows behind it. */
+  greenScreen: z.enum(["green", "blue"]).optional(),
   reason: z.string().optional(),
 });
 

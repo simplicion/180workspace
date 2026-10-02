@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   EditIR, VideoClip, CaptionSegment, VIDEO_EFFECT_TYPES,
-  TEXT_ENTER_TYPES, TEXT_EXIT_TYPES, TEXT_LOOP_TYPES, TextEnterSchema, TextExitSchema, TextLoopSchema, OverlayLayerSchema,
+  TEXT_ENTER_TYPES, TEXT_EXIT_TYPES, TEXT_LOOP_TYPES, TextEnterSchema, TextExitSchema, TextLoopSchema, OverlayLayerSchema, ChromaKeySchema,
 } from "./edit-ir.schema";
 import { RationalTimeMath } from "./time";
 import { ORIGINAL_AUDIO_TRACK_ID } from "./creative-plan.schema";
@@ -86,6 +86,8 @@ export const MobileOverlaySchema = z.object({
   mediaType: z.enum(["video", "image"]).optional(),
   /** Layer placement (added 2026-10). Absent = full-frame cutaway (the original behaviour). */
   layer: OverlayLayerSchema.optional(),
+  /** Green / blue screen key on a layer (added 2026-10, editor E2.3). */
+  chromaKey: ChromaKeySchema.optional(),
 });
 
 /** Timeline effect (optional `effects`, added 2026-09); ids from VIDEO_EFFECT_TYPES. Older clients ignore it. */
@@ -616,6 +618,7 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
         opacity: c.transform?.opacity ?? 1, muted: (c.volumeDb ?? -60) <= -60,
         ...(c.mediaType === "image" ? { mediaType: "image" as const } : {}),
         ...(c.layer ? { layer: c.layer } : {}),
+        ...(c.chromaKey ? { chromaKey: c.chromaKey } : {}),
       });
     }
   }
@@ -883,6 +886,7 @@ export function editIRFromMobile(m: MobileEditIR, title = "Mobile project"): Edi
                 effects: [],
                 ...(o.mediaType === "image" ? { mediaType: "image" as const } : {}),
                 ...(o.layer ? { layer: o.layer } : {}),
+                ...(o.chromaKey ? { chromaKey: o.chromaKey } : {}),
                 ...(o.fit && o.fit !== "cover" ? { fit: o.fit } : {}),
               })),
             }]

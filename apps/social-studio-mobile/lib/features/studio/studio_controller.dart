@@ -525,6 +525,9 @@ class StudioController extends ChangeNotifier {
 
   // ── Voiceover ──────────────────────────────────────────────────────────────
 
+  /// Set by the editor screen: starts / stops the preview (voiceover records while the video plays, like CapCut).
+  void Function(bool play)? onPreviewPlayback;
+
   /// Timeline position the current recording started at; null when not recording.
   int? voiceoverStartMs;
   bool get recordingVoiceover => voiceoverStartMs != null;
@@ -537,9 +540,10 @@ class StudioController extends ChangeNotifier {
       throw MediaEngineException('PERMISSION_DENIED', 'Allow microphone access to record a voiceover (Settings > Apps > permissions).');
     }
     final path = await MediaEngineService.getVoiceoverPath('vo_${DateTime.now().millisecondsSinceEpoch}.m4a');
-    await MediaEngineService.startVoiceRecording(path);
     voiceoverStartMs = playheadMs;
+    await MediaEngineService.startVoiceRecording(path);
     _notify();
+    onPreviewPlayback?.call(true);
   }
 
   /// Stops and places the recording where it started. The file is kept with the draft.
@@ -547,6 +551,7 @@ class StudioController extends ChangeNotifier {
     final at = voiceoverStartMs;
     if (at == null) return;
     voiceoverStartMs = null;
+    onPreviewPlayback?.call(false);
     _notify();
     final r = await MediaEngineService.stopVoiceRecording();
     final assetId = 'vo_asset_${DateTime.now().millisecondsSinceEpoch}';
@@ -565,6 +570,7 @@ class StudioController extends ChangeNotifier {
   Future<void> cancelVoiceover() async {
     if (!recordingVoiceover) return;
     voiceoverStartMs = null;
+    onPreviewPlayback?.call(false);
     _notify();
     await MediaEngineService.cancelVoiceRecording();
   }

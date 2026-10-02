@@ -2,6 +2,7 @@ package com.workspace180.socialmanager.mediaengine
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.media.ExifInterface
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
@@ -172,10 +173,8 @@ class EditIrRenderer(
         val f = File(path)
         if (!f.isFile) throw EditIrException("MISSING_MEDIA", "File not found: $path")
         if (f.extension.lowercase() in IMAGE_EXTENSIONS) {
-            val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(path, o)
-            if (o.outWidth <= 0 || o.outHeight <= 0) throw EditIrException("MISSING_MEDIA", "Photo cannot be read: ${f.name}")
-            return@getOrPut Probe(Long.MAX_VALUE / 4_000, hasAudio = false, hasVideo = true, o.outWidth, o.outHeight, frameRate = null, isHdr = false, isImage = true)
+            val (w, h) = imageDisplaySize(path) ?: throw EditIrException("MISSING_MEDIA", "Photo cannot be read: ${f.name}")
+            return@getOrPut Probe(Long.MAX_VALUE / 4_000, hasAudio = false, hasVideo = true, w, h, frameRate = null, isHdr = false, isImage = true)
         }
         val info = MediaTools.getVideoInfo(path)
         Probe(
@@ -457,16 +456,34 @@ class EditIrRenderer(
             .build()
     }
 
+    /**
+     * Photo size as displayed: Media3 decodes photos upright using their EXIF orientation, so a portrait phone photo
+     * stored sideways must be measured with width and height swapped (the preview's Image.file does the same).
+     */
+    private fun imageDisplaySize(path: String): Pair<Int, Int>? {
+        val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, o)
+        if (o.outWidth <= 0 || o.outHeight <= 0) return null
+        val orientation = try {
+            ExifInterface(path).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        } catch (_: Exception) {
+            ExifInterface.ORIENTATION_NORMAL
+        }
+        val quarterTurn = orientation in setOf(
+            ExifInterface.ORIENTATION_TRANSPOSE, ExifInterface.ORIENTATION_ROTATE_90,
+            ExifInterface.ORIENTATION_TRANSVERSE, ExifInterface.ORIENTATION_ROTATE_270,
+        )
+        return if (quarterTurn) o.outHeight to o.outWidth else o.outWidth to o.outHeight
+    }
+
     private fun cutawayLayout(ov: IrOverlay): Int =
         if (ov.fit == "contain") Presentation.LAYOUT_SCALE_TO_FIT else Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
 
     /** Aspect (w/h) of a layer's media, as displayed (rotation applied). */
     private fun layerAspect(ov: IrOverlay, path: String): Double {
         if (ov.isImage) {
-            val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(path, o)
-            if (o.outWidth <= 0 || o.outHeight <= 0) throw EditIrException("MISSING_MEDIA", "Photo for layer '${ov.id}' cannot be read")
-            return o.outWidth.toDouble() / o.outHeight
+            val (w, h) = imageDisplaySize(path) ?: throw EditIrException("MISSING_MEDIA", "Photo for layer '${ov.id}' cannot be read")
+            return w.toDouble() / h
         }
         val p = probe(path)
         if (!p.hasVideo) throw EditIrException("MISSING_MEDIA", "Layer '${ov.id}' file has no video track")
@@ -502,10 +519,12 @@ class EditIrRenderer(
             if (start > cursorMs) b.addGap((start - cursorMs) * 1000)
             val (bw, bh) = LayerMotion.baseSize(ir.canvas.width, ir.canvas.height, layerAspect(ov, path))
             val presentation = Presentation.createForWidthAndHeight(bw, bh, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
+            // Keying happens before scaling so the edge is computed at the source resolution.
+            val layerFx = listOfNotNull<Effect>(ov.chromaKey?.let { ChromaKeyEffect(it) }, presentation)
             val item = if (ov.isImage) {
                 EditedMediaItem.Builder(MediaItem.Builder().setUri(Uri.fromFile(File(path))).setImageDurationMs((end - start).coerceAtLeast(1L)).build())
                     .setFrameRate(ir.canvas.fps.roundToInt().coerceIn(1, 120))
-                    .setEffects(Effects(emptyList(), listOf(presentation)))
+                    .setEffects(Effects(emptyList(), layerFx))
                     .build()
             } else {
                 val available = probe(path).durationMs - ov.sourceStartMs
@@ -516,7 +535,7 @@ class EditIrRenderer(
                 }
                 EditedMediaItem.Builder(clippedItem(path, ov.sourceStartMs * 1000, (ov.sourceStartMs + (end - start)) * 1000))
                     .setRemoveAudio(true)
-                    .setEffects(Effects(emptyList(), listOf(presentation)))
+                    .setEffects(Effects(emptyList(), layerFx))
                     .build()
             }
             b.addItem(item)

@@ -959,7 +959,13 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
                 max: 1.0,
                 divisions: 18,
                 label: '${(layer.scale * 100).round()}%',
-                onChanged: (v) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, layer: layer.copyWith(scale: v)), 'Size ${(v * 100).round()}%'),
+                // Keyframed size is edited at the playhead's keyframe; otherwise the base size changes.
+                onChanged: (v) => _apply(
+                  (ir) => layer.keyframes.any((k) => k.scale != null)
+                      ? TimelineOps.setLayerKeyframe(ir, it.id, widget.c.playheadMs, scale: v)
+                      : TimelineOps.updateOverlay(ir, it.id, layer: layer.copyWith(scale: v)),
+                  'Size ${(v * 100).round()}%',
+                ),
               ),
               Text('Rotation ${layer.rotation.round()}°', style: Theme.of(context).textTheme.labelMedium),
               Slider(
@@ -968,7 +974,12 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
                 max: 180,
                 divisions: 72,
                 label: '${layer.rotation.round()}°',
-                onChanged: (v) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, layer: layer.copyWith(rotation: v)), 'Rotation ${v.round()}°'),
+                onChanged: (v) => _apply(
+                  (ir) => layer.keyframes.any((k) => k.rotation != null)
+                      ? TimelineOps.setLayerKeyframe(ir, it.id, widget.c.playheadMs, rotation: v)
+                      : TimelineOps.updateOverlay(ir, it.id, layer: layer.copyWith(rotation: v)),
+                  'Rotation ${v.round()}°',
+                ),
               ),
               Text('Animation in', style: Theme.of(context).textTheme.labelMedium),
               SizedBox(height: 6),
@@ -987,6 +998,65 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
                     ),
                   ),
               ]),
+              SizedBox(height: 10),
+              Text('Keyframes', style: Theme.of(context).textTheme.labelMedium),
+              Text(
+                'Add a keyframe, move the playhead, then drag, resize or rotate the layer and add another: it animates between them.',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
+              SizedBox(height: 6),
+              Wrap(spacing: 8, runSpacing: 6, children: [
+                ActionChip(
+                  avatar: Icon(Icons.diamond_outlined, size: 18),
+                  label: Text('Add at ${timecode(widget.c.playheadMs)}'),
+                  onPressed: () => _apply((ir) => TimelineOps.setLayerKeyframe(ir, it.id, widget.c.playheadMs), 'Keyframe added'),
+                ),
+                for (final k in layer.keyframes)
+                  InputChip(
+                    label: Text('${(k.atMs / 1000).toStringAsFixed(1)} s'),
+                    onPressed: () => widget.c.seek(it.startMs + k.atMs),
+                    onDeleted: () => _apply((ir) => TimelineOps.removeLayerKeyframe(ir, it.id, k.atMs), 'Keyframe removed'),
+                  ),
+              ]),
+            ],
+
+            SizedBox(height: 12),
+            Text('Green screen', style: Theme.of(context).textTheme.labelMedium),
+            SizedBox(height: 6),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              ChoiceChip(
+                label: Text('Off'),
+                selected: o.chromaKey == null,
+                onSelected: (_) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, clearChromaKey: true), 'Green screen off'),
+              ),
+              for (final (label, key) in const [('Remove green', EditIrChromaKey.green), ('Remove blue', EditIrChromaKey.blue)])
+                ChoiceChip(
+                  label: Text(label),
+                  selected: o.chromaKey?.color == key.color,
+                  // Keying turns a cutaway into a full-frame layer so the main video shows through.
+                  onSelected: (_) => _apply(
+                    (ir) => TimelineOps.updateOverlay(ir, it.id, chromaKey: key, fit: 'contain', layer: layer ?? const EditIrLayer(x: 0.5, y: 0.5, scale: 1)),
+                    '${label.replaceFirst('Remove', 'Removing')} background',
+                  ),
+                ),
+            ]),
+            if (o.chromaKey != null) ...[
+              Text('Key strength ${(o.chromaKey!.similarity * 100).round()}%', style: Theme.of(context).textTheme.labelMedium),
+              Slider(
+                value: o.chromaKey!.similarity,
+                min: 0.05,
+                max: 0.8,
+                divisions: 15,
+                onChanged: (v) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, chromaKey: o.chromaKey!.copyWith(similarity: v)), 'Key strength ${(v * 100).round()}%'),
+              ),
+              Text('Edge softness ${(o.chromaKey!.smoothness * 100).round()}%', style: Theme.of(context).textTheme.labelMedium),
+              Slider(
+                value: o.chromaKey!.smoothness,
+                min: 0,
+                max: 0.5,
+                divisions: 10,
+                onChanged: (v) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, chromaKey: o.chromaKey!.copyWith(smoothness: v)), 'Edge softness ${(v * 100).round()}%'),
+              ),
             ],
 
             SizedBox(height: 12),

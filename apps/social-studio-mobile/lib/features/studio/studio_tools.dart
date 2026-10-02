@@ -685,7 +685,7 @@ class _VoiceoverSheetState extends State<_VoiceoverSheet> {
         'Voiceover',
         subtitle: recording
             ? 'Recording from ${timecode(c.voiceoverStartMs ?? 0)}…'
-            : 'Records from the playhead (${timecode(c.playheadMs)}). Music is lowered under your voice on export.',
+            : 'Records from the playhead (${timecode(c.playheadMs)}) while the video plays (muted). Music is lowered under your voice on export.',
       ),
       if (recording)
         Text(timecode(elapsed), textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppTheme.error)),

@@ -734,6 +734,59 @@ void main() {
     expect(speechDb - holdDb, greaterThan(20), reason: 'the hold is silent');
   });
 
+  testWidgets('green screen: the key colour becomes see-through, the subject stays', (tester) async {
+    // A "green-screen shot": pure green with a red subject in the middle.
+    final rec = ui.PictureRecorder();
+    final cv = ui.Canvas(rec);
+    cv.drawRect(const ui.Rect.fromLTWH(0, 0, 720, 1280), ui.Paint()..color = const ui.Color(0xFF00FF00));
+    cv.drawRect(const ui.Rect.fromLTWH(260, 540, 200, 200), ui.Paint()..color = const ui.Color(0xFFFF0000));
+    final img = await rec.endRecording().toImage(720, 1280);
+    final png = (await img.toByteData(format: ui.ImageByteFormat.png))!;
+    final gsPath = '${evidence.path}/greenscreen.png';
+    File(gsPath).writeAsBytesSync(png.buffer.asUint8List());
+
+    Map<String, dynamic> gsIr({bool keyed = true}) => {
+          'schemaVersion': 'mobile-editir/1',
+          'projectId': 'chroma-verification',
+          'canvas': canvas,
+          'durationMs': 3000,
+          'sources': [
+            {'assetId': 'primary', 'durationMs': 30090, 'width': 1280, 'height': 720},
+          ],
+          'clips': [
+            {'id': 'c1', 'assetId': 'primary', 'sourceStartMs': 0, 'sourceEndMs': 3000, 'timelineStartMs': 0, 'timelineEndMs': 3000,
+              'speed': 1.0, 'volumeDb': 0, 'crop': {'x': 0.342, 'y': 0.0, 'width': 0.316, 'height': 1.0}, 'filter': null, 'transitionIn': null},
+          ],
+          'overlays': [
+            if (keyed)
+              {'id': 'gs', 'kind': 'broll', 'mediaType': 'image', 'timelineStartMs': 0, 'timelineEndMs': 3000, 'sourceStartMs': 0,
+                'source': {'kind': 'asset', 'assetId': 'local_gs'}, 'fit': 'contain', 'opacity': 1, 'muted': true,
+                'layer': {'mode': 'overlay', 'x': 0.5, 'y': 0.5, 'scale': 1, 'rotation': 0},
+                'chromaKey': {'color': '#00FF00', 'similarity': 0.3, 'smoothness': 0.1, 'spill': 0.5}},
+          ],
+          'audio': {'originalTrack': {'volumeDb': 0}},
+        };
+    Future<String> frame(String name, Map<String, dynamic> ir) async {
+      await render(ir, '${evidence.path}/$name.mp4', overlays: {if ((ir['overlays'] as List).isNotEmpty) 'gs': gsPath});
+      return (await MediaEngineService.generateThumbnails(
+              sourcePath: '${evidence.path}/$name.mp4', outputDir: '${evidence.path}/${name}_frames', timesMs: [1500], maxWidth: 270, exact: true))
+          .single;
+    }
+
+    final base = await frame('chroma_base', gsIr(keyed: false));
+    final keyed = await frame('chroma_keyed', gsIr());
+    const subject = [0.42, 0.45, 0.58, 0.55];
+    const background = [0.1, 0.1, 0.3, 0.3];
+    final s = await regionMean(keyed, subject);
+    final bgBase = await regionMean(base, background);
+    final bgKeyed = await regionMean(keyed, background);
+    final bgDiff = [for (var k = 0; k < 3; k++) (bgBase[k] - bgKeyed[k]).abs()].reduce(math.max);
+    report['chroma'] = {'subject': s, 'backgroundDiff': bgDiff};
+    expect(s[0], greaterThan(200), reason: 'the subject is kept');
+    expect(s[1], lessThan(60), reason: 'no green left on the subject');
+    expect(bgDiff, lessThan(10), reason: 'the green background shows the main video');
+  });
+
   testWidgets('cancel stops the export with CANCELLED and removes the partial file', (tester) async {
     final out = '${evidence.path}/cancelled.mp4';
     final stream = MediaEngineService.renderEditIr(

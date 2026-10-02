@@ -463,4 +463,205 @@ export class CheckoutService {
       });
     }
   }
+
+  /**
+   * Creates a direct Razorpay order for guest/unauthenticated checkout
+   */
+  static async createDirectOrder(sessionId: string) {
+    const session = await prisma.checkoutSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        app: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            logoUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!session) {
+      throw new Error('Checkout session not found');
+    }
+
+    if (session.status === 'CAPTURED') {
+      throw new Error('This checkout session has already been completed.');
+    }
+
+    if (session.status === 'EXPIRED' || session.expiresAt < new Date()) {
+      throw new Error('This checkout session has expired.');
+    }
+
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      throw new Error('Payment gateway credentials not configured');
+    }
+
+    const amountPaise = Math.round(session.amount * 100);
+    const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+
+    const rzpResponse = await axios.post(
+      'https://api.razorpay.com/v1/orders',
+      {
+        amount: amountPaise,
+        currency: session.currency || 'INR',
+        receipt: `cs_${session.id.replace(/-/g, '').slice(0, 36)}`,
+        notes: {
+          sessionId: session.id,
+          appId: session.appId,
+          appName: session.app?.name || '180 App',
+          title: session.title,
+        },
+      },
+      {
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000,
+      }
+    );
+
+    return {
+      orderId: rzpResponse.data.id,
+      amountPaise,
+      currency: session.currency || 'INR',
+      keyId,
+    };
+  }
+
+  /**
+   * Cryptographically verifies Razorpay payment and captures the session
+   */
+  static async verifyDirectPayment(input: {
+    sessionId: string;
+    orderId: string;
+    paymentId: string;
+    signature: string;
+  }) {
+    const { sessionId, orderId, paymentId, signature } = input;
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keySecret) {
+      throw new Error('Payment gateway key secret not configured');
+    }
+
+    // Verify HMAC-SHA256 signature
+    const expectedSignature = crypto
+      .createHmac('sha256', keySecret)
+      .update(`${orderId}|${paymentId}`)
+      .digest('hex');
+
+    if (!timingSafeCompare(expectedSignature, signature)) {
+      throw new Error('Cryptographic signature verification failed');
+    }
+
+    const result = await prisma.$transaction(async (tx: any) => {
+      const session = await tx.checkoutSession.findUnique({
+        where: { id: sessionId },
+        include: { app: true },
+      });
+
+      if (!session) {
+        throw new Error('Checkout session not found');
+      }
+
+      if (session.status === 'CAPTURED') {
+        return { session, transactionId: paymentId, alreadyCaptured: true };
+      }
+
+      // Fetch or create Developer App Wallet
+      let appWallet = await tx.wallet.findUnique({
+        where: { developerAppId: session.appId },
+      });
+
+      if (!appWallet) {
+        appWallet = await tx.wallet.create({
+          data: {
+            developerAppId: session.appId,
+            balance: 0,
+            currency: session.currency || 'INR',
+          },
+        });
+      }
+
+      const newAppBalance = Math.round((appWallet.balance + session.amount) * 100) / 100;
+      await tx.wallet.update({
+        where: { id: appWallet.id },
+        data: { balance: newAppBalance },
+      });
+
+      await tx.ledgerEntry.create({
+        data: {
+          walletId: appWallet.id,
+          amount: session.amount,
+          balanceAfter: newAppBalance,
+          type: 'CHECKOUT_RECEIVE',
+          referenceId: paymentId,
+          description: `Direct payment received for ${session.title}`,
+          metadata: {
+            sessionId: session.id,
+            gateway: 'RAZORPAY',
+            orderId,
+            paymentId,
+          },
+        },
+      });
+
+      const updatedSession = await tx.checkoutSession.update({
+        where: { id: session.id },
+        data: {
+          status: 'CAPTURED',
+          completedAt: new Date(),
+          metadata: {
+            ...(session.metadata as any || {}),
+            gateway: 'RAZORPAY',
+            paymentId,
+            orderId,
+          },
+        },
+      });
+
+      return { session: updatedSession, transactionId: paymentId, alreadyCaptured: false };
+    });
+
+    // Dispatch webhook to merchant
+    if (!result.alreadyCaptured) {
+      const webhookData = {
+        sessionId: result.session.id,
+        transactionId: paymentId,
+        amount: result.session.amount,
+        currency: result.session.currency,
+        title: result.session.title,
+        metadata: result.session.metadata,
+        timestamp: new Date().toISOString(),
+      };
+
+      Promise.allSettled([
+        this.dispatchPaymentWebhook(result.session.appId, {
+          event: 'payment.captured',
+          data: webhookData,
+        }),
+        this.dispatchPaymentWebhook(result.session.appId, {
+          event: 'payment.succeeded',
+          data: webhookData,
+        }),
+      ]).catch((err) => {
+        console.warn('[CheckoutService] Direct pay webhook failed:', err.message);
+      });
+    }
+
+    return {
+      success: true,
+      sessionId,
+      transactionId: paymentId,
+      status: 'CAPTURED',
+      returnUrl: result.session.returnUrl,
+    };
+  }
 }
+
