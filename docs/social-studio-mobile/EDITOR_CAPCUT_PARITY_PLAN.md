@@ -122,6 +122,49 @@ Status is appended below as phases land.
   - New `removeItem` (caption / title / zoom / broll / effect / sfx, by id, by time or all); lock-aware.
   - The planner summary now lists item ids.
   - Tests: `tests/director-tool-parity.test.ts`. Contracts + Director suites: 86 + 13 pass.
+- **E2 creator tools — done except chroma key.** Every item has a contract field, the Dart model + preview, the Kotlin
+  renderer, unit tests, and an emulator render test in `integration_test/media_engine_render_test.dart`.
+  - **E2.1 colour:**
+    - Adjustments: exposure, warmth (temperature), tint and vignette, next to brightness, contrast and saturation.
+    - One affine colour matrix is shared by the preview and the export: `color_grade.dart` ⇄ `ColorGrade.kt`, using Media3
+      `RgbMatrix`. Presets now also show in the preview.
+    - Device: the export matches the preview maths to ≤ 2/255 per channel.
+    - Director: `applyFilter` gains `exposure`, `temperature`, `tint` and `vignette`.
+  - **E2.2 clip audio fades:**
+    - `audioFadeInMs` / `audioFadeOutMs` per clip; the Volume sheet has fade sliders; split keeps the right fade on each half.
+    - Preview gain = export gain (`TimelineOps.clipPreviewGain`).
+    - Director: `fadeClipAudio`.
+    - Device: −19 dB at the start, −13 dB at the end, 0 dB in the middle.
+  - **E2.4 voiceover:**
+    - Recorded natively (`VoiceRecorder.kt`, MediaRecorder AAC) from the Voiceover tool at the playhead.
+    - `audio.voiceovers` holds `{kind: asset}` local files, round-tripped as an EditIR `VOICEOVER` track.
+    - Music ducks under voiceovers. The new timeline track supports move, trim, volume and delete, and voiceovers play in the preview.
+    - The Director sees voiceovers and keeps them.
+  - **E2.5 export settings:**
+    - Export sheet step: resolution (full / 1080 / 720 / 480 short side), frame rate (24 / 30 / 60) and quality (high = 2× bitrate).
+    - The finished frame is scaled last, so the layout never changes.
+  - **E2.6 timeline:** pinch-zoom already existed. Snapping is new: edges snap to cuts, the playhead and item edges, with a haptic tick.
+  - **Duplicate clip** (Duplicate tool; ripple uses clip ids first, so copies map correctly).
+  - **Freeze frame / photo clips on the main track:**
+    - The frame is extracted on the phone and held as a still clip with the clip's look; stills are silent.
+    - Preview holds the still on a timer.
+  - **Stickers:**
+    - Emoji drawn on the phone into transparent PNGs and placed as floating layers that pop in.
+    - Director: `addSticker`, which the phone draws itself (`emoji:` assets).
+    - Device: PNG transparency is preserved.
+  - **Fix:** gallery photos and videos added as B-roll were stored as raw device paths. Export then tried to download them, and the
+    contract rejected them for Director turns. They are now local asset references, and old drafts are migrated on load.
 - **Next:**
-  - E2: colour adjustments (exposure / temperature / vignette / grain), clip audio fades, chroma key, voiceover, export settings, timeline pinch/snap, freeze frame, stickers;
-  - E3: ML Kit image labels as visual context, speed ramps, reverse, masks, background removal, TTS, noise reduction.
+  - E2.3 chroma key: a GL shader effect on layers, plus a preview shader.
+  - E3:
+    - ML Kit image labels as visual context for the Director;
+    - speed ramps;
+    - reverse;
+    - masks;
+    - background removal;
+    - TTS voiceover;
+    - noise reduction;
+    - beat-sync cuts;
+    - recording a voiceover while the preview plays.
+  - The Flutter preview for photos uses the source size from `sources`; JPEG EXIF rotation of gallery photos used as main
+    clips is not yet handled.
