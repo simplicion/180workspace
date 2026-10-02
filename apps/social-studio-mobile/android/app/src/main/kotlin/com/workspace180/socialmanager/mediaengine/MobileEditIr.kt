@@ -68,6 +68,8 @@ data class IrOverlay(
     val fit: String = "cover",
     /** Layer placement; null or cutaway = full-frame cutaway. */
     val layer: IrLayer? = null,
+    /** Green / blue screen key (layers only). */
+    val chromaKey: IrChromaKey? = null,
 ) {
     val isImage: Boolean get() = mediaType == "image"
     val isLayer: Boolean get() = layer?.isOverlay == true
@@ -284,6 +286,7 @@ data class MobileEditIr(
                     mediaType = if (j.optNullableString("mediaType") == "image") "image" else "video",
                     fit = if (j.optNullableString("fit") == "contain") "contain" else "cover",
                     layer = IrLayer.parse(j.optNullableObject("layer")),
+                    chromaKey = IrChromaKey.parse(j.optNullableObject("chromaKey")),
                 )
             }
             val effects = (o.optJSONArray("effects") ?: JSONArray()).objects().map { j ->

@@ -421,10 +421,14 @@ class EditIrOverlay {
     this.mediaType = 'video',
     this.fit = 'cover',
     this.layer,
+    this.chromaKey,
   });
 
   final String id;
   final int timelineStartMs, timelineEndMs, sourceStartMs;
+
+  /// Green-screen key (applied to layers; a keyed cutaway would show black).
+  final EditIrChromaKey? chromaKey;
   /// `cover` crops to fill; `contain` keeps the whole frame.
   final String fit;
   /// Layer placement; null = full-frame cutaway (the original behaviour).
@@ -445,6 +449,8 @@ class EditIrOverlay {
     EditIrLayer? layer,
     bool clearLayer = false,
     Map<String, dynamic>? source,
+    EditIrChromaKey? chromaKey,
+    bool clearChromaKey = false,
   }) =>
       EditIrOverlay(
         id: id,
@@ -457,6 +463,7 @@ class EditIrOverlay {
         mediaType: mediaType,
         fit: fit ?? this.fit,
         layer: clearLayer ? null : (layer ?? this.layer),
+        chromaKey: clearChromaKey ? null : (chromaKey ?? this.chromaKey),
       );
 
   /// `{kind:"url"|"asset"|"stock_query", ...}` — resolve to a local file before rendering.
@@ -480,6 +487,7 @@ class EditIrOverlay {
       mediaType: j['mediaType'] == 'image' ? 'image' : 'video',
       fit: j['fit'] == 'contain' ? 'contain' : (legacyFit ?? 'cover'),
       layer: layer,
+      chromaKey: EditIrChromaKey.fromJson(j['chromaKey']),
     );
   }
 
@@ -495,6 +503,7 @@ class EditIrOverlay {
         'muted': muted,
         if (isImage) 'mediaType': 'image',
         if (layer != null) 'layer': layer!.toJson(),
+        if (chromaKey != null) 'chromaKey': chromaKey!.toJson(),
       };
 }
 

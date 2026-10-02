@@ -246,6 +246,8 @@ export function CheckoutClient() {
         await new Promise((r) => setTimeout(r, 600));
         const demoTxId = 'tx_180pay_' + Math.random().toString(36).substring(2, 10);
         toast.success('Payment completed successfully!', { id: toastId });
+        setCompleted(true);
+        setPaying(false);
         const successPayload = {
           type: '180_PAYMENT_SUCCESS',
           sessionId,
@@ -262,7 +264,9 @@ export function CheckoutClient() {
           }
         }
         setTimeout(() => {
-          if (typeof window !== 'undefined') {
+          if (session?.returnUrl) {
+            window.location.href = session.returnUrl;
+          } else if (typeof window !== 'undefined') {
             if (window.opener) {
               window.close();
             } else if (window.parent && window.parent !== window) {
@@ -272,9 +276,21 @@ export function CheckoutClient() {
         }, 1200);
         return;
       }
+
+      const token =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('platform_auth_token') ||
+            localStorage.getItem('token') ||
+            localStorage.getItem('accessToken')
+          : null;
+      const authHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
       const res = await fetch(getCoreApiUrl(`/api/oauth/checkout/sessions/${sessionId}/pay`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         credentials: 'include',
       });
 
@@ -306,8 +322,8 @@ export function CheckoutClient() {
 
       // Auto redirect or close after 2 seconds
       setTimeout(() => {
-        if (data.data?.returnUrl) {
-          window.location.href = data.data.returnUrl;
+        if (data.data?.returnUrl || session?.returnUrl) {
+          window.location.href = data.data?.returnUrl || session.returnUrl;
         } else if (typeof window !== 'undefined') {
           if (window.opener) {
             window.close();
@@ -323,35 +339,60 @@ export function CheckoutClient() {
     }
   };
 
-  const handleInlineRecharge = async () => {
+  const handleDirectPayment = async () => {
     if (!session) return;
-    const deficit = Math.max(10, Math.ceil(session.amount - (wallet?.balance || 0)));
-
-    const token =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('platform_auth_token') ||
-          localStorage.getItem('token') ||
-          localStorage.getItem('accessToken')
-        : null;
-
-    const authHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-
     setTopupLoading(true);
-    const toastId = toast.loading('Initializing Razorpay top-up...');
+    const toastId = toast.loading('Initializing payment gateway...');
 
     try {
-      const res = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/order'), {
+      const isSandboxSession = Boolean(
+        sessionId && (
+          sessionId.startsWith('sess_sandbox_') ||
+          sessionId.startsWith('sess_demo_') ||
+          sessionId.startsWith('sess_180pay_') ||
+          sessionId.startsWith('cs_') ||
+          sessionId === 'default'
+        )
+      );
+
+      // In pure sandbox demo without backend, complete directly
+      if (isSandboxSession && !isProduction) {
+        await new Promise((r) => setTimeout(r, 600));
+        toast.success('Payment completed successfully!', { id: toastId });
+        setCompleted(true);
+        setTopupLoading(false);
+        const demoTxId = 'tx_direct_' + Math.random().toString(36).substring(2, 10);
+        const payload = {
+          type: '180_PAYMENT_SUCCESS',
+          sessionId,
+          transactionId: demoTxId,
+          amount: session?.amount,
+          currency: session?.currency || 'INR',
+        };
+        if (typeof window !== 'undefined') {
+          if (window.opener) window.opener.postMessage(payload, '*');
+          if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
+          setTimeout(() => {
+            if (session?.returnUrl) {
+              window.location.href = session.returnUrl;
+            } else if (window.opener) {
+              window.close();
+            }
+          }, 1500);
+        }
+        return;
+      }
+
+      // 1. Request direct gateway order from backend (works unauthenticated!)
+      const res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-order`), {
         method: 'POST',
-        headers: authHeaders,
-        credentials: 'include',
-        body: JSON.stringify({ amount: deficit, currency: 'INR' }),
+        headers: { 'Content-Type': 'application/json' },
       });
 
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Failed to initialize recharge');
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to initialize payment gateway');
+      }
 
       const { orderId, amountPaise, keyId } = data.data || data;
 
@@ -363,9 +404,9 @@ export function CheckoutClient() {
       const options = {
         key: keyId,
         amount: amountPaise,
-        currency: 'INR',
-        name: '180 Profile Instant Recharge',
-        description: `Top-Up to complete purchase with ${session.app?.name}`,
+        currency: session.currency || 'INR',
+        name: session.app?.name || '180 Pay Sovereign Checkout',
+        description: session.title || 'Direct Checkout',
         order_id: orderId,
         theme: { color: '#2563eb' },
         prefill: {
@@ -373,30 +414,56 @@ export function CheckoutClient() {
           email: storedUser?.email || undefined,
         },
         handler: async function (response: any) {
-          toast.loading('Crediting wallet balance...', { id: toastId });
+          toast.loading('Verifying payment signature...', { id: toastId });
           try {
-            const verifyRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
+            const verifyRes = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-verify`), {
               method: 'POST',
-              headers: authHeaders,
-              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 orderId: response.razorpay_order_id,
                 paymentId: response.razorpay_payment_id,
                 signature: response.razorpay_signature,
-                amount: deficit,
               }),
             });
 
             const verifyData = await verifyRes.json();
-            if (verifyData.success) {
-              toast.success(`Wallet topped up with ₹${deficit}!`, { id: toastId });
-              await fetchSessionAndWallet();
-              // Seamless 1-Click Sovereign Vault: Automatically authorize purchase now that wallet is funded
-              toast.loading('Top-up confirmed! Completing payment with 180 Profile...', { id: toastId });
-              await handlePay();
+            if (!verifyData.success) {
+              throw new Error(verifyData.error || 'Payment signature verification failed');
             }
+
+            toast.success('Payment authorized & completed!', { id: toastId });
+            setCompleted(true);
+
+            const liveSuccessPayload = {
+              type: '180_PAYMENT_SUCCESS',
+              sessionId,
+              transactionId: response.razorpay_payment_id,
+              amount: session?.amount,
+              currency: session?.currency,
+            };
+
+            if (typeof window !== 'undefined') {
+              if (window.opener) {
+                window.opener.postMessage(liveSuccessPayload, '*');
+              }
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage(liveSuccessPayload, '*');
+              }
+            }
+
+            setTimeout(() => {
+              if (verifyData.returnUrl || session?.returnUrl) {
+                window.location.href = verifyData.returnUrl || session.returnUrl;
+              } else if (typeof window !== 'undefined') {
+                if (window.opener) {
+                  window.close();
+                } else if (window.parent && window.parent !== window) {
+                  window.parent.postMessage({ type: '180_PAYMENT_CLOSE', sessionId }, '*');
+                }
+              }
+            }, 1500);
           } catch (e: any) {
-            toast.error(e.message || 'Verification failed', { id: toastId });
+            toast.error(e.message || 'Payment verification failed', { id: toastId });
           } finally {
             setTopupLoading(false);
           }
@@ -423,10 +490,11 @@ export function CheckoutClient() {
       rzp.open();
       toast.dismiss(toastId);
     } catch (err: any) {
-      toast.error(err.message || 'Top-up failed', { id: toastId });
+      toast.error(err.message || 'Payment gateway initialization failed', { id: toastId });
       setTopupLoading(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -786,37 +854,58 @@ export function CheckoutClient() {
       {/* Actions */}
       <div className="space-y-3 pt-2">
         {hasEnoughBalance ? (
-          <Button
-            onClick={handlePay}
-            disabled={paying}
-            className="w-full min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Lock className="w-4 h-4" />
-            <span>
-              {paying
-                ? 'Authorizing...'
-                : session.mode === 'subscription' || session.metadata?.isSubscription
-                ? `Authorize Recurring Subscription (${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)})`
-                : `Authorize & Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)}`}
-            </span>
-          </Button>
+          <>
+            <Button
+              onClick={handlePay}
+              disabled={paying || topupLoading}
+              className="w-full min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Lock className="w-4 h-4" />
+              <span>
+                {paying
+                  ? 'Authorizing...'
+                  : session.mode === 'subscription' || session.metadata?.isSubscription
+                  ? `Authorize Recurring Subscription (${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)})`
+                  : `Authorize & Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)}`}
+              </span>
+            </Button>
+
+            <button
+              type="button"
+              onClick={handleDirectPayment}
+              disabled={paying || topupLoading}
+              className="w-full py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-slate-500" />
+              <span>{topupLoading ? 'Launching Gateway...' : 'Or Pay via UPI / Cards / Netbanking'}</span>
+            </button>
+          </>
         ) : (
           <Button
-            onClick={handleInlineRecharge}
-            disabled={topupLoading}
-            className="w-full min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            onClick={handleDirectPayment}
+            disabled={topupLoading || paying}
+            className="w-full min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <CreditCard className="w-4 h-4" />
-            <span>{topupLoading ? 'Launching Razorpay...' : `Recharge & Pay via Razorpay`}</span>
+            <span>
+              {topupLoading
+                ? 'Launching Razorpay...'
+                : `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via UPI / Cards`}
+            </span>
           </Button>
         )}
 
         <button
+          type="button"
           onClick={() => {
             if (session.cancelUrl) {
               window.location.href = session.cancelUrl;
-            } else if (window.opener) {
+            } else if (typeof window !== 'undefined' && window.opener) {
               window.close();
+            } else if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+              window.parent.postMessage({ type: '180_PAYMENT_CLOSE', sessionId }, '*');
+            } else {
+              window.history.back();
             }
           }}
           className="w-full py-2.5 min-h-[44px] rounded-xl text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"

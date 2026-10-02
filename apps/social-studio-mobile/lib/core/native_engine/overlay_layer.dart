@@ -120,3 +120,35 @@ LayerPose layerAt(EditIrLayer layer, int relMs, double baseOpacity) {
     prop(baseOpacity, (k) => k.opacity).clamp(0.0, 1.0),
   );
 }
+
+/// Green / blue screen key on an overlay layer (contract `chromaKey`). [similarity] widens what counts as the key
+/// colour, [smoothness] softens the edge, [spill] greys out the key colour's tint on what remains.
+class EditIrChromaKey {
+  const EditIrChromaKey({this.color = '#00FF00', this.similarity = 0.3, this.smoothness = 0.1, this.spill = 0.5});
+  final String color;
+  final double similarity, smoothness, spill;
+
+  static const green = EditIrChromaKey();
+  static const blue = EditIrChromaKey(color: '#0047BB');
+
+  EditIrChromaKey copyWith({String? color, double? similarity, double? smoothness, double? spill}) => EditIrChromaKey(
+        color: color ?? this.color,
+        similarity: similarity ?? this.similarity,
+        smoothness: smoothness ?? this.smoothness,
+        spill: spill ?? this.spill,
+      );
+
+  static EditIrChromaKey? fromJson(Object? j) {
+    if (j is! Map) return null;
+    double d(String k, double def) => ((j[k] as num?)?.toDouble() ?? def).clamp(0.0, 1.0);
+    final c = j['color'];
+    return EditIrChromaKey(
+      color: c is String && RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(c) ? c.toUpperCase() : '#00FF00',
+      similarity: d('similarity', 0.3),
+      smoothness: d('smoothness', 0.1),
+      spill: d('spill', 0.5),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {'color': color, 'similarity': similarity, 'smoothness': smoothness, 'spill': spill};
+}

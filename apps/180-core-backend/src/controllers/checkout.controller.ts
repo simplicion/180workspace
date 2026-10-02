@@ -176,4 +176,49 @@ export class CheckoutApiController {
       return res.status(400).json({ success: false, error: err.message });
     }
   }
+
+  /**
+   * POST /api/v1/checkout/sessions/:id/direct-order
+   * Generate gateway order for direct guest/card/UPI checkout without requiring wallet login
+   */
+  static async createDirectOrder(req: Request, res: Response) {
+    try {
+      const id = String(req.params.id);
+      const order = await CheckoutService.createDirectOrder(id);
+      return res.json({ success: true, ...order, data: order });
+    } catch (err: any) {
+      console.error('[CheckoutApiController:createDirectOrder] Error:', err);
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/checkout/sessions/:id/direct-verify
+   * Cryptographically verify gateway signature and capture payment
+   */
+  static async verifyDirectPayment(req: Request, res: Response) {
+    try {
+      const id = String(req.params.id);
+      const { orderId, paymentId, signature } = req.body;
+      if (!orderId || !paymentId || !signature) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing payment verification credentials (orderId, paymentId, signature)',
+        });
+      }
+
+      const result = await CheckoutService.verifyDirectPayment({
+        sessionId: id,
+        orderId,
+        paymentId,
+        signature,
+      });
+
+      return res.json({ success: true, ...result, data: result });
+    } catch (err: any) {
+      console.error('[CheckoutApiController:verifyDirectPayment] Error:', err);
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
 }
+

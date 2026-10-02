@@ -1236,6 +1236,8 @@ class TimelineOps {
     String? fit,
     EditIrLayer? layer,
     bool clearLayer = false,
+    EditIrChromaKey? chromaKey,
+    bool clearChromaKey = false,
   }) {
     if (!ir.overlays.any((o) => o.id == id)) throw MediaEngineException('INVALID_EDIT', 'That overlay no longer exists.');
     if (opacity != null && (opacity < 0 || opacity > 1)) throw MediaEngineException('INVALID_EDIT', 'Opacity must be between 0 and 100%.');
@@ -1250,9 +1252,49 @@ class TimelineOps {
         fit: fit,
         layer: layer,
         clearLayer: clearLayer,
+        chromaKey: chromaKey,
+        // A full-screen cutaway replaces the picture, so a key there would show black: keying keeps it a layer.
+        clearChromaKey: clearChromaKey || (clearLayer && chromaKey == null),
       );
     }).toList();
     return _copy(ir, overlays: overlays);
+  }
+
+  /// Keyframes closer than this to the playhead are "the keyframe at the playhead" (edited, not duplicated).
+  static const keyframeSnapMs = 40;
+
+  /// [layer] with [k] added, replacing any keyframe within [keyframeSnapMs] of it.
+  static EditIrLayer withKeyframe(EditIrLayer layer, LayerKeyframe k) => layer.copyWith(
+        keyframes: [
+          for (final e in layer.keyframes)
+            if ((e.atMs - k.atMs).abs() > keyframeSnapMs) e,
+          k,
+        ]..sort((a, b) => a.atMs.compareTo(b.atMs)),
+      );
+
+  /// CapCut "add keyframe": records the layer's current pose (position, size, rotation, opacity) at the playhead.
+  static MobileEditIr setLayerKeyframe(MobileEditIr ir, String id, int playheadMs, {double? x, double? y, double? scale, double? rotation, double? opacity}) {
+    final o = ir.overlays.where((o) => o.id == id).firstOrNull;
+    final layer = o?.layer;
+    if (o == null || layer == null) throw MediaEngineException('INVALID_EDIT', 'Keyframes need a picture-in-picture or sticker layer.');
+    final rel = playheadMs - o.timelineStartMs;
+    if (rel < 0 || playheadMs > o.timelineEndMs) throw MediaEngineException('INVALID_EDIT', 'Move the playhead inside this overlay to add a keyframe.');
+    final pose = layerAt(layer, rel, o.opacity);
+    final k = LayerKeyframe(
+      atMs: rel,
+      x: x ?? pose.x,
+      y: y ?? pose.y,
+      scale: scale ?? pose.scale,
+      rotation: rotation ?? pose.rotation,
+      opacity: opacity ?? pose.opacity,
+    );
+    return updateOverlay(ir, id, layer: withKeyframe(layer, k));
+  }
+
+  static MobileEditIr removeLayerKeyframe(MobileEditIr ir, String id, int atMs) {
+    final layer = ir.overlays.where((o) => o.id == id).firstOrNull?.layer;
+    if (layer == null) return ir;
+    return updateOverlay(ir, id, layer: layer.copyWith(keyframes: [for (final k in layer.keyframes) if (k.atMs != atMs) k]));
   }
 
   /// Entrance animations for a layer, as keyframes relative to the overlay start (CapCut "In" animations).

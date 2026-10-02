@@ -1056,6 +1056,14 @@ export class EditIRCompiler {
       ...(op.mediaType === "image" ? { mediaType: "image" as const } : {}),
       ...(op.layout === "fit" || op.layout === "pip" || op.layout === "sticker" ? { fit: "contain" as const } : {}),
       ...(op.layout === "pip" || op.layout === "sticker" ? { layer: overlayLayerFor(op) } : {}),
+      // Keyed footage must float above the main video (a keyed cutaway would show black): full frame unless placed.
+      ...(op.greenScreen
+        ? {
+            fit: "contain" as const,
+            layer: op.layout === "pip" || op.layout === "sticker" ? overlayLayerFor(op) : { mode: "overlay" as const, x: 0.5, y: 0.5, scale: 1, rotation: 0 },
+            chromaKey: { color: op.greenScreen === "blue" ? "#0047BB" : "#00FF00", similarity: 0.3, smoothness: 0.1, spill: 0.5 },
+          }
+        : {}),
     });
     const where = op.layout === "pip" || op.layout === "sticker" ? ` as ${op.layout}` : "";
     return `${op.mediaType === "image" ? `photo ${label}` : label}${where}`;

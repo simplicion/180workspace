@@ -46,16 +46,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   // 2. 180 PAY (pay.180workspace.com / 180pay.* / ?app=pay)
   if (hostname.startsWith('pay.') || hostname.startsWith('180pay.') || appParam === 'pay') {
-    if (pathname === '/' || pathname === '') {
-      return context.env.ASSETS.fetch(new URL('/checkout/default', context.request.url));
+    if (pathname.startsWith('/checkout/manage-subscription')) {
+      return context.env.ASSETS.fetch(new URL('/checkout/manage-subscription/default.html', context.request.url));
     }
-    if (pathname === '/demo' || pathname === '/sandbox') {
-      return context.env.ASSETS.fetch(new URL('/checkout/default', context.request.url));
-    }
-    if (!pathname.startsWith('/checkout')) {
-      const cleanPath = pathname.replace(/^\//, '');
-      return context.env.ASSETS.fetch(new URL(`/checkout/${cleanPath}`, context.request.url));
-    }
+    return context.env.ASSETS.fetch(new URL('/checkout/default.html', context.request.url));
   }
 
   // 3. 180 PROFILE (profile.180workspace.com / 180profile.* / default)

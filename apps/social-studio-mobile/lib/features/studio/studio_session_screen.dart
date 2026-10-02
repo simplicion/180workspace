@@ -100,6 +100,9 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
   void initState() {
     super.initState();
     c.addListener(_onChange);
+    c.onPreviewPlayback = (play) {
+      if (mounted && play != _playing) _togglePlay();
+    };
     if (widget.draft != null) {
       _loadDraft(widget.draft!);
     } else if (widget.draftId != null) {
@@ -380,7 +383,7 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
     await p.seekTo(Duration(milliseconds: startMs));
     await p.setPlaybackSpeed(clip.speed);
     final rel0 = (((startMs) - clip.sourceStartMs) / clip.speed).round();
-    await p.setVolume(TimelineOps.clipPreviewGain(ir, clipIndex, rel0));
+    await p.setVolume(c.recordingVoiceover ? 0 : TimelineOps.clipPreviewGain(ir, clipIndex, rel0));
     await p.play();
 
     _playbackStopwatch.reset();
@@ -407,7 +410,8 @@ class _StudioSessionScreenState extends ConsumerState<StudioSessionScreen> {
       }
       c.playheadMs = cl.timelineStartMs + ((effectiveSourceMs - cl.sourceStartMs).clamp(0, cl.sourceEndMs) / cl.speed).round();
       // Volume, clip fades and transition fades, as in the export.
-      p.setVolume(TimelineOps.clipPreviewGain(cur, clipIndex, c.playheadMs - cl.timelineStartMs));
+      // Footage sound is muted while a voiceover records, so the microphone does not pick it up.
+      p.setVolume(c.recordingVoiceover ? 0 : TimelineOps.clipPreviewGain(cur, clipIndex, c.playheadMs - cl.timelineStartMs));
       if (_voFrame++ % 6 == 0 && cur.audio.voiceovers.isNotEmpty) unawaited(_syncVoiceovers());
       setState(() {});
     });

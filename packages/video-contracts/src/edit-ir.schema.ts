@@ -164,6 +164,14 @@ export type OverlayLayer = z.infer<typeof OverlayLayerSchema>;
 /**
  * Video / Overlay Timeline Clip
  */
+/** Green / blue screen key (renderers: ChromaKey.kt + the phone preview shader). */
+export const ChromaKeySchema = z.object({
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  similarity: z.number().min(0).max(1),
+  smoothness: z.number().min(0).max(1),
+  spill: z.number().min(0).max(1),
+});
+
 export const VideoClipSchema = z.object({
   id: z.string().min(1),
   assetId: z.string(),
@@ -188,6 +196,8 @@ export const VideoClipSchema = z.object({
   layer: OverlayLayerSchema.optional(),
   /** Overlay tracks only: "contain" keeps the whole frame (no crop). Absent = cover. */
   fit: z.enum(["cover", "contain"]).optional(),
+  /** Overlay layers only: green / blue screen key. */
+  chromaKey: ChromaKeySchema.optional(),
   /** Main track: fade of the clip's own sound at its start / end, in ms (absent = none). */
   audioFadeInMs: z.number().int().min(0).optional(),
   audioFadeOutMs: z.number().int().min(0).optional(),
