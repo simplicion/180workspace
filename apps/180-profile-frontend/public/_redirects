@@ -1,5 +1,18 @@
-# Cloudflare Pages SPA Rewrites for 180 Profile / 180 Pay dynamic routes
+# Cloudflare Pages SPA Rewrites for 180 Profile / 180 Pay / 180 Auth routes
 /checkout/manage-subscription/*.txt  /checkout/manage-subscription/default.txt  200
 /checkout/manage-subscription/*      /checkout/manage-subscription/default      200
 /checkout/*.txt                      /checkout/default.txt                      200
 /checkout/*                          /checkout/default                          200
+
+# 180 Auth SPA Routes
+/auth/login                          /auth/login                                200
+/auth/consent                        /auth/consent                              200
+/auth/register                       /auth/register                             200
+/auth/verify-otp                     /auth/verify-otp                           200
+/auth/*                              /auth/login                                200
+
+# 180 Profile SPA Dashboard Routes
+/wallet                              /wallet                                    200
+/security                            /security                                  200
+/activity                            /activity                                  200
+/settings                            /settings                                  200
