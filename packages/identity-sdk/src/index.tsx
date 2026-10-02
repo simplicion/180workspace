@@ -146,20 +146,38 @@ export function generateReferenceCode(domainPrefix: 'AUTH' | 'PAY' | 'CORE' = 'C
 
 const getAuthServerUrl = (customUrl?: string, envMode?: EnvironmentMode): string => {
   if (customUrl) return customUrl;
+  const mode = resolveEnvironmentMode(envMode);
+  if (mode === 'development') {
+    if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_AUTH_DEV_URL) {
+      return process.env.NEXT_PUBLIC_180_AUTH_DEV_URL;
+    }
+    if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_AUTH_URL && (process.env.NEXT_PUBLIC_180_AUTH_URL.includes('localhost') || process.env.NEXT_PUBLIC_180_AUTH_URL.includes('127.0.0.1'))) {
+      return process.env.NEXT_PUBLIC_180_AUTH_URL;
+    }
+    return 'http://localhost:3009';
+  }
   if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_AUTH_URL) {
     return process.env.NEXT_PUBLIC_180_AUTH_URL;
   }
-  const mode = resolveEnvironmentMode(envMode);
-  return mode === 'production' ? 'https://profile.180workspace.com' : 'http://localhost:3009';
+  return 'https://profile.180workspace.com';
 };
 
 const getPayServerUrl = (customUrl?: string, envMode?: EnvironmentMode): string => {
   if (customUrl) return customUrl;
+  const mode = resolveEnvironmentMode(envMode);
+  if (mode === 'development') {
+    if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_PAY_DEV_URL) {
+      return process.env.NEXT_PUBLIC_180_PAY_DEV_URL;
+    }
+    if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_PAY_URL && (process.env.NEXT_PUBLIC_180_PAY_URL.includes('localhost') || process.env.NEXT_PUBLIC_180_PAY_URL.includes('127.0.0.1'))) {
+      return process.env.NEXT_PUBLIC_180_PAY_URL;
+    }
+    return 'http://localhost:3009';
+  }
   if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_PAY_URL) {
     return process.env.NEXT_PUBLIC_180_PAY_URL;
   }
-  const mode = resolveEnvironmentMode(envMode);
-  return mode === 'production' ? 'https://pay.180workspace.com' : 'http://localhost:3009';
+  return 'https://pay.180workspace.com';
 };
 
 /**
@@ -1080,7 +1098,7 @@ export const OneEightyPay = {
     const sessionId = options.sessionId || `sess_${Math.random().toString(36).substring(2, 12)}_${Date.now()}`;
 
     const env = resolveEnvironmentMode(options.environment);
-    const payServer = getPayServerUrl(options.checkoutServerUrl, env);
+    const payServer = getPayServerUrl(options.checkoutServerUrl || options.payServerUrl, env);
     const isMobile = isMobileDevice();
 
     let effectiveMode: 'bottom_sheet' | 'full_page' | 'popup' = 'bottom_sheet';
@@ -1107,6 +1125,7 @@ export const OneEightyPay = {
       options.title ? `title=${encodeURIComponent(options.title)}` : '',
       options.description ? `description=${encodeURIComponent(options.description)}` : '',
       options.couponCode ? `coupon=${encodeURIComponent(options.couponCode)}` : '',
+      `appName=${encodeURIComponent('180 Workspace')}`,
       `ux_mode=${encodeURIComponent(effectiveMode)}`,
       `env=${encodeURIComponent(env)}`,
     ].filter(Boolean).join('&');

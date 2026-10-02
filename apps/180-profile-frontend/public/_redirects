@@ -1,5 +1,5 @@
 # Cloudflare Pages SPA Rewrites for 180 Profile / 180 Pay dynamic routes
 /checkout/manage-subscription/*.txt  /checkout/manage-subscription/default.txt  200
-/checkout/manage-subscription/*      /checkout/manage-subscription/default.html 200
+/checkout/manage-subscription/*      /checkout/manage-subscription/default      200
 /checkout/*.txt                      /checkout/default.txt                      200
-/checkout/*                          /checkout/default.html                     200
+/checkout/*                          /checkout/default                          200
