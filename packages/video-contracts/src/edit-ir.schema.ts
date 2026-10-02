@@ -128,6 +128,39 @@ export const TransitionSchema = z.object({
 
 export type Transition = z.infer<typeof TransitionSchema>;
 
+/** Text motion (CapCut-style in / out / loop). Same maths on the phone preview and the Android renderer. */
+export const TEXT_ENTER_TYPES = ["fade", "slide_up", "slide_down", "slide_left", "slide_right", "pop", "typewriter"] as const;
+export const TEXT_EXIT_TYPES = ["fade", "slide_up", "slide_down", "slide_left", "slide_right", "pop"] as const;
+export const TEXT_LOOP_TYPES = ["pulse", "wiggle", "bounce", "float"] as const;
+const motionMs = z.number().int().min(50).max(5000);
+export const TextEnterSchema = z.object({ type: z.enum(TEXT_ENTER_TYPES), durationMs: motionMs });
+export const TextExitSchema = z.object({ type: z.enum(TEXT_EXIT_TYPES), durationMs: motionMs });
+export const TextLoopSchema = z.object({ type: z.enum(TEXT_LOOP_TYPES), periodMs: z.number().int().min(200).max(10000) });
+
+/**
+ * Overlay layer (PiP / sticker / layered B-roll), CapCut-style. `cutaway` (default when absent) replaces the main
+ * picture for the slot; `overlay` is composited on top of it. x / y are the layer centre as canvas fractions from the
+ * top-left, scale is the layer size relative to the largest size that fits the canvas, rotation in degrees.
+ * Keyframes (times relative to the overlay start) animate any of these plus opacity, linearly.
+ */
+export const LayerKeyframeSchema = z.object({
+  atMs: z.number().int().min(0),
+  x: z.number().min(-0.5).max(1.5).optional(),
+  y: z.number().min(-0.5).max(1.5).optional(),
+  scale: z.number().min(0.05).max(3).optional(),
+  rotation: z.number().min(-720).max(720).optional(),
+  opacity: z.number().min(0).max(1).optional(),
+});
+export const OverlayLayerSchema = z.object({
+  mode: z.enum(["cutaway", "overlay"]),
+  x: z.number().min(-0.5).max(1.5),
+  y: z.number().min(-0.5).max(1.5),
+  scale: z.number().min(0.05).max(3),
+  rotation: z.number().min(-720).max(720),
+  keyframes: z.array(LayerKeyframeSchema).max(60).optional(),
+});
+export type OverlayLayer = z.infer<typeof OverlayLayerSchema>;
+
 /**
  * Video / Overlay Timeline Clip
  */
@@ -151,6 +184,13 @@ export const VideoClipSchema = z.object({
   effects: z.array(z.string()).default([]),
   /** "image" = a still photo shown for timelineRange.duration (B-roll / sticker tracks). Absent = video. */
   mediaType: z.enum(["video", "image"]).optional(),
+  /** Overlay tracks only: how the layer is placed (absent = full-frame cutaway). */
+  layer: OverlayLayerSchema.optional(),
+  /** Overlay tracks only: "contain" keeps the whole frame (no crop). Absent = cover. */
+  fit: z.enum(["cover", "contain"]).optional(),
+  /** Main track: fade of the clip's own sound at its start / end, in ms (absent = none). */
+  audioFadeInMs: z.number().int().min(0).optional(),
+  audioFadeOutMs: z.number().int().min(0).optional(),
 });
 
 export type VideoClip = z.infer<typeof VideoClipSchema>;
@@ -254,6 +294,9 @@ export const CaptionSegmentSchema = z.object({
     maxWidthFraction: z.number().gt(0).max(1).optional(),
     /** Client-side preset name when it is not one of the canonical `preset` values. */
     presetLabel: z.string().optional(),
+    enter: TextEnterSchema.optional(),
+    exit: TextExitSchema.optional(),
+    loop: TextLoopSchema.optional(),
   }),
 });
 

@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/native_engine/media_engine_service.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
@@ -27,7 +28,7 @@ Future<void> showExportSheet(BuildContext context, StudioController c) async {
     } catch (_) {}
   }
   if (!context.mounted) return;
-  if (c.export == null) c.startExport();
+  // The sheet opens on the export settings; the render starts from its Export button.
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -147,15 +148,17 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    result != null
+                    e == null
+                        ? 'Export'
+                        : result != null
                         ? 'Export ready'
-                        : e?.error != null
+                        : e.error != null
                         ? 'Export failed'
                         : 'Exporting',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-                if (result != null || e?.error != null)
+                if (e == null || result != null || e.error != null)
                   IconButton(
                     onPressed: () {
                       c.clearExport();
@@ -167,7 +170,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
             ),
             SizedBox(height: 12),
             if (e == null)
-              SizedBox.shrink()
+              _ExportSettingsForm(c: c)
             else if (e.error != null) ...[
               ErrorView(
                 error: e.error!,
@@ -403,6 +406,62 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
 }
 
 /// Platform UI areas on 9:16 video (caption/handle at the bottom, action buttons on the right).
+/// Resolution, frame rate and quality, then Export. The render itself never changes the edit.
+class _ExportSettingsForm extends StatefulWidget {
+  const _ExportSettingsForm({required this.c});
+  final StudioController c;
+
+  @override
+  State<_ExportSettingsForm> createState() => _ExportSettingsFormState();
+}
+
+class _ExportSettingsFormState extends State<_ExportSettingsForm> {
+  late ExportSettings s = widget.c.exportSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final canvas = widget.c.ir?.canvas;
+    final short = canvas == null ? 1080 : (canvas.width < canvas.height ? canvas.width : canvas.height);
+    final canvasFps = (canvas?.fps ?? 30).round();
+    final sizes = [for (final p in const [1080, 720, 480]) if (p < short) p];
+    Widget group(String label, List<Widget> chips) => Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(color: AppTheme.textSecondary)),
+            SizedBox(height: 6),
+            Wrap(spacing: 8, runSpacing: 8, children: chips),
+          ]),
+        );
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      group('Resolution', [
+        ChoiceChip(label: Text('${short}p (full)'), selected: s.maxShortSide == null, onSelected: (_) => setState(() => s = s.copyWith(clearMaxShortSide: true))),
+        for (final p in sizes)
+          ChoiceChip(label: Text('${p}p'), selected: s.maxShortSide == p, onSelected: (_) => setState(() => s = s.copyWith(maxShortSide: p))),
+      ]),
+      group('Frame rate', [
+        ChoiceChip(label: Text('$canvasFps fps (project)'), selected: s.fps == null, onSelected: (_) => setState(() => s = s.copyWith(clearFps: true))),
+        for (final f in const [24, 30, 60])
+          if (f != canvasFps) ChoiceChip(label: Text('$f fps'), selected: s.fps == f, onSelected: (_) => setState(() => s = s.copyWith(fps: f))),
+      ]),
+      group('Quality', [
+        ChoiceChip(label: Text('Standard'), selected: s.quality != 'high', onSelected: (_) => setState(() => s = s.copyWith(quality: 'standard'))),
+        ChoiceChip(label: Text('High (bigger file)'), selected: s.quality == 'high', onSelected: (_) => setState(() => s = s.copyWith(quality: 'high'))),
+      ]),
+      SizedBox(
+        height: 48,
+        child: FilledButton.icon(
+          onPressed: () {
+            widget.c.exportSettings = s;
+            widget.c.startExport();
+          },
+          icon: Icon(Icons.movie_creation_outlined),
+          label: Text('Export video'),
+        ),
+      ),
+    ]);
+  }
+}
+
 class _SafeZones extends StatelessWidget {
   const _SafeZones();
 

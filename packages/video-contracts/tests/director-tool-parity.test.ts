@@ -1,0 +1,133 @@
+/**
+ * Editor parity E1.4: the Director reaches the editor's text motion, PiP / sticker layers and item removal through
+ * tools, and what it plans survives the trip to the phone's timeline.
+ */
+import test from "node:test";
+import assert from "node:assert/strict";
+import { EditIRCompiler } from "../src/edit-ir-compiler";
+import { CreativeEditPlanSchema } from "../src/creative-plan.schema";
+import { editIRFromMobileMedia, toMobileEditIR, editIRFromMobile } from "../src/mobile-edit-ir";
+import { buildDirectorToolDefinitions, validateDirectorToolCalls } from "../src/director-tools";
+import { constraintViolation } from "../src/director-constraints";
+
+const media = { assetId: "primary", durationMs: 20000, width: 1080, height: 1920, fps: 30 } as any;
+const sources = [{ assetId: "primary", durationMs: 20000, width: 1080, height: 1920 }];
+const intent = { aspectRatio: "9:16", resolution: { width: 1080, height: 1920 } };
+
+function run(calls: Array<{ name: string; args: any }>, base = editIRFromMobileMedia(media, "p1")) {
+  const v = validateDirectorToolCalls(calls);
+  assert.deepEqual(v.errors, []);
+  const r = EditIRCompiler.compile(base, CreativeEditPlanSchema.parse({ intent, operations: v.operations, explanation: "t" }));
+  return { r, mobile: toMobileEditIR({ editIR: r.updatedEditIR, sources, primaryAssetId: "primary" }).editIR };
+}
+
+test("tool list exposes removeItem and the new addText / insertBroll fields", () => {
+  const tools = buildDirectorToolDefinitions();
+  const byName = (n: string) => tools.find((t) => t.function.name === n)!.function.parameters;
+  assert.ok(byName("removeItem"));
+  for (const k of ["fontFamily", "enter", "exit", "loop", "glow", "strokeColor"]) assert.ok(byName("addText").properties[k], k);
+  for (const k of ["layout", "position", "scale", "animationIn", "keepAudio"]) assert.ok(byName("insertBroll").properties[k], k);
+});
+
+test("addText with font, colours and motion reaches the phone timeline", () => {
+  const { mobile } = run([{ name: "addText", args: {
+    text: "STOP SCROLLING", timelineStartSec: 0, durationSec: 2.5, position: { x: 0, y: -0.6 }, fontFamily: "Anton",
+    color: "#FF2D2D", strokeColor: "#000000", uppercase: true, glow: true,
+    enter: { type: "pop", durationMs: 300 }, exit: { type: "fade", durationMs: 250 }, loop: { type: "pulse", periodMs: 800 },
+  } }]);
+  const t = mobile.captions.find((c) => c.kind === "text")!;
+  const st = t.style as any;
+  assert.equal(st.fontFamily, "Anton");
+  assert.equal(st.textColor, "#FF2D2D");
+  assert.equal(st.strokeColor, "#000000");
+  assert.equal(st.uppercase, true);
+  assert.equal(st.glow, true);
+  assert.deepEqual(st.enter, { type: "pop", durationMs: 300 });
+  assert.deepEqual(st.loop, { type: "pulse", periodMs: 800 });
+});
+
+test("insertBroll as an animated PiP becomes a keyframed overlay layer", () => {
+  const { mobile, r } = run([{ name: "insertBroll", args: {
+    sourceUrl: "https://cdn.test/chart.mp4", timelineStartSec: 3, durationSec: 4, layout: "pip", animationIn: "zoom_in", keepAudio: true,
+  } }]);
+  assert.match(r.appliedOperations.join("\n"), /as pip/);
+  const o = mobile.overlays[0];
+  assert.equal(o.fit, "contain");
+  assert.equal(o.muted, false);
+  assert.equal(o.layer?.mode, "overlay");
+  assert.equal(o.layer?.scale, 0.42);
+  assert.deepEqual(o.layer?.keyframes?.[1], { atMs: 400, scale: 0.42, opacity: 1 });
+});
+
+test("plain insertBroll stays a muted full-screen cutaway", () => {
+  const { mobile } = run([{ name: "insertBroll", args: { sourceUrl: "https://cdn.test/b.mp4", timelineStartSec: 1, durationSec: 2 } }]);
+  assert.equal(mobile.overlays[0].layer, undefined);
+  assert.equal(mobile.overlays[0].fit, "cover");
+  assert.equal(mobile.overlays[0].muted, true);
+});
+
+test("removeItem removes by id, by time, and all of a kind; reports a miss", () => {
+  const { r } = run([
+    { name: "addZoom", args: { startSec: 2, durationSec: 1, scale: 1.3, targetCoords: { x: 0.5, y: 0.4 } } },
+    { name: "addZoom", args: { startSec: 8, durationSec: 1, scale: 1.3, targetCoords: { x: 0.5, y: 0.4 } } },
+    { name: "addText", args: { text: "A", timelineStartSec: 0, durationSec: 2 } },
+  ]);
+  const ir = r.updatedEditIR;
+  assert.equal(ir.tracks.cameraTrack.length, 2);
+  const zoomId = ir.tracks.cameraTrack[0].id;
+  const r2 = run([
+    { name: "removeItem", args: { kind: "zoom", id: zoomId } },
+    { name: "removeItem", args: { kind: "title", atSec: 1 } },
+    { name: "removeItem", args: { kind: "broll" } },
+  ], editIRFromMobile(toMobileEditIR({ editIR: ir, sources, primaryAssetId: "primary" }).editIR)).r;
+  assert.equal(r2.updatedEditIR.tracks.cameraTrack.length, 1);
+  assert.equal(r2.updatedEditIR.tracks.captionTrack.filter((c) => c.role === "title").length, 0);
+  assert.match(r2.rejectedOperations.join("\n"), /removeItem: no broll/);
+});
+
+test("locks stop removeItem from touching a locked track or range", () => {
+  const tl = { durationSec: 20, clips: [], musicTrackIds: [] };
+  assert.match(constraintViolation({ type: "removeItem", kind: "caption" }, { lockedRanges: [], lockedTracks: ["captions"] }, tl)!, /locked captions/);
+  assert.equal(constraintViolation({ type: "removeItem", kind: "zoom", atSec: 15 }, { lockedRanges: [[0, 5000]], lockedTracks: [] }, tl), null);
+  assert.ok(constraintViolation({ type: "removeItem", kind: "zoom", atSec: 2 }, { lockedRanges: [[0, 5000]], lockedTracks: [] }, tl));
+});
+
+test("applyFilter exposure / warmth / tint / vignette reach the phone in phone units and round-trip", () => {
+  const { mobile } = run([{ name: "applyFilter", args: { preset: "CINEMATIC_TEAL_ORANGE", exposure: 0.3, temperature: 0.5, tint: -0.2, vignette: 0.4 } }]);
+  const f = mobile.clips[0].filter!;
+  assert.equal(f.preset, "CINEMATIC_TEAL_ORANGE");
+  assert.equal(f.exposure, 0.3);
+  assert.equal(f.temperature, 0.5);
+  assert.equal(f.tint, -0.2);
+  assert.equal(f.vignette, 0.4);
+  const back = toMobileEditIR({ editIR: editIRFromMobile(mobile), sources, primaryAssetId: "primary" }).editIR.clips[0].filter!;
+  assert.deepEqual(back, f);
+  const plain = run([{ name: "applyFilter", args: { preset: "VIVID" } }]).mobile.clips[0].filter!;
+  assert.equal("exposure" in plain || "vignette" in plain, false);
+});
+
+test("fadeClipAudio sets clip fades that reach the phone and round-trip", () => {
+  const { mobile, r } = run([{ name: "fadeClipAudio", args: { fadeInSec: 0.5, fadeOutSec: 5 } }]);
+  assert.match(r.appliedOperations.join("\n"), /Faded clip audio/);
+  const c = mobile.clips[0];
+  assert.equal(c.audioFadeInMs, 500);
+  assert.equal(c.audioFadeOutMs, 5000);
+  const back = toMobileEditIR({ editIR: editIRFromMobile(mobile), sources, primaryAssetId: "primary" }).editIR.clips[0];
+  assert.equal(back.audioFadeInMs, 500);
+  assert.equal(back.audioFadeOutMs, 5000);
+  assert.match(run([{ name: "fadeClipAudio", args: { clipId: "nope", fadeInSec: 1 } }]).r.rejectedOperations.join(), /no main clip/);
+});
+
+test("addSticker places an emoji image layer the phone draws itself; non-emoji is rejected", () => {
+  const { mobile, r } = run([{ name: "addSticker", args: { emoji: "🔥", timelineStartSec: 4, durationSec: 2 } }]);
+  assert.match(r.appliedOperations.join("\n"), /🔥 sticker/);
+  const o = mobile.overlays[0];
+  assert.deepEqual(o.source, { kind: "asset", assetId: "emoji:🔥" });
+  assert.equal(o.mediaType, "image");
+  assert.equal(o.fit, "contain");
+  assert.equal(o.layer?.mode, "overlay");
+  assert.equal(o.layer?.scale, 0.26);
+  assert.equal(o.layer?.keyframes?.length, 2);
+  assert.deepEqual(toMobileEditIR({ editIR: editIRFromMobile(mobile), sources, primaryAssetId: "primary" }).editIR.overlays[0].source, o.source);
+  assert.match(validateDirectorToolCalls([{ name: "addSticker", args: { emoji: "<script>", timelineStartSec: 1 } }]).errors.join(), /emoji/);
+});

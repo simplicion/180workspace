@@ -221,6 +221,8 @@ class TimelineOps {
             transitionIn: i == 0 ? null : c.transitionIn,
             rotationDeg: c.rotationDeg,
             flipH: c.flipH,
+            audioFadeInMs: c.audioFadeInMs,
+            audioFadeOutMs: c.audioFadeOutMs,
           );
           t += len;
           return out;
@@ -242,14 +244,9 @@ class TimelineOps {
     final laid = _relayout(newClips);
     final segs = <_Seg>[];
     for (final n in laid) {
-      final old = ir.clips
-          .where(
-            (o) =>
-                o.assetId == n.assetId &&
-                n.sourceStartMs >= o.sourceStartMs &&
-                n.sourceEndMs <= o.sourceEndMs,
-          )
-          .firstOrNull;
+      bool covers(EditIrClip o) => o.assetId == n.assetId && n.sourceStartMs >= o.sourceStartMs && n.sourceEndMs <= o.sourceEndMs;
+      // Same clip id first: a duplicated clip shares its source with the original, so source alone is ambiguous.
+      final old = ir.clips.where((o) => o.id == n.id && covers(o)).firstOrNull ?? ir.clips.where(covers).firstOrNull;
       if (old == null) {
         continue; // newly revealed source (trim extend): nothing to carry over
       }
@@ -375,6 +372,12 @@ class TimelineOps {
                 case final r?)
               e.moved(r.$1),
         ],
+        // Voiceovers stay where they start in the footage; one whose start was cut away is dropped.
+        voiceovers: [
+          for (final v in ir.audio.voiceovers)
+            if (map.range(v.timelineStartMs, v.timelineStartMs + 1) case final r?)
+              v.copyWith(timelineStartMs: r.$1, durationMs: math.min(v.durationMs, duration - r.$1)),
+        ],
       ),
     );
     out.validate();
@@ -437,6 +440,7 @@ class TimelineOps {
       music: music ?? ir.audio.music,
       speechRangesMs: speechRangesMs ?? ir.audio.speechRangesMs,
       sfx: ir.audio.sfx,
+      voiceovers: ir.audio.voiceovers,
     ),
   );
 
@@ -455,6 +459,8 @@ class TimelineOps {
     bool clearTransition = false,
     int? rotationDeg,
     bool? flipH,
+    int? audioFadeInMs,
+    int? audioFadeOutMs,
   }) => EditIrClip(
     id: id ?? c.id,
     assetId: c.assetId,
@@ -469,6 +475,8 @@ class TimelineOps {
     transitionIn: clearTransition ? null : (transitionIn ?? c.transitionIn),
     rotationDeg: rotationDeg ?? c.rotationDeg,
     flipH: flipH ?? c.flipH,
+    audioFadeInMs: audioFadeInMs ?? c.audioFadeInMs,
+    audioFadeOutMs: audioFadeOutMs ?? c.audioFadeOutMs,
   );
 
   static int clipIndexAt(MobileEditIr ir, int timelineMs) {
@@ -501,10 +509,61 @@ class TimelineOps {
     }
     final clips = [...ir.clips]
       ..replaceRange(i, i + 1, [
-        _clip(c, sourceEndMs: at),
-        _clip(c, id: _id('c'), sourceStartMs: at, clearTransition: true),
+        _clip(c, sourceEndMs: at, audioFadeOutMs: 0),
+        _clip(c, id: _id('c'), sourceStartMs: at, clearTransition: true, audioFadeInMs: 0),
       ]);
     return _replaceClips(ir, clips);
+  }
+
+  /// Source length recorded for a still: it can be stretched to any length a timeline needs.
+  static const stillSourceMs = 600000;
+
+  /// Freeze frame / photo clip: holds the still [assetId] for [durationMs] at [atMs] (splitting the clip there),
+  /// with the look (crop, rotation, filter) of the clip it interrupts. Everything after moves later.
+  static MobileEditIr insertStill(
+    MobileEditIr ir, {
+    required String assetId,
+    required int atMs,
+    required int durationMs,
+    required int width,
+    required int height,
+  }) {
+    if (durationMs < 300) throw MediaEngineException('INVALID_EDIT', 'A freeze frame needs at least 0.3 s.');
+    var i = clipIndexAt(ir, atMs);
+    var clips = ir.clips;
+    var insertAt = i + 1;
+    final c = clips[i];
+    if (atMs - c.timelineStartMs < minClipMs) {
+      insertAt = i; // at the very start of the clip: hold before it
+    } else if (c.timelineEndMs - atMs >= minClipMs) {
+      clips = split(ir, atMs).clips;
+    }
+    final look = clips[math.min(i, clips.length - 1)];
+    final still = EditIrClip(
+      id: _id('fz'),
+      assetId: assetId,
+      sourceStartMs: 0,
+      sourceEndMs: durationMs,
+      timelineStartMs: 0,
+      timelineEndMs: durationMs,
+      crop: look.crop,
+      filter: look.filter,
+      rotationDeg: look.rotationDeg,
+      flipH: look.flipH,
+    );
+    final sources = [
+      ...ir.sources,
+      if (!ir.sources.any((s) => s.assetId == assetId)) EditIrSource(assetId: assetId, durationMs: stillSourceMs, width: width, height: height),
+    ];
+    return _replaceClips(ir.copyWith(sources: sources), [...clips]..insert(insertAt, still));
+  }
+
+  /// Inserts a copy of clip [index] right after it (same source, look and fades; no transition into the copy).
+  /// Everything after moves later; captions and overlays stay with the original footage.
+  static MobileEditIr duplicateClip(MobileEditIr ir, int index) {
+    if (index < 0 || index >= ir.clips.length) throw MediaEngineException('INVALID_EDIT', 'No clip to duplicate.');
+    final c = ir.clips[index];
+    return _replaceClips(ir, [...ir.clips]..insert(index + 1, _clip(c, id: _id('c'), clearTransition: true)));
   }
 
   /// Ripple-deletes clip [index]; everything after moves up.
@@ -611,6 +670,44 @@ class TimelineOps {
           targets.contains(i)
               ? _clip(ir.clips[i], volumeDb: db.clamp(-60.0, 12.0))
               : ir.clips[i],
+      ],
+    );
+  }
+
+  /// Gain (0..1) of clip [index]'s own sound [relMs] into the clip: volume × fade in × fade out. Mirrors
+  /// `clipAudioProcessors` / `ClipAudioGainModel` in the Android renderer (fades = the longer of the clip's own fade and
+  /// half the adjoining transition); the preview player cannot boost, so gain is capped at 1.
+  static double clipPreviewGain(MobileEditIr ir, int index, int relMs) {
+    final c = ir.clips[index];
+    if (c.volumeDb <= -60 || ir.audio.originalVolumeDb <= -60) return 0;
+    final dur = (c.timelineEndMs - c.timelineStartMs).toDouble();
+    double half(EditIrTransition? t) => t == null || t.type == 'CUT' ? 0 : t.durationMs / 2;
+    final fadeIn = math.max(half(c.transitionIn), c.audioFadeInMs.toDouble());
+    final next = index + 1 < ir.clips.length ? ir.clips[index + 1] : null;
+    final fadeOut = math.max(half(next?.transitionIn), c.audioFadeOutMs.toDouble());
+    double ramp(double t, double a, double b) => b <= a ? (t >= a ? 1 : 0) : ((t - a) / (b - a)).clamp(0.0, 1.0);
+    var g = math.pow(10, (c.volumeDb + ir.audio.originalVolumeDb) / 20).toDouble();
+    if (fadeIn > 0) g *= ramp(relMs.toDouble(), 0, fadeIn);
+    if (fadeOut > 0) g *= 1 - ramp(relMs.toDouble(), dur - fadeOut, dur);
+    return g.clamp(0.0, 1.0);
+  }
+
+  /// Fades the clip's own sound in / out (0 = off). Each fade is at most half the clip.
+  static MobileEditIr setClipAudioFades(MobileEditIr ir, {required int fadeInMs, required int fadeOutMs, int? index}) {
+    if (fadeInMs < 0 || fadeOutMs < 0) throw MediaEngineException('INVALID_EDIT', 'Fades cannot be negative.');
+    final targets = _targets(ir, index).toSet();
+    return _copy(
+      ir,
+      clips: [
+        for (var i = 0; i < ir.clips.length; i++)
+          if (targets.contains(i))
+            () {
+              final c = ir.clips[i];
+              final half = (c.timelineEndMs - c.timelineStartMs) ~/ 2;
+              return _clip(c, audioFadeInMs: math.min(fadeInMs, half), audioFadeOutMs: math.min(fadeOutMs, half));
+            }()
+          else
+            ir.clips[i],
       ],
     );
   }
@@ -1108,6 +1205,23 @@ class TimelineOps {
     );
   }
 
+  /// A sticker: a transparent image floating above the video (upper right, a quarter size, pops in).
+  static MobileEditIr addSticker(MobileEditIr ir, Map<String, dynamic> source, {required int startMs, int durationMs = 2500}) {
+    final s = startMs.clamp(0, math.max(0, ir.durationMs - 300)).toInt();
+    final e = math.min(ir.durationMs, s + math.max(durationMs, 300)).toInt();
+    const base = EditIrLayer(x: 0.74, y: 0.22, scale: 0.26);
+    final o = EditIrOverlay(
+      id: _id('st'),
+      timelineStartMs: s,
+      timelineEndMs: e,
+      source: source,
+      mediaType: 'image',
+      fit: 'contain',
+      layer: base.copyWith(keyframes: layerEntrance(base, 'zoom_in', durationMs: 300)),
+    );
+    return _copy(ir, overlays: [...ir.overlays, o]..sort((a, b) => a.timelineStartMs.compareTo(b.timelineStartMs)));
+  }
+
   static MobileEditIr removeOverlay(MobileEditIr ir, String id) =>
       _copy(ir, overlays: ir.overlays.where((o) => o.id != id).toList());
 
@@ -1119,25 +1233,44 @@ class TimelineOps {
     double? opacity,
     Map<String, dynamic>? sourceUpdates,
     int? sourceStartMs,
+    String? fit,
+    EditIrLayer? layer,
+    bool clearLayer = false,
   }) {
+    if (!ir.overlays.any((o) => o.id == id)) throw MediaEngineException('INVALID_EDIT', 'That overlay no longer exists.');
+    if (opacity != null && (opacity < 0 || opacity > 1)) throw MediaEngineException('INVALID_EDIT', 'Opacity must be between 0 and 100%.');
+    if (fit != null && fit != 'cover' && fit != 'contain') throw MediaEngineException('INVALID_EDIT', 'Unknown fit "$fit".');
     final overlays = ir.overlays.map((o) {
       if (o.id != id) return o;
-      final newSource = Map<String, dynamic>.from(o.source);
-      if (sourceUpdates != null) {
-        newSource.addAll(sourceUpdates);
-      }
-      return EditIrOverlay(
-        id: o.id,
-        timelineStartMs: o.timelineStartMs,
-        timelineEndMs: o.timelineEndMs,
-        sourceStartMs: sourceStartMs ?? o.sourceStartMs,
-        source: newSource,
-        opacity: opacity ?? o.opacity,
-        muted: muted ?? o.muted,
-        mediaType: o.mediaType,
+      return o.copyWith(
+        source: sourceUpdates == null ? null : {...o.source, ...sourceUpdates},
+        sourceStartMs: sourceStartMs,
+        opacity: opacity,
+        muted: muted,
+        fit: fit,
+        layer: layer,
+        clearLayer: clearLayer,
       );
     }).toList();
     return _copy(ir, overlays: overlays);
+  }
+
+  /// Entrance animations for a layer, as keyframes relative to the overlay start (CapCut "In" animations).
+  static List<LayerKeyframe> layerEntrance(EditIrLayer layer, String kind, {int durationMs = 400}) {
+    switch (kind) {
+      case 'zoom_in':
+        return [LayerKeyframe(atMs: 0, scale: layer.scale * 0.2, opacity: 0), LayerKeyframe(atMs: durationMs, scale: layer.scale, opacity: 1)];
+      case 'slide_left':
+        return [LayerKeyframe(atMs: 0, x: layer.x + 0.6), LayerKeyframe(atMs: durationMs, x: layer.x)];
+      case 'slide_up':
+        return [LayerKeyframe(atMs: 0, y: layer.y + 0.5), LayerKeyframe(atMs: durationMs, y: layer.y)];
+      case 'fade':
+        return [LayerKeyframe(atMs: 0, opacity: 0), LayerKeyframe(atMs: durationMs, opacity: 1)];
+      case 'spin':
+        return [LayerKeyframe(atMs: 0, rotation: layer.rotation - 180, scale: layer.scale * 0.3), LayerKeyframe(atMs: durationMs, rotation: layer.rotation, scale: layer.scale)];
+      default:
+        return const [];
+    }
   }
 
   /// Adds a new video clip to the main timeline track (e.g. at the start as an intro or appended at the end).
@@ -1321,8 +1454,42 @@ class TimelineOps {
           music: ir.audio.music,
           speechRangesMs: ir.audio.speechRangesMs,
           sfx: sfx,
+          voiceovers: ir.audio.voiceovers,
         ),
       );
+
+  static MobileEditIr _withVoiceovers(MobileEditIr ir, List<EditIrVoiceover> voiceovers) => _copy(
+        ir,
+        audio: EditIrAudio(
+          originalVolumeDb: ir.audio.originalVolumeDb,
+          music: ir.audio.music,
+          speechRangesMs: ir.audio.speechRangesMs,
+          sfx: ir.audio.sfx,
+          voiceovers: [...voiceovers]..sort((a, b) => a.timelineStartMs.compareTo(b.timelineStartMs)),
+        ),
+      );
+
+  /// Places a recording at [atMs] (clipped to the video end). Voiceovers may overlap each other.
+  static MobileEditIr addVoiceover(MobileEditIr ir, {required String assetId, required int atMs, required int durationMs}) {
+    final start = atMs.clamp(0, math.max(0, ir.durationMs - minClipMs)).toInt();
+    final len = math.min(durationMs, ir.durationMs - start);
+    if (len < 300) throw MediaEngineException('INVALID_EDIT', 'Move the playhead earlier: the voiceover needs at least 0.3 s before the end.');
+    return _withVoiceovers(ir, [
+      ...ir.audio.voiceovers,
+      EditIrVoiceover(id: _id('vo'), assetId: assetId, timelineStartMs: start, durationMs: len, fadeInMs: 80, fadeOutMs: 120),
+    ]);
+  }
+
+  static MobileEditIr updateVoiceover(MobileEditIr ir, String id, {double? volumeDb, int? fadeInMs, int? fadeOutMs}) {
+    if (!ir.audio.voiceovers.any((v) => v.id == id)) throw MediaEngineException('INVALID_EDIT', 'That voiceover is no longer on the timeline.');
+    return _withVoiceovers(ir, [
+      for (final v in ir.audio.voiceovers)
+        v.id == id ? v.copyWith(volumeDb: volumeDb?.clamp(-60.0, 12.0), fadeInMs: fadeInMs, fadeOutMs: fadeOutMs) : v,
+    ]);
+  }
+
+  static MobileEditIr removeVoiceover(MobileEditIr ir, String id) =>
+      _withVoiceovers(ir, [for (final v in ir.audio.voiceovers) if (v.id != id) v]);
 
   // ── Track mute (Voice = original audio, Music, Sound FX) ───────────────────
 
@@ -1385,6 +1552,27 @@ class TimelineOps {
   // ── Timeline items (what the multi-track timeline shows) ───────────────────
 
   /// Every placed item, per track, in timeline order. Clips are the video track.
+  /// Edges a dragged item can snap to: 0, the end, every clip cut, the playhead and the other items' edges.
+  static List<int> snapPoints(MobileEditIr ir, {int? playheadMs, String? excludeId}) => {
+        0,
+        ir.durationMs,
+        for (final c in ir.clips) ...[c.timelineStartMs, c.timelineEndMs],
+        ?playheadMs,
+        for (final it in items(ir))
+          if (it.id != excludeId) ...[it.startMs, it.endMs],
+      }.toList()
+        ..sort();
+
+  /// The nearest of [points] within [thresholdMs] of [ms], or null.
+  static int? snapMs(int ms, Iterable<int> points, int thresholdMs) {
+    int? best;
+    for (final p in points) {
+      final d = (p - ms).abs();
+      if (d <= thresholdMs && (best == null || d < (best - ms).abs())) best = p;
+    }
+    return best;
+  }
+
   static List<TimelineItem> items(MobileEditIr ir) => [
         for (var i = 0; i < ir.clips.length; i++)
           TimelineItem(
@@ -1415,6 +1603,8 @@ class TimelineOps {
           TimelineItem(TrackKind.music, m.id, m.timelineStartMs, m.timelineEndMs, '${m.source['title'] ?? m.source['query'] ?? 'Music'}'),
         for (final e in ir.audio.sfx)
           TimelineItem(TrackKind.sfx, e.id, e.timelineStartMs, e.timelineStartMs + (e.durationMs ?? 1000), e.credit ?? 'Sound effect'),
+        for (final (i, v) in ir.audio.voiceovers.indexed)
+          TimelineItem(TrackKind.voiceover, v.id, v.timelineStartMs, v.timelineEndMs, 'Voiceover ${i + 1}'),
       ];
 
   /// Moves an item so it starts at [startMs], keeping its length (clamped to the video). Captions keep their
@@ -1460,6 +1650,14 @@ class TimelineOps {
               return e.copyWith(startMs: s, endMs: s + e.endMs - e.startMs);
             }(),
         ]..sort((a, b) => a.startMs.compareTo(b.startMs)));
+      case TrackKind.voiceover:
+        return _withVoiceovers(ir, [
+          for (final v in ir.audio.voiceovers)
+            if (v.id != id) v else () {
+              final s = clampStart(math.min(v.durationMs, ir.durationMs));
+              return v.copyWith(timelineStartMs: s, durationMs: math.min(v.durationMs, ir.durationMs - s));
+            }(),
+        ]);
       case TrackKind.music:
       case TrackKind.video:
       case TrackKind.voice:
@@ -1520,6 +1718,17 @@ class TimelineOps {
           for (final x in ir.audio.sfx)
             x.id == id ? EditIrSfx(id: x.id, timelineStartMs: s, durationMs: e - s, source: x.source, volumeDb: x.volumeDb, credit: x.credit) : x,
         ]);
+      case TrackKind.voiceover:
+        // A recording cannot be stretched: the start can reach back to the recording's beginning, the end no further
+        // than where it already ends.
+        final v = ir.audio.voiceovers.firstWhere((v) => v.id == id);
+        final ns = math.max(s, v.timelineStartMs - v.sourceStartMs);
+        final ne = math.min(e, v.timelineEndMs);
+        if (ne - ns < 300) throw MediaEngineException('INVALID_EDIT', 'A voiceover needs at least 0.3 s.');
+        return _withVoiceovers(ir, [
+          for (final x in ir.audio.voiceovers)
+            x.id == id ? x.copyWith(timelineStartMs: ns, durationMs: ne - ns, sourceStartMs: x.sourceStartMs + (ns - x.timelineStartMs)) : x,
+        ]);
       case TrackKind.effect:
       case TrackKind.video:
       case TrackKind.voice:
@@ -1534,6 +1743,7 @@ class TimelineOps {
         TrackKind.zoom => removeZoom(ir, id),
         TrackKind.music => removeMusic(ir),
         TrackKind.sfx => removeSfx(ir, id),
+        TrackKind.voiceover => removeVoiceover(ir, id),
         TrackKind.effect => removeEffect(ir, id),
         TrackKind.video => deleteClip(ir, ir.clips.indexWhere((c) => c.id == id)),
         TrackKind.voice => throw MediaEngineException('INVALID_EDIT', 'Mute the voice track instead.'),
@@ -1601,6 +1811,7 @@ enum TrackKind {
   zoom('Zoom'),
   effect('Effects'),
   voice('Voice'),
+  voiceover('Voiceover'),
   music('Music'),
   sfx('Sound FX');
 

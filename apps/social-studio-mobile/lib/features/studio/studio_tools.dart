@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/native_engine/edit_ir.dart';
@@ -14,6 +16,7 @@ import '../director/ai_director_service.dart';
 import '../projects/project_provider.dart';
 import 'caption_fonts.dart';
 import 'studio_controller.dart';
+import 'sticker_maker.dart';
 import 'studio_session_screen.dart' show timecode;
 import 'text_motion.dart';
 import 'text_templates.dart';
@@ -24,6 +27,8 @@ enum StudioTool {
   library('Library', Icons.library_add_rounded),
   trim('Trim', Icons.straighten_rounded),
   delete('Delete', Icons.delete_outline_rounded),
+  duplicate('Duplicate', Icons.copy_all_rounded),
+  freeze('Freeze', Icons.pause_circle_outline_rounded),
   order('Reorder', Icons.swap_horiz_rounded),
   speed('Speed', Icons.speed_rounded),
   volume('Volume', Icons.volume_up_rounded),
@@ -34,8 +39,10 @@ enum StudioTool {
   text('Text', Icons.title_rounded),
   captions('Captions', Icons.closed_caption_rounded),
   music('Music', Icons.music_note_rounded),
+  voiceover('Voiceover', Icons.mic_rounded),
   zoom('Zoom', Icons.zoom_in_rounded),
   broll('B-roll', Icons.layers_rounded),
+  sticker('Stickers', Icons.emoji_emotions_rounded),
   transition('Transition', Icons.compare_rounded);
 
   StudioTool(this.label, this.icon);
@@ -69,6 +76,8 @@ Future<void> showStudioTool(BuildContext context, StudioTool tool, StudioControl
         child: switch (tool) {
           StudioTool.trim => _TrimSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.delete => _DeleteSheet(c: c, index: clipIndex, onEdit: onEdit),
+          StudioTool.duplicate => _DuplicateSheet(c: c, index: clipIndex, onEdit: onEdit),
+          StudioTool.freeze => _FreezeSheet(c: c),
           StudioTool.order => _OrderSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.speed => _SpeedSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.volume => _VolumeSheet(c: c, index: clipIndex, onEdit: onEdit),
@@ -83,8 +92,10 @@ Future<void> showStudioTool(BuildContext context, StudioTool tool, StudioControl
           ),
           StudioTool.captions => _CaptionsSheet(c: c, onEdit: onEdit),
           StudioTool.music => _MusicSheet(c: c, onEdit: onEdit),
+          StudioTool.voiceover => _VoiceoverSheet(c: c),
           StudioTool.zoom => _ZoomSheet(c: c, onEdit: onEdit),
           StudioTool.broll => _BrollSheet(c: c, onEdit: onEdit),
+          StudioTool.sticker => _StickerSheet(c: c, onEdit: onEdit),
           StudioTool.transition => _TransitionSheet(c: c, onEdit: onEdit),
           StudioTool.library => _LibrarySheet(c: c, onEdit: onEdit),
           StudioTool.director => SizedBox.shrink(),
@@ -174,6 +185,76 @@ class _TrimSheetState extends State<_TrimSheet> {
             widget.onEdit((ir) => TimelineOps.trim(ir, widget.index, sourceStartMs: v.start.round(), sourceEndMs: v.end.round()));
           },
           child: Text('Apply trim'),
+        ),
+      ]);
+}
+
+class _DuplicateSheet extends StatelessWidget {
+  const _DuplicateSheet({required this.c, required this.index, required this.onEdit});
+  final StudioController c;
+  final int index;
+  final EditFn onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final clip = c.ir!.clips[index];
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _Title('Duplicate', subtitle: 'The copy goes right after the clip; everything after it moves later.'),
+      ListTile(
+        leading: Icon(Icons.copy_all_rounded),
+        title: Text('Duplicate clip ${index + 1}'),
+        subtitle: Text('${timecode(clip.timelineStartMs)} – ${timecode(clip.timelineEndMs)}'),
+        onTap: () {
+          _close(context);
+          onEdit((ir) => TimelineOps.duplicateClip(ir, index), done: 'Clip duplicated');
+        },
+      ),
+    ]);
+  }
+}
+
+/// Freeze frame: holds the exact frame under the playhead; everything after moves later.
+class _FreezeSheet extends StatefulWidget {
+  const _FreezeSheet({required this.c});
+  final StudioController c;
+
+  @override
+  State<_FreezeSheet> createState() => _FreezeSheetState();
+}
+
+class _FreezeSheetState extends State<_FreezeSheet> {
+  int seconds = 2;
+  bool busy = false;
+
+  Future<void> _freeze() async {
+    setState(() => busy = true);
+    try {
+      await widget.c.freezeFrame(durationMs: seconds * 1000);
+      if (!mounted) return;
+      _close(context);
+      showSuccess(context, 'Frame frozen for $seconds s');
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _Title('Freeze frame', subtitle: 'Holds the frame at ${timecode(widget.c.playheadMs)}. Trim the still later to change how long it holds.'),
+        Wrap(spacing: 8, children: [
+          for (final s in const [1, 2, 3, 5])
+            ChoiceChip(label: Text('$s s'), selected: seconds == s, onSelected: busy ? null : (_) => setState(() => seconds = s)),
+        ]),
+        SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: FilledButton.icon(
+            onPressed: busy ? null : _freeze,
+            icon: Icon(Icons.pause_circle_outline_rounded),
+            label: Text(busy ? 'Capturing the frame…' : 'Freeze frame'),
+          ),
         ),
       ]);
 }
@@ -311,6 +392,8 @@ class _VolumeSheet extends StatefulWidget {
 class _VolumeSheetState extends State<_VolumeSheet> {
   late double clipDb = widget.c.ir!.clips[widget.index].volumeDb.clamp(-60, 12);
   late double masterDb = widget.c.ir!.audio.originalVolumeDb.clamp(-60, 12);
+  late double fadeIn = widget.c.ir!.clips[widget.index].audioFadeInMs / 1000;
+  late double fadeOut = widget.c.ir!.clips[widget.index].audioFadeOutMs / 1000;
   bool all = false;
 
   String _fmt(double db) => db <= -60 ? 'Muted' : '${db >= 0 ? '+' : ''}${db.toStringAsFixed(0)} dB';
@@ -323,13 +406,23 @@ class _VolumeSheetState extends State<_VolumeSheet> {
         Slider(value: clipDb, min: -60, max: 12, divisions: 72, onChanged: (v) => setState(() => clipDb = v.roundToDouble())),
         Text('Whole video voice level: ${_fmt(masterDb)}'),
         Slider(value: masterDb, min: -60, max: 12, divisions: 72, onChanged: (v) => setState(() => masterDb = v.roundToDouble())),
+        Text('Fade in: ${fadeIn == 0 ? 'Off' : '${fadeIn.toStringAsFixed(1)} s'}'),
+        Slider(value: fadeIn.clamp(0, 3), min: 0, max: 3, divisions: 30, onChanged: (v) => setState(() => fadeIn = v)),
+        Text('Fade out: ${fadeOut == 0 ? 'Off' : '${fadeOut.toStringAsFixed(1)} s'}'),
+        Slider(value: fadeOut.clamp(0, 3), min: 0, max: 3, divisions: 30, onChanged: (v) => setState(() => fadeOut = v)),
         Row(children: [
           TextButton(onPressed: () => setState(() => clipDb = -60), child: Text('Mute clip')),
           Spacer(),
           FilledButton(
             onPressed: () {
               _close(context);
-              widget.onEdit((ir) => TimelineOps.setOriginalVolume(TimelineOps.setClipVolume(ir, clipDb, index: all ? null : widget.index), masterDb));
+              final index = all ? null : widget.index;
+              widget.onEdit((ir) => TimelineOps.setClipAudioFades(
+                    TimelineOps.setOriginalVolume(TimelineOps.setClipVolume(ir, clipDb, index: index), masterDb),
+                    fadeInMs: (fadeIn * 1000).round(),
+                    fadeOutMs: (fadeOut * 1000).round(),
+                    index: index,
+                  ));
             },
             child: Text('Apply'),
           ),
@@ -480,35 +573,191 @@ class _AdjustSheet extends StatefulWidget {
 }
 
 class _AdjustSheetState extends State<_AdjustSheet> {
-  late final EditIrFilter f = widget.c.ir!.clips[widget.index].filter ?? EditIrFilter();
-  late double b = f.brightness, ct = f.contrast, s = f.saturation;
+  late EditIrFilter f = widget.c.ir!.clips[widget.index].filter ?? EditIrFilter();
   bool all = true;
 
-  Widget _slider(String label, double v, ValueChanged<double> on) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('$label  ${((v - 1) * 100).round() >= 0 ? '+' : ''}${((v - 1) * 100).round()}'),
-        Slider(value: v, min: 0, max: 2, divisions: 40, onChanged: on),
-      ]);
+  /// [v] shown as -100..+100 around [neutral]; [span] is how far the slider reaches either side.
+  Widget _slider(String label, double v, double neutral, double span, ValueChanged<double> on, {bool oneSided = false}) {
+    final shown = ((v - neutral) / span * 100).round();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('$label  ${shown > 0 && !oneSided ? '+' : ''}$shown'),
+      Slider(
+        value: v.clamp(oneSided ? neutral : neutral - span, neutral + span),
+        min: oneSided ? neutral : neutral - span,
+        max: neutral + span,
+        divisions: oneSided ? 20 : 40,
+        onChanged: on,
+      ),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const _Title('Adjust colour'),
         _Scope(all: all, onChanged: (v) => setState(() => all = v), index: widget.index, count: widget.c.ir!.clips.length),
-        _slider('Brightness', b, (v) => setState(() => b = v)),
-        _slider('Contrast', ct, (v) => setState(() => ct = v)),
-        _slider('Saturation', s, (v) => setState(() => s = v)),
+        Flexible(
+          child: SingleChildScrollView(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              _slider('Exposure', f.exposure, 0, 1, (v) => setState(() => f = f.copyWith(exposure: v))),
+              _slider('Brightness', f.brightness, 1, 1, (v) => setState(() => f = f.copyWith(brightness: v))),
+              _slider('Contrast', f.contrast, 1, 1, (v) => setState(() => f = f.copyWith(contrast: v))),
+              _slider('Saturation', f.saturation, 1, 1, (v) => setState(() => f = f.copyWith(saturation: v))),
+              _slider('Warmth', f.temperature, 0, 1, (v) => setState(() => f = f.copyWith(temperature: v))),
+              _slider('Tint', f.tint, 0, 1, (v) => setState(() => f = f.copyWith(tint: v))),
+              _slider('Vignette', f.vignette, 0, 1, (v) => setState(() => f = f.copyWith(vignette: v)), oneSided: true),
+            ]),
+          ),
+        ),
         Row(children: [
-          TextButton(onPressed: () => setState(() => b = ct = s = 1), child: Text('Reset')),
+          TextButton(
+            onPressed: () => setState(() => f = EditIrFilter(preset: f.preset)),
+            child: Text('Reset'),
+          ),
           Spacer(),
           FilledButton(
             onPressed: () {
               _close(context);
-              final unchanged = b == 1 && ct == 1 && s == 1 && f.preset == 'NORMAL';
-              widget.onEdit((ir) => TimelineOps.setFilter(
-                  ir, unchanged ? null : EditIrFilter(preset: f.preset, brightness: b, contrast: ct, saturation: s),
-                  index: all ? null : widget.index));
+              final next = f;
+              widget.onEdit((ir) => TimelineOps.setFilter(ir, next.isNeutral ? null : next, index: all ? null : widget.index));
             },
             child: Text('Apply'),
           ),
+        ]),
+      ]);
+}
+
+/// Records a voiceover from the playhead. The recording is placed where it started; music ducks under it on export.
+class _VoiceoverSheet extends StatefulWidget {
+  const _VoiceoverSheet({required this.c});
+  final StudioController c;
+
+  @override
+  State<_VoiceoverSheet> createState() => _VoiceoverSheetState();
+}
+
+class _VoiceoverSheetState extends State<_VoiceoverSheet> {
+  Timer? _tick;
+  DateTime? _since;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    // Closing the sheet mid-recording discards it rather than leaving the microphone on.
+    if (widget.c.recordingVoiceover) unawaited(widget.c.cancelVoiceover());
+    super.dispose();
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() => _busy = true);
+    try {
+      await action();
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _start() => _run(() async {
+        await widget.c.startVoiceover();
+        _since = DateTime.now();
+        _tick = Timer.periodic(const Duration(milliseconds: 200), (_) => setState(() {}));
+      });
+
+  Future<void> _stop() => _run(() async {
+        _tick?.cancel();
+        await widget.c.stopVoiceover();
+        if (mounted) {
+          _close(context);
+          showSuccess(context, 'Voiceover added');
+        }
+      });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.c;
+    final recording = c.recordingVoiceover;
+    final elapsed = _since == null ? 0 : DateTime.now().difference(_since!).inMilliseconds;
+    final count = c.ir?.audio.voiceovers.length ?? 0;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _Title(
+        'Voiceover',
+        subtitle: recording
+            ? 'Recording from ${timecode(c.voiceoverStartMs ?? 0)}…'
+            : 'Records from the playhead (${timecode(c.playheadMs)}). Music is lowered under your voice on export.',
+      ),
+      if (recording)
+        Text(timecode(elapsed), textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppTheme.error)),
+      SizedBox(height: 12),
+      SizedBox(
+        height: 56,
+        child: FilledButton.icon(
+          style: FilledButton.styleFrom(backgroundColor: recording ? AppTheme.error : null),
+          onPressed: _busy ? null : (recording ? _stop : _start),
+          icon: Icon(recording ? Icons.stop_rounded : Icons.mic_rounded),
+          label: Text(recording ? 'Stop and add' : 'Start recording'),
+        ),
+      ),
+      if (recording)
+        TextButton(onPressed: _busy ? null : () => _run(c.cancelVoiceover), child: Text('Discard')),
+      if (!recording && count > 0)
+        Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(
+            '$count voiceover${count == 1 ? '' : 's'} on the timeline. Tap one on the Voiceover track to move, trim, change its volume or delete it.',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+          ),
+        ),
+    ]);
+  }
+}
+
+/// Emoji stickers drawn on the phone; each is placed at the playhead as a floating layer (drag it on the preview).
+class _StickerSheet extends StatefulWidget {
+  const _StickerSheet({required this.c, required this.onEdit});
+  final StudioController c;
+  final EditFn onEdit;
+
+  @override
+  State<_StickerSheet> createState() => _StickerSheetState();
+}
+
+class _StickerSheetState extends State<_StickerSheet> {
+  String? _busy;
+
+  Future<void> _add(String emoji) async {
+    setState(() => _busy = emoji);
+    try {
+      final docs = await getApplicationDocumentsDirectory();
+      final name = emoji.runes.map((r) => r.toRadixString(16)).join('_');
+      final path = await renderEmojiSticker(emoji, '${docs.path}/stickers/emoji_$name.png');
+      final source = widget.c.localOverlaySource(path, label: 'Sticker $emoji');
+      if (!mounted) return;
+      _close(context);
+      widget.onEdit((ir) => TimelineOps.addSticker(ir, source, startMs: widget.c.playheadMs), done: 'Sticker added. Drag it on the preview to move it.');
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _Title('Stickers', subtitle: 'Added at ${timecode(widget.c.playheadMs)} for 2.5 s. Resize, rotate and animate it in the B-roll inspector.'),
+        Wrap(spacing: 4, runSpacing: 4, children: [
+          for (final e in stickerEmojis)
+            SizedBox(
+              width: 52,
+              height: 52,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: _busy == null ? () => _add(e) : null,
+                // The sticker being drawn dims until it is placed.
+                child: Center(child: Opacity(opacity: _busy == e ? 0.3 : 1, child: Text(e, style: TextStyle(fontSize: 30)))),
+              ),
+            ),
         ]),
       ]);
 }
@@ -1430,17 +1679,13 @@ class _BrollSheetState extends ConsumerState<_BrollSheet> {
   void _addClip(String url, String label, {String? credit, String? thumbnailUrl, String? previewUrl}) {
     if (credit != null && credit.isNotEmpty) widget.c.mediaCredits[url] = credit;
     _close(context);
+    final source = url.startsWith('http')
+        ? {'kind': 'url', 'url': url, 'query': label, 'thumbnailUrl': thumbnailUrl ?? previewUrl ?? url, 'previewUrl': previewUrl ?? url}
+        : widget.c.localOverlaySource(url, label: label);
     widget.onEdit(
       (ir) => TimelineOps.addBroll(
         ir,
-        {
-          'kind': url.startsWith('http') ? 'url' : 'file',
-          'url': url,
-          'path': url,
-          'query': label,
-          'thumbnailUrl': thumbnailUrl ?? previewUrl ?? url,
-          'previewUrl': previewUrl ?? url,
-        },
+        source,
         startMs: widget.c.playheadMs,
         durationMs: (seconds * 1000).round(),
       ),
@@ -1934,10 +2179,11 @@ class _UploadsTabState extends ConsumerState<_UploadsTab> {
                 onPressed: () {
                   Navigator.pop(ctx);
                   _close(context);
+                  final source = widget.c.localOverlaySource(path, label: name);
                   widget.onEdit(
                     (ir) => TimelineOps.addBroll(
                       ir,
-                      {'kind': 'file', 'url': path, 'query': name},
+                      source,
                       startMs: widget.c.playheadMs,
                       durationMs: 3000,
                     ),
@@ -1956,10 +2202,11 @@ class _UploadsTabState extends ConsumerState<_UploadsTab> {
     final f = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 2160, maxHeight: 2160);
     if (f == null || !mounted) return;
     _close(context);
+    final source = widget.c.localOverlaySource(f.path, label: f.name);
     widget.onEdit(
       (ir) => TimelineOps.addBroll(
         ir,
-        {'kind': 'url', 'url': f.path, 'query': f.name},
+        source,
         startMs: widget.c.playheadMs,
         durationMs: 3000,
         image: true,

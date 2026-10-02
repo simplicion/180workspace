@@ -26,7 +26,7 @@ enum LockableTrack {
         TrackKind.sfx => LockableTrack.sfx,
         TrackKind.effect || TrackKind.zoom => LockableTrack.effects,
         TrackKind.text => LockableTrack.text,
-        TrackKind.video || TrackKind.voice => null,
+        TrackKind.video || TrackKind.voice || TrackKind.voiceover => null,
       };
 
   List<TrackKind> get kinds => [for (final k in TrackKind.values) if (of(k) == this) k];

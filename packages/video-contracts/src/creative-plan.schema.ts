@@ -1,7 +1,17 @@
 import { VIDEO_EFFECT_TYPES, TRANSITION_TYPES } from "./edit-ir.schema";
 import { z } from "zod";
 import { RationalTimeSchema, TimeRangeSchema } from "./time";
-import { SpringConfigSchema } from "./edit-ir.schema";
+import { SpringConfigSchema, TextEnterSchema, TextExitSchema, TextLoopSchema } from "./edit-ir.schema";
+
+/** Fonts the phone renders and exports (mirrors CaptionFonts.exportFamilies in the Flutter app). */
+export const EDITOR_FONTS = ["Inter", "Anton", "Montserrat", "Poppins", "Syne", "Outfit", "Roboto", "Bebas Neue"] as const;
+/** How an inserted overlay sits on screen. fullscreen/fit replace the picture (cutaway); pip/sticker float above it. */
+export const OVERLAY_LAYOUTS = ["fullscreen", "fit", "pip", "sticker"] as const;
+/** Entrance animation for a floating overlay (keyframes; same maths as the editor's "Animation in" chips). */
+export const LAYER_ENTRANCES = ["none", "zoom_in", "slide_left", "slide_up", "fade", "spin"] as const;
+/** Timeline items the Director can remove by id, by time, or all of a kind. */
+export const REMOVABLE_ITEM_KINDS = ["caption", "title", "zoom", "broll", "effect", "sfx"] as const;
+const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 
 /**
  * High-Level Creative Intent
@@ -126,6 +136,16 @@ export const InsertBrollOpSchema = z.object({
   cropMode: z.enum(["center", "face_track"]).default("center"),
   /** "image" = a still photo held for durationSec (needs sourceUrl or an image asset; no stock search). */
   mediaType: z.enum(["video", "image"]).optional(),
+  /** Default "fullscreen" (cutaway). pip/sticker float above the speaker. */
+  layout: z.enum(OVERLAY_LAYOUTS).optional(),
+  /** pip/sticker centre as canvas fractions from the top-left. */
+  position: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).optional(),
+  /** pip/sticker size relative to the largest fit inside the frame (pip ≈ 0.35-0.5, sticker ≈ 0.2-0.3). */
+  scale: z.number().min(0.1).max(1).optional(),
+  rotation: z.number().min(-180).max(180).optional(),
+  animationIn: z.enum(LAYER_ENTRANCES).optional(),
+  /** Keep the overlay clip's own sound (default muted). */
+  keepAudio: z.boolean().optional(),
   reason: z.string().optional(),
 });
 
@@ -293,6 +313,48 @@ export const AddTextOpSchema = z.object({
   durationSec: z.number().positive(),
   position: z.object({ x: z.number(), y: z.number() }).default({ x: 0, y: 0 }),
   style: z.record(z.any()).optional(),
+  fontFamily: z.enum(EDITOR_FONTS).optional(),
+  color: hexColor.optional(),
+  strokeColor: hexColor.optional(),
+  backgroundColor: hexColor.optional(),
+  uppercase: z.boolean().optional(),
+  glow: z.boolean().optional(),
+  enter: TextEnterSchema.optional(),
+  exit: TextExitSchema.optional(),
+  loop: TextLoopSchema.optional(),
+});
+
+export const AddStickerOpSchema = z.object({
+  type: z.literal("addSticker"),
+  /** One emoji (drawn on the phone; nothing is downloaded). */
+  emoji: z.string().min(1).max(16).refine((e) => /\p{Extended_Pictographic}/u.test(e), "must be an emoji"),
+  timelineStartSec: z.number().nonnegative(),
+  durationSec: z.number().positive().max(10).default(2.5),
+  /** Centre as canvas fractions from the top-left (default upper right, away from a centred face). */
+  position: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).optional(),
+  scale: z.number().min(0.1).max(0.6).optional(),
+  rotation: z.number().min(-45).max(45).optional(),
+  animationIn: z.enum(LAYER_ENTRANCES).default("zoom_in"),
+  reason: z.string().optional(),
+});
+
+export const FadeClipAudioOpSchema = z.object({
+  type: z.literal("fadeClipAudio"),
+  /** Main-track clip id, or "all". */
+  clipId: z.string().min(1).default("all"),
+  fadeInSec: z.number().min(0).max(5).default(0),
+  fadeOutSec: z.number().min(0).max(5).default(0),
+  reason: z.string().optional(),
+});
+
+export const RemoveItemOpSchema = z.object({
+  type: z.literal("removeItem"),
+  kind: z.enum(REMOVABLE_ITEM_KINDS),
+  /** Exact item id from the timeline summary. */
+  id: z.string().min(1).optional(),
+  /** Remove the items of that kind on screen at this timeline second. With neither id nor atSec: all of that kind. */
+  atSec: z.number().nonnegative().optional(),
+  reason: z.string().optional(),
 });
 
 export const ApplyFilterOpSchema = z.object({
@@ -302,6 +364,14 @@ export const ApplyFilterOpSchema = z.object({
   brightness: z.number().optional(),
   contrast: z.number().optional(),
   saturation: z.number().optional(),
+  /** Stops, -1..1 is the useful range. */
+  exposure: z.number().min(-2).max(2).optional(),
+  /** -1 cool … +1 warm. */
+  temperature: z.number().min(-1).max(1).optional(),
+  /** -1 green … +1 magenta. */
+  tint: z.number().min(-1).max(1).optional(),
+  /** Edge darkening 0..1. */
+  vignette: z.number().min(0).max(1).optional(),
   reason: z.string().optional(),
 });
 
@@ -442,6 +512,9 @@ export const CreativeOperationSchema = z.discriminatedUnion("type", [
   FreezeFrameOpSchema,
   AddImageOpSchema,
   AddTextOpSchema,
+  RemoveItemOpSchema,
+  FadeClipAudioOpSchema,
+  AddStickerOpSchema,
   ApplyFilterOpSchema,
   DetachAudioOpSchema,
   SelectTakeOpSchema,

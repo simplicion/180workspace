@@ -192,11 +192,14 @@ export function extractConstraintsFromPrompt(prompt: string, durationMs: number)
 export const TRACK_OPS: Record<DirectorLockableTrack, readonly string[]> = {
   music: ["addBackgroundMusic", "duckAudio"],
   captions: ["autoCaptions", "addCaption", "styleCaption", "emphasizeWord", "clearCaptions"],
-  broll: ["insertBroll", "addImage"],
+  broll: ["insertBroll", "addImage", "addSticker"],
   sfx: ["addSoundEffect", "autoSoundDesign"],
   effects: ["addEffect", "applyFilter", "addTransition"],
   text: ["addText"],
 };
+
+/** removeItem kinds that belong to a lockable track (zooms are not lockable). */
+const REMOVE_KIND_TRACK: Record<string, DirectorLockableTrack> = { caption: "captions", title: "text", broll: "broll", effect: "effects", sfx: "sfx" };
 
 export interface ConstraintTimeline {
   durationSec: number;
@@ -262,6 +265,7 @@ function touchedRanges(op: any, tl: ConstraintTimeline): { ranges: Array<[number
       return { ranges: [], points: [op.timestampSec] };
     case "insertBroll":
     case "addImage":
+    case "addSticker":
     case "addText":
       return { ranges: [r(op.timelineStartSec, op.durationSec)], points: [] };
     case "addZoom":
@@ -269,6 +273,9 @@ function touchedRanges(op: any, tl: ConstraintTimeline): { ranges: Array<[number
       return { ranges: [r(op.startSec, op.durationSec)], points: [] };
     case "addSoundEffect":
       return { ranges: [r(op.timelineStartSec, 0.5)], points: [] };
+    case "removeItem":
+      // By time it touches that moment; by id / "all" the item's span is unknown here, so treat it as the whole video.
+      return typeof op.atSec === "number" && !op.id ? { ranges: [], points: [op.atSec] } : { ranges: [[0, tl.durationSec]], points: [] };
     default:
       return { ranges: [], points: [] };
   }
@@ -278,6 +285,7 @@ function touchedRanges(op: any, tl: ConstraintTimeline): { ranges: Array<[number
 export function constraintViolation(op: CreativeOperation | any, c: ResolvedDirectorConstraints, tl: ConstraintTimeline): string | null {
   for (const track of c.lockedTracks) {
     if (TRACK_OPS[track].includes(op.type)) return `${op.type} would change the locked ${track}`;
+    if (op.type === "removeItem" && REMOVE_KIND_TRACK[op.kind as string] === track) return `removeItem would change the locked ${track}`;
     if (track === "music" && op.type === "adjustVolume" && (op.trackId === "music" || tl.musicTrackIds.includes(op.trackId))) {
       return `adjustVolume would change the locked music`;
     }

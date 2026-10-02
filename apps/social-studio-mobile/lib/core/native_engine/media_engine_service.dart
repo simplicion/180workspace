@@ -88,6 +88,27 @@ class ExtractedAudio {
 enum RenderState { started, progress, completed }
 
 /// Verified facts about a finished render, read back from the written file.
+/// Export choices that are not part of the edit. [maxShortSide] scales the finished video down (720 = 720p; null =
+/// canvas size); [fps] overrides the canvas frame rate; [quality] `high` doubles the video bitrate.
+class ExportSettings {
+  const ExportSettings({this.maxShortSide, this.fps, this.quality = 'standard'});
+  final int? maxShortSide;
+  final int? fps;
+  final String quality;
+
+  ExportSettings copyWith({int? maxShortSide, bool clearMaxShortSide = false, int? fps, bool clearFps = false, String? quality}) => ExportSettings(
+        maxShortSide: clearMaxShortSide ? null : (maxShortSide ?? this.maxShortSide),
+        fps: clearFps ? null : (fps ?? this.fps),
+        quality: quality ?? this.quality,
+      );
+
+  Map<String, Object> toArgs() => {
+        'maxShortSide': ?maxShortSide,
+        'fps': ?fps,
+        'quality': quality,
+      };
+}
+
 class RenderResult {
   RenderResult({
     required this.outputPath,
@@ -212,6 +233,22 @@ class MediaEngineService {
     return VideoMetadata.fromMap(await _invokeMap('getVideoInfo', {'sourcePath': sourcePath}));
   }
 
+  /// Generates a fast 720p hardware-accelerated H.264 proxy of [sourcePath] at [destPath].
+  /// On Android, this uses Media3 Transformer with hardware downscaling.
+  static Future<String> generateProxy({
+    required String sourcePath,
+    required String destPath,
+    int targetHeight = 720,
+  }) async {
+    final r = await _invoke<String>('generateProxy', {
+      'sourcePath': sourcePath,
+      'destPath': destPath,
+      'targetHeight': targetHeight,
+    });
+    if (r == null) throw MediaEngineException('NATIVE_ERROR', 'generateProxy returned no path');
+    return r;
+  }
+
   /// Finds silent stretches in the audio of [sourcePath], decoded on the device.
   ///
   /// A stretch counts when its RMS level stays below [thresholdDb] dBFS (measured in 20 ms
@@ -301,6 +338,7 @@ class MediaEngineService {
     String? watermarkPath,
     Map<String, String> sfxPaths = const {},
     String? jobId,
+    ExportSettings settings = const ExportSettings(),
   }) {
     final id = jobId ?? 'render_${DateTime.now().microsecondsSinceEpoch}_${_jobCounter++}';
     late final StreamController<RenderProgress> controller;
@@ -352,8 +390,9 @@ class MediaEngineService {
             'overlayPaths': overlayPaths,
             'musicPaths': musicPaths,
             'fontPaths': fontPaths,
-            'watermarkPath': ?watermarkPath,
+            'watermarkPath': watermarkPath,
             'sfxPaths': sfxPaths,
+            ...settings.toArgs(),
           });
         } on MediaEngineException catch (e) {
           if (!done) {
@@ -376,6 +415,26 @@ class MediaEngineService {
   /// Cancels a running render. Returns false if no such job was running.
   static Future<bool> cancelRender(String jobId) async {
     return await _invoke<bool>('cancelRender', {'jobId': jobId}) ?? false;
+  }
+
+  /// Starts recording the microphone to [outputPath] (AAC .m4a). The caller must hold the microphone permission.
+  static Future<void> startVoiceRecording(String outputPath) => _invoke<void>('startVoiceRecording', {'outputPath': outputPath});
+
+  /// Stops the recording; returns the file and its length.
+  static Future<({String path, int durationMs})> stopVoiceRecording() async {
+    final m = await _invokeMap('stopVoiceRecording', {});
+    return (path: m['path'] as String, durationMs: (m['durationMs'] as num).toInt());
+  }
+
+  /// Stops and deletes the recording in progress, if any.
+  static Future<void> cancelVoiceRecording() => _invoke<void>('cancelVoiceRecording', {});
+
+  /// Durable path for a voiceover recording (kept with the draft, like imported clips).
+  static Future<String> getVoiceoverPath(String fileName) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final outDir = Directory('${dir.path}/voiceovers');
+    if (!await outDir.exists()) await outDir.create(recursive: true);
+    return '${outDir.path}/$fileName';
   }
 
   /// A standard path in the app documents directory for rendered videos.

@@ -18,6 +18,8 @@ import {
   fenceUntrusted,
   sanitizeInlineUntrusted,
   neutraliseWordSequence,
+  deriveEditStyle,
+  describeEditStyle,
 } from "@workspace/video-contracts";
 import { AIProviderService, AIClient, AISettings } from "../kernel/ai-provider.service";
 
@@ -371,14 +373,24 @@ export class CreativePlanner {
     }
     const caps = ir.tracks.captionTrack.filter((c) => c.role !== "title");
     const titles = ir.tracks.captionTrack.filter((c) => c.role === "title");
-    out.push(`- captions: ${caps.length}${caps[0] ? ` (preset ${caps[0].style.preset}, text ${caps[0].style.textColor}, highlight ${caps[0].style.highlightColor})` : ""}; titles: ${titles.map((t) => `"${sanitizeInlineUntrusted(truncate(t.text, 40), 60)}"@${s(t.timeRange.start)}`).join(", ") || "none"}`);
-    out.push(`- zooms: ${ir.tracks.cameraTrack.map((z) => `${s(z.timeRange.start)}+${s(z.timeRange.duration)} x${z.scale}`).join(", ") || "none"}`);
-    const broll = ir.tracks.videoTracks.filter((t) => t.type === "B_ROLL_OVERLAY").flatMap((t) => t.clips);
-    out.push(`- b-roll overlays: ${broll.map((b) => `${b.assetId}@${s(b.timelineRange.start)}+${s(b.timelineRange.duration)}`).join(", ") || "none"}`);
+    out.push(`- captions: ${caps.length}${caps[0] ? ` (preset ${caps[0].style.preset}, text ${caps[0].style.textColor}, highlight ${caps[0].style.highlightColor})` : ""}; titles: ${titles.map((t) => `${t.id}:"${sanitizeInlineUntrusted(truncate(t.text, 40), 60)}"@${s(t.timeRange.start)}+${s(t.timeRange.duration)}`).join(", ") || "none"}`);
+    out.push(`- zooms: ${ir.tracks.cameraTrack.map((z) => `${z.id}@${s(z.timeRange.start)}+${s(z.timeRange.duration)} x${z.scale}`).join(", ") || "none"}`);
+    const fx = ir.tracks.effectTrack ?? [];
+    if (fx.length) out.push(`- effects: ${fx.slice(0, 40).map((e: any) => `${e.id}:${e.type}@${s(e.timeRange.start)}+${s(e.timeRange.duration)}`).join(", ")}`);
+    const sfx = ir.tracks.audioTracks.filter((t) => t.type === "SFX").flatMap((t) => t.clips);
+    if (sfx.length) out.push(`- sound effects: ${sfx.slice(0, 40).map((c: any) => `${c.id}@${s(c.timelineRange.start)}`).join(", ")}`);
+    const vo = ir.tracks.audioTracks.filter((t) => t.type === "VOICEOVER").flatMap((t) => t.clips);
+    if (vo.length) out.push(`- creator's recorded voiceovers (keep them; music ducks under them): ${vo.slice(0, 20).map((c) => `${s(c.timelineRange.start)}+${s(c.timelineRange.duration)}`).join(", ")}`);
+    const broll = ir.tracks.videoTracks.filter((t) => t.type !== "MAIN_VIDEO").flatMap((t) => t.clips);
+    const layerDesc = (b: (typeof broll)[number]) =>
+      b.layer?.mode === "overlay" ? ` layer(x${b.layer.x} y${b.layer.y} scale${b.layer.scale}${b.layer.keyframes?.length ? " keyframed" : ""})` : "";
+    out.push(`- b-roll overlays: ${broll.map((b) => `${b.id}(${sanitizeInlineUntrusted(b.assetId, 60)})@${s(b.timelineRange.start)}+${s(b.timelineRange.duration)}${layerDesc(b)}`).join(", ") || "none"}`);
     const bgm = ir.tracks.audioTracks.find((t) => t.type === "BGM" && t.clips.length > 0);
     out.push(`- music: ${bgm ? `yes (track "${bgm.id}", ${bgm.volumeDb}dB${bgm.duckWithSpeech ? ", ducked under speech" : ""})` : "none"}`);
     const original = ir.tracks.audioTracks.find((t) => t.id === "original");
     out.push(`- original audio (trackId "original"): ${original ? original.volumeDb : 0}dB`);
+    // Measured edit style + the still-raw tail, so "complete / continue this video" follows the creator's own style.
+    out.push(...describeEditStyle(deriveEditStyle(ir)));
     return out;
   }
 

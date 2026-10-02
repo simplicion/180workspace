@@ -510,3 +510,67 @@ Open:
 - The files under `autopilot/agents/*.agent.ts` (from another tool) are still unused. The four agent roles are the
   pipeline stages above.
 - A live-key run of the 10-calendar loop (costs real AI tokens) is waiting for the owner's go-ahead.
+
+## Status: P4 + P5 (2026-10-02)
+
+P4, 180 Manager:
+- **Calendar pivot is real.** It rewrites this month's upcoming autopilot pieces from max(today, fromDay) through the
+  calendar agents (`regeneratePiece`).
+  - Only `ready`/`in_progress` pieces are touched (never shot, in review or published), at most 12 per action.
+  - Failures and the remainder are reported per piece.
+- The phone asks for confirmation before any Manager write (pivot or Director rule) and shows what changed.
+- The analytics summary is cached for 60 s per company and project, so a chat turn does not call every platform API
+  again. Failures are not cached.
+- Not done: provider-native tool calling (the AI layer exposes `generate()` only). The Manager answers from fenced
+  workspace data, and every write is a confirmed action.
+- Not done: published-reel video analysis (decision §6.1 is still open).
+
+P5, performance:
+- Job polling backs off: 2 s → 5 s → 10 s (`core/util/poll_backoff.dart`) for autopilot and carousel jobs.
+- Thumbnail-sized `Image.network` calls decode at display size (`cacheWidth`).
+- The timeline uses cached on-device frame thumbnails.
+- Preview playback switches player per clip (P2).
+- Release: signing via `android/key.properties` (git-ignored); an unsigned release fails loudly; R8 shrinking is the
+  Flutter default. Build with `flutter build appbundle --release --obfuscate --split-debug-info=build/symbols`, and for
+  sideloading use `flutter build apk --release --split-per-abi`.
+
+Gates (2026-10-02):
+- Flutter: analyze clean, **191/191**.
+- social-media: manager 12, engagement-p1 10, engagement 67/67, engagement-production 16, tenant-isolation 16,
+  post-edge-cases 15, social-os 7, studio-library 4, sandbox-e2e 11, webhooks-meta 6.
+- Autopilot: 17, multi-calendar 11, cadence 8.
+- Director: 58 and 12. video-contracts: 13 and 3.
+- Kotlin compiles. Backend: touched routes typecheck.
+
+Before launch (owner):
+1. `prisma migrate deploy` (6 migrations from 2026-10-02).
+2. Rotate the Meta and LinkedIn app secrets that were in `publishing/config.ts`.
+3. Run the demo-account cleanup script.
+4. Meta App Review (messaging/comments).
+5. A real-phone run of: calendar → shoot → clips → Studio → export → post → publish → comment funnel → AI inbox →
+   Manager pivot.
+6. Optionally, a live-key run of the 10-calendar loop.
+
+## Status: publish feedback + folder editing (2026-10-02)
+- **Post detail** (`posts/publish_status.dart`):
+  - While publishing, one live row per platform (indeterminate; nothing invented). The result dialog has an **Open**
+    button for each posted platform.
+  - Scheduled or approved posts show a countdown ("Publishes in 2 h 14 min") and reload when due.
+  - A post or variant that is still `publishing`/`processing` (IG/FB video) reloads itself with backoff until it
+    settles.
+- **Library.** Folder ⋮ "Edit in Studio" opens **all** of the folder's clips in take order (it used to open the first
+  only). A folder whose clips were recorded on another phone says so instead of opening an empty editor.
+- Tests: `test/sections/publish_status_test.dart` 3/3.
+
+## Status: device verification (2026-10-02)
+- `flutter build apk --debug`: OK (full Gradle/Kotlin build).
+- Emulator `Pixel_7_API_34`, `integration_test/media_engine_render_test.dart`: **8/8**:
+  - director render (11.19 s, 1080×1920, audio);
+  - **text motion** (in/out/loop/typewriter; 4.0 s, no warnings);
+  - **multi-asset timeline** (two files; frames differ; 5.0 s);
+  - ducking (−13.7 dB);
+  - cancel;
+  - missing-media typed error.
+- Demo-account cleanup dry run against the configured database: **0 active demo accounts**. The DB is the shared AWS
+  RDS, so migrations and `--apply` were **not** run (CLAUDE.md rule).
+- Agent handoff prompt: `docs/social-studio-mobile/AGENT_HANDOFF_PROMPT.md`.
