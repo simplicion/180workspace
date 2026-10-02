@@ -201,7 +201,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with WidgetsBinding
     });
 
     try {
-      final file = await cam.stopVideoRecording();
+      final recorded = await cam.stopVideoRecording();
+      // Move the take out of the purgeable camera cache before anything references its path.
+      final file = XFile(await ref.read(clipStoreProvider).persist(recorded.path, projectId: widget.projectId));
       if (!mounted) return;
 
       // Prompt to save this clip directly into the folder!

@@ -275,7 +275,6 @@ class AiDirectorService {
     return null;
   }
 
-  /// Searches unified stock media (Pexels + Pixabay) for B-roll video clips.
   /// Free stock photos (Pexels / Pixabay / other free sources) for photo overlays. Errors propagate so the
   /// UI can show them with a retry.
   Future<List<StockPhotoResult>> searchStockPhotos(String query, {String orientation = 'portrait'}) async {
@@ -302,78 +301,37 @@ class AiDirectorService {
     return list;
   }
 
+  /// Free stock B-roll (Pexels, Pixabay and the keyless free sources). Request and provider failures are thrown
+  /// (with the providers' own messages) so the B-roll sheet can show them; an empty list means a real "no match".
   Future<List<StockVideoResult>> searchStockVideos(String query, {String orientation = 'portrait'}) async {
-    try {
-      final r = await _api.get('/api/v1/media-editor/stock/unified', query: {
-        'query': query,
-        'type': 'video',
-        'orientation': orientation,
-        'perPage': 18,
-      });
-      final list = <StockVideoResult>[];
-      final unified = (r['unifiedVideos'] as List?)?.whereType<Map>().toList() ?? [];
-      for (final v in unified) {
-        final downloadUrl = jStr(v['downloadUrl']) ?? jStr(v['previewVideoUrl']) ?? _firstHttpUrl(v['video_files'], ['link']);
-        if (downloadUrl == null) continue;
-        final preview = jStr(v['previewVideoUrl']) ?? downloadUrl;
-        final thumb = jStr(v['thumbnailUrl']) ?? jStr(v['image']) ?? jStr(v['picture_url']);
-        final id = jStr(v['id']) ?? 'vid_${list.length}';
-        final provider = jStr(v['provider']) ?? (id.startsWith('pexels') ? 'pexels' : 'pixabay');
-        final author = jStr(v['photographer']) ?? jStr(v['user']) ?? 'Creator';
-        final dur = (v['durationSec'] ?? v['duration'] as num?)?.toDouble();
-        final w = (v['width'] as num?)?.toInt();
-        final h = (v['height'] as num?)?.toInt();
-        list.add(StockVideoResult(
-          id: id,
-          downloadUrl: downloadUrl,
-          previewUrl: preview,
-          thumbnailUrl: thumb,
-          durationSec: dur,
-          width: w,
-          height: h,
-          provider: provider,
-          author: author,
-          attribution: jStr(v['attribution']),
-        ));
-      }
-      if (list.isNotEmpty) return list;
-    } on ApiException catch (e) {
-      if (e.isAccessLock || e.kind == ApiErrorKind.unauthorized) rethrow;
-    } catch (_) {}
-
-    // Fallback to stock search if unified fails or yields no items
-    try {
-      final r = await _api.get('/api/v1/media-editor/stock/search', query: {
-        'query': query,
-        'type': 'videos',
-        'orientation': orientation,
-        'perPage': 18,
-      });
-      final videos = (r['videos'] as List?)?.whereType<Map>().toList() ?? [];
-      final list = <StockVideoResult>[];
-      for (final v in videos) {
-        final dl = jStr(v['downloadUrl']) ?? _firstHttpUrl(v['video_files'], ['link']) ?? '';
-        if (dl.isEmpty) continue;
-        list.add(StockVideoResult(
-          id: jStr(v['id']) ?? 'vid',
-          downloadUrl: dl,
-          previewUrl: jStr(v['previewVideoUrl']) ?? dl,
-          thumbnailUrl: jStr(v['thumbnailUrl']) ?? jStr(v['image']),
-          durationSec: (v['duration'] as num?)?.toDouble(),
-          width: (v['width'] as num?)?.toInt(),
-          height: (v['height'] as num?)?.toInt(),
-          provider: 'pexels',
-          author: jStr(v['photographer']) ?? 'Pexels Creator',
-          attribution: jStr(v['attribution']),
-        ));
-      }
-      return list;
-    } on ApiException catch (e) {
-      if (e.isAccessLock || e.kind == ApiErrorKind.unauthorized) rethrow;
-      return [];
-    } catch (_) {
-      return [];
+    final r = await _api.get('/api/v1/media-editor/stock/unified', query: {
+      'query': query,
+      'type': 'video',
+      'orientation': orientation,
+      'perPage': 18,
+      'shape': 'unified',
+    });
+    final list = <StockVideoResult>[];
+    for (final v in (r['unifiedVideos'] as List?)?.whereType<Map>() ?? const <Map>[]) {
+      final downloadUrl = jStr(v['downloadUrl']) ?? jStr(v['previewVideoUrl']) ?? _firstHttpUrl(v['video_files'], ['link']);
+      if (downloadUrl == null || !downloadUrl.startsWith('https://')) continue;
+      final id = jStr(v['id']) ?? 'vid_${list.length}';
+      list.add(StockVideoResult(
+        id: id,
+        downloadUrl: downloadUrl,
+        previewUrl: jStr(v['previewVideoUrl']) ?? downloadUrl,
+        thumbnailUrl: jStr(v['thumbnailUrl']) ?? jStr(v['image']) ?? jStr(v['picture_url']),
+        durationSec: ((v['durationSec'] ?? v['duration']) as num?)?.toDouble(),
+        width: (v['width'] as num?)?.toInt(),
+        height: (v['height'] as num?)?.toInt(),
+        provider: jStr(v['provider']) ?? 'stock',
+        author: jStr(v['photographer']) ?? jStr(v['user']) ?? 'Creator',
+        attribution: jStr(v['attribution']),
+      ));
     }
+    final warnings = (r['warnings'] as List?)?.map((w) => '$w').where((w) => w.isNotEmpty).toList() ?? const <String>[];
+    if (list.isEmpty && warnings.isNotEmpty) throw StockSearchException(warnings);
+    return list;
   }
 
   /// Searches unified royalty-free music and sound effects (Pixabay Music + Freesound SFX).
@@ -498,3 +456,11 @@ class AiDirectorService {
   }
 }
 
+/// Every stock provider failed (keys, quota, network). [warnings] are the providers' own messages.
+class StockSearchException implements Exception {
+  StockSearchException(this.warnings);
+  final List<String> warnings;
+
+  @override
+  String toString() => 'Stock search failed: ${warnings.take(3).join('; ')}';
+}
