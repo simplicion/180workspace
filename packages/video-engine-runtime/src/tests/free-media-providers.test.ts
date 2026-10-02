@@ -10,6 +10,8 @@ import * as path from "path";
 import {
   normalizeLicense,
   normalizeOpenverse,
+  normalizeCcMixter,
+  CcMixterProvider,
   normalizeWikimedia,
   normalizeArchiveSearch,
   normalizeArchiveItem,
@@ -213,4 +215,52 @@ test("live providers (opt-in: LIVE_MEDIA_TESTS=1)", { skip: process.env.LIVE_MED
     assert.ok(r.items.length > 0, `${kind}: no live results`);
     assert.ok(allHttps(r.items));
   }
+});
+
+test("ccMixter: only Attribution / public-domain mp3s get through, with duration and a credit line", () => {
+  const data = [
+    {
+      upload_id: 1, upload_name: "The Fade Out", user_name: "coruscate", user_real_name: "Coruscate",
+      license_url: "http://creativecommons.org/licenses/by/3.0/", file_page_url: "https://ccmixter.org/files/coruscate/1",
+      files: [{ download_url: "https://ccmixter.org/content/c/fade.mp3", file_format_info: { mime_type: "audio/mpeg", ps: "3:05" } }],
+    },
+    {
+      upload_id: 2, upload_name: "NC track", user_name: "x", license_url: "http://creativecommons.org/licenses/by-nc/3.0/",
+      files: [{ download_url: "https://ccmixter.org/content/x/nc.mp3", file_format_info: { mime_type: "audio/mpeg", ps: "2:00" } }],
+    },
+    {
+      upload_id: 3, upload_name: "Sampling plus", user_name: "y", license_url: "http://creativecommons.org/licenses/sampling+/1.0/",
+      files: [{ download_url: "https://ccmixter.org/content/y/s.mp3", file_format_info: { mime_type: "audio/mpeg", ps: "2:00" } }],
+    },
+  ];
+  const items = normalizeCcMixter(data, { limit: 10 });
+  assert.equal(items.length, 1);
+  assert.equal(items[0].url, "https://ccmixter.org/content/c/fade.mp3");
+  assert.equal(items[0].durationSec, 185);
+  assert.equal(items[0].license, "CC-BY-3.0");
+  assert.match(items[0].attribution, /"The Fade Out" by Coruscate \(ccMixter\), CC BY 3.0/);
+});
+
+test("sticker library: Fluent Emoji 3D index (default skin tone), name ranking, CDN URLs", async () => {
+  const { parseFluentTree, searchStickers, resetStickerIndexForTests } = await import("../tools/sourcing/sticker-library");
+  const tree = {
+    tree: [
+      { path: "assets/Fire/3D/fire_3d.png" },
+      { path: "assets/Fire/Color/fire_color.svg" },
+      { path: "assets/Fire engine/3D/fire_engine_3d.png" },
+      { path: "assets/Thumbs up/Default/3D/thumbs_up_3d_default.png" },
+      { path: "assets/Thumbs up/Dark/3D/thumbs_up_3d_dark.png" },
+      { path: "assets/Rocket/3D/rocket_3d.png" },
+    ],
+  };
+  assert.deepEqual(parseFluentTree(tree).map((e) => e.name), ["Fire", "Fire engine", "Thumbs up", "Rocket"]);
+  resetStickerIndexForTests();
+  const fakeFetch = (async () => ({ ok: true, status: 200, json: async () => tree })) as any;
+  const fire = await searchStickers("fire", 5, fakeFetch);
+  assert.deepEqual(fire.map((s) => s.title), ["Fire", "Fire engine"]);
+  assert.equal(fire[0].url, "https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Fire/3D/fire_3d.png");
+  assert.equal(fire[0].license, "MIT");
+  const thumbs = await searchStickers("thumbs", 5, fakeFetch);
+  assert.equal(thumbs[0].url, "https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Thumbs%20up/Default/3D/thumbs_up_3d_default.png");
+  resetStickerIndexForTests();
 });

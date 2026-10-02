@@ -310,6 +310,22 @@ router.get("/stock/music", async (req, res) => {
   }
 });
 
+// 3D sticker library (Microsoft Fluent Emoji, MIT): name search over a daily-cached index, PNGs from jsDelivr.
+router.get("/stock/stickers", async (req, res) => {
+  try {
+    const q = typeof req.query.query === "string" ? req.query.query.trim() : "";
+    if (q.length > 60) {
+      return res.status(400).json({ success: false, error: "QUERY_TOO_LONG", message: "Query must be at most 60 characters" });
+    }
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? "24"), 10) || 24, 1), 60);
+    const { searchStickers } = require("@workspace/video-engine-runtime");
+    const stickers = await searchStickers(q, limit);
+    return res.status(200).json({ success: true, stickers });
+  } catch (err: any) {
+    return res.status(502).json({ success: false, error: "STICKER_SEARCH_FAILED", message: err?.message || String(err) });
+  }
+});
+
 // Real-time Company AI Configuration Status
 router.get("/ai-status", async (req, res) => {
   try {

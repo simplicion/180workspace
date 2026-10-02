@@ -10,6 +10,9 @@ import { CreativeError } from './creative-errors';
 import { fetchImage, planImageSource, type ImagePlan } from './image-agent';
 import { resolveImageProviders, type ImageAttribution, type ImageProviderChain } from './image-providers';
 import { buildPhotoPrompt } from './photo-prompt';
+import { resolveFont } from './fonts';
+import { designThumbnails } from './thumbnail-agent';
+import { renderThumbnail, ThumbnailSpecSchema } from './thumbnail-compiler';
 
 /**
  * Creative jobs: design (LLM) -> photos (image agent) -> deterministic render -> upload -> attach to post + piece.
@@ -137,6 +140,45 @@ export const CreateCreativeSchema = z
     .refine((v) => v.pieceId || v.postId || v.brief || v.headline || v.slides, { message: 'Provide pieceId, postId, brief, headline or slides.' });
 export type CreateCreativeInput = z.input<typeof CreateCreativeSchema>;
 
+const ThumbFaceSchema = z.object({
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+    w: z.number().min(0).max(1),
+    h: z.number().min(0).max(1),
+    smile: z.number().min(0).max(1).nullable().optional(),
+    eyesOpen: z.number().min(0).max(1).nullable().optional(),
+});
+
+export const DesignThumbnailsSchema = z.object({
+    format: z.enum(['9:16', '16:9']),
+    platform: z.string().max(40).optional(),
+    title: z.string().max(300).optional(),
+    caption: z.string().max(2200).optional(),
+    transcript: z.string().max(6000).optional(),
+    frames: z
+        .array(
+            z.object({
+                /** JPEG / PNG bytes (≤ ~1.5 MB each), base64. */
+                imageBase64: z.string().min(100).max(2_000_000),
+                tMs: z.number().int().min(0),
+                faces: z.array(ThumbFaceSchema).max(8).default([]),
+                sharpness: z.number().min(0).max(1).nullable().optional(),
+                brightness: z.number().min(0).max(1).nullable().optional(),
+            }),
+        )
+        .min(1)
+        .max(6),
+});
+
+export const RenderThumbnailSchema = z.object({
+    format: z.enum(['9:16', '16:9']),
+    frame: z.object({
+        imageBase64: z.string().min(100).max(2_000_000),
+        faces: z.array(ThumbFaceSchema).max(8).default([]),
+    }),
+    spec: ThumbnailSpecSchema,
+});
+
 export const RegenerateSlideSchema = z
     .object({
         instruction: z.string().trim().min(2).max(1000).optional(),
@@ -236,6 +278,88 @@ export class CreativeService {
 
     private async findPost(ctx: CreativeContext, where: Record<string, any>) {
         return this.deps.db.socialPost.findFirst({ where: { ...where, companyId: ctx.companyId, projectId: ctx.projectId } });
+    }
+
+    /**
+     * AI thumbnail design team (thumbnail-agent.ts): real frames sent by the phone (base64 JPEG/PNG, never fetched
+     * from client URLs), designed, rendered and QA'd here, uploaded, returned best first. Synchronous (~15–40 s).
+     */
+    async designThumbnails(ctx: CreativeContext, raw: unknown) {
+        await this.requireProject(ctx);
+        const input = parseInput(DesignThumbnailsSchema, raw);
+        const llm = await this.deps.getLlm(ctx.companyId);
+        if (!llm) throw new CreativeError(503, 'AI_NOT_CONFIGURED', 'No AI provider is configured for this workspace. Add one in Settings > AI.');
+        this.deps.store.assertConfigured?.();
+        const brand = await this.deps.loadBrand(ctx.projectId, ctx.companyId);
+        const { loadImage } = require('@napi-rs/canvas');
+        const frames = await Promise.all(
+            input.frames.map(async (f, i) => {
+                const buf = Buffer.from(f.imageBase64, 'base64');
+                const jpeg = buf[0] === 0xff && buf[1] === 0xd8;
+                const png = buf[0] === 0x89 && buf[1] === 0x50;
+                if (!jpeg && !png) throw new CreativeError(400, 'INVALID_INPUT', `Frame ${i} is not a JPEG or PNG image.`);
+                try {
+                    return { image: await loadImage(buf), faces: f.faces };
+                } catch {
+                    throw new CreativeError(400, 'INVALID_INPUT', `Frame ${i} could not be decoded.`);
+                }
+            }),
+        );
+        const fonts = new Map<string, string>();
+        const familyFor = async (name: string) => {
+            if (!fonts.has(name)) fonts.set(name, (await resolveFont(name, this.deps.font)).family);
+            return fonts.get(name)!;
+        };
+        const result = await designThumbnails(
+            llm,
+            {
+                format: input.format,
+                platform: input.platform,
+                title: input.title,
+                caption: input.caption,
+                transcript: input.transcript,
+                brand,
+                frames: input.frames.map((f, index) => ({ index, tMs: f.tMs, faces: f.faces, sharpness: f.sharpness ?? null, brightness: f.brightness ?? null })),
+            },
+            async (spec) => {
+                try {
+                    return await renderThumbnail(spec, frames[spec.frameIndex], input.format, await familyFor(spec.font));
+                } catch (e: any) {
+                    throw new CreativeError(500, 'RENDER_FAILED', `Rendering the thumbnail failed: ${String(e?.message || e).slice(0, 200)}`);
+                }
+            },
+        );
+        const stamp = (this.deps.now?.() ?? new Date()).getTime();
+        const variants = [];
+        for (const [i, v] of result.variants.entries()) {
+            const url = await this.put(`creative/${ctx.companyId}/${ctx.projectId}/thumbnails/${stamp}-${i}.png`, v.png, 'image/png');
+            variants.push({ url, spec: v.spec, qa: v.qa, score: v.score, notes: v.notes, revised: v.revised });
+        }
+        return { variants, hooks: result.hooks, rationale: result.rationale, format: input.format };
+    }
+
+    /**
+     * Manual thumbnail (no AI): the creator's own frame + text through the same compositor and measured QA.
+     * The second path when AI is not configured or the team's designs are not wanted.
+     */
+    async renderThumbnailManual(ctx: CreativeContext, raw: unknown) {
+        await this.requireProject(ctx);
+        const input = parseInput(RenderThumbnailSchema, raw);
+        this.deps.store.assertConfigured?.();
+        const { loadImage } = require('@napi-rs/canvas');
+        const buf = Buffer.from(input.frame.imageBase64, 'base64');
+        if (!((buf[0] === 0xff && buf[1] === 0xd8) || (buf[0] === 0x89 && buf[1] === 0x50))) {
+            throw new CreativeError(400, 'INVALID_INPUT', 'The frame is not a JPEG or PNG image.');
+        }
+        const image = await loadImage(buf).catch(() => {
+            throw new CreativeError(400, 'INVALID_INPUT', 'The frame could not be decoded.');
+        });
+        const spec = { ...input.spec, frameIndex: 0 };
+        const family = (await resolveFont(spec.font, this.deps.font)).family;
+        const out = await renderThumbnail(spec, { image, faces: input.frame.faces }, input.format, family);
+        const stamp = (this.deps.now?.() ?? new Date()).getTime();
+        const url = await this.put(`creative/${ctx.companyId}/${ctx.projectId}/thumbnails/${stamp}-manual.png`, out.png, 'image/png');
+        return { url, spec: out.spec, qa: out.qa, format: input.format };
     }
 
     /** Which image sources are configured for this company (for the client's "use image model" toggle). */

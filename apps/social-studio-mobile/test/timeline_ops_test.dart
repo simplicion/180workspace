@@ -98,6 +98,21 @@ void main() {
       ir.validate();
     });
 
+    test('captions after cuts + a re-order follow the timeline (no empty ranges, a word stays in its clip)', () {
+      // Found by the on-device manual edit: grouping in source order clamped a caption to an empty range.
+      var ir = TimelineOps.removeRange(base(), 4000, 6000);
+      ir = TimelineOps.moveClip(ir, 1, 0); // the [6s, 10s) part now plays first
+      ir = TimelineOps.autoCaptions(ir, words, wordsPerCaption: 3);
+      ir.validate();
+      final caps = ir.captions.where((c) => c.kind == 'caption').toList();
+      expect(caps.every((c) => c.endMs > c.startMs), isTrue);
+      expect(caps.first.text, startsWith('v0'), reason: 'the moved clip is captioned first');
+      for (var i = 0; i < caps.length - 1; i++) {
+        expect(caps[i].endMs, lessThanOrEqualTo(caps[i + 1].startMs));
+      }
+      expect(caps.expand((c) => c.words).map((w) => w.text).toSet(), containsAll(['w0', 'w5', 'v0', 'v5.']));
+    });
+
     test('removing the whole video is refused', () {
       expect(() => TimelineOps.removeRange(base(), 0, 10000), throwsA(isA<MediaEngineException>()));
     });

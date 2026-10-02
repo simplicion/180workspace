@@ -8,9 +8,11 @@ import 'package:path_provider/path_provider.dart';
 
 import 'edit_ir.dart';
 import 'media_engine_exception.dart';
+import 'media_intelligence.dart';
 
 export 'edit_ir.dart';
 export 'media_engine_exception.dart';
+export 'media_intelligence.dart';
 
 /// Metadata of a local media file, read natively with MediaMetadataRetriever / AVAsset.
 class VideoMetadata {
@@ -281,6 +283,43 @@ class MediaEngineService {
     return [for (final e in r.cast<Map<Object?, Object?>>()) FaceSample.fromMap(e.cast<String, dynamic>())];
   }
 
+  /// Thumbnail Frame Scout: the [count] best frames of the video (sharp, big face, open eyes, expression, good
+  /// exposure; spread out in time), saved as 1280 px JPEGs in [outputDir] with their face boxes.
+  static Future<List<Map<String, dynamic>>> thumbnailCandidates({required String sourcePath, required String outputDir, int count = 4}) async {
+    final r = await _invoke<List<Object?>>('thumbnailCandidates', {'sourcePath': sourcePath, 'outputDir': outputDir, 'count': count});
+    return [for (final e in (r ?? const []).cast<Map<Object?, Object?>>()) _deepCast(e)];
+  }
+
+  static Map<String, dynamic> _deepCast(Map<Object?, Object?> m) => {
+        for (final e in m.entries)
+          '${e.key}': e.value is Map<Object?, Object?>
+              ? _deepCast(e.value as Map<Object?, Object?>)
+              : e.value is List
+                  ? [for (final x in e.value as List) x is Map<Object?, Object?> ? _deepCast(x) : x]
+                  : e.value,
+      };
+
+  /// Hard scene cuts (source ms), on the phone.
+  static Future<List<int>> detectScenes({required String sourcePath}) async {
+    final r = await _invoke<List<Object?>>('detectScenes', {'sourcePath': sourcePath});
+    return [for (final e in r ?? const []) (e as num).toInt()];
+  }
+
+  /// On-screen text spans (ML Kit OCR, offline).
+  static Future<List<OcrSpan>> recognizeText({required String sourcePath, int sampleEveryMs = 1000}) async {
+    final r = await _invoke<List<Object?>>('recognizeText', {'sourcePath': sourcePath, 'sampleEveryMs': sampleEveryMs});
+    return [for (final e in (r ?? const []).cast<Map<Object?, Object?>>()) OcrSpan.fromMap(e.cast<String, dynamic>())];
+  }
+
+  /// What each part of the video shows (ML Kit image labels, offline): only words leave the phone, never frames.
+  static Future<List<SceneLabelSpan>> labelScenes({required String sourcePath, int sampleEveryMs = 2000}) async {
+    final r = await _invoke<List<Object?>>('labelScenes', {'sourcePath': sourcePath, 'sampleEveryMs': sampleEveryMs});
+    return [for (final e in (r ?? const []).cast<Map<Object?, Object?>>()) SceneLabelSpan.fromMap(e.cast<String, dynamic>())];
+  }
+
+  static Future<LoudnessStats> measureLoudness({required String sourcePath}) async =>
+      LoudnessStats.fromMap(await _invokeMap('measureLoudness', {'sourcePath': sourcePath}));
+
   /// Beat/onset times (ms) of the audio in [audioPath] (a video or audio file), from energy flux
   /// with an adaptive threshold over decoded PCM. [bpm] is null when there is no steady pulse.
   /// A file without audio returns no beats.
@@ -423,6 +462,78 @@ class MediaEngineService {
   /// Stops the recording; returns the file and its length.
   static Future<({String path, int durationMs})> stopVoiceRecording() async {
     final m = await _invokeMap('stopVoiceRecording', {});
+    return (path: m['path'] as String, durationMs: (m['durationMs'] as num).toInt());
+  }
+
+  /// Frame-processed copy of a clip range (reverse / background removal), encoded on the phone.
+  static Future<({String path, int durationMs, int width, int height})> _processed(String method, Map<String, dynamic> args) async {
+    final m = await _invokeMap(method, args);
+    return (
+      path: m['path'] as String,
+      durationMs: (m['durationMs'] as num).toInt(),
+      width: (m['width'] as num).toInt(),
+      height: (m['height'] as num).toInt(),
+    );
+  }
+
+  /// The source range [startMs, endMs) played backwards (picture and sound), as a new mp4 at [outputPath].
+  static Future<({String path, int durationMs, int width, int height})> reverseClip({
+    required String sourcePath,
+    required int startMs,
+    required int endMs,
+    required String outputPath,
+  }) =>
+      _processed('reverseClip', {'sourcePath': sourcePath, 'startMs': startMs, 'endMs': endMs, 'outputPath': outputPath});
+
+  /// The person in [startMs, endMs) kept and the rest painted key green (#00FF00); the layer is then keyed.
+  static Future<({String path, int durationMs, int width, int height})> removeBackground({
+    required String sourcePath,
+    required int startMs,
+    required int endMs,
+    required String outputPath,
+  }) =>
+      _processed('removeBackground', {'sourcePath': sourcePath, 'startMs': startMs, 'endMs': endMs, 'outputPath': outputPath});
+
+  /// Photo with the person kept and the background transparent (PNG). `NO_PERSON_FOUND` when there is nobody.
+  static Future<String> removeImageBackground({required String sourcePath, required String outputPath}) async {
+    final m = await _invokeMap('removeImageBackground', {'sourcePath': sourcePath, 'outputPath': outputPath});
+    return m['path'] as String;
+  }
+
+  /// Steadied copy of [startMs, endMs): camera shake measured and smoothed over [strength] seconds, with a small zoom.
+  static Future<({String path, int durationMs, int width, int height})> stabilizeClip({
+    required String sourcePath,
+    required int startMs,
+    required int endMs,
+    required String outputPath,
+    double strength = 1,
+  }) =>
+      _processed('stabilizeClip', {'sourcePath': sourcePath, 'startMs': startMs, 'endMs': endMs, 'outputPath': outputPath, 'strength': strength});
+
+  /// Exact frame count and real average fps of a video (container sample table; no decoding).
+  static Future<({int frames, double fps})> countVideoFrames(String path) async {
+    final m = await _invokeMap('countVideoFrames', {'path': path});
+    return (frames: (m['frames'] as num).toInt(), fps: (m['fps'] as num).toDouble());
+  }
+
+  /// Durable path for a processed clip (kept with the draft).
+  static Future<String> getProcessedPath(String fileName) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final outDir = Directory('${dir.path}/processed');
+    if (!await outDir.exists()) await outDir.create(recursive: true);
+    return '${outDir.path}/$fileName';
+  }
+
+  /// AI narration generated on the phone by the system text-to-speech engine (WAV). Typed errors when no engine or
+  /// voice is available; never silence.
+  static Future<({String path, int durationMs})> synthesizeSpeech({
+    required String text,
+    required String outputPath,
+    String? language,
+    double rate = 1,
+    double pitch = 1,
+  }) async {
+    final m = await _invokeMap('synthesizeSpeech', {'text': text, 'outputPath': outputPath, 'language': ?language, 'rate': rate, 'pitch': pitch});
     return (path: m['path'] as String, durationMs: (m['durationMs'] as num).toInt());
   }
 

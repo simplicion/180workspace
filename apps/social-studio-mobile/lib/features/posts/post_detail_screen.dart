@@ -18,6 +18,7 @@ import '../projects/project_provider.dart';
 import 'finish_publishing_sheet.dart';
 import 'platform_post_preview.dart';
 import 'publish_status.dart';
+import 'thumbnail_designer_sheet.dart';
 import 'post_providers.dart';
 
 Future<void> openExternal(BuildContext context, String url) async {
@@ -524,6 +525,24 @@ class _PostBodyState extends ConsumerState<_PostBody> {
             borderRadius: BorderRadius.circular(12),
             child: Image.network(p.thumbnailUrl!, cacheWidth: 1080, height: 200, fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => SizedBox.shrink()),
+          ),
+        // AI thumbnail team: a designed cover from the best real frame of the video (YouTube / Reels / Pinterest).
+        if (p.finalVideoUrl ?? p.mediaUrls.where((u) => u.toLowerCase().contains('.mp4')).firstOrNull case final video?)
+          Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: SizedBox(
+              height: 44,
+              child: OutlinedButton.icon(
+                icon: Icon(Icons.auto_awesome_rounded),
+                label: Text(p.thumbnailUrl == null ? 'Design thumbnail with AI' : 'Redesign thumbnail with AI'),
+                onPressed: () async {
+                  final url = await showThumbnailDesigner(context, p, video);
+                  if (url != null) {
+                    ref.refreshPost(p.id, projectId: p.projectId);
+                  }
+                },
+              ),
+            ),
           ),
         if (p.finalVideoUrl != null)
           ListTile(

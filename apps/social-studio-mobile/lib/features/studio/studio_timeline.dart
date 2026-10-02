@@ -952,6 +952,25 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
                   ),
               ]),
               SizedBox(height: 8),
+              Text('Shape', style: Theme.of(context).textTheme.labelMedium),
+              Wrap(spacing: 8, runSpacing: 6, children: [
+                ChoiceChip(
+                  label: Text('Square'),
+                  selected: o.mask == null,
+                  onSelected: (_) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, clearMask: true), 'Shape: square'),
+                ),
+                ChoiceChip(
+                  label: Text('Circle'),
+                  selected: o.mask?.shape == 'circle',
+                  onSelected: (_) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, mask: EditIrMask.circle), 'Shape: circle'),
+                ),
+                ChoiceChip(
+                  label: Text('Rounded'),
+                  selected: o.mask?.shape == 'rounded',
+                  onSelected: (_) => _apply((ir) => TimelineOps.updateOverlay(ir, it.id, mask: EditIrMask.rounded), 'Shape: rounded corners'),
+                ),
+              ]),
+              SizedBox(height: 8),
               Text('Size ${(layer.scale * 100).round()}%', style: Theme.of(context).textTheme.labelMedium),
               Slider(
                 value: layer.scale.clamp(0.1, 1.0),
@@ -1020,6 +1039,25 @@ class _TimelineItemInspectorState extends State<TimelineItemInspector> {
               ]),
             ],
 
+            SizedBox(height: 12),
+            SizedBox(
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: widget.c.processing != null
+                    ? null
+                    : () async {
+                        try {
+                          await widget.c.removeOverlayBackground(it.id);
+                          if (context.mounted) showSuccess(context, 'Background removed');
+                        } catch (e) {
+                          if (context.mounted) showError(context, e);
+                        }
+                        if (mounted) setState(() {});
+                      },
+                icon: Icon(Icons.person_outline_rounded),
+                label: Text(widget.c.processing ?? 'Remove background (keep the person)'),
+              ),
+            ),
             SizedBox(height: 12),
             Text('Green screen', style: Theme.of(context).textTheme.labelMedium),
             SizedBox(height: 6),

@@ -148,6 +148,8 @@ export const InsertBrollOpSchema = z.object({
   keepAudio: z.boolean().optional(),
   /** Footage shot on a green / blue screen: key the background out so the main video shows behind it. */
   greenScreen: z.enum(["green", "blue"]).optional(),
+  /** pip / sticker shape: a circle (face cam) or rounded corners. */
+  shape: z.enum(["circle", "rounded"]).optional(),
   reason: z.string().optional(),
 });
 
@@ -280,8 +282,29 @@ export const AddTransitionOpSchema = z.object({
 
 export const BeatAlignOpSchema = z.object({
   type: z.literal("beatAlign"),
-  targetTrackId: z.string(),
-  snapToleranceSec: z.number().positive().default(0.25),
+  targetTrackId: z.string().default("main"),
+  snapToleranceSec: z.number().positive().max(1).default(0.25),
+  /** Beat times on the CURRENT timeline (seconds), from the on-device beat analysis (filled in by PlanExpander). */
+  beatsSec: z.array(z.number().nonnegative()).max(5000).optional(),
+});
+
+/**
+ * CapCut-style speed-ramp presets: [share of the clip's source, speed] per part. The clip is split into these parts,
+ * each with its own constant speed (mirrored by TimelineOps.speedRampPresets in the Flutter app).
+ */
+export const SPEED_RAMP_PRESETS: Record<string, Array<[number, number]>> = {
+  montage: [[0.33, 2], [0.34, 1], [0.33, 2]],
+  hero: [[0.35, 1], [0.3, 0.4], [0.35, 1]],
+  bullet: [[0.4, 1], [0.2, 0.3], [0.4, 2]],
+  flash_in: [[0.25, 3], [0.75, 1]],
+  flash_out: [[0.75, 1], [0.25, 3]],
+};
+
+export const SpeedRampOpSchema = z.object({
+  type: z.literal("speedRamp"),
+  clipId: z.string().min(1),
+  preset: z.enum(["montage", "hero", "bullet", "flash_in", "flash_out"]),
+  reason: z.string().optional(),
 });
 
 export const ChangeSpeedOpSchema = z.object({
@@ -337,6 +360,35 @@ export const AddStickerOpSchema = z.object({
   scale: z.number().min(0.1).max(0.6).optional(),
   rotation: z.number().min(-45).max(45).optional(),
   animationIn: z.enum(LAYER_ENTRANCES).default("zoom_in"),
+  /** "3d": a 3D sticker from the Fluent Emoji library found by [name] (falls back to the emoji on the phone). */
+  style: z.enum(["emoji", "3d"]).default("emoji"),
+  /** English name for the 3D library, e.g. "rocket", "money bag", "thumbs up". */
+  name: z.string().trim().min(1).max(40).regex(/^[a-zA-Z][a-zA-Z0-9 '&-]*$/).optional(),
+  reason: z.string().optional(),
+});
+
+export const AddNarrationOpSchema = z.object({
+  type: z.literal("addNarration"),
+  /** What the AI voice says (spoken on the creator's phone by its text-to-speech engine). */
+  text: z.string().trim().min(1).max(400),
+  timelineStartSec: z.number().nonnegative(),
+  reason: z.string().optional(),
+});
+
+/** Heavy on-device processing the phone runs after the turn (reverse / stabilise a clip, cut out an overlay). */
+export const ProcessFootageOpSchema = z.object({
+  type: z.literal("processFootage"),
+  action: z.enum(["reverse", "stabilize", "remove_background"]),
+  /** Main clip id (reverse / stabilize) or overlay id from the B-roll list (remove_background). */
+  targetId: z.string().min(1),
+  reason: z.string().optional(),
+});
+
+export const CleanVoiceOpSchema = z.object({
+  type: z.literal("cleanVoice"),
+  /** Main-track clip id, or "all". */
+  clipId: z.string().min(1).default("all"),
+  enabled: z.boolean().default(true),
   reason: z.string().optional(),
 });
 
@@ -517,6 +569,10 @@ export const CreativeOperationSchema = z.discriminatedUnion("type", [
   RemoveItemOpSchema,
   FadeClipAudioOpSchema,
   AddStickerOpSchema,
+  AddNarrationOpSchema,
+  CleanVoiceOpSchema,
+  SpeedRampOpSchema,
+  ProcessFootageOpSchema,
   ApplyFilterOpSchema,
   DetachAudioOpSchema,
   SelectTakeOpSchema,

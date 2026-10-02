@@ -74,3 +74,40 @@ test("voiceovers round-trip as a VOICEOVER track with their recording reference 
   assert.deepEqual(back.audio.voiceovers, m.audio.voiceovers);
   assert.equal(toMobileEditIR({ editIR: editIRFromMobile(baseMobile()), sources, primaryAssetId: "primary" }).editIR.audio.voiceovers, undefined);
 });
+
+test("watermark survives the mobile -> EditIR -> mobile round trip with all coordinates", () => {
+  const m = baseMobile();
+  m.watermark = {
+    imageUrl: "https://workspace180.com/brand-logo.png",
+    position: "top_right",
+    opacityPct: 90,
+    widthFraction: 0.18,
+    localPath: "/tmp/cached_watermark.png",
+    x: 0.8,
+    y: 0.05,
+    width: 0.18,
+    height: 0.1,
+  };
+  assert.equal(MobileEditIRSchema.safeParse(m).success, true);
+  const ir = editIRFromMobile(m);
+  assert.equal((ir.meta as any).watermark?.imageUrl, "https://workspace180.com/brand-logo.png");
+  const back = toMobileEditIR({ editIR: ir, sources, primaryAssetId: "primary" }).editIR;
+  assert.deepEqual(back.watermark, m.watermark);
+});
+
+
+test("brand watermark keeps every attribute through EditIR and back (and an explicit input wins)", () => {
+  const m = baseMobile();
+  (m as any).watermark = {
+    imageUrl: "https://cdn.test/logo.png", position: "bottom_left", opacityPct: 70, widthFraction: 0.2,
+    localPath: "/data/logo.png", x: 0.05, y: 0.9, width: 0.2, height: 0.08,
+  };
+  assert.equal(MobileEditIRSchema.safeParse(m).success, true, JSON.stringify(MobileEditIRSchema.safeParse(m).error?.issues));
+  const ir = editIRFromMobile(m);
+  assert.equal((ir.meta as any).watermark?.imageUrl, "https://cdn.test/logo.png");
+  const back = toMobileEditIR({ editIR: ir, sources, primaryAssetId: "primary" }).editIR;
+  assert.deepEqual(back.watermark, (m as any).watermark);
+  const override = toMobileEditIR({ editIR: ir, sources, primaryAssetId: "primary", watermark: { imageUrl: "https://cdn.test/other.png" } as any }).editIR;
+  assert.equal(override.watermark?.imageUrl, "https://cdn.test/other.png");
+  assert.equal(override.watermark?.position, "top_right");
+});

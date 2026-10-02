@@ -11,9 +11,12 @@ import android.os.Build
 import androidx.media3.common.util.UnstableApi
 import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.label.ImageLabeling
+import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlin.math.max
+import kotlin.math.min
 
 /** Cooperative cancellation + progress for one analysis call. */
 class AnalysisControl(val isCancelled: () -> Boolean = { false }, val onProgress: (Double) -> Unit = {}) {
@@ -32,6 +35,8 @@ class AnalysisControl(val isCancelled: () -> Boolean = { false }, val onProgress
 object MediaIntelligence {
     private const val MAX_OCR_SAMPLES = 180
     private const val OCR_FRAME_WIDTH = 1080
+    private const val MAX_LABEL_SAMPLES = 90
+    private const val LABEL_FRAME_WIDTH = 480
 
     /**
      * Decodes every frame of the first video track with the platform decoder and hands [onFrame] a
@@ -205,6 +210,60 @@ object MediaIntelligence {
         }
         control.onProgress(1.0)
         return merger.finish()
+    }
+
+    /**
+     * What each part of the video shows: ML Kit image labels (bundled model, offline) on one frame every [stepMs]
+     * (at most 90 frames), keeping labels with confidence >= 0.6 (top 5). Consecutive frames with the same label set
+     * are merged into `{startMs, endMs, labels}` spans. Only words leave this function, never pixels.
+     */
+    fun labelScenes(path: String, stepMs: Long, control: AnalysisControl): List<Map<String, Any>> {
+        MediaTools.requireFile(path)
+        if (stepMs <= 0) throw MediaEngineError("INVALID_ARGS", "sampleEveryMs must be > 0")
+        val info = MediaTools.getVideoInfo(path)
+        if (info["hasVideo"] != true) throw MediaEngineError("NO_VIDEO_TRACK", "No video track in $path")
+        val durationMs = (info["durationMs"] as Number).toLong()
+        val step = max(stepMs, durationMs / MAX_LABEL_SAMPLES)
+        val labeler = ImageLabeling.getClient(ImageLabelerOptions.Builder().setConfidenceThreshold(0.6f).build())
+        val r = MediaMetadataRetriever()
+        val spans = mutableListOf<MutableMap<String, Any>>()
+        try {
+            r.setDataSource(path)
+            val codedW = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: OCR_FRAME_WIDTH
+            val codedH = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: OCR_FRAME_WIDTH
+            var t = 0L
+            while (t < durationMs) {
+                control.check()
+                val frame: Bitmap? = if (Build.VERSION.SDK_INT >= 27 && codedW > LABEL_FRAME_WIDTH) {
+                    r.getScaledFrameAtTime(t * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, LABEL_FRAME_WIDTH, max(1, LABEL_FRAME_WIDTH * codedH / codedW))
+                } else {
+                    r.getFrameAtTime(t * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                }
+                if (frame != null) {
+                    val labels = Tasks.await(labeler.process(InputImage.fromBitmap(frame, 0)))
+                        .sortedByDescending { it.confidence }
+                        .take(5)
+                        .map { it.text.lowercase() }
+                    frame.recycle()
+                    val end = min(durationMs, t + step)
+                    val last = spans.lastOrNull()
+                    @Suppress("UNCHECKED_CAST")
+                    if (last != null && (last["labels"] as List<String>).toSet() == labels.toSet()) last["endMs"] = end
+                    else if (labels.isNotEmpty()) spans.add(mutableMapOf("startMs" to t, "endMs" to end, "labels" to labels))
+                }
+                control.onProgress((t.toDouble() / durationMs).coerceIn(0.0, 1.0))
+                t += step
+            }
+        } catch (e: MediaEngineError) {
+            throw e
+        } catch (e: Exception) {
+            throw MediaEngineError("LABELING_FAILED", "Scene labelling failed: ${e.message}")
+        } finally {
+            r.release()
+            labeler.close()
+        }
+        control.onProgress(1.0)
+        return spans
     }
 
     /**

@@ -91,6 +91,11 @@ dependencies {
     // On-device OCR for the AI Director (`media.ocr`): bundled Latin model, offline, no server
     // tokens. Adds about 4 MB per ABI; see docs/social-studio-mobile/SOCIAL_OS_AUDIT.md.
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    // On-device scene labels ("laptop", "food", "beach"...) so the AI Director knows what each shot shows without
+    // any pixels leaving the phone. Bundled base model (~5.7 MB), offline.
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+    // On-device person segmentation for "Remove background" (FrameJobs.removeBackground), bundled, offline.
+    implementation("com.google.mlkit:segmentation-selfie:16.0.0-beta6")
     // JVM unit tests of the pure analysis algorithms (AnalysisAlgorithms.kt).
     testImplementation("junit:junit:4.12")
 }

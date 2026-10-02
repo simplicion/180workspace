@@ -25,6 +25,7 @@ import {
   MobileWatermarkSchema,
 } from "@workspace/video-contracts";
 import { VideoAIDirectorService } from "../src/builders/video-ai-director.service";
+import { missingRequestedOperations } from "../src/builders/creative-planner";
 import type { AIClient, ToolCallResponse } from "../src/kernel/ai-provider.service";
 
 // ---------------------------------------------------------------------------------------------
@@ -186,7 +187,7 @@ test("repair retry: invalid tool args are sent back with errors and the correcte
   assert.match(calls[1].prompt, /scale/);
   assert.equal(res.plannerSource, "llm");
   assert.match(res.plannerReason, /2 attempts, repaired/);
-  assert.ok(res.editIR.captions.length > 0);
+  // The fixture has no transcript: captions are not required (and are skipped honestly).
   assert.equal(res.editIR.zooms[0].scale, 1.3);
 });
 
@@ -895,7 +896,7 @@ test("brand: captions the creator did not colour get the brand colours (LLM and 
   assert.ok(calls[0].prompt.includes("## Brand"), "brand section in the planner prompt");
   assert.ok(calls[0].prompt.includes("#FFC400"), "brand colour in the planner prompt");
   assert.ok(calls[0].prompt.includes("## Calendar piece"), "piece section in the planner prompt");
-  assert.ok(res.editIR.captions.length > 0);
+  // The fixture has no transcript: captions are not required (and are skipped honestly).
   for (const c of res.editIR.captions) {
     assert.equal(c.style.highlightColor, "#FFC400");
     assert.equal(c.style.preset, "ALI_ABDAAL_CLEAN");
@@ -1097,4 +1098,38 @@ test("sfx: the greet proposal places sound effects on an sfx lane with credits; 
   // No SFX resolver: the field is omitted, so older clients see the same shape as before.
   const plain = await director.directMobile(scriptRequest({ intent: "greet" }), { llmClient: null, context: BRAND_CTX });
   assert.equal("sfx" in plain.editIR.audio, false);
+});
+
+test("coverage: requested features missing from a plan are detected (negations and impossible asks excluded)", () => {
+  const ask = "Cut the pauses and filler words, add bold captions, a punch-in zoom, space B-roll, a sticker and calm music";
+  assert.deepEqual(
+    missingRequestedOperations(ask, ["removeSilences", "autoCaptions"], true).map((m) => m.split(" (")[0]),
+    ["zoom / punch-in", "B-roll", "sticker", "background music", "filler-word removal"]
+  );
+  assert.deepEqual(missingRequestedOperations("add captions but no music please", ["autoCaptions"], true), []);
+  assert.deepEqual(missingRequestedOperations("add captions", [], false), [], "captions without a transcript are not required");
+  assert.deepEqual(missingRequestedOperations("remove the filler words", [], true).length, 1, "'remove fillers' is the ask itself");
+});
+
+test("coverage: a plan that stops after the cuts is sent back once and the completed plan is used", async () => {
+  const { client, calls } = mockClient([
+    { text: "", toolCalls: [tc("removeSilences", { minDurationSec: 0.5 }), finish("Removed pauses.")] },
+    {
+      text: "",
+      toolCalls: [
+        tc("removeSilences", { minDurationSec: 0.5 }),
+        tc("autoCaptions", { highlightColor: "#FFE600" }),
+        tc("addZoom", { startSec: 2, durationSec: 1, scale: 1.3, targetCoords: { x: 0.5, y: 0.4 } }),
+        finish("Removed pauses, added captions and a zoom."),
+      ],
+    },
+  ]);
+  const res = await director.directMobile(mobileRequest("remove the pauses, add captions and a zoom"), { llmClient: client });
+  assert.equal(calls.length, 2);
+  assert.match(calls[1].prompt, /skipped part of the creator's request/);
+  assert.ok(calls[1].prompt.includes("- zoom / punch-in"));
+  assert.match(res.plannerReason, /completed 1 skipped request/);
+  // The fixture has no transcript: captions are not required (and are skipped honestly).
+  assert.equal(res.editIR.zooms.length, 1);
+  assertInvariants(res.editIR);
 });

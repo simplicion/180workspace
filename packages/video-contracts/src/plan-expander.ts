@@ -24,6 +24,12 @@ export class PlanExpander {
     const out: CreativeOperation[] = [];
     for (const op of plan.operations) {
       switch (op.type) {
+        case "beatAlign": {
+          const beats = graph.beats?.beatTimestamps ?? [];
+          if (beats.length === 0) warnings.push("beatAlign: no beat analysis for this video, so cuts were not moved");
+          out.push({ ...op, beatsSec: beats });
+          break;
+        }
         case "removeSilences": {
           const cuts = this.silenceCuts(graph, op.minDurationSec, op.paddingSec);
           if (cuts.length === 0) {

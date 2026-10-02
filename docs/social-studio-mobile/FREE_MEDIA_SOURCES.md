@@ -28,6 +28,12 @@ licence filter, ranking), wired through `StockDecisionBroker.searchFreeMedia`,
 | Unsplash API | photos | Unsplash licence; guidelines followed: hotlink `urls.*`, report use via `download_location` (`POST /media-editor/stock/unsplash/track-download`), credit "Photo by X on Unsplash" with UTM links | `UNSPLASH_ACCESS_KEY` (optional `UNSPLASH_APP_NAME` for UTM) | 50/hour (demo), 5,000/hour (production approval) | yes | `/stock/search`, `/stock/unified` photos |
 | NASA Media API | video, audio, images | 100% US Government Public Domain work | none | generous public usage; no key required | yes | `/stock/search`, `/stock/unified`, director B-roll, space/tech cutaways, mission audio |
 | Free Music Archive | - | - | - | - | **skipped: its public API was discontinued** | - |
+| ccMixter (Query API 2.0) | music | `lic=by` requested + `normalizeLicense` re-check (CC BY / PD only; NC, ND, Sampling+ dropped) | none | no published cap; be polite | yes, per track (credit line added) | `/stock/music`, `/stock/unified`, director music (via BgmSearchTool) — uses `f=js` because `f=json` duplicates the body into a ~40 KB `X-JSON` header that overflows Node's header limit |
+| Microsoft Fluent Emoji (3D) | stickers (transparent PNG) | MIT (credit "Fluent Emoji … by Microsoft (MIT)") | none (optional `GITHUB_TOKEN` only raises GitHub's limit) | index: 1 GitHub tree call per day (cached); files from the jsDelivr CDN | yes | `/stock/stickers`, Stickers sheet "3D stickers", director `addSticker` style `3d` |
+| Coverr | video | royalty-free, **logo credit required** | `COVERR_API_KEY` | 50 req/h demo; production needs a paid plan | yes | **not integrated** (paid production tier, mandatory logo, auth not documented publicly) |
+| GIPHY | GIF / stickers | GIPHY terms | key | - | **no: the free API is personal / non-commercial** | not integrated |
+| Tenor | GIF / stickers | - | - | - | **API shut down 30 June 2026** | not integrated |
+| Noto animated emoji / LottieFiles | animated stickers | CC BY 4.0 / Lottie Simple License | none | - | yes | **not yet**: the export renders still images only (needs an animated-layer renderer) |
 
 Existing keyed providers are unchanged: Pexels (`PEXELS_API_KEY`), Pixabay (`PIXABAY_API_KEY`), Freesound (`FREESOUND_API_KEY`).
 
@@ -66,3 +72,19 @@ services, under 1 MB in the APK); the Kotlin code is the same.
   network by default; `LIVE_MEDIA_TESTS=1` runs live calls.
 - `packages/domains/ai/tests/video-director.test.ts`: face-centred reframe/zoom and credit flow.
 - Flutter: `test/native_engine_test.dart` (detectFaces/detectBeats channel), `test/timeline_ops_test.dart` (face-centred crop).
+
+## Downloading online media (2026-10-03)
+- **One shared cache** (`lib/core/media/asset_cache.dart`) for stock B-roll, photos, stickers, music, SFX and logos:
+  - content-addressed (`asset_cache/<sha1(url)>.<ext>`) and reused by preview, export and later edits;
+  - trimmed least-recently-used above 3 GB.
+- **Safe downloads:**
+  - written to `.part`, resumed with HTTP Range after a drop, retried on 429 / 5xx with backoff;
+  - checked before use: an HTML error page or empty file is rejected with a reason;
+  - at most 3 at once; one download per URL even when requested many times.
+- **Manual search:** every result tile shows a download badge (cloud → progress ring → tick). An asset is added to the
+  timeline only after its download completes, so the export never has to fetch it.
+- **AI Director:** right after a turn, search phrases (B-roll, music, 3D stickers) are resolved and everything online
+  is downloaded with an on-screen "Downloading media n/m" banner, with Retry / Continue without.
+  Export runs the same step first, so nothing is silently missing.
+- The timeline keeps the real https URL (credits and the server contract are unchanged); the cache is transparent.
+

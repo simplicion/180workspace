@@ -3,7 +3,7 @@
 # (`flutter test` reinstalls the app, which wipes its files directory). The test writes test_assets/.waiting when it
 # is ready for them.
 #
-#   tool/run_render_tests.sh [integration_test/media_engine_render_test.dart] [emulator-5554]
+#   [FILTER=name] tool/run_render_tests.sh [integration_test/media_engine_render_test.dart] [emulator-5554]
 #
 # Needs: ANDROID_HOME or %LOCALAPPDATA%/Android/Sdk, flutter on PATH, fixtures in test_assets/ (gitignored):
 #   speech_obama_30s.mp4, sample-15s.mp4, sample-15s.mp3
@@ -26,7 +26,12 @@ if ! "$ADB" devices | grep -q "^$DEVICE"; then
 fi
 
 LOG="$(mktemp)"
-flutter test "$TEST" -d "$DEVICE" >"$LOG" 2>&1 &
+# FILTER="reverse" runs only the tests whose name contains it (plus setup).
+if [ -n "${FILTER:-}" ]; then
+  flutter test "$TEST" -d "$DEVICE" --plain-name "$FILTER" >"$LOG" 2>&1 &
+else
+  flutter test "$TEST" -d "$DEVICE" >"$LOG" 2>&1 &
+fi
 TEST_PID=$!
 
 push_fixtures() {

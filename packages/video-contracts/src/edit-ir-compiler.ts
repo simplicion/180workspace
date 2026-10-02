@@ -9,6 +9,7 @@ import {
   CreativeEditPlan,
   CreativeOperation,
   ORIGINAL_AUDIO_TRACK_ID,
+  SPEED_RAMP_PRESETS,
 } from "./creative-plan.schema";
 import { RationalTimeMath } from "./time";
 import { MediaAssetDescriptor } from "./project.schema";
@@ -266,13 +267,68 @@ export class EditIRCompiler {
             break;
           }
           case "beatAlign": {
-            this.applyBeatAlign(updated, op.snapToleranceSec);
-            appliedOperations.push(`Aligned cuts to a 120bpm grid (±${op.snapToleranceSec}s tolerance)`);
+            // Cut points move back to the last beat before them (a ripple trim of each clip's tail). Beats come
+            // from the footage's own audio, so they travel with the footage when earlier cuts shift it.
+            const trims = this.beatAlignCuts(updated, op.beatsSec ?? [], op.snapToleranceSec);
+            if (!op.beatsSec?.length) rejectedOperations.push("beatAlign: no beat analysis for this video, so cuts were not moved");
+            else if (trims.length === 0) rejectedOperations.push(`beatAlign: no cut is within ${op.snapToleranceSec}s after a beat`);
+            else {
+              cutRanges.push(...trims);
+              appliedOperations.push(`Moved ${trims.length} cut(s) onto the beat`);
+            }
             break;
           }
           case "addText": {
             this.applyAddText(updated, op);
             appliedOperations.push(`Added title/lower-third text: "${op.text}"`);
+            break;
+          }
+          case "processFootage": {
+            const clip =
+              op.action === "remove_background"
+                ? updated.tracks.videoTracks.filter((t) => t.type !== "MAIN_VIDEO").flatMap((t) => t.clips).find((c) => c.id === op.targetId)
+                : EditIRCompiler.mainTrack(updated)?.clips.find((c) => c.id === op.targetId);
+            if (!clip) {
+              rejectedOperations.push(`processFootage: no ${op.action === "remove_background" ? "overlay" : "main clip"} "${op.targetId}"`);
+              break;
+            }
+            if (op.action === "remove_background" && clip.mediaType !== "image" && !clip.layer) {
+              // A cut-out must float above the video.
+              clip.layer = { mode: "overlay", x: 0.5, y: 0.5, scale: 1, rotation: 0 };
+              clip.fit = "contain";
+            }
+            clip.process = op.action;
+            appliedOperations.push(`Queued ${op.action.replace("_", " ")} for ${op.targetId} (runs on the phone)`);
+            break;
+          }
+          case "speedRamp": {
+            const parts = this.applySpeedRampSplits(updated, op.clipId, op.preset);
+            if (!parts) {
+              rejectedOperations.push(`speedRamp: clip ${op.clipId} not found or too short to ramp`);
+              break;
+            }
+            const base = EditIRCompiler.mainTrack(updated)?.clips.find((c) => c.id === parts[0].id)?.speedMultiplier ?? 1;
+            for (const p of parts) speedOps.push({ type: "changeSpeed", clipId: p.id, speedMultiplier: Math.min(4, Math.max(0.25, base * p.speed)) } as any);
+            appliedOperations.push(`Speed ramp "${op.preset}" on clip ${op.clipId} (${parts.map((p) => `${p.speed}x`).join(" → ")})`);
+            break;
+          }
+          case "cleanVoice": {
+            const main = EditIRCompiler.mainTrack(updated)?.clips ?? [];
+            let n = 0;
+            for (const c of main) {
+              if (op.clipId !== "all" && c.id !== op.clipId) continue;
+              if (op.enabled) c.voiceCleanup = true;
+              else delete c.voiceCleanup;
+              n++;
+            }
+            if (n > 0) appliedOperations.push(`${op.enabled ? "Reduced background noise on" : "Turned off noise reduction for"} ${n} clip(s)`);
+            else rejectedOperations.push(`cleanVoice: no main clip "${op.clipId}"`);
+            break;
+          }
+          case "addNarration": {
+            const placed = this.applyAddNarration(updated, op);
+            if (placed) appliedOperations.push(`Added AI narration at ${op.timelineStartSec.toFixed(1)}s: "${op.text}"`);
+            else rejectedOperations.push(`addNarration: ${op.timelineStartSec.toFixed(1)}s is past the end of the video`);
             break;
           }
           case "addSticker": {
@@ -1056,6 +1112,7 @@ export class EditIRCompiler {
       ...(op.mediaType === "image" ? { mediaType: "image" as const } : {}),
       ...(op.layout === "fit" || op.layout === "pip" || op.layout === "sticker" ? { fit: "contain" as const } : {}),
       ...(op.layout === "pip" || op.layout === "sticker" ? { layer: overlayLayerFor(op) } : {}),
+      ...((op.layout === "pip" || op.layout === "sticker") && op.shape ? { mask: { shape: op.shape, radius: 0.15, feather: 0.01 } } : {}),
       // Keyed footage must float above the main video (a keyed cutaway would show black): full frame unless placed.
       ...(op.greenScreen
         ? {
@@ -1305,29 +1362,18 @@ export class EditIRCompiler {
     clip.volumeDb = -60.0;
   }
 
-  private static applyBeatAlign(editIR: EditIR, snapToleranceSec: number = 0.25) {
-    const mainTrack = editIR.tracks.videoTracks[0];
-    if (!mainTrack) return;
-
-    const bpm = 120; // 0.5s per beat
-    const beatIntervalSec = 60 / bpm;
-
-    let accumulatedTimeSec = 0;
-    for (const clip of mainTrack.clips) {
-      const durSec = RationalTimeMath.toSeconds(clip.timelineRange.duration);
-      const nearestBeatMultiple = Math.round(durSec / beatIntervalSec) * beatIntervalSec;
-      const snappedDurSec = Math.abs(durSec - nearestBeatMultiple) <= snapToleranceSec
-        ? Math.max(0.5, nearestBeatMultiple)
-        : durSec;
-
-      clip.timelineRange = {
-        start: RationalTimeMath.fromSeconds(accumulatedTimeSec),
-        duration: RationalTimeMath.fromSeconds(snappedDurSec),
-      };
-      accumulatedTimeSec += snappedDurSec;
+  /** For each cut between main clips: trim the clip's tail back to the last beat within [toleranceSec]. */
+  private static beatAlignCuts(editIR: EditIR, beatsSec: number[], toleranceSec: number) {
+    const clips = EditIRCompiler.mainTrack(editIR)?.clips ?? [];
+    const beats = [...beatsSec].sort((a, b) => a - b);
+    const out: Array<{ start: number; end: number; reason: string }> = [];
+    for (const c of clips.slice(0, -1)) {
+      const start = RationalTimeMath.toSeconds(c.timelineRange.start);
+      const end = start + RationalTimeMath.toSeconds(c.timelineRange.duration);
+      const beat = [...beats].reverse().find((b) => b < end - 0.01 && end - b <= toleranceSec && b - start >= 0.3);
+      if (beat != null) out.push({ start: beat, end, reason: `cut moved onto the beat at ${beat.toFixed(2)}s` });
     }
-
-    editIR.meta.totalDuration = RationalTimeMath.fromSeconds(accumulatedTimeSec);
+    return out;
   }
 
   private static applyAddText(editIR: EditIR, op: any) {
@@ -1372,6 +1418,30 @@ export class EditIRCompiler {
     });
   }
 
+  /**
+   * AI narration = a voiceover whose recording (`tts:<text>`) the phone speaks itself. The length here is an estimate
+   * (~2.6 words/s); the phone corrects it to the real spoken length.
+   */
+  private static applyAddNarration(editIR: EditIR, op: { text: string; timelineStartSec: number }): boolean {
+    const totalSec = RationalTimeMath.toSeconds(editIR.meta.totalDuration);
+    if (op.timelineStartSec >= totalSec - 0.3) return false;
+    const words = op.text.split(/\s+/).filter(Boolean).length;
+    const durSec = Math.min(totalSec - op.timelineStartSec, 0.4 + words / 2.6);
+    let track = editIR.tracks.audioTracks.find((t) => t.type === "VOICEOVER");
+    if (!track) {
+      track = { id: "voiceover_lane", type: "VOICEOVER", volumeDb: 0, duckWithSpeech: false, clips: [] };
+      editIR.tracks.audioTracks.push(track);
+    }
+    track.clips.push({
+      id: generateUUID(),
+      sourcePath: `asset://tts:${op.text}`,
+      sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: RationalTimeMath.fromSeconds(durSec) },
+      timelineRange: { start: RationalTimeMath.fromSeconds(op.timelineStartSec), duration: RationalTimeMath.fromSeconds(durSec) },
+      volumeDb: 0,
+    });
+    return true;
+  }
+
   /** Emoji sticker = an image layer whose asset (`emoji:<emoji>`) the phone draws itself. */
   private static applyAddSticker(editIR: EditIR, op: any): boolean {
     const totalSec = RationalTimeMath.toSeconds(editIR.meta.totalDuration);
@@ -1383,11 +1453,13 @@ export class EditIRCompiler {
       track = { id: generateUUID(), type: "B_ROLL_OVERLAY", zIndex: 10, clips: [] };
       editIR.tracks.videoTracks.push(track);
     }
-    const assetId = `emoji:${op.emoji}`;
+    // 3D stickers are found on the phone by name (library search + download); the emoji is the offline fallback.
+    const is3d = op.style === "3d" && !!op.name;
+    const assetId = is3d ? `sticker3d:${op.name}|${op.emoji}` : `emoji:${op.emoji}`;
     track.clips.push({
       id: generateUUID(),
       assetId,
-      sourcePath: `device-asset://${assetId}`,
+      sourcePath: is3d ? `stock-query://${encodeURIComponent(assetId)}` : `device-asset://${assetId}`,
       sourceRange: { start: RationalTimeMath.fromSeconds(0), duration: RationalTimeMath.fromSeconds(durSec) },
       timelineRange: { start: RationalTimeMath.fromSeconds(op.timelineStartSec), duration: RationalTimeMath.fromSeconds(durSec) },
       transform: { scale: { start: 1, end: 1, easing: "spring" }, position: { x: 0, y: 0 }, anchor: { x: 0.5, y: 0.5 }, rotationDeg: 0, opacity: 1 },
@@ -1399,6 +1471,28 @@ export class EditIRCompiler {
       layer: overlayLayerFor({ layout: "sticker", position: op.position ?? { x: 0.74, y: 0.22 }, scale: op.scale ?? 0.26, rotation: op.rotation, animationIn: op.animationIn }),
     });
     return true;
+  }
+
+  /** Splits a main clip into the preset's parts; returns each part's id and relative speed (null if impossible). */
+  private static applySpeedRampSplits(editIR: EditIR, clipId: string, preset: string): Array<{ id: string; speed: number }> | null {
+    const shape = SPEED_RAMP_PRESETS[preset];
+    const clip = EditIRCompiler.mainTrack(editIR)?.clips.find((c) => c.id === clipId);
+    if (!shape || !clip) return null;
+    const start = RationalTimeMath.toSeconds(clip.timelineRange.start);
+    const dur = RationalTimeMath.toSeconds(clip.timelineRange.duration);
+    if (dur < shape.length * 0.4) return null;
+    const out: Array<{ id: string; speed: number }> = [];
+    let rest = clipId;
+    let at = start;
+    for (let i = 0; i < shape.length - 1; i++) {
+      at += dur * shape[i][0];
+      const parts = this.applySplitClip(editIR, rest, at);
+      if (!parts) return null;
+      out.push({ id: parts[0], speed: shape[i][1] });
+      rest = parts[1];
+    }
+    out.push({ id: rest, speed: shape[shape.length - 1][1] });
+    return out;
   }
 
   /** Sets audio fades on main clips (each capped at half the clip). Returns how many clips changed. */

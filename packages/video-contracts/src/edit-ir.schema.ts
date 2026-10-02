@@ -172,6 +172,13 @@ export const ChromaKeySchema = z.object({
   spill: z.number().min(0).max(1),
 });
 
+/** Shape mask on an overlay layer (renderers: LayerMaskEffect + the phone preview's clip). */
+export const LayerMaskSchema = z.object({
+  shape: z.enum(["circle", "rounded"]),
+  radius: z.number().min(0).max(0.5),
+  feather: z.number().min(0).max(0.2),
+});
+
 export const VideoClipSchema = z.object({
   id: z.string().min(1),
   assetId: z.string(),
@@ -198,9 +205,18 @@ export const VideoClipSchema = z.object({
   fit: z.enum(["cover", "contain"]).optional(),
   /** Overlay layers only: green / blue screen key. */
   chromaKey: ChromaKeySchema.optional(),
+  /** Overlay layers only: circle / rounded-corner shape. */
+  mask: LayerMaskSchema.optional(),
   /** Main track: fade of the clip's own sound at its start / end, in ms (absent = none). */
   audioFadeInMs: z.number().int().min(0).optional(),
   audioFadeOutMs: z.number().int().min(0).optional(),
+  /** Main track: reduce background noise on the clip's own sound (on-device DSP at export). */
+  voiceCleanup: z.boolean().optional(),
+  /**
+   * Frame processing the phone still has to do (reverse / stabilise a main clip, remove an overlay's background).
+   * Set by the AI Director; the phone runs it on the device, swaps in the processed file and clears the flag.
+   */
+  process: z.enum(["reverse", "stabilize", "remove_background"]).optional(),
 });
 
 export type VideoClip = z.infer<typeof VideoClipSchema>;
@@ -361,6 +377,18 @@ export const EditIRSchema = z.object({
     totalDuration: RationalTimeSchema,
     /** Letterbox fill colour (#RRGGBB[AA]). Renderers default to black. */
     background: z.string().optional(),
+    /** Optional watermark / brand logo */
+    watermark: z.object({
+      imageUrl: z.string(),
+      position: z.enum(["top_left", "top_right", "bottom_left", "bottom_right"]).optional(),
+      opacityPct: z.number().optional(),
+      widthFraction: z.number().optional(),
+      localPath: z.string().optional(),
+      x: z.number().optional(),
+      y: z.number().optional(),
+      width: z.number().optional(),
+      height: z.number().optional(),
+    }).optional(),
   }),
   directorStyle: z.object({
     preset: z.enum([

@@ -5,6 +5,7 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -123,5 +124,80 @@ class ClipAudioGainModel(
         if (fadeInMs > 0) g *= ramp(tMs, 0.0, fadeInMs)
         if (fadeOutMs > 0) g *= 1.0 - ramp(tMs, clipDurationMs - fadeOutMs, clipDurationMs)
         return g.toFloat()
+    }
+}
+
+/**
+ * "Reduce background noise" for a clip's own sound (contract `voiceCleanup`): an 80 Hz high-pass removes rumble and
+ * handling noise, and a downward expander lowers everything that stays near the tracked noise floor (room hiss, hum,
+ * fans) by up to 18 dB between words, with smooth gain changes so speech is untouched. 16-bit and float PCM.
+ */
+class VoiceCleanupProcessor : BaseAudioProcessor() {
+    private var hp = DoubleArray(0) // per channel: x1, x2, y1, y2
+    private var b0 = 0.0; private var b1 = 0.0; private var b2 = 0.0; private var a1 = 0.0; private var a2 = 0.0
+    private var env = 0.0
+    private var floor = 1e-4
+    private var gain = 1.0
+    private var envAtk = 0.0; private var envRel = 0.0; private var gainAtk = 0.0; private var gainRel = 0.0; private var floorRise = 0.0
+
+    override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+        if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT && inputAudioFormat.encoding != C.ENCODING_PCM_FLOAT) {
+            throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
+        }
+        val sr = inputAudioFormat.sampleRate.toDouble()
+        // RBJ biquad high-pass at 80 Hz, Q = 0.707 (below the male voice fundamental).
+        val w = 2 * Math.PI * 80.0 / sr
+        val alpha = Math.sin(w) / (2 * 0.7071)
+        val cos = Math.cos(w)
+        val a0 = 1 + alpha
+        b0 = (1 + cos) / 2 / a0; b1 = -(1 + cos) / a0; b2 = (1 + cos) / 2 / a0
+        a1 = -2 * cos / a0; a2 = (1 - alpha) / a0
+        fun coef(ms: Double) = Math.exp(-1.0 / (sr * ms / 1000.0))
+        envAtk = coef(5.0); envRel = coef(120.0); gainAtk = coef(10.0); gainRel = coef(150.0)
+        floorRise = coef(4000.0) // the floor estimate creeps up slowly, drops instantly
+        hp = DoubleArray(inputAudioFormat.channelCount * 4)
+        return inputAudioFormat
+    }
+
+    override fun queueInput(inputBuffer: ByteBuffer) {
+        val remaining = inputBuffer.remaining()
+        if (remaining == 0) return
+        val fmt = inputAudioFormat
+        val channels = fmt.channelCount
+        val frames = remaining / fmt.bytesPerFrame
+        val out = replaceOutputBuffer(remaining)
+        val input = inputBuffer.order(ByteOrder.nativeOrder())
+        val pcm16 = fmt.encoding == C.ENCODING_PCM_16BIT
+        val frame = DoubleArray(channels)
+        for (f in 0 until frames) {
+            var peak = 0.0
+            for (ch in 0 until channels) {
+                val x = if (pcm16) input.short / 32768.0 else input.float.toDouble()
+                val i = ch * 4
+                val y = b0 * x + b1 * hp[i] + b2 * hp[i + 1] - a1 * hp[i + 2] - a2 * hp[i + 3]
+                hp[i + 1] = hp[i]; hp[i] = x; hp[i + 3] = hp[i + 2]; hp[i + 2] = y
+                frame[ch] = y
+                peak = max(peak, abs(y))
+            }
+            env = if (peak > env) envAtk * env + (1 - envAtk) * peak else envRel * env + (1 - envRel) * peak
+            floor = if (env < floor) env.coerceAtLeast(1e-5) else floorRise * floor + (1 - floorRise) * env
+            // Below ~3x the floor (about +10 dB) is treated as noise: expanded down 2:1, at most -18 dB.
+            val threshold = floor * 3.0
+            val target = if (env >= threshold) 1.0 else max(0.126, (env / threshold))
+            gain = if (target < gain) gainAtk * gain + (1 - gainAtk) * target else gainRel * gain + (1 - gainRel) * target
+            for (ch in 0 until channels) {
+                val v = frame[ch] * gain
+                if (pcm16) out.putShort((v * 32768.0).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort())
+                else out.putFloat(v.toFloat())
+            }
+        }
+        out.flip()
+    }
+
+    override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) = resetState()
+    override fun onReset() = resetState()
+
+    private fun resetState() {
+        hp.fill(0.0); env = 0.0; floor = 1e-4; gain = 1.0
     }
 }

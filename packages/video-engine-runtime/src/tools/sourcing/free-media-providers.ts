@@ -16,7 +16,7 @@
  */
 
 export type FreeMediaKind = "video" | "image" | "music" | "sfx";
-export type FreeMediaProviderId = "openverse" | "wikimedia" | "internet_archive" | "jamendo" | "unsplash" | "nasa";
+export type FreeMediaProviderId = "openverse" | "wikimedia" | "internet_archive" | "jamendo" | "unsplash" | "nasa" | "ccmixter";
 export type FreeMediaOrientation = "portrait" | "landscape" | "square";
 /** Ranking class: cc0 > pd > cc-by > cc-by-sa ("platform" = Unsplash licence, no credit required). */
 export type FreeLicenseClass = "cc0" | "pd" | "platform" | "cc-by" | "cc-by-sa";
@@ -454,6 +454,69 @@ export function normalizeJamendo(data: any, q: Pick<FreeMediaQuery, "limit" | "m
   return out;
 }
 
+// ── ccMixter (no key; music) ────────────────────────────────────────────────
+
+/**
+ * ccMixter (Creative Commons music community, Query API 2.0). Only Attribution-licensed uploads are requested
+ * (`lic=by`) and every licence URL is re-checked by normalizeLicense, so NC / ND / Sampling+ never get through.
+ * Each track's credit line goes to the post caption like the other CC sources.
+ */
+export const CcMixterProvider: FreeMediaProvider = {
+  id: "ccmixter",
+  kinds: ["music"],
+  unavailableReason: () => null,
+  async search(q) {
+    const params = new URLSearchParams({
+      // "js" returns the same JSON body; "json" also copies the whole result into an X-JSON response header (~40 KB),
+      // which overflows Node's 16 KB header limit (UND_ERR_HEADERS_OVERFLOW).
+      f: "js",
+      lic: "by",
+      limit: String(Math.min(clampLimit(q.limit) * 3, 40)),
+      sort: "rank",
+      search_type: "any",
+      s: [q.query, q.mood, q.genre].filter(Boolean).join(" "),
+    });
+    const data = await getJson(`https://ccmixter.org/api/query?${params}`, q);
+    return normalizeCcMixter(data, q);
+  },
+};
+
+function minutesToSec(ps: unknown): number | undefined {
+  const m = String(ps ?? "").match(/^(?:(\d+):)?(\d+):(\d{2})$/);
+  if (!m) return undefined;
+  return (Number(m[1] || 0) * 3600) + Number(m[2]) * 60 + Number(m[3]);
+}
+
+export function normalizeCcMixter(data: any, q: Pick<FreeMediaQuery, "limit" | "minDurationSec" | "maxDurationSec">): FreeMediaItem[] {
+  const out: FreeMediaItem[] = [];
+  for (const r of Array.isArray(data) ? data : []) {
+    const lic = normalizeLicense(r?.license_url);
+    if (!lic) continue;
+    const file = (Array.isArray(r.files) ? r.files : []).find(
+      (f: any) => f?.file_format_info?.mime_type === "audio/mpeg" || /\.mp3$/i.test(String(f?.download_url || "")),
+    );
+    const url = https(file?.download_url);
+    if (!url) continue;
+    const durationSec = minutesToSec(file?.file_format_info?.ps);
+    if (!durationOk({ ...q, kind: "music" } as FreeMediaQuery, durationSec)) continue;
+    const title = stripHtml(r.upload_name) || `ccMixter ${r.upload_id}`;
+    out.push({
+      id: `ccmixter_${r.upload_id}`,
+      kind: "music",
+      title,
+      url,
+      previewUrl: null,
+      ...(durationSec ? { durationSec } : {}),
+      ...lic,
+      attribution: creditLine(title, stripHtml(r.user_real_name || r.user_name), "ccMixter", lic),
+      sourcePage: https(r.file_page_url) || `https://ccmixter.org/files/${encodeURIComponent(String(r.user_name || ""))}/${r.upload_id}`,
+      provider: "ccmixter",
+    });
+    if (out.length >= clampLimit(q.limit)) break;
+  }
+  return out;
+}
+
 // ── Unsplash (UNSPLASH_ACCESS_KEY; photos) ──────────────────────────────────
 
 const UNSPLASH_UTM = () => `utm_source=${encodeURIComponent(process.env.UNSPLASH_APP_NAME || "180workspace")}&utm_medium=referral`;
@@ -608,6 +671,7 @@ export const FREE_MEDIA_PROVIDERS: FreeMediaProvider[] = [
   WikimediaCommonsProvider,
   InternetArchiveProvider,
   JamendoProvider,
+  CcMixterProvider,
   UnsplashProvider,
   NasaMediaProvider,
 ];

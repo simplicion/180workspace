@@ -252,7 +252,8 @@ class EditIrRenderer(
         val next = ir.clips.getOrNull(index + 1)
         val fadeOut = max(next?.transitionIn?.takeIf { it.type != "CUT" }?.durationMs?.div(2.0) ?: 0.0, clip.audioFadeOutMs.toDouble())
         val model = ClipAudioGainModel(durMs, ir.audio.originalVolumeDb + clip.volumeDb, fadeIn, fadeOut)
-        return listOf(EnvelopeGainProcessor { tUs -> model.gainAtItemMs(tUs / 1000.0) })
+        val gain = EnvelopeGainProcessor { tUs -> model.gainAtItemMs(tUs / 1000.0) }
+        return if (clip.voiceCleanup) listOf(VoiceCleanupProcessor(), gain) else listOf(gain)
     }
 
     /** Timeline piece of the video track: either main-clip picture or a B-roll cutaway. */
@@ -340,7 +341,7 @@ class EditIrRenderer(
             b.setEffects(
                 Effects(
                     if (removeAudio || !p.hasAudio) emptyList() else clipAudioProcessors(index, clip),
-                    if (removeVideo) emptyList() else mainVideoEffects(clip),
+                    if (removeVideo) emptyList() else capped(path, mainVideoEffects(clip), clip.speed),
                 ),
             )
             return b.build()
@@ -384,7 +385,7 @@ class EditIrRenderer(
                         .setEffects(
                             Effects(
                                 emptyList(),
-                                listOf(Presentation.createForWidthAndHeight(ir.canvas.width, ir.canvas.height, cutawayLayout(ov))),
+                                capped(path, listOf(Presentation.createForWidthAndHeight(ir.canvas.width, ir.canvas.height, cutawayLayout(ov)))),
                             ),
                         )
                         .build()
@@ -413,9 +414,8 @@ class EditIrRenderer(
             overlays.filter { !it.first.isImage }.map { media.overlayPaths.getValue(it.first.id) } +
             ir.overlays.filter { it.isLayer && !it.isImage }.mapNotNull { media.overlayPaths[it.id] }
         val videoProbes = videoPaths.distinct().map { probe(it) }.filter { !it.isImage }
-        if (videoProbes.any { it.frameRate == null || it.frameRate > ir.canvas.fps * 1.05 }) {
-            compositionFx.add(FrameDropEffect.createDefaultFrameDropEffect(ir.canvas.fps.toFloat()))
-        }
+        // The frame-rate cap is applied per video item (frameCap): Media3 ignores a FrameDropEffect in the
+        // composition effects, which left "24 fps" exports at the source's 30 fps (found on device 2026-10-02).
         if (videoProbes.any { it.isHdr }) {
             warnings.add("HDR source tone-mapped to SDR for H.264 output")
             if (Build.VERSION.SDK_INT < 29) warnings.add("HDR tone-mapping needs Android 10+; colours may be washed out")
@@ -427,9 +427,12 @@ class EditIrRenderer(
             .toSet().forEach { warnings.add("transition '$it' rendered as CROSSFADE") }
         if (transitionSpans.isNotEmpty()) {
             compositionFx.add(TransitionMotion(transitionSpans))
-            compositionFx.add(TransitionFade(transitionSpans))
-            if (transitionSpans.any { it.type == "CROSSFADE" || it.type == "DISSOLVE" || it.type !in SUPPORTED_TRANSITIONS }) {
-                warnings.add("crossfades rendered as a centred dip-through-black (no overlapping crossfade)")
+            // Cuts drawn as a true crossfade (layer) skip the dip; the rest keep their colour transition.
+            val crossfadedCuts = crossfades.keys.map { it.id.removePrefix("xfade_").toInt() }.map { ir.clips[it].timelineStartMs }.toSet()
+            val dipped = transitionSpans.filter { it.atMs !in crossfadedCuts || (it.type != "CROSSFADE" && it.type != "DISSOLVE" && it.type in SUPPORTED_TRANSITIONS) }
+            if (dipped.isNotEmpty()) compositionFx.add(TransitionFade(dipped))
+            if (dipped.any { it.type == "CROSSFADE" || it.type == "DISSOLVE" || it.type !in SUPPORTED_TRANSITIONS }) {
+                warnings.add("a crossfade had no spare footage on either side of the cut and was drawn as a dip through black")
             }
         }
         val fx = ir.effects.filter { it.endMs > it.startMs && it.type in SUPPORTED_EFFECTS }
@@ -476,6 +479,29 @@ class EditIrRenderer(
         return if (quarterTurn) o.outHeight to o.outWidth else o.outWidth to o.outHeight
     }
 
+    /**
+     * Caps every moving-video item at canvas.fps (the export frame rate). Phone footage is often 60 fps or variable;
+     * Media3 can drop frames but never duplicates them, so slower sources keep their rate. Null when no source is
+     * faster than the canvas.
+     */
+    /**
+     * Frame-rate cap for one video file so the export runs at canvas.fps. Frames are dropped on SOURCE time, before
+     * a speed change compresses it, so a clip at [speed] keeps canvas.fps / speed source frames per second (a 2x clip
+     * would otherwise export at double the rate). Media3 never duplicates frames: slower sources keep their rate.
+     * Uses the simple dropper with the file's own rate (the adaptive one and composition-level drops had no effect
+     * on device, 2026-10-02).
+     */
+    private fun frameCapFor(path: String, speed: Double = 1.0): Effect? {
+        val p = probe(path)
+        if (p.isImage) return null
+        val target = ir.canvas.fps / speed.coerceAtLeast(0.01)
+        val src = p.frameRate ?: return FrameDropEffect.createDefaultFrameDropEffect(target.toFloat())
+        return if (src > target * 1.05) FrameDropEffect.createSimpleFrameDropEffect(src.toFloat(), target.toFloat()) else null
+    }
+
+    /** [effects] with [path]'s frame-rate cap first (frame dropping must see the source timestamps). */
+    private fun capped(path: String, effects: List<Effect>, speed: Double = 1.0): List<Effect> = listOfNotNull(frameCapFor(path, speed)) + effects
+
     private fun cutawayLayout(ov: IrOverlay): Int =
         if (ov.fit == "contain") Presentation.LAYOUT_SCALE_TO_FIT else Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
 
@@ -496,7 +522,8 @@ class EditIrRenderer(
      */
     private fun layerTracks(): List<List<IrOverlay>> {
         val tracks = mutableListOf<MutableList<IrOverlay>>()
-        for (ov in ir.overlays.filter { it.isLayer }) {
+        // Crossfades sit below every user layer (packed first, so they end up on the lowest tracks).
+        for (ov in crossfades.keys + ir.overlays.filter { it.isLayer }) {
             if (min(ov.timelineEndMs, ir.durationMs) - ov.timelineStartMs < 1) continue
             val t = tracks.firstOrNull { tr -> tr.none { it.timelineStartMs < ov.timelineEndMs && ov.timelineStartMs < it.timelineEndMs } }
             if (t != null) t.add(ov) else tracks.add(mutableListOf(ov))
@@ -512,15 +539,22 @@ class EditIrRenderer(
         val b = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_VIDEO))
         var cursorMs = 0L
         for (ov in track) {
-            val path = media.overlayPaths[ov.id]
-                ?: throw EditIrException("MISSING_MEDIA", "No local file supplied for layer '${ov.id}' (download/resolve it before rendering, or remove it)")
             val start = ov.timelineStartMs.coerceIn(0L, ir.durationMs)
             var end = min(ov.timelineEndMs, ir.durationMs)
-            if (start > cursorMs) b.addGap((start - cursorMs) * 1000)
+            if (start > cursorMs) b.addItem(clearGap(start - cursorMs))
+            val xf = crossfades[ov]
+            if (xf != null) {
+                b.addItem(crossfadeItem(xf, ov.sourceStartMs, end - start))
+                cursorMs = end
+                continue
+            }
+            val path = media.overlayPaths[ov.id]
+                ?: throw EditIrException("MISSING_MEDIA", "No local file supplied for layer '${ov.id}' (download/resolve it before rendering, or remove it)")
             val (bw, bh) = LayerMotion.baseSize(ir.canvas.width, ir.canvas.height, layerAspect(ov, path))
             val presentation = Presentation.createForWidthAndHeight(bw, bh, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
             // Keying happens before scaling so the edge is computed at the source resolution.
-            val layerFx = listOfNotNull<Effect>(ov.chromaKey?.let { ChromaKeyEffect(it) }, presentation)
+            // The mask is cut after scaling so its edge is sharp at the layer's on-screen size.
+            val layerFx = listOfNotNull<Effect>(ov.chromaKey?.let { ChromaKeyEffect(it) }, presentation, ov.mask?.let { LayerMaskEffect(it) })
             val item = if (ov.isImage) {
                 EditedMediaItem.Builder(MediaItem.Builder().setUri(Uri.fromFile(File(path))).setImageDurationMs((end - start).coerceAtLeast(1L)).build())
                     .setFrameRate(ir.canvas.fps.roundToInt().coerceIn(1, 120))
@@ -535,14 +569,106 @@ class EditIrRenderer(
                 }
                 EditedMediaItem.Builder(clippedItem(path, ov.sourceStartMs * 1000, (ov.sourceStartMs + (end - start)) * 1000))
                     .setRemoveAudio(true)
-                    .setEffects(Effects(emptyList(), layerFx))
+                    .setEffects(Effects(emptyList(), capped(path, layerFx)))
                     .build()
             }
             b.addItem(item)
             cursorMs = end
         }
-        if (cursorMs < ir.durationMs) b.addGap((ir.durationMs - cursorMs) * 1000)
+        if (cursorMs < ir.durationMs) b.addItem(clearGap(ir.durationMs - cursorMs))
         b.build()
+    }
+
+    /** 2x2 fully transparent PNG, written once per render. */
+    private val clearPng: File by lazy {
+        File(context.cacheDir, "clear_2x2.png").also { f ->
+            if (!f.isFile) {
+                val bmp = android.graphics.Bitmap.createBitmap(2, 2, android.graphics.Bitmap.Config.ARGB_8888)
+                java.io.FileOutputStream(f).use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                bmp.recycle()
+            }
+        }
+    }
+
+    /**
+     * Empty stretch of a layer track. The top layer track is the compositor's primary input and sets the output
+     * frame times; Media3 fills sequence gaps with frames at a fixed 30 fps, so a real gap made every export with a
+     * layer (PiP, sticker, crossfade) 30 fps whatever the setting. A transparent still at canvas.fps keeps the
+     * chosen rate and draws nothing (the compositor also hides inactive tracks).
+     */
+    private fun clearGap(ms: Long): EditedMediaItem =
+        EditedMediaItem.Builder(MediaItem.Builder().setUri(Uri.fromFile(clearPng)).setImageDurationMs(ms.coerceAtLeast(1)).build())
+            .setFrameRate(ir.canvas.fps.roundToInt().coerceIn(1, 120))
+            .build()
+
+    /**
+     * True overlapping crossfades (CROSSFADE / DISSOLVE and unknown types): the incoming clip's footage from just
+     * before its in-point fades in over the outgoing clip during [cut - d, cut]; when the incoming clip has no footage
+     * before its in-point, the outgoing clip's footage after its out-point fades out over the incoming one during
+     * [cut, cut + d]. Each is a synthetic full-frame layer (opacity keyframed) drawn with the clip's own look and speed.
+     * Cuts with no spare footage on either side keep the dip-through-black (warned).
+     */
+    private val crossfades: Map<IrOverlay, IrClip> by lazy {
+        val out = LinkedHashMap<IrOverlay, IrClip>()
+        for (i in 1 until ir.clips.size) {
+            val a = ir.clips[i - 1]
+            val bClip = ir.clips[i]
+            val tr = bClip.transitionIn ?: continue
+            if (tr.type != "CROSSFADE" && tr.type != "DISSOLVE" && tr.type in SUPPORTED_TRANSITIONS) continue
+            val cut = bClip.timelineStartMs
+            val d = minOf(tr.durationMs, a.timelineEndMs - a.timelineStartMs, bClip.timelineEndMs - bClip.timelineStartMs)
+            if (d < 100) continue
+            val bProbe = probe(assetPath(bClip.assetId))
+            val aProbe = probe(assetPath(a.assetId))
+            val pre = if (bProbe.isImage) d else (bClip.sourceStartMs / bClip.speed).toLong()
+            val post = if (aProbe.isImage) d else ((aProbe.durationMs - a.sourceEndMs) / a.speed).toLong()
+            val (clip, window, srcStart, fadeIn) = when {
+                pre >= 100 -> {
+                    val w = min(d, pre)
+                    Quad(bClip, cut - w to cut, if (bProbe.isImage) 0L else bClip.sourceStartMs - (w * bClip.speed).toLong(), true)
+                }
+                post >= 100 -> {
+                    val w = min(d, post)
+                    Quad(a, cut to cut + w, if (aProbe.isImage) 0L else a.sourceEndMs, false)
+                }
+                else -> continue
+            }
+            val len = window.second - window.first
+            val key = IrOverlay(
+                id = "xfade_$i",
+                kind = "broll",
+                timelineStartMs = window.first,
+                timelineEndMs = window.second,
+                sourceStartMs = srcStart,
+                opacity = 1.0,
+                muted = true,
+                mediaType = if ((if (fadeIn) bProbe else aProbe).isImage) "image" else "video",
+                fit = "contain",
+                layer = IrLayer(
+                    "overlay", 0.5, 0.5, 1.0, 0.0,
+                    listOf(IrLayerKeyframe(0L, opacity = if (fadeIn) 0.0 else 1.0), IrLayerKeyframe(len, opacity = if (fadeIn) 1.0 else 0.0)),
+                ),
+            )
+            out[key] = clip
+        }
+        out
+    }
+
+    private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+
+    /** Crossfade footage of [clip] from [sourceStartMs] for [lenMs] of timeline, with the clip's look and speed. */
+    private fun crossfadeItem(clip: IrClip, sourceStartMs: Long, lenMs: Long): EditedMediaItem {
+        val path = assetPath(clip.assetId)
+        if (probe(path).isImage) {
+            return EditedMediaItem.Builder(MediaItem.Builder().setUri(Uri.fromFile(File(path))).setImageDurationMs(lenMs.coerceAtLeast(1)).build())
+                .setFrameRate(ir.canvas.fps.roundToInt().coerceIn(1, 120))
+                .setEffects(Effects(emptyList(), mainVideoEffects(clip)))
+                .build()
+        }
+        val srcLenUs = (lenMs * clip.speed * 1000).roundToLong()
+        val b = EditedMediaItem.Builder(clippedItem(path, sourceStartMs * 1000, sourceStartMs * 1000 + srcLenUs)).setRemoveAudio(true)
+        if (abs(clip.speed - 1.0) > 1e-6) b.setSpeed(constantSpeed(clip.speed.toFloat()))
+        return b.setEffects(Effects(emptyList(), capped(path, mainVideoEffects(clip), clip.speed))).build()
     }
 
     /** Sound of layers that are not muted, each placed at its slot on its own audio sequence. */

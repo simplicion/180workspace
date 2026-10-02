@@ -52,6 +52,8 @@ data class IrClip(
     /** Fade of the clip's own sound at its start / end (contract `audioFadeInMs` / `audioFadeOutMs`). */
     val audioFadeInMs: Long = 0,
     val audioFadeOutMs: Long = 0,
+    /** "Reduce background noise" on the clip's own sound. */
+    val voiceCleanup: Boolean = false,
 )
 
 data class IrOverlay(
@@ -70,6 +72,8 @@ data class IrOverlay(
     val layer: IrLayer? = null,
     /** Green / blue screen key (layers only). */
     val chromaKey: IrChromaKey? = null,
+    /** Circle / rounded-corner mask (layers only). */
+    val mask: IrMask? = null,
 ) {
     val isImage: Boolean get() = mediaType == "image"
     val isLayer: Boolean get() = layer?.isOverlay == true
@@ -272,6 +276,7 @@ data class MobileEditIr(
                     flipH = j.optBoolean("flipH", false),
                     audioFadeInMs = j.optLong("audioFadeInMs", 0L).coerceAtLeast(0L),
                     audioFadeOutMs = j.optLong("audioFadeOutMs", 0L).coerceAtLeast(0L),
+                    voiceCleanup = j.optBoolean("voiceCleanup", false),
                 )
             }
             val overlays = (o.optJSONArray("overlays") ?: JSONArray()).objects().map { j ->
@@ -287,6 +292,7 @@ data class MobileEditIr(
                     fit = if (j.optNullableString("fit") == "contain") "contain" else "cover",
                     layer = IrLayer.parse(j.optNullableObject("layer")),
                     chromaKey = IrChromaKey.parse(j.optNullableObject("chromaKey")),
+                    mask = IrMask.parse(j.optNullableObject("mask")),
                 )
             }
             val effects = (o.optJSONArray("effects") ?: JSONArray()).objects().map { j ->
@@ -495,7 +501,9 @@ data class MobileEditIr(
             }
         }
         if (abs(clips.last().timelineEndMs - durationMs) > 1) fail("durationMs $durationMs != last clip end ${clips.last().timelineEndMs}")
-        overlays.sortedBy { it.timelineStartMs }.zipWithNext().forEach { (a, b) ->
+        // Full-frame cutaways replace the main picture, so they cannot overlap each other. Layers (stickers, PiP,
+        // photos) stack on their own compositor tracks above anything, like CapCut tracks.
+        overlays.filter { !it.isLayer }.sortedBy { it.timelineStartMs }.zipWithNext().forEach { (a, b) ->
             if (b.timelineStartMs < a.timelineEndMs) fail("overlays ${a.id} and ${b.id} overlap")
         }
         overlays.forEach {

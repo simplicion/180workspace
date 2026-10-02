@@ -569,7 +569,7 @@ void main() {
         if (p.result != null) r = p.result;
       }
       final info = await MediaEngineService.getVideoInfo(out);
-      report[name] = {'width': r!.width, 'height': r.height, 'bytes': r.fileSizeBytes, 'fps': info.frameRate};
+      report[name] = {'width': r!.width, 'height': r.height, 'bytes': r.fileSizeBytes, 'fps': info.frameRate, 'warnings': r.warnings};
       return (r, info);
     }
 
@@ -578,10 +578,12 @@ void main() {
     expect([std.width, std.height], [1080, 1920]);
     expect([small.width, small.height], [720, 1280], reason: 'short side scaled to 720, aspect kept');
     expect(small.durationMs, closeTo(std.durationMs, 150));
-    // The container's frame-rate field is an estimate (a 30 fps export reads ~32 on the emulator), so compare the
-    // two exports: 24 fps must come out at ~24/30 of the project rate.
-    final fps = smallInfo.frameRate, fps0 = stdInfo.frameRate;
-    if (fps != null && fps0 != null) expect(fps / fps0, closeTo(24 / 30, 0.07), reason: 'export frame rate');
+    // Real frame rates from the sample table (the container's frame-rate field is only an encoder hint).
+    final real = await MediaEngineService.countVideoFrames('${evidence.path}/export_720_24_high.mp4');
+    final real0 = await MediaEngineService.countVideoFrames('${evidence.path}/export_standard.mp4');
+    report['exportFps'] = {'standard': real0.fps, 'standardFrames': real0.frames, 'at24': real.fps, 'at24Frames': real.frames, 'hint24': smallInfo.frameRate, 'hint': stdInfo.frameRate};
+    expect(real.fps, lessThanOrEqualTo(24.6), reason: 'the 24 fps export has at most 24 frames per second');
+    expect(real.fps, greaterThan(18), reason: 'and is not starved of frames');
     // 720p at double bitrate is still a real encode of the same length; "high" must not shrink below standard 720p.
     expect(small.fileSizeBytes, greaterThan(std.fileSizeBytes * 0.3));
   });
@@ -785,6 +787,359 @@ void main() {
     expect(s[0], greaterThan(200), reason: 'the subject is kept');
     expect(s[1], lessThan(60), reason: 'no green left on the subject');
     expect(bgDiff, lessThan(10), reason: 'the green background shows the main video');
+  });
+
+  testWidgets('visual understanding: scene labels, scene cuts, OCR and loudness run on the phone', (tester) async {
+    final labels = await MediaEngineService.labelScenes(sourcePath: broll);
+    final scenes = await MediaEngineService.detectScenes(sourcePath: broll);
+    final ocr = await MediaEngineService.recognizeText(sourcePath: speech, sampleEveryMs: 3000);
+    final loud = await MediaEngineService.measureLoudness(sourcePath: speech);
+    report['visual'] = {
+      'labels': [for (final l in labels.take(6)) l.toJson()],
+      'scenes': scenes.length,
+      'ocr': [for (final o in ocr.take(3)) o.toJson()],
+      'lufs': loud.integratedLufs,
+    };
+    expect(labels, isNotEmpty, reason: 'ML Kit names what the B-roll shows');
+    expect(labels.every((l) => l.labels.isNotEmpty && l.endMs > l.startMs), isTrue);
+    expect(loud.integratedLufs, isNotNull);
+    // The request carries them as plain data.
+    final json = MediaIntelligence(scenesMs: scenes, ocr: ocr, labels: labels, loudness: loud).toJson();
+    expect(json['labels'], isA<List>());
+  });
+
+  testWidgets('AI narration: the phone speaks the text to a real audio file (or says why it cannot)', (tester) async {
+    final out = await MediaEngineService.getVoiceoverPath('test_tts.wav');
+    try {
+      final r = await MediaEngineService.synthesizeSpeech(text: 'Wait for the last tip, it changes everything.', outputPath: out);
+      final wav = File(r.path).readAsBytesSync();
+      final level = rmsDb(Uint8List.fromList(wav), 100, math.min(r.durationMs - 100, 1500));
+      report['tts'] = {'durationMs': r.durationMs, 'bytes': wav.length, 'rmsDb': level};
+      expect(r.durationMs, inInclusiveRange(1200, 8000), reason: 'about 2-4 s of speech');
+      expect(wav.length, greaterThan(20000));
+    } on MediaEngineException catch (e) {
+      // An image without a TTS voice must say so with a typed error, never return silence.
+      report['tts'] = {'error': e.code};
+      expect(e.code, anyOf('TTS_NOT_AVAILABLE', 'TTS_LANGUAGE_UNAVAILABLE'));
+    }
+  });
+
+  testWidgets('voice cleanup: quiet noise between words drops, speech keeps its level', (tester) async {
+    Map<String, dynamic> ir({bool clean = false}) => {
+          'schemaVersion': 'mobile-editir/1',
+          'projectId': 'cleanup-verification',
+          'canvas': canvas,
+          'durationMs': 12000,
+          'sources': [
+            {'assetId': 'primary', 'durationMs': 30090, 'width': 1280, 'height': 720},
+          ],
+          'clips': [
+            {'id': 'c1', 'assetId': 'primary', 'sourceStartMs': 0, 'sourceEndMs': 12000, 'timelineStartMs': 0, 'timelineEndMs': 12000,
+              'speed': 1.0, 'volumeDb': 0, 'crop': null, 'filter': null, 'transitionIn': null, if (clean) 'voiceCleanup': true},
+          ],
+          'overlays': [],
+          'audio': {'originalTrack': {'volumeDb': 0}},
+        };
+    Future<List<double>> windows(String name, Map<String, dynamic> irJson) async {
+      await render(irJson, '${evidence.path}/$name.mp4');
+      final wav = File((await MediaEngineService.extractAudio(sourcePath: '${evidence.path}/$name.mp4', destPath: '${evidence.path}/${name}_16k.wav')).path)
+          .readAsBytesSync();
+      return [for (var t = 500; t < 11500; t += 100) rmsDb(wav, t, t + 100)];
+    }
+
+    final base = await windows('cleanup_off', ir());
+    final clean = await windows('cleanup_on', ir(clean: true));
+    // Rank windows by the original level: the quietest are pauses/room noise, the loudest are speech.
+    final order = List.generate(base.length, (i) => i)..sort((a, b) => base[a].compareTo(base[b]));
+    double meanOf(List<double> v, Iterable<int> idx) => idx.map((i) => v[i]).reduce((a, b) => a + b) / idx.length;
+    final quiet = order.take(order.length ~/ 10);
+    final loud = order.skip(order.length * 8 ~/ 10);
+    final quietDrop = meanOf(base, quiet) - meanOf(clean, quiet);
+    final loudDrop = meanOf(base, loud) - meanOf(clean, loud);
+    report['voiceCleanup'] = {'quietDropDb': quietDrop, 'loudDropDb': loudDrop};
+    expect(quietDrop, greaterThan(4), reason: 'noise between words is lowered');
+    expect(loudDrop.abs(), lessThan(2.5), reason: 'speech keeps its level');
+  });
+
+  testWidgets('layer mask: a circle shape keeps the middle and shows the video in the corners', (tester) async {
+    final rec = ui.PictureRecorder();
+    ui.Canvas(rec).drawRect(const ui.Rect.fromLTWH(0, 0, 512, 512), ui.Paint()..color = const ui.Color(0xFFFF0000));
+    final img = await rec.endRecording().toImage(512, 512);
+    final png = (await img.toByteData(format: ui.ImageByteFormat.png))!;
+    final squarePath = '${evidence.path}/square.png';
+    File(squarePath).writeAsBytesSync(png.buffer.asUint8List());
+    Map<String, dynamic> maskIr({bool layer = true}) => {
+          'schemaVersion': 'mobile-editir/1',
+          'projectId': 'mask-verification',
+          'canvas': canvas,
+          'durationMs': 3000,
+          'sources': [
+            {'assetId': 'primary', 'durationMs': 30090, 'width': 1280, 'height': 720},
+          ],
+          'clips': [
+            {'id': 'c1', 'assetId': 'primary', 'sourceStartMs': 0, 'sourceEndMs': 3000, 'timelineStartMs': 0, 'timelineEndMs': 3000,
+              'speed': 1.0, 'volumeDb': 0, 'crop': {'x': 0.342, 'y': 0.0, 'width': 0.316, 'height': 1.0}, 'filter': null, 'transitionIn': null},
+          ],
+          'overlays': [
+            if (layer)
+              {'id': 'sq', 'kind': 'broll', 'mediaType': 'image', 'timelineStartMs': 0, 'timelineEndMs': 3000, 'sourceStartMs': 0,
+                'source': {'kind': 'asset', 'assetId': 'local_sq'}, 'fit': 'contain', 'opacity': 1, 'muted': true,
+                'layer': {'mode': 'overlay', 'x': 0.5, 'y': 0.5, 'scale': 0.5, 'rotation': 0},
+                'mask': {'shape': 'circle', 'radius': 0.15, 'feather': 0.01}},
+          ],
+          'audio': {'originalTrack': {'volumeDb': 0}},
+        };
+    Future<String> frame(String name, Map<String, dynamic> ir) async {
+      await render(ir, '${evidence.path}/$name.mp4', overlays: {if ((ir['overlays'] as List).isNotEmpty) 'sq': squarePath});
+      return (await MediaEngineService.generateThumbnails(
+              sourcePath: '${evidence.path}/$name.mp4', outputDir: '${evidence.path}/${name}_frames', timesMs: [1500], maxWidth: 270, exact: true))
+          .single;
+    }
+
+    final base = await frame('mask_base', maskIr(layer: false));
+    final masked = await frame('mask_circle', maskIr());
+    // The 540 px layer box spans x 0.25-0.75, y ~0.36-0.64; its corners are outside the circle.
+    const centre = [0.46, 0.48, 0.54, 0.52];
+    const corner = [0.26, 0.37, 0.29, 0.385];
+    final c = await regionMean(masked, centre);
+    final cb = await regionMean(base, corner);
+    final cm = await regionMean(masked, corner);
+    final cornerDiff = [for (var k = 0; k < 3; k++) (cb[k] - cm[k]).abs()].reduce(math.max);
+    report['mask'] = {'centre': c, 'cornerDiff': cornerDiff};
+    expect(c[0], greaterThan(200));
+    expect(c[1] + c[2], lessThan(80));
+    expect(cornerDiff, lessThan(10), reason: 'outside the circle the video shows');
+  });
+
+  testWidgets('reverse: frames and sound of the range play backwards in a new file of the same length', (tester) async {
+    // Picture: B-roll has motion.
+    final v = await MediaEngineService.reverseClip(sourcePath: broll, startMs: 2000, endMs: 6000, outputPath: '${evidence.path}/rev_broll.mp4');
+    expect(v.durationMs, closeTo(4000, 120));
+    Future<String> f(String src, int t, String tag) async =>
+        (await MediaEngineService.generateThumbnails(sourcePath: src, outputDir: '${evidence.path}/rev_$tag', timesMs: [t], maxWidth: 160, exact: true)).single;
+    const all = [0.0, 0.0, 1.0, 1.0];
+    double diff(List<double> a, List<double> b) => [for (var k = 0; k < 3; k++) (a[k] - b[k]).abs()].reduce((x, y) => x + y);
+    final revStart = await regionMean(await f(v.path, 300, 'r0'), all);
+    final srcEnd = await regionMean(await f(broll, 5700, 's1'), all);
+    final srcStart = await regionMean(await f(broll, 2300, 's0'), all);
+
+    // Sound: the loudness envelope of the reversed speech is the original one flipped.
+    final a = await MediaEngineService.reverseClip(sourcePath: speech, startMs: 2000, endMs: 6000, outputPath: '${evidence.path}/rev_speech.mp4');
+    final origWav = File((await MediaEngineService.extractAudio(sourcePath: speech, destPath: '${evidence.path}/rev_orig_16k.wav')).path).readAsBytesSync();
+    final revWav = File((await MediaEngineService.extractAudio(sourcePath: a.path, destPath: '${evidence.path}/rev_rev_16k.wav')).path).readAsBytesSync();
+    final orig = [for (var t = 2000; t < 5800; t += 200) rmsDb(origWav, t, t + 200)];
+    final rev = [for (var t = 0; t < 3800; t += 200) rmsDb(revWav, t, t + 200)];
+    double envDiff(List<double> x, List<double> y) {
+      var s = 0.0;
+      for (var i = 0; i < math.min(x.length, y.length); i++) {
+        s += (x[i].clamp(-80.0, 0.0) - y[i].clamp(-80.0, 0.0)).abs();
+      }
+      return s / math.min(x.length, y.length);
+    }
+    final flipped = envDiff(rev, orig.reversed.toList());
+    final straight = envDiff(rev, orig);
+    report['reverse'] = {
+      'videoMs': v.durationMs, 'audioMs': a.durationMs,
+      'frameToEnd': diff(revStart, srcEnd), 'frameToStart': diff(revStart, srcStart),
+      'envFlipped': flipped, 'envStraight': straight,
+    };
+    expect(diff(revStart, srcEnd), lessThan(diff(revStart, srcStart)), reason: 'the reversed clip starts where the original ended');
+    expect(flipped, lessThan(straight), reason: 'the sound runs backwards');
+  });
+
+  testWidgets('remove background: the person stays, the rest becomes key green (video) or transparent (photo)', (tester) async {
+    final v = await MediaEngineService.removeBackground(sourcePath: speech, startMs: 2000, endMs: 4000, outputPath: '${evidence.path}/cutout.mp4');
+    expect(v.durationMs, closeTo(2000, 100));
+    final frame = (await MediaEngineService.generateThumbnails(
+            sourcePath: v.path, outputDir: '${evidence.path}/cutout_frames', timesMs: [1000], maxWidth: 320, exact: true))
+        .single;
+    final corner = await regionMean(frame, const [0.0, 0.0, 0.12, 0.2]);
+
+    // Photo: transparent PNG of the same moment (source 3.0 s = cut-out 1.0 s).
+    final still = (await MediaEngineService.generateThumbnails(
+            sourcePath: speech, outputDir: '${evidence.path}/cutout_still', timesMs: [3000], maxWidth: 1280, exact: true))
+        .single;
+    final png = await MediaEngineService.removeImageBackground(sourcePath: still, outputPath: '${evidence.path}/cutout.png');
+    final codec = await ui.instantiateImageCodec(File(png).readAsBytesSync());
+    final img = (await codec.getNextFrame()).image;
+    final bytes = (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+    int alphaAt(double fx, double fy) => bytes.getUint8(((fy * img.height).floor() * img.width + (fx * img.width).floor()) * 4 + 3);
+    // Where the photo mask is most solidly "person": the cell whose 3x3 neighbourhood is fully opaque.
+    (double, double)? person;
+    for (var gy = 1; gy < 17 && person == null; gy++) {
+      for (var gx = 1; gx < 31 && person == null; gx++) {
+        final fx = gx / 32, fy = gy / 18;
+        final solid = [for (final dx in [-1, 0, 1]) for (final dy in [-1, 0, 1]) alphaAt(fx + dx / 64, fy + dy / 36)].every((a) => a > 220);
+        if (solid) person = (fx, fy);
+      }
+    }
+    expect(person, isNotNull, reason: 'a person is found in the photo');
+    final (px, py) = person!;
+    final inPerson = await regionMean(frame, [px - 0.01, py - 0.015, px + 0.01, py + 0.015]);
+    report['cutout'] = {'corner': corner, 'inPerson': inPerson, 'at': [px, py], 'cornerAlpha': alphaAt(0.03, 0.05)};
+    expect(corner[1], greaterThan(180), reason: 'background is key green');
+    expect(corner[0] + corner[2], lessThan(120));
+    expect(inPerson[1] < inPerson[0] + inPerson[2] + 40, isTrue, reason: 'the person in the video is kept (not green)');
+    expect(alphaAt(0.03, 0.05), lessThan(40), reason: 'photo background is transparent');
+  });
+
+  testWidgets('crossfade: the incoming clip really overlaps the outgoing one (no dip through black)', (tester) async {
+    Map<String, dynamic> clip(String id, String asset, int s, int e, int ts, {Map<String, dynamic>? transition}) => {
+          'id': id, 'assetId': asset, 'sourceStartMs': s, 'sourceEndMs': e, 'timelineStartMs': ts, 'timelineEndMs': ts + e - s,
+          'speed': 1.0, 'volumeDb': 0, 'crop': null, 'filter': null, 'transitionIn': transition,
+        };
+    Map<String, dynamic> ir(List<Map<String, dynamic>> clips, int duration) => {
+          'schemaVersion': 'mobile-editir/1',
+          'projectId': 'xfade-verification',
+          'canvas': canvas,
+          'durationMs': duration,
+          'sources': [
+            {'assetId': 'primary', 'durationMs': 30090, 'width': 1280, 'height': 720},
+            {'assetId': 'b', 'durationMs': 15000, 'width': 1280, 'height': 720},
+          ],
+          'clips': clips,
+          'overlays': [],
+          'audio': {'originalTrack': {'volumeDb': 0}},
+        };
+    Future<List<String>> frames(String name, Map<String, dynamic> irJson, List<int> at) async {
+      final out = '${evidence.path}/$name.mp4';
+      RenderResult? r;
+      await for (final p in MediaEngineService.renderEditIr(editIr: MobileEditIr.fromJson(irJson), outputPath: out, assetPaths: {'primary': speech, 'b': broll})) {
+        if (p.result != null) r = p.result;
+      }
+      report[name] = {'durationMs': r!.durationMs, 'warnings': r.warnings};
+      return MediaEngineService.generateThumbnails(sourcePath: out, outputDir: '${evidence.path}/${name}_frames', timesMs: at, maxWidth: 270, exact: true);
+    }
+
+    final xf = await frames('xfade', ir([clip('a', 'primary', 0, 3000, 0), clip('b', 'b', 3000, 6000, 3000, transition: {'type': 'CROSSFADE', 'durationMs': 1000})], 6000), [1500, 2500, 2950, 3500]);
+    final aOnly = await frames('xfade_a', ir([clip('a', 'primary', 0, 3000, 0)], 3000), [2500]);
+    final bPre = await frames('xfade_b', ir([clip('b', 'b', 2500, 3500, 0)], 1000), [0]);
+    const centre = [0.1, 0.38, 0.9, 0.62];
+    final mid = await regionMean(xf[1], centre);
+    final a = await regionMean(aOnly[0], centre);
+    final b = await regionMean(bPre[0], centre);
+    final expected = [for (var k = 0; k < 3; k++) (a[k] + b[k]) / 2];
+    final mixErr = [for (var k = 0; k < 3; k++) (mid[k] - expected[k]).abs()].reduce(math.max);
+    final nearCut = await regionMean(xf[2], centre);
+    double luma(List<double> c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    report['xfadeCheck'] = {'mid': mid, 'expected': expected, 'mixErr': mixErr, 'nearCutLuma': luma(nearCut), 'bLuma': luma(b)};
+    expect(mixErr, lessThan(14), reason: 'halfway, the frame is half outgoing + half incoming');
+    expect(luma(nearCut), greaterThan(luma(b) * 0.7), reason: 'no dip through black at the cut');
+    expect((report['xfade'] as Map)['warnings'].toString().contains('dip through black'), isFalse);
+  });
+
+  testWidgets('stabilise: a shaking static shot comes out steady', (tester) async {
+    // A static scene (a still) shaken by the "shake" effect = pure camera shake.
+    final still = (await MediaEngineService.generateThumbnails(
+            sourcePath: speech, outputDir: '${evidence.path}/stab_still', timesMs: [3000], maxWidth: 1280, exact: true))
+        .single;
+    final shakyIr = {
+      'schemaVersion': 'mobile-editir/1',
+      'projectId': 'stab-verification',
+      'canvas': {'aspect': '16:9', 'width': 1280, 'height': 720, 'fps': 30, 'background': '#000000'},
+      'durationMs': 4000,
+      'sources': [
+        {'assetId': 'still', 'durationMs': 600000, 'width': 1280, 'height': 720},
+      ],
+      'clips': [
+        {'id': 'c1', 'assetId': 'still', 'sourceStartMs': 0, 'sourceEndMs': 4000, 'timelineStartMs': 0, 'timelineEndMs': 4000,
+          'speed': 1.0, 'volumeDb': 0, 'crop': null, 'filter': null, 'transitionIn': null},
+      ],
+      'overlays': [],
+      'effects': [
+        {'id': 'sh', 'type': 'shake', 'startMs': 0, 'endMs': 4000, 'intensity': 1.0},
+      ],
+      'audio': {'originalTrack': {'volumeDb': 0}},
+    };
+    final shaky = '${evidence.path}/shaky.mp4';
+    await for (final _ in MediaEngineService.renderEditIr(editIr: MobileEditIr.fromJson(shakyIr), outputPath: shaky, assetPaths: {'still': still})) {}
+    final steady = await MediaEngineService.stabilizeClip(sourcePath: shaky, startMs: 0, endMs: 4000, outputPath: '${evidence.path}/steady.mp4');
+    expect(steady.durationMs, closeTo(4000, 120));
+
+    Future<List<int>> gray(String jpg) async {
+      final img = (await (await ui.instantiateImageCodec(File(jpg).readAsBytesSync())).getNextFrame()).image;
+      final b = (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+      return [for (var i = 0; i < img.width * img.height; i++) (b.getUint8(i * 4) * 77 + b.getUint8(i * 4 + 1) * 150 + b.getUint8(i * 4 + 2) * 29) >> 8];
+    }
+    Future<double> jitter(String video, String tag) async {
+      final times = [for (var t = 1000; t <= 3000; t += 100) t];
+      final files = await MediaEngineService.generateThumbnails(sourcePath: video, outputDir: '${evidence.path}/stab_$tag', timesMs: times, maxWidth: 160, exact: true);
+      var total = 0.0;
+      List<int>? prev;
+      for (final f in files) {
+        final g = await gray(f);
+        if (prev != null) {
+          var d = 0;
+          for (var i = 0; i < g.length; i++) {
+            d += (g[i] - prev[i]).abs();
+          }
+          total += d / g.length;
+        }
+        prev = g;
+      }
+      return total / (files.length - 1);
+    }
+
+    final before = await jitter(shaky, 'shaky');
+    final after = await jitter(steady.path, 'steady');
+    report['stabilise'] = {'jitterBefore': before, 'jitterAfter': after};
+    expect(after, lessThan(before * 0.5), reason: 'frame-to-frame movement at least halves');
+  });
+
+  testWidgets('frame rate: 15 fps exports hold with speed changes, cutaways and music', (tester) async {
+    Map<String, dynamic> ir(Map<String, dynamic> extra) => {
+          'schemaVersion': 'mobile-editir/1',
+          'projectId': 'fps-probe',
+          'canvas': {...canvas, 'fps': 15},
+          'durationMs': 4000,
+          'sources': [
+            {'assetId': 'primary', 'durationMs': 30090, 'width': 1280, 'height': 720},
+          ],
+          'clips': [
+            {'id': 'c1', 'assetId': 'primary', 'sourceStartMs': 0, 'sourceEndMs': 4000, 'timelineStartMs': 0, 'timelineEndMs': 4000,
+              'speed': 1.0, 'volumeDb': 0, 'crop': null, 'filter': null, 'transitionIn': null},
+          ],
+          'overlays': [],
+          'audio': {'originalTrack': {'volumeDb': 0}},
+          ...extra,
+        };
+    final plain = '${evidence.path}/fps_plain.mp4';
+    RenderResult? r;
+    await for (final p in MediaEngineService.renderEditIr(editIr: MobileEditIr.fromJson(ir({})), outputPath: plain, assetPaths: {'primary': speech})) {
+      if (p.result != null) r = p.result;
+    }
+    final c = await MediaEngineService.countVideoFrames(plain);
+    final out = <String, Object>{'plain': c.fps, 'warnings': r!.warnings};
+    final variants = <String, Map<String, dynamic>>{
+      'speed': {
+        'clips': [
+          {'id': 'c1', 'assetId': 'primary', 'sourceStartMs': 0, 'sourceEndMs': 6000, 'timelineStartMs': 0, 'timelineEndMs': 4000,
+            'speed': 1.5, 'volumeDb': 0, 'crop': null, 'filter': null, 'transitionIn': null},
+        ],
+      },
+      'cutaway': {
+        'overlays': [
+          {'id': 'b1', 'kind': 'broll', 'timelineStartMs': 1000, 'timelineEndMs': 2500, 'sourceStartMs': 0,
+            'source': {'kind': 'url', 'url': 'https://example.invalid/b.mp4'}, 'fit': 'cover', 'opacity': 1, 'muted': true},
+        ],
+      },
+      'music': {
+        'audio': {'originalTrack': {'volumeDb': 0}, 'music': [
+          {'id': 'm1', 'timelineStartMs': 0, 'timelineEndMs': 4000, 'sourceStartMs': 0, 'source': {'kind': 'url', 'url': 'https://example.invalid/m.mp3'},
+            'volumeDb': -12, 'fadeInMs': 0, 'fadeOutMs': 0, 'duck': {'enabled': false, 'duckDb': -12, 'attackMs': 100, 'releaseMs': 300}},
+        ], 'speechRangesMs': []},
+      },
+    };
+    for (final e in variants.entries) {
+      final path = '${evidence.path}/fps_${e.key}.mp4';
+      await for (final _ in MediaEngineService.renderEditIr(
+          editIr: MobileEditIr.fromJson(ir(e.value)), outputPath: path, assetPaths: {'primary': speech}, overlayPaths: {'b1': broll}, musicPaths: {'m1': music})) {}
+      out[e.key] = (await MediaEngineService.countVideoFrames(path)).fps;
+    }
+    report['frameRate'] = out;
+    for (final e in out.entries.where((e) => e.value is double)) {
+      expect(e.value as double, inInclusiveRange(13.5, 15.6), reason: '${e.key} keeps the export frame rate');
+    }
   });
 
   testWidgets('cancel stops the export with CANCELLED and removes the partial file', (tester) async {

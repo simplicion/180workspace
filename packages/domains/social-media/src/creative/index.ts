@@ -10,3 +10,5 @@ export * from './image-agent';
 export * from './carousel-design-agent';
 export * from './carousel-compiler';
 export * from './creative.service';
+export * from './thumbnail-compiler';
+export * from './thumbnail-agent';

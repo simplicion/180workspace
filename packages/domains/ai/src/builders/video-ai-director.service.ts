@@ -925,6 +925,18 @@ function mediaContextSections(media: MobileAIDirectRequest["media"]): string[] {
     out.push(`On-screen text detected in the source (SOURCE s):`);
     out.push(fenceUntrusted("ocr", media.ocr.slice(0, 60).map((o) => `${(o.startMs / 1000).toFixed(1)}-${(o.endMs / 1000).toFixed(1)}: ${o.text}`).join(" | "), { maxChars: 4000 }).block);
   }
+  if (media.labels?.length) {
+    // ML Kit's label vocabulary is plain words; anything else is dropped so client data cannot carry instructions.
+    const clean = (l: string) => (/^[a-z][a-z &'-]{0,38}$/i.test(l) ? l.toLowerCase() : null);
+    const spans = media.labels
+      .slice(0, 80)
+      .map((s) => ({ s, words: s.labels.map(clean).filter((w): w is string => !!w) }))
+      .filter((x) => x.words.length > 0);
+    if (spans.length) {
+      out.push(`What the picture shows (on-device scene labels, SOURCE s; use them to pick B-roll, emoji stickers and titles that match the footage):`);
+      out.push(spans.map(({ s, words }) => `${(s.startMs / 1000).toFixed(1)}-${(s.endMs / 1000).toFixed(1)}: ${words.join(", ")}`).join(" | "));
+    }
+  }
   if (media.loudness) out.push(`Source loudness: ${media.loudness.integratedLufs} LUFS${media.loudness.clippingPct != null ? `, ${media.loudness.clippingPct}% clipped samples` : ""}`);
   if (out.length) out.push(``);
   return out;

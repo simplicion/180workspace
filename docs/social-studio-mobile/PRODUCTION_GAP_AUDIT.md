@@ -693,3 +693,34 @@ CapCut-style editor. It lists the gates, which have regressed since 2026-09-27:
 
 It also lists 23 bugs, including fake Manager and stock data, clip loss from the cache, and the 1-piece-a-day cadence
 cap. Work proceeds in phases P0–P5.
+
+## 2026-10-03: AI thumbnail designer + a real end-to-end edit (uncommitted)
+
+**AI thumbnail designer** (Post detail → Media → "Design thumbnail with AI" when the post has a video):
+- Phone: `ThumbnailScout.kt` (`thumbnailCandidates`) samples 24 frames, scores face size / eyes open / smile
+  (ML Kit) + sharpness + exposure, saves the best 4 (≥1.5 s apart) as 1280 px JPEGs.
+- Server: `creative/thumbnail-agent.ts` (copywriter → art director → measured render → QA critic → one revision)
+  + `creative/thumbnail-compiler.ts` (deterministic @napi-rs/canvas render from the real frame; measures contrast
+  under the text, text size, face overlap, Reels/YouTube safe zones). Routes `POST …/creative/thumbnails` and
+  `/thumbnails/render` (manual, no AI). No key → `AI_NOT_CONFIGURED`; bad AI output twice → `AI_BAD_RESPONSE`.
+- App: `features/posts/thumbnail_designer_sheet.dart` (9:16 / 16:9, variants with QA chips, Retry + "Design it myself").
+- Tests: `packages/domains/social-media/test/thumbnail.test.ts` (4), flutter suite green.
+
+**Real manual edit on the emulator** (`integration_test/real_edit_demo_test.dart`, NASA public-domain ISS interview
+45 s → 28 s 9:16 Reel): 6 cuts, re-order, grade, crossfade, flash, title, 38 word captions, 2 punch-ins, Pexels
+B-roll, Fluent 3D sticker, ccMixter music ducked. Output 1080x1920, 28.16 s; ~3.5–7 min render on the swiftshader
+emulator (no GPU). Fixtures in `test_assets/` (gitignored); the test waits for `.ready` and hands evidence off via `.done`/`.pulled`.
+
+Bugs found and fixed by this run:
+- `TimelineOps.autoCaptions` grouped words in source order → after a clip re-order a caption got an empty range and
+  the export failed (`INVALID_EDIT_IR`). Now sorted by timeline time; a word straddling a cut stays in its clip.
+  Regression test in `test/timeline_ops_test.dart`.
+- ccMixter files return 403 without a ccMixter `Referer` (hotlink protection) → every ccMixter track failed to
+  download. `AssetCache.hostHeaders` adds it. Test in `test/core/asset_cache_test.dart`.
+
+Open (not fixed):
+- No loudness normalisation: output keeps the source level (−28 LUFS here; platforms target ≈ −14). Needs gain +
+  a limiter in the renderer (`measureLoudness` already exists on device).
+- Default sticker position (upper right) can sit on the face during a punch-in; place it away from detected faces.
+- **AI-Director-only edit of the same footage not run:** no AI provider key in any env file. Add e.g.
+  `ANTHROPIC_API_KEY` to `apps/backend/.env`, then drive `directMobile` with the same transcript and render on device.

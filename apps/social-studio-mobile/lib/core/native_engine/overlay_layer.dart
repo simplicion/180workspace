@@ -152,3 +152,27 @@ class EditIrChromaKey {
 
   Map<String, dynamic> toJson() => {'color': color, 'similarity': similarity, 'smoothness': smoothness, 'spill': spill};
 }
+
+/// Shape mask on a layer (contract `mask`): `circle` (fitted to the short side) or `rounded` corners with [radius] as
+/// a fraction of the short side. Same shapes as `LayerMaskEffect` in the renderer.
+class EditIrMask {
+  const EditIrMask({required this.shape, this.radius = 0.15, this.feather = 0.01});
+  final String shape;
+  final double radius, feather;
+
+  static const circle = EditIrMask(shape: 'circle');
+  static const rounded = EditIrMask(shape: 'rounded');
+
+  static EditIrMask? fromJson(Object? j) {
+    if (j is! Map) return null;
+    final shape = j['shape'];
+    if (shape != 'circle' && shape != 'rounded') return null;
+    return EditIrMask(
+      shape: shape as String,
+      radius: ((j['radius'] as num?)?.toDouble() ?? 0.15).clamp(0.0, 0.5),
+      feather: ((j['feather'] as num?)?.toDouble() ?? 0.01).clamp(0.0, 0.2),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {'shape': shape, 'radius': radius, 'feather': feather};
+}

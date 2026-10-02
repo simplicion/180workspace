@@ -29,7 +29,7 @@ public class EditIrAppleRenderer {
         assetPaths: [String: String],
         overlayPaths: [String: String] = [:],
         musicPaths: [String: String] = [:],
-        watermarkPath: String? = null,
+        watermarkPath: String? = nil,
         sfxPaths: [String: String] = [:],
         outputPath: String,
         onProgress: @escaping (Double) -> Void,
@@ -199,6 +199,114 @@ public class EditIrAppleRenderer {
         let outputUrl = URL(fileURLWithPath: outputPath)
         try? FileManager.default.removeItem(at: outputUrl)
 
+        // Setup Audio Mix & Background Tracks (BGM & SFX)
+        var audioInputParameters: [AVMutableAudioMixInputParameters] = []
+
+        // 1. Original Main Audio track volume
+        let origAudioDict = (irJson["audio"] as? [String: Any])?["originalTrack"] as? [String: Any]
+        let origVolumeDb = origAudioDict?["volumeDb"] as? Double ?? 0.0
+        let origVolume = Float(pow(10.0, origVolumeDb / 20.0))
+        let mainAudioParams = AVMutableAudioMixInputParameters(track: audioTrack)
+        mainAudioParams.setVolume(origVolume, at: .zero)
+        audioInputParameters.append(mainAudioParams)
+
+        // 2. BGM / Music Track
+        if let audioDict = irJson["audio"] as? [String: Any],
+           let musicList = audioDict["music"] as? [[String: Any]],
+           !musicList.isEmpty,
+           let bgmTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+            let bgmParams = AVMutableAudioMixInputParameters(track: bgmTrack)
+            for m in musicList {
+                let mId = m["id"] as? String ?? ""
+                let sourceDict = m["source"] as? [String: Any]
+                let sourceUrl = sourceDict?["url"] as? String ?? ""
+                let localPath = musicPaths[mId] ?? musicPaths[sourceUrl] ?? musicPaths.values.first
+                guard let path = localPath, FileManager.default.fileExists(atPath: path) else { continue }
+
+                let bgmAsset = AVURLAsset(url: URL(fileURLWithPath: path))
+                guard let assetAudio = bgmAsset.tracks(withMediaType: .audio).first else { continue }
+
+                let tStartMs = m["timelineStartMs"] as? Int ?? 0
+                let tEndMs = m["timelineEndMs"] as? Int ?? tStartMs
+                let sStartMs = m["sourceStartMs"] as? Int ?? 0
+                let durationSec = Double(max(0, tEndMs - tStartMs)) / 1000.0
+                guard durationSec > 0 else { continue }
+
+                let timeRange = CMTimeRange(
+                    start: CMTime(seconds: Double(sStartMs) / 1000.0, preferredTimescale: 600),
+                    duration: CMTime(seconds: durationSec, preferredTimescale: 600)
+                )
+                let insertAt = CMTime(seconds: Double(tStartMs) / 1000.0, preferredTimescale: 600)
+                do {
+                    try bgmTrack.insertTimeRange(timeRange, of: assetAudio, at: insertAt)
+                } catch {
+                    warnings.append("Failed to insert BGM track: \(error.localizedDescription)")
+                }
+
+                let volDb = m["volumeDb"] as? Double ?? -12.0
+                let targetVol = Float(pow(10.0, volDb / 20.0))
+                let fadeInMs = m["fadeInMs"] as? Int ?? 0
+                let fadeOutMs = m["fadeOutMs"] as? Int ?? 0
+
+                if fadeInMs > 0 {
+                    let fadeDuration = CMTime(seconds: Double(fadeInMs) / 1000.0, preferredTimescale: 600)
+                    bgmParams.setVolumeRamp(fromStartVolume: 0.0, toEndVolume: targetVol, timeRange: CMTimeRange(start: insertAt, duration: fadeDuration))
+                } else {
+                    bgmParams.setVolume(targetVol, at: insertAt)
+                }
+
+                if fadeOutMs > 0 {
+                    let fadeDuration = CMTime(seconds: Double(fadeOutMs) / 1000.0, preferredTimescale: 600)
+                    let fadeStart = CMTime(seconds: Double(tEndMs - fadeOutMs) / 1000.0, preferredTimescale: 600)
+                    bgmParams.setVolumeRamp(fromStartVolume: targetVol, toEndVolume: 0.0, timeRange: CMTimeRange(start: fadeStart, duration: fadeDuration))
+                }
+            }
+            audioInputParameters.append(bgmParams)
+        }
+
+        // 3. SFX: one composition track per effect. insertTimeRange inserts and SHIFTS what follows, so overlapping
+        // effects on a shared track would push each other later (out of sync with the picture).
+        if let audioDict = irJson["audio"] as? [String: Any],
+           let sfxList = audioDict["sfx"] as? [[String: Any]],
+           !sfxList.isEmpty {
+            for sfx in sfxList {
+                guard let sfxTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else { continue }
+                let sfxParams = AVMutableAudioMixInputParameters(track: sfxTrack)
+                let sId = sfx["id"] as? String ?? ""
+                let sourceDict = sfx["source"] as? [String: Any]
+                let sourceUrl = sourceDict?["url"] as? String ?? ""
+                let localPath = sfxPaths[sId] ?? sfxPaths[sourceUrl]
+                guard let path = localPath, FileManager.default.fileExists(atPath: path) else { continue }
+
+                let sfxAsset = AVURLAsset(url: URL(fileURLWithPath: path))
+                guard let assetAudio = sfxAsset.tracks(withMediaType: .audio).first else { continue }
+
+                let tStartMs = sfx["timelineStartMs"] as? Int ?? 0
+                let durationMs = sfx["durationMs"] as? Int ?? Int(sfxAsset.duration.seconds * 1000.0)
+                let durationSec = Double(durationMs) / 1000.0
+                guard durationSec > 0 else { continue }
+
+                let timeRange = CMTimeRange(
+                    start: .zero,
+                    duration: CMTime(seconds: durationSec, preferredTimescale: 600)
+                )
+                let insertAt = CMTime(seconds: Double(tStartMs) / 1000.0, preferredTimescale: 600)
+                do {
+                    try sfxTrack.insertTimeRange(timeRange, of: assetAudio, at: insertAt)
+                } catch {
+                    warnings.append("Failed to insert SFX track: \(error.localizedDescription)")
+                }
+
+                let volDb = sfx["volumeDb"] as? Double ?? 0.0
+                let targetVol = Float(pow(10.0, volDb / 20.0))
+                sfxParams.setVolume(targetVol, at: .zero)
+                audioInputParameters.append(sfxParams)
+            }
+        }
+
+        let audioMix = AVMutableAudioMix()
+        audioMix.inputParameters = audioInputParameters
+
         guard let session = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
             onError("EXPORT_SESSION_FAILED", "Could not initialize AVAssetExportSession")
             return
@@ -208,6 +316,7 @@ public class EditIrAppleRenderer {
         session.outputURL = outputUrl
         session.outputFileType = .mp4
         session.videoComposition = videoComposition
+        session.audioMix = audioMix
         session.shouldOptimizeForNetworkUse = true
 
         startTimer()

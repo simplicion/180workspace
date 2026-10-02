@@ -154,17 +154,80 @@ Status is appended below as phases land.
     - Device: PNG transparency is preserved.
   - **Fix:** gallery photos and videos added as B-roll were stored as raw device paths. Export then tried to download them, and the
     contract rejected them for Director turns. They are now local asset references, and old drafts are migrated on load.
-- **Next:**
-  - E2.3 chroma key: a GL shader effect on layers, plus a preview shader.
-  - E3:
-    - ML Kit image labels as visual context for the Director;
-    - speed ramps;
-    - reverse;
-    - masks;
-    - background removal;
-    - TTS voiceover;
-    - noise reduction;
-    - beat-sync cuts;
-    - recording a voiceover while the preview plays.
-  - The Flutter preview for photos uses the source size from `sources`; JPEG EXIF rotation of gallery photos used as main
-    clips is not yet handled.
+- **Round 3 (2026-10-02): the remaining E1/E2 items and most of E3.** Each item below is verified on the emulator
+  (`media_engine_render_test.dart`, 20 cases) and unit-tested.
+  - **E2.3 green screen (chroma key):**
+    - Implementation:
+      - one GLSL key (CbCr distance, smoothstep edge, spill suppression) in `ChromaKey.kt`, mirrored by
+        `shaders/chroma_key.frag` for the preview (Impeller `ImageFilter.shader`);
+      - applies to layers only; "Remove green / blue" in the overlay inspector, with strength and softness sliders;
+      - Director: `insertBroll.greenScreen`.
+    - Device: the subject is kept at 253 red; the background matches the video underneath to 0.2/255.
+  - **E1.2 keyframe editor:**
+    - "Add keyframe at playhead" captures the pose; keyframes are listed with seek and delete.
+    - When a layer is keyframed, dragging it or using the Size / Rotation sliders edits the keyframe at the playhead.
+  - **Voiceover while playing:** recording starts the preview with the footage's sound muted.
+  - **Photo EXIF:** sideways phone photos are measured upright (Media3 decodes them with EXIF rotation).
+  - **E3 visual understanding:**
+    - Fix: scene cuts, OCR and loudness existed natively but the app never ran them or sent them. Now they do.
+    - New: ML Kit image labels (offline) give "what the picture shows" spans in the Director prompt. Only words are sent,
+      sanitised to plain words.
+    - Device: labels "plant, leisure, forest"; OCR reads the on-screen text.
+  - **E3 beat-sync cuts:**
+    - Fix: `beatAlign` was faking a 120 bpm grid and desynced footage.
+    - Now it ripple-trims each cut back onto a real on-device beat, or reports that there is no beat analysis.
+    - Exposed to the Director.
+  - **E3 AI narration (TTS):**
+    - The phone's text-to-speech engine writes a WAV file that becomes a voiceover.
+    - Voiceover sheet: "Generate AI voice". Director: `addNarration` (`tts:<text>` asset spoken on the phone; durations
+      corrected after synthesis).
+    - Without an engine or voice the app gives a typed error, never silence. Device: 2.8 s of real speech.
+  - **E3 noise reduction:**
+    - "Reduce background noise" = 80 Hz high-pass plus a noise-floor downward expander (export only; the preview player
+      cannot run DSP, and the UI says so). Director: `cleanVoice`.
+    - Device: noise between words −8.4 dB; the loudest speech windows −2.3 dB (100 ms windows that include word gaps).
+  - **E3 masks:** circle / rounded layer shapes, as a GL mask in the export and clip paths in the preview.
+    Director: `insertBroll.shape`.
+  - **E3 speed ramps:** montage / hero / bullet / flash in / flash out, made by splitting the clip into constant-speed
+    parts so the preview, ripple and captions keep working. Speed sheet + Director `speedRamp`.
+- **Round 4 (2026-10-02): heavy items — done.**
+  - **Shared frame pipeline** (`FrameJobs.kt`):
+    - A clip range is decoded to upright frames (`getFramesAtIndex` chunks, ≤ 30 fps, ≤ 60 s), optionally transformed per
+      frame or reversed, with its audio decoded to PCM (optionally reversed).
+    - It is re-encoded with Media3 to a local mp4 that replaces the clip's file in place (`TimelineOps.replaceClipSource`).
+    - The preview plays the processed file, so preview = export.
+  - **Reverse:** Speed sheet "Play this clip backwards". Device: the reversed clip starts on the original's last frame, and
+    the sound envelope runs backwards.
+  - **Background removal:**
+    - Videos: ML Kit selfie segmentation (stream mode) paints the background key green, and the overlay becomes a
+      full-frame layer keyed with the existing chroma path.
+    - Photos: a transparent PNG.
+    - Overlay inspector: "Remove background (keep the person)".
+    - Device: background pure green, the person kept, photo background alpha 0.
+  - **Stabilisation:**
+    - Global shift per frame (320 px greyscale, ±16 px block match, sub-pixel), camera path smoothed over the chosen
+      strength, frames moved onto it with an automatic ≤ 1.3× zoom.
+    - Stabilise tool (Light / Recommended / Smoothest).
+    - Device: frame-to-frame jitter of a shaken shot 14.0 → 4.1 (−71%).
+  - **True crossfade:**
+    - CROSSFADE / DISSOLVE now overlap: the incoming clip's footage from before its in-point fades in on a full-frame
+      compositor layer, or the outgoing clip's footage after its out-point fades out. Only cuts with no spare footage dip.
+    - The preview plays the other side on a second player (`TimelineOps.crossfadeAt` mirrors the renderer).
+    - Device: halfway frame within 0.5/255 of the exact 50/50 mix; no dip at the cut.
+  - **Agentic:** Director tool `processFootage` (reverse / stabilize / remove_background) queues a `process` flag. The phone
+    runs the job after the turn, swaps in the file and clears the flag (or reports why). Export waits until the job is done.
+  - **Limits:**
+    - Jobs take about 10–25× realtime on the software-GPU emulator (faster on phones) and handle ≤ 60 s per clip.
+    - Stabilisation is translation only (no rotation / rolling-shutter correction).
+- **Fix (2026-10-02): export frame rate.** The full device run showed that "24 fps" exports still came out at 30 fps.
+  - Measured with exact frame counts (`countVideoFrames`); the container's frame-rate field is only a hint.
+  - Causes:
+    - Media3 ignores a FrameDropEffect in the composition effects;
+    - frames were dropped before speed changes, so 2× clips exported at double rate;
+    - any layer track (PiP / sticker / crossfade) became the compositor's primary input, and its gaps run at a fixed
+      30 fps.
+  - Now:
+    - each video item is capped at canvas.fps ÷ speed;
+    - layer gaps are transparent stills at canvas.fps.
+  - Device: 24 fps → 24.1; 15 fps holds with speed changes, cutaways and music. Full suite 25/25.
+
