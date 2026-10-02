@@ -1,4 +1,4 @@
-import { prisma } from '@workspace/db';
+import { getDb } from '../publishing/http';
 import { fenceUntrusted, UNTRUSTED_DATA_POLICY } from '@workspace/ai/agent-runs';
 import { VideoTraitAnalysis } from './types';
 import { requireCompanyId, SocialDomainError, notFound } from '../tenant-scope';
@@ -68,7 +68,7 @@ export class VideoIntelligenceService {
         }
     ): Promise<VideoTraitAnalysis> {
         requireCompanyId(companyId);
-        const db = prisma as any;
+        const db = getDb() as any;
         const project = await db.project.findFirst({ where: { id: projectId, companyId }, select: { id: true } });
         if (!project) throw notFound('Project');
         if (input.postId) {

@@ -45,6 +45,33 @@ router.post('/chat', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/v1/social-media/manager/conversations?projectId=
+ * The caller's 180 Manager conversations, newest first.
+ */
+router.get('/conversations', async (req: Request, res: Response) => {
+    try {
+        const companyId = getCompanyId(req);
+        const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
+        res.json({ success: true, conversations: await ManagerOrchestratorService.listConversations(companyId, projectId) });
+    } catch (error: any) {
+        sendRouteError(res, error, 'manager');
+    }
+});
+
+/**
+ * GET /api/v1/social-media/manager/conversations/:id/messages
+ * Transcript of one conversation (404 for another workspace's conversation).
+ */
+router.get('/conversations/:id/messages', async (req: Request, res: Response) => {
+    try {
+        const companyId = getCompanyId(req);
+        res.json({ success: true, messages: await ManagerOrchestratorService.getMessages(companyId, String(req.params.id)) });
+    } catch (error: any) {
+        sendRouteError(res, error, 'manager');
+    }
+});
+
+/**
  * POST /api/v1/social-media/manager/actions/execute
  * Executes an actionable suggestion proposed by 180 Manager (e.g. calendar pivot, director rule).
  */
@@ -121,7 +148,7 @@ router.get('/analytics-summary', async (req: Request, res: Response) => {
 router.post('/video-intel', async (req: Request, res: Response) => {
     try {
         const companyId = getCompanyId(req);
-        const { projectId, postId, assetUrl, captionOrTitle, speechTranscript, durationSec } = req.body;
+        const { projectId, postId, assetUrl, captionOrTitle, speechTranscript, durationSec, cutsPerMinute } = req.body;
         if (!projectId) {
             return res.status(400).json({ success: false, error: 'projectId is required' });
         }
@@ -131,6 +158,7 @@ router.post('/video-intel', async (req: Request, res: Response) => {
             captionOrTitle,
             speechTranscript,
             durationSec,
+            cutsPerMinute,
         });
         res.json({ success: true, traits });
     } catch (error: any) {

@@ -1,6 +1,6 @@
-import { prisma } from '@workspace/db';
-import { extractPreferences } from '../agent-os/agent-memory';
-import { requireCompanyId } from '../tenant-scope';
+import { getDb } from '../publishing/http';
+import { AgentMemoryService } from '../agent-os/agent-memory';
+import { requireCompanyId, SocialDomainError } from '../tenant-scope';
 
 export class DirectorSubagent {
     /**
@@ -8,78 +8,33 @@ export class DirectorSubagent {
      */
     static async getDirectorPreferences(companyId: string, projectId: string) {
         requireCompanyId(companyId);
-        const memories = await (prisma as any).agentMemory.findMany({
-            where: {
-                companyId,
-                projectId,
-                kind: 'preference',
-            },
+        const memories = await (getDb() as any).agentMemory.findMany({
+            where: { companyId, projectId, kind: 'preference' },
             orderBy: { updatedAt: 'desc' },
         });
-
         return {
             projectId,
             activeRulesCount: memories.length,
-            preferences: memories.map((m: any) => ({
-                key: m.key,
-                rule: m.text,
-                updatedAt: m.updatedAt,
-            })),
+            preferences: memories.map((m: any) => ({ key: m.key, rule: m.text, updatedAt: m.updatedAt })),
         };
     }
 
     /**
-     * Applies a new editing rule or preference commanded by the user / 180 Manager.
+     * Stores the editing preferences found in an instruction from the user / 180 Manager. Uses the shared agent
+     * memory (one row per preference key, project ownership checked). An instruction with no recognised
+     * preference is rejected instead of being reported as applied.
      */
-    static async applyEditingRule(companyId: string, projectId: string, ruleInstruction: string) {
+    static async applyEditingRule(companyId: string, projectId: string, ruleInstruction: string, memory = new AgentMemoryService(getDb())) {
         requireCompanyId(companyId);
-        const extracted = extractPreferences(ruleInstruction);
-
-        const updated: any[] = [];
-        for (const pref of extracted) {
-            const row = await (prisma as any).agentMemory.upsert({
-                where: {
-                    companyId_projectId_key: {
-                        companyId,
-                        projectId,
-                        key: pref.key,
-                    },
-                },
-                update: {
-                    text: pref.text,
-                    payload: { value: pref.value, source: '180_manager' },
-                    updatedAt: new Date(),
-                },
-                create: {
-                    companyId,
-                    projectId,
-                    kind: 'preference',
-                    scope: 'director',
-                    key: pref.key,
-                    text: pref.text,
-                    payload: { value: pref.value, source: '180_manager' },
-                },
-            }).catch(async () => {
-                // Fallback if composite index isn't unique in legacy tables
-                return (prisma as any).agentMemory.create({
-                    data: {
-                        companyId,
-                        projectId,
-                        kind: 'preference',
-                        scope: 'director',
-                        key: pref.key,
-                        text: pref.text,
-                        payload: { value: pref.value, source: '180_manager' },
-                    },
-                });
-            });
-            updated.push(row);
+        if (!projectId) throw new SocialDomainError('VALIDATION_FAILED', 400, 'projectId is required to change editing rules.');
+        const applied = await memory.rememberPreferencesFrom(projectId, companyId, String(ruleInstruction || ''), 'director');
+        if (!applied.length) {
+            throw new SocialDomainError(
+                'RULE_NOT_RECOGNISED',
+                422,
+                'No editing preference was recognised. Try e.g. "less zoom", "smaller captions" or "faster cuts".',
+            );
         }
-
-        return {
-            success: true,
-            rulesApplied: extracted.map((e) => e.text),
-            count: updated.length,
-        };
+        return { success: true, rulesApplied: applied.map((p) => p.text), count: applied.length };
     }
 }

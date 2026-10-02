@@ -1,6 +1,6 @@
-import { prisma } from '@workspace/db';
+import { getDb } from '../publishing/http';
 import { CalendarPivotProposal } from './types';
-import { requireCompanyId } from '../tenant-scope';
+import { requireCompanyId, SocialDomainError } from '../tenant-scope';
 
 export class CalendarSubagent {
     /**
@@ -12,7 +12,7 @@ export class CalendarSubagent {
         const endOfMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0, 23, 59, 59);
         const currentDay = referenceDate.getDate();
 
-        const posts = await (prisma as any).socialPost.findMany({
+        const posts = await (getDb() as any).socialPost.findMany({
             where: {
                 companyId,
                 projectId,
@@ -62,80 +62,40 @@ export class CalendarSubagent {
     }
 
     /**
-     * Prepares a date-aware calendar pivot from a specific day (e.g. day 15) to end of month.
-     * Leaves all days before `fromDay` completely untouched.
+     * Date range a pivot would cover: from `fromDay` (never before today) to the end of the month. Days before it
+     * are never touched. Slot content is written by the calendar agents, not here.
      */
-    static async planCalendarPivot(
+    static planCalendarPivot(
         companyId: string,
         projectId: string,
-        options: {
-            fromDay?: number;
-            newWinningFormat: string;
-            pivotReason: string;
-            frequencyPerWeek?: number;
-        }
-    ): Promise<CalendarPivotProposal> {
+        options: { fromDay?: number; newWinningFormat: string; pivotReason: string },
+        now: Date = new Date(),
+    ): CalendarPivotProposal {
         requireCompanyId(companyId);
-        const now = new Date();
-        const currentDay = now.getDate();
-        const fromDay = options.fromDay ?? currentDay;
         const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-        const proposedSlots: CalendarPivotProposal['proposedSlots'] = [];
-        const step = Math.max(1, Math.floor(7 / (options.frequencyPerWeek || 3)));
-
-        for (let day = fromDay; day <= lastDayOfMonth; day += step) {
-            const slotDate = new Date(now.getFullYear(), now.getMonth(), day, 14, 0, 0);
-            proposedSlots.push({
-                date: slotDate.toISOString(),
-                title: `${options.newWinningFormat} Breakdown #${proposedSlots.length + 1}`,
-                format: options.newWinningFormat,
-                platform: 'instagram',
-                contentPillar: 'Growth & Authority',
-            });
-        }
-
+        const requested = Math.floor(Number(options.fromDay) || now.getDate());
+        const fromDay = Math.min(lastDayOfMonth, Math.max(now.getDate(), requested));
         return {
             projectId,
             pivotReason: options.pivotReason,
             fromDay,
             toDay: lastDayOfMonth,
-            targetMonth: monthKey,
+            targetMonth: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
             newWinningFormat: options.newWinningFormat,
-            proposedSlots,
+            proposedSlots: [],
         };
     }
 
     /**
-     * Executes the calendar pivot by inserting or updating planned content pieces for the upcoming days.
+     * Applying a pivot regenerates the remaining calendar pieces with the four-agent calendar engine
+     * (PRODUCTION_READINESS_PLAN P3/P4). Until that lands this refuses honestly instead of writing placeholder posts.
      */
-    static async executeCalendarPivot(companyId: string, projectId: string, proposal: CalendarPivotProposal): Promise<{ count: number; createdPosts: any[] }> {
+    static async executeCalendarPivot(companyId: string, _projectId: string, proposal: CalendarPivotProposal): Promise<never> {
         requireCompanyId(companyId);
-        const createdPosts: any[] = [];
-
-        for (const slot of proposal.proposedSlots) {
-            const post = await (prisma as any).socialPost.create({
-                data: {
-                    companyId,
-                    projectId,
-                    title: slot.title,
-                    content: `[Planned: ${slot.format}] In-depth viral breakdown based on latest performance data.`,
-                    status: 'draft',
-                    scheduledFor: new Date(slot.date),
-                    metadata: {
-                        plannedByAgent: '180_manager',
-                        format: slot.format,
-                        contentPillar: slot.contentPillar,
-                    },
-                },
-            });
-            createdPosts.push(post);
-        }
-
-        return {
-            count: createdPosts.length,
-            createdPosts,
-        };
+        throw new SocialDomainError(
+            'CALENDAR_PIVOT_UNAVAILABLE',
+            501,
+            `Automatic calendar pivots are not available yet. Open the calendar and use "AI Autopilot Rewrite" on pieces from day ${proposal.fromDay}.`,
+        );
     }
 }

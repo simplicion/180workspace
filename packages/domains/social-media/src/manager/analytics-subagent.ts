@@ -1,4 +1,4 @@
-import { prisma } from '@workspace/db';
+import { getDb } from '../publishing/http';
 import { CrossAccountAnalyticsSummary } from './types';
 import { requireCompanyId } from '../tenant-scope';
 import { fetchLivePlatformMetrics } from '../social-insights.service';
@@ -14,7 +14,7 @@ export class AnalyticsSubagent {
         deps: { liveMetrics?: typeof fetchLivePlatformMetrics; now?: Date } = {},
     ): Promise<CrossAccountAnalyticsSummary> {
         requireCompanyId(companyId);
-        const db = prisma as any;
+        const db = getDb() as any;
         const whereAccount: any = { companyId, isActive: true };
         if (projectId) whereAccount.projectId = projectId;
 

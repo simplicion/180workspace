@@ -73,6 +73,8 @@ export function getLinkedInApiConfig(): LinkedInApiConfig {
 }
 
 export function getLinkedInProviderMode(): LinkedInProviderMode {
+    // Production never serves the demo member: missing credentials surface as PUBLISH_NOT_CONFIGURED instead.
+    if (process.env.NODE_ENV === 'production') return 'live';
     const forced = process.env.LINKEDIN_PROVIDER_MODE?.toLowerCase().trim();
     if (forced === 'mock' || forced === 'live') {
         return forced;

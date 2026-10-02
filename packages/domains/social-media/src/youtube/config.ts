@@ -57,6 +57,8 @@ export function getYouTubeClientSecret(): string | undefined {
  * Defaults to 'mock' if credentials are not configured or if explicitly set to 'mock'.
  */
 export function getYouTubeProviderMode(): 'mock' | 'live' {
+    // Production never serves the demo channel: missing credentials surface as PUBLISH_NOT_CONFIGURED instead.
+    if (process.env.NODE_ENV === 'production') return 'live';
     const explicit = process.env.YOUTUBE_PROVIDER_MODE?.toLowerCase().trim();
     if (explicit === 'live') return 'live';
     if (explicit === 'mock') return 'mock';
