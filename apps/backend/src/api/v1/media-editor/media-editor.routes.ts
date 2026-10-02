@@ -57,8 +57,8 @@ router.get("/stock/search", async (req, res) => {
     const none = { items: [], warnings: [] };
     const [results, fv, fp] = await Promise.all([
       pexelsP,
-      t === "all" || t.startsWith("video") ? searchFreeMedia({ query, kind: "video", limit: n, orientation: orientation as any, targetAspect }).catch(() => none) : none,
-      t === "all" || t.startsWith("photo") || t.startsWith("image") ? searchFreeMedia({ query, kind: "image", limit: n, orientation: orientation as any, targetAspect }).catch(() => none) : none,
+      t === "all" || t.startsWith("video") ? searchFreeMedia({ query, kind: "video", limit: n, orientation: orientation as any, targetAspect }).catch((err: any) => { warnings.push(`free-media: ${err?.message || err}`); return none; }) : none,
+      t === "all" || t.startsWith("photo") || t.startsWith("image") ? searchFreeMedia({ query, kind: "image", limit: n, orientation: orientation as any, targetAspect }).catch((err: any) => { warnings.push(`free-media: ${err?.message || err}`); return none; }) : none,
     ]);
     const asStock = (i: any) => ({
       id: i.id, provider: i.provider, title: i.title, url: i.sourcePage, downloadUrl: i.url,
@@ -102,6 +102,11 @@ router.get("/stock/unified", async (req, res) => {
     const wantsSfx = type === "sfx" || type === "all";
     const audioOnly = type === "audio" || type === "music" || type === "sfx";
     const emptyPexels = { videos: [], photos: [], totalResults: 0 };
+    // Provider failures are reported to the client (warnings) instead of being turned into a silent empty list.
+    const warnings: string[] = [];
+    const warn = (provider: string) => (err: any) => {
+      warnings.push(`${provider}: ${String(err?.message || err).slice(0, 200)}`);
+    };
     const emptyPixabay = {
       query,
       totalHits: 0,
@@ -120,17 +125,14 @@ router.get("/stock/unified", async (req, res) => {
       orientation: orientation as any,
       perPage: parseInt(perPage as string, 10) || 12,
       page: parseInt(page as string, 10) || 1,
-    }).catch(() => ({ videos: [], photos: [], totalResults: 0 }));
-
-    const pixabayOrientation =
-      orientation === "portrait" ? "vertical" : orientation === "landscape" ? "horizontal" : "all";
+    }).catch((err: any) => { warn("pexels")(err); return emptyPexels; });
 
     const pixabayPromise = audioOnly ? Promise.resolve(emptyPixabay) : PixabayClient.searchStock({
       query,
       orientation: orientation as any,
       perPage: parseInt(perPage as string, 10) || 12,
       page: parseInt(page as string, 10) || 1,
-    }).catch(() => emptyPixabay);
+    }).catch((err: any) => { warn("pixabay")(err); return emptyPixabay; });
 
     const registry = DirectorToolRegistry.getInstance();
     const freesoundTool = registry.get("freesound_search");
@@ -138,25 +140,25 @@ router.get("/stock/unified", async (req, res) => {
     const dummyCtx = { tempDir: os.tmpdir(), artifacts: new Map(), log: () => {} };
 
     const freesoundPromise = wantsSfx && freesoundTool
-      ? freesoundTool.execute({ query, maxResults: 6 }, dummyCtx).catch(() => ({ effects: [] }))
+      ? freesoundTool.execute({ query, maxResults: 6 }, dummyCtx).catch((err: any) => { warn("freesound")(err); return { effects: [] }; })
       : Promise.resolve({ effects: [] });
 
     const musicPromise = wantsMusic
-      ? BgmSearchTool.searchTracks({ query, limit: parseInt(perPage as string, 10) || 12 }).catch((err: any) => ({ tracks: [], warnings: [err?.message || String(err)] }))
+      ? BgmSearchTool.searchTracks({ query, limit: parseInt(perPage as string, 10) || 12 }).catch((err: any) => { warn("music")(err); return { tracks: [], warnings: [] }; })
       : Promise.resolve({ tracks: [], warnings: [] });
 
     // Zero-cost free media providers (Openverse, Wikimedia Commons, Internet Archive, Jamendo)
     const freeVideoPromise = (!audioOnly && (type === "all" || type === "video") && typeof searchFreeMedia === "function")
-      ? searchFreeMedia({ query, kind: "video", limit: 6, orientation: orientation as any, targetAspect: orientation === "portrait" ? "9:16" : orientation === "square" ? "1:1" : "16:9" }).catch(() => ({ items: [] }))
+      ? searchFreeMedia({ query, kind: "video", limit: 6, orientation: orientation as any, targetAspect: orientation === "portrait" ? "9:16" : orientation === "square" ? "1:1" : "16:9" }).catch((err: any) => { warn("free-media")(err); return { items: [], warnings: [] }; })
       : Promise.resolve({ items: [] });
 
     const freePhotoPromise = (!audioOnly && (type === "all" || type === "photo" || type === "image") && typeof searchFreeMedia === "function")
-      ? searchFreeMedia({ query, kind: "image", limit: 6, orientation: orientation as any, targetAspect: orientation === "portrait" ? "9:16" : orientation === "square" ? "1:1" : "16:9" }).catch(() => ({ items: [] }))
+      ? searchFreeMedia({ query, kind: "image", limit: 6, orientation: orientation as any, targetAspect: orientation === "portrait" ? "9:16" : orientation === "square" ? "1:1" : "16:9" }).catch((err: any) => { warn("free-media")(err); return { items: [], warnings: [] }; })
       : Promise.resolve({ items: [] });
 
     // Free music already comes back through BgmSearchTool.searchTracks (musicPromise); only SFX here.
     const freeAudioPromise = (wantsSfx && typeof searchFreeMedia === "function")
-      ? searchFreeMedia({ query, kind: "sfx", limit: 6, maxDurationSec: 10 }).catch(() => ({ items: [] }))
+      ? searchFreeMedia({ query, kind: "sfx", limit: 6, maxDurationSec: 10 }).catch((err: any) => { warn("free-media")(err); return { items: [], warnings: [] }; })
       : Promise.resolve({ items: [] });
 
     const [pexels, pixabay, freesound, music, freeVideos, freePhotos, freeAudio] = await Promise.all([
@@ -232,106 +234,27 @@ router.get("/stock/unified", async (req, res) => {
       desiredType: type as any,
     });
 
-    let finalVideos = [...(pexels.videos || []), ...(pixabay.videos || []), ...normFreeVideos];
-    if (finalVideos.length === 0) {
-      const sampleCatalog = [
-        {
-          id: "stock_nature_waterfall",
-          provider: "pexels",
-          title: "Majestic Forest Waterfall & Green Foliage",
-          tags: ["nature", "cinematic", "water", "forest"],
-          downloadUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-          previewVideoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-          thumbnailUrl: "https://images.pexels.com/photos/15286/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=600",
-          durationSec: 15,
-          width: 1080,
-          height: 1920,
-          photographer: "Nature Cinematography",
-          license: "Free to Use",
-          attribution: "Royalty-free Nature Video",
-        },
-        {
-          id: "stock_nature_ocean",
-          provider: "pixabay",
-          title: "Tropical Ocean Waves & Coastline Aerial",
-          tags: ["nature", "cinematic", "ocean", "beach", "drone"],
-          downloadUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-          previewVideoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-          thumbnailUrl: "https://images.pexels.com/photos/1001682/pexels-photo-1001682.jpeg?auto=compress&cs=tinysrgb&w=600",
-          durationSec: 12,
-          width: 1080,
-          height: 1920,
-          photographer: "Aerial Vista",
-          license: "Free to Use",
-          attribution: "Royalty-free Ocean Video",
-        },
-        {
-          id: "stock_city_night",
-          provider: "pexels",
-          title: "Neon City Skyline & Midnight Traffic Timelapse",
-          tags: ["city night", "city", "cinematic", "technology"],
-          downloadUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-          previewVideoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-          thumbnailUrl: "https://images.pexels.com/photos/313782/pexels-photo-313782.jpeg?auto=compress&cs=tinysrgb&w=600",
-          durationSec: 10,
-          width: 1080,
-          height: 1920,
-          photographer: "Urban Visuals",
-          license: "Free to Use",
-          attribution: "Royalty-free City Video",
-        },
-        {
-          id: "stock_tech_coding",
-          provider: "pexels",
-          title: "Software Engineering & Code Editor Workflow",
-          tags: ["technology", "coding", "office", "computer"],
-          downloadUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-          previewVideoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-          thumbnailUrl: "https://images.pexels.com/photos/1181675/pexels-photo-1181675.jpeg?auto=compress&cs=tinysrgb&w=600",
-          durationSec: 14,
-          width: 1080,
-          height: 1920,
-          photographer: "Dev Lens",
-          license: "Free to Use",
-          attribution: "Royalty-free Tech Video",
-        },
-        {
-          id: "stock_office_meeting",
-          provider: "pixabay",
-          title: "Creative Team Collaboration & Modern Workspace",
-          tags: ["office", "people", "coffee", "meeting"],
-          downloadUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4",
-          previewVideoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4",
-          thumbnailUrl: "https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=600",
-          durationSec: 11,
-          width: 1080,
-          height: 1920,
-          photographer: "Workplace Productions",
-          license: "Free to Use",
-          attribution: "Royalty-free Office Video",
-        },
-        {
-          id: "stock_drone_mountains",
-          provider: "pexels",
-          title: "Alpine Mountain Peaks in Golden Hour Drone Sweep",
-          tags: ["drone", "nature", "cinematic", "mountains"],
-          downloadUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
-          previewVideoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
-          thumbnailUrl: "https://images.pexels.com/photos/417173/pexels-photo-417173.jpeg?auto=compress&cs=tinysrgb&w=600",
-          durationSec: 16,
-          width: 1080,
-          height: 1920,
-          photographer: "Mountain Aerials",
-          license: "Free to Use",
-          attribution: "Royalty-free Drone Footage",
-        },
-      ];
-      const qLower = query.toLowerCase().trim();
-      const matched = sampleCatalog.filter((c) =>
-        c.tags.some((t) => qLower.includes(t) || t.includes(qLower)) ||
-        c.title.toLowerCase().includes(qLower)
-      );
-      finalVideos = matched.length > 0 ? matched : sampleCatalog;
+    // Only real provider results. An empty list is returned as empty (with warnings), never filled with samples.
+    const finalVideos = [...(pexels.videos || []), ...(pixabay.videos || []), ...normFreeVideos];
+    for (const res2 of [music, freeVideos, freePhotos, freeAudio] as any[]) {
+      for (const w of res2?.warnings || []) warnings.push(String(w).slice(0, 200));
+    }
+    const unifiedPhotos = [...(pexels.photos || []), ...(pixabay.photos || []), ...normFreePhotos];
+    const unifiedIllustrations = [...(pixabay.illustrations || []), ...(pixabay.vectors || [])];
+    const unifiedAudio = [...musicAudio, ...sfxAudio, ...normFreeAudio];
+    const uniqueWarnings = Array.from(new Set(warnings));
+
+    // `shape=unified` (mobile) skips the raw per-provider blocks, which roughly halves the payload.
+    if (req.query.shape === "unified") {
+      return res.status(200).json({
+        success: true,
+        query,
+        unifiedVideos: finalVideos,
+        unifiedPhotos,
+        unifiedIllustrations,
+        unifiedAudio,
+        warnings: uniqueWarnings,
+      });
     }
 
     return res.status(200).json({
@@ -351,9 +274,10 @@ router.get("/stock/unified", async (req, res) => {
         audio: normFreeAudio,
       },
       unifiedVideos: finalVideos,
-      unifiedPhotos: [...(pexels.photos || []), ...(pixabay.photos || []), ...normFreePhotos],
-      unifiedIllustrations: [...(pixabay.illustrations || []), ...(pixabay.vectors || [])],
-      unifiedAudio: [...musicAudio, ...sfxAudio, ...normFreeAudio],
+      unifiedPhotos,
+      unifiedIllustrations,
+      unifiedAudio,
+      warnings: uniqueWarnings,
     });
 
   } catch (err: any) {

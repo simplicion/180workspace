@@ -1,4 +1,4 @@
-import { prisma } from '@workspace/db';
+import { getDb } from '../publishing/http';
 import { InboxOpportunity } from './types';
 import { requireCompanyId } from '../tenant-scope';
 
@@ -23,7 +23,7 @@ export class InboxSubagent {
         if (options.projectId) where.projectId = options.projectId;
         if (options.platform) where.platform = options.platform;
 
-        const conversations = await (prisma as any).socialConversation.findMany({
+        const conversations = await (getDb() as any).socialConversation.findMany({
             where,
             orderBy: { lastMessageAt: 'desc' },
             take: limit * 3,
@@ -32,7 +32,7 @@ export class InboxSubagent {
         const opportunities: InboxOpportunity[] = [];
 
         for (const conv of conversations) {
-            const lastMessage = await (prisma as any).socialMessage.findFirst({
+            const lastMessage = await (getDb() as any).socialMessage.findFirst({
                 where: { conversationId: conv.id },
                 orderBy: { createdAt: 'desc' },
             });
@@ -74,7 +74,7 @@ export class InboxSubagent {
      */
     static async setConversationMode(companyId: string, conversationId: string, mode: 'ai_agent' | 'human_takeover') {
         requireCompanyId(companyId);
-        return (prisma as any).socialConversation.updateMany({
+        return (getDb() as any).socialConversation.updateMany({
             where: { id: conversationId, companyId },
             data: {
                 aiAgentActive: mode === 'ai_agent',
