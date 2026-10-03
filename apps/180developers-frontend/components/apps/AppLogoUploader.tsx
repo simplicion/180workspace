@@ -10,7 +10,6 @@ import {
   Loader2,
   ExternalLink,
   Sparkles,
-  CloudCheck,
   AlertCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';

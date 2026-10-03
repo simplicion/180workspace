@@ -27,6 +27,7 @@ import {
   Globe,
   Bot,
   BarChart3,
+  Layers,
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import {
