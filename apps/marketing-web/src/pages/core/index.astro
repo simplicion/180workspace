@@ -1,0 +1,298 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const devConsoleUrl = import.meta.env.PUBLIC_DEV_CONSOLE_URL || 'https://developers.180workspace.com/dashboard';
+---
+
+<Layout
+  title="180 Core — Sovereign Identity & Payment Infrastructure"
+  description="Universal authentication and sovereign wallet checkout. Integrate 180 Identity and 180 Pay with 2 lines of code."
+>
+  <div class="relative min-h-screen bg-black text-white overflow-hidden selection:bg-blue-600 selection:text-white">
+    {/* Subtle Background Glow */}
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[450px] bg-gradient-to-b from-blue-600/10 via-purple-600/5 to-transparent blur-3xl pointer-events-none -z-10" />
+
+    {/* Header Navigation */}
+    <header class="border-b border-white/10 backdrop-blur-xl bg-black/60 sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <a href="/core" class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-white text-black flex items-center justify-center font-black text-sm">
+            180
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-base tracking-tight text-white">180 Core</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-white/10 text-zinc-300 border border-white/10">
+              Infrastructure
+            </span>
+          </div>
+        </a>
+
+        <div class="flex items-center gap-4">
+          <a
+            href="https://developers.180workspace.com/docs"
+            class="text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
+          >
+            Documentation
+          </a>
+          <button
+            id="core-signin-nav-btn"
+            type="button"
+            class="px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold transition-all shadow-sm cursor-pointer"
+          >
+            Sign In to Console
+          </button>
+        </div>
+      </div>
+    </header>
+
+    {/* Hero Section */}
+    <section class="max-w-5xl mx-auto px-6 pt-24 pb-20 text-center space-y-8">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-300 backdrop-blur-md">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>Sovereign Cloud & Developer Infrastructure</span>
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white leading-[1.08]">
+        The Sovereign Core for <br />
+        <span class="bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+          Identity & Payments
+        </span>
+      </h1>
+
+      <p class="max-w-2xl mx-auto text-base sm:text-lg text-zinc-400 leading-relaxed font-normal">
+        Build high-trust applications with two fundamental APIs. Universal WhatsApp OTP authentication and 1-click sovereign wallet checkout with instant UPI settlement.
+      </p>
+
+      {/* CTA Buttons */}
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+        <button
+          id="core-hero-launch-btn"
+          type="button"
+          class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white text-black hover:bg-zinc-100 font-bold text-sm shadow-xl transition-all cursor-pointer min-h-[48px] flex items-center justify-center gap-2"
+        >
+          <span>Launch Developer Console</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </button>
+
+        <a
+          href="https://developers.180workspace.com/docs"
+          class="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white hover:bg-zinc-800 font-semibold text-sm transition-all min-h-[48px] flex items-center justify-center"
+        >
+          Read Core API Docs
+        </a>
+      </div>
+
+      {/* Trust Badges */}
+      <div class="pt-8 flex flex-wrap items-center justify-center gap-8 text-xs text-zinc-500 font-mono">
+        <div class="flex items-center gap-2">
+          <span class="text-emerald-400 font-bold">✓</span>
+          <span>RS256 Asymmetric JWKS</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-emerald-400 font-bold">✓</span>
+          <span>0.8% Sovereign UPI Fee</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-emerald-400 font-bold">✓</span>
+          <span>Instant T+0 Bank Settlements</span>
+        </div>
+      </div>
+    </section>
+
+    {/* The Two Sovereign Pillars */}
+    <section class="max-w-7xl mx-auto px-6 py-16">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Pillar 1: 180 Identity */}
+        <div class="p-8 sm:p-10 rounded-3xl bg-[#101012] border border-white/10 space-y-6 flex flex-col justify-between group hover:border-blue-500/40 transition-all">
+          <div class="space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div>
+              <span class="text-[10px] font-mono uppercase tracking-wider text-blue-400 font-bold">
+                OAuth 2.0 & OIDC
+              </span>
+              <h2 class="text-2xl font-bold text-white mt-1">180 Identity</h2>
+            </div>
+            <p class="text-sm text-zinc-400 leading-relaxed">
+              Universal authentication with WhatsApp OTP, Google SSO, and sovereign @usernames. Issues cryptographic RS256 JWTs with client-side modal or bottom-sheet verification.
+            </p>
+
+            <ul class="space-y-2.5 pt-2 text-xs text-zinc-300">
+              <li class="flex items-center gap-2">
+                <span class="text-blue-400 font-bold">•</span>
+                <span>Zero password fatigue with biometric & WhatsApp OTP</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-blue-400 font-bold">•</span>
+                <span>RFC 7636 PKCE code exchange with state protection</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-blue-400 font-bold">•</span>
+                <span>Real-time session introspection & active token revocation</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="pt-6 border-t border-white/5">
+            <button
+              id="try-identity-btn"
+              type="button"
+              class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors cursor-pointer"
+            >
+              Test 180 Identity Flow
+            </button>
+          </div>
+        </div>
+
+        {/* Pillar 2: 180 Pay */}
+        <div class="p-8 sm:p-10 rounded-3xl bg-[#101012] border border-white/10 space-y-6 flex flex-col justify-between group hover:border-purple-500/40 transition-all">
+          <div class="space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+            </div>
+            <div>
+              <span class="text-[10px] font-mono uppercase tracking-wider text-purple-400 font-bold">
+                UPI & Escrow Checkout
+              </span>
+              <h2 class="text-2xl font-bold text-white mt-1">180 Pay</h2>
+            </div>
+            <p class="text-sm text-zinc-400 leading-relaxed">
+              1-Click Sovereign Wallet and UPI checkout engine. Direct 2-way verification, instant settlements to verified bank accounts, and automatic HMAC-SHA256 webhooks.
+            </p>
+
+            <ul class="space-y-2.5 pt-2 text-xs text-zinc-300">
+              <li class="flex items-center gap-2">
+                <span class="text-purple-400 font-bold">•</span>
+                <span>0.8% sovereign transaction fee vs 2.0% standard gateways</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-purple-400 font-bold">•</span>
+                <span>Prepaid Sovereign Wallet balance shared across ecosystem</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-purple-400 font-bold">•</span>
+                <span>Instant automated penny-drop bank account validation</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="pt-6 border-t border-white/5">
+            <button
+              id="try-pay-btn"
+              type="button"
+              class="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors cursor-pointer"
+            >
+              Test 180 Pay Sandbox Checkout
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* Quick Integration Code Section */}
+    <section class="max-w-4xl mx-auto px-6 py-16">
+      <div class="p-6 sm:p-8 rounded-3xl bg-[#09090b] border border-white/10 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+            <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+            <span class="text-xs font-mono text-zinc-400 ml-2">Quickstart Integration</span>
+          </div>
+          <span class="text-[11px] font-mono text-zinc-500">npm i @workspace/identity-sdk</span>
+        </div>
+
+        <pre class="p-4 rounded-2xl bg-black/80 border border-white/5 text-xs text-zinc-300 font-mono overflow-x-auto leading-relaxed">
+<code>{`// 1. Authenticate with Sovereign 180 Identity
+import { OneEightyIdentity, OneEightyPay } from '@workspace/identity-sdk';
+
+await OneEightyIdentity.openPopup({
+  clientId: 'your-180-client-id',
+  onSuccess: (session) => {
+    console.log('Authenticated User:', session.user);
+  }
+});
+
+// 2. Accept 1-Click Sovereign Payments
+await OneEightyPay.openBottomSheet({
+  amount: 499,
+  currency: 'INR',
+  title: 'Pro Access Subscription',
+  onSuccess: (tx) => {
+    console.log('Payment Settled:', tx.transactionId);
+  }
+});`}</code>
+        </pre>
+      </div>
+    </section>
+
+    {/* Footer */}
+    <footer class="border-t border-white/10 py-12 text-center text-xs text-zinc-500 font-mono">
+      <p>© 2026 180 Workspace Platform. 180 Core Sovereign Infrastructure Engine.</p>
+    </footer>
+  </div>
+
+  {/* Client-Side Sovereign Identity Modal Trigger & Redirect Handler */}
+  <script is:inline define:vars={{ devConsoleUrl }}>
+    function launchIdentityLogin() {
+      var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      var authHost = isLocal ? 'http://localhost:3008' : 'https://profile.180workspace.com';
+      var redirectTarget = isLocal ? 'http://localhost:3008/dashboard' : devConsoleUrl;
+
+      // Construct Sovereign OAuth URL
+      var params = [
+        'client_id=180-core-client',
+        'redirect_uri=' + encodeURIComponent(redirectTarget),
+        'response_type=code',
+        'scope=openid identity:read identity:email',
+        'ux_mode=popup'
+      ].join('&');
+
+      var loginUrl = authHost + '/auth/login?' + params;
+
+      // Check if SDK already loaded on page, or open standard centered popup
+      var w = 480;
+      var h = 720;
+      var left = window.screen.width / 2 - w / 2;
+      var top = window.screen.height / 2 - h / 2;
+
+      var popup = window.open(
+        loginUrl,
+        '180_Core_Auth',
+        'width=' + w + ',height=' + h + ',top=' + top + ',left=' + left + ',scrollbars=yes'
+      );
+
+      // Listen for authentication message callback
+      function handleMessage(e) {
+        if (!e.data) return;
+        var data = e.data;
+        if (typeof data === 'string') {
+          try { data = JSON.parse(data); } catch(_) {}
+        }
+        if (data.type === '180_IDENTITY_SUCCESS' || data.type === '180_AUTH_SUCCESS') {
+          if (data.authToken || data.accessToken || data.token) {
+            localStorage.setItem('platform_auth_token', data.authToken || data.accessToken || data.token);
+          }
+          window.location.href = redirectTarget;
+        }
+      }
+
+      window.addEventListener('message', handleMessage);
+    }
+
+    document.getElementById('core-signin-nav-btn')?.addEventListener('click', launchIdentityLogin);
+    document.getElementById('core-hero-launch-btn')?.addEventListener('click', launchIdentityLogin);
+    document.getElementById('try-identity-btn')?.addEventListener('click', launchIdentityLogin);
+    document.getElementById('try-pay-btn')?.addEventListener('click', function() {
+      alert('180 Pay Sandbox: Direct checkout popup active in developer console. Signing in...');
+      launchIdentityLogin();
+    });
+  </script>
+</Layout>

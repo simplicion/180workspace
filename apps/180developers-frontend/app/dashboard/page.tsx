@@ -667,7 +667,7 @@ function DeveloperDashboardContent() {
 
   // Tab Title Map
   const tabTitles: Record<string, string> = {
-    apps: 'Projects',
+    apps: 'Dashboard',
     playground: 'API Playground',
     webhooks: 'Webhook Simulator',
   };
@@ -806,14 +806,14 @@ function DeveloperDashboardContent() {
                 <div>
                   <div className="flex items-center gap-2.5">
                     <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">
-                      Developer Projects
+                      Developer Dashboard
                     </h1>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300/80 dark:border-white/10">
-                      {apps.length} {apps.length === 1 ? 'Project' : 'Projects'}
+                      {apps.length} {apps.length === 1 ? 'Active Project' : 'Active Projects'}
                     </span>
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    Manage your registered projects and activate sovereign apps (180 Identity & 180 Pay) for{' '}
+                    Monitor active sovereign projects, authentication telemetry, and per-project usage billing for{' '}
                     <strong className="text-zinc-900 dark:text-zinc-200">
                       {userProfile?.name || 'Developer'}
                     </strong>
@@ -821,6 +821,14 @@ function DeveloperDashboardContent() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <Link
+                    href="/billing"
+                    className="rounded-xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-zinc-900 text-xs font-semibold min-h-[40px] px-3.5 flex items-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 transition-all shadow-xs"
+                  >
+                    <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>Billing & Plans</span>
+                  </Link>
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -828,7 +836,7 @@ function DeveloperDashboardContent() {
                     className="rounded-xl border-zinc-200/80 dark:border-white/10 text-xs font-semibold min-h-[40px] flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   >
                     <Code2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>Interactive Playground</span>
+                    <span>API Playground</span>
                   </Button>
 
                   <Button
@@ -842,45 +850,63 @@ function DeveloperDashboardContent() {
                 </div>
               </div>
 
-              {/* Summary Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="p-6 rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] shadow-xs space-y-2">
+              {/* Summary Metric Cards: Projects, Tokens, Users, and Usage Billing */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] shadow-xs space-y-2">
                   <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                    <span>Total Registered Projects</span>
+                    <span>Active Projects</span>
                     <Layers className="w-4 h-4 text-blue-500" />
                   </div>
-                  <div className="text-3xl font-extrabold text-zinc-950 dark:text-white">
+                  <div className="text-2xl sm:text-3xl font-extrabold text-zinc-950 dark:text-white">
                     {apps.length}
                   </div>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    Live 180 Projects
+                    Live Sovereign Projects
                   </p>
                 </div>
 
-                <div className="p-6 rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] shadow-xs space-y-2">
+                <div className="p-5 rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] shadow-xs space-y-2">
                   <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                    <span>Active Tokens Issued</span>
+                    <span>Active Tokens</span>
                     <Activity className="w-4 h-4 text-emerald-500" />
                   </div>
-                  <div className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                  <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
                     {apps.reduce((acc, a) => acc + (a.metrics?.activeTokens || 0), 0)}
                   </div>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    Valid JWT Access Tokens
+                    Valid JWT Sessions
                   </p>
                 </div>
 
-                <div className="p-6 rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] shadow-xs space-y-2">
+                <div className="p-5 rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] shadow-xs space-y-2">
                   <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                    <span>Unique Authorized Users</span>
+                    <span>Authorized Users</span>
                     <Users className="w-4 h-4 text-purple-500" />
                   </div>
-                  <div className="text-3xl font-extrabold text-purple-600 dark:text-purple-400">
+                  <div className="text-2xl sm:text-3xl font-extrabold text-purple-600 dark:text-purple-400">
                     {apps.reduce((acc, a) => acc + (a.metrics?.authorizedUsers || 0), 0)}
                   </div>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    Distinct 180 Identities
+                    Distinct Identities
                   </p>
+                </div>
+
+                <div className="p-5 rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] shadow-xs space-y-2">
+                  <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                    <span>Usage & Billing</span>
+                    <CreditCard className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-zinc-950 dark:text-white">
+                    ₹0.00
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                      Free Sandbox Tier
+                    </span>
+                    <Link href="/billing" className="text-[10px] text-zinc-500 hover:text-zinc-900 dark:hover:text-white underline">
+                      Manage →
+                    </Link>
+                  </div>
                 </div>
               </div>
 
@@ -1058,12 +1084,26 @@ function DeveloperDashboardContent() {
                           </div>
                         </div>
 
+                        {/* Per-Project Billing & Usage Row */}
+                        <div className="p-3 rounded-2xl bg-zinc-100/70 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-white/5 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
+                            <span className="font-semibold text-zinc-900 dark:text-white text-[11px]">
+                              Free Sandbox Plan
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                            <span className="text-zinc-500 dark:text-zinc-400">Accrued:</span>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">₹0.00</span>
+                          </div>
+                        </div>
+
                         {/* Configuration Summary */}
                         <div className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
                           <div className="flex items-center justify-between text-[11px]">
                             <span>Redirect URIs:</span>
                             <span className="font-mono text-zinc-900 dark:text-zinc-300">
-                              {app.redirectUris?.length || 19} configured
+                              {app.redirectUris?.length || 1} configured
                             </span>
                           </div>
                           {app.webhookUrl && (
@@ -1077,15 +1117,34 @@ function DeveloperDashboardContent() {
                         </div>
                       </div>
 
-                      {/* Footer Link */}
-                      <div className="pt-3 flex items-center justify-between border-t border-zinc-100 dark:border-white/5 text-xs">
+                      {/* Footer Actions: Project Hub, 180 Identity, 180 Pay */}
+                      <div className="pt-3 border-t border-zinc-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs">
                         <Link
                           href={`/apps/${app.id}`}
-                          className="font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 transition-colors min-h-[36px]"
+                          className="font-bold text-zinc-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 transition-colors min-h-[36px]"
                         >
-                          <span>Configure Settings & Webhooks</span>
+                          <span>Manage Project</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </Link>
+
+                        <div className="flex items-center gap-1.5">
+                          {app.enableAuth && (
+                            <Link
+                              href={`/apps/${app.id}/identity`}
+                              className="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors"
+                            >
+                              180 Identity
+                            </Link>
+                          )}
+                          {app.enablePay && (
+                            <Link
+                              href={`/apps/${app.id}/pay`}
+                              className="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition-colors"
+                            >
+                              180 Pay
+                            </Link>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Layers,
+  LayoutDashboard,
+  CreditCard,
   Code2,
   Webhook,
   FileCode2,
@@ -250,46 +252,39 @@ export function DeveloperSidebar({
             </p>
           )}
 
-          {/* Main "Projects" Dropdown Trigger */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!isExpanded) {
-                if (isInsideAppDetail) {
-                  router.push('/dashboard?tab=apps');
-                } else {
-                  onTabChange('apps');
-                }
-                return;
-              }
-              setIsProjectsOpen(!isProjectsOpen);
-            }}
-            className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all duration-200 font-semibold group cursor-pointer min-h-[44px] ${
-              isProjectsActive
+          {/* Main "Dashboard" Button & Projects Sub-Dropdown Trigger */}
+          <div
+            className={`w-full flex items-center justify-between p-1.5 rounded-xl transition-all duration-200 font-semibold group min-h-[44px] ${
+              isProjectsActive && pathname === '/dashboard'
                 ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-xs'
                 : 'text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-900 border border-transparent'
-            } ${!isExpanded ? 'justify-center' : ''}`}
-            title={!isExpanded ? 'Projects' : undefined}
+            } ${!isExpanded ? 'justify-center p-2' : ''}`}
           >
-            <div className="flex items-center gap-2.5 min-w-0">
+            {/* Direct Dashboard Link */}
+            <Link
+              href="/dashboard"
+              onClick={onMobileClose}
+              className="flex items-center gap-2.5 min-w-0 flex-1 px-1 py-1 cursor-pointer"
+              title={!isExpanded ? 'Dashboard' : undefined}
+            >
               <div
                 className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                  isProjectsActive
+                  isProjectsActive && pathname === '/dashboard'
                     ? 'bg-white/20 text-white dark:bg-black/20 dark:text-zinc-950'
                     : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800'
                 }`}
               >
-                <Layers className="w-4 h-4" />
+                <LayoutDashboard className="w-4 h-4" />
               </div>
-              {isExpanded && <span className="truncate text-left text-sm font-bold">Projects</span>}
-            </div>
+              {isExpanded && <span className="truncate text-left text-sm font-bold">Dashboard</span>}
+            </Link>
 
             {isExpanded && (
-              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+              <div className="flex items-center gap-1.5 shrink-0 pr-1">
                 {appCount > 0 && (
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      isProjectsActive
+                      isProjectsActive && pathname === '/dashboard'
                         ? 'bg-white/20 text-white dark:bg-black/20 dark:text-zinc-950'
                         : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700'
                     }`}
@@ -297,14 +292,25 @@ export function DeveloperSidebar({
                     {appCount}
                   </span>
                 )}
-                <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                    isProjectsOpen ? 'rotate-180' : ''
-                  }`}
-                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsProjectsOpen(!isProjectsOpen);
+                  }}
+                  className="p-1 rounded-md hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-colors cursor-pointer text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                  title={isProjectsOpen ? 'Collapse Projects List' : 'Expand Projects List'}
+                  aria-label="Toggle Projects Dropdown"
+                >
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                      isProjectsOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
               </div>
             )}
-          </button>
+          </div>
 
           {/* Sub-menu: Register Project & List of Projects */}
           {isExpanded && isProjectsOpen && (
@@ -390,6 +396,37 @@ export function DeveloperSidebar({
               )}
             </div>
           )}
+
+          {/* Billing & Subscriptions Navigation Link */}
+          <Link
+            href="/billing"
+            onClick={onMobileClose}
+            className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all duration-200 font-semibold group cursor-pointer min-h-[44px] ${
+              pathname === '/billing'
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-xs'
+                : 'text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-900 border border-transparent'
+            } ${!isExpanded ? 'justify-center' : ''}`}
+            title={!isExpanded ? 'Billing & Plans' : undefined}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                  pathname === '/billing'
+                    ? 'bg-white/20 text-white dark:bg-black/20 dark:text-zinc-950'
+                    : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800'
+                }`}
+              >
+                <CreditCard className="w-4 h-4" />
+              </div>
+              {isExpanded && <span className="truncate text-left text-sm font-bold">Billing & Plans</span>}
+            </div>
+
+            {isExpanded && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                Active
+              </span>
+            )}
+          </Link>
         </div>
 
         {/* Developer Tools Section */}
