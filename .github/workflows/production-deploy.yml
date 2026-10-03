@@ -431,21 +431,12 @@ jobs:
               printf '\nLINKEDIN_API_VERSION=202507\n' >> .env
             fi
 
-            # 4e. CORE_DATABASE_URL — Ensure dedicated Postgres schema namespace isolation for 180 Core
-            if ! grep -q '^CORE_DATABASE_URL=.\+' .env; then
-              DB_BASE=$(grep '^DATABASE_URL=' .env | head -n1 | cut -d= -f2- | tr -d '"' | tr -d "'")
-              if [ -n "$DB_BASE" ]; then
-                if echo "$DB_BASE" | grep -q 'schema='; then
-                  CORE_DB=$(echo "$DB_BASE" | sed 's/schema=[^&]*/schema=180core/')
-                elif echo "$DB_BASE" | grep -q '\?'; then
-                  CORE_DB="${DB_BASE}&schema=180core"
-                else
-                  CORE_DB="${DB_BASE}?schema=180core"
-                fi
-                printf '\nCORE_DATABASE_URL="%s"\n' "$CORE_DB" >> .env
-                echo "==> CORE_DATABASE_URL isolated with 180core schema namespace."
-              fi
-            fi
+            # 4e. CORE_DATABASE_URL & DEVELOPERS_DATABASE_URL — Strict isolated database 180core_db on RDS
+            sed -i '/^CORE_DATABASE_URL=/d' .env
+            sed -i '/^DEVELOPERS_DATABASE_URL=/d' .env
+            printf '\nCORE_DATABASE_URL="postgresql://pitchin_admin:Pitchin180Admin!23@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180core_db?sslmode=require&connection_limit=5&connect_timeout=60&pool_timeout=60"\n' >> .env
+            printf 'DEVELOPERS_DATABASE_URL="postgresql://pitchin_admin:Pitchin180Admin!23@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180core_db?sslmode=require&connection_limit=5&connect_timeout=60&pool_timeout=60"\n' >> .env
+            echo "==> CORE_DATABASE_URL and DEVELOPERS_DATABASE_URL configured for dedicated 180core_db."
 
             # 4f. SOCIAL_TOKEN_ENCRYPTION_KEY — AES-256-GCM Token Vault
             if ! grep -q '^SOCIAL_TOKEN_ENCRYPTION_KEY=.\+' .env; then

@@ -162,6 +162,22 @@ export class TrafficDirectorController {
         });
       }
 
+      // Check if user entered their target offer URL instead of safe page/gateway
+      const isTargetUrl = Boolean(link?.rules?.some((r: any) => {
+        if (!r.destinationUrl) return false;
+        const normTarget = targetUrl.replace(/\/+$/, '').toLowerCase();
+        const normDest = r.destinationUrl.replace(/\/+$/, '').toLowerCase();
+        return normTarget === normDest || normTarget.startsWith(normDest) || normDest.startsWith(normTarget);
+      }));
+
+      if (isTargetUrl) {
+        checks.push({
+          name: 'Target URL Misconfiguration Warning',
+          status: 'warning',
+          message: `You entered your Target Offer URL (${targetUrl}). The verification scanner is meant to test your Cloaked Gateway or Safe Page (where index.php or the tracking script is installed), NOT your destination offer/money page.`
+        });
+      }
+
       // Fetch the landing page
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -221,7 +237,7 @@ export class TrafficDirectorController {
           checks.push({
             name: 'Tag Detection & Head Placement',
             status: 'failed',
-            message: `Could not find the script tag matching "/tag/${cleanSlug}.js" or inline shield code in this page HTML.`
+            message: `Could not find a client-side <script> tag matching "/tag/${cleanSlug}.js" or inline shield code in this page HTML. (Note: If you deployed a Server-Side Gateway like index.php or WordPress hook, it operates 100% server-side with zero client-side scripts — this is normal and expected).`
           });
         }
 
@@ -252,9 +268,11 @@ export class TrafficDirectorController {
           statusCode,
           latencyMs,
           checks,
-          summary: isFullyVerified
-            ? 'All diagnostics passed! Your safe landing page is fully protected and ready for Meta / Google Ads review.'
-            : 'One or more diagnostic checks require your attention.'
+          summary: isTargetUrl 
+            ? `Warning: You tested your Target Offer URL (${targetUrl}). Please test your Safe Page or Gateway URL instead.`
+            : isFullyVerified
+              ? 'All diagnostics passed! Your safe landing page is fully protected and ready for Meta / Google Ads review.'
+              : 'One or more diagnostic checks require your attention.'
         });
 
       } catch (fetchError: any) {
