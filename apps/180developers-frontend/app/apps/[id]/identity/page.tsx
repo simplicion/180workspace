@@ -1,22 +1,21 @@
-import React, { Suspense } from 'react';
-import AppDetailClient from '../AppDetailClient';
-import { LogoLoader } from '@workspace/ui';
+'use client';
 
-export function generateStaticParams() {
-  return [{ id: 'default' }];
-}
+import React from 'react';
+import { AppShellLayout } from '@/components/common/AppShellLayout';
+import { IdentitySidebar } from '@/components/identity/IdentitySidebar';
+import { IdentityBottomNav } from '@/components/identity/IdentityBottomNav';
+import { IdentityOverviewView } from '@/components/identity/IdentityOverviewView';
 
-export default function IdentityDetailPage() {
+export default function IdentityOverviewPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
-          <LogoLoader size={40} className="w-10 h-10 text-blue-600 animate-spin" />
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Loading 180 Identity Dashboard...</p>
-        </div>
-      }
+    <AppShellLayout
+      sidebar={<IdentitySidebar />}
+      bottomNav={<IdentityBottomNav />}
+      title="180 Identity Overview"
+      badge="OAuth 2.0 / OIDC"
+      badgeColor="blue"
     >
-      <AppDetailClient initialView="identity" />
-    </Suspense>
+      <IdentityOverviewView />
+    </AppShellLayout>
   );
 }

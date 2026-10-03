@@ -1,22 +1,21 @@
-import React, { Suspense } from 'react';
-import AppDetailClient from '../AppDetailClient';
-import { LogoLoader } from '@workspace/ui';
+'use client';
 
-export function generateStaticParams() {
-  return [{ id: 'default' }];
-}
+import React from 'react';
+import { AppShellLayout } from '@/components/common/AppShellLayout';
+import { PaySidebar } from '@/components/pay/PaySidebar';
+import { PayBottomNav } from '@/components/pay/PayBottomNav';
+import { PayOverviewView } from '@/components/pay/PayOverviewView';
 
-export default function PayDetailPage() {
+export default function PayOverviewPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
-          <LogoLoader size={40} className="w-10 h-10 text-purple-600 animate-spin" />
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Loading 180 Pay Dashboard...</p>
-        </div>
-      }
+    <AppShellLayout
+      sidebar={<PaySidebar />}
+      bottomNav={<PayBottomNav />}
+      title="180 Pay Overview & Analytics"
+      badge="Checkout Engine"
+      badgeColor="purple"
     >
-      <AppDetailClient initialView="pay" />
-    </Suspense>
+      <PayOverviewView />
+    </AppShellLayout>
   );
 }

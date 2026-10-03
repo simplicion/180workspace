@@ -58,10 +58,19 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Sub-view navigation: overview shows app cards, identity/pay show their dedicated detail pages
+  // Sub-view navigation: overview shows app cards, identity/pay have dedicated sub-pages with sidebars
   const paramView = searchParams?.get('view') as 'overview' | 'identity' | 'pay' | null;
+
+  useEffect(() => {
+    if (paramView === 'identity' && appId) {
+      router.replace(`/apps/${appId}/identity`);
+    } else if (paramView === 'pay' && appId) {
+      router.replace(`/apps/${appId}/pay`);
+    }
+  }, [paramView, appId, router]);
+
   const [activeView, setActiveView] = useState<'overview' | 'identity' | 'pay'>(
-    initialView || paramView || 'overview'
+    initialView || 'overview'
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
@@ -70,10 +79,15 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
 
   const navigateView = (view: 'overview' | 'identity' | 'pay') => {
-    setActiveView(view);
-    if (typeof window !== 'undefined') {
-      const url = view === 'overview' ? `/apps/${appId}` : `/apps/${appId}?view=${view}`;
-      window.history.pushState(null, '', url);
+    if (view === 'identity') {
+      router.push(`/apps/${appId}/identity`);
+    } else if (view === 'pay') {
+      router.push(`/apps/${appId}/pay`);
+    } else {
+      setActiveView('overview');
+      if (typeof window !== 'undefined') {
+        window.history.pushState(null, '', `/apps/${appId}`);
+      }
     }
   };
 
