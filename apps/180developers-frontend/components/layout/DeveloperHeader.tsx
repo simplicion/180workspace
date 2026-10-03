@@ -42,7 +42,7 @@ export interface DeveloperHeaderProps {
 
 export function DeveloperHeader({
   onMobileToggle,
-  activeTabTitle = 'Applications',
+  activeTabTitle = 'Projects',
   activeTabId = 'apps',
   onTabChange,
   searchQuery,
@@ -140,10 +140,10 @@ export function DeveloperHeader({
             <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search applications..."
+              placeholder="Search projects..."
               value={searchQuery || ''}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-white/10 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-blue-500 transition-colors"
+              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-white/10 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors"
             />
           </div>
         )}
@@ -157,21 +157,21 @@ export function DeveloperHeader({
             onClick={() => onTabChange('playground')}
             className="hidden sm:inline-flex rounded-xl border-zinc-200/80 dark:border-white/10 text-xs font-semibold gap-1.5 min-h-[38px] hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
-            <Code2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <Code2 className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
             <span>Playground</span>
           </Button>
         )}
 
-        {/* Register App CTA */}
+        {/* Register Project CTA */}
         {onOpenRegisterModal && (
           <Button
             type="button"
             onClick={onOpenRegisterModal}
             size="sm"
-            className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 flex items-center gap-1.5 min-h-[38px] cursor-pointer"
+            className="rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 font-bold text-xs shadow-xs flex items-center gap-1.5 min-h-[38px] cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Register App</span>
+            <span className="hidden sm:inline">Register Project</span>
             <span className="sm:hidden">New</span>
           </Button>
         )}
@@ -192,7 +192,7 @@ export function DeveloperHeader({
               <span className="text-xs font-bold text-zinc-900 dark:text-white max-w-[90px] truncate hidden md:inline">
                 {userProfile.name || 'Developer'}
               </span>
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+              <div className="w-7 h-7 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center font-bold text-xs shadow-xs border border-zinc-700/50 dark:border-white/20">
                 {userProfile.name?.[0]?.toUpperCase() ||
                   userProfile.email?.[0]?.toUpperCase() ||
                   'D'}
@@ -214,7 +214,7 @@ export function DeveloperHeader({
                     {userProfile.email || 'developer@180workspace.com'}
                   </p>
                   {userProfile.username && (
-                    <span className="inline-block mt-1 text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+                    <span className="inline-block mt-1 text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
                       @{userProfile.username}
                     </span>
                   )}

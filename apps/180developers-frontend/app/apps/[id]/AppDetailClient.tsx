@@ -63,6 +63,9 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
     initialView || paramView || 'overview'
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [apps, setApps] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   const navigateView = (view: 'overview' | 'identity' | 'pay') => {
     setActiveView(view);
@@ -414,6 +417,46 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
       fetchBankDetails();
     }
   }, [appId]);
+
+  useEffect(() => {
+    const fetchAllAppsAndProfile = async () => {
+      try {
+        const token = localStorage.getItem('platform_auth_token');
+        if (!token) return;
+        const apiBase = getApiBase();
+
+        const cachedUser = localStorage.getItem('user');
+        if (cachedUser) {
+          try {
+            setUserProfile(JSON.parse(cachedUser));
+          } catch (_) {}
+        }
+
+        let listRes = await fetchWithTimeout(`${apiBase}/api/v1/identity/developer/apps`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!listRes || !listRes.ok) {
+          listRes = await fetchWithTimeout(`${apiBase}/api/oauth/developer/apps`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        }
+        if (listRes && listRes.ok) {
+          const listData = await listRes.json();
+          const parsed = (listData.apps || listData || []).map((a: any) => ({
+            id: a.id,
+            name: a.name,
+            clientId: a.clientId,
+            logoUrl: a.logoUrl,
+            enableAuth: a.enableAuth ?? true,
+            enablePay: a.enablePay ?? true,
+          }));
+          setApps(parsed);
+        }
+      } catch (_) {}
+    };
+
+    fetchAllAppsAndProfile();
+  }, []);
 
   const fetchPayouts = async () => {
     try {
@@ -806,10 +849,35 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
 
   if (loading) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto py-8">
-        <div className="h-8 w-48 bg-zinc-200 dark:bg-zinc-800 rounded-xl animate-pulse" />
-        <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 shadow-sm">
-          <UniversalSkeleton type="form" />
+      <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 flex transition-colors duration-200">
+        <DeveloperSidebar
+          activeTab="apps"
+          onTabChange={(tab) => router.push(`/dashboard?tab=${tab}`)}
+          isMobileOpen={false}
+          onMobileClose={() => {}}
+          appCount={apps.length || 1}
+          apps={apps}
+          currentAppId={appId}
+          onExpandChange={setIsSidebarExpanded}
+          userProfile={userProfile}
+          onSignOut={() => {
+            localStorage.removeItem('platform_auth_token');
+            router.push('/');
+          }}
+        />
+        <div
+          className={`flex-1 ${
+            isSidebarExpanded
+              ? 'lg:ml-[280px] lg:w-[calc(100%-280px)]'
+              : 'lg:ml-[80px] lg:w-[calc(100%-80px)]'
+          } flex flex-col min-h-screen transition-all duration-300 ease-in-out`}
+        >
+          <div className="p-8 max-w-5xl mx-auto w-full space-y-6">
+            <div className="h-8 w-48 bg-zinc-200 dark:bg-zinc-800 rounded-xl animate-pulse" />
+            <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 shadow-sm">
+              <UniversalSkeleton type="form" />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -817,11 +885,13 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
 
   if (!app) {
     return (
-      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-12 text-center space-y-4 max-w-lg mx-auto shadow-sm dark:shadow-2xl">
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">Application not found</p>
-        <Link href="/dashboard" className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline">
-          Return to Applications List
-        </Link>
+      <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 flex items-center justify-center p-4">
+        <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-12 text-center space-y-4 max-w-lg mx-auto shadow-sm dark:shadow-2xl">
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">Project not found</p>
+          <Link href="/dashboard" className="text-xs text-zinc-900 dark:text-white font-bold hover:underline">
+            Return to Projects List
+          </Link>
+        </div>
       </div>
     );
   }
@@ -833,21 +903,36 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
         onTabChange={(tab) => router.push(`/dashboard?tab=${tab}`)}
         isMobileOpen={isMobileMenuOpen}
         onMobileClose={() => setIsMobileMenuOpen(false)}
-        appCount={1}
+        appCount={apps.length || 1}
+        apps={apps}
+        currentAppId={appId}
+        onExpandChange={setIsSidebarExpanded}
+        userProfile={userProfile}
         onSignOut={() => {
           localStorage.removeItem('platform_auth_token');
           router.push('/');
         }}
       />
-      <div className="flex-1 lg:ml-64 lg:w-[calc(100%-16rem)] flex flex-col min-h-screen">
+      <div
+        className={`flex-1 ${
+          isSidebarExpanded
+            ? 'lg:ml-[280px] lg:w-[calc(100%-280px)]'
+            : 'lg:ml-[80px] lg:w-[calc(100%-80px)]'
+        } flex flex-col min-h-screen transition-all duration-300 ease-in-out`}
+      >
         <DeveloperHeader
           onMobileToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           activeTabTitle={app.name}
           onTabChange={(tab) => router.push(`/dashboard?tab=${tab}`)}
+          userProfile={userProfile}
           breadcrumbs={[
-            { label: 'Applications', href: '/dashboard' },
+            { label: 'Projects', href: '/dashboard' },
             { label: app.name },
           ]}
+          onSignOut={() => {
+            localStorage.removeItem('platform_auth_token');
+            router.push('/');
+          }}
         />
         <main className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full space-y-8 flex-1">
           {/* Dynamic Header */}
@@ -855,26 +940,26 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
             {activeView === 'overview' ? (
               <Link
                 href="/dashboard"
-                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 transition-colors"
+                className="text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:underline flex items-center gap-1.5 transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to Applications</span>
+                <span>Back to Projects</span>
               </Link>
-        ) : (
-          <button
-            type="button"
-            onClick={() => navigateView('overview')}
-            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to {app.name}</span>
-          </button>
-        )}
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigateView('overview')}
+                className="text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:underline flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to {app.name}</span>
+              </button>
+            )}
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-zinc-950 dark:text-white tracking-tight">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-zinc-950 dark:text-white tracking-tight">
                 {activeView === 'overview' ? app.name : activeView === 'identity' ? '180 Identity' : '180 Pay'}
               </h1>
               {activeView === 'overview' && app.isVerified && <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}

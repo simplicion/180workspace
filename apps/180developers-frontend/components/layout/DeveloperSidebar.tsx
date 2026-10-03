@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import {
@@ -12,8 +12,12 @@ import {
   X,
   ExternalLink,
   Plus,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  FolderGit2,
 } from 'lucide-react';
-import { AILogoIcon, Button } from '@workspace/ui';
+import { Button } from '@workspace/ui';
 
 export interface DeveloperSidebarProps {
   activeTab: string;
@@ -27,10 +31,21 @@ export interface DeveloperSidebarProps {
   } | null;
   onSignOut: () => void;
   appCount: number;
+  apps?: {
+    id: string;
+    name: string;
+    clientId: string;
+    enableAuth?: boolean;
+    enablePay?: boolean;
+    clientType?: string;
+    logoUrl?: string;
+  }[];
+  currentAppId?: string;
   onOpenRegisterModal?: () => void;
+  onExpandChange?: (expanded: boolean) => void;
 }
 
-interface NavItem {
+interface NavToolItem {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -38,11 +53,6 @@ interface NavItem {
   badgeColor?: 'blue' | 'emerald' | 'purple' | 'amber' | 'zinc';
   isExternal?: boolean;
   href?: string;
-}
-
-interface NavSection {
-  title: string;
-  items: NavItem[];
 }
 
 export function DeveloperSidebar({
@@ -53,54 +63,64 @@ export function DeveloperSidebar({
   userProfile,
   onSignOut,
   appCount,
+  apps = [],
+  currentAppId,
   onOpenRegisterModal,
+  onExpandChange,
 }: DeveloperSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const isInsideAppDetail = pathname.startsWith('/apps');
 
-  const navSections: NavSection[] = [
-    {
-      title: 'Command',
-      items: [
-        {
-          id: 'apps',
-          label: 'Applications',
-          icon: Layers,
-          badge: appCount > 0 ? `${appCount}` : undefined,
-          badgeColor: 'blue',
-        },
-      ],
-    },
-    {
-      title: 'Developer Tools',
-      items: [
-        {
-          id: 'playground',
-          label: 'API Playground',
-          icon: Code2,
-          badge: 'Interactive',
-          badgeColor: 'amber',
-        },
-        {
-          id: 'webhooks',
-          label: 'Webhook Simulator',
-          icon: Webhook,
-          badge: 'HMAC-SHA256',
-          badgeColor: 'purple',
-        },
-        {
-          id: 'docs',
-          label: 'API Docs & SDKs',
-          icon: FileCode2,
-          isExternal: true,
-          href: '/docs',
-        },
-      ],
-    },
-  ];
+  // Sidebar collapse & hover states (matching 180workspace platform behavior)
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isProjectsOpen, setIsProjectsOpen] = useState(true);
 
-  const handleItemClick = (item: NavItem) => {
+  // Initialize collapse preference from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('dev_sidebar_collapsed');
+      if (saved !== null) {
+        setIsCollapsed(saved === 'true');
+      } else {
+        setIsCollapsed(true);
+      }
+    } catch (_) {}
+  }, []);
+
+  const isExpanded = !isCollapsed || isHovered;
+
+  // Notify parent container of expansion change to synchronize viewport margin
+  useEffect(() => {
+    onExpandChange?.(isExpanded);
+  }, [isExpanded, onExpandChange]);
+
+  const toggleCollapse = () => {
+    const next = !isCollapsed;
+    setIsCollapsed(next);
+    try {
+      localStorage.setItem('dev_sidebar_collapsed', String(next));
+    } catch (_) {}
+  };
+
+  const isProjectsActive = activeTab === 'apps' || isInsideAppDetail;
+
+  const handleRegisterNewProject = () => {
+    if (onOpenRegisterModal) {
+      onOpenRegisterModal();
+    } else {
+      window.dispatchEvent(new CustomEvent('open-register-modal'));
+      if (isInsideAppDetail) {
+        router.push('/dashboard?tab=apps&register=true');
+      } else {
+        onTabChange('apps');
+      }
+    }
+    onMobileClose();
+  };
+
+  const handleToolClick = (item: NavToolItem) => {
     if (item.isExternal && item.href) {
       router.push(item.href);
       onMobileClose();
@@ -115,7 +135,31 @@ export function DeveloperSidebar({
     onMobileClose();
   };
 
-  const getBadgeClasses = (color: NavItem['badgeColor'] = 'zinc') => {
+  const developerTools: NavToolItem[] = [
+    {
+      id: 'playground',
+      label: 'API Playground',
+      icon: Code2,
+      badge: 'Interactive',
+      badgeColor: 'amber',
+    },
+    {
+      id: 'webhooks',
+      label: 'Webhook Simulator',
+      icon: Webhook,
+      badge: 'HMAC-SHA256',
+      badgeColor: 'purple',
+    },
+    {
+      id: 'docs',
+      label: 'API Docs & SDKs',
+      icon: FileCode2,
+      isExternal: true,
+      href: '/docs',
+    },
+  ];
+
+  const getBadgeClasses = (color: NavToolItem['badgeColor'] = 'zinc') => {
     switch (color) {
       case 'blue':
         return 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800';
@@ -130,31 +174,59 @@ export function DeveloperSidebar({
     }
   };
 
-  const content = (
-    <div className="flex flex-col h-full bg-white dark:bg-[#101012] border-r border-zinc-200/80 dark:border-white/10 select-none">
-      {/* Brand Header */}
-      <div className="p-4 sm:p-5 border-b border-zinc-200/80 dark:border-white/10 flex items-center justify-between gap-3 shrink-0">
-        <Link
-          href="/"
-          className="flex items-center gap-3 group min-h-[44px] focus:outline-none"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-[1.5px] shadow-sm group-hover:scale-105 transition-all duration-300 shrink-0">
-            <div className="w-full h-full bg-white dark:bg-[#101012] rounded-[14px] flex items-center justify-center p-2">
-              <AILogoIcon className="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300 shrink-0" />
-            </div>
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-base tracking-tight text-zinc-950 dark:text-white">
-                180<span className="text-blue-600 dark:text-blue-400 font-semibold ml-0.5">Developers</span>
-              </span>
-            </div>
-            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium tracking-wide flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              Sovereign Console
-            </p>
-          </div>
-        </Link>
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-white/95 dark:bg-[#101012] backdrop-blur-xl border-r border-zinc-200/80 dark:border-white/10 select-none overflow-x-hidden">
+      {/* 1. Header with Official 180 Logo & Expand/Collapse Toggle */}
+      <div className="p-3.5 border-b border-zinc-200/80 dark:border-white/10 flex items-center justify-between gap-2 shrink-0 min-h-[64px]">
+        {isExpanded ? (
+          <>
+            <Link
+              href="/dashboard"
+              onClick={onMobileClose}
+              className="flex items-center gap-2.5 p-1 rounded-xl group transition-all min-h-[44px] min-w-0"
+            >
+              <div className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/10 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+                <img
+                  src="/black-icon.svg"
+                  alt="180 Developers"
+                  className="w-5 h-5 object-contain dark:invert"
+                />
+              </div>
+              <div className="min-w-0">
+                <span className="font-extrabold text-base tracking-tight text-zinc-950 dark:text-white whitespace-nowrap block">
+                  180 Developers
+                </span>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium tracking-wide flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  Console
+                </span>
+              </div>
+            </Link>
+
+            <button
+              type="button"
+              onClick={toggleCollapse}
+              className="hidden lg:flex p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0 cursor-pointer"
+              title={isCollapsed ? 'Pin Sidebar Expanded' : 'Collapse Sidebar'}
+              aria-label="Toggle Sidebar Collapse"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <Link
+            href="/dashboard"
+            onClick={onMobileClose}
+            className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/10 flex items-center justify-center mx-auto hover:scale-105 transition-all shadow-xs"
+            title="180 Developers"
+          >
+            <img
+              src="/black-icon.svg"
+              alt="180 Developers"
+              className="w-5 h-5 object-contain dark:invert"
+            />
+          </Link>
+        )}
 
         {/* Mobile close button */}
         <button
@@ -168,58 +240,196 @@ export function DeveloperSidebar({
         </button>
       </div>
 
-      {/* Quick Action: Register App CTA */}
-      {onOpenRegisterModal && (
-        <div className="px-3 pt-3 pb-1 shrink-0">
-          <Button
-            onClick={() => {
-              onOpenRegisterModal();
-              onMobileClose();
-            }}
-            size="sm"
-            className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer min-h-[42px]"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Register New App</span>
-          </Button>
-        </div>
-      )}
-
-      {/* Navigation Sections */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-5 text-xs">
-        {navSections.map((section) => (
-          <div key={section.title} className="space-y-1">
-            <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">
-              {section.title}
+      {/* 2. Navigation List */}
+      <nav className="flex-1 overflow-y-auto px-2.5 py-4 space-y-5 text-xs hidden-scrollbar">
+        {/* Projects Section with Sub-Dropdown */}
+        <div className="space-y-1">
+          {isExpanded && (
+            <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+              Command
             </p>
-            {section.items.map((item) => {
-              const isActive =
-                !item.isExternal &&
-                (activeTab === item.id || (item.id === 'apps' && isInsideAppDetail));
-              const Icon = item.icon;
+          )}
 
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleItemClick(item)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 font-semibold group cursor-pointer min-h-[44px] ${
-                    isActive
-                      ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-500/30 shadow-xs'
-                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-900 border border-transparent'
+          {/* Main "Projects" Dropdown Trigger */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!isExpanded) {
+                if (isInsideAppDetail) {
+                  router.push('/dashboard?tab=apps');
+                } else {
+                  onTabChange('apps');
+                }
+                return;
+              }
+              setIsProjectsOpen(!isProjectsOpen);
+            }}
+            className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all duration-200 font-semibold group cursor-pointer min-h-[44px] ${
+              isProjectsActive
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-xs'
+                : 'text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-900 border border-transparent'
+            } ${!isExpanded ? 'justify-center' : ''}`}
+            title={!isExpanded ? 'Projects' : undefined}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                  isProjectsActive
+                    ? 'bg-white/20 text-white dark:bg-black/20 dark:text-zinc-950'
+                    : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+              </div>
+              {isExpanded && <span className="truncate text-left text-sm font-bold">Projects</span>}
+            </div>
+
+            {isExpanded && (
+              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                {appCount > 0 && (
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      isProjectsActive
+                        ? 'bg-white/20 text-white dark:bg-black/20 dark:text-zinc-950'
+                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700'
+                    }`}
+                  >
+                    {appCount}
+                  </span>
+                )}
+                <ChevronDown
+                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                    isProjectsOpen ? 'rotate-180' : ''
                   }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Icon
-                      className={`w-4 h-4 shrink-0 transition-colors ${
-                        isActive
-                          ? 'text-blue-600 dark:text-blue-400'
-                          : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
-                      }`}
-                    />
-                    <span className="truncate text-left">{item.label}</span>
-                  </div>
+                />
+              </div>
+            )}
+          </button>
 
+          {/* Sub-menu: Register Project & List of Projects */}
+          {isExpanded && isProjectsOpen && (
+            <div className="space-y-1 pl-4 pr-1 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+              {/* Option 1: Register New Project */}
+              <button
+                type="button"
+                onClick={handleRegisterNewProject}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 border border-dashed border-zinc-300 dark:border-zinc-700 transition-colors cursor-pointer min-h-[38px] group"
+              >
+                <div className="w-5 h-5 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center shrink-0">
+                  <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-200" />
+                </div>
+                <span className="truncate">Register New Project</span>
+              </button>
+
+              {/* Option 2: Registered Projects List */}
+              {apps && apps.length > 0 ? (
+                <div className="space-y-0.5 pt-1">
+                  {apps.map((proj) => {
+                    const isSelected =
+                      currentAppId === proj.id ||
+                      pathname === `/apps/${proj.id}` ||
+                      pathname.startsWith(`/apps/${proj.id}/`);
+                    return (
+                      <Link
+                        key={proj.id}
+                        href={`/apps/${proj.id}`}
+                        onClick={onMobileClose}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all min-h-[36px] group/item ${
+                          isSelected
+                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-bold shadow-2xs'
+                            : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60'
+                        }`}
+                        title={proj.name}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                              isSelected
+                                ? 'bg-white dark:bg-zinc-950'
+                                : 'bg-zinc-300 dark:bg-zinc-600 group-hover/item:bg-zinc-500'
+                            }`}
+                          />
+                          <span className="truncate">{proj.name}</span>
+                        </div>
+
+                        {/* Active Apps Under Project Badges */}
+                        <div className="flex items-center gap-1 shrink-0 ml-1.5">
+                          {proj.enableAuth && (
+                            <span
+                              className={`text-[9px] px-1.5 py-0.5 rounded font-mono border ${
+                                isSelected
+                                  ? 'bg-white/20 text-white dark:bg-black/15 dark:text-zinc-950 border-white/20 dark:border-black/20'
+                                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700'
+                              }`}
+                              title="180 Identity Enabled"
+                            >
+                              Auth
+                            </span>
+                          )}
+                          {proj.enablePay && (
+                            <span
+                              className={`text-[9px] px-1.5 py-0.5 rounded font-mono border ${
+                                isSelected
+                                  ? 'bg-white/20 text-white dark:bg-black/15 dark:text-zinc-950 border-white/20 dark:border-black/20'
+                                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700'
+                              }`}
+                              title="180 Pay Enabled"
+                            >
+                              Pay
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-3 py-2 text-[11px] text-zinc-400 dark:text-zinc-600 italic">
+                  No registered projects yet
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Developer Tools Section */}
+        <div className="space-y-1 pt-2">
+          {isExpanded && (
+            <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+              Developer Tools
+            </p>
+          )}
+
+          {developerTools.map((item) => {
+            const isActive = !item.isExternal && activeTab === item.id;
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleToolClick(item)}
+                className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all duration-200 font-semibold group cursor-pointer min-h-[44px] ${
+                  isActive
+                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-xs'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-900 border border-transparent'
+                } ${!isExpanded ? 'justify-center' : ''}`}
+                title={!isExpanded ? item.label : undefined}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      isActive
+                        ? 'bg-white/20 text-white dark:bg-black/20 dark:text-zinc-950'
+                        : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  {isExpanded && <span className="truncate text-left">{item.label}</span>}
+                </div>
+
+                {isExpanded && (
                   <div className="flex items-center gap-1.5 shrink-0 ml-2">
                     {item.badge && (
                       <span
@@ -234,48 +444,68 @@ export function DeveloperSidebar({
                       <ExternalLink className="w-3.5 h-3.5 text-zinc-400 opacity-60" />
                     )}
                   </div>
-                </button>
-              );
-            })}
-          </div>
-        ))}
+                )}
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
-      {/* Developer Account Profile Widget */}
+      {/* 3. Developer Account Profile Widget */}
       <div className="p-3 border-t border-zinc-200/80 dark:border-white/10 bg-zinc-50/50 dark:bg-zinc-950/50 shrink-0">
-        <div className="flex items-center gap-2.5 p-2 rounded-2xl bg-white dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-white/10 shadow-xs">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
-            {userProfile?.name?.[0]?.toUpperCase() ||
-              userProfile?.email?.[0]?.toUpperCase() ||
-              'D'}
+        {isExpanded ? (
+          <div className="flex items-center gap-2.5 p-2 rounded-2xl bg-white dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-white/10 shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center font-bold text-xs shrink-0 shadow-xs border border-zinc-700/50 dark:border-white/20">
+              {userProfile?.name?.[0]?.toUpperCase() ||
+                userProfile?.email?.[0]?.toUpperCase() ||
+                'D'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">
+                {userProfile?.name || 'Developer'}
+              </p>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate font-mono">
+                {userProfile?.email || '@developer'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onSignOut}
+              title="Sign Out of Developer Console"
+              aria-label="Sign Out"
+              className="p-2 rounded-xl text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors shrink-0 min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">
-              {userProfile?.name || 'Developer'}
-            </p>
-            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate font-mono">
-              {userProfile?.email || '@developer'}
-            </p>
-          </div>
+        ) : (
           <button
             type="button"
             onClick={onSignOut}
-            title="Sign Out of Developer Console"
+            title={userProfile?.name ? `Sign Out (${userProfile.name})` : 'Sign Out'}
             aria-label="Sign Out"
-            className="p-2 rounded-xl text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors shrink-0 min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
+            className="w-10 h-10 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center font-bold text-xs mx-auto shadow-xs border border-zinc-700/50 dark:border-white/20 hover:opacity-90 transition-opacity cursor-pointer"
           >
-            <LogOut className="w-4 h-4" />
+            {userProfile?.name?.[0]?.toUpperCase() ||
+              userProfile?.email?.[0]?.toUpperCase() ||
+              'D'}
           </button>
-        </div>
+        )}
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
-      <aside className="hidden lg:flex w-64 lg:w-72 flex-col fixed inset-y-0 left-0 z-40 shadow-xs">
-        {content}
+      {/* Desktop Persistent Sidebar with Hover Expand (matching 180workspace) */}
+      <aside
+        onMouseEnter={() => isCollapsed && setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={`hidden lg:flex flex-col fixed inset-y-0 left-0 z-40 shadow-xs transition-all duration-300 ease-in-out ${
+          isExpanded ? 'w-[280px]' : 'w-[80px]'
+        }`}
+      >
+        {sidebarContent}
       </aside>
 
       {/* Mobile Drawer Overlay */}
@@ -288,7 +518,7 @@ export function DeveloperSidebar({
             className="w-72 max-w-[85vw] h-full shadow-2xl transition-transform duration-300 animate-in slide-in-from-left"
             onClick={(e) => e.stopPropagation()}
           >
-            {content}
+            {sidebarContent}
           </div>
         </div>
       )}

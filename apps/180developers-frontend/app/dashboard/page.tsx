@@ -96,6 +96,7 @@ function DeveloperDashboardContent() {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'confidential' | 'public'>('all');
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
   // 180 Identity SDK Hook
   const { launch180Identity, isOpeningIdentity } = use180Identity();
@@ -666,7 +667,7 @@ function DeveloperDashboardContent() {
 
   // Tab Title Map
   const tabTitles: Record<string, string> = {
-    apps: 'Applications',
+    apps: 'Projects',
     playground: 'API Playground',
     webhooks: 'Webhook Simulator',
   };
@@ -758,7 +759,7 @@ function DeveloperDashboardContent() {
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 flex transition-colors duration-200">
-      {/* 1. Left Side Menu Navigation */}
+      {/* 1. Left Side Menu Navigation with Hover Expand */}
       <DeveloperSidebar
         activeTab={activeTab}
         onTabChange={handleTabChange}
@@ -767,15 +768,23 @@ function DeveloperDashboardContent() {
         userProfile={userProfile}
         onSignOut={handleSignOut}
         appCount={apps.length}
+        apps={apps}
         onOpenRegisterModal={() => setShowCreateModal(true)}
+        onExpandChange={setIsSidebarExpanded}
       />
 
       {/* 2. Main Viewport Container */}
-      <div className="flex-1 lg:ml-64 lg:w-[calc(100%-16rem)] flex flex-col min-h-screen transition-all duration-300">
+      <div
+        className={`flex-1 ${
+          isSidebarExpanded
+            ? 'lg:ml-[280px] lg:w-[calc(100%-280px)]'
+            : 'lg:ml-[80px] lg:w-[calc(100%-80px)]'
+        } flex flex-col min-h-screen transition-all duration-300 ease-in-out`}
+      >
         {/* Sticky Top Command Header */}
         <DeveloperHeader
           onMobileToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          activeTabTitle={tabTitles[activeTab] || 'Applications'}
+          activeTabTitle={tabTitles[activeTab] || 'Projects'}
           activeTabId={activeTab}
           onTabChange={handleTabChange}
           searchQuery={searchQuery}
@@ -785,16 +794,10 @@ function DeveloperDashboardContent() {
           onSignOut={handleSignOut}
         />
 
-        {/* Ambient SaaS Background Glows */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden flex justify-center z-0">
-          <div className="absolute top-[-10%] right-[-5%] w-[45vw] h-[45vw] rounded-full bg-blue-600/5 dark:bg-blue-600/10 blur-[130px]" />
-          <div className="absolute bottom-[-10%] left-[20%] w-[40vw] h-[40vw] rounded-full bg-purple-600/5 dark:bg-purple-600/10 blur-[140px]" />
-        </div>
-
         {/* Dynamic Dashboard Page Content */}
         <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-8 flex-1 relative z-10">
           {/* ─────────────────────────────────────────────────────────────────────────
-              TAB 1: APPLICATIONS (Default Console List)
+              TAB 1: PROJECTS (Default Console List)
               ───────────────────────────────────────────────────────────────────────── */}
           {activeTab === 'apps' && (
             <div className="space-y-6 animate-in fade-in duration-200">
@@ -803,14 +806,14 @@ function DeveloperDashboardContent() {
                 <div>
                   <div className="flex items-center gap-2.5">
                     <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">
-                      Developer Applications
+                      Developer Projects
                     </h1>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300/80 dark:border-white/10">
-                      {apps.length} {apps.length === 1 ? 'App' : 'Apps'}
+                      {apps.length} {apps.length === 1 ? 'Project' : 'Projects'}
                     </span>
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    Manage registered OAuth 2.0 clients, client credentials, and webhook endpoints for{' '}
+                    Manage your registered projects and activate sovereign apps (180 Identity & 180 Pay) for{' '}
                     <strong className="text-zinc-900 dark:text-zinc-200">
                       {userProfile?.name || 'Developer'}
                     </strong>
@@ -834,7 +837,7 @@ function DeveloperDashboardContent() {
                     className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 flex items-center gap-2 cursor-pointer min-h-[40px]"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Register New App</span>
+                    <span>Register New Project</span>
                   </Button>
                 </div>
               </div>
@@ -843,14 +846,14 @@ function DeveloperDashboardContent() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <div className="p-6 rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] shadow-xs space-y-2">
                   <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                    <span>Total Registered Apps</span>
+                    <span>Total Registered Projects</span>
                     <Layers className="w-4 h-4 text-blue-500" />
                   </div>
                   <div className="text-3xl font-extrabold text-zinc-950 dark:text-white">
                     {apps.length}
                   </div>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    Live OAuth 2.0 Clients
+                    Live 180 Projects
                   </p>
                 </div>
 
@@ -1345,12 +1348,12 @@ function DeveloperDashboardContent() {
       </div>
 
       {/* ─────────────────────────────────────────────────────────────────────────────
-          CENTRALIZED DRAWER: REGISTER NEW APPLICATION
+          CENTRALIZED DRAWER: REGISTER NEW PROJECT
           ───────────────────────────────────────────────────────────────────────────── */}
       <PlatformDrawer
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Register New OAuth Application"
+        title="Register New Project"
         icon={Plus}
         iconBgClass="bg-blue-500/10"
         iconColorClass="text-blue-600 dark:text-blue-400"
@@ -1359,7 +1362,7 @@ function DeveloperDashboardContent() {
         <form onSubmit={handleCreateApp} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-              Application Name <span className="text-red-500">*</span>
+              Project Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -1375,20 +1378,20 @@ function DeveloperDashboardContent() {
             <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Description</label>
             <input
               type="text"
-              placeholder="Short summary of what this application does"
+              placeholder="Short summary of what this project does"
               value={appDescription}
               onChange={(e) => setAppDescription(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>
 
-          {/* App Logo Upload */}
+          {/* Project Logo Upload */}
           <AppLogoUploader logoUrl={createLogoUrl} onChange={setCreateLogoUrl} />
 
-          {/* Core Services Selection */}
+          {/* Integrated Apps Selection */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-              Enabled Services & Capabilities
+              Activate Apps in this Project
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label
@@ -1536,7 +1539,7 @@ function DeveloperDashboardContent() {
               className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2 cursor-pointer min-h-[44px]"
             >
               {isCreating ? <LogoLoader className="w-4 h-4 animate-spin text-white" /> : <Plus className="w-4 h-4" />}
-              <span>Register Application</span>
+              <span>Register Project</span>
             </Button>
           </div>
         </form>
