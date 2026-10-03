@@ -145,13 +145,15 @@ export default function Navbar() {
         {/* Left: Clean Brand Logo */}
         <div className="flex items-center gap-6 shrink-0">
           <Link href="/" className="flex items-center gap-3 group min-h-[44px] shrink-0">
-            <div className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-[1px] shadow-xs group-hover:scale-105 transition-all duration-300 shrink-0">
-              <div className="w-full h-full bg-white dark:bg-[#101012] rounded-xl flex items-center justify-center p-1.5">
-                <AILogoIcon className="w-5 h-5 min-w-[20px] min-h-[20px] text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300 shrink-0" />
-              </div>
+            <div className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 flex items-center justify-center p-1.5 shadow-xs group-hover:scale-105 transition-all duration-300 shrink-0">
+              <img
+                src="/black-icon.svg"
+                alt="180 Developers"
+                className="w-5 h-5 min-w-[20px] min-h-[20px] object-contain dark:invert group-hover:scale-110 transition-transform duration-300 shrink-0"
+              />
             </div>
-            <span className="font-bold text-base tracking-tight text-zinc-950 dark:text-white flex items-center">
-              180<span className="text-blue-600 dark:text-blue-400 font-semibold ml-0.5">Developers</span>
+            <span className="font-extrabold text-base tracking-tight text-zinc-950 dark:text-white flex items-center">
+              180 Developers
             </span>
           </Link>
         </div>
