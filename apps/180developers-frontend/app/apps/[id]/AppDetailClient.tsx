@@ -6,12 +6,12 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   CheckCircle2,
+  Settings,
+  Copy,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   UniversalSkeleton,
-  FavoriteButton,
-  HelpIcon,
 } from '@workspace/ui';
 import { OneEightyIdentity, OneEightyPay } from '@workspace/identity-sdk';
 import {
@@ -21,6 +21,7 @@ import {
   IdentityAppDetail,
   PayAppDetail,
   AppModals,
+  ProjectSettingsDrawer,
 } from '@/components/apps';
 import DeveloperSidebar from '@/components/layout/DeveloperSidebar';
 import DeveloperHeader from '@/components/layout/DeveloperHeader';
@@ -66,6 +67,7 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [apps, setApps] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
 
   const navigateView = (view: 'overview' | 'identity' | 'pay') => {
     setActiveView(view);
@@ -960,85 +962,89 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl sm:text-3xl font-bold text-zinc-950 dark:text-white tracking-tight">
-                {activeView === 'overview' ? app.name : activeView === 'identity' ? '180 Identity' : '180 Pay'}
-              </h1>
-              {activeView === 'overview' && app.isVerified && <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
-              {activeView === 'overview' && (
-                <FavoriteButton
-                  recordId={app.id}
-                  type="Project"
-                  label={app.name}
-                  href={`/apps/${app.id}`}
-                  className="min-h-[36px] min-w-[36px] p-1.5"
-                />
-              )}
-              {activeView === 'identity' && (
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${enableAuth ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500'}`}>
-                  {enableAuth ? 'Active' : 'Disabled'}
-                </span>
-              )}
-              {activeView === 'pay' && (
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${enablePay ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500'}`}>
-                  {enablePay ? 'Active' : 'Disabled'}
-                </span>
-              )}
-              {activeView === 'overview' && (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  Active
-                </span>
-              )}
+                    {activeView === 'overview' ? app.name : activeView === 'identity' ? '180 Identity' : '180 Pay'}
+                  </h1>
+                  {activeView === 'overview' && app.isVerified && <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+                  {activeView === 'identity' && (
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${enableAuth ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500'}`}>
+                      {enableAuth ? 'Active' : 'Disabled'}
+                    </span>
+                  )}
+                  {activeView === 'pay' && (
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${enablePay ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500'}`}>
+                      {enablePay ? 'Active' : 'Disabled'}
+                    </span>
+                  )}
+                  {activeView === 'overview' && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      Active
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+                    {activeView === 'overview'
+                      ? `Client ID: ${app.clientId}`
+                      : activeView === 'identity'
+                      ? 'Universal login, WhatsApp OTP, Google SSO & sovereign @usernames'
+                      : 'Sovereign Wallet & UPI checkout with 2-way verification'}
+                  </p>
+                  {activeView === 'overview' && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(app.clientId, 'client_hdr')}
+                      className="text-zinc-400 hover:text-zinc-950 dark:hover:text-white p-0.5 rounded transition-colors cursor-pointer"
+                      title="Copy Client ID"
+                    >
+                      {copiedKey === 'client_hdr' ? (
+                        <span className="text-[10px] text-emerald-500 font-sans font-bold">Copied</span>
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href="/docs"
+                  className="px-4 py-2 min-h-[44px] flex items-center rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white shadow-sm transition-all"
+                >
+                  SDK Documentation
+                </Link>
+                {activeView === 'overview' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsDrawerOpen(true)}
+                    className="px-3.5 py-2 min-h-[44px] flex items-center gap-2 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white shadow-sm transition-all cursor-pointer group"
+                    title="Project Settings"
+                    aria-label="Open Project Settings"
+                  >
+                    <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform duration-300" />
+                    <span>Settings</span>
+                  </button>
+                )}
+              </div>
             </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-mono">
-              {activeView === 'overview'
-                ? `Client ID: ${app.clientId}`
-                : activeView === 'identity'
-                ? 'Universal login, WhatsApp OTP, Google SSO & sovereign @usernames'
-                : 'Sovereign Wallet & UPI checkout with 2-way verification'}
-            </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <HelpIcon slug="developer-app-settings" helpText="Application configuration guide" className="min-h-[44px] min-w-[44px]" />
-            <Link
-              href="/docs"
-              className="px-4 py-2 min-h-[44px] flex items-center rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white shadow-sm transition-all"
-            >
-              SDK Documentation
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          VIEW 1: OVERVIEW HUB (Credentials, Reusable App Cards, General Config)
-          ═══════════════════════════════════════════════════════════════════════ */}
-      {activeView === 'overview' && (
-        <AppOverviewDetail
-          app={app}
-          enableAuth={enableAuth}
-          enablePay={enablePay}
-          copiedKey={copiedKey}
-          copyToClipboard={copyToClipboard}
-          onOpenIdentity={() => navigateView('identity')}
-          onOpenPay={() => navigateView('pay')}
-          onRotateSecretClick={() => setShowRotateModal(true)}
-          name={name}
-          setName={setName}
-          description={description}
-          setDescription={setDescription}
-          logoUrl={logoUrl}
-          setLogoUrl={setLogoUrl}
-          redirectUrisInput={redirectUrisInput}
-          setRedirectUrisInput={setRedirectUrisInput}
-          allowedOriginsInput={allowedOriginsInput}
-          setAllowedOriginsInput={setAllowedOriginsInput}
-          onSave={handleSaveChanges}
-          saving={saving}
-          onRevokeTokens={handleRevokeTokens}
-          isRevoking={isRevoking}
-          onDeleteAppClick={() => setShowDeleteModal(true)}
-        />
-      )}
+          {/* ═══════════════════════════════════════════════════════════════════════
+              VIEW 1: OVERVIEW HUB (Credentials, Reusable App Cards, Quickstart)
+              ═══════════════════════════════════════════════════════════════════════ */}
+          {activeView === 'overview' && (
+            <AppOverviewDetail
+              app={app}
+              enableAuth={enableAuth}
+              enablePay={enablePay}
+              copiedKey={copiedKey}
+              copyToClipboard={copyToClipboard}
+              onOpenIdentity={() => navigateView('identity')}
+              onOpenPay={() => navigateView('pay')}
+              onRotateSecretClick={() => setShowRotateModal(true)}
+              onOpenSettings={() => setIsSettingsDrawerOpen(true)}
+            />
+          )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
           VIEW 2: DEDICATED 180 IDENTITY DETAIL PAGE
@@ -1175,6 +1181,39 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
         payoutAdminNote={payoutAdminNote}
         setPayoutAdminNote={setPayoutAdminNote}
         handleUpdateAdminPayoutStatus={handleUpdateAdminPayoutStatus}
+      />
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          UNIVERSAL PROJECT SETTINGS DRAWER
+          ═══════════════════════════════════════════════════════════════════════ */}
+      <ProjectSettingsDrawer
+        isOpen={isSettingsDrawerOpen}
+        onClose={() => setIsSettingsDrawerOpen(false)}
+        app={app}
+        name={name}
+        setName={setName}
+        description={description}
+        setDescription={setDescription}
+        logoUrl={logoUrl}
+        setLogoUrl={setLogoUrl}
+        redirectUrisInput={redirectUrisInput}
+        setRedirectUrisInput={setRedirectUrisInput}
+        allowedOriginsInput={allowedOriginsInput}
+        setAllowedOriginsInput={setAllowedOriginsInput}
+        onSave={handleSaveChanges}
+        saving={saving}
+        onRevokeTokens={handleRevokeTokens}
+        isRevoking={isRevoking}
+        onDeleteAppClick={() => {
+          setIsSettingsDrawerOpen(false);
+          setShowDeleteModal(true);
+        }}
+        copiedKey={copiedKey}
+        copyToClipboard={copyToClipboard}
+        onRotateSecretClick={() => {
+          setIsSettingsDrawerOpen(false);
+          setShowRotateModal(true);
+        }}
       />
         </main>
       </div>
