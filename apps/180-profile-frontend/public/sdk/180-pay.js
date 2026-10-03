@@ -168,6 +168,8 @@
       var drawerBaseStyles = [
         'position: relative',
         'width: 100%',
+        'display: flex',
+        'flex-direction: column',
         'background: #ffffff',
         'box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35)',
         'overflow: hidden',
@@ -194,7 +196,18 @@
       }
       drawer.style.cssText = drawerBaseStyles.join(';');
 
-      // 3. Drag Handle / Top Header for Bottom Sheet
+      // 3. Header bar with drag handle and close button (sits ABOVE iframe to avoid click-stealing)
+      var header = document.createElement('div');
+      header.style.cssText = [
+        'flex-shrink: 0',
+        'display: flex',
+        'align-items: center',
+        'justify-content: ' + (isBottomSheet ? 'center' : 'flex-end'),
+        'position: relative',
+        'padding: ' + (isBottomSheet ? '10px 14px 4px' : '8px 14px'),
+        'background: #ffffff'
+      ].join(';');
+
       if (isBottomSheet) {
         var dragBar = document.createElement('div');
         dragBar.style.cssText = [
@@ -202,21 +215,21 @@
           'height: 4px',
           'border-radius: 9999px',
           'background: #cbd5e1',
-          'margin: 10px auto 4px',
           'cursor: grab'
         ].join(';');
-        drawer.appendChild(dragBar);
+        header.appendChild(dragBar);
       }
 
-      // 4. Close Icon Button
+      // 4. Close Icon Button (inside header, not overlapping iframe)
       var closeBtn = document.createElement('button');
       closeBtn.type = 'button';
       closeBtn.setAttribute('aria-label', 'Close checkout');
       closeBtn.innerHTML = '&times;';
       closeBtn.style.cssText = [
         'position: absolute',
-        'top: 10px',
+        'top: 50%',
         'right: 14px',
+        'transform: translateY(-50%)',
         'width: 32px',
         'height: 32px',
         'border-radius: 50%',
@@ -232,20 +245,24 @@
         'justify-content: center',
         'z-index: 10'
       ].join(';');
+      header.appendChild(closeBtn);
 
-      // 5. Iframe
+      // 5. Iframe wrapper (fills remaining space below header)
+      var iframeWrapper = document.createElement('div');
+      iframeWrapper.style.cssText = 'flex: 1; width: 100%; overflow: hidden;';
+
       var iframe = document.createElement('iframe');
       iframe.src = url;
       iframe.style.cssText = [
         'width: 100%',
-        'height: calc(100% - ' + (isBottomSheet ? '20px' : '0px') + ')',
+        'height: 100%',
         'border: none',
-        'border-radius: ' + (isBottomSheet ? '28px 28px 0 0' : '24px'),
         'background: #ffffff'
       ].join(';');
 
-      drawer.appendChild(closeBtn);
-      drawer.appendChild(iframe);
+      iframeWrapper.appendChild(iframe);
+      drawer.appendChild(header);
+      drawer.appendChild(iframeWrapper);
       backdrop.appendChild(drawer);
       document.body.appendChild(backdrop);
       activeModalContainer = backdrop;

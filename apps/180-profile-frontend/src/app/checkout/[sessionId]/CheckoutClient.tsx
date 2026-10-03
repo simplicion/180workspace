@@ -1150,23 +1150,6 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           </Button>
         )}
 
-        <button
-          type="button"
-          onClick={() => {
-            if (session.cancelUrl) {
-              window.location.href = session.cancelUrl;
-            } else if (typeof window !== 'undefined' && window.opener) {
-              window.close();
-            } else if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
-              window.parent.postMessage({ type: '180_PAYMENT_CLOSE', sessionId }, '*');
-            } else {
-              window.history.back();
-            }
-          }}
-          className="w-full py-2.5 min-h-[44px] rounded-xl text-xs text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors cursor-pointer flex items-center justify-center"
-        >
-          Cancel and return to {session.app?.name || 'merchant'}
-        </button>
       </div>
     </div>
   );
