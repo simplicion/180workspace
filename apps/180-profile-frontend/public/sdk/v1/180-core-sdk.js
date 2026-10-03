@@ -240,7 +240,7 @@
         '<div style="width: 22px; height: 22px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center;">',
         '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>',
         '</div>',
-        '<div style="font-size: 13px; font-weight: 700; color: #f4f4f5; letter-spacing: -0.01em;">' + (options.title || '180 Sovereign Core') + '</div>'
+        '<div style="font-size: 13px; font-weight: 700; color: #f4f4f5; letter-spacing: -0.01em;">' + (options.title || '180 Pay') + '</div>'
       ].join('');
 
       var actionGroup = document.createElement('div');
@@ -293,7 +293,7 @@
       spinner.style.cssText = 'position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #09090b; transition: opacity 0.2s ease;';
       spinner.innerHTML = [
         '<div style="width: 30px; height: 30px; border: 2.5px solid rgba(56, 189, 248, 0.2); border-top-color: #38bdf8; border-radius: 50%; animation: one-eighty-spin 0.75s linear infinite;"></div>',
-        '<div style="font-size: 11px; font-weight: 500; color: #94a3b8; letter-spacing: 0.02em;">Loading Sovereign Secure Window...</div>'
+        '<div style="font-size: 11px; font-weight: 500; color: #94a3b8; letter-spacing: 0.02em;">Loading Secure Window...</div>'
       ].join('');
 
       var iframe = document.createElement('iframe');
@@ -532,7 +532,7 @@
 
       return openAdaptiveModal({
         url: checkoutUrl,
-        title: options.title || '180 Sovereign Pay',
+        title: options.title || '180 Pay',
         uxMode: options.uxMode || 'bottom_sheet',
         successTypes: ['180_PAYMENT_SUCCESS', '180_PAY_SUCCESS'],
         closeTypes: ['180_PAYMENT_CLOSE'],
@@ -652,7 +652,7 @@
           var currency = this.getAttribute('currency') || 'USD';
           var plan = this.getAttribute('plan') || '';
           var title = this.getAttribute('title') || 'Pay with 180 Pay';
-          var subtitle = this.getAttribute('subtitle') || (amount > 0 ? ('$' + amount + ' ' + currency) : 'Sovereign Escrow Checkout');
+          var subtitle = this.getAttribute('subtitle') || (amount > 0 ? ('$' + amount + ' ' + currency) : 'Secure Online Checkout');
           this.innerHTML = [
             '<button type="button" style="display: inline-flex; align-items: center; gap: 12px; padding: 10px 18px; border-radius: 14px; background: #09090b; color: #ffffff; border: 1.5px solid rgba(16, 185, 129, 0.4); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.15); transition: all 0.18s ease; outline: none;">',
             '<div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; position: relative;">',
