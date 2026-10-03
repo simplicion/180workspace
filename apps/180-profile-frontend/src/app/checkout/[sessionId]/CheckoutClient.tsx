@@ -153,8 +153,9 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
   };
 
   const handleApplyCoupon = async () => {
-    if (!couponInput.trim()) {
-      toast.error('Please enter a coupon or promo code');
+    const trimmedCode = couponInput.trim().toUpperCase();
+    if (!trimmedCode) {
+      toast.error('Please enter a coupon or promo code', { id: 'coupon-toast' });
       return;
     }
     setApplyingCoupon(true);
@@ -171,19 +172,29 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
       const res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/apply-coupon`), {
         method: 'POST',
         headers,
-        body: JSON.stringify({ couponCode: couponInput.trim().toUpperCase() }),
+        body: JSON.stringify({
+          code: trimmedCode,
+          couponCode: trimmedCode,
+          customerEmail: session?.customerEmail || (wallet?.user as any)?.email || undefined,
+        }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
+        const finalAmt = data.finalAmount !== undefined ? data.finalAmount : (data.session?.amount ?? session?.amount);
+        const discountAmt = data.discountAmount !== undefined ? data.discountAmount : (data.session?.discountAmount ?? 0);
+        const codeUsed = data.code || trimmedCode;
+
         setSession((prev: any) => ({
           ...prev,
-          originalAmount: prev.originalAmount || prev.amount,
-          amount: data.finalAmount,
-          couponCode: data.code,
-          discountAmount: data.discountAmount,
+          ...(data.session || {}),
+          originalAmount: prev?.originalAmount || prev?.amount,
+          amount: finalAmt,
+          couponCode: codeUsed,
+          discountAmount: discountAmt,
+          app: prev?.app || data.session?.app,
         }));
-        toast.success(`Coupon applied: ${data.code} (-${session?.currency === 'USD' ? '$' : '₹'}${data.discountAmount})`);
+        toast.success(`Coupon applied: ${codeUsed} (-${session?.currency === 'USD' ? '$' : '₹'}${discountAmt})`, { id: 'coupon-toast' });
         setCouponInput('');
         setShowCouponInput(false);
 
@@ -191,18 +202,18 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           const couponPayload = {
             type: '180_COUPON_APPLIED',
             sessionId,
-            couponCode: data.code,
-            discountAmount: data.discountAmount,
-            finalAmount: data.finalAmount,
+            couponCode: codeUsed,
+            discountAmount: discountAmt,
+            finalAmount: finalAmt,
           };
           if (window.opener && !window.opener.closed) window.opener.postMessage(couponPayload, '*');
           if (window.parent && window.parent !== window) window.parent.postMessage(couponPayload, '*');
         }
       } else {
-        toast.error(data.error || 'Invalid or expired coupon code');
+        toast.error(data.error || 'Invalid or expired coupon code', { id: 'coupon-toast' });
       }
     } catch {
-      toast.error('Network error applying coupon');
+      toast.error('Network error applying coupon', { id: 'coupon-toast' });
     } finally {
       setApplyingCoupon(false);
     }
@@ -216,8 +227,12 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
       });
       const data = await res.json();
       if (res.ok && data.success && data.session) {
-        setSession(data.session);
-        toast.success('Coupon removed');
+        setSession((prev: any) => ({
+          ...prev,
+          ...data.session,
+          app: prev?.app || data.session.app,
+        }));
+        toast.success('Coupon removed', { id: 'coupon-toast' });
         if (typeof window !== 'undefined') {
           const revertPayload = {
             type: '180_COUPON_REMOVED',
@@ -228,10 +243,10 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           if (window.parent && window.parent !== window) window.parent.postMessage(revertPayload, '*');
         }
       } else {
-        toast.error(data.error || 'Failed to remove coupon');
+        toast.error(data.error || 'Failed to remove coupon', { id: 'coupon-toast' });
       }
     } catch {
-      toast.error('Network error removing coupon');
+      toast.error('Network error removing coupon', { id: 'coupon-toast' });
     }
   };
 

@@ -336,7 +336,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     // Check against the plan's max apps
                     const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 50);
                     const companyEnabledApps = company?.enabledApps || [];
-                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director', 'operations', 'voiceforce', 'media-editor', 'ai'];
+                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'operations', 'voiceforce', 'ai'];
                     
                     // Filter out system, settings, and default apps to get only custom installed apps
                     const customApps = companyEnabledApps.filter((a: string) => 
@@ -348,8 +348,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     if (isDefaultApp) {
                         isAppEnabled = item.appId === 'ai' || companyEnabledApps.includes(item.appId);
                     } else {
-                        isAppEnabled = allowedSubset.includes(item.appId) || 
-                            (item.appId === 'traffic-director' && (allowedSubset.includes('operations') || companyEnabledApps.includes('traffic-director')));
+                        isAppEnabled = allowedSubset.includes(item.appId);
                     }
                 } else {
                     // No active plan: only allow default apps if they are in enabledApps
@@ -366,8 +365,6 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     if (item.appId && isAppEnabled && subItem.id && company?.enabledModules) {
                         const isModOn = (item.appId === 'ai') ||
                             (item.appId === 'voiceforce') ||
-                            (item.appId === 'media-editor') ||
-                            (item.appId === 'social-media') ||
                             (subItem.id === 'orbit-copilot') ||
                             (subItem.id === 'agent-requests') ||
                             (subItem.id === 'company-hub') ||
@@ -386,14 +383,11 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 if (filteredItems.length === 0) return null;
                 return { ...item, items: filteredItems };
             } else {
-                // Handle single items (Dashboard, CEO Insights, 180 Media Studio)
+                // Handle single items (Dashboard, CEO Insights)
                 if (item.appId && isAppDisabledByAdmin(item.appId)) return null;
                 if (userRoles.some(r => item.roles?.includes(r as string))) {
                     if (item.appId && company?.enabledApps && Array.isArray(company.enabledApps) && company.enabledApps.length > 0) {
-                        const isAppEnabled =
-                            company.enabledApps.includes(item.appId) ||
-                            company.enabledApps.includes('media-editor') ||
-                            company.enabledApps.includes('video-studio');
+                        const isAppEnabled = company.enabledApps.includes(item.appId);
                         if (!isAppEnabled) return null;
                     }
                     return item;

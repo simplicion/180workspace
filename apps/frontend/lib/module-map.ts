@@ -115,7 +115,7 @@ export interface AppConfig {
 
 import { 
     LayoutGrid, Smartphone, Globe, ShieldCheck, Database, CreditCard, Bell,
-    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, Share2, FolderOpen, LifeBuoy, GitFork, PhoneCall, Film
+    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, FolderOpen, LifeBuoy, PhoneCall
 } from 'lucide-react';
 
 export const APPS_CONFIG: AppConfig[] = [
@@ -138,21 +138,6 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'revenue', name: 'Revenue Tracking' },
             { id: 'forecasting', name: 'Sales Forecasting' },
             { id: 'clients', name: 'Client Database' }
-        ]
-    },
-    {
-        id: 'traffic-director',
-        name: 'Traffic Director',
-        icon: GitFork,
-        tag: 'Marketing',
-        description: 'Smart routing, dynamic landing page delivery, and differential traffic analytics',
-        modules: [
-            { id: 'overview', name: 'Traffic Overview' },
-            { id: 'links', name: 'Smart Links & Rules' },
-            { id: 'simulator', name: 'Routing Simulator' },
-            { id: 'logs', name: 'Live Stream Logs' },
-            { id: 'analytics', name: 'Traffic Analytics' },
-            { id: 'threats', name: 'Threat Intelligence' }
         ]
     },
     {
@@ -244,18 +229,6 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'ai-assistant', name: 'AI Assistant' }
         ]
     },
-
-    {
-        id: 'social-media',
-        name: '180 Social Media Manager',
-        icon: Share2,
-        tag: 'Marketing',
-        description: 'Centralized social projects, AI video director, and native cross-platform studio',
-        modules: [
-            { id: 'social-projects', name: 'Social Media Projects' },
-        ]
-    },
-
     {
         id: 'voiceforce',
         name: '180 Voiceforce',
@@ -269,22 +242,11 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'forwarding', name: 'Call Forwarding & Queues' },
             { id: 'campaigns', name: 'Call Campaigns' }
         ]
-    },
-
-    {
-        id: 'media-editor',
-        name: '180 Media Studio',
-        icon: Film,
-        tag: 'Productivity',
-        description: 'Autonomous video production engine, AI creative director, and zero-drift smart timeline.',
-        modules: [
-            { id: 'dashboard', name: '180 Media Studio' }
-        ]
     }
 ];
 
 export const STARTER_SET = {
-    apps: ['crm', 'projects', 'hr', 'finance', 'communications', 'workspace-tools', 'advertising', 'social-media'],
+    apps: ['crm', 'projects', 'hr', 'finance', 'communications', 'workspace-tools', 'advertising', 'voiceforce'],
     modules: [
         'sales', 'leads', 'pipeline', 'accounts', 'contacts', 'clients',
         'projects', 'tasks', 'work-logs',
@@ -293,8 +255,8 @@ export const STARTER_SET = {
         'analytics', 'reports', 'website-analytics',
         'chat', 'meeting', 'emails', 
         'calendar', 'documents', 'assets', 'ai-assistant',
-        'content-calendar', 'social-media-assets', 'social-inbox',
-        'ad-websites', 'forms', 'company-hub'
+        'ad-websites', 'forms', 'company-hub',
+        'dashboard', 'agents'
     ]
 };
 
@@ -316,8 +278,5 @@ export const ALL_APPS = [
     { id: 'communications', name: 'Communications', description: 'Active, real-time internal and external communication.', icon: MessageSquare },
     { id: 'workspace-tools', name: 'Workspace Tools', description: 'Passive knowledge, resource management, and utilities.', icon: FolderOpen },
     { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
-    { id: 'social-media', name: '180 Social Media Manager', description: 'Centralized social projects, AI video director, and cross-platform publishing studio.', icon: Share2 },
-    { id: 'traffic-director', name: 'Traffic Director', description: 'Smart routing, dynamic landing pages, and differential analytics.', icon: GitFork },
     { id: 'voiceforce', name: '180 Voiceforce', description: 'Autonomous AI voice employees for outbound and inbound calling.', icon: PhoneCall },
-    { id: 'media-editor', name: '180 Media Studio', description: 'Autonomous video production engine, AI creative director, and GPU smart timeline.', icon: Film },
 ];
