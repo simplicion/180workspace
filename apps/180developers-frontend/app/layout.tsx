@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';
-import Navbar from '../components/Navbar';
+import PortalShell from '../components/layout/PortalShell';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -44,30 +44,7 @@ export default function RootLayout({
             duration: 4000,
           }}
         />
-
-        {/* Global Navigation Bar */}
-        <Navbar />
-
-        {/* Page Content */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-          {children}
-        </main>
-
-        {/* Footer conforming to design system */}
-        <footer className="border-t border-zinc-200 dark:border-white/10 bg-white dark:bg-black py-8 text-xs text-zinc-600 dark:text-zinc-500 transition-colors duration-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="font-semibold text-zinc-900 dark:text-zinc-300">180 Developers</span>
-              <span>•</span>
-              <a href="/products/identity" className="hover:text-zinc-900 dark:hover:text-white transition-colors">180 Identity</a>
-              <span>•</span>
-              <a href="/products/pay" className="hover:text-zinc-900 dark:hover:text-white transition-colors">180 Pay</a>
-              <span>•</span>
-              <a href="/docs" className="hover:text-zinc-900 dark:hover:text-white transition-colors">Documentation</a>
-            </div>
-            <div>© {new Date().getFullYear()} 180 Developers. All rights reserved.</div>
-          </div>
-        </footer>
+        <PortalShell>{children}</PortalShell>
       </body>
     </html>
   );

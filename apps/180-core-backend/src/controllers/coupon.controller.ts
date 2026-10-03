@@ -23,15 +23,18 @@ export class CouponApiController {
    */
   static async validateCoupon(req: Request, res: Response) {
     try {
-      const { appId, code, orderAmount, customerEmail, planId } = req.body;
+      const { appId, customerEmail, planId } = req.body;
+      const rawCode = req.body.code || req.body.couponCode;
+      const code = typeof rawCode === 'string' ? rawCode.trim().toUpperCase() : '';
+      const rawAmount = req.body.orderAmount !== undefined ? req.body.orderAmount : req.body.amount;
 
       if (!appId) {
         return res.status(400).json({ success: false, error: 'Application ID (appId) is required' });
       }
-      if (!code || typeof code !== 'string') {
+      if (!code) {
         return res.status(400).json({ success: false, error: 'Coupon code is required' });
       }
-      if (orderAmount === undefined || isNaN(Number(orderAmount))) {
+      if (rawAmount === undefined || isNaN(Number(rawAmount))) {
         return res.status(400).json({ success: false, error: 'Valid order amount is required' });
       }
 
@@ -40,7 +43,7 @@ export class CouponApiController {
       const result = await CouponService.validateCoupon({
         appId: String(appId),
         code: String(code),
-        orderAmount: Number(orderAmount),
+        orderAmount: Number(rawAmount),
         customerEmail: customerEmail ? String(customerEmail) : undefined,
         origin,
         planId: planId ? String(planId) : undefined,

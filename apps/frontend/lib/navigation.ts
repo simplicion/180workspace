@@ -9,8 +9,8 @@ import {
     FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, 
     Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, 
     Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, 
-    Share2, Bookmark, GitFork, PhoneCall, Smartphone, PhoneForwarded, 
-    Brain, Film 
+    Bookmark, PhoneCall, Smartphone, PhoneForwarded, 
+    Brain 
 } from 'lucide-react';
 
 export const navigation = [
@@ -86,14 +86,6 @@ export const navigation = [
             { id: 'forwarding', name: 'Call Forwarding & Queues', href: '/voiceforce/forwarding', icon: PhoneForwarded, roles: ['admin', 'employee'] },
             { id: 'campaigns', name: 'Call Campaigns', href: '/voiceforce/campaigns', icon: Megaphone, roles: ['admin', 'employee'] },
         ]
-    },
-
-    {
-        name: '180 Social Media Manager',
-        href: '/social-projects',
-        appId: 'social-media',
-        icon: Share2,
-        roles: ['admin', 'employee']
     },
 
     {

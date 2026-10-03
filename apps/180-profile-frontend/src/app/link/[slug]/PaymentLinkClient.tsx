@@ -116,25 +116,28 @@ export function PaymentLinkClient({ slug }: { slug: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           appId: link.merchant.clientId || link.id,
-          code: couponCode.trim(),
+          code: couponCode.trim().toUpperCase(),
+          couponCode: couponCode.trim().toUpperCase(),
           amount: link.amount,
+          orderAmount: link.amount,
           customerEmail: customerEmail || undefined,
         }),
       });
       const data = await res.json();
-      if (res.ok && data.success && data.valid) {
+      if (res.ok && data.success && (data.valid || data.data?.valid)) {
+        const valData = data.data || data;
         setAppliedCoupon({
-          code: data.code || couponCode.toUpperCase(),
-          discountAmount: data.discountAmount || 0,
-          finalAmount: data.finalAmount || link.amount - (data.discountAmount || 0),
+          code: valData.code || couponCode.toUpperCase(),
+          discountAmount: valData.discountAmount || 0,
+          finalAmount: valData.finalAmount || link.amount - (valData.discountAmount || 0),
         });
-        toast.success(`Coupon "${couponCode.toUpperCase()}" applied!`);
+        toast.success(`Coupon "${(valData.code || couponCode).toUpperCase()}" applied!`, { id: 'coupon-toast' });
       } else {
-        toast.error(data.error || 'Invalid or expired coupon code');
+        toast.error(data.error || 'Invalid or expired coupon code', { id: 'coupon-toast' });
         setAppliedCoupon(null);
       }
     } catch {
-      toast.error('Failed to validate coupon');
+      toast.error('Failed to validate coupon', { id: 'coupon-toast' });
       setAppliedCoupon(null);
     } finally {
       setValidatingCoupon(false);

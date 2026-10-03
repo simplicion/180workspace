@@ -22,6 +22,8 @@ import {
   PayAppDetail,
   AppModals,
 } from '@/components/apps';
+import DeveloperSidebar from '@/components/layout/DeveloperSidebar';
+import DeveloperHeader from '@/components/layout/DeveloperHeader';
 
 interface AppDetailClientProps {
   initialView?: 'overview' | 'identity' | 'pay';
@@ -60,6 +62,7 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
   const [activeView, setActiveView] = useState<'overview' | 'identity' | 'pay'>(
     initialView || paramView || 'overview'
   );
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navigateView = (view: 'overview' | 'identity' | 'pay') => {
     setActiveView(view);
@@ -816,7 +819,7 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
     return (
       <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-12 text-center space-y-4 max-w-lg mx-auto shadow-sm dark:shadow-2xl">
         <p className="text-sm text-zinc-600 dark:text-zinc-300">Application not found</p>
-        <Link href="/" className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline">
+        <Link href="/dashboard" className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline">
           Return to Applications List
         </Link>
       </div>
@@ -824,17 +827,39 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
   }
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto pb-12">
-      {/* Dynamic Header */}
-      <div className="space-y-3 pb-6 border-b border-zinc-200 dark:border-white/10">
-        {activeView === 'overview' ? (
-          <Link
-            href="/"
-            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Applications</span>
-          </Link>
+    <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 flex transition-colors duration-200">
+      <DeveloperSidebar
+        activeTab="apps"
+        onTabChange={(tab) => router.push(`/dashboard?tab=${tab}`)}
+        isMobileOpen={isMobileMenuOpen}
+        onMobileClose={() => setIsMobileMenuOpen(false)}
+        appCount={1}
+        onSignOut={() => {
+          localStorage.removeItem('platform_auth_token');
+          router.push('/');
+        }}
+      />
+      <div className="flex-1 lg:ml-64 lg:w-[calc(100%-16rem)] flex flex-col min-h-screen">
+        <DeveloperHeader
+          onMobileToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          activeTabTitle={app.name}
+          onTabChange={(tab) => router.push(`/dashboard?tab=${tab}`)}
+          breadcrumbs={[
+            { label: 'Applications', href: '/dashboard' },
+            { label: app.name },
+          ]}
+        />
+        <main className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full space-y-8 flex-1">
+          {/* Dynamic Header */}
+          <div className="space-y-3 pb-6 border-b border-zinc-200 dark:border-white/10">
+            {activeView === 'overview' ? (
+              <Link
+                href="/dashboard"
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to Applications</span>
+              </Link>
         ) : (
           <button
             type="button"
@@ -1066,6 +1091,8 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
         setPayoutAdminNote={setPayoutAdminNote}
         handleUpdateAdminPayoutStatus={handleUpdateAdminPayoutStatus}
       />
+        </main>
+      </div>
     </div>
   );
 }

@@ -50,6 +50,18 @@ const APP_DETAILS: Record<string, { overview: string; useCases: string[] }> = {
         overview: 'Advertising lets you create dynamic landing pages, track ad performance with pixel integrations, and monitor campaign statistics — all from within the 180workspace.',
         useCases: ['Build and publish landing pages for ad campaigns', 'Configure Facebook, Google, and custom pixel tracking', 'Monitor campaign performance and conversion rates']
     },
+    communications: {
+        overview: 'Communications unites real-time internal and external communication tools — internal chat, browser video meetings, and email integration directly in your workflow.',
+        useCases: ['Direct message and team channel communications', 'Conduct secure video conferences with clients and team members', 'Sync and send emails with CRM and project context']
+    },
+    'workspace-tools': {
+        overview: 'Workspace Tools powers everyday operational productivity — shared team calendars, company documents, IT asset management, and the Orbit AI Copilot.',
+        useCases: ['Schedule and coordinate company-wide events on a unified calendar', 'Create, store, and collaborate on company documents', 'Track internal IT and digital assets with credential management', 'Chat with Orbit AI Copilot across your workspace data']
+    },
+    voiceforce: {
+        overview: '180 Voiceforce deploys autonomous AI voice agents for high-throughput inbound and outbound telephone calls, appointment scheduling, and order confirmation.',
+        useCases: ['Autonomous customer service and lead qualification calls', 'Automate booking and appointment confirmations over the phone', 'Manage virtual phone numbers, SIP trunks, and call forwarding', 'Launch outbound automated calling campaigns']
+    },
     jobhunter: {
         overview: 'Job Hunter AI automates your job search with AI-powered matching, application tracking, and candidate profile management.',
         useCases: ['Discover relevant job postings matched to your profile', 'Track application status across multiple platforms', 'Build and optimize your candidate profile with AI insights']

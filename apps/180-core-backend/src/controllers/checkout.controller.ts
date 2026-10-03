@@ -250,14 +250,17 @@ export class CheckoutApiController {
   static async applyCoupon(req: Request, res: Response) {
     try {
       const id = String(req.params.id);
-      const { code, customerEmail } = req.body;
+      const rawCode = req.body.code || req.body.couponCode;
+      const code = typeof rawCode === 'string' ? rawCode.trim().toUpperCase() : '';
+      const customerEmail = req.body.customerEmail || req.body.email;
 
-      if (!code || typeof code !== 'string') {
+      if (!code) {
         return res.status(400).json({ success: false, error: 'Coupon code is required' });
       }
 
       const session = await prisma.checkoutSession.findUnique({
         where: { id },
+        include: { app: true },
       });
 
       if (!session) {
@@ -302,6 +305,7 @@ export class CheckoutApiController {
           couponCode: validation.code,
           discountAmount: validation.discountAmount,
         },
+        include: { app: true },
       });
 
       return res.status(200).json({
@@ -326,6 +330,7 @@ export class CheckoutApiController {
       const id = String(req.params.id);
       const session = await prisma.checkoutSession.findUnique({
         where: { id },
+        include: { app: true },
       });
 
       if (!session) {
@@ -346,6 +351,7 @@ export class CheckoutApiController {
           couponCode: null,
           discountAmount: 0,
         },
+        include: { app: true },
       });
 
       return res.status(200).json({
