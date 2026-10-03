@@ -9,35 +9,20 @@ import {
   Shield,
   Layers,
   ArrowRight,
-  ExternalLink,
-  Loader2,
   Copy,
   Check,
   Lock,
   Code2,
-  Sparkles,
   Search,
   CheckCircle2,
-  Users,
-  Play,
   RotateCw,
-  LogOut,
-  User,
-  Activity,
-  CreditCard,
   Webhook,
   ArrowLeft,
-  Terminal,
-  Zap,
-  CheckCircle,
-  AlertTriangle,
   Send,
   RefreshCw,
-  Sliders,
-  Globe,
-  Radio,
-  FileCode2,
-  Server,
+  Activity,
+  Users,
+  CreditCard,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -47,7 +32,7 @@ import {
   PlatformDrawer,
   LogoLoader,
 } from '@workspace/ui';
-import { use180Identity, use180Pay } from '@workspace/identity-sdk';
+import { use180Identity } from '@workspace/identity-sdk';
 import { AppLogoUploader } from '@/components/apps/AppLogoUploader';
 import DeveloperSidebar from '@/components/layout/DeveloperSidebar';
 import DeveloperHeader from '@/components/layout/DeveloperHeader';
@@ -112,9 +97,8 @@ function DeveloperDashboardContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'confidential' | 'public'>('all');
 
-  // 180 Identity & 180 Pay SDK Hooks
+  // 180 Identity SDK Hook
   const { launch180Identity, isOpeningIdentity } = use180Identity();
-  const { launch180Pay, isOpeningPay } = use180Pay();
 
   // Create App Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -683,14 +667,10 @@ function DeveloperDashboardContent() {
   // Tab Title Map
   const tabTitles: Record<string, string> = {
     apps: 'Applications',
-    overview: 'Platform Overview',
-    identity: '180 Identity SSO',
-    pay: '180 Pay Checkout',
     playground: 'API Playground',
     webhooks: 'Webhook Simulator',
-    credentials: 'Credentials & Keys',
-    status: 'Service Health & Latency',
   };
+
 
   // ─────────────────────────────────────────────────────────────────────────────
   // LOADING STATE
@@ -1111,221 +1091,6 @@ function DeveloperDashboardContent() {
             </div>
           )}
 
-          {/* ─────────────────────────────────────────────────────────────────────────
-              TAB 2: PLATFORM OVERVIEW (Intelligence & Telemetry)
-              ───────────────────────────────────────────────────────────────────────── */}
-          {activeTab === 'overview' && (
-            <div className="space-y-8 animate-in fade-in duration-200">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">
-                  Platform Intelligence & Health
-                </h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Real-time telemetry, service latency, and system operational metrics across all 180 services.
-                </p>
-              </div>
-
-              {/* Service Health Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-2xl bg-white dark:bg-[#101012] border border-zinc-200/80 dark:border-white/10 space-y-2">
-                  <div className="flex items-center justify-between text-xs text-zinc-500">
-                    <span>OAuth 2.0 Auth Server</span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  </div>
-                  <div className="text-xl font-bold text-zinc-950 dark:text-white">28ms P99</div>
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">100% Operational</p>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-white dark:bg-[#101012] border border-zinc-200/80 dark:border-white/10 space-y-2">
-                  <div className="flex items-center justify-between text-xs text-zinc-500">
-                    <span>OIDC Discovery & JWKS</span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  </div>
-                  <div className="text-xl font-bold text-zinc-950 dark:text-white">12ms P99</div>
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">RS256 Keys Valid</p>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-white dark:bg-[#101012] border border-zinc-200/80 dark:border-white/10 space-y-2">
-                  <div className="flex items-center justify-between text-xs text-zinc-500">
-                    <span>180 Pay Sovereign Gateway</span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  </div>
-                  <div className="text-xl font-bold text-zinc-950 dark:text-white">45ms P99</div>
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">Instant Settlement</p>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-white dark:bg-[#101012] border border-zinc-200/80 dark:border-white/10 space-y-2">
-                  <div className="flex items-center justify-between text-xs text-zinc-500">
-                    <span>2-Way Webhook Delivery</span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  </div>
-                  <div className="text-xl font-bold text-zinc-950 dark:text-white">99.98% Success</div>
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">HMAC Signed</p>
-                </div>
-              </div>
-
-              {/* Quickstart Integration Matrix */}
-              <div className="rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] p-6 space-y-5">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <h3 className="text-base font-bold text-zinc-950 dark:text-white">
-                      Instant SDK Integration
-                    </h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      Copy and install the official 180 Identity SDK in your React, Next.js, or Node.js application.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => handleTabChange('playground')}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                  >
-                    Open Playground
-                  </Button>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-zinc-950 text-zinc-200 font-mono text-xs border border-white/5 space-y-2 select-all">
-                  <div className="text-zinc-500"># 1. Install SDK package</div>
-                  <div className="text-emerald-400">npm install @workspace/identity-sdk</div>
-                  <div className="text-zinc-500 pt-2"># 2. Trigger 1-tap single sign-on</div>
-                  <div className="text-blue-400">
-                    {`import { use180Identity } from '@workspace/identity-sdk';
-const { launch180Identity } = use180Identity();
-launch180Identity({ clientId: '${apps[0]?.clientId || 'YOUR_CLIENT_ID'}' });`}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ─────────────────────────────────────────────────────────────────────────
-              TAB 3: 180 IDENTITY SSO
-              ───────────────────────────────────────────────────────────────────────── */}
-          {activeTab === 'identity' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white flex items-center gap-2">
-                    <Shield className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                    <span>180 Identity (OIDC 1.0 & OAuth 2.0 PKCE)</span>
-                  </h2>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Sovereign passwordless authentication powered by 1-tap WhatsApp OTP, Google SSO, and asymmetric RS256 JWKS tokens.
-                  </p>
-                </div>
-
-                <Button
-                  onClick={() => launch180Identity()}
-                  className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-500/20"
-                >
-                  <Play className="w-3.5 h-3.5 mr-1.5" />
-                  <span>Test SSO Popup</span>
-                </Button>
-              </div>
-
-              {/* Endpoints Table */}
-              <div className="rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] p-6 space-y-4">
-                <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
-                  Standard OpenID Connect Endpoints
-                </h3>
-                <div className="space-y-3 font-mono text-xs">
-                  <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-white/5 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block font-sans">
-                        OIDC Discovery Endpoint
-                      </span>
-                      <span className="text-zinc-900 dark:text-zinc-200">
-                        https://identity.180workspace.com/.well-known/openid-configuration
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText('https://identity.180workspace.com/.well-known/openid-configuration');
-                        toast.success('Copied discovery URL');
-                      }}
-                      className="px-2 h-8"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-white/5 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400 block font-sans">
-                        JWKS Public Keys URL
-                      </span>
-                      <span className="text-zinc-900 dark:text-zinc-200">
-                        https://identity.180workspace.com/api/oauth/jwks.json
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText('https://identity.180workspace.com/api/oauth/jwks.json');
-                        toast.success('Copied JWKS URL');
-                      }}
-                      className="px-2 h-8"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ─────────────────────────────────────────────────────────────────────────
-              TAB 4: 180 PAY CHECKOUT
-              ───────────────────────────────────────────────────────────────────────── */}
-          {activeTab === 'pay' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white flex items-center gap-2">
-                    <CreditCard className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                    <span>180 Pay Sovereign Checkout</span>
-                  </h2>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Accept 1-click sovereign wallet payments, verify HMAC-SHA256 signed webhooks, and trigger automated payouts.
-                  </p>
-                </div>
-
-                <Button
-                  onClick={() => launch180Pay({ amount: 499, currency: 'INR' })}
-                  className="rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md shadow-purple-500/20"
-                >
-                  <Play className="w-3.5 h-3.5 mr-1.5" />
-                  <span>Simulate Checkout (₹499)</span>
-                </Button>
-              </div>
-
-              <div className="rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] p-6 space-y-4">
-                <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
-                  Webhook Signature Verification (Node.js)
-                </h3>
-                <pre className="p-4 rounded-2xl bg-zinc-950 text-zinc-200 font-mono text-xs border border-white/5 overflow-x-auto select-all">
-                  {`import crypto from 'crypto';
-
-export function verify180Webhook(rawBody: string, signatureHeader: string, secret: string) {
-  const [tPart, vPart] = signatureHeader.split(',');
-  const timestamp = tPart.split('=')[1];
-  const signature = vPart.split('=')[1];
-
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(\`\${timestamp}.\${rawBody}\`)
-    .digest('hex');
-
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
-}`}
-                </pre>
-              </div>
-            </div>
-          )}
 
           {/* ─────────────────────────────────────────────────────────────────────────
               TAB 5: API PLAYGROUND & SANDBOX
@@ -1576,118 +1341,6 @@ export function verify180Webhook(rawBody: string, signatureHeader: string, secre
             </div>
           )}
 
-          {/* ─────────────────────────────────────────────────────────────────────────
-              TAB 7: CREDENTIALS & KEYS VAULT
-              ───────────────────────────────────────────────────────────────────────── */}
-          {activeTab === 'credentials' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white flex items-center gap-2">
-                  <Key className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                  <span>Credentials & Keys Vault</span>
-                </h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Centralized vault for client credentials, secret rotation, and allowed origins across your workspace.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {apps.map((app) => (
-                  <div
-                    key={app.id}
-                    className="p-6 rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] space-y-4 shadow-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="font-bold text-base text-zinc-950 dark:text-white">{app.name}</div>
-                      <span className="text-xs font-mono text-zinc-500">
-                        {app.clientType === 'public' ? 'Public (PKCE)' : 'Confidential'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                      <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-white/5 space-y-1">
-                        <span className="text-[10px] text-zinc-500 block font-sans">Client ID</span>
-                        <div className="flex items-center justify-between">
-                          <span className="truncate select-all text-zinc-900 dark:text-zinc-200">{app.clientId}</span>
-                          <button
-                            onClick={() => copyToClipboard(app.clientId, 'client')}
-                            className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer ml-2"
-                          >
-                            Copy
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-white/5 space-y-1">
-                        <span className="text-[10px] text-zinc-500 block font-sans">Secret Hint</span>
-                        <div className="flex items-center justify-between">
-                          <span className="text-zinc-600 dark:text-zinc-400">••••{app.clientSecretHint || '3c9c'}</span>
-                          <button
-                            onClick={() => {
-                              setRotatingApp(app);
-                              setShowRotateModal(true);
-                            }}
-                            className="text-amber-600 dark:text-amber-400 hover:underline cursor-pointer ml-2 font-semibold"
-                          >
-                            Rotate Secret
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ─────────────────────────────────────────────────────────────────────────
-              TAB 8: SERVICE HEALTH & STATUS
-              ───────────────────────────────────────────────────────────────────────── */}
-          {activeTab === 'status' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white flex items-center gap-2">
-                  <Activity className="w-6 h-6 text-emerald-500" />
-                  <span>Service Latency & System Status</span>
-                </h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Global uptime status for 180 Identity SSO, 180 Pay, and RS256 token verification infrastructure.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] p-6 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-zinc-200/60 dark:border-white/5">
-                  <div className="flex items-center gap-2 font-bold text-sm text-zinc-950 dark:text-white">
-                    <Server className="w-4 h-4 text-blue-500" />
-                    <span>Global Systems Operational</span>
-                  </div>
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    99.98% Uptime
-                  </span>
-                </div>
-
-                <div className="space-y-3 text-xs">
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900">
-                    <span className="font-semibold text-zinc-900 dark:text-white">Authentication Service (/oauth/authorize)</span>
-                    <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">28ms</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900">
-                    <span className="font-semibold text-zinc-900 dark:text-white">Token Exchange Service (/api/oauth/token)</span>
-                    <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">34ms</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900">
-                    <span className="font-semibold text-zinc-900 dark:text-white">Userinfo Introspection (/api/oauth/userinfo)</span>
-                    <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">18ms</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900">
-                    <span className="font-semibold text-zinc-900 dark:text-white">180 Pay Checkout Engine</span>
-                    <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">42ms</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </main>
       </div>
 
@@ -2059,7 +1712,7 @@ export default function DeveloperDashboardPage() {
       fallback={
         <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
           <LogoLoader size={40} className="w-10 h-10 text-blue-600 animate-spin" />
-          <p className="text-xs text-slate-500 font-medium">Loading Developer Portal...</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Loading Developer Portal...</p>
         </div>
       }
     >
