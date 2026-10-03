@@ -1602,7 +1602,7 @@ const dropInJsCode = `<!-- 1. Include the 180 Identity Drop-in SDK in plain HTML
   OneEightyIdentity.renderButton('180-identity-container', {
     clientId: 'YOUR_CLIENT_ID',
     scope: 'openid identity:read identity:email identity:phone',
-    uxMode: 'popup',
+    uxMode: 'bottom_sheet',
     onSuccess: (authResult) => {
       console.log('180 Identity Success!', authResult.code);
       // Send authResult.code to your backend token exchange endpoint!

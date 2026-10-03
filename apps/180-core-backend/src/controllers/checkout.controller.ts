@@ -180,7 +180,7 @@ export class CheckoutApiController {
           discountAmount,
           couponId: appliedCouponId,
           couponCode: appliedCouponCode,
-          displayMode: displayMode || 'bottom_sheet',
+          displayMode: displayMode || (app as any).payDesktopDefault || 'bottom_sheet',
           currency: (currency || 'INR').toUpperCase(),
           status: 'PENDING',
           title: title || '180 Pay Sovereign Checkout',

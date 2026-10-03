@@ -47,7 +47,18 @@
         return Promise.reject(err);
       }
 
+      var isMobile = typeof window !== 'undefined' && (
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '') ||
+        (window.innerWidth && window.innerWidth <= 768)
+      );
+
       var uxMode = options.uxMode || 'bottom_sheet';
+
+      // On mobile devices, always prioritize in-page bottom_sheet drawer over desktop popups
+      if (isMobile && uxMode === 'popup') {
+        uxMode = 'bottom_sheet';
+      }
+
       var baseUrl = options.checkoutServerUrl || DEFAULT_CHECKOUT_BASE;
       var checkoutUrl = baseUrl + '/checkout/' + encodeURIComponent(sessionId);
 
@@ -82,10 +93,8 @@
       );
 
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        if (options.onError) {
-          options.onError(new Error('[180 Pay] Popup blocked by browser. Please allow popups for payment.'));
-        }
-        return Promise.reject(new Error('Popup blocked'));
+        console.warn('[180 Pay] Popup blocked or not supported on this device. Gracefully degrading to Sovereign Bottom Sheet.');
+        return this._openIframeOverlay(url, sessionId, 'bottom_sheet', options);
       }
 
       return new Promise(function (resolve, reject) {
