@@ -72,7 +72,7 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
     }
 
     // 4. Fetch User
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -85,6 +85,22 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
         isOnboarded: true,
       },
     });
+
+    if (!user && decoded?.email) {
+      user = await prisma.user.findFirst({
+        where: { email: { equals: decoded.email, mode: 'insensitive' } },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          username: true,
+          role: true,
+          isVerified: true,
+          isOnboarded: true,
+        },
+      });
+    }
 
     if (!user) {
       return res.status(401).json({

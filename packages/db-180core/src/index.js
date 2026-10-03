@@ -18,11 +18,26 @@ exports.developersPrisma = exports.db180core = exports.corePrisma = void 0;
 const client_1 = require("../generated/client");
 __exportStar(require("../generated/client"), exports);
 function getCoreDatabaseUrl() {
-    return (process.env.CORE_DATABASE_URL ||
+    let url = (process.env.CORE_DATABASE_URL ||
         process.env.DEVELOPERS_DATABASE_URL ||
         process.env.IDENTITY_DATABASE_URL ||
         process.env.DATABASE_URL ||
-        'postgresql://postgres:postgres@localhost:5432/180developers_db?schema=public');
+        'postgresql://pitchin_admin:Pitchin180Admin!23@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180workspace_db?sslmode=require&schema=180core');
+
+    if (url.includes('180developers_db')) {
+        url = url.replace('180developers_db', '180workspace_db');
+    }
+
+    if (url.includes('180workspace_db') && !url.includes('schema=180core')) {
+        if (url.includes('schema=')) {
+            url = url.replace(/schema=[^&]*/, 'schema=180core');
+        } else {
+            const sep = url.includes('?') ? '&' : '?';
+            url = `${url}${sep}schema=180core`;
+        }
+    }
+
+    return url;
 }
 const globalForCorePrisma = globalThis;
 exports.corePrisma = globalForCorePrisma.corePrisma ||

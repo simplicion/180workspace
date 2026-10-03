@@ -5,17 +5,39 @@ import { generateRandomToken, hashSecret } from '../oauth/oauth.service';
 
 export class DeveloperController {
     /**
+     * Resolves all user IDs associated with the current session (by user ID and account email)
+     */
+    private static async resolveUserIds(req: any): Promise<string[]> {
+        const userId = req.user?.id;
+        if (!userId) return [];
+        let userIds = [userId];
+        const userEmail = req.user?.email;
+        if (userEmail) {
+            try {
+                const matched = await prisma.user.findMany({
+                    where: { email: { equals: userEmail, mode: 'insensitive' } },
+                    select: { id: true }
+                });
+                if (matched?.length) {
+                    userIds = Array.from(new Set([...userIds, ...matched.map((u: any) => u.id)]));
+                }
+            } catch (_) {}
+        }
+        return userIds;
+    }
+
+    /**
      * List all OAuth applications owned by the authenticated developer
      */
     static async listApps(req: any, res: any) {
         try {
-            const userId = req.user?.id;
-            if (!userId) {
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
                 return res.status(401).json({ success: false, message: 'Authentication required' });
             }
 
             const apps = await prisma.oAuthApp.findMany({
-                where: { userId },
+                where: { userId: { in: userIds } },
                 include: {
                     _count: {
                         select: {
@@ -72,14 +94,17 @@ export class DeveloperController {
      */
     static async getApp(req: any, res: any) {
         try {
-            const userId = req.user?.id;
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
+                return res.status(401).json({ success: false, message: 'Authentication required' });
+            }
             const { id } = req.params;
 
             const app = await prisma.oAuthApp.findFirst({
                 where: {
                     OR: [
-                        { id, userId },
-                        { clientId: id, userId }
+                        { id, userId: { in: userIds } },
+                        { clientId: id, userId: { in: userIds } }
                     ]
                 },
                 include: {
@@ -142,9 +167,22 @@ export class DeveloperController {
      */
     static async createApp(req: any, res: any) {
         try {
-            const userId = req.user?.id;
+            let userId = req.user?.id;
             if (!userId) {
                 return res.status(401).json({ success: false, message: 'Authentication required' });
+            }
+
+            const userEmail = req.user?.email;
+            if (userEmail) {
+                try {
+                    const devUser = await prisma.user.findFirst({
+                        where: { email: { equals: userEmail, mode: 'insensitive' } },
+                        select: { id: true }
+                    });
+                    if (devUser) {
+                        userId = devUser.id;
+                    }
+                } catch (_) {}
             }
 
             const {
@@ -240,7 +278,10 @@ export class DeveloperController {
      */
     static async updateApp(req: any, res: any) {
         try {
-            const userId = req.user?.id;
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
+                return res.status(401).json({ success: false, message: 'Authentication required' });
+            }
             const { id } = req.params;
             const {
                 name,
@@ -265,7 +306,7 @@ export class DeveloperController {
             } = req.body;
 
             const app = await prisma.oAuthApp.findFirst({
-                where: { id, userId }
+                where: { id, userId: { in: userIds } }
             });
 
             if (!app) {
@@ -339,11 +380,14 @@ export class DeveloperController {
      */
     static async rotateSecret(req: any, res: any) {
         try {
-            const userId = req.user?.id;
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
+                return res.status(401).json({ success: false, message: 'Authentication required' });
+            }
             const { id } = req.params;
 
             const app = await prisma.oAuthApp.findFirst({
-                where: { id, userId }
+                where: { id, userId: { in: userIds } }
             });
 
             if (!app) {
@@ -378,11 +422,14 @@ export class DeveloperController {
      */
     static async rotateWebhookSecret(req: any, res: any) {
         try {
-            const userId = req.user?.id;
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
+                return res.status(401).json({ success: false, message: 'Authentication required' });
+            }
             const { id } = req.params;
 
             const app = await prisma.oAuthApp.findFirst({
-                where: { id, userId }
+                where: { id, userId: { in: userIds } }
             });
 
             if (!app) {
@@ -414,13 +461,16 @@ export class DeveloperController {
      */
     static async testWebhook(req: any, res: any) {
         try {
-            const userId = req.user?.id;
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
+                return res.status(401).json({ success: false, message: 'Authentication required' });
+            }
             const { id } = req.params;
             const axios = require('axios');
             const crypto = require('crypto');
 
             const app = await prisma.oAuthApp.findFirst({
-                where: { id, userId }
+                where: { id, userId: { in: userIds } }
             });
 
             if (!app) {
@@ -508,11 +558,14 @@ export class DeveloperController {
      */
     static async deleteApp(req: any, res: any) {
         try {
-            const userId = req.user?.id;
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
+                return res.status(401).json({ success: false, message: 'Authentication required' });
+            }
             const { id } = req.params;
 
             const app = await prisma.oAuthApp.findFirst({
-                where: { id, userId }
+                where: { id, userId: { in: userIds } }
             });
 
             if (!app) {
