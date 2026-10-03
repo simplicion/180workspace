@@ -439,6 +439,7 @@ export class PublicRoutingController {
         success: true,
         route: result.isFallback ? 'fallback' : 'target',
         destinationUrl: result.destinationUrl,
+        actionType: result.actionType,
         matchedRule: result.matchedRuleName || null,
         isBot: Boolean(mergedSignals.isBot || result.datacenterBlocked || mergedSignals.isEmulated),
         latencyMs: result.evaluationLatencyMs
