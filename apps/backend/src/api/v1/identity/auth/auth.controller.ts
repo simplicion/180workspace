@@ -422,10 +422,10 @@ export class AuthController {
             }
 
             const identityServerUrl =
-                process.env.IDENTITY_SERVER_URL ||
                 process.env.CORE_BACKEND_INTERNAL_URL ||
-                process.env.CORE_BACKEND_URL ||
-                'http://localhost:4003';
+                (process.env.NODE_ENV === 'production' && (!process.env.IDENTITY_SERVER_URL || process.env.IDENTITY_SERVER_URL.includes('localhost'))
+                    ? 'http://core-backend:4003'
+                    : (process.env.IDENTITY_SERVER_URL || process.env.CORE_BACKEND_URL || 'http://localhost:4003'));
             const clientId =
                 process.env.ONE_EIGHTY_CLIENT_ID ||
                 process.env.NEXT_PUBLIC_180_CLIENT_ID ||

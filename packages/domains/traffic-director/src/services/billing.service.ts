@@ -171,11 +171,22 @@ export class TrafficDirectorBillingService {
   }
 
   private static get180PayBaseUrl(): string {
-    return (
-      process.env.ONE_EIGHTY_PAY_CORE_URL ||
-      process.env.CORE_BACKEND_URL ||
-      'http://localhost:4003'
-    );
+    if (process.env.ONE_EIGHTY_PAY_CORE_URL) {
+      return process.env.ONE_EIGHTY_PAY_CORE_URL;
+    }
+    if (process.env.CORE_BACKEND_INTERNAL_URL) {
+      return process.env.CORE_BACKEND_INTERNAL_URL;
+    }
+    if (process.env.CORE_BACKEND_URL) {
+      return process.env.CORE_BACKEND_URL;
+    }
+    if (process.env.IDENTITY_SERVER_URL && !process.env.IDENTITY_SERVER_URL.includes('localhost')) {
+      return process.env.IDENTITY_SERVER_URL;
+    }
+    if (process.env.NODE_ENV === 'production') {
+      return 'http://core-backend:4003';
+    }
+    return 'http://localhost:4003';
   }
 
   private static getClientCredentials(): { clientId: string; clientSecret: string } {
@@ -636,23 +647,43 @@ export class TrafficDirectorBillingService {
       },
     };
 
-    let sessionResponse;
-    try {
-      sessionResponse = await axios.post(`${payBaseUrl}/api/v1/subscriptions/sessions`, payload, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 10000,
-      });
-    } catch (apiErr: any) {
-      // Fallback to standard checkout sessions endpoint if subscriptions endpoint is routing
+    const candidateUrls = [
+      payBaseUrl,
+      process.env.NODE_ENV === 'production' ? 'https://services.180workspace.com' : undefined,
+    ].filter(Boolean) as string[];
+
+    let sessionResponse: any = null;
+    let lastError: any = null;
+
+    for (const url of candidateUrls) {
       try {
-        sessionResponse = await axios.post(`${payBaseUrl}/api/v1/checkout/sessions`, payload, {
+        sessionResponse = await axios.post(`${url}/api/v1/subscriptions/sessions`, payload, {
           headers: { 'Content-Type': 'application/json' },
           timeout: 10000,
         });
-      } catch (fallbackErr: any) {
-        const msg = fallbackErr.response?.data?.error || fallbackErr.message;
-        throw new Error(`180 Pay Gateway Error: ${msg}`);
+        if (sessionResponse?.data?.sessionId || sessionResponse?.data?.success) {
+          break;
+        }
+      } catch (apiErr: any) {
+        lastError = apiErr;
+        // Fallback to standard checkout sessions endpoint
+        try {
+          sessionResponse = await axios.post(`${url}/api/v1/checkout/sessions`, payload, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000,
+          });
+          if (sessionResponse?.data?.sessionId || sessionResponse?.data?.success) {
+            break;
+          }
+        } catch (fallbackErr: any) {
+          lastError = fallbackErr;
+        }
       }
+    }
+
+    if (!sessionResponse) {
+      const msg = lastError?.response?.data?.error || lastError?.message || 'Failed to initiate 180 Pay checkout session';
+      throw new Error(`180 Pay Gateway Error: ${msg}`);
     }
 
     const data = sessionResponse.data;
