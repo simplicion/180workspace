@@ -4,18 +4,23 @@ import React from 'react';
 import { AppShellLayout } from '@/components/common/AppShellLayout';
 import { PaySidebar } from '@/components/pay/PaySidebar';
 import { PayBottomNav } from '@/components/pay/PayBottomNav';
-import { PayOverviewView } from '@/components/pay/PayOverviewView';
+import { PaymentLinksTab } from '@/components/apps/pay/PaymentLinksTab';
+import { useProject } from '@/context/ProjectContext';
 
-export default function PayOverviewPage() {
+export default function PayLinksPage() {
+  const { projectId } = useProject();
+
   return (
     <AppShellLayout
       sidebar={<PaySidebar />}
       bottomNav={<PayBottomNav />}
-      title="180 Pay Overview & Analytics"
-      badge="Checkout Engine"
+      title="Hosted Payment Links"
+      badge="Direct Checkout"
       badgeColor="purple"
     >
-      <PayOverviewView />
+      <div className="p-6">
+        <PaymentLinksTab appId={projectId} />
+      </div>
     </AppShellLayout>
   );
 }

@@ -4,18 +4,18 @@ import React from 'react';
 import { AppShellLayout } from '@/components/common/AppShellLayout';
 import { PaySidebar } from '@/components/pay/PaySidebar';
 import { PayBottomNav } from '@/components/pay/PayBottomNav';
-import { PayOverviewView } from '@/components/pay/PayOverviewView';
+import { PayWebhooksView } from '@/components/pay/PayWebhooksView';
 
-export default function PayOverviewPage() {
+export default function PayWebhooksPage() {
   return (
     <AppShellLayout
       sidebar={<PaySidebar />}
       bottomNav={<PayBottomNav />}
-      title="180 Pay Overview & Analytics"
-      badge="Checkout Engine"
+      title="Webhooks & Event Deliveries"
+      badge="Realtime HTTP"
       badgeColor="purple"
     >
-      <PayOverviewView />
+      <PayWebhooksView />
     </AppShellLayout>
   );
 }

@@ -60,7 +60,7 @@ export function MobileBottomNav({ user, balance }: MobileBottomNavProps) {
   return (
     <nav
       aria-label="Mobile Navigation"
-      className="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-8px_25px_rgba(0,0,0,0.06)] px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      className="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-white/10 shadow-[0_-8px_25px_rgba(0,0,0,0.06)] dark:shadow-[0_-8px_25px_rgba(0,0,0,0.4)] px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] transition-colors duration-200"
     >
       <div className="grid grid-cols-5 items-center justify-around max-w-lg mx-auto">
         {navItems.map((item) => {
@@ -72,26 +72,26 @@ export function MobileBottomNav({ user, balance }: MobileBottomNavProps) {
               key={item.href}
               href={item.href}
               className={`relative flex flex-col items-center justify-center py-1.5 px-1 min-h-[50px] rounded-xl transition-all duration-200 active:scale-92 cursor-pointer ${
-                isActive ? 'text-blue-600 font-bold' : 'text-slate-500 hover:text-slate-800 font-medium'
+                isActive ? 'text-zinc-950 dark:text-white font-bold' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 font-medium'
               }`}
             >
               {/* Active Indicator Bar / Pill on top */}
               {isActive && (
-                <div className="absolute top-0 w-8 h-1 rounded-full bg-blue-600 shadow-sm shadow-blue-500/40 animate-in fade-in zoom-in-75 duration-200" />
+                <div className="absolute top-0 w-8 h-1 rounded-full bg-zinc-950 dark:bg-white shadow-xs animate-in fade-in zoom-in-75 duration-200" />
               )}
 
               {/* Icon Container with Badge */}
               <div className="relative">
                 <div
                   className={`w-9 h-7 rounded-lg flex items-center justify-center transition-all ${
-                    isActive ? 'bg-blue-50 text-blue-600' : 'text-slate-500'
+                    isActive ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-950 dark:text-white' : 'text-slate-500 dark:text-zinc-400'
                   }`}
                 >
                   <Icon className="w-5 h-5 stroke-[2.2]" />
                 </div>
 
                 {item.badge && !isActive && (
-                  <span className="absolute -top-1 -right-2 px-1 py-0.2 rounded-full text-[9px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+                  <span className="absolute -top-1 -right-2 px-1 py-0.2 rounded-full text-[9px] font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-white/10 shadow-2xs">
                     {item.badge}
                   </span>
                 )}

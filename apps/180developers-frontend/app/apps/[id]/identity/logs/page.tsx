@@ -4,18 +4,18 @@ import React from 'react';
 import { AppShellLayout } from '@/components/common/AppShellLayout';
 import { IdentitySidebar } from '@/components/identity/IdentitySidebar';
 import { IdentityBottomNav } from '@/components/identity/IdentityBottomNav';
-import { IdentityOverviewView } from '@/components/identity/IdentityOverviewView';
+import { IdentityLogsView } from '@/components/identity/IdentityLogsView';
 
-export default function IdentityOverviewPage() {
+export default function IdentityLogsPage() {
   return (
     <AppShellLayout
       sidebar={<IdentitySidebar />}
       bottomNav={<IdentityBottomNav />}
-      title="180 Identity Overview"
-      badge="OAuth 2.0 / OIDC"
-      badgeColor="blue"
+      title="Real-Time Auth Telemetry"
+      badge="Live Stream"
+      badgeColor="emerald"
     >
-      <IdentityOverviewView />
+      <IdentityLogsView />
     </AppShellLayout>
   );
 }
