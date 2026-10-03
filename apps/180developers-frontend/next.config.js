@@ -23,7 +23,6 @@ const nextConfig = {
     optimizePackageImports: [
       'lucide-react',
       '@workspace/ui',
-      '@workspace/identity-sdk',
       'react-hot-toast',
     ],
   },
