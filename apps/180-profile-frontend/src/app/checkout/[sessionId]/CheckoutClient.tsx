@@ -288,7 +288,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
         const queryAmount = urlParams?.get('amount') ? parseFloat(urlParams.get('amount')!) : 499.0;
         const queryTitle = urlParams?.get('title') || '180 Workspace Plan';
-        const queryDesc = urlParams?.get('description') || 'Interactive Sovereign Checkout';
+        const queryDesc = urlParams?.get('description') || 'Secure Online Checkout';
         const queryCurrency = urlParams?.get('currency') || 'INR';
         const queryApp = urlParams?.get('appName') || urlParams?.get('app') || '180 Workspace';
 
@@ -513,7 +513,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         key: keyId,
         amount: amountPaise,
         currency: session.currency || 'INR',
-        name: session.app?.name || '180 Pay Sovereign Checkout',
+        name: session.app?.name || '180 Pay Secure Checkout',
         description: session.title || 'Direct Checkout',
         order_id: orderId,
         theme: { color: '#2563eb' },
@@ -869,66 +869,84 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
     )
   );
 
-  const isDevOrSandbox = !isProduction || isSandbox;
-  const userBalance = (wallet?.balance && wallet.balance > 0)
-    ? wallet.balance
-    : (isDevOrSandbox ? Math.max((session?.amount || 0) + 500, 5000) : (wallet?.balance ?? 0));
-  const hasEnoughBalance = userBalance >= session.amount;
+  // Check if current user is actively logged into a 180 Profile wallet session
+  const isAuthenticatedWithWallet = Boolean(
+    wallet &&
+    (wallet.userId || wallet.id) &&
+    typeof wallet.balance === 'number' &&
+    (typeof window !== 'undefined' && Boolean(
+      localStorage.getItem('platform_auth_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('accessToken')
+    ))
+  );
+
+  const userBalance = isAuthenticatedWithWallet ? (wallet?.balance ?? 0) : 0;
+  const hasEnoughBalance = isAuthenticatedWithWallet && userBalance >= session.amount;
 
   return (
-    <div className="w-full space-y-5 text-slate-900 font-sans">
+    <div className="w-full space-y-5 text-slate-900 dark:text-zinc-100 font-sans antialiased">
       {/* Vendor Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[1px] shadow-sm shrink-0 overflow-hidden">
-            <div className="w-full h-full bg-white rounded-2xl flex items-center justify-center font-bold text-blue-700 text-xs">
-              {session.app?.name ? session.app.name.slice(0, 2).toUpperCase() : 'APP'}
+      <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-zinc-800/80 pb-3.5">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[1px] shadow-xs shrink-0 overflow-hidden">
+            <div className="w-full h-full bg-white dark:bg-zinc-900 rounded-2xl flex items-center justify-center font-bold text-blue-700 dark:text-blue-400 text-xs overflow-hidden">
+              {session.app?.logoUrl ? (
+                <img
+                  src={session.app.logoUrl}
+                  alt={session.app.name || 'Merchant'}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <span>{session.app?.name ? session.app.name.slice(0, 2).toUpperCase() : 'ME'}</span>
+              )}
             </div>
           </div>
-          <div>
-            <h1 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 tracking-tight">
-              {session.app?.name}
-              {session.app?.isVerified && (
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-              )}
+          <div className="min-w-0">
+            <h1 className="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5 tracking-tight truncate">
+              {session.app?.name || 'Merchant'}
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
             </h1>
-            <span className="text-[11px] text-slate-500 font-medium">180 Verified Sovereign Vendor</span>
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium">Verified Merchant</span>
           </div>
         </div>
 
-        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5">
-          <AILogoIcon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-          180 Pay
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center gap-1.5 shrink-0 shadow-2xs">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          Verified
         </span>
       </div>
 
       {/* Item Summary */}
-      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-1.5 mb-1">
-              <h2 className="text-sm font-bold text-slate-900 tracking-tight">{session.title}</h2>
+      <div className="bg-white dark:bg-zinc-900/70 rounded-2xl p-4 border border-slate-200/80 dark:border-zinc-800/80 shadow-2xs space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-zinc-100 tracking-tight leading-snug">{session.title}</h2>
               {(session.mode === 'subscription' || session.metadata?.isSubscription) && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 shrink-0">
                   Recurring {session.billingInterval || 'Monthly'}
                 </span>
               )}
             </div>
             {session.description && (
-              <p className="text-xs text-slate-500 mt-0.5">{session.description}</p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{session.description}</p>
             )}
             {(session.mode === 'subscription' || session.metadata?.isSubscription) && (
-              <p className="text-[11px] text-indigo-600 font-medium mt-1">
-                Auto-renews every {session.billingInterval === 'YEARLY' ? 'year' : 'month'} from your 180 Wallet. Cancel anytime.
+              <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium mt-1">
+                Auto-renews every {session.billingInterval === 'YEARLY' ? 'year' : 'month'}. Cancel anytime.
               </p>
             )}
           </div>
-          <div className="text-right">
-            <span className="text-xl font-extrabold text-slate-900 tracking-tight">
+          <div className="text-right shrink-0">
+            <span className="text-xl font-extrabold text-slate-900 dark:text-zinc-100 tracking-tight">
               {session.currency === 'USD' ? '$' : '₹'}{session.amount.toFixed(2)}
             </span>
-            <div className="text-[10px] text-slate-400 uppercase font-mono">
-              {session.currency} {(session.mode === 'subscription' || session.metadata?.isSubscription) ? '/ month' : ''}
+            <div className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase font-mono mt-0.5">
+              {session.currency} {(session.mode === 'subscription' || session.metadata?.isSubscription) ? '/ mo' : ''}
             </div>
           </div>
         </div>
@@ -936,42 +954,42 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
 
       {/* Purchasing Power Parity (PPP) Banner */}
       {(session.metadata?.pppApplied || session.geoPricing || session.metadata?.isPpp) && (
-        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50/90 to-purple-50/80 p-3.5 flex items-center justify-between text-xs text-indigo-950 shadow-xs">
+        <div className="rounded-2xl border border-indigo-200/80 dark:border-indigo-800/60 bg-gradient-to-r from-indigo-50/90 to-purple-50/80 dark:from-indigo-950/40 dark:to-purple-950/30 p-3.5 flex items-center justify-between text-xs text-indigo-950 dark:text-indigo-200 shadow-2xs">
           <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-lg bg-indigo-600/10 text-indigo-600 flex items-center justify-center shrink-0">
+            <div className="h-7 w-7 rounded-lg bg-indigo-600/10 dark:bg-indigo-400/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <Globe className="h-4 w-4" />
             </div>
             <div>
               <span className="font-bold block">Purchasing Power Parity</span>
-              <span className="text-indigo-800/90 text-[11px]">
+              <span className="text-indigo-800/90 dark:text-indigo-300/80 text-[11px]">
                 Regional fair price applied for your country
               </span>
             </div>
           </div>
-          <span className="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded-full text-[10px] tracking-wide">
+          <span className="bg-indigo-600 dark:bg-indigo-500 text-white font-bold px-2 py-0.5 rounded-full text-[10px] tracking-wide">
             PPP ACTIVE
           </span>
         </div>
       )}
 
       {/* Coupon / Promo Code Box */}
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-2">
+      <div className="rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 p-3.5 space-y-2 shadow-2xs">
         {session.couponCode ? (
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-emerald-800 font-semibold">
-              <Tag className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <div className="flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-300 font-semibold">
+              <Tag className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>
-                Promo code: <strong className="font-mono text-emerald-950 bg-emerald-100/80 px-1.5 py-0.5 rounded">{session.couponCode}</strong>
+                Promo code: <strong className="font-mono text-emerald-950 dark:text-emerald-200 bg-emerald-100/80 dark:bg-emerald-900/50 px-1.5 py-0.5 rounded">{session.couponCode}</strong>
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-mono font-bold text-xs text-emerald-700">
+              <span className="font-mono font-bold text-xs text-emerald-700 dark:text-emerald-400">
                 -{session.currency === 'USD' ? '$' : '₹'}{(session.discountAmount || 0).toFixed(2)}
               </span>
               <button
                 type="button"
                 onClick={handleRemoveCoupon}
-                className="text-slate-400 hover:text-rose-500 p-1 rounded-md hover:bg-rose-50 transition-colors"
+                className="text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                 title="Remove coupon"
               >
                 <X className="w-3.5 h-3.5" />
@@ -984,7 +1002,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               <button
                 type="button"
                 onClick={() => setShowCouponInput(true)}
-                className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Tag className="w-3.5 h-3.5" />
                 <span>Have a coupon or promo code?</span>
@@ -992,13 +1010,13 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
             ) : (
               <div className="flex items-center gap-2 animate-in fade-in duration-150">
                 <div className="relative flex-1">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
                   <input
                     type="text"
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                     placeholder="ENTER PROMO CODE"
-                    className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 uppercase placeholder:normal-case placeholder:font-sans focus:outline-none focus:border-blue-500"
+                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-mono text-slate-900 dark:text-zinc-100 uppercase placeholder:normal-case placeholder:font-sans focus:outline-none focus:border-blue-500"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -1012,7 +1030,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                   size="sm"
                   disabled={applyingCoupon || !couponInput.trim()}
                   onClick={handleApplyCoupon}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 px-3"
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 px-3 shrink-0"
                 >
                   {applyingCoupon ? 'Applying...' : 'Apply'}
                 </Button>
@@ -1022,7 +1040,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                     setShowCouponInput(false);
                     setCouponInput('');
                   }}
-                  className="text-slate-400 hover:text-slate-600 text-xs px-1 cursor-pointer"
+                  className="text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 text-xs px-1 cursor-pointer shrink-0"
                 >
                   Cancel
                 </button>
@@ -1032,47 +1050,78 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         )}
       </div>
 
-      {/* User Wallet Balance Pill */}
-      <div className="rounded-2xl p-4 border border-slate-200 bg-slate-50/60 space-y-2.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-600 flex items-center gap-1.5 font-medium">
-            <Wallet className="w-3.5 h-3.5 text-blue-600" />
-            Your 180 Profile Balance{isSandbox && !wallet ? ' (Sandbox)' : ''}:
-          </span>
-          <span className="font-bold text-slate-900">₹{userBalance.toFixed(2)}</span>
-        </div>
-
-        {hasEnoughBalance ? (
-          <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200 text-slate-600">
-            <span>Balance after payment:</span>
-            <span className="font-bold text-emerald-600">
-              ₹{(userBalance - session.amount).toFixed(2)}
+      {/* Payment Options: Wallet (Only if Authenticated) OR Direct Checkout Badges */}
+      {isAuthenticatedWithWallet ? (
+        <div className="rounded-2xl p-4 border border-slate-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/60 shadow-2xs space-y-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-600 dark:text-zinc-300 flex items-center gap-1.5 font-medium">
+              <Wallet className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              180 Wallet Balance:
+            </span>
+            <span className="font-bold text-slate-900 dark:text-zinc-100">
+              {session.currency === 'USD' ? '$' : '₹'}{userBalance.toFixed(2)}
             </span>
           </div>
-        ) : (
-          <div className="text-[11px] text-rose-600 flex items-center gap-1 pt-1 font-semibold">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>Insufficient balance (₹{(session.amount - userBalance).toFixed(2)} needed)</span>
+
+          {hasEnoughBalance ? (
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-zinc-800 text-slate-600 dark:text-zinc-400">
+              <span>Balance after payment:</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                {session.currency === 'USD' ? '$' : '₹'}{(userBalance - session.amount).toFixed(2)}
+              </span>
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-600 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-800/50 p-2.5 rounded-xl border border-slate-200/70 dark:border-zinc-700/60 flex items-center justify-between">
+              <span>Pay remaining with UPI / Cards:</span>
+              <span className="font-bold text-slate-900 dark:text-zinc-200">
+                {session.currency === 'USD' ? '$' : '₹'}{(session.amount - userBalance).toFixed(2)}
+              </span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-2xl p-3.5 border border-slate-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/60 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-700 dark:text-zinc-300 font-semibold flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              Accepted Payment Methods
+            </span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Instant Checkout
+            </span>
           </div>
-        )}
-      </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
+              UPI (GPay / PhonePe / Paytm)
+            </span>
+            <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
+              Credit & Debit Cards
+            </span>
+            <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
+              Netbanking
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
-      <div className="space-y-3 pt-2">
+      <div className="space-y-2.5 pt-1">
         {hasEnoughBalance ? (
           <>
             <Button
               onClick={handlePay}
               disabled={paying || topupLoading}
-              className="w-full min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full min-h-[46px] rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
             >
               <Lock className="w-4 h-4" />
               <span>
                 {paying
-                  ? 'Authorizing...'
+                  ? 'Processing Payment...'
                   : session.mode === 'subscription' || session.metadata?.isSubscription
-                  ? `Authorize Recurring Subscription (${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)})`
-                  : `Authorize & Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)}`}
+                  ? `Authorize Subscription (${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)})`
+                  : `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} with 180 Wallet`}
               </span>
             </Button>
 
@@ -1080,22 +1129,22 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               type="button"
               onClick={handleDirectPayment}
               disabled={paying || topupLoading}
-              className="w-full py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+              className="w-full py-2.5 min-h-[42px] rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
             >
-              <CreditCard className="w-3.5 h-3.5 text-slate-500" />
-              <span>{topupLoading ? 'Launching Gateway...' : 'Or Pay via UPI / Cards / Netbanking'}</span>
+              <CreditCard className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
+              <span>{topupLoading ? 'Opening Gateway...' : 'Or Pay via UPI / Cards / Netbanking'}</span>
             </button>
           </>
         ) : (
           <Button
             onClick={handleDirectPayment}
             disabled={topupLoading || paying}
-            className="w-full min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full min-h-[46px] rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
           >
             <CreditCard className="w-4 h-4" />
             <span>
               {topupLoading
-                ? 'Launching Razorpay...'
+                ? 'Opening Payment Gateway...'
                 : `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via UPI / Cards`}
             </span>
           </Button>
@@ -1114,12 +1163,13 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               window.history.back();
             }
           }}
-          className="w-full py-2.5 min-h-[44px] rounded-xl text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+          className="w-full py-2.5 min-h-[44px] rounded-xl text-xs text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800/60 transition-colors cursor-pointer flex items-center justify-center"
         >
-          Cancel and return to {session.app?.name || 'app'}
+          Cancel and return to {session.app?.name || 'merchant'}
         </button>
       </div>
     </div>
   );
 }
 export default CheckoutClient;
+

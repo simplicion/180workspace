@@ -50,14 +50,7 @@ async function runSsm(commands) {
 
 async function main() {
   const res = await runSsm([
-    'git config --global --add safe.directory /home/ubuntu/app',
-    'cd /home/ubuntu/app',
-    'git fetch origin main',
-    'git reset --hard origin/main',
-    'echo "=== LATEST COMMIT ON EC2 ==="',
-    'git log -1 --oneline',
-    'echo "=== CHECKING PACKAGE.JSON ON EC2 ==="',
-    'cat packages/backend-common/package.json | grep main'
+    'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
   ]);
   console.log(res);
 }

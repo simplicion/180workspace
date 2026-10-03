@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CreditCard, Shield } from 'lucide-react';
+import { Lock, ShieldCheck } from 'lucide-react';
 
 export default function CheckoutStandaloneLayout({
   children,
@@ -9,27 +9,27 @@ export default function CheckoutStandaloneLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-white flex flex-col justify-between text-slate-900 font-sans relative">
+    <div className="min-h-screen bg-slate-50/60 dark:bg-black flex flex-col justify-between text-slate-900 dark:text-zinc-100 font-sans relative antialiased selection:bg-blue-600 selection:text-white">
       {/* Top Header */}
-      <header className="w-full border-b border-slate-100 bg-white sticky top-0 z-20 px-4 sm:px-6 py-3.5">
+      <header className="w-full border-b border-slate-200/80 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md sticky top-0 z-20 px-4 sm:px-6 py-3 shadow-2xs">
         <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[1px] shadow-xs shrink-0 overflow-hidden">
-              <div className="w-full h-full bg-white rounded-xl flex items-center justify-center p-1.5">
-                <CreditCard className="w-4 h-4 text-blue-600" />
-              </div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/60 flex items-center justify-center shadow-2xs shrink-0">
+              <Lock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             </div>
-            <span className="font-bold text-xs tracking-tight text-slate-900">
-              180 Pay
-            </span>
-            <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
-              Sovereign Gateway
-            </span>
+            <div className="flex flex-col">
+              <span className="font-bold text-xs tracking-tight text-slate-900 dark:text-zinc-100 leading-tight">
+                Secure Checkout
+              </span>
+              <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">
+                End-to-End Encrypted
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200/80 shadow-2xs">
-            <Shield className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="font-medium text-[11px]">1-Click Authorized</span>
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-zinc-300 bg-emerald-50/80 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200/80 dark:border-emerald-800/50 shadow-2xs">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-medium text-[11px] text-emerald-800 dark:text-emerald-300">256-Bit SSL</span>
           </div>
         </div>
       </header>
@@ -40,12 +40,13 @@ export default function CheckoutStandaloneLayout({
       </main>
 
       {/* Minimal Footer */}
-      <footer className="w-full border-t border-slate-100 py-3.5 px-4 text-center text-slate-400 bg-white relative z-10">
-        <div className="max-w-md mx-auto flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
-          <Shield className="w-3 h-3 text-slate-400" />
-          <span>Protected by 180 Workspace Sovereign Ledger Protocol</span>
+      <footer className="w-full border-t border-slate-200/70 dark:border-zinc-800/70 py-3 px-4 text-center text-slate-400 dark:text-zinc-500 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-sm relative z-10">
+        <div className="max-w-md mx-auto flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
+          <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+          <span>PCI-DSS Compliant • 256-Bit Secure Payment Encryption</span>
         </div>
       </footer>
     </div>
   );
 }
+

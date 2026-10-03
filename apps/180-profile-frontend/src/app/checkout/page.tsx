@@ -16,7 +16,7 @@ function CheckoutEntryPoint() {
   const planCode = searchParams.get('planCode') || searchParams.get('plan');
   const initialAmount = searchParams.get('amount');
   const currency = searchParams.get('currency') || 'INR';
-  const title = searchParams.get('title') || (planCode ? `${planCode} Subscription` : '180 Pay Sovereign Checkout');
+  const title = searchParams.get('title') || (planCode ? `${planCode} Subscription` : 'Secure Checkout');
   const couponCode = searchParams.get('couponCode') || searchParams.get('coupon');
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(querySessionId || null);
@@ -104,8 +104,8 @@ function CheckoutEntryPoint() {
       <div className="w-full py-16 text-center space-y-4 flex flex-col items-center justify-center font-sans">
         <LogoLoader size={44} className="w-11 h-11 text-blue-600" />
         <div className="space-y-1">
-          <p className="text-sm font-bold text-slate-900">Initializing Sovereign Checkout</p>
-          <p className="text-xs text-slate-500">Connecting securely to 180 Pay gateway...</p>
+          <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">Initializing Secure Checkout</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400">Connecting securely to payment gateway...</p>
         </div>
       </div>
     );
@@ -114,16 +114,16 @@ function CheckoutEntryPoint() {
   if (error) {
     return (
       <div className="w-full py-10 text-center space-y-4 font-sans">
-        <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto">
+        <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto border border-red-200/50 dark:border-red-900/50">
           <AlertCircle className="w-6 h-6" />
         </div>
         <div className="space-y-1">
-          <h2 className="text-base font-bold text-slate-900">Checkout Session Error</h2>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">{error}</p>
+          <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">Checkout Session Error</h2>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-sm mx-auto">{error}</p>
         </div>
         <Button
           onClick={() => router.push('/')}
-          className="mt-2 w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold"
+          className="mt-2 w-full py-2.5 rounded-xl bg-slate-900 dark:bg-zinc-800 hover:bg-slate-800 dark:hover:bg-zinc-700 text-white text-xs font-semibold"
         >
           Return to 180 Workspace
         </Button>
@@ -133,14 +133,14 @@ function CheckoutEntryPoint() {
 
   return (
     <div className="w-full text-center space-y-6 font-sans py-2">
-      <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100 shadow-2xs">
+      <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto border border-blue-100 dark:border-blue-900/50 shadow-2xs">
         <CreditCard className="w-7 h-7" />
       </div>
 
       <div className="space-y-2">
-        <h1 className="text-lg font-black text-slate-900 tracking-tight">180 Pay Sovereign Checkout</h1>
-        <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
-          Welcome to the 180 Pay checkout gateway. To initiate a secure transaction, use an official payment link or trigger checkout from your application using the 180 Core SDK.
+        <h1 className="text-lg font-black text-slate-900 dark:text-zinc-100 tracking-tight">Secure Checkout</h1>
+        <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed max-w-sm mx-auto">
+          Welcome to the checkout gateway. To initiate a secure transaction, use an official payment link or trigger checkout from your application using the 180 Core SDK.
         </p>
       </div>
 
