@@ -42,7 +42,7 @@ export interface DeveloperHeaderProps {
 
 export function DeveloperHeader({
   onMobileToggle,
-  activeTabTitle = 'Projects',
+  activeTabTitle = 'Dashboard',
   activeTabId = 'apps',
   onTabChange,
   searchQuery,
