@@ -5,20 +5,12 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Layers,
-  LayoutDashboard,
-  Shield,
-  CreditCard,
   Code2,
   Webhook,
-  KeyRound,
-  Activity,
   FileCode2,
   LogOut,
   X,
   ExternalLink,
-  ChevronRight,
-  Sparkles,
-  HelpCircle,
   Plus,
 } from 'lucide-react';
 import { AILogoIcon, Button } from '@workspace/ui';
@@ -78,32 +70,6 @@ export function DeveloperSidebar({
           badge: appCount > 0 ? `${appCount}` : undefined,
           badgeColor: 'blue',
         },
-        {
-          id: 'overview',
-          label: 'Platform Overview',
-          icon: LayoutDashboard,
-          badge: 'Live',
-          badgeColor: 'emerald',
-        },
-      ],
-    },
-    {
-      title: 'Products & APIs',
-      items: [
-        {
-          id: 'identity',
-          label: '180 Identity SSO',
-          icon: Shield,
-          badge: 'OIDC 1.0',
-          badgeColor: 'blue',
-        },
-        {
-          id: 'pay',
-          label: '180 Pay Checkout',
-          icon: CreditCard,
-          badge: '1-Click',
-          badgeColor: 'purple',
-        },
       ],
     },
     {
@@ -129,23 +95,6 @@ export function DeveloperSidebar({
           icon: FileCode2,
           isExternal: true,
           href: '/docs',
-        },
-      ],
-    },
-    {
-      title: 'Security & Vault',
-      items: [
-        {
-          id: 'credentials',
-          label: 'Credentials & Keys',
-          icon: KeyRound,
-        },
-        {
-          id: 'status',
-          label: 'Service Latency & Health',
-          icon: Activity,
-          badge: '99.98%',
-          badgeColor: 'emerald',
         },
       ],
     },
