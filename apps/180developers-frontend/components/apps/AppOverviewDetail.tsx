@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Key,
   Copy,
@@ -9,14 +9,14 @@ import {
   Zap,
   Shield,
   CreditCard,
-  ImageIcon,
-  Save,
-  Loader2,
+  Code2,
+  Terminal,
+  Settings,
+  ArrowRight,
+  ExternalLink,
 } from 'lucide-react';
-import { Button } from '@workspace/ui';
 import { AppCard } from '../AppCard';
 import { DeveloperAppDetail } from './types';
-import { AppLogoUploader } from './AppLogoUploader';
 
 export interface AppOverviewDetailProps {
   app: DeveloperAppDetail;
@@ -27,21 +27,23 @@ export interface AppOverviewDetailProps {
   onOpenIdentity: () => void;
   onOpenPay: () => void;
   onRotateSecretClick: () => void;
-  name: string;
-  setName: (val: string) => void;
-  description: string;
-  setDescription: (val: string) => void;
-  logoUrl: string;
-  setLogoUrl: (val: string) => void;
-  redirectUrisInput: string;
-  setRedirectUrisInput: (val: string) => void;
-  allowedOriginsInput: string;
-  setAllowedOriginsInput: (val: string) => void;
-  onSave: (e?: React.SyntheticEvent) => void;
-  saving: boolean;
-  onRevokeTokens: () => void;
-  isRevoking: boolean;
-  onDeleteAppClick: () => void;
+  onOpenSettings?: () => void;
+  // Optional backwards-compatible props
+  name?: string;
+  setName?: (val: string) => void;
+  description?: string;
+  setDescription?: (val: string) => void;
+  logoUrl?: string;
+  setLogoUrl?: (val: string) => void;
+  redirectUrisInput?: string;
+  setRedirectUrisInput?: (val: string) => void;
+  allowedOriginsInput?: string;
+  setAllowedOriginsInput?: (val: string) => void;
+  onSave?: (e?: React.SyntheticEvent) => void;
+  saving?: boolean;
+  onRevokeTokens?: () => void;
+  isRevoking?: boolean;
+  onDeleteAppClick?: () => void;
 }
 
 export function AppOverviewDetail({
@@ -53,44 +55,79 @@ export function AppOverviewDetail({
   onOpenIdentity,
   onOpenPay,
   onRotateSecretClick,
-  name,
-  setName,
-  description,
-  setDescription,
-  logoUrl,
-  setLogoUrl,
-  redirectUrisInput,
-  setRedirectUrisInput,
-  allowedOriginsInput,
-  setAllowedOriginsInput,
-  onSave,
-  saving,
-  onRevokeTokens,
-  isRevoking,
-  onDeleteAppClick,
+  onOpenSettings,
 }: AppOverviewDetailProps) {
+  const [activeSdkTab, setActiveSdkTab] = useState<'identity' | 'pay'>('identity');
+  const [copiedSnippet, setCopiedSnippet] = useState(false);
+
+  const identitySnippet = `import { OneEightyIdentity } from '@workspace/identity-sdk';
+
+// Initialize 180 Identity Sovereign OAuth 2.0 / OIDC Client
+export const identity = new OneEightyIdentity({
+  clientId: '${app.clientId}',
+  redirectUri: '${(app.redirectUris && app.redirectUris[0]) || 'https://yourapp.com/callback'}',
+  scope: 'openid profile email username',
+});
+
+// Trigger 1-Click Login Popup
+await identity.loginWithPopup();`;
+
+  const paySnippet = `import { OneEightyPay } from '@workspace/identity-sdk';
+
+// Initialize 180 Pay Checkout Engine
+export const pay = new OneEightyPay({
+  clientId: '${app.clientId}',
+});
+
+// Open 1-Click Sovereign Wallet & UPI Checkout
+const result = await pay.openCheckout({
+  amount: 499,
+  currency: 'INR',
+  orderId: 'ORD_1001',
+  customerUsername: 'alice',
+});`;
+
+  const handleCopySnippet = (snippet: string) => {
+    navigator.clipboard.writeText(snippet);
+    setCopiedSnippet(true);
+    setTimeout(() => setCopiedSnippet(false), 2000);
+  };
+
   return (
     <div className="space-y-8">
-      {/* Credentials Card */}
+      {/* 1. Project Credentials Card */}
       <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-5 shadow-sm dark:shadow-2xl">
-        <div className="flex items-center gap-2">
-          <Key className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          <h2 className="text-base font-bold text-zinc-950 dark:text-white">OAuth 2.0 Credentials</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Key className="w-4 h-4 text-zinc-900 dark:text-white" />
+            <h2 className="text-base font-bold text-zinc-950 dark:text-white">Project Credentials</h2>
+          </div>
+          {onOpenSettings && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="text-xs font-semibold text-zinc-500 hover:text-zinc-950 dark:hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>Project Settings</span>
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Client ID */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Client ID</label>
+            <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Project Client ID</label>
             <div className="flex items-center gap-2 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 font-mono text-xs text-zinc-900 dark:text-white">
               <span className="flex-1 truncate">{app.clientId}</span>
               <button
                 type="button"
                 onClick={() => copyToClipboard(app.clientId, 'client')}
-                className="text-zinc-400 hover:text-zinc-950 dark:hover:text-white cursor-pointer"
+                className="text-zinc-400 hover:text-zinc-950 dark:hover:text-white cursor-pointer transition-colors p-1"
                 title="Copy Client ID"
               >
                 {copiedKey === 'client' ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
                 ) : (
                   <Copy className="w-3.5 h-3.5" />
                 )}
@@ -98,17 +135,18 @@ export function AppOverviewDetail({
             </div>
           </div>
 
+          {/* Client Secret */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Client Secret</label>
             <div className="flex items-center gap-2 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 font-mono text-xs text-zinc-500 dark:text-zinc-400">
-              <span className="flex-1">
+              <span className="flex-1 truncate">
                 {app.clientSecretHint ? `••••••••••••${app.clientSecretHint}` : 'Public PKCE Client'}
               </span>
               {app.clientSecretHint && (
                 <button
                   type="button"
                   onClick={onRotateSecretClick}
-                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
                 >
                   <RotateCw className="w-3 h-3" />
                   <span>Rotate</span>
@@ -119,28 +157,28 @@ export function AppOverviewDetail({
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          MY APPS: Modular Application Cards Grid using Reusable AppCard
-          ═══════════════════════════════════════════════════════════════════════ */}
+      {/* 2. My Apps: Activated Apps Under this Project */}
       <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-white/10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-zinc-200 dark:border-white/10">
           <div>
             <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-500" />
               <span>My Apps</span>
             </h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Click on any app card to open its dedicated configuration and analytics dashboard.
+              Activated sovereign services powered by this project. Click an app to inspect live telemetry and configurations.
             </p>
           </div>
-          <span className="text-[11px] font-mono text-zinc-400">Single Client ID Architecture</span>
+          <span className="text-[11px] font-mono text-zinc-400 self-start sm:self-auto">
+            Single Client ID Architecture
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* App Card 1: 180 Identity */}
           <AppCard
             name="180 Identity"
-            description="Universal login with WhatsApp OTP, Google SSO, and sovereign @usernames. Issues RS256 asymmetric JWKS access tokens."
+            description="Universal authentication with WhatsApp OTP, Google SSO, and sovereign @usernames. Issues RS256 asymmetric JWKS tokens."
             icon={Shield}
             enabled={enableAuth}
             protocol="OAuth 2.0 / OIDC Protocol"
@@ -163,129 +201,60 @@ export function AppOverviewDetail({
         </div>
       </div>
 
-      {/* General Application Configuration Form */}
-      <form onSubmit={onSave} className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-white/10">
-          <div>
-            <h2 className="text-base font-bold text-zinc-950 dark:text-white">Application Configuration</h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              General application profile, redirect URIs, and cross-origin resource sharing (CORS).
-            </p>
+      {/* 3. Quickstart SDK Code Snippet */}
+      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-4 shadow-sm dark:shadow-2xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-zinc-900 dark:text-white" />
+            <h2 className="text-base font-bold text-zinc-950 dark:text-white">Quick Integration</h2>
           </div>
-          <Button
-            type="submit"
-            disabled={saving}
-            className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            <span>Save Settings</span>
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Application Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Description</label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* Direct App Logo Upload via Media Pipeline (R2 CDN) */}
-        <AppLogoUploader
-          logoUrl={logoUrl}
-          onChange={setLogoUrl}
-          appId={app.id}
-        />
-
-
-        {/* Redirect URIs */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-            OAuth 2.0 Redirect URIs (One per line)
-          </label>
-          <textarea
-            rows={3}
-            value={redirectUrisInput}
-            onChange={(e) => setRedirectUrisInput(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-          />
-        </div>
-
-        {/* CORS Allowed Origins */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-            Allowed Web Origins (CORS)
-          </label>
-          <textarea
-            rows={2}
-            value={allowedOriginsInput}
-            onChange={(e) => setAllowedOriginsInput(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-          />
-        </div>
-
-        <div className="pt-2 flex justify-end">
-          <Button
-            type="submit"
-            disabled={saving}
-            className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            <span>Save Settings</span>
-          </Button>
-        </div>
-      </form>
-
-      {/* Danger Zone */}
-      <div className="rounded-3xl border border-red-200 dark:border-red-500/20 bg-red-50/20 dark:bg-zinc-950 p-6 sm:p-8 space-y-4 shadow-sm dark:shadow-2xl">
-        <h2 className="text-base font-bold text-red-600 dark:text-red-400">Danger Zone</h2>
-        <div className="divide-y divide-zinc-200 dark:divide-white/5 text-xs text-zinc-700 dark:text-zinc-300">
-          <div className="py-3.5 flex items-center justify-between">
-            <div>
-              <div className="font-semibold text-zinc-900 dark:text-white">Revoke All Active Tokens</div>
-              <div className="text-zinc-500 dark:text-zinc-400 text-[11px] mt-0.5">
-                Immediately invalidates all issued access and refresh tokens for this app.
-              </div>
-            </div>
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs">
             <button
               type="button"
-              onClick={onRevokeTokens}
-              disabled={isRevoking}
-              className="px-3.5 py-2 rounded-xl bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20 font-semibold cursor-pointer transition-colors"
+              onClick={() => setActiveSdkTab('identity')}
+              className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                activeSdkTab === 'identity'
+                  ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-xs'
+                  : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
+              }`}
             >
-              {isRevoking ? 'Revoking...' : 'Revoke Tokens'}
+              180 Identity
             </button>
-          </div>
-
-          <div className="py-3.5 flex items-center justify-between">
-            <div>
-              <div className="font-semibold text-zinc-900 dark:text-white">Delete Application</div>
-              <div className="text-zinc-500 dark:text-zinc-400 text-[11px] mt-0.5">
-                Permanently removes this application and all associated grants.
-              </div>
-            </div>
             <button
               type="button"
-              onClick={onDeleteAppClick}
-              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold cursor-pointer transition-colors shadow-sm"
+              onClick={() => setActiveSdkTab('pay')}
+              className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                activeSdkTab === 'pay'
+                  ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-xs'
+                  : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
+              }`}
             >
-              Delete App
+              180 Pay
             </button>
           </div>
+        </div>
+
+        <div className="relative rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 p-4 font-mono text-xs overflow-x-auto shadow-inner">
+          <button
+            type="button"
+            onClick={() => handleCopySnippet(activeSdkTab === 'identity' ? identitySnippet : paySnippet)}
+            className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer z-10"
+          >
+            {copiedSnippet ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+          <pre className="text-zinc-300 leading-relaxed">
+            {activeSdkTab === 'identity' ? identitySnippet : paySnippet}
+          </pre>
         </div>
       </div>
     </div>
