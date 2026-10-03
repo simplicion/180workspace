@@ -449,7 +449,7 @@
 
       return openInBottomSheet({
         url: checkoutUrl,
-        title: options.title || '180 Sovereign Pay',
+        title: options.title || 'Secure Payment',
         successTypes: ['180_PAYMENT_SUCCESS', '180_PAY_SUCCESS'],
         closeTypes: ['180_PAYMENT_CLOSE'],
         mapSuccess: function (data) {

@@ -1,13 +1,36 @@
 'use client';
 
-import React from 'react';
-import { Lock, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Lock, ShieldCheck, X } from 'lucide-react';
 
 export default function CheckoutStandaloneLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [isInsideIframe, setIsInsideIframe] = useState(false);
+
+  useEffect(() => {
+    try {
+      setIsInsideIframe(typeof window !== 'undefined' && window.self !== window.top);
+    } catch {
+      setIsInsideIframe(true);
+    }
+  }, []);
+
+  const handleClose = () => {
+    if (typeof window !== 'undefined') {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type: '180_PAYMENT_CLOSE' }, '*');
+        window.close();
+      } else if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: '180_PAYMENT_CLOSE' }, '*');
+      } else {
+        window.history.back();
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/60 dark:bg-black flex flex-col justify-between text-slate-900 dark:text-zinc-100 font-sans relative antialiased selection:bg-blue-600 selection:text-white">
       {/* Top Header */}
@@ -27,9 +50,22 @@ export default function CheckoutStandaloneLayout({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-zinc-300 bg-emerald-50/80 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200/80 dark:border-emerald-800/50 shadow-2xs">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="font-medium text-[11px] text-emerald-800 dark:text-emerald-300">256-Bit SSL</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-zinc-300 bg-emerald-50/80 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200/80 dark:border-emerald-800/50 shadow-2xs">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-medium text-[11px] text-emerald-800 dark:text-emerald-300">256-Bit SSL</span>
+            </div>
+
+            {!isInsideIframe && (
+              <button
+                type="button"
+                onClick={handleClose}
+                aria-label="Close checkout"
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </header>
