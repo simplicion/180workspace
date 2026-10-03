@@ -1514,6 +1514,15 @@ class _CaptionPreview extends StatelessWidget {
       renderedText = textStr.substring(0, (textStr.length * reveal).ceil().clamp(0, textStr.length));
     }
 
+    final baseSize = (st['fontSizePx'] as num?)?.toDouble() ?? (caption.kind == 'text' ? 24 : 18);
+    // word_pop: only the word being spoken grows (by its `scale`, eased over 120 ms), exactly like the export.
+    double popOf(EditIrWord w) {
+      if (anim != 'word_pop' || t < w.startMs || t >= w.endMs) return 1;
+      final p = ((t - w.startMs) / 120).clamp(0.0, 1.0);
+      final eased = 1 - math.pow(1 - p, 3);
+      return 1 + (w.scale - 1) * eased;
+    }
+
     final spans = caption.words.isEmpty || caption.kind == 'text'
         ? [TextSpan(text: upper ? renderedText.toUpperCase() : renderedText)]
         : [
@@ -1521,6 +1530,7 @@ class _CaptionPreview extends StatelessWidget {
               TextSpan(
                 text: '${upper ? w.text.toUpperCase() : w.text} ',
                 style: TextStyle(
+                  fontSize: baseSize * popOf(w),
                   color: anim == 'none'
                       ? text
                       : (t >= w.startMs && t < w.endMs) || (anim == 'karaoke' && t >= w.endMs) || w.highlight
@@ -1539,7 +1549,7 @@ class _CaptionPreview extends StatelessWidget {
         style: CaptionFonts.textStyle(
           st,
           color: text,
-          fontSize: (st['fontSizePx'] as num?)?.toDouble() ?? (caption.kind == 'text' ? 24 : 18),
+          fontSize: baseSize,
           shadows: [
             if (st['glow'] == true) Shadow(blurRadius: 16, color: hi),
             if (st['shadow'] == true || (st['strokeWidthPx'] as num? ?? 0) > 0) ...[
@@ -1555,10 +1565,6 @@ class _CaptionPreview extends StatelessWidget {
     if (anim == 'fade_in') {
       final alpha = (elapsedMs / 300).clamp(0.0, 1.0);
       textWidget = Opacity(opacity: alpha, child: textWidget);
-    } else if (anim == 'word_pop') {
-      final p = (elapsedMs / 250).clamp(0.0, 1.0);
-      final s = p < 0.7 ? 0.7 + (p / 0.7) * 0.4 : 1.1 - ((p - 0.7) / 0.3) * 0.1;
-      textWidget = Transform.scale(scale: s, child: textWidget);
     } else if (anim == 'slide_up') {
       final p = (elapsedMs / 300).clamp(0.0, 1.0);
       final dy = (1.0 - p) * 20;

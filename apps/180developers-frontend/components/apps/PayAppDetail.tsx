@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CreditCard,
   Webhook,
@@ -22,6 +22,11 @@ import {
   Activity,
   CheckCircle2,
   AlertCircle,
+  Tag,
+  Link2,
+  Globe,
+  Bot,
+  BarChart3,
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import {
@@ -32,6 +37,12 @@ import {
   WebhookTestResult,
   TransactionRecord,
 } from './types';
+import { CouponsTab } from './pay/CouponsTab';
+import { PaymentLinksTab } from './pay/PaymentLinksTab';
+import { PricingTablesTab } from './pay/PricingTablesTab';
+import { GeoPricingTab } from './pay/GeoPricingTab';
+import { AgentEnvelopesTab } from './pay/AgentEnvelopesTab';
+import { CustomGatewayTab } from './pay/CustomGatewayTab';
 
 export interface PayAppDetailProps {
   app: DeveloperAppDetail;
@@ -109,6 +120,8 @@ export function PayAppDetail({
   onSave,
   saving,
 }: PayAppDetailProps) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'coupons' | 'links' | 'pricing' | 'geo' | 'agents' | 'gateway'>('overview');
+
   return (
     <div className="space-y-6">
       {/* 180 Pay Service Status & Enable Toggle Card */}
@@ -164,11 +177,101 @@ export function PayAppDetail({
         </div>
       </div>
 
-      {/* Webhook & 2-Way Payment Verification Engine Card */}
-      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-zinc-200 dark:border-white/10">
-          <div>
-            <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+      {/* Sub-Navigation Tabs for 180 Pay Capabilities */}
+      <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800/80 pb-3 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setActiveTab('overview')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+            activeTab === 'overview'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+              : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+          }`}
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          Overview & Webhook
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('coupons')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+            activeTab === 'coupons'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+              : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+          }`}
+        >
+          <Tag className="w-3.5 h-3.5" />
+          Coupons & Promos
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('links')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+            activeTab === 'links'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+              : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+          }`}
+        >
+          <Link2 className="w-3.5 h-3.5" />
+          Payment Links
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('pricing')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+            activeTab === 'pricing'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+              : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          Pricing Tables
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('geo')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+            activeTab === 'geo'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+              : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+          }`}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          Geo-Pricing & PPP
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('agents')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+            activeTab === 'agents'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+              : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+          }`}
+        >
+          <Bot className="w-3.5 h-3.5" />
+          AI Agents (AP2)
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('gateway')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+            activeTab === 'gateway'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+              : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+          }`}
+        >
+          <CreditCard className="w-3.5 h-3.5" />
+          Custom Gateway (BYOG)
+        </button>
+      </div>
+
+      {activeTab === 'overview' && (
+        <>
+          {/* Webhook & 2-Way Payment Verification Engine Card */}
+          <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-zinc-200 dark:border-white/10">
+              <div>
+                <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
               <Webhook className="w-4 h-4 text-purple-600 dark:text-purple-400" />
               <span>Webhook & 2-Way Payment Verification Engine</span>
             </h2>
@@ -868,7 +971,16 @@ export function PayAppDetail({
           )}
         </div>
       </div>
-    </div>
+    </>
+  )}
+
+  {activeTab === 'coupons' && <CouponsTab appId={app.id} />}
+  {activeTab === 'links' && <PaymentLinksTab appId={app.id} />}
+  {activeTab === 'pricing' && <PricingTablesTab appId={app.id} />}
+  {activeTab === 'geo' && <GeoPricingTab appId={app.id} />}
+  {activeTab === 'agents' && <AgentEnvelopesTab appId={app.id} />}
+  {activeTab === 'gateway' && <CustomGatewayTab appId={app.id} />}
+</div>
   );
 }
 

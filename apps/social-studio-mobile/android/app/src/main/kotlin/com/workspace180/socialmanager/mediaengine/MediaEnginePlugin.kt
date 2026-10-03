@@ -215,6 +215,19 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                     val every = call.argument<Number>("sampleEveryMs")?.toLong() ?: 1000L
                     analysis(call, result) { MediaIntelligence.recognizeText(src, every, it) }
                 }
+                "makeSeekable" -> {
+                    // Fragmented MP4 (stock clips) → regular MP4 in place, so preview scrubbing and export can seek.
+                    val src = call.req<String>("path")
+                    analysis(call, result) {
+                        val fixed = MediaTools.ensureSeekable(src)
+                        if (fixed == src) false else {
+                            val target = java.io.File(src)
+                            target.delete()
+                            if (!java.io.File(fixed).renameTo(target)) throw MediaEngineError("REMUX_FAILED", "Could not replace ${target.name}")
+                            true
+                        }
+                    }
+                }
                 "thumbnailCandidates" -> {
                     val src = call.req<String>("sourcePath")
                     val out = call.req<String>("outputDir")
@@ -257,6 +270,7 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
                     val options = RenderOptions(
                         maxShortSide = call.argument<Number>("maxShortSide")?.toInt()?.takeIf { it >= 144 },
                         quality = if (call.argument<String>("quality") == "high") "high" else "standard",
+                        loudnessTargetLufs = call.argument<Number>("loudnessTargetLufs")?.toDouble()?.takeIf { it in -30.0..-6.0 },
                     )
                     val media = RenderMedia(
                         assetPaths = call.argument<Map<String, String>>("assetPaths") ?: emptyMap(),

@@ -93,21 +93,34 @@ enum RenderState { started, progress, completed }
 /// Export choices that are not part of the edit. [maxShortSide] scales the finished video down (720 = 720p; null =
 /// canvas size); [fps] overrides the canvas frame rate; [quality] `high` doubles the video bitrate.
 class ExportSettings {
-  const ExportSettings({this.maxShortSide, this.fps, this.quality = 'standard'});
+  const ExportSettings({this.maxShortSide, this.fps, this.quality = 'standard', this.normalizeLoudness = false});
+
+  /// What the Studio exports with: platform loudness on (Reels / Shorts / TikTok play at about -14 LUFS).
+  static const studioDefault = ExportSettings(normalizeLoudness: true);
+
+  /// Integrated loudness the voice is normalised to when [normalizeLoudness] is on.
+  static const targetLufs = -14.0;
+
   final int? maxShortSide;
   final int? fps;
   final String quality;
 
-  ExportSettings copyWith({int? maxShortSide, bool clearMaxShortSide = false, int? fps, bool clearFps = false, String? quality}) => ExportSettings(
+  /// Measure the voice on the phone and bring the mix to [targetLufs] (peaks limited to -2 dBFS).
+  final bool normalizeLoudness;
+
+  ExportSettings copyWith({int? maxShortSide, bool clearMaxShortSide = false, int? fps, bool clearFps = false, String? quality, bool? normalizeLoudness}) =>
+      ExportSettings(
         maxShortSide: clearMaxShortSide ? null : (maxShortSide ?? this.maxShortSide),
         fps: clearFps ? null : (fps ?? this.fps),
         quality: quality ?? this.quality,
+        normalizeLoudness: normalizeLoudness ?? this.normalizeLoudness,
       );
 
   Map<String, Object> toArgs() => {
         'maxShortSide': ?maxShortSide,
         'fps': ?fps,
         'quality': quality,
+        if (normalizeLoudness) 'loudnessTargetLufs': targetLufs,
       };
 }
 
@@ -285,6 +298,10 @@ class MediaEngineService {
 
   /// Thumbnail Frame Scout: the [count] best frames of the video (sharp, big face, open eyes, expression, good
   /// exposure; spread out in time), saved as 1280 px JPEGs in [outputDir] with their face boxes.
+  /// Rewrites a fragmented MP4 (typical for stock clips: no duration in the header, not seekable) as a regular MP4
+  /// in place. True when the file was rewritten.
+  static Future<bool> makeSeekable(String path) async => (await _invoke<bool>('makeSeekable', {'path': path})) ?? false;
+
   static Future<List<Map<String, dynamic>>> thumbnailCandidates({required String sourcePath, required String outputDir, int count = 4}) async {
     final r = await _invoke<List<Object?>>('thumbnailCandidates', {'sourcePath': sourcePath, 'outputDir': outputDir, 'count': count});
     return [for (final e in (r ?? const []).cast<Map<Object?, Object?>>()) _deepCast(e)];

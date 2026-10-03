@@ -20,6 +20,10 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
+  Tag,
+  Percent,
+  Globe,
+  X,
 } from 'lucide-react';
 import { Button, LogoLoader, AILogoIcon } from '@workspace/ui';
 import toast from 'react-hot-toast';
@@ -31,11 +35,12 @@ declare global {
   }
 }
 
-export function CheckoutClient() {
+export function CheckoutClient({ initialSessionId }: { initialSessionId?: string } = {}) {
   const params = useParams();
   
   // Resilient sessionId extraction for static SSG exports (Cloudflare Pages rewrites)
   const getInitialSessionId = () => {
+    if (initialSessionId && initialSessionId !== 'default') return initialSessionId;
     const pId = params?.sessionId as string;
     if (pId && pId !== 'default') return pId;
     if (typeof window !== 'undefined') {
@@ -63,6 +68,11 @@ export function CheckoutClient() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedDetails, setCopiedDetails] = useState(false);
   const [showDevInspector, setShowDevInspector] = useState(false);
+
+  // ─── Coupons & Promo Code State ─────────────────────────────────────────────
+  const [couponInput, setCouponInput] = useState('');
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [showCouponInput, setShowCouponInput] = useState(false);
 
   // ─── Autonomous Environment Detection ──────────────────────────────────────
   const isProduction = useMemo(() => {
@@ -139,6 +149,89 @@ export function CheckoutClient() {
       } else {
         window.history.back();
       }
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) {
+      toast.error('Please enter a coupon or promo code');
+      return;
+    }
+    setApplyingCoupon(true);
+    try {
+      const token =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('platform_auth_token') ||
+            localStorage.getItem('token') ||
+            localStorage.getItem('accessToken')
+          : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/apply-coupon`), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ couponCode: couponInput.trim().toUpperCase() }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSession((prev: any) => ({
+          ...prev,
+          originalAmount: prev.originalAmount || prev.amount,
+          amount: data.finalAmount,
+          couponCode: data.code,
+          discountAmount: data.discountAmount,
+        }));
+        toast.success(`Coupon applied: ${data.code} (-${session?.currency === 'USD' ? '$' : '₹'}${data.discountAmount})`);
+        setCouponInput('');
+        setShowCouponInput(false);
+
+        if (typeof window !== 'undefined') {
+          const couponPayload = {
+            type: '180_COUPON_APPLIED',
+            sessionId,
+            couponCode: data.code,
+            discountAmount: data.discountAmount,
+            finalAmount: data.finalAmount,
+          };
+          if (window.opener && !window.opener.closed) window.opener.postMessage(couponPayload, '*');
+          if (window.parent && window.parent !== window) window.parent.postMessage(couponPayload, '*');
+        }
+      } else {
+        toast.error(data.error || 'Invalid or expired coupon code');
+      }
+    } catch {
+      toast.error('Network error applying coupon');
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = async () => {
+    try {
+      const res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/remove-coupon`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.session) {
+        setSession(data.session);
+        toast.success('Coupon removed');
+        if (typeof window !== 'undefined') {
+          const revertPayload = {
+            type: '180_COUPON_REMOVED',
+            sessionId,
+            finalAmount: data.session.amount,
+          };
+          if (window.opener && !window.opener.closed) window.opener.postMessage(revertPayload, '*');
+          if (window.parent && window.parent !== window) window.parent.postMessage(revertPayload, '*');
+        }
+      } else {
+        toast.error(data.error || 'Failed to remove coupon');
+      }
+    } catch {
+      toast.error('Network error removing coupon');
     }
   };
 
@@ -824,6 +917,104 @@ export function CheckoutClient() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Purchasing Power Parity (PPP) Banner */}
+      {(session.metadata?.pppApplied || session.geoPricing || session.metadata?.isPpp) && (
+        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50/90 to-purple-50/80 p-3.5 flex items-center justify-between text-xs text-indigo-950 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-lg bg-indigo-600/10 text-indigo-600 flex items-center justify-center shrink-0">
+              <Globe className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="font-bold block">Purchasing Power Parity</span>
+              <span className="text-indigo-800/90 text-[11px]">
+                Regional fair price applied for your country
+              </span>
+            </div>
+          </div>
+          <span className="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded-full text-[10px] tracking-wide">
+            PPP ACTIVE
+          </span>
+        </div>
+      )}
+
+      {/* Coupon / Promo Code Box */}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-2">
+        {session.couponCode ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-emerald-800 font-semibold">
+              <Tag className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>
+                Promo code: <strong className="font-mono text-emerald-950 bg-emerald-100/80 px-1.5 py-0.5 rounded">{session.couponCode}</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-bold text-xs text-emerald-700">
+                -{session.currency === 'USD' ? '$' : '₹'}{(session.discountAmount || 0).toFixed(2)}
+              </span>
+              <button
+                type="button"
+                onClick={handleRemoveCoupon}
+                className="text-slate-400 hover:text-rose-500 p-1 rounded-md hover:bg-rose-50 transition-colors"
+                title="Remove coupon"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {!showCouponInput ? (
+              <button
+                type="button"
+                onClick={() => setShowCouponInput(true)}
+                className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Tag className="w-3.5 h-3.5" />
+                <span>Have a coupon or promo code?</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 animate-in fade-in duration-150">
+                <div className="relative flex-1">
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    placeholder="ENTER PROMO CODE"
+                    className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-900 uppercase placeholder:normal-case placeholder:font-sans focus:outline-none focus:border-blue-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleApplyCoupon();
+                      }
+                    }}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={applyingCoupon || !couponInput.trim()}
+                  onClick={handleApplyCoupon}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 px-3"
+                >
+                  {applyingCoupon ? 'Applying...' : 'Apply'}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCouponInput(false);
+                    setCouponInput('');
+                  }}
+                  className="text-slate-400 hover:text-slate-600 text-xs px-1 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* User Wallet Balance Pill */}

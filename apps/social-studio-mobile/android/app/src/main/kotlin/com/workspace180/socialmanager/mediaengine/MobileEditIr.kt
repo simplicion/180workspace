@@ -530,4 +530,5 @@ data class MobileEditIr(
  * Export settings chosen on the export sheet (not part of the edit): [maxShortSide] scales the finished frame down
  * (e.g. 720 for 720p), [quality] "high" doubles the video bitrate. Frame rate is applied by the caller as canvas.fps.
  */
-data class RenderOptions(val maxShortSide: Int? = null, val quality: String = "standard")
+/** [loudnessTargetLufs]: normalise the mix so the voice sits at this integrated loudness (null = leave levels). */
+data class RenderOptions(val maxShortSide: Int? = null, val quality: String = "standard", val loudnessTargetLufs: Double? = null)

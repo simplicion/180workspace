@@ -1769,6 +1769,13 @@ export * from './token-exchange';
 export * from './token-lifecycle';
 export * from './userinfo-client';
 export * from './pkce';
+export * from './pay-server';
+
+// 9. Client Components, Hooks & Web Components
+export * from './hooks/useGeoPricing';
+export * from './components/GeoBanner';
+export * from './components/PricingTable';
+export * from './web-components/register';
 
 export default OneEightyIdentity;
 

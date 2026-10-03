@@ -722,5 +722,37 @@ Open (not fixed):
 - No loudness normalisation: output keeps the source level (−28 LUFS here; platforms target ≈ −14). Needs gain +
   a limiter in the renderer (`measureLoudness` already exists on device).
 - Default sticker position (upper right) can sit on the face during a punch-in; place it away from detected faces.
-- **AI-Director-only edit of the same footage not run:** no AI provider key in any env file. Add e.g.
-  `ANTHROPIC_API_KEY` to `apps/backend/.env`, then drive `directMobile` with the same transcript and render on device.
+- AI-Director-only edit: done, see below.
+
+### AI-Director-only edit of the same footage (2026-10-03)
+`integration_test/ai_director_demo_test.dart` drives the real app path: `StudioController.load` (on-device analysis +
+server transcription) → `askDirector` (local backend `/ai-direct`, platform AI key from the admin vault; the dev test
+user's session is pushed by the host) → `startExport` (stock B-roll/music resolved + downloaded, Media3 render).
+Final run: OpenAI plan, 2 attempts (coverage retry completed 7 skipped asks), interviewer question + 4 "you know" +
+pauses cut, captions, 2 punch-ins, Pexels B-roll, 🌌 sticker, VIVID grade, ducked Kevin MacLeod music (CC BY credit);
+29.7 s 1080x1920, 3.3 min render on the emulator. Tip: nodemon on this box often misses package edits; `touch
+apps/backend/server.js` to reload. A loaded emulator (load avg 20+) times requests out; cold-boot it.
+
+Bugs found by these runs and fixed (tests added):
+- Kotlin validator rejected a sticker over B-roll ("overlays overlap"): only full-frame cutaways may not overlap.
+- Fragmented MP4 stock clips (Pexels): header duration 0 → `getVideoInfo` 0 ms; now sampled from the fragments, and
+  `MediaTools.ensureSeekable` remuxes them (stream copy) before render (Media3: "not seekable to start").
+- HDR stock B-roll on a phone without tone-mapping failed the whole export: the HDR B-roll is now left out with a
+  warning (the creator's own HDR footage still gets HDR_NOT_SUPPORTED).
+- Captions: words ran together (gap ignored the outline; `word_pop` scale overlapped neighbours) → gap includes
+  the stroke and each word reserves its pop room (`VideoEffects.kt`).
+- Compiler: two cuts leaving a < 250 ms sliver flashed frames → the sliver is cut too. Mobile export dropped words
+  a cut clamped to zero length (they were still drawn). Titles get ≥ 5% of the short side (models sent 24 "pt").
+- Director prompt: transcript also given as "spoken lines" split at pauses (the model could not find the
+  interviewer's question); cleanFillers tool tells the model to pass phrase fillers it sees ("you know").
+- Coverage check (`missingRequestedOperations`): a plan that skips explicitly requested features is sent back once;
+  off for critic repairs (their prompt quotes the request → it duplicated B-roll/stickers/titles).
+- `platform-ai-vault.service.ts` had a hardcoded fallback seed: now fails loudly without a vault key / JWT_SECRET.
+
+Open:
+- The model's critic repair sometimes deletes the requested title (`removeItem`) instead of moving it.
+- The model still sometimes trims the speaker's first line as "dead air"; no speaker diarization yet.
+- Server-side stock/music lookup hits its 8 s / 250 ms budget every turn; the phone resolves them at export.
+- Loudness normalisation (both edits export at −28 LUFS) and face-aware default sticker placement (above).
+
+Follow-up plan and status of every issue from these runs: `EDIT_RUN_FIX_PLAN.md` (B1–B9 fixed 2026-10-03).

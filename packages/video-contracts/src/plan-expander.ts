@@ -10,6 +10,34 @@ import { MobileMediaDescriptor, MobileFaceSample, mapSourceToTimeline, dominantF
  * autoCaptions) into concrete primitive operations the EditIRCompiler executes.
  * The graph passed in must be in CURRENT TIMELINE coordinates (see graphFromMobileMedia).
  */
+const SILENCE_REASON = /\b(pause|pauses|silen\w*|dead air|quiet|throat|breath\w*|gap|lull|hesitat\w*)\b/i;
+const NOT_SILENCE_REASON = /\b(question|interviewer|host|filler|um|uh|you know|repeat\w*|tangent|off[- ]topic|mistake|stumble|retake|section|segment|intro)\b/i;
+
+/**
+ * Sticker spots used by the editor (canvas fractions): upper corners, then mid sides (captions sit lower, ~0.7).
+ * Returns the one farthest from [face].
+ */
+export const STICKER_SPOTS: ReadonlyArray<{ x: number; y: number }> = [
+  { x: 0.74, y: 0.22 },
+  { x: 0.26, y: 0.22 },
+  { x: 0.78, y: 0.46 },
+  { x: 0.22, y: 0.46 },
+];
+export function stickerSpotAwayFrom(face: { x: number; y: number }): { x: number; y: number } {
+  let best = STICKER_SPOTS[0];
+  let bestD = -1;
+  for (const p of STICKER_SPOTS) {
+    const d = (p.x - face.x) ** 2 + (p.y - face.y) ** 2;
+    if (d > bestD + 1e-9) {
+      best = p;
+      bestD = d;
+    }
+  }
+  return { ...best };
+}
+
+const PHRASE_FILLERS = ["you know", "i mean"];
+
 export class PlanExpander {
   /**
    * `opts.canvas` is the output size the plan renders at: FACE zooms are centred on the detected
@@ -30,6 +58,16 @@ export class PlanExpander {
           out.push({ ...op, beatsSec: beats });
           break;
         }
+        case "addSticker": {
+          // Default spot: the free corner farthest from the speaker's face (a real run put it on her face).
+          const face = op.position ? null : PlanExpander.faceZoomCenter(graph, op.timelineStartSec, op.timelineStartSec + (op.durationSec ?? 2.5), opts.canvas);
+          out.push(face ? { ...op, position: stickerSpotAwayFrom(face) } : op);
+          break;
+        }
+        case "removeRange": {
+          out.push(...PlanExpander.speechSafeCut(op, graph, warnings));
+          break;
+        }
         case "removeSilences": {
           const cuts = this.silenceCuts(graph, op.minDurationSec, op.paddingSec);
           if (cuts.length === 0) {
@@ -41,7 +79,9 @@ export class PlanExpander {
           break;
         }
         case "cleanFillers": {
-          const cuts = this.fillerCuts(graph, op.fillerTypes);
+          // The creator asked for filler words gone: the phrase fillers the transcript actually has ("you know",
+          // "I mean") go too, the same as the manual editor's Clean up tool (a real run kept four "you know"s).
+          const cuts = this.fillerCuts(graph, [...new Set([...op.fillerTypes, ...PHRASE_FILLERS])]);
           if (graph.transcript.length === 0) warnings.push("cleanFillers: no transcript supplied");
           out.push(...cuts, op);
           break;
@@ -97,6 +137,34 @@ export class PlanExpander {
     }
     const c = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 10000) / 10000;
     return { x: c(x), y: c(y) };
+  }
+
+  /**
+   * A cut the model labels as a pause / silence / dead air must not remove words: models misjudge where speech is
+   * (a real run trimmed the speaker's first line as "dead air"). Such a cut keeps only the gaps between words
+   * (≥ 0.15 s, 40 ms padding). Cuts with any other reason (a question, a filler, a section) are left alone.
+   */
+  static speechSafeCut(
+    op: Extract<CreativeOperation, { type: "removeRange" }>,
+    graph: MediaIntelligenceGraph,
+    warnings: string[]
+  ): CreativeOperation[] {
+    const reason = op.reason || "";
+    if (!SILENCE_REASON.test(reason) || NOT_SILENCE_REASON.test(reason)) return [op];
+    const start = op.startSec;
+    const end = op.startSec + op.durationSec;
+    const inside = graph.transcript.filter((w) => w.endSeconds > start + 0.02 && w.startSeconds < end - 0.02);
+    if (inside.length === 0) return [op];
+    const pad = 0.04;
+    const gaps: Array<[number, number]> = [];
+    let cursor = start;
+    for (const w of inside) {
+      if (w.startSeconds - pad - cursor >= 0.15) gaps.push([cursor, w.startSeconds - pad]);
+      cursor = Math.max(cursor, w.endSeconds + pad);
+    }
+    if (end - cursor >= 0.15) gaps.push([cursor, end]);
+    warnings.push(`removeRange ${start.toFixed(2)}s-${end.toFixed(2)}s ("${reason.slice(0, 60)}") covered ${inside.length} spoken word(s); only the silence around them was cut`);
+    return gaps.map(([a, b]) => ({ ...op, startSec: round3(a), durationSec: round3(b - a) }));
   }
 
   static silenceCuts(graph: MediaIntelligenceGraph, minDurationSec: number, paddingSec: number): CreativeOperation[] {

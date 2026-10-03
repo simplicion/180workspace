@@ -91,6 +91,14 @@ model OAuthApp {
   payDesktopDefault   String?               @default("bottom_sheet")
   payMobileDefault    String?               @default("bottom_sheet")
 
+  // ─── Bring Your Own Gateway (BYOG) & Custom Domain ──────────────────────────
+  customGatewayType           String                @default("NONE") // "NONE" | "RAZORPAY" | "STRIPE"
+  customGatewayKeyId          String?
+  customGatewaySecret         String?
+  customGatewayWebhookSecret  String?
+  customPayDomain             String?               // e.g. "pay.clientbrand.com"
+  customDomainStatus          String                @default("PENDING_DNS") // "PENDING_DNS" | "ACTIVE" | "FAILED"
+
   userId           String
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
@@ -107,6 +115,12 @@ model OAuthApp {
   appUsers         AppUserIdentity[]        @relation("AppUserIdentities")
   subscriptionPlans SubscriptionPlan[]      @relation("AppSubscriptionPlans")
   subscriptions    RecurringSubscription[]  @relation("AppSubscriptions")
+  coupons          Coupon[]                 @relation("AppCoupons")
+  paymentLinks     PaymentLink[]            @relation("AppPaymentLinks")
+  geoPricingRules  GeoPricingRule[]         @relation("AppGeoPricingRules")
+  pricingTableConfig PricingTableConfig?    @relation("AppPricingTableConfig")
+  portalSessions   CustomerPortalSession[]  @relation("AppPortalSessions")
+  agenticEnvelopes AgenticBudgetEnvelope[]  @relation("AppAgenticEnvelopes")
 
   @@index([userId])
   @@index([clientId])
@@ -291,6 +305,11 @@ model CheckoutSession {
   mode             String?       @default("payment") // payment, subscription
   planId           String?
   billingInterval  String?       @default("MONTHLY") // MONTHLY, YEARLY
+  couponId         String?
+  couponCode       String?
+  discountAmount   Float?        @default(0)
+  originalAmount   Float?
+  country          String?       @default("")
   metadata         Json?
   expiresAt        DateTime
   completedAt      DateTime?
@@ -411,5 +430,169 @@ model RecurringSubscription {
   @@index([nextBillingDate, status])
   @@index([razorpaySubscriptionId])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COUPONS & DISCOUNTS ENGINE (180 PAY)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Coupon {
+  id                  String             @id @default(uuid())
+  appId               String
+  code                String             // e.g. "LAUNCH20" (stored UPPERCASE)
+  discountType        String             // "PERCENTAGE" or "FIXED_AMOUNT"
+  discountValue       Float              // e.g. 20 (for 20%) or 500 (for ₹500)
+  maxDiscountAmount   Float?             // Optional cap for percentage discounts
+  minOrderAmount      Float?             @default(0)
+  maxRedemptions      Int?               // e.g. 20 (first 20 users)
+  redemptionsCount    Int                @default(0)
+  perCustomerLimit    Int                @default(1) // 1 use per customer email
+  allowedOrigins      String[]           @default([]) // e.g. ["ontheirx.com"]
+  validPlans          String[]           @default([]) // Specific plan IDs or empty for all
+  validFrom           DateTime           @default(now())
+  validUntil          DateTime?
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  app                 OAuthApp           @relation("AppCoupons", fields: [appId], references: [id], onDelete: Cascade)
+  redemptions         CouponRedemption[] @relation("CouponRedemptions")
+
+  @@unique([appId, code])
+  @@index([appId, isActive])
+}
+
+model CouponRedemption {
+  id                  String             @id @default(uuid())
+  couponId            String
+  sessionId           String             @unique
+  customerEmail       String
+  discountApplied     Float
+  createdAt           DateTime           @default(now())
+
+  coupon              Coupon             @relation("CouponRedemptions", fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([couponId, customerEmail])
+  @@index([customerEmail])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHAREABLE PAYMENT LINKS (180 PAY)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PaymentLink {
+  id                  String             @id @default(uuid())
+  appId               String
+  slug                String             @unique // e.g. "pl_starter_bundle"
+  title               String
+  description         String?            @default("")
+  amount              Float
+  currency            String             @default("INR")
+  collectPhone        Boolean            @default(true)
+  collectAddress      Boolean            @default(false)
+  allowCoupons        Boolean            @default(true)
+  redirectUrl         String?            @default("")
+  fulfillmentMessage  String?            @default("") // Instant message shown on confirmation
+  fulfillmentFileUrl  String?            @default("") // Downloadable digital asset
+  isActive            Boolean            @default(true)
+  maxPurchases        Int?               // Optional inventory/stock limit
+  purchasesCount      Int                @default(0)
+  metadata            Json?              @default("{}")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  app                 OAuthApp           @relation("AppPaymentLinks", fields: [appId], references: [id], onDelete: Cascade)
+
+  @@index([appId, isActive])
+  @@index([slug])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DYNAMIC GEO-PRICING RULES (180 PAY)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model GeoPricingRule {
+  id                  String             @id @default(uuid())
+  appId               String
+  countryCode         String             // ISO 2-letter uppercase: "IN", "BR", "US", "GB"
+  currency            String             // "INR", "BRL", "USD", "GBP"
+  overrideType        String             // "FIXED_PRICE" or "PERCENTAGE_DISCOUNT"
+  discountPct         Int?               // e.g. 50 (for 50% regional discount)
+  planOverrides       Json?              // { "plan_pro": 499, "plan_basic": 199 }
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  app                 OAuthApp           @relation("AppGeoPricingRules", fields: [appId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, countryCode])
+  @@index([appId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMBEDDABLE PRICING TABLE CONFIGURATION (180 PAY)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PricingTableConfig {
+  id                  String             @id @default(uuid())
+  appId               String             @unique
+  headline            String             @default("Simple, transparent pricing")
+  subheadline         String?            @default("Choose the plan that fits your growth")
+  theme               String             @default("auto") // light, dark, auto
+  accentColor         String             @default("#2563eb")
+  billingIntervals    String[]           @default(["MONTHLY", "YEARLY"])
+  yearlyDiscountPct   Int                @default(20) // e.g. 20% off for annual
+  planCards           Json               // Ordered tier cards with feature lists & badges
+  customCss           String?            @default("")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  app                 OAuthApp           @relation("AppPricingTableConfig", fields: [appId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EPHEMERAL CUSTOMER PORTAL SESSIONS (180 PAY)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CustomerPortalSession {
+  id                  String             @id @default(uuid())
+  sessionToken        String             @unique // pts_xxx
+  appId               String
+  customerEmail       String
+  externalCustomerId  String?
+  returnUrl           String
+  expiresAt           DateTime
+  usedAt              DateTime?
+  createdAt           DateTime           @default(now())
+
+  app                 OAuthApp           @relation("AppPortalSessions", fields: [appId], references: [id], onDelete: Cascade)
+
+  @@index([sessionToken])
+  @@index([appId, customerEmail])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTONOMOUS AI AGENT BUDGET ENVELOPES (AP2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AgenticBudgetEnvelope {
+  id                  String             @id @default(uuid())
+  appId               String
+  agentKeyHash        String             @unique // SHA-256 hash of 180_agent_key_...
+  agentName           String
+  maxSpendTotal       Float
+  maxSpendPerTx       Float
+  currentSpent        Float              @default(0)
+  expiresAt           DateTime
+  isActive            Boolean            @default(true)
+  metadata            Json?              @default("{}")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  app                 OAuthApp           @relation("AppAgenticEnvelopes", fields: [appId], references: [id], onDelete: Cascade)
+
+  @@index([agentKeyHash])
+  @@index([appId, isActive])
+}
+
 
 

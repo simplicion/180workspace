@@ -60,7 +60,7 @@ import {
 } from "./director-sub-agents";
 import type { AIClient } from "../kernel/ai-provider.service";
 import { ContextResolver } from "./context-resolver";
-import { CreativePlanner } from "./creative-planner";
+import { CreativePlanner, requestedFeatures } from "./creative-planner";
 import crypto from "crypto";
 
 export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
@@ -263,8 +263,13 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
     const prompt = (request.prompt || "").trim();
     const intent: "edit" | "greet" = request.intent === "greet" || !prompt ? "greet" : "edit";
     const stockBudgetMs = opts.stockTimeoutMs ?? 8000;
-    const stockDeadline = Date.now() + stockBudgetMs;
-    const remaining = () => Math.max(0, stockDeadline - Date.now());
+    // The budget starts at the first stock lookup, not at the request: planning (LLM calls) used to eat all of it,
+    // so every B-roll / music lookup was skipped and left to the phone.
+    let stockDeadline = 0;
+    const remaining = () => {
+      if (!stockDeadline) stockDeadline = Date.now() + stockBudgetMs;
+      return Math.max(0, stockDeadline - Date.now());
+    };
 
     const warnings: string[] = [...ctx.warnings];
     if (!words.length) {
@@ -451,6 +456,7 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
         const lockedNow = mapLockedRanges(baseIR, finalIR, constraints.lockedRanges);
         const repair = await CreativePlanner.planWithSource({
           prompt: buildRepairInstruction(prompt, issues),
+          checkCoverage: false,
           timelineContext: ContextResolver.resolveTimelineContext({ editIR: finalIR, userConstraints: toUserConstraints(constraints, lockedNow) }),
           mediaGraph: graphFromMobileMedia(media, finalIR),
           companyId: opts.companyId,
@@ -475,6 +481,13 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
       const repairPlanRaw = PlanExpander.expand({ ...outcome.plan, operations: repairOps }, repairGraph, warnings, { canvas: finalIR.meta.resolution });
       const repairPlan = dropInvalid({ ...repairPlanRaw, constraints: { ...repairPlanRaw.constraints, ...toUserConstraints(constraints, lockedNow) } }, finalIR);
       const repaired = EditIRCompiler.compile(finalIR, repairPlan, []);
+      // A repair must not take away what the creator asked for (a real run deleted the requested title).
+      const lost = requestedFeatures(prompt, words.length > 0).filter((f) => featureCount(finalIR, f) > 0 && featureCount(repaired.updatedEditIR, f) === 0);
+      if (lost.length) {
+        repairRounds++;
+        warnings.push(`critic repair round ${repairRounds} would have removed the requested ${lost.join(", ")} and was discarded`);
+        break;
+      }
       const next = critiqueOf(repaired.updatedEditIR);
       const better = repairableOf(next).length < repairableOf(crit).length || next.score > crit.score;
       events.emit("RepairApplied", { round: repairRounds, kept: better, score: next.score, applied: repaired.appliedOperations.length });
@@ -965,3 +978,25 @@ function normalizeHistory(history: BuilderGenerationParams["history"]) {
 }
 
 export const videoAIDirectorService = VideoAIDirectorService.getInstance();
+
+/** How many items of a requested feature (label from requestedFeatures) the timeline has; -1 = not countable. */
+function featureCount(ir: EditIR, feature: string): number {
+  const t = ir.tracks;
+  const overlays = t.videoTracks.filter((v) => v.type !== "MAIN_VIDEO").flatMap((v) => v.clips);
+  switch (feature) {
+    case "captions":
+      return t.captionTrack.filter((c) => c.role !== "title").length;
+    case "title text":
+      return t.captionTrack.filter((c) => c.role === "title").length;
+    case "zoom / punch-in":
+      return t.cameraTrack.length;
+    case "B-roll":
+      return overlays.filter((c: any) => c.mediaType !== "image").length;
+    case "sticker":
+      return overlays.filter((c: any) => c.mediaType === "image").length;
+    case "background music":
+      return t.audioTracks.filter((a) => a.type === "BGM").flatMap((a) => a.clips).length;
+    default:
+      return -1;
+  }
+}

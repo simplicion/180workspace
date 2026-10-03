@@ -113,6 +113,58 @@ void main() {
       expect(caps.expand((c) => c.words).map((w) => w.text).toSet(), containsAll(['w0', 'w5', 'v0', 'v5.']));
     });
 
+    test('removePauses cuts the long pauses (and the silent head/tail) but no words', () {
+      final ir = TimelineOps.removePauses(base(), words, minGapMs: 500, padMs: 100);
+      ir.validate();
+      // head 0..900, the 6 s gap 3.9..5.9 s (minus padding), tail 9.0..10 s
+      expect(ir.durationMs, lessThan(10000 - 900 - 1800 - 900 + 50));
+      for (final w in words) {
+        final mid = (w.startMs + w.endMs) ~/ 2;
+        expect(TimelineOps.sourceToTimeline(ir, mid), isNotNull, reason: '${w.text} is kept');
+      }
+    });
+
+    test('removeFillers cuts "you know" and "um" wherever they play, also after a re-order', () {
+      final talk = [
+        TranscriptWord(text: 'So,', startMs: 1000, endMs: 1300),
+        TranscriptWord(text: 'you', startMs: 1400, endMs: 1600),
+        TranscriptWord(text: 'know,', startMs: 1600, endMs: 1900),
+        TranscriptWord(text: 'this', startMs: 2000, endMs: 2300),
+        TranscriptWord(text: 'works.', startMs: 2300, endMs: 2800),
+        TranscriptWord(text: 'Um', startMs: 6000, endMs: 6400),
+        TranscriptWord(text: 'really', startMs: 6500, endMs: 6900),
+      ];
+      var ir = TimelineOps.split(TimelineOps.initial(projectId: 'p', durationMs: 10000, width: 1920, height: 1080, words: talk), 5000);
+      ir = TimelineOps.moveClip(ir, 1, 0);
+      ir = TimelineOps.removeFillers(ir, talk);
+      ir.validate();
+      expect(TimelineOps.sourceToTimeline(ir, 1700), isNull, reason: '"know" is cut');
+      expect(TimelineOps.sourceToTimeline(ir, 6200), isNull, reason: '"Um" is cut');
+      expect(TimelineOps.sourceToTimeline(ir, 2100), isNotNull);
+      expect(TimelineOps.sourceToTimeline(ir, 6700), isNotNull);
+      expect(() => TimelineOps.removeFillers(base(), words), throwsA(isA<MediaEngineException>()), reason: 'nothing to remove is said, not faked');
+    });
+
+    test('stickers land in the spot farthest from the face', () {
+      expect(TimelineOps.stickerSpotAwayFrom(null), TimelineOps.stickerSpots.first);
+      expect(TimelineOps.stickerSpotAwayFrom((x: 0.7, y: 0.25)).x, lessThan(0.5), reason: 'face upper right → sticker left');
+      final ir = base();
+      final crop = ir.clips.first.crop!;
+      // A face in the centre of the source shows in the centre of the 9:16 crop.
+      final face = TimelineOps.faceOnCanvas(ir, [FaceSample(tMs: 2000, x: crop.x + crop.width * 0.72, y: 0.25, w: 0.1, h: 0.2)], 2000);
+      expect(face!.x, closeTo(0.72, 0.01));
+      final withSticker = TimelineOps.addSticker(ir, {'kind': 'url', 'url': 'https://x.test/s.png'}, startMs: 2000, avoidFace: face);
+      expect(withSticker.overlays.single.layer!.x, lessThan(0.5));
+    });
+
+    test('word_pop captions make the spoken word pop (scale 1.15), other styles do not', () {
+      final pop = TimelineOps.autoCaptions(base(), words, preset: 'BOLD_POP');
+      final popAnim = pop.captions.first.style['animation'];
+      expect(pop.captions.first.words.first.scale, popAnim == 'word_pop' ? 1.15 : 1.0);
+      final restyled = TimelineOps.styleCaptions(pop, 'KARAOKE');
+      if (restyled.captions.first.style['animation'] != 'word_pop') expect(restyled.captions.first.words.first.scale, 1.0);
+    });
+
     test('removing the whole video is refused', () {
       expect(() => TimelineOps.removeRange(base(), 0, 10000), throwsA(isA<MediaEngineException>()));
     });

@@ -55,6 +55,9 @@ class AssetCache {
   @visibleForTesting
   Future<String> Function(String url, AssetKind? kind)? fetchOverride;
 
+  /// Runs on every downloaded video before it is handed out (set by the app to the native "make seekable" step).
+  Future<void> Function(String path)? videoFinalizer;
+
   /// False where the app has no storage for a cache (web, plain unit tests): callers then skip prefetching.
   bool get available => _dir != null || fetchOverride != null;
 
@@ -215,6 +218,15 @@ class AssetCache {
       }
       final out = File('${dir.path}/$key.$ext');
       part.renameSync(out.path);
+      // Stock clips are often fragmented MP4s the player cannot seek in: the app normalises them once here.
+      final finalize = videoFinalizer;
+      if (finalize != null && const {'mp4', 'mov', 'm4v'}.contains(ext)) {
+        try {
+          await finalize(out.path);
+        } catch (_) {
+          // Optional: the export makes the file seekable again if this did not.
+        }
+      }
       _index[key] = out.path;
       _clearProgress(url);
       unawaited(_trim());

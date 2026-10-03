@@ -50,6 +50,33 @@ object MediaTools {
     // getVideoInfo
 
     /**
+     * A seekable copy of [path] when it is a fragmented MP4 without an index (header duration 0, common for stock
+     * clips): Media3 cannot clip those from a start > 0 ("not seekable to start"). A lossless stream-copy remux to a
+     * regular MP4 is made once next to the file and reused. Other files are returned unchanged.
+     */
+    fun ensureSeekable(path: String): String {
+        val src = File(path)
+        if (!src.isFile || src.extension.lowercase() in setOf("jpg", "jpeg", "png", "webp", "gif", "heic", "bmp")) return path
+        val headerMs = MediaMetadataRetriever().let { r ->
+            try {
+                r.setDataSource(path)
+                r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            } catch (_: Exception) {
+                null
+            } finally {
+                r.release()
+            }
+        }
+        if (headerMs == null || headerMs > 0) return path
+        val out = File(src.parentFile, "${src.nameWithoutExtension}.seekable.mp4")
+        if (out.isFile && out.length() > 0 && out.lastModified() >= src.lastModified()) return out.absolutePath
+        val tmp = File(src.parentFile, "${src.nameWithoutExtension}.seekable.tmp.mp4")
+        sliceVideo(path, tmp.absolutePath, 0, 0)
+        if (!tmp.renameTo(out)) throw MediaEngineError("REMUX_FAILED", "Could not save the seekable copy of ${src.name}")
+        return out.absolutePath
+    }
+
+    /**
      * Duration from the samples themselves (last sample end of the longest track), for files whose header carries no
      * duration (fragmented MP4: mvhd/mdhd = 0, timing in moof boxes). Reads sample timestamps only, not frames.
      */

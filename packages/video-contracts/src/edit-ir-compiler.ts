@@ -14,6 +14,9 @@ import {
 import { RationalTimeMath } from "./time";
 import { MediaAssetDescriptor } from "./project.schema";
 
+/** Shortest piece of footage two neighbouring cuts may leave between them (matches the critic's micro-clip rule). */
+const MIN_KEPT_SEC = 0.25;
+
 export interface CompilationResult {
   updatedEditIR: EditIR;
   appliedOperations: string[];
@@ -359,8 +362,19 @@ export class EditIRCompiler {
       }
     }
 
-    // Phase B: cuts
-    const merged = EditIRCompiler.mergeRanges(cutRanges);
+    // Phase B: cuts. Two cuts that leave a sliver between them (< MIN_KEPT_SEC, e.g. a pause cut next to a filler
+    // cut) would flash a few frames on screen: the sliver is cut too.
+    const merged: Array<{ start: number; end: number; reason: string }> = [];
+    for (const r of EditIRCompiler.mergeRanges(cutRanges)) {
+      const prev = merged[merged.length - 1];
+      const gap = prev ? r.start - prev.end : Infinity;
+      if (prev && gap < MIN_KEPT_SEC) {
+        prev.end = Math.max(prev.end, r.end);
+        prev.reason = `${prev.reason}; ${r.reason} (and the ${Math.round(gap * 1000)} ms sliver between them)`;
+      } else {
+        merged.push({ ...r });
+      }
+    }
     let removedTotal = 0;
     for (let i = merged.length - 1; i >= 0; i--) {
       const r = merged[i];
@@ -514,7 +528,12 @@ export class EditIRCompiler {
     }
 
     editIR.tracks.captionTrack = editIR.tracks.captionTrack.flatMap((cap) => {
-      const { s, d } = mapRange(RationalTimeMath.toSeconds(cap.timeRange.start), RationalTimeMath.toSeconds(cap.timeRange.duration));
+      const mapped = mapRange(RationalTimeMath.toSeconds(cap.timeRange.start), RationalTimeMath.toSeconds(cap.timeRange.duration));
+      // A title is not footage: a cut moves it but does not shorten it (a real run left a 0.6 s title after the
+      // opening pauses were cut). It keeps its length, within the new timeline.
+      const { s, d } = cap.role === "title"
+        ? { s: mapped.s, d: Math.min(RationalTimeMath.toSeconds(cap.timeRange.duration), Math.max(0, newTotalSec - mapped.s)) }
+        : mapped;
       if (d < minSec) return [];
       const words = cap.words.flatMap((w) => {
         const ws = RationalTimeMath.toSeconds(w.start);
@@ -1396,7 +1415,12 @@ export class EditIRCompiler {
       style: {
         preset: "BOLD_CENTER",
         fontFamily: op.fontFamily || "Inter",
-        fontSize: op.style?.fontSize || 64,
+        // Canvas pixels. Models often send point sizes (e.g. 24), which are unreadable on a 1080 px-wide canvas:
+        // a title is never smaller than 5% of the canvas's short side.
+        fontSize: Math.max(
+          Math.round(Math.min(editIR.meta.resolution?.width ?? 1080, editIR.meta.resolution?.height ?? 1920) * 0.05),
+          op.style?.fontSize || 64
+        ),
         textColor: op.color || op.style?.color || "#FFFFFF",
         highlightColor: op.color || op.style?.color || "#FFFFFF",
         position: {

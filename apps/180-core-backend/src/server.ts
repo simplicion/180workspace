@@ -18,6 +18,12 @@ import walletRoutes from './routes/wallet.routes';
 import checkoutRoutes from './routes/checkout.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import developerRoutes from './routes/developer.routes';
+import couponRoutes from './routes/coupon.routes';
+import paymentLinkRoutes from './routes/payment-link.routes';
+import geoPricingRoutes from './routes/geo-pricing.routes';
+import customerPortalRoutes from './routes/customer-portal.routes';
+import agentCheckoutRoutes from './routes/agent-checkout.routes';
+import pricingTableRoutes from './routes/pricing-table.routes';
 import { generalApiLimiter } from './middleware/rate-limiter.middleware';
 import { RsaKeysService, seedFirstPartyOAuthApps } from '@workspace/identity-provider';
 import { RecurringBillingEngine } from '@workspace/payment-provider';
@@ -112,6 +118,32 @@ app.use('/api/v1/payment/subscriptions', subscriptionRoutes);
 app.use('/api/v1/developer', developerRoutes);
 app.use('/api/oauth/developer', developerRoutes);
 app.use('/api/v1/identity/developer', developerRoutes);
+
+app.use('/api/v1/coupons', couponRoutes);
+app.use('/api/v1/payment/coupons', couponRoutes);
+app.use('/api/oauth/coupons', couponRoutes);
+
+app.use('/api/v1/payment-links', paymentLinkRoutes);
+app.use('/api/v1/payment/links', paymentLinkRoutes);
+app.use('/api/oauth/payment-links', paymentLinkRoutes);
+
+app.use('/api/v1/geo-pricing', geoPricingRoutes);
+app.use('/api/v1/payment/geo-pricing', geoPricingRoutes);
+app.use('/api/oauth/geo-pricing', geoPricingRoutes);
+
+app.use('/api/v1/portal', customerPortalRoutes);
+app.use('/api/v1/customer-portal', customerPortalRoutes);
+app.use('/api/v1/billing/portal', customerPortalRoutes);
+
+app.use('/api/v1/agent-checkouts', agentCheckoutRoutes);
+app.use('/api/v1/checkout', agentCheckoutRoutes); // Also supports /api/v1/checkout/agent-purchase
+app.use('/api/v1/developer', agentCheckoutRoutes);
+app.use('/api/oauth/developer', agentCheckoutRoutes);
+
+app.use('/api/v1/pricing-tables', pricingTableRoutes);
+app.use('/api/v1/payment/pricing-tables', pricingTableRoutes);
+app.use('/api/oauth/pricing-tables', pricingTableRoutes);
+
 
 // Error Handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

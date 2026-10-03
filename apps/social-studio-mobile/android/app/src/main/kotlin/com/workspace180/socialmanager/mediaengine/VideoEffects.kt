@@ -158,7 +158,9 @@ class CaptionOverlay(
     }
     private val bg = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
-    private data class Token(val word: IrWord, val text: String, val width: Float)
+    /** [slot] = room the word takes in the line: its width, grown by its word_pop scale so a popping word never
+     *  overlaps its neighbours (the line does not reflow while words pop). */
+    private data class Token(val word: IrWord, val text: String, val width: Float, val slot: Float)
 
     override fun onDraw(canvas: Canvas, presentationTimeUs: Long) {
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
@@ -198,9 +200,12 @@ class CaptionOverlay(
         if (words.isEmpty()) return
         val tokens = words.map {
             val text = if (st.uppercase) it.text.uppercase() else it.text
-            Token(it, text, fill.measureText(text))
+            val width = fill.measureText(text)
+            val pop = if (st.animation == "word_pop") it.scale.coerceAtLeast(1.0).toFloat() else 1f
+            Token(it, text, width, width * pop)
         }
-        val space = fill.measureText(" ")
+        // The outline is drawn centred on the glyph edge, so it eats strokeWidthPx into the gap on each side.
+        val space = fill.measureText(" ") + 2f * st.strokeWidthPx.toFloat()
         val maxWidth = (st.maxWidthFraction * w).toFloat()
 
         // Greedy word wrap.
@@ -208,11 +213,11 @@ class CaptionOverlay(
         var cur = mutableListOf<Token>()
         var curW = 0f
         for (tok in tokens) {
-            val add = if (cur.isEmpty()) tok.width else curW + space + tok.width
+            val add = if (cur.isEmpty()) tok.slot else curW + space + tok.slot
             if (cur.isNotEmpty() && add > maxWidth) {
                 lines.add(cur)
                 cur = mutableListOf(tok)
-                curW = tok.width
+                curW = tok.slot
             } else {
                 cur.add(tok)
                 curW = add
@@ -223,7 +228,7 @@ class CaptionOverlay(
         val fm = fill.fontMetrics
         val lineHeight = (fm.descent - fm.ascent) * 1.1f
         val blockH = lineHeight * lines.size
-        val lineWidths = lines.map { l -> l.sumOf { it.width.toDouble() }.toFloat() + space * (l.size - 1) }
+        val lineWidths = lines.map { l -> l.sumOf { it.slot.toDouble() }.toFloat() + space * (l.size - 1) }
         val blockW = lineWidths.maxOrNull() ?: 0f
         val cx = (st.positionX * w).toFloat()
         val cy = (st.positionY * h).toFloat()
@@ -259,15 +264,16 @@ class CaptionOverlay(
             for (tok in line) {
                 val (color, scale) = styleFor(tok.word, st, t)
                 canvas.save()
-                val wordCx = x + tok.width / 2f
+                val textX = x + (tok.slot - tok.width) / 2f
+                val wordCx = x + tok.slot / 2f
                 val wordCy = baseline + (fm.ascent + fm.descent) / 2f
                 canvas.scale(scale, scale, wordCx, wordCy)
-                if (st.strokeWidthPx > 0) canvas.drawText(tok.text, x, baseline, stroke)
+                if (st.strokeWidthPx > 0) canvas.drawText(tok.text, textX, baseline, stroke)
                 fill.color = color
                 fill.alpha = Color.alpha(color) * alpha / 255
-                canvas.drawText(tok.text, x, baseline, fill)
+                canvas.drawText(tok.text, textX, baseline, fill)
                 canvas.restore()
-                x += tok.width + space
+                x += tok.slot + space
             }
         }
         canvas.restore() // motion transform
