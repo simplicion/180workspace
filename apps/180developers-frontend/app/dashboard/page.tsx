@@ -83,7 +83,7 @@ const DEFAULT_AUTHORIZED_SCOPES = [
   'identity:phone',
 ];
 
-export default function DeveloperDashboardPage() {
+function DeveloperDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -2050,5 +2050,20 @@ export function verify180Webhook(rawBody: string, signatureHeader: string, secre
         </div>
       </PlatformModal>
     </div>
+  );
+}
+
+export default function DeveloperDashboardPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
+          <LogoLoader size={40} className="w-10 h-10 text-blue-600 animate-spin" />
+          <p className="text-xs text-slate-500 font-medium">Loading Developer Portal...</p>
+        </div>
+      }
+    >
+      <DeveloperDashboardContent />
+    </React.Suspense>
   );
 }
