@@ -21,20 +21,15 @@ function getCoreDatabaseUrl() {
     let url = (process.env.CORE_DATABASE_URL ||
         process.env.DEVELOPERS_DATABASE_URL ||
         process.env.IDENTITY_DATABASE_URL ||
-        process.env.DATABASE_URL ||
-        'postgresql://pitchin_admin:Pitchin180Admin!23@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180workspace_db?sslmode=require&schema=180core');
+        'postgresql://pitchin_admin:Pitchin180Admin!23@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180core_db?sslmode=require');
 
     if (url.includes('180developers_db')) {
-        url = url.replace('180developers_db', '180workspace_db');
+        url = url.replace('180developers_db', '180core_db');
     }
 
-    if (url.includes('180workspace_db') && !url.includes('schema=180core')) {
-        if (url.includes('schema=')) {
-            url = url.replace(/schema=[^&]*/, 'schema=180core');
-        } else {
-            const sep = url.includes('?') ? '&' : '?';
-            url = `${url}${sep}schema=180core`;
-        }
+    if (url.includes('180workspace_db')) {
+        url = url.replace('180workspace_db', '180core_db');
+        url = url.replace(/[?&]schema=[^&]*/, '');
     }
 
     return url;
