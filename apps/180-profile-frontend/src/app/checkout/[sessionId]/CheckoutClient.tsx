@@ -606,7 +606,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
 
   if (loading) {
     return (
-      <div className="bg-white rounded-3xl p-8 text-center space-y-4 max-w-lg mx-auto flex flex-col items-center justify-center border border-slate-200 shadow-xl font-sans">
+      <div className="w-full py-16 text-center space-y-4 flex flex-col items-center justify-center font-sans">
         <LogoLoader size={40} className="w-10 h-10 text-blue-600" />
         <p className="text-xs text-slate-500 font-medium">Loading 180 Pay checkout...</p>
       </div>
@@ -618,9 +618,9 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
       <div 
         role="alert" 
         aria-live="assertive"
-        className="bg-white rounded-3xl p-8 text-center space-y-5 border border-emerald-200 max-w-lg mx-auto shadow-xl animate-in zoom-in-95 font-sans"
+        className="w-full py-12 text-center space-y-5 animate-in zoom-in-95 font-sans"
       >
-        <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto animate-bounce">
+        <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto animate-bounce shadow-xs">
           <CheckCircle2 className="w-8 h-8" />
         </div>
         <div className="space-y-1">
@@ -641,7 +641,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         <div 
           role="alert" 
           aria-live="assertive"
-          className="bg-white rounded-3xl p-8 text-center space-y-6 max-w-lg mx-auto border border-slate-200 shadow-xl font-sans animate-in zoom-in-95"
+          className="w-full py-10 text-center space-y-6 font-sans animate-in zoom-in-95"
         >
           {/* Brand & Security Status */}
           <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
@@ -729,7 +729,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
       <div 
         role="alert" 
         aria-live="assertive"
-        className="bg-white rounded-3xl p-6 sm:p-8 space-y-5 max-w-lg mx-auto border border-amber-300/80 shadow-xl font-sans text-left animate-in zoom-in-95"
+        className="w-full py-4 space-y-5 font-sans text-left animate-in zoom-in-95"
       >
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-slate-900 relative overflow-hidden">
           <div className="flex items-start gap-3">
@@ -876,9 +876,9 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
   const hasEnoughBalance = userBalance >= session.amount;
 
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl border border-slate-200 max-w-lg mx-auto text-slate-900 font-sans">
+    <div className="w-full space-y-5 text-slate-900 font-sans">
       {/* Vendor Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[1px] shadow-sm shrink-0 overflow-hidden">
             <div className="w-full h-full bg-white rounded-2xl flex items-center justify-center font-bold text-blue-700 text-xs">

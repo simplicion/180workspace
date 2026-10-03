@@ -101,7 +101,7 @@ function CheckoutEntryPoint() {
 
   if (initializing) {
     return (
-      <div className="bg-white rounded-3xl p-8 text-center space-y-4 max-w-lg mx-auto flex flex-col items-center justify-center border border-slate-200 shadow-xl font-sans">
+      <div className="w-full py-16 text-center space-y-4 flex flex-col items-center justify-center font-sans">
         <LogoLoader size={44} className="w-11 h-11 text-blue-600" />
         <div className="space-y-1">
           <p className="text-sm font-bold text-slate-900">Initializing Sovereign Checkout</p>
@@ -113,7 +113,7 @@ function CheckoutEntryPoint() {
 
   if (error) {
     return (
-      <div className="bg-white rounded-3xl p-8 text-center space-y-4 max-w-lg mx-auto border border-red-100 shadow-xl font-sans">
+      <div className="w-full py-10 text-center space-y-4 font-sans">
         <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto">
           <AlertCircle className="w-6 h-6" />
         </div>
@@ -132,8 +132,8 @@ function CheckoutEntryPoint() {
   }
 
   return (
-    <div className="bg-white rounded-3xl p-8 text-center space-y-6 max-w-lg mx-auto border border-slate-200 shadow-xl font-sans">
-      <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
+    <div className="w-full text-center space-y-6 font-sans py-2">
+      <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100 shadow-2xs">
         <CreditCard className="w-7 h-7" />
       </div>
 
@@ -169,7 +169,7 @@ export default function CheckoutPage() {
   return (
     <Suspense
       fallback={
-        <div className="bg-white rounded-3xl p-8 text-center space-y-4 max-w-lg mx-auto flex flex-col items-center justify-center border border-slate-200 shadow-xl font-sans">
+        <div className="w-full py-16 text-center space-y-4 flex flex-col items-center justify-center font-sans">
           <LogoLoader size={44} className="w-11 h-11 text-blue-600" />
           <p className="text-xs text-slate-500 font-medium">Loading 180 Pay...</p>
         </div>
