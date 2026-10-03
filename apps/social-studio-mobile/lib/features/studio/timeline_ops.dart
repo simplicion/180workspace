@@ -639,6 +639,91 @@ class TimelineOps {
     return _replaceClips(ir, clips);
   }
 
+  // ── One-tap cleanup from the transcript ────────────────────────────────────
+
+  /// Default filler words / phrases for [removeFillers] ("you know" / "I mean" are only cut where the
+  /// transcript has them; every occurrence is cut).
+  static const defaultFillers = ['um', 'uh', 'uhm', 'umm', 'er', 'erm', 'ah', 'hmm', 'you know', 'i mean'];
+
+  /// Cuts every pause between words longer than [minGapMs] (plus the silence before the first and after the last
+  /// word), keeping [padMs] of air next to the words. Source-time [words]; works after splits and re-orders.
+  static MobileEditIr removePauses(MobileEditIr ir, List<TranscriptWord> words, {int minGapMs = 500, int padMs = 100}) {
+    if (words.isEmpty) throw MediaEngineException('NO_TRANSCRIPT', 'Removing pauses needs a transcript. Transcribe the video first.');
+    final sorted = [...words]..sort((a, b) => a.startMs.compareTo(b.startMs));
+    final cuts = <(int, int)>[];
+    final srcEnd = ir.sources.isEmpty ? ir.durationMs : ir.sources.first.durationMs;
+    if (sorted.first.startMs - padMs >= minGapMs ~/ 2) cuts.add((0, sorted.first.startMs - padMs));
+    for (var i = 1; i < sorted.length; i++) {
+      final gap = sorted[i].startMs - sorted[i - 1].endMs;
+      if (gap >= minGapMs) cuts.add((sorted[i - 1].endMs + padMs, sorted[i].startMs - padMs));
+    }
+    if (srcEnd - sorted.last.endMs - padMs >= minGapMs ~/ 2) cuts.add((sorted.last.endMs + padMs, srcEnd));
+    return _cutSourceRanges(ir, cuts, 'pause');
+  }
+
+  /// Cuts filler words / phrases ([fillers], case and punctuation ignored) found in the source-time [words].
+  static MobileEditIr removeFillers(MobileEditIr ir, List<TranscriptWord> words, {List<String> fillers = defaultFillers}) {
+    if (words.isEmpty) throw MediaEngineException('NO_TRANSCRIPT', 'Removing filler words needs a transcript. Transcribe the video first.');
+    String norm(String w) => w.toLowerCase().replaceAll(RegExp(r"[^\p{L}\p{N}']", unicode: true), '');
+    final sorted = [...words]..sort((a, b) => a.startMs.compareTo(b.startMs));
+    final patterns = [for (final f in fillers) f.toLowerCase().split(RegExp(r'\s+')).map(norm).where((p) => p.isNotEmpty).toList()]
+      ..removeWhere((p) => p.isEmpty)
+      ..sort((a, b) => b.length.compareTo(a.length)); // longest phrase first
+    final cuts = <(int, int)>[];
+    for (var i = 0; i < sorted.length; i++) {
+      for (final p in patterns) {
+        if (i + p.length > sorted.length) continue;
+        var ok = true;
+        for (var k = 0; k < p.length && ok; k++) {
+          ok = norm(sorted[i + k].text) == p[k];
+        }
+        if (!ok) continue;
+        final last = sorted[i + p.length - 1];
+        final next = i + p.length < sorted.length ? sorted[i + p.length].startMs : last.endMs;
+        cuts.add((sorted[i].startMs, math.min(next, last.endMs + 150)));
+        i += p.length - 1;
+        break;
+      }
+    }
+    if (cuts.isEmpty) throw MediaEngineException('NOTHING_TO_REMOVE', 'No filler words were found in the transcript.');
+    return _cutSourceRanges(ir, cuts, 'filler');
+  }
+
+  /// Removes source-time ranges from the timeline wherever those moments play (any clip, any order). Cuts that
+  /// leave less than 250 ms between them are joined so no sliver flashes on screen.
+  static MobileEditIr _cutSourceRanges(MobileEditIr ir, List<(int, int)> source, String what) {
+    final ranges = source.where((r) => r.$2 - r.$1 >= 40).toList()..sort((a, b) => a.$1.compareTo(b.$1));
+    final merged = <(int, int)>[];
+    for (final r in ranges) {
+      if (merged.isNotEmpty && r.$1 - merged.last.$2 < 250) {
+        merged[merged.length - 1] = (merged.last.$1, math.max(merged.last.$2, r.$2));
+      } else {
+        merged.add(r);
+      }
+    }
+    final timeline = <(int, int)>[];
+    for (final c in ir.clips.where((c) => c.assetId == 'primary')) {
+      for (final r in merged) {
+        final a = math.max(r.$1, c.sourceStartMs);
+        final b = math.min(r.$2, c.sourceEndMs);
+        if (b - a < 40) continue;
+        timeline.add((
+          c.timelineStartMs + ((a - c.sourceStartMs) / c.speed).round(),
+          c.timelineStartMs + ((b - c.sourceStartMs) / c.speed).round(),
+        ));
+      }
+    }
+    if (timeline.isEmpty) throw MediaEngineException('NOTHING_TO_REMOVE', 'No ${what}s to remove in this edit.');
+    timeline.sort((a, b) => b.$1.compareTo(a.$1)); // from the end, so earlier times stay valid
+    var out = ir;
+    final total = timeline.fold<int>(0, (s, r) => s + r.$2 - r.$1);
+    if (total >= ir.durationMs - minClipMs) throw MediaEngineException('INVALID_EDIT', 'That would remove the whole video.');
+    for (final r in timeline) {
+      out = removeRange(out, r.$1, r.$2);
+    }
+    return out;
+  }
+
   /// Sets the source in/out of clip [index] (bounded by the source length).
   static MobileEditIr trim(
     MobileEditIr ir,
@@ -1144,6 +1229,8 @@ class TimelineOps {
       highlightColor: highlightColor,
       positionY: positionY,
     );
+    // The spoken word grows a little in word_pop styles (same 1.15 as the AI Director's captions).
+    final pop = style['animation'] == 'word_pop' ? 1.15 : 1.0;
     final mapped = <EditIrWord>[];
     for (final w in words) {
       final s = sourceToTimeline(ir, w.startMs);
@@ -1155,7 +1242,7 @@ class TimelineOps {
         e = math.min(clip.timelineEndMs - 1, s + math.max(1, w.endMs - w.startMs));
       }
       mapped.add(
-        EditIrWord(text: w.text, startMs: s, endMs: math.max(e + 1, s + 1)),
+        EditIrWord(text: w.text, startMs: s, endMs: math.max(e + 1, s + 1), scale: pop),
       );
     }
     // Clips can be re-ordered, so source order is not timeline order.
@@ -1199,6 +1286,9 @@ class TimelineOps {
                 text: w.text,
                 startMs: w.startMs,
                 endMs: math.min(w.endMs, b.startMs),
+                highlight: w.highlight,
+                color: w.color,
+                scale: w.scale,
               ),
           ],
           style: a.style,
@@ -1234,7 +1324,12 @@ class TimelineOps {
                   startMs: c.startMs,
                   endMs: c.endMs,
                   text: c.text,
-                  words: c.words,
+                  // Switching to / from a word_pop style turns the spoken-word pop on / off.
+                  words: [
+                    for (final w in c.words)
+                      EditIrWord(text: w.text, startMs: w.startMs, endMs: w.endMs, highlight: w.highlight, color: w.color,
+                          scale: style['animation'] == 'word_pop' ? (w.scale > 1 ? w.scale : 1.15) : 1.0),
+                  ],
                   style: style,
                 )
               : c,
@@ -1343,11 +1438,51 @@ class TimelineOps {
     );
   }
 
-  /// A sticker: a transparent image floating above the video (upper right, a quarter size, pops in).
-  static MobileEditIr addSticker(MobileEditIr ir, Map<String, dynamic> source, {required int startMs, int durationMs = 2500}) {
+  /// Sticker spots (canvas fractions): upper corners, then mid sides (captions sit lower). Same as the contracts'
+  /// `STICKER_SPOTS`, so manual and Director stickers land in the same places.
+  static const stickerSpots = [(x: 0.74, y: 0.22), (x: 0.26, y: 0.22), (x: 0.78, y: 0.46), (x: 0.22, y: 0.46)];
+
+  /// The sticker spot farthest from [face] (canvas fractions); the upper right without a face.
+  static ({double x, double y}) stickerSpotAwayFrom(({double x, double y})? face) {
+    if (face == null) return stickerSpots.first;
+    var best = stickerSpots.first;
+    var bestD = -1.0;
+    for (final p in stickerSpots) {
+      final d = math.pow(p.x - face.x, 2) + math.pow(p.y - face.y, 2);
+      if (d > bestD + 1e-9) {
+        best = p;
+        bestD = d.toDouble();
+      }
+    }
+    return best;
+  }
+
+  /// Where the speaker's face is on the canvas at [timelineMs] (canvas fractions), from the face track (source
+  /// fractions) mapped through that clip's crop. Null without a face sample within 1.5 s or off-canvas.
+  static ({double x, double y})? faceOnCanvas(MobileEditIr ir, List<FaceSample>? faces, int timelineMs) {
+    if (faces == null || faces.isEmpty || ir.clips.isEmpty) return null;
+    final c = ir.clips[clipIndexAt(ir, timelineMs)];
+    final srcMs = c.sourceStartMs + ((timelineMs - c.timelineStartMs) * c.speed).round();
+    FaceSample? near;
+    for (final f in faces) {
+      if ((f.tMs - srcMs).abs() <= 1500 && (near == null || (f.tMs - srcMs).abs() < (near.tMs - srcMs).abs())) near = f;
+    }
+    if (near == null) return null;
+    final crop = c.crop;
+    final x = crop == null ? near.x : (near.x - crop.x) / crop.width;
+    final y = crop == null ? near.y : (near.y - crop.y) / crop.height;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return null;
+    return (x: x, y: y);
+  }
+
+  /// A sticker: a transparent image floating above the video (a quarter size, pops in), in the spot farthest from
+  /// the speaker's face ([avoidFace], canvas fractions; upper right without one).
+  static MobileEditIr addSticker(MobileEditIr ir, Map<String, dynamic> source,
+      {required int startMs, int durationMs = 2500, ({double x, double y})? avoidFace}) {
     final s = startMs.clamp(0, math.max(0, ir.durationMs - 300)).toInt();
     final e = math.min(ir.durationMs, s + math.max(durationMs, 300)).toInt();
-    const base = EditIrLayer(x: 0.74, y: 0.22, scale: 0.26);
+    final spot = stickerSpotAwayFrom(avoidFace);
+    final base = EditIrLayer(x: spot.x, y: spot.y, scale: 0.26);
     final o = EditIrOverlay(
       id: _id('st'),
       timelineStartMs: s,

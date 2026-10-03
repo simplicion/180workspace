@@ -29,6 +29,12 @@ router.get('/apps/:id/payment-analytics', protect, DeveloperApiController.getPay
 router.get('/apps/:id/bank-details', protect, DeveloperApiController.getBankDetails);
 router.put('/apps/:id/bank-details', protect, DeveloperApiController.saveBankDetails);
 
+// ─── Custom Gateway (BYOG) & Custom Domain ────────────────────────────────────
+router.get('/apps/:id/gateway', protect, DeveloperApiController.getGatewaySettings);
+router.put('/apps/:id/gateway', protect, DeveloperApiController.saveGatewaySettings);
+router.post('/apps/:id/gateway/verify', protect, DeveloperApiController.verifyGatewayCredentials);
+router.post('/apps/:id/custom-domain/verify', protect, DeveloperApiController.verifyCustomDomain);
+
 // ─── Earnings & Manual Payouts ───────────────────────────────────────────────
 router.post('/apps/:appId/payouts', protect, DeveloperApiController.requestPayout);
 router.get('/apps/:appId/payouts', protect, DeveloperApiController.listPayouts);

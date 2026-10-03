@@ -28,6 +28,7 @@ enum StudioTool {
   library('Library', Icons.library_add_rounded),
   trim('Trim', Icons.straighten_rounded),
   delete('Delete', Icons.delete_outline_rounded),
+  cleanup('Clean up', Icons.cleaning_services_rounded),
   duplicate('Duplicate', Icons.copy_all_rounded),
   freeze('Freeze', Icons.pause_circle_outline_rounded),
   stabilize('Stabilise', Icons.video_stable_rounded),
@@ -78,6 +79,7 @@ Future<void> showStudioTool(BuildContext context, StudioTool tool, StudioControl
         child: switch (tool) {
           StudioTool.trim => _TrimSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.delete => _DeleteSheet(c: c, index: clipIndex, onEdit: onEdit),
+          StudioTool.cleanup => _CleanupSheet(c: c, onEdit: onEdit),
           StudioTool.duplicate => _DuplicateSheet(c: c, index: clipIndex, onEdit: onEdit),
           StudioTool.freeze => _FreezeSheet(c: c),
           StudioTool.stabilize => _StabilizeSheet(c: c, index: clipIndex),
@@ -888,7 +890,8 @@ class _StickerSheetState extends State<_StickerSheet> {
       if (s.attribution != null) widget.c.mediaCredits[s.url] = s.attribution!;
       _close(context);
       widget.onEdit(
-        (ir) => TimelineOps.addSticker(ir, {'kind': 'url', 'url': s.url, 'query': s.title}, startMs: widget.c.playheadMs),
+        (ir) => TimelineOps.addSticker(ir, {'kind': 'url', 'url': s.url, 'query': s.title},
+            startMs: widget.c.playheadMs, avoidFace: TimelineOps.faceOnCanvas(ir, widget.c.faces, widget.c.playheadMs)),
         done: 'Sticker added. Drag it on the preview to move it.',
       );
     } catch (e) {
@@ -907,7 +910,10 @@ class _StickerSheetState extends State<_StickerSheet> {
       final source = widget.c.localOverlaySource(path, label: 'Sticker $emoji');
       if (!mounted) return;
       _close(context);
-      widget.onEdit((ir) => TimelineOps.addSticker(ir, source, startMs: widget.c.playheadMs), done: 'Sticker added. Drag it on the preview to move it.');
+      widget.onEdit(
+          (ir) => TimelineOps.addSticker(ir, source,
+              startMs: widget.c.playheadMs, avoidFace: TimelineOps.faceOnCanvas(ir, widget.c.faces, widget.c.playheadMs)),
+          done: 'Sticker added. Drag it on the preview to move it.');
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {
@@ -1398,6 +1404,69 @@ class _TextSheetState extends State<_TextSheet> {
         ],
       ),
     );
+  }
+}
+
+/// One-tap cleanup from the transcript: cut pauses, cut filler words. Both work on every clip, in any order.
+class _CleanupSheet extends StatefulWidget {
+  const _CleanupSheet({required this.c, required this.onEdit});
+  final StudioController c;
+  final EditFn onEdit;
+
+  @override
+  State<_CleanupSheet> createState() => _CleanupSheetState();
+}
+
+class _CleanupSheetState extends State<_CleanupSheet> {
+  int gapMs = 500;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.c;
+    final ready = c.transcriptState == TranscriptState.ready && c.words.isNotEmpty;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _Title('Clean up',
+          subtitle: ready
+              ? 'Cuts follow the transcript (${c.words.length} words). Undo brings everything back.'
+              : c.transcriptState == TranscriptState.running
+                  ? 'Waiting for the transcript…'
+                  : 'Cleanup needs a transcript. ${errorText(c.transcriptError ?? '')}'),
+      Text('Pauses longer than', style: TextStyle(color: AppTheme.textSecondary)),
+      Wrap(spacing: 8, children: [
+        for (final ms in const [300, 500, 800, 1200])
+          ChoiceChip(label: Text('${(ms / 1000).toStringAsFixed(1)} s'), selected: gapMs == ms, onSelected: (_) => setState(() => gapMs = ms)),
+      ]),
+      SizedBox(height: 8),
+      SizedBox(
+        height: 48,
+        child: FilledButton.icon(
+          onPressed: !ready
+              ? null
+              : () {
+                  _close(context);
+                  widget.onEdit((ir) => TimelineOps.removePauses(ir, c.words, minGapMs: gapMs), done: 'Pauses removed');
+                },
+          icon: Icon(Icons.content_cut_rounded),
+          label: Text('Remove pauses'),
+        ),
+      ),
+      SizedBox(height: 8),
+      SizedBox(
+        height: 48,
+        child: OutlinedButton.icon(
+          onPressed: !ready
+              ? null
+              : () {
+                  _close(context);
+                  widget.onEdit((ir) => TimelineOps.removeFillers(ir, c.words), done: 'Filler words removed');
+                },
+          icon: Icon(Icons.record_voice_over_rounded),
+          label: Text('Remove filler words (um, uh, you know…)'),
+        ),
+      ),
+      if (!ready && c.transcriptState == TranscriptState.failed)
+        TextButton(onPressed: c.transcribe, child: Text('Retry transcript')),
+    ]);
   }
 }
 

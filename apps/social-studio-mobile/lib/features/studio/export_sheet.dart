@@ -447,6 +447,13 @@ class _ExportSettingsFormState extends State<_ExportSettingsForm> {
         ChoiceChip(label: Text('Standard'), selected: s.quality != 'high', onSelected: (_) => setState(() => s = s.copyWith(quality: 'standard'))),
         ChoiceChip(label: Text('High (bigger file)'), selected: s.quality == 'high', onSelected: (_) => setState(() => s = s.copyWith(quality: 'high'))),
       ]),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text('Platform loudness'),
+        subtitle: Text('Brings the voice to ${ExportSettings.targetLufs.round()} LUFS like Reels, Shorts and TikTok, without clipping'),
+        value: s.normalizeLoudness,
+        onChanged: (v) => setState(() => s = s.copyWith(normalizeLoudness: v)),
+      ),
       SizedBox(
         height: 48,
         child: FilledButton.icon(

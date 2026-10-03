@@ -25,6 +25,11 @@ import { AIProviderService, AIClient, AISettings } from "../kernel/ai-provider.s
 
 export interface PlanGenerationParams {
   prompt: string;
+  /**
+   * Check that the plan covers every feature the creator asked for (and ask once more if not). Off for critic
+   * repair calls: their prompt quotes the original request, but a repair must stay minimal.
+   */
+  checkCoverage?: boolean;
   timelineContext: TimelineContext;
   mediaGraph: MediaIntelligenceGraph;
   directorState?: DirectorState;
@@ -87,20 +92,26 @@ const COVERAGE_RULES: Array<{ label: string; ask: RegExp; ops: string[]; needsTr
 ];
 const NEGATION = /\b(no|not|don'?t|do not|without|remove|keep|skip|never)\b[\w\s,'-]{0,24}$/;
 
-/** Requested tool families the plan does not contain. */
-export function missingRequestedOperations(prompt: string, operationTypes: string[], hasTranscript: boolean): string[] {
+/** Feature labels the creator explicitly asked for (see COVERAGE_RULES). */
+export function requestedFeatures(prompt: string, hasTranscript: boolean): string[] {
   const text = prompt.toLowerCase();
-  const have = new Set(operationTypes);
-  const missing: string[] = [];
+  const out: string[] = [];
   for (const r of COVERAGE_RULES) {
     const m = r.ask.exec(text);
     if (!m) continue;
     // "remove / cut the fillers" is the ask itself, not a negation.
     if (!r.removal && NEGATION.test(text.slice(Math.max(0, m.index - 30), m.index))) continue;
     if (r.needsTranscript && !hasTranscript) continue;
-    if (!r.ops.some((o) => have.has(o))) missing.push(`${r.label} (${r.ops.join(" / ")})`);
+    out.push(r.label);
   }
-  return missing;
+  return out;
+}
+
+/** Requested tool families the plan does not contain. */
+export function missingRequestedOperations(prompt: string, operationTypes: string[], hasTranscript: boolean): string[] {
+  const have = new Set(operationTypes);
+  const wanted = new Set(requestedFeatures(prompt, hasTranscript));
+  return COVERAGE_RULES.filter((r) => wanted.has(r.label) && !r.ops.some((o) => have.has(o))).map((r) => `${r.label} (${r.ops.join(" / ")})`);
 }
 
 /** Model defaults per provider. Anthropic default follows the product decision (latest Sonnet). */
@@ -204,7 +215,7 @@ export class CreativePlanner {
 
     // Coverage: everything the creator explicitly asked for must be planned (or honestly skipped by the model).
     const hasTranscript = (params.mediaGraph?.transcript?.length ?? 0) > 0;
-    const missing = missingRequestedOperations(params.prompt, validation.operations.map((o: any) => o.type), hasTranscript);
+    const missing = params.checkCoverage === false ? [] : missingRequestedOperations(params.prompt, validation.operations.map((o: any) => o.type), hasTranscript);
     let coverageNote = "";
     if (missing.length > 0) {
       const calls = validation.operations.map((o: any) => ({ name: o.type, args: o }));

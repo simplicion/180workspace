@@ -659,7 +659,9 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
             highlight: !!w.highlight,
             color: w.color ? hexOr(w.color, highlightColor) : null,
             scale: w.scaleMultiplier || 1,
-          })));
+          }))
+            // A word that a cut pushed past its caption's end clamps to nothing: drop it (it was not heard).
+            .filter((w) => w.endMs > w.startMs));
       const bg = cap.style.pillBackground
         ? { color: cap.style.pillBackground, paddingPx: cap.style.pillPadding ?? 16, radiusPx: cap.style.pillRadius ?? 16 }
         : null;
@@ -668,7 +670,7 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
         kind,
         startMs,
         endMs,
-        text: cap.text,
+        text: kind === "caption" && words.length > 0 && words.length < cap.words.length ? words.map((w) => w.text).join(" ") : cap.text,
         words,
         style: {
           preset: cap.style.presetLabel || cap.style.preset,
@@ -693,7 +695,7 @@ export function toMobileEditIR(input: MobileProjectionInput): { editIR: MobileEd
         },
       } as MobileEditIR["captions"][number];
     })
-    .filter((c) => c.endMs - c.startMs >= 50)
+    .filter((c) => c.endMs - c.startMs >= 50 && (c.kind === "text" || c.words.length > 0))
     .sort((a, b) => a.startMs - b.startMs);
 
   const zooms: MobileEditIR["zooms"] = [];

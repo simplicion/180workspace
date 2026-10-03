@@ -201,3 +201,54 @@ class VoiceCleanupProcessor : BaseAudioProcessor() {
         hp.fill(0.0); env = 0.0; floor = 1e-4; gain = 1.0
     }
 }
+
+/**
+ * Export loudness: a fixed make-up [gainDb] followed by a linked-channel peak limiter (instant attack, ~120 ms
+ * release, ceiling [ceilingDb] dBFS, -2 so the AAC-encoded true peak stays under -1 dBTP), so normalising a quiet voice up to platform loudness never clips.
+ */
+class LoudnessLimiterProcessor(gainDb: Double, ceilingDb: Double = -2.0) : BaseAudioProcessor() {
+    private val gain = Math.pow(10.0, gainDb / 20.0).toFloat()
+    private val ceiling = Math.pow(10.0, ceilingDb / 20.0).toFloat()
+    private var env = 1f
+    private var release = 0f
+
+    override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+        if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT && inputAudioFormat.encoding != C.ENCODING_PCM_FLOAT) {
+            throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
+        }
+        // Gain recovers by this factor per sample: back to unity ~120 ms after a peak.
+        release = Math.pow(10.0, 1.0 / (0.12 * inputAudioFormat.sampleRate) * Math.log10(1.0 / 0.25)).toFloat()
+        return inputAudioFormat
+    }
+
+    override fun queueInput(inputBuffer: ByteBuffer) {
+        val remaining = inputBuffer.remaining()
+        if (remaining == 0) return
+        val fmt = inputAudioFormat
+        val channels = fmt.channelCount
+        val frames = remaining / fmt.bytesPerFrame
+        val pcm16 = fmt.encoding == C.ENCODING_PCM_16BIT
+        val input = inputBuffer.order(ByteOrder.nativeOrder())
+        val out = replaceOutputBuffer(remaining)
+        val frame = FloatArray(channels)
+        for (f in 0 until frames) {
+            var peak = 0f
+            for (ch in 0 until channels) {
+                val v = (if (pcm16) input.short / 32768f else input.float) * gain
+                frame[ch] = v
+                peak = maxOf(peak, kotlin.math.abs(v))
+            }
+            env = minOf(1f, env * release)
+            if (peak * env > ceiling) env = ceiling / peak
+            for (ch in 0 until channels) {
+                val v = frame[ch] * env
+                if (pcm16) out.putShort((v * 32767f).toInt().coerceIn(-32768, 32767).toShort()) else out.putFloat(v)
+            }
+        }
+        out.flip()
+    }
+
+    override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
+        env = 1f
+    }
+}

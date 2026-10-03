@@ -1,0 +1,508 @@
+'use strict';
+
+import { developersPrisma as prisma } from '@workspace/db-180core';
+
+export interface CouponValidationInput {
+  appId: string;
+  code: string;
+  orderAmount: number;
+  customerEmail?: string;
+  origin?: string;
+  planId?: string;
+}
+
+export interface CouponValidationResult {
+  valid: boolean;
+  code: string;
+  discountType?: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discountValue?: number;
+  discountAmount: number;
+  finalAmount: number;
+  maxDiscountAmount?: number | null;
+  couponId?: string;
+  error?: string;
+  reasonCode?: string;
+}
+
+export interface CreateCouponInput {
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discountValue: number;
+  maxDiscountAmount?: number;
+  minOrderAmount?: number;
+  maxRedemptions?: number;
+  perCustomerLimit?: number;
+  allowedOrigins?: string[];
+  validPlans?: string[];
+  validFrom?: Date;
+  validUntil?: Date;
+  isActive?: boolean;
+}
+
+export interface UpdateCouponInput {
+  discountType?: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discountValue?: number;
+  maxDiscountAmount?: number | null;
+  minOrderAmount?: number;
+  maxRedemptions?: number | null;
+  perCustomerLimit?: number;
+  allowedOrigins?: string[];
+  validPlans?: string[];
+  validFrom?: Date;
+  validUntil?: Date | null;
+  isActive?: boolean;
+}
+
+/**
+ * Normalizes HTTP origin or hostname (strips protocols, paths, trailing slashes, and ports).
+ */
+export function normalizeOrigin(origin?: string): string {
+  if (!origin) return '';
+  const trimmed = origin.trim().toLowerCase();
+  try {
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      const parsed = new URL(trimmed);
+      return parsed.hostname.toLowerCase();
+    }
+  } catch {
+    // Fallback if URL parsing fails
+  }
+  return trimmed.split('/')[0].split(':')[0];
+}
+
+/**
+ * Checks if a request origin matches an allowed origins whitelist.
+ * Supports exact matches and wildcard subdomains (e.g. *.ontheirx.com).
+ */
+export function isOriginAllowed(origin: string | undefined, allowedOrigins: string[]): boolean {
+  if (!allowedOrigins || allowedOrigins.length === 0) {
+    return true; // No restrictions specified on coupon
+  }
+  if (!origin) {
+    return false; // Origin header missing when restrictions exist
+  }
+
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return false;
+
+  for (const allowed of allowedOrigins) {
+    const normAllowed = normalizeOrigin(allowed);
+    if (!normAllowed) continue;
+
+    if (normAllowed === '*' || normAllowed === normalized) {
+      return true;
+    }
+    // Wildcard subdomain matching
+    if (normAllowed.startsWith('*.')) {
+      const baseDomain = normAllowed.slice(2);
+      if (normalized === baseDomain || normalized.endsWith('.' + baseDomain)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+export class CouponService {
+  /**
+   * 1. 100% Server-Side Coupon Validation
+   * Evaluates origin whitelists, limits, expiry dates, and calculates final discounted totals.
+   */
+  static async validateCoupon(input: CouponValidationInput): Promise<CouponValidationResult> {
+    const { appId, orderAmount, customerEmail, origin, planId } = input;
+    const rawCode = (input.code || '').trim().toUpperCase();
+
+    if (!rawCode) {
+      return {
+        valid: false,
+        code: '',
+        discountAmount: 0,
+        finalAmount: orderAmount,
+        error: 'Coupon code cannot be empty',
+        reasonCode: 'COUPON_EMPTY',
+      };
+    }
+
+    if (orderAmount < 0) {
+      return {
+        valid: false,
+        code: rawCode,
+        discountAmount: 0,
+        finalAmount: orderAmount,
+        error: 'Invalid order amount',
+        reasonCode: 'INVALID_ORDER_AMOUNT',
+      };
+    }
+
+    // 1. Fetch Coupon record scoped to appId
+    const coupon = await (prisma as any).coupon.findUnique({
+      where: {
+        appId_code: {
+          appId,
+          code: rawCode,
+        },
+      },
+    });
+
+    if (!coupon) {
+      return {
+        valid: false,
+        code: rawCode,
+        discountAmount: 0,
+        finalAmount: orderAmount,
+        error: 'Invalid coupon code',
+        reasonCode: 'COUPON_NOT_FOUND',
+      };
+    }
+
+    // 2. Active status check
+    if (!coupon.isActive) {
+      return {
+        valid: false,
+        code: rawCode,
+        discountAmount: 0,
+        finalAmount: orderAmount,
+        error: 'This coupon code is no longer active',
+        reasonCode: 'COUPON_INACTIVE',
+      };
+    }
+
+    // 3. Date validity check
+    const now = new Date();
+    if (coupon.validFrom && now < new Date(coupon.validFrom)) {
+      return {
+        valid: false,
+        code: rawCode,
+        discountAmount: 0,
+        finalAmount: orderAmount,
+        error: 'This coupon is not active yet',
+        reasonCode: 'COUPON_NOT_YET_ACTIVE',
+      };
+    }
+
+    if (coupon.validUntil && now > new Date(coupon.validUntil)) {
+      return {
+        valid: false,
+        code: rawCode,
+        discountAmount: 0,
+        finalAmount: orderAmount,
+        error: 'This coupon has expired',
+        reasonCode: 'COUPON_EXPIRED',
+      };
+    }
+
+    // 4. Origin Whitelisting verification (Server-to-Server security)
+    if (coupon.allowedOrigins && coupon.allowedOrigins.length > 0) {
+      const originValid = isOriginAllowed(origin, coupon.allowedOrigins);
+      if (!originValid) {
+        return {
+          valid: false,
+          code: rawCode,
+          discountAmount: 0,
+          finalAmount: orderAmount,
+          error: 'This coupon is not valid on this website domain',
+          reasonCode: 'ORIGIN_FORBIDDEN',
+        };
+      }
+    }
+
+    // 5. Plan applicability check
+    if (coupon.validPlans && coupon.validPlans.length > 0) {
+      if (!planId || !coupon.validPlans.includes(planId)) {
+        return {
+          valid: false,
+          code: rawCode,
+          discountAmount: 0,
+          finalAmount: orderAmount,
+          error: 'This coupon is not applicable to the selected plan',
+          reasonCode: 'PLAN_NOT_ELIGIBLE',
+        };
+      }
+    }
+
+    // 6. Minimum order threshold
+    if (coupon.minOrderAmount && orderAmount < coupon.minOrderAmount) {
+      return {
+        valid: false,
+        code: rawCode,
+        discountAmount: 0,
+        finalAmount: orderAmount,
+        error: `Minimum purchase of ${coupon.minOrderAmount} required for this coupon`,
+        reasonCode: 'MIN_ORDER_NOT_MET',
+      };
+    }
+
+    // 7. Global Redemption Limit check
+    if (coupon.maxRedemptions !== null && coupon.redemptionsCount >= coupon.maxRedemptions) {
+      return {
+        valid: false,
+        code: rawCode,
+        discountAmount: 0,
+        finalAmount: orderAmount,
+        error: 'This coupon has reached its maximum redemption limit',
+        reasonCode: 'REDEMPTION_LIMIT_REACHED',
+      };
+    }
+
+    // 8. Per-Customer Usage Limit check
+    const normalizedEmail = (customerEmail || '').trim().toLowerCase();
+    if (normalizedEmail) {
+      const userRedemptions = await (prisma as any).couponRedemption.count({
+        where: {
+          couponId: coupon.id,
+          customerEmail: normalizedEmail,
+        },
+      });
+
+      if (userRedemptions >= coupon.perCustomerLimit) {
+        return {
+          valid: false,
+          code: rawCode,
+          discountAmount: 0,
+          finalAmount: orderAmount,
+          error: 'You have already redeemed this coupon the maximum allowed number of times',
+          reasonCode: 'CUSTOMER_LIMIT_EXCEEDED',
+        };
+      }
+    }
+
+    // 9. Calculate Discount
+    let calculatedDiscount = 0;
+    if (coupon.discountType === 'PERCENTAGE') {
+      const percentageOff = (orderAmount * coupon.discountValue) / 100;
+      if (coupon.maxDiscountAmount && coupon.maxDiscountAmount > 0) {
+        calculatedDiscount = Math.min(percentageOff, coupon.maxDiscountAmount);
+      } else {
+        calculatedDiscount = percentageOff;
+      }
+    } else {
+      // FIXED_AMOUNT
+      calculatedDiscount = Math.min(orderAmount, coupon.discountValue);
+    }
+
+    // Prevent negative final amounts and round to 2 decimal places
+    const discountAmount = Math.round(Math.min(calculatedDiscount, orderAmount) * 100) / 100;
+    const finalAmount = Math.max(0, Math.round((orderAmount - discountAmount) * 100) / 100);
+
+    return {
+      valid: true,
+      code: rawCode,
+      couponId: coupon.id,
+      discountType: coupon.discountType as 'PERCENTAGE' | 'FIXED_AMOUNT',
+      discountValue: coupon.discountValue,
+      discountAmount,
+      finalAmount,
+      maxDiscountAmount: coupon.maxDiscountAmount,
+    };
+  }
+
+  /**
+   * 2. Atomic Concurrency Redemption Engine
+   * Guarantees race-condition safety by atomically checking and incrementing redemptionsCount.
+   */
+  static async redeemCouponAtomic(input: {
+    couponId: string;
+    sessionId: string;
+    customerEmail: string;
+    discountApplied: number;
+  }) {
+    const { couponId, sessionId, customerEmail, discountApplied } = input;
+    const normalizedEmail = customerEmail.trim().toLowerCase();
+
+    return await prisma.$transaction(async (tx: any) => {
+      // Atomic conditional update in PostgreSQL:
+      // Increments redemptionsCount ONLY IF (maxRedemptions IS NULL OR redemptionsCount < maxRedemptions)
+      const affectedRows = await tx.$executeRaw`
+        UPDATE "Coupon"
+        SET "redemptionsCount" = "redemptionsCount" + 1,
+            "updatedAt" = NOW()
+        WHERE "id" = ${couponId}
+          AND "isActive" = true
+          AND ("maxRedemptions" IS NULL OR "redemptionsCount" < "maxRedemptions")
+      `;
+
+      if (affectedRows === 0) {
+        throw new Error('Coupon usage limit was reached concurrently. Discount cannot be applied.');
+      }
+
+      // Check per-customer limit within the transaction to prevent multi-tab bypass
+      const customerUses = await tx.couponRedemption.count({
+        where: {
+          couponId,
+          customerEmail: normalizedEmail,
+        },
+      });
+
+      const currentCoupon = await tx.coupon.findUnique({
+        where: { id: couponId },
+        select: { perCustomerLimit: true },
+      });
+
+      if (currentCoupon && customerUses >= currentCoupon.perCustomerLimit) {
+        throw new Error('Customer limit exceeded for this coupon.');
+      }
+
+      // Record immutable redemption audit record
+      const redemption = await tx.couponRedemption.create({
+        data: {
+          couponId,
+          sessionId,
+          customerEmail: normalizedEmail,
+          discountApplied,
+        },
+      });
+
+      return redemption;
+    });
+  }
+
+  /**
+   * 3. Developer Management: Create Coupon
+   */
+  static async createCoupon(appId: string, data: CreateCouponInput) {
+    const normalizedCode = data.code.trim().toUpperCase();
+
+    if (!normalizedCode) {
+      throw new Error('Coupon code is required');
+    }
+
+    if (data.discountValue <= 0) {
+      throw new Error('Discount value must be greater than zero');
+    }
+
+    if (data.discountType === 'PERCENTAGE' && data.discountValue > 100) {
+      throw new Error('Percentage discount cannot exceed 100%');
+    }
+
+    const existing = await (prisma as any).coupon.findUnique({
+      where: {
+        appId_code: {
+          appId,
+          code: normalizedCode,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new Error(`Coupon code "${normalizedCode}" already exists for this application`);
+    }
+
+    return await (prisma as any).coupon.create({
+      data: {
+        appId,
+        code: normalizedCode,
+        discountType: data.discountType,
+        discountValue: Number(data.discountValue),
+        maxDiscountAmount: data.maxDiscountAmount ? Number(data.maxDiscountAmount) : null,
+        minOrderAmount: data.minOrderAmount ? Number(data.minOrderAmount) : 0,
+        maxRedemptions: data.maxRedemptions ? Number(data.maxRedemptions) : null,
+        perCustomerLimit: data.perCustomerLimit ? Number(data.perCustomerLimit) : 1,
+        allowedOrigins: (data.allowedOrigins || []).map(normalizeOrigin).filter(Boolean),
+        validPlans: data.validPlans || [],
+        validFrom: data.validFrom ? new Date(data.validFrom) : new Date(),
+        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+        isActive: data.isActive !== undefined ? data.isActive : true,
+      },
+    });
+  }
+
+  /**
+   * 4. Developer Management: Update Coupon
+   */
+  static async updateCoupon(appId: string, couponId: string, data: UpdateCouponInput) {
+    const coupon = await (prisma as any).coupon.findFirst({
+      where: { id: couponId, appId },
+    });
+
+    if (!coupon) {
+      throw new Error('Coupon not found');
+    }
+
+    if (data.discountValue !== undefined && data.discountValue <= 0) {
+      throw new Error('Discount value must be greater than zero');
+    }
+
+    return await (prisma as any).coupon.update({
+      where: { id: couponId },
+      data: {
+        ...(data.discountType && { discountType: data.discountType }),
+        ...(data.discountValue !== undefined && { discountValue: Number(data.discountValue) }),
+        ...(data.maxDiscountAmount !== undefined && { maxDiscountAmount: data.maxDiscountAmount }),
+        ...(data.minOrderAmount !== undefined && { minOrderAmount: Number(data.minOrderAmount) }),
+        ...(data.maxRedemptions !== undefined && { maxRedemptions: data.maxRedemptions }),
+        ...(data.perCustomerLimit !== undefined && { perCustomerLimit: Number(data.perCustomerLimit) }),
+        ...(data.allowedOrigins && { allowedOrigins: data.allowedOrigins.map(normalizeOrigin).filter(Boolean) }),
+        ...(data.validPlans && { validPlans: data.validPlans }),
+        ...(data.validFrom && { validFrom: new Date(data.validFrom) }),
+        ...(data.validUntil !== undefined && { validUntil: data.validUntil ? new Date(data.validUntil) : null }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
+      },
+    });
+  }
+
+  /**
+   * 5. Developer Management: Delete Coupon
+   */
+  static async deleteCoupon(appId: string, couponId: string) {
+    const coupon = await (prisma as any).coupon.findFirst({
+      where: { id: couponId, appId },
+    });
+
+    if (!coupon) {
+      throw new Error('Coupon not found');
+    }
+
+    return await (prisma as any).coupon.delete({
+      where: { id: couponId },
+    });
+  }
+
+  /**
+   * 6. Developer Management: List Coupons
+   */
+  static async listCoupons(appId: string, options?: { page?: number; limit?: number }) {
+    const page = Math.max(1, options?.page || 1);
+    const limit = Math.min(100, Math.max(1, options?.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const [coupons, total] = await Promise.all([
+      (prisma as any).coupon.findMany({
+        where: { appId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      (prisma as any).coupon.count({
+        where: { appId },
+      }),
+    ]);
+
+    return {
+      coupons,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * 7. Developer Management: Get Coupon Redemptions
+   */
+  static async getCouponRedemptions(appId: string, couponId: string) {
+    const coupon = await (prisma as any).coupon.findFirst({
+      where: { id: couponId, appId },
+    });
+
+    if (!coupon) {
+      throw new Error('Coupon not found');
+    }
+
+    return await (prisma as any).couponRedemption.findMany({
+      where: { couponId },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+}

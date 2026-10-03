@@ -1133,3 +1133,83 @@ test("coverage: a plan that stops after the cuts is sent back once and the compl
   assert.equal(res.editIR.zooms.length, 1);
   assertInvariants(res.editIR);
 });
+
+test("cuts: two cuts that leave a 160 ms sliver between them cut the sliver too (no flash frame)", async () => {
+  const { res } = await runLLM("cut the question and the pause", [
+    tc("removeRange", { startSec: 2.0, durationSec: 2.0, ripple: true, reason: "question" }),
+    tc("removeRange", { startSec: 4.16, durationSec: 1.84, ripple: true, reason: "off-topic tangent" }),
+    finish("Cut the question and the pause."),
+  ]);
+  assertInvariants(res.editIR);
+  const shortest = Math.min(...res.editIR.clips.map((c) => c.timelineEndMs - c.timelineStartMs));
+  assert.ok(shortest >= 250, `no clip shorter than 250 ms (got ${shortest} ms)`);
+  assert.equal(res.editIR.durationMs, FIX.durationMs - 4000);
+});
+
+test("captions: a word a cut pushed to the clip boundary is dropped, not drawn with zero length", async () => {
+  const w = FIX.words[3];
+  // Cut from just before word 3 to the middle of it: its tail survives as a sliver at the cut point.
+  const cutStart = w.startMs / 1000 - 0.3;
+  const { res } = await runLLM("captions and cut that", [
+    tc("autoCaptions", { highlightColor: "#FFE600" }),
+    tc("removeRange", { startSec: cutStart, durationSec: (w.startMs + (w.endMs - w.startMs) * 0.6) / 1000 - cutStart, ripple: true, reason: "cut" }),
+    finish("Captions and a cut."),
+  ]);
+  assertInvariants(res.editIR);
+  for (const c of res.editIR.captions) {
+    for (const x of c.words) assert.ok(x.endMs > x.startMs, `word "${x.text}" has a real duration`);
+    if (c.kind === "caption") assert.equal(c.text, c.words.map((x) => x.text).join(" "));
+  }
+});
+
+test("stock budget starts at the first lookup: slow planning does not skip the B-roll search", async () => {
+  // A real run: 10–55 s of LLM planning used up the 8 s stock budget, so every B-roll was left unresolved.
+  const { client } = mockClient([{ text: "", toolCalls: [tc("insertBroll", { stockQuery: "gym", timelineStartSec: 5, durationSec: 3 }), finish("B-roll.")] }]);
+  const slow: AIClient = { ...client, generateWithTools: async (p, t, o) => { await new Promise((r) => setTimeout(r, 120)); return client.generateWithTools!(p, t, o); } };
+  const res = await director.directMobile(mobileRequest("put gym b-roll at 5s"), {
+    llmClient: slow,
+    stockTimeoutMs: 60,
+    resolveStockVideo: async () => "https://videos.pexels.com/video-files/1/gym.mp4",
+  });
+  assert.ok(res.editIR.overlays.some((o) => (o.source as any).url === "https://videos.pexels.com/video-files/1/gym.mp4"), JSON.stringify(res.warnings));
+});
+
+test("a cut the model calls 'dead air' never removes spoken words (only the silence around them)", async () => {
+  // A real run trimmed the speaker's first line as "dead air".
+  const w = FIX.words;
+  const start = Math.max(0, w[0].startMs / 1000 - 0.4);
+  const end = w[5].endMs / 1000 + 0.3;
+  const { res } = await runLLM("tighten the start", [tc("removeRange", { startSec: start, durationSec: end - start, ripple: true, reason: "initial dead air" }), finish("Removed dead air.")]);
+  assertInvariants(res.editIR);
+  for (const word of w.slice(0, 6)) {
+    const mid = (word.startMs + word.endMs) / 2;
+    assert.ok(res.editIR.clips.some((c) => c.sourceStartMs <= mid && mid < c.sourceEndMs), `word "${word.text}" is still in the edit`);
+  }
+  assert.ok(res.warnings.some((x) => /spoken word\(s\); only the silence/.test(x)));
+});
+
+test("a cut inside a title's time moves the title but keeps its length", async () => {
+  // A real run: the opening cuts shrank a 2.5 s title to 0.6 s.
+  const { res } = await runLLM("title and tighten", [
+    tc("addText", { text: "Gym Truth", timelineStartSec: 0, durationSec: 2.5, position: { x: 0, y: -0.6 } }),
+    tc("removeRange", { startSec: 0.5, durationSec: 1.2, ripple: true, reason: "off-topic tangent" }),
+    finish("Title and a cut."),
+  ]);
+  const title = res.editIR.captions.find((c) => c.kind === "text")!;
+  assert.equal(title.endMs - title.startMs, 2500);
+  assertInvariants(res.editIR);
+});
+
+test("cleanFillers also cuts phrase fillers ('you know') next to um / uh", async () => {
+  // A real run: the model called cleanFillers with the default list and four "you know"s stayed in.
+  const words = [
+    { text: "You", startMs: 500, endMs: 700 }, { text: "know,", startMs: 700, endMs: 900 },
+    { text: "this", startMs: 1000, endMs: 1300 }, { text: "works", startMs: 1300, endMs: 1700 },
+    ...FIX.words.filter((w) => w.startMs > 2500),
+  ];
+  const { res } = await runLLM("remove the filler words", [tc("cleanFillers", {}), finish("Cleaned fillers.")], {
+    media: { durationMs: FIX.durationMs, width: 1920, height: 1080, fps: 30, transcript: { words } },
+  } as any);
+  assert.ok(res.appliedOperations.some((a) => /filler word "you know"/.test(a)), JSON.stringify(res.appliedOperations));
+  assertInvariants(res.editIR);
+});

@@ -1,7 +1,7 @@
 'use strict';
 
 import { Request, Response } from 'express';
-import { CheckoutService } from '@workspace/payment-provider';
+import { CheckoutService, CouponService, WebhookDispatcherService } from '@workspace/payment-provider';
 import { developersPrisma as prisma } from '@workspace/db-180core';
 
 export class CheckoutApiController {
@@ -19,6 +19,8 @@ export class CheckoutApiController {
         returnUrl,
         cancelUrl,
         metadata,
+        couponCode,
+        displayMode,
       } = req.body;
 
       const clientId = req.body.clientId;
@@ -45,6 +47,38 @@ export class CheckoutApiController {
           metadata,
         });
 
+        // If couponCode was passed, attempt application
+        if (couponCode) {
+          try {
+            const rawOrigin = req.headers.origin || req.headers.referer || '';
+            const app = await prisma.oAuthApp.findUnique({ where: { clientId } });
+            if (app) {
+              const validation = await CouponService.validateCoupon({
+                appId: app.id,
+                code: String(couponCode),
+                orderAmount: Number(amount),
+                origin: typeof rawOrigin === 'string' ? rawOrigin : '',
+              });
+              if (validation.valid) {
+                await prisma.checkoutSession.update({
+                  where: { id: session.sessionId },
+                  data: {
+                    originalAmount: Number(amount),
+                    amount: validation.finalAmount,
+                    couponId: validation.couponId || null,
+                    couponCode: validation.code,
+                    discountAmount: validation.discountAmount,
+                    displayMode: displayMode || 'bottom_sheet',
+                  },
+                });
+                session.amount = validation.finalAmount;
+              }
+            }
+          } catch (couponErr: any) {
+            console.warn('[createCheckoutSession] Coupon validation warning:', couponErr.message);
+          }
+        }
+
         return res.status(200).json({
           success: true,
           sessionId: session.sessionId,
@@ -59,13 +93,37 @@ export class CheckoutApiController {
         });
       }
 
-      // Otherwise, create session under first-party / authenticated app context
+      // Otherwise, create session under first-party / authenticated app context or custom domain host
       const userId = (req as any).user?.id || null;
-      let app = await prisma.oAuthApp.findFirst({
-        where: { clientId: clientId || '180-workspace-platform' },
-      }) || await prisma.oAuthApp.findFirst({
-        where: { isActive: true },
-      });
+      const reqHost = (req.headers.host || '').toLowerCase().split(':')[0];
+      
+      let app = null;
+      if (reqHost && !reqHost.includes('180workspace.com') && !reqHost.includes('localhost') && !reqHost.includes('127.0.0.1')) {
+        app = await prisma.oAuthApp.findFirst({
+          where: { customPayDomain: reqHost, isActive: true },
+        });
+      }
+
+      const requestedAppId = req.body.appId || req.body.clientId;
+      if (!app && requestedAppId) {
+        app = await prisma.oAuthApp.findFirst({
+          where: {
+            OR: [
+              { id: String(requestedAppId) },
+              { clientId: String(requestedAppId) },
+            ],
+            isActive: true,
+          },
+        });
+      }
+
+      if (!app) {
+        app = await prisma.oAuthApp.findFirst({
+          where: { clientId: clientId || '180-workspace-platform' },
+        }) || await prisma.oAuthApp.findFirst({
+          where: { isActive: true },
+        });
+      }
 
       if (!app) {
         const sysUser = await prisma.user.findFirst();
@@ -92,11 +150,37 @@ export class CheckoutApiController {
         throw new Error('No active OAuth application found to associate with checkout session');
       }
 
+      let finalAmount = Math.round(Number(amount) * 100) / 100;
+      let appliedCouponId: string | null = null;
+      let appliedCouponCode: string | null = null;
+      let discountAmount = 0;
+
+      if (couponCode) {
+        const rawOrigin = req.headers.origin || req.headers.referer || '';
+        const validation = await CouponService.validateCoupon({
+          appId: app.id,
+          code: String(couponCode),
+          orderAmount: Number(amount),
+          origin: typeof rawOrigin === 'string' ? rawOrigin : '',
+        });
+        if (validation.valid) {
+          finalAmount = validation.finalAmount;
+          appliedCouponId = validation.couponId || null;
+          appliedCouponCode = validation.code;
+          discountAmount = validation.discountAmount;
+        }
+      }
+
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
       const checkoutSession = await prisma.checkoutSession.create({
         data: {
           appId: app.id,
-          amount: Math.round(Number(amount) * 100) / 100,
+          amount: finalAmount,
+          originalAmount: Math.round(Number(amount) * 100) / 100,
+          discountAmount,
+          couponId: appliedCouponId,
+          couponCode: appliedCouponCode,
+          displayMode: displayMode || 'bottom_sheet',
           currency: (currency || 'INR').toUpperCase(),
           status: 'PENDING',
           title: title || '180 Pay Sovereign Checkout',
@@ -123,6 +207,9 @@ export class CheckoutApiController {
         success: true,
         sessionId: checkoutSession.id,
         amount: checkoutSession.amount,
+        originalAmount: checkoutSession.originalAmount,
+        discountAmount: checkoutSession.discountAmount,
+        couponCode: checkoutSession.couponCode,
         currency: checkoutSession.currency,
         expiresAt: checkoutSession.expiresAt,
         checkoutUrl: `${process.env.PROFILE_FRONTEND_URL || 'http://localhost:3009'}/checkout/${checkoutSession.id}`,
@@ -157,6 +244,121 @@ export class CheckoutApiController {
   }
 
   /**
+   * POST /api/v1/checkout/sessions/:id/apply-coupon
+   * Public endpoint called by 180 Pay modal to apply a coupon code
+   */
+  static async applyCoupon(req: Request, res: Response) {
+    try {
+      const id = String(req.params.id);
+      const { code, customerEmail } = req.body;
+
+      if (!code || typeof code !== 'string') {
+        return res.status(400).json({ success: false, error: 'Coupon code is required' });
+      }
+
+      const session = await prisma.checkoutSession.findUnique({
+        where: { id },
+      });
+
+      if (!session) {
+        return res.status(404).json({ success: false, error: 'Checkout session not found' });
+      }
+
+      if (session.status !== 'PENDING') {
+        return res.status(400).json({ success: false, error: 'Checkout session is not active' });
+      }
+
+      if (session.expiresAt < new Date()) {
+        return res.status(400).json({ success: false, error: 'Checkout session has expired' });
+      }
+
+      const rawOrigin = req.headers.origin || req.headers.referer || '';
+      const origin = typeof rawOrigin === 'string' ? rawOrigin : '';
+      const baseAmount = session.originalAmount && session.originalAmount > 0 ? session.originalAmount : session.amount;
+
+      const validation = await CouponService.validateCoupon({
+        appId: session.appId,
+        code: String(code),
+        orderAmount: baseAmount,
+        customerEmail: customerEmail ? String(customerEmail) : undefined,
+        origin,
+        planId: session.planId || undefined,
+      });
+
+      if (!validation.valid) {
+        return res.status(200).json({
+          success: false,
+          error: validation.error,
+          reasonCode: validation.reasonCode,
+        });
+      }
+
+      const updated = await prisma.checkoutSession.update({
+        where: { id: session.id },
+        data: {
+          originalAmount: baseAmount,
+          amount: validation.finalAmount,
+          couponId: validation.couponId || null,
+          couponCode: validation.code,
+          discountAmount: validation.discountAmount,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        session: updated,
+        discountAmount: validation.discountAmount,
+        finalAmount: validation.finalAmount,
+        code: validation.code,
+      });
+    } catch (err: any) {
+      console.error('[CheckoutApiController:applyCoupon] Error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/checkout/sessions/:id/remove-coupon
+   * Remove any applied coupon from session
+   */
+  static async removeCoupon(req: Request, res: Response) {
+    try {
+      const id = String(req.params.id);
+      const session = await prisma.checkoutSession.findUnique({
+        where: { id },
+      });
+
+      if (!session) {
+        return res.status(404).json({ success: false, error: 'Checkout session not found' });
+      }
+
+      if (session.status !== 'PENDING') {
+        return res.status(400).json({ success: false, error: 'Checkout session is not active' });
+      }
+
+      const revertedAmount = session.originalAmount && session.originalAmount > 0 ? session.originalAmount : session.amount;
+
+      const updated = await prisma.checkoutSession.update({
+        where: { id: session.id },
+        data: {
+          amount: revertedAmount,
+          couponId: null,
+          couponCode: null,
+          discountAmount: 0,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        session: updated,
+      });
+    } catch (err: any) {
+      console.error('[CheckoutApiController:removeCoupon] Error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
    * POST /api/v1/checkout/sessions/:id/pay
    * Authenticated user authorizes and completes 1-click payment
    */
@@ -169,6 +371,33 @@ export class CheckoutApiController {
 
       const id = String(req.params.id);
       const result = await CheckoutService.processPayment(id, userId);
+
+      // Redeem coupon if attached
+      const session = await prisma.checkoutSession.findUnique({ where: { id } });
+      if (session && session.couponId) {
+        try {
+          const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+          await CouponService.redeemCouponAtomic({
+            couponId: session.couponId,
+            sessionId: session.id,
+            customerEmail: user?.email || userId,
+            discountApplied: session.discountAmount || 0,
+          });
+
+          WebhookDispatcherService.dispatchEvent(session.appId, {
+            event: 'coupon.redeemed',
+            data: {
+              couponId: session.couponId,
+              code: session.couponCode,
+              discountAmount: session.discountAmount,
+              sessionId: session.id,
+              customerEmail: user?.email || userId,
+            },
+          }).catch((err) => console.warn('[CheckoutApiController] Webhook dispatch error:', err.message));
+        } catch (couponErr: any) {
+          console.warn('[CheckoutApiController:payCheckoutSession] Coupon redemption warning:', couponErr.message);
+        }
+      }
 
       return res.json({ success: true, data: result });
     } catch (err: any) {
@@ -213,6 +442,33 @@ export class CheckoutApiController {
         paymentId,
         signature,
       });
+
+      // Redeem coupon if attached
+      const session = await prisma.checkoutSession.findUnique({ where: { id } });
+      if (session && session.couponId) {
+        try {
+          const customerEmail = (session.metadata as any)?.customerEmail || (session.metadata as any)?.email || session.id;
+          await CouponService.redeemCouponAtomic({
+            couponId: session.couponId,
+            sessionId: session.id,
+            customerEmail: String(customerEmail),
+            discountApplied: session.discountAmount || 0,
+          });
+
+          WebhookDispatcherService.dispatchEvent(session.appId, {
+            event: 'coupon.redeemed',
+            data: {
+              couponId: session.couponId,
+              code: session.couponCode,
+              discountAmount: session.discountAmount,
+              sessionId: session.id,
+              customerEmail: String(customerEmail),
+            },
+          }).catch((err) => console.warn('[CheckoutApiController] Webhook dispatch error:', err.message));
+        } catch (couponErr: any) {
+          console.warn('[CheckoutApiController:verifyDirectPayment] Coupon redemption warning:', couponErr.message);
+        }
+      }
 
       return res.json({ success: true, ...result, data: result });
     } catch (err: any) {

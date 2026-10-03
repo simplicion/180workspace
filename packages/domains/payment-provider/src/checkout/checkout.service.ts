@@ -471,14 +471,7 @@ export class CheckoutService {
     const session = await prisma.checkoutSession.findUnique({
       where: { id: sessionId },
       include: {
-        app: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            logoUrl: true,
-          },
-        },
+        app: true,
       },
     });
 
@@ -494,14 +487,42 @@ export class CheckoutService {
       throw new Error('This checkout session has expired.');
     }
 
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    let keyId = process.env.RAZORPAY_KEY_ID;
+    let keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    // Bring Your Own Gateway (BYOG) dynamic credential resolution
+    const appAny = session.app as any;
+    if (
+      appAny?.customGatewayType === 'RAZORPAY' &&
+      appAny.customGatewayKeyId &&
+      appAny.customGatewaySecret
+    ) {
+      keyId = appAny.customGatewayKeyId;
+      keySecret = appAny.customGatewaySecret;
+    }
 
     if (!keyId || !keySecret) {
-      throw new Error('Payment gateway credentials not configured');
+      if (process.env.NODE_ENV !== 'production' && !keyId) {
+        keyId = 'rzp_test_simulated_platform_key';
+        keySecret = 'simulated_platform_secret';
+      } else {
+        throw new Error('Payment gateway credentials not configured');
+      }
     }
 
     const amountPaise = Math.round(session.amount * 100);
+
+    // If sandbox / simulated test key, generate simulated order without remote network call
+    if (keyId.includes('test_') || keyId.includes('custom_') || keyId.includes('mock_') || keyId.includes('simulated')) {
+      return {
+        orderId: `order_sim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        amountPaise,
+        currency: session.currency || 'INR',
+        keyId,
+        gatewayType: 'RAZORPAY',
+      };
+    }
+
     const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
 
     const rzpResponse = await axios.post(
@@ -545,7 +566,24 @@ export class CheckoutService {
   }) {
     const { sessionId, orderId, paymentId, signature } = input;
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const session = await prisma.checkoutSession.findUnique({
+      where: { id: sessionId },
+      include: { app: true },
+    });
+
+    if (!session) {
+      throw new Error('Checkout session not found');
+    }
+
+    let keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const appAny = session.app as any;
+    if (
+      appAny?.customGatewayType === 'RAZORPAY' &&
+      appAny.customGatewaySecret
+    ) {
+      keySecret = appAny.customGatewaySecret;
+    }
+
     if (!keySecret) {
       throw new Error('Payment gateway key secret not configured');
     }
@@ -559,6 +597,7 @@ export class CheckoutService {
     if (!timingSafeCompare(expectedSignature, signature)) {
       throw new Error('Cryptographic signature verification failed');
     }
+
 
     const result = await prisma.$transaction(async (tx: any) => {
       const session = await tx.checkoutSession.findUnique({

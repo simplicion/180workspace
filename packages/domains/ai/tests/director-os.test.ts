@@ -235,3 +235,28 @@ test("web/desktop path: telemetry.scenesMs and telemetry.loudness reach the plan
   assert.match(calls[0].prompt, /Scene cuts in the source \(SOURCE s\): 0\.00, 2\.50/);
   assert.match(calls[0].prompt, /Source loudness: -18 LUFS, 0\.2% clipped samples/);
 });
+
+test("critic + repair: a minimal repair is not sent back for 'missing' features of the original request (no duplicates)", async () => {
+  // Found on a real run: the repair prompt quotes the creator's request, so the coverage check asked the model to
+  // re-add the B-roll / stickers / titles it had already placed, which duplicated them.
+  const { client, calls } = mockClient([
+    { text: "", toolCalls: [tc("addBackgroundMusic", { query: "upbeat", volumeDb: -8, duckUnderSpeech: false }), tc("addZoom", { startSec: 1, durationSec: 1, scale: 1.2, targetCoords: { x: 0.5, y: 0.4 } }), finish("Added music and a zoom.")] },
+    { text: "", toolCalls: [tc("duckAudio", { duckDb: -18 }), finish("Ducked the music under speech.")] },
+  ]);
+  const res = await director.directMobile(req("add upbeat music and a zoom"), { llmClient: client });
+  assert.equal(calls.length, 2, "first plan + one critic repair, no coverage retry on the repair");
+  assert.equal(res.critique.repairRounds, 1);
+  assert.equal(res.editIR.audio.music.length, 1);
+  assert.equal(res.editIR.zooms.length, 1);
+});
+
+test("critic + repair: a repair that deletes a requested item (the title) is discarded", async () => {
+  // A real run: the critic's repair "fixed" an issue by removing the title the creator had asked for.
+  const { client } = mockClient([
+    { text: "", toolCalls: [tc("addText", { text: "Gym Truth", timelineStartSec: 0, durationSec: 2.5, position: { x: 0, y: -0.6 } }), tc("addBackgroundMusic", { query: "upbeat", volumeDb: -8, duckUnderSpeech: false }), finish("Title and music.")] },
+    { text: "", toolCalls: [tc("removeItem", { kind: "title" }), tc("duckAudio", { duckDb: -18 }), finish("Removed the title and ducked the music.")] },
+  ]);
+  const res = await director.directMobile(req("add a title and upbeat music"), { llmClient: client });
+  assert.equal(res.editIR.captions.filter((c) => c.kind === "text").length, 1, "the requested title is kept");
+  assert.ok(res.warnings.some((w) => /would have removed the requested title text/.test(w)), JSON.stringify(res.warnings));
+});

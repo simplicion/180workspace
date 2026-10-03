@@ -119,7 +119,8 @@ void main() {
       'credits': ex.credits,
       'output': ex.result?.outputPath,
     };
-    if (ex.result != null) File(ex.result!.outputPath).copySync('${evidence.path}/director_edit.mp4');
+    // A new file (copySync keeps the app-private mode, which adb cannot read).
+    if (ex.result != null) File('${evidence.path}/director_edit.mp4').writeAsBytesSync(File(ex.result!.outputPath).readAsBytesSync());
     if (ex.error != null) {
       // What the export actually read for each overlay (resolved URL → cached file → the phone's probe).
       report['overlayFiles'] = [

@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/media/asset_cache.dart';
+import 'core/native_engine/media_engine_service.dart';
 import 'core/providers.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/push_notifications.dart';
@@ -16,6 +19,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // Shared cache of online media (stock B-roll, music, SFX): indexed once so the editor can use it synchronously.
   unawaited(AssetCache.instance.init());
+  if (!kIsWeb && Platform.isAndroid) AssetCache.instance.videoFinalizer = MediaEngineService.makeSeekable;
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);

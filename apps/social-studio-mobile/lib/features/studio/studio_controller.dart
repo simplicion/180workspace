@@ -1232,7 +1232,7 @@ class StudioController extends ChangeNotifier {
 
   /// Resolves remote B-roll and music to local files, then renders on the device.
   /// Resolution / frame rate / quality picked on the export sheet; kept for the session.
-  ExportSettings exportSettings = const ExportSettings();
+  ExportSettings exportSettings = ExportSettings.studioDefault;
 
   Future<void> startExport() async {
     if (_ir == null || sourcePath == null || (export?.running ?? false)) return;

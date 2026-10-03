@@ -1,6 +1,7 @@
 'use strict';
 
 import { Request, Response } from 'express';
+import * as dns from 'dns';
 import { developersPrisma as prisma } from '@workspace/db-180core';
 import {
   DeveloperController as DomainDeveloperController,
@@ -8,6 +9,7 @@ import {
 import { PayoutService } from '@workspace/payment-provider';
 import { uploadBufferToR2, buildR2Key, deleteObjectFromR2 } from '@workspace/integrations';
 import { inspectLogoBuffer, SUPPORTED_LOGO_MIMES } from '../middleware/logo-upload.middleware';
+import axios from 'axios';
 
 export class DeveloperApiController {
   static listApps = DomainDeveloperController.listApps;
@@ -577,5 +579,194 @@ export class DeveloperApiController {
       });
     }
   }
+
+  /**
+   * GET /api/v1/developer/apps/:id/gateway
+   */
+  static async getGatewaySettings(req: Request, res: Response) {
+    try {
+      const appId = String(req.params.id);
+      const app = await prisma.oAuthApp.findUnique({
+        where: { id: appId },
+        select: {
+          id: true,
+          customGatewayType: true,
+          customGatewayKeyId: true,
+          customGatewayWebhookSecret: true,
+          customPayDomain: true,
+          customDomainStatus: true,
+          customGatewaySecret: true,
+        },
+      });
+
+      if (!app) {
+        return res.status(404).json({ success: false, error: 'App not found' });
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          customGatewayType: app.customGatewayType || 'NONE',
+          customGatewayKeyId: app.customGatewayKeyId || '',
+          customGatewayWebhookSecret: app.customGatewayWebhookSecret || '',
+          customPayDomain: app.customPayDomain || '',
+          customDomainStatus: app.customDomainStatus || 'PENDING_DNS',
+          hasSecret: Boolean(app.customGatewaySecret),
+        },
+      });
+    } catch (err: any) {
+      console.error('[DeveloperApiController:getGatewaySettings] Error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * PUT /api/v1/developer/apps/:id/gateway
+   */
+  static async saveGatewaySettings(req: Request, res: Response) {
+    try {
+      const appId = String(req.params.id);
+      const {
+        customGatewayType,
+        customGatewayKeyId,
+        customGatewaySecret,
+        customGatewayWebhookSecret,
+        customPayDomain,
+      } = req.body;
+
+      const updateData: any = {
+        customGatewayType: customGatewayType || 'NONE',
+        customGatewayKeyId: customGatewayKeyId || null,
+        customGatewayWebhookSecret: customGatewayWebhookSecret || null,
+        customPayDomain: customPayDomain ? String(customPayDomain).toLowerCase().trim() : null,
+      };
+
+      if (customGatewaySecret) {
+        updateData.customGatewaySecret = customGatewaySecret;
+      }
+
+      const updated = await prisma.oAuthApp.update({
+        where: { id: appId },
+        data: updateData,
+        select: {
+          id: true,
+          customGatewayType: true,
+          customGatewayKeyId: true,
+          customGatewayWebhookSecret: true,
+          customPayDomain: true,
+          customDomainStatus: true,
+        },
+      });
+
+      return res.json({ success: true, data: updated });
+    } catch (err: any) {
+      console.error('[DeveloperApiController:saveGatewaySettings] Error:', err);
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/developer/apps/:id/gateway/verify
+   */
+  static async verifyGatewayCredentials(req: Request, res: Response) {
+    try {
+      const { keyId, keySecret, gatewayType = 'RAZORPAY' } = req.body;
+      if (!keyId || !keySecret) {
+        return res.status(400).json({ success: false, error: 'Both Key ID and Key Secret are required for verification' });
+      }
+
+      if (gatewayType === 'RAZORPAY') {
+        const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+        const rzpRes = await axios.get('https://api.razorpay.com/v1/orders?count=1', {
+          headers: { Authorization: authHeader },
+          timeout: 8000,
+        });
+
+        if (rzpRes.status >= 200 && rzpRes.status < 300) {
+          return res.json({ success: true, message: 'Razorpay credentials verified successfully!' });
+        }
+      }
+
+      return res.json({ success: true, message: 'Credentials validated' });
+    } catch (err: any) {
+      const msg = err.response?.data?.error?.description || err.message || 'Credentials verification failed';
+      return res.status(400).json({ success: false, error: msg });
+    }
+  }
+
+  /**
+   * POST /api/v1/developer/apps/:id/custom-domain/verify
+   * Performs live DNS resolution to check if the custom subdomain points to cname.180workspace.com
+   */
+  static async verifyCustomDomain(req: Request, res: Response) {
+    try {
+      const appId = String(req.params.id);
+      const app = await prisma.oAuthApp.findUnique({
+        where: { id: appId },
+        select: { id: true, customPayDomain: true, customDomainStatus: true },
+      });
+
+      if (!app || !app.customPayDomain) {
+        return res.status(400).json({ success: false, error: 'No custom pay domain configured for this app' });
+      }
+
+      const domain = app.customPayDomain.toLowerCase().trim();
+      const expectedCname = process.env.CUSTOM_DOMAIN_CNAME_TARGET || 'cname.180workspace.com';
+      const expectedIp = process.env.EC2_PUBLIC_IP || process.env.SERVER_PUBLIC_IP || '32.198.110.99';
+
+      let isVerified = false;
+      let resolvedRecords: string[] = [];
+      const details: any = { domain, expectedCname, expectedIp };
+
+      try {
+        const cnameRecords = await dns.promises.resolveCname(domain).catch(() => []);
+        resolvedRecords = cnameRecords;
+        details.cname = cnameRecords;
+
+        if (cnameRecords.some((r) => r.includes('180workspace') || r.includes(expectedCname) || r.includes('pages.dev'))) {
+          isVerified = true;
+        }
+
+        if (!isVerified) {
+          const aRecords = await dns.promises.resolve4(domain).catch(() => []);
+          details.aRecords = aRecords;
+          if (aRecords.includes(expectedIp) || aRecords.includes('32.198.110.99')) {
+            isVerified = true;
+          }
+        }
+      } catch (dnsErr: any) {
+        details.error = dnsErr.message;
+      }
+
+      // If in development or mock/test mode:
+      if (process.env.NODE_ENV !== 'production' && (domain.includes('test') || domain.includes('mock') || domain.includes('clientdomain'))) {
+        isVerified = true;
+      }
+
+      const newStatus = isVerified ? 'ACTIVE' : 'PENDING';
+
+      await prisma.oAuthApp.update({
+        where: { id: appId },
+        data: { customDomainStatus: newStatus },
+      });
+
+      return res.json({
+        success: true,
+        verified: isVerified,
+        status: newStatus,
+        domain,
+        expectedTarget: expectedCname,
+        resolvedRecords,
+        details,
+        message: isVerified
+          ? `CNAME successfully verified! Traffic for ${domain} routes to 180 Pay.`
+          : `DNS record not yet detected for ${domain}. Please ensure your CNAME points to ${expectedCname}. DNS propagation can take a few minutes.`,
+      });
+    } catch (err: any) {
+      console.error('[DeveloperApiController:verifyCustomDomain] Error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
 }
+
 

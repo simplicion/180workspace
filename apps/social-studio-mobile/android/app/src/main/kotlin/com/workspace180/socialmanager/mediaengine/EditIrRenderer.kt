@@ -80,8 +80,8 @@ typealias RenderEventSink = (Map<String, Any?>) -> Unit
 class EditIrRenderer(
     private val context: Context,
     private val jobId: String,
-    private val ir: MobileEditIr,
-    private val media: RenderMedia,
+    private var ir: MobileEditIr,
+    private var media: RenderMedia,
     private val outputPath: String,
     private val emit: RenderEventSink,
     private val options: RenderOptions = RenderOptions(),
@@ -135,6 +135,12 @@ class EditIrRenderer(
     fun start() {
         Thread({
             val composition = try {
+                // Stock clips are often fragmented MP4s that cannot be clipped mid-file: make them seekable first.
+                media = media.copy(
+                    assetPaths = media.assetPaths.mapValues { MediaTools.ensureSeekable(it.value) },
+                    overlayPaths = media.overlayPaths.mapValues { MediaTools.ensureSeekable(it.value) },
+                )
+                loudnessGainDb = loudnessGain()
                 buildComposition()
             } catch (e: EditIrException) {
                 fail(e.code, e.message ?: "invalid editIR", null)
@@ -451,7 +457,7 @@ class EditIrRenderer(
         val layerTracks = layerTracks()
         val allSequences = if (layerTracks.isEmpty()) sequences else layerTrackSequences(layerTracks) + sequences + layerAudioSequences()
         return Composition.Builder(allSequences)
-            .setEffects(Effects(emptyList(), compositionFx))
+            .setEffects(Effects(listOfNotNull(loudnessGainDb?.let { LoudnessLimiterProcessor(it) }), compositionFx))
             .apply { if (layerTracks.isNotEmpty()) setVideoCompositorSettings(layerCompositor(layerTracks)) }
             // Output is 8-bit SDR H.264: tone-map only if an input is actually HDR.
             // On SDR sources, keeping HDR mode avoids unsupported OpenGL ES tone-mapping shader errors.
@@ -824,6 +830,31 @@ class EditIrRenderer(
         return b.build()
     }
 
+    /** Make-up gain for export loudness (null = off / nothing to measure); see [loudnessGain]. */
+    private var loudnessGainDb: Double? = null
+
+    /**
+     * Gain that brings the voice (the main footage's audio) to [RenderOptions.loudnessTargetLufs]. Phone recordings
+     * and downlinks often sit at -25..-30 LUFS while Reels / Shorts / TikTok play at about -14. Bounded to
+     * -6..+18 dB; the limiter after it keeps peaks under -1 dBFS. Skipped when the voice is muted or silent.
+     */
+    private fun loudnessGain(): Double? {
+        val target = options.loudnessTargetLufs ?: return null
+        if (ir.audio.originalVolumeDb < -20) return null
+        val voice = ir.clips.firstOrNull { it.volumeDb > -20 }?.let { assetPath(it.assetId) } ?: return null
+        if (!probe(voice).hasAudio) return null
+        val lufs = try {
+            (MediaIntelligence.measureLoudness(voice, AnalysisControl(isCancelled = { cancelled }))["integratedLufs"] as Number?)?.toDouble()
+        } catch (e: Exception) {
+            synchronized(warnings) { warnings.add("loudness could not be measured (${e.message}); levels left as recorded") }
+            null
+        } ?: return null
+        val gain = (target - lufs).coerceIn(-6.0, 18.0)
+        if (kotlin.math.abs(gain) < 0.5) return null
+        synchronized(warnings) { warnings.add("voice measured at ${"%.1f".format(lufs)} LUFS; mix normalised by ${"%+.1f".format(gain)} dB to ${"%.0f".format(target)} LUFS (peaks limited to -2 dBFS)") }
+        return gain
+    }
+
     private val typefaceCache = HashMap<String, Typeface>()
 
     private fun typefaceFor(family: String, weight: Int): Typeface = typefaceCache.getOrPut("$family:$weight") {
@@ -917,6 +948,24 @@ class EditIrRenderer(
                             return
                         }
                         startExport(retry)
+                    } else if ((isGlHdrUnsupported(exportException) || (hdrModeOverride != null && isHdrError(exportException))) &&
+                        hdrOverlayIds().isNotEmpty() && ir.clips.none { probe(assetPath(it.assetId)).isHdr }
+                    ) {
+                        // Only stock B-roll / overlay clips are HDR and this phone cannot convert them: export without
+                        // them (the creator's own footage is fine) and say which ones were left out.
+                        val drop = hdrOverlayIds()
+                        ir.overlays.filter { it.id in drop }.forEach {
+                            warnings.add("The B-roll at ${"%.1f".format(it.timelineStartMs / 1000.0)}s is HDR and this phone cannot convert HDR, so it was left out")
+                        }
+                        ir = ir.copy(overlays = ir.overlays.filter { it.id !in drop })
+                        hdrModeOverride = null
+                        val retry = try {
+                            buildComposition()
+                        } catch (e: Exception) {
+                            fail("EXPORT_FAILED", "Could not prepare the export without the HDR B-roll: ${describeRootCause(e)}", e.stackTraceToString().take(4000))
+                            return
+                        }
+                        startExport(retry)
                     } else if (isGlHdrUnsupported(exportException) || (hdrModeOverride != null && isHdrError(exportException))) {
                         fail(
                             "HDR_NOT_SUPPORTED",
@@ -998,6 +1047,12 @@ class EditIrRenderer(
     private fun causeText(e: Throwable) = generateSequence(e) { it.cause }.take(8).joinToString(" ") { it.message ?: "" }
 
     private fun isGlHdrUnsupported(e: Throwable) = "GL_EXT_YUV_target" in causeText(e)
+
+    /** Video overlays (B-roll, PiP) whose file is HDR. */
+    private fun hdrOverlayIds(): Set<String> = ir.overlays
+        .filter { !it.isImage }
+        .mapNotNull { o -> media.overlayPaths[o.id]?.takeIf { p -> runCatching { probe(p).isHdr }.getOrDefault(false) }?.let { o.id } }
+        .toSet()
 
     private fun isHdrError(e: Throwable) = Regex("HDR|tone", RegexOption.IGNORE_CASE).containsMatchIn(causeText(e)) ||
         (e as? ExportException)?.errorCode == ExportException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
