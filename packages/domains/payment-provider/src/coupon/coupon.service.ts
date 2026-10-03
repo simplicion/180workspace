@@ -146,6 +146,15 @@ export class CouponService {
     });
 
     if (!coupon) {
+      coupon = await (prisma as any).coupon.findFirst({
+        where: {
+          appId,
+          code: { equals: rawCode, mode: 'insensitive' },
+        },
+      });
+    }
+
+    if (!coupon) {
       const oauthApp = await (prisma as any).oAuthApp.findFirst({
         where: {
           OR: [
@@ -158,7 +167,10 @@ export class CouponService {
         coupon = await (prisma as any).coupon.findFirst({
           where: {
             appId: oauthApp.id,
-            code: rawCode,
+            OR: [
+              { code: rawCode },
+              { code: { equals: rawCode, mode: 'insensitive' } },
+            ],
           },
         });
       }
