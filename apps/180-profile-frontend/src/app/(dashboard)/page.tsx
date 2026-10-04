@@ -25,7 +25,7 @@ import toast from 'react-hot-toast';
 import { UserProfile, ConnectedApp, LedgerEntry } from '@/types';
 import { getCoreApiUrl } from '@/lib/api';
 import { EditProfileModal } from '@/components/EditProfileModal';
-import { TopUpModal } from '@/components/TopUpModal';
+import { TopUpBottomSheet } from '@/components/TopUpBottomSheet';
 import { SovereignQRModal } from '@/components/SovereignQRModal';
 import { InvoiceModal } from '@/components/InvoiceModal';
 
@@ -35,14 +35,14 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState(false);
 
-  // Modals
+  // Modals & Bottom Sheets
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
+  const [isTopUpSheetOpen, setIsTopUpSheetOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<LedgerEntry | null>(null);
 
-  // Connected apps & ledger entries (Real from backend, empty by default)
-  const [recentApps, setRecentApps] = useState<ConnectedApp[]>([]);
+  // Connected apps & ledger entries
+  const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>([]);
   const [recentLedger, setRecentLedger] = useState<LedgerEntry[]>([]);
 
   const loadData = async () => {
@@ -102,7 +102,7 @@ export default function HomePage() {
       }
 
       if (appsRes?.success && Array.isArray(appsRes.apps)) {
-        setRecentApps(appsRes.apps.slice(0, 3));
+        setConnectedApps(appsRes.apps);
       }
     } finally {
       setLoading(false);
@@ -213,141 +213,88 @@ export default function HomePage() {
   // ─────────────────────────────────────────────────────────────────────────────
   // 2. AUTHENTICATED STATE: USER PROFILE & WALLET DASHBOARD
   // ─────────────────────────────────────────────────────────────────────────────
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const visibleApps = connectedApps.slice(0, 3);
+  const extraAppsCount = connectedApps.length > 3 ? connectedApps.length - 3 : 0;
+
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      {/* 1. Profile Passport Hero Card */}
-      <section className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xs relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            {/* Avatar */}
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[2px] shadow-sm shrink-0 overflow-hidden">
-              <div className="w-full h-full bg-slate-50 rounded-3xl flex items-center justify-center text-slate-900 font-extrabold text-2xl sm:text-3xl">
-                {user.name ? user.name.slice(0, 1).toUpperCase() : 'U'}
-              </div>
-            </div>
-
-            {/* Profile Info */}
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  {user.name || 'Verified User'}
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  Verified Sovereign ID
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-500 font-mono">
-                <span className="text-blue-700 font-bold font-sans">
-                  @{user.username || (user.email ? user.email.split('@')[0] : 'user')}
-                </span>
-                <span className="hidden sm:inline">•</span>
-                <span className="bg-slate-100 px-2 py-0.5 rounded-lg text-slate-700 font-mono text-[11px] flex items-center gap-1.5 max-w-full sm:max-w-none truncate">
-                  <span className="truncate">{user.id}</span>
-                  <button
-                    type="button"
-                    onClick={handleCopyId}
-                    className="hover:text-blue-700 cursor-pointer shrink-0 p-0.5"
-                    title="Copy Sovereign ID"
-                  >
-                    {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
-                </span>
-              </div>
-
-              <p className="text-xs text-slate-500 max-w-xl pt-1 leading-relaxed">
-                Single sign-on identity, WhatsApp phone verification &amp; universal wallet across all 180 apps.
-              </p>
-            </div>
+    <div className="space-y-8 max-w-6xl mx-auto pb-12">
+      {/* 1. Header Greeting Section */}
+      <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 pt-2">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 text-xs font-semibold">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+            <span>Universal 180 Profile</span>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              onClick={() => setIsEditModalOpen(true)}
-              className="flex-1 sm:flex-none min-h-[40px] px-4 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer shadow-2xs"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Edit Profile</span>
-            </Button>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
+            {getGreeting()},{' '}
+            <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 bg-clip-text text-transparent">
+              {user.name || user.username || 'User'}
+            </span>
+          </h1>
 
-            <Button
-              variant="outline"
-              onClick={() => setIsQRModalOpen(true)}
-              className="min-h-[40px] px-3.5 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shadow-2xs"
-              title="Pair Companion Device"
-            >
-              <QrCode className="w-4 h-4 text-blue-600" />
-            </Button>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-500 pt-1">
+            <span className="font-bold text-slate-700">
+              @{user.username || (user.email ? user.email.split('@')[0] : 'user')}
+            </span>
+            <span>•</span>
+            <span className="text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified Sovereign ID
+            </span>
+            <span>•</span>
+            <span className="bg-slate-100 px-2.5 py-0.5 rounded-lg text-slate-700 font-mono text-[11px] flex items-center gap-1.5 max-w-[220px] sm:max-w-none truncate">
+              <span className="truncate">{user.id}</span>
+              <button
+                type="button"
+                onClick={handleCopyId}
+                className="hover:text-blue-700 cursor-pointer p-0.5"
+                title="Copy Sovereign ID"
+              >
+                {copiedId ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-slate-400" />}
+              </button>
+            </span>
           </div>
         </div>
 
-        {/* Credentials Pills Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-100 text-xs">
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0">
-              <Mail className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address</div>
-              <div className="font-semibold text-slate-900 truncate">{user.email || 'Not connected'}</div>
-            </div>
+        {/* Profile Link Button */}
+        <Link
+          href="/profile"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold shadow-xs hover:border-blue-300 hover:text-blue-600 transition-all cursor-pointer self-start sm:self-center"
+        >
+          <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+            <ShieldCheck className="w-3.5 h-3.5" />
           </div>
-
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-100/60 text-emerald-700 flex items-center justify-center shrink-0">
-              <Smartphone className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">WhatsApp Phone</div>
-              <div className="font-semibold text-slate-900 truncate">{user.phone || 'Not connected'}</div>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-rose-100/60 text-rose-700 flex items-center justify-center shrink-0">
-              <Calendar className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Joined Date</div>
-              <div className="font-semibold text-slate-900 truncate">
-                {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Verified Member'}
-              </div>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-100/60 text-blue-700 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Authentication</div>
-              <div className="font-semibold text-slate-900 truncate">OAuth 2.0 / OIDC Active</div>
-            </div>
-          </div>
-        </div>
+          <span>Profile &amp; Security</span>
+          <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+        </Link>
       </section>
 
-      {/* 2. Two-Column Dashboard Row: Wallet Card (Left) & Connected Apps (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Universal Prepaid Wallet Card */}
-        <div className="p-6 sm:p-7 rounded-3xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+      {/* 2. Overview Main Blocks: Total Wallet Balance & Connected Apps */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Block 1: Total Wallet Balance Block */}
+        <div className="p-6 sm:p-7 rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center">
-                  <Wallet className="w-4 h-4" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs">
+                  <Wallet className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-slate-900 tracking-tight">Prepaid Balance</h2>
+                  <h2 className="text-base font-bold text-slate-900 tracking-tight">Total Wallet Balance</h2>
                   <p className="text-xs text-slate-500">Universal 180 Pay Sovereign Ledger</p>
                 </div>
               </div>
 
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                ACTIVE
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                1-Click Ready
               </span>
             </div>
 
@@ -359,7 +306,7 @@ export default function HomePage() {
             </div>
 
             <p className="text-xs text-slate-500 leading-relaxed">
-              Ready for 1-click calls on Voiceforce AI, Developer API metering, and workspace top-ups with zero third-party client dependencies.
+              Shared ledger balance across Voiceforce AI, Developer API metering, and workspace top-ups with zero third-party dependencies.
             </p>
 
             {/* Quick Recharge Chips */}
@@ -368,8 +315,8 @@ export default function HomePage() {
                 <button
                   key={amt}
                   type="button"
-                  onClick={() => setIsTopUpModalOpen(true)}
-                  className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-200 font-bold text-xs transition-colors cursor-pointer"
+                  onClick={() => setIsTopUpSheetOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-200 font-bold text-xs transition-colors cursor-pointer"
                 >
                   +₹{amt}
                 </button>
@@ -380,79 +327,121 @@ export default function HomePage() {
           <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between gap-3">
             <Button
               variant="default"
-              onClick={() => setIsTopUpModalOpen(true)}
-              className="px-5 py-2.5 min-h-[40px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-2 cursor-pointer"
+              onClick={() => setIsTopUpSheetOpen(true)}
+              className="px-5 py-2.5 min-h-[42px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 active:scale-95 flex items-center gap-2 cursor-pointer transition-all"
             >
-              <CreditCard className="w-3.5 h-3.5" />
+              <CreditCard className="w-4 h-4" />
               <span>Top-Up Balance</span>
             </Button>
 
             <Link
               href="/transactions"
-              className="text-xs font-semibold text-slate-600 hover:text-blue-700 flex items-center gap-1 transition-colors min-h-[40px]"
+              className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1.5 transition-colors min-h-[40px] px-2 py-1 rounded-lg hover:bg-slate-50"
             >
-              <span>Transactions</span>
+              <span>Wallet &amp; Ledger</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>
 
-        {/* Right: Connected Apps Snippet */}
-        <div className="p-6 sm:p-7 rounded-3xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+        {/* Block 2: Connected Apps Block */}
+        <div className="p-6 sm:p-7 rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center">
-                  <AppWindow className="w-4 h-4" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0 shadow-2xs">
+                  <AppWindow className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-slate-900 tracking-tight">Authorized Platforms</h2>
-                  <p className="text-xs text-slate-500">Connected Apps ({recentApps.length})</p>
+                  <h2 className="text-base font-bold text-slate-900 tracking-tight">Connected Applications</h2>
+                  <p className="text-xs text-slate-500">Authorized OAuth 2.0 Ecosystem</p>
                 </div>
               </div>
 
-              <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
-                OAuth 2.0 Synced
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                {connectedApps.length} {connectedApps.length === 1 ? 'App' : 'Apps'} Connected
               </span>
             </div>
 
-            {recentApps.length > 0 ? (
-              <div className="divide-y divide-slate-100 mt-2">
-                {recentApps.map((app) => (
-                  <div key={app.id} className="py-3.5 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0">
-                        {app.name.slice(0, 2).toUpperCase()}
+            {connectedApps.length > 0 ? (
+              <div className="py-6 space-y-4">
+                {/* 3 App Icons with +N Overflow Indicator */}
+                <div className="flex items-center -space-x-3 overflow-hidden p-1">
+                  {visibleApps.map((app, idx) => {
+                    const bgGradients = [
+                      'from-blue-600 to-indigo-600',
+                      'from-indigo-600 to-violet-600',
+                      'from-sky-600 to-cyan-600',
+                    ];
+                    return (
+                      <div
+                        key={app.id || idx}
+                        className="relative w-12 h-12 rounded-2xl p-[2px] bg-gradient-to-tr from-slate-200 to-slate-300 ring-4 ring-white shadow-xs shrink-0 group-hover:scale-105 transition-transform"
+                        title={app.name}
+                      >
+                        {app.logo ? (
+                          <img
+                            src={app.logo}
+                            alt={app.name}
+                            className="w-full h-full rounded-2xl object-cover bg-white"
+                          />
+                        ) : (
+                          <div
+                            className={`w-full h-full bg-gradient-to-tr ${
+                              bgGradients[idx % bgGradients.length]
+                            } text-white rounded-2xl flex items-center justify-center font-bold text-xs tracking-wider`}
+                          >
+                            {app.name.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-900 truncate">{app.name}</div>
-                        <div className="text-[11px] text-slate-400 font-mono truncate">{app.clientId}</div>
-                      </div>
-                    </div>
+                    );
+                  })}
 
-                    <span className="text-[11px] text-slate-500 shrink-0 font-medium">{app.lastActive || 'Active'}</span>
-                  </div>
-                ))}
+                  {/* +N bubble if more than 3 connected apps */}
+                  {extraAppsCount > 0 && (
+                    <div
+                      className="w-12 h-12 rounded-2xl bg-slate-900 text-white font-extrabold text-xs flex items-center justify-center ring-4 ring-white shadow-xs shrink-0"
+                      title={`${extraAppsCount} more connected platforms`}
+                    >
+                      +{extraAppsCount}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-slate-800 truncate">
+                    {connectedApps.map((a) => a.name).slice(0, 3).join(', ')}
+                    {extraAppsCount > 0 ? ` and ${extraAppsCount} more` : ''}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    Automatic SSO consent &amp; granular sovereign permissions synced.
+                  </p>
+                </div>
               </div>
             ) : (
-              <div className="py-12 text-center text-xs text-slate-500 space-y-1.5">
-                <p className="font-semibold text-slate-700">No Authorized Applications Yet</p>
+              <div className="py-8 text-center text-xs text-slate-500 space-y-2">
+                <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                  <AppWindow className="w-5 h-5" />
+                </div>
+                <p className="font-bold text-slate-700">No Connected Applications Yet</p>
                 <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                  When you sign in to 180 Workspace, Voiceforce, or third-party applications, their permissions will appear here.
+                  Sign in to 180 Workspace, Voiceforce, or third-party platforms to connect them.
                 </p>
               </div>
             )}
           </div>
 
-          <div className="pt-6 mt-4 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-[11px] text-slate-500">Automatic SSO consent on authorized domains</span>
+          <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between gap-3">
             <Link
               href="/connected-apps"
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors min-h-[40px]"
+              className="px-5 py-2.5 min-h-[42px] rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs active:scale-95 flex items-center gap-2 cursor-pointer transition-all"
             >
-              <span>Manage Apps</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <AppWindow className="w-4 h-4" />
+              <span>Manage Connected Apps</span>
             </Link>
+
+            <span className="text-[11px] text-slate-400 hidden sm:inline">OAuth 2.0 / OIDC</span>
           </div>
         </div>
       </div>
@@ -561,14 +550,15 @@ export default function HomePage() {
         />
       )}
 
-      {isTopUpModalOpen && (
-        <TopUpModal
-          isOpen={isTopUpModalOpen}
-          onClose={() => setIsTopUpModalOpen(false)}
+      {isTopUpSheetOpen && (
+        <TopUpBottomSheet
+          isOpen={isTopUpSheetOpen}
+          onClose={() => setIsTopUpSheetOpen(false)}
           onSuccess={() => {
             loadData();
-            setIsTopUpModalOpen(false);
+            setIsTopUpSheetOpen(false);
           }}
+          currentBalance={balance}
         />
       )}
 

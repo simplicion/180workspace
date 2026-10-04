@@ -4,8 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { DesktopSidebar } from '@/components/DesktopSidebar';
-import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { UserProfile } from '@/types';
 import { getCoreApiUrl } from '@/lib/api';
 
@@ -95,29 +93,20 @@ export default function DashboardLayout({
   }, [router]);
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC] text-slate-900 selection:bg-blue-500/20 selection:text-blue-950 font-sans relative">
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 selection:bg-blue-500/20 selection:text-blue-950 font-sans relative">
       {/* Background Soft Dot-Matrix Pattern */}
       <div className="fixed inset-0 marketing-grid-bg pointer-events-none z-0 opacity-80" />
 
-      {/* Desktop Side Menu (lg:flex) */}
-      {user && <DesktopSidebar user={user} balance={balance} />}
+      {/* Top Header Navigation */}
+      <Header balance={balance} user={user} />
 
-      {/* Content Column */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Header Navigation */}
-        <Header balance={balance} user={user} />
+      {/* Main Content Viewport */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 relative z-10">
+        {children}
+      </main>
 
-        {/* Main Content Viewport with pb-28 on mobile so bottom nav never overlaps */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-28 lg:pb-8 relative z-10">
-          {children}
-        </main>
-
-        {/* Unified Platform Footer */}
-        <Footer />
-      </div>
-
-      {/* Mobile Bottom Navigation Bar (< lg:) */}
-      {user && <MobileBottomNav user={user} balance={balance} />}
+      {/* Unified Platform Footer */}
+      <Footer />
     </div>
   );
 }
