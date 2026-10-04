@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { useProject } from '@/context/ProjectContext';
 import DeveloperHeader from '@/components/layout/DeveloperHeader';
 
@@ -27,7 +27,7 @@ export function AppShellLayout({
   breadcrumbs,
   action,
 }: AppShellLayoutProps) {
-  const { project, projectId, loading, isSidebarExpanded, userProfile } = useProject();
+  const { project, projectId, loading, isSidebarExpanded, userProfile, refreshProject } = useProject();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const getBadgeClasses = (color: string) => {
@@ -49,6 +49,40 @@ export function AppShellLayout({
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-zinc-900 dark:text-white" />
           <p className="text-xs text-zinc-500 font-medium">Loading console...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loading && !project) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 flex items-center justify-center p-4">
+        <div className="max-w-md w-full p-8 rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 shadow-2xl text-center space-y-5">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-bold text-zinc-950 dark:text-white">Project Console Unavailable</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Unable to load project workspace. Please ensure you are signed in and have access to this application.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <Link
+              href="/dashboard"
+              className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 text-xs font-semibold shadow-xs transition-all inline-flex items-center gap-2 cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Dashboard</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => refreshProject()}
+              className="px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-xs font-semibold transition-all cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );

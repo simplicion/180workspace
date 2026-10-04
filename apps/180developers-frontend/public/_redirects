@@ -1,7 +1,26 @@
 # Cloudflare Pages SPA Rewrites for 180 Developers dynamic routes
-/apps/*/identity.txt    /apps/default/identity.txt    200
-/apps/*/identity        /apps/default/identity.html   200
-/apps/*/pay.txt         /apps/default/pay.txt         200
-/apps/*/pay             /apps/default/pay.html        200
-/apps/*.txt             /apps/default.txt             200
-/apps/*                 /apps/default.html            200
+
+# Identity sub-pages
+/apps/*/identity/logs       /apps/default/identity/logs.html       200
+/apps/*/identity/security   /apps/default/identity/security.html   200
+/apps/*/identity/users      /apps/default/identity/users.html      200
+/apps/*/identity.txt        /apps/default/identity.txt             200
+/apps/*/identity            /apps/default/identity.html            200
+
+# Pay sub-pages
+/apps/*/pay/transactions   /apps/default/pay/transactions.html   200
+/apps/*/pay/payouts        /apps/default/pay/payouts.html        200
+/apps/*/pay/bank           /apps/default/pay/bank.html           200
+/apps/*/pay/webhooks       /apps/default/pay/webhooks.html       200
+/apps/*/pay/coupons        /apps/default/pay/coupons.html        200
+/apps/*/pay/links          /apps/default/pay/links.html          200
+/apps/*/pay/pricing        /apps/default/pay/pricing.html        200
+/apps/*/pay/geo            /apps/default/pay/geo.html            200
+/apps/*/pay/agents         /apps/default/pay/agents.html         200
+/apps/*/pay/gateways       /apps/default/pay/gateways.html       200
+/apps/*/pay.txt            /apps/default/pay.txt                 200
+/apps/*/pay                /apps/default/pay.html                200
+
+# General app root
+/apps/*.txt                /apps/default.txt                     200
+/apps/*                    /apps/default.html                    200

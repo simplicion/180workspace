@@ -58,6 +58,20 @@ export function useProject() {
   return ctx;
 }
 
+const getAuthToken = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return (
+      localStorage.getItem('platform_auth_token') ||
+      localStorage.getItem('180_access_token') ||
+      document.cookie.match(/(?:^|;\s*)platform_auth_token=([^;]+)/)?.[1] ||
+      null
+    );
+  } catch (_) {
+    return null;
+  }
+};
+
 export function ProjectProvider({
   children,
   projectId: propProjectId,
@@ -87,6 +101,22 @@ export function ProjectProvider({
   const [allProjects, setAllProjects] = useState<any[]>([]);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Synchronize projectId with window location pathname and params.id on mount and route changes
+  useEffect(() => {
+    const currentId = getInitialAppId();
+    if (currentId && currentId !== 'default' && currentId !== projectId) {
+      setProjectId(currentId);
+    }
+  }, [params?.id, propProjectId]);
+
+  // Watchdog timer: ensure loading state never hangs for more than 5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [projectId]);
 
   // Identity states
   const [enableAuth, setEnableAuth] = useState(true);
@@ -124,35 +154,49 @@ export function ProjectProvider({
 
   // Fetch Project Details
   const refreshProject = useCallback(async () => {
-    if (!projectId || projectId === 'default') return;
+    if (!projectId || projectId === 'default') {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       const apiBase = getApiBase();
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       let res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${projectId}`, {
         headers: { Authorization: `Bearer ${token}` },
-      });
+        signal: controller.signal,
+      }).catch(() => null);
 
-      if (!res.ok) {
+      if (!res || !res.ok) {
         res = await fetch(`${apiBase}/api/oauth/developer/apps/${projectId}`, {
           headers: { Authorization: `Bearer ${token}` },
-        });
+          signal: controller.signal,
+        }).catch(() => null);
       }
 
-      if (!res.ok) {
+      clearTimeout(timeoutId);
+
+      if (!res || !res.ok) {
         throw new Error('Failed to load project details');
       }
 
       const data = await res.json();
-      const appData = data.app;
+      const appData = data.app || data.data || data;
       setProject(appData);
       setEnableAuth(appData.enableAuth ?? true);
       setEnablePay(appData.enablePay ?? true);
       setWebhookUrl(appData.webhookUrl || '');
       setWebhookSecret(appData.webhookSecret || '');
     } catch (err: any) {
-      toast.error(err.message || 'Error loading project');
+      console.warn('[ProjectContext] Failed to load project:', err?.message);
     } finally {
       setLoading(false);
     }
@@ -161,7 +205,7 @@ export function ProjectProvider({
   // Fetch All Projects & User Profile
   const fetchAllProjectsAndProfile = useCallback(async () => {
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       if (!token) return;
       const apiBase = getApiBase();
 
@@ -188,7 +232,7 @@ export function ProjectProvider({
     if (!projectId || projectId === 'default') return;
     setLoadingAuthLogs(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${projectId}/auth-logs`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -211,7 +255,7 @@ export function ProjectProvider({
   const handleRevokeUserSession = async (targetUserId: string, userName: string) => {
     setRevokingUserId(targetUserId);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${projectId}/revoke-user`, {
         method: 'POST',
@@ -236,7 +280,7 @@ export function ProjectProvider({
     if (!projectId || projectId === 'default') return;
     setLoadingAnalytics(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
       let res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${projectId}/analytics`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -265,7 +309,7 @@ export function ProjectProvider({
     if (!projectId || projectId === 'default') return;
     setLoadingPayoutHistory(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${projectId}/payouts`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -289,7 +333,7 @@ export function ProjectProvider({
     setIsTestingWebhook(true);
     setTestResult(null);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${projectId}/test-webhook`, {
         method: 'POST',
@@ -323,7 +367,7 @@ export function ProjectProvider({
 
   const handleRotateWebhookSecret = async () => {
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${projectId}/rotate-webhook-secret`, {
         method: 'POST',
@@ -342,7 +386,7 @@ export function ProjectProvider({
   const saveSettings = async (updates: Partial<any> = {}) => {
     setSaving(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
       const payload = {
         name: updates.name ?? project?.name,
