@@ -24,24 +24,10 @@ import { Button, UniversalSkeleton } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { UserProfile, ConnectedApp, LedgerEntry } from '@/types';
 import { getCoreApiUrl } from '@/lib/api';
-import dynamic from 'next/dynamic';
-
-const EditProfileModal = dynamic(
-  () => import('@/components/EditProfileModal').then((mod) => mod.EditProfileModal),
-  { ssr: false }
-);
-const TopUpBottomSheet = dynamic(
-  () => import('@/components/TopUpBottomSheet').then((mod) => mod.TopUpBottomSheet),
-  { ssr: false }
-);
-const SovereignQRModal = dynamic(
-  () => import('@/components/SovereignQRModal').then((mod) => mod.SovereignQRModal),
-  { ssr: false }
-);
-const InvoiceModal = dynamic(
-  () => import('@/components/InvoiceModal').then((mod) => mod.InvoiceModal),
-  { ssr: false }
-);
+import { EditProfileModal } from '@/components/EditProfileModal';
+import { TopUpBottomSheet } from '@/components/TopUpBottomSheet';
+import { SovereignQRModal } from '@/components/SovereignQRModal';
+import { InvoiceModal } from '@/components/InvoiceModal';
 
 export default function HomePage() {
   const [user, setUser] = useState<UserProfile | null>(null);

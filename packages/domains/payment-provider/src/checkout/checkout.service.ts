@@ -104,37 +104,97 @@ export class CheckoutService {
       }
     }
 
-    // 4. Create session record
-    const session = await prisma.checkoutSession.create({
-      data: {
-        appId: app.id,
-        amount: Math.round(amount * 100) / 100,
-        currency: currency.toUpperCase(),
-        status: 'PENDING',
-        mode,
-        planId,
-        billingInterval: mode === 'subscription' ? resolvedInterval : null,
-        title,
-        description: description || '',
-        returnUrl: returnUrl || '',
-        cancelUrl: cancelUrl || '',
-        metadata: {
-          ...(metadata || {}),
-          paymentSource,
+    // 4. Session reuse check: look up recent active PENDING session for this clientSessionId or idempotencyKey
+    const clientSessionId = (metadata as any)?.clientSessionId || (metadata as any)?.idempotencyKey || null;
+    let existingSession = null;
+
+    if (clientSessionId) {
+      const recentPending = await prisma.checkoutSession.findMany({
+        where: {
+          appId: app.id,
+          status: 'PENDING',
+          expiresAt: { gt: new Date() },
+          createdAt: { gt: new Date(Date.now() - 30 * 60 * 1000) },
         },
-        expiresAt,
-      },
-      include: {
-        app: {
-          select: {
-            id: true,
-            name: true,
-            logoUrl: true,
-            isVerified: true,
+        include: {
+          app: {
+            select: {
+              id: true,
+              name: true,
+              logoUrl: true,
+              isVerified: true,
+            },
           },
         },
-      },
-    });
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+
+      existingSession = recentPending.find((s) => {
+        const m = (s.metadata as any) || {};
+        return m.clientSessionId === clientSessionId || m.idempotencyKey === clientSessionId;
+      }) || null;
+    }
+
+    let session;
+    if (existingSession) {
+      const existingMeta = (existingSession.metadata as any) || {};
+      session = await prisma.checkoutSession.update({
+        where: { id: existingSession.id },
+        data: {
+          amount: Math.round(amount * 100) / 100,
+          title,
+          description: description || '',
+          metadata: {
+            ...existingMeta,
+            ...(metadata || {}),
+            paymentSource,
+            lastReopenedAt: new Date().toISOString(),
+          },
+        },
+        include: {
+          app: {
+            select: {
+              id: true,
+              name: true,
+              logoUrl: true,
+              isVerified: true,
+            },
+          },
+        },
+      });
+    } else {
+      session = await prisma.checkoutSession.create({
+        data: {
+          appId: app.id,
+          amount: Math.round(amount * 100) / 100,
+          currency: currency.toUpperCase(),
+          status: 'PENDING',
+          mode,
+          planId,
+          billingInterval: mode === 'subscription' ? resolvedInterval : null,
+          title,
+          description: description || '',
+          returnUrl: returnUrl || '',
+          cancelUrl: cancelUrl || '',
+          metadata: {
+            ...(metadata || {}),
+            paymentSource,
+          },
+          expiresAt,
+        },
+        include: {
+          app: {
+            select: {
+              id: true,
+              name: true,
+              logoUrl: true,
+              isVerified: true,
+            },
+          },
+        },
+      });
+    }
 
     const checkoutBase = process.env.PROFILE_FRONTEND_URL || 'https://pay.180workspace.com';
 

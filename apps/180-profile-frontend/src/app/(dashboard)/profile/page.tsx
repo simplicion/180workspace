@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import {
   User,
   Copy,
@@ -16,17 +15,8 @@ import { Button, UniversalSkeleton } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { getCoreApiUrl } from '@/lib/api';
 import { UserProfile } from '@/types';
-
-// Lazy loaded modals for high-performance initial render
-const EditProfileModal = dynamic(
-  () => import('@/components/EditProfileModal').then((mod) => mod.EditProfileModal),
-  { ssr: false }
-);
-
-const SovereignQRModal = dynamic(
-  () => import('@/components/SovereignQRModal').then((mod) => mod.SovereignQRModal),
-  { ssr: false }
-);
+import { EditProfileModal } from '@/components/EditProfileModal';
+import { SovereignQRModal } from '@/components/SovereignQRModal';
 
 export default function ProfilePage() {
   const [user, setUser] = useState<UserProfile | null>(null);

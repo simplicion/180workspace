@@ -1,5 +1,3 @@
-'use strict';
-
 import toast from 'react-hot-toast';
 import { getCoreApiUrl } from '@/lib/api';
 

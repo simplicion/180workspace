@@ -171,25 +171,24 @@ export class CheckoutApiController {
         }
       }
 
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-      const checkoutSession = await prisma.checkoutSession.create({
-        data: {
+      // Extract client network and device fingerprint for session deduplication
+      const rawIp =
+        req.headers['x-forwarded-for'] ||
+        req.headers['x-real-ip'] ||
+        req.socket?.remoteAddress ||
+        req.ip ||
+        '127.0.0.1';
+      const ip = Array.isArray(rawIp) ? rawIp[0] : String(rawIp).split(',')[0].trim();
+      const userAgent = (req.headers['user-agent'] as string) || '';
+      const clientSessionId = metadata?.clientSessionId || (req.headers['x-client-session-id'] as string) || null;
+
+      // Look up recent active PENDING sessions for this app (last 30 minutes)
+      const recentPendingSessions = await prisma.checkoutSession.findMany({
+        where: {
           appId: app.id,
-          amount: finalAmount,
-          originalAmount: Math.round(Number(amount) * 100) / 100,
-          discountAmount,
-          couponId: appliedCouponId,
-          couponCode: appliedCouponCode,
-          displayMode: displayMode || (app as any).payDesktopDefault || 'bottom_sheet',
-          currency: (currency || 'INR').toUpperCase(),
           status: 'PENDING',
-          title: title || '180 Pay Sovereign Checkout',
-          description: description || '',
-          returnUrl: returnUrl || '',
-          cancelUrl: cancelUrl || '',
-          metadata: metadata || {},
-          expiresAt,
-          userId,
+          expiresAt: { gt: new Date() },
+          createdAt: { gt: new Date(Date.now() - 30 * 60 * 1000) },
         },
         include: {
           app: {
@@ -201,7 +200,104 @@ export class CheckoutApiController {
             },
           },
         },
+        orderBy: { createdAt: 'desc' },
+        take: 25,
       });
+
+      let existingCheckoutSession = null;
+      if (clientSessionId) {
+        existingCheckoutSession = recentPendingSessions.find((s) => {
+          const m = (s.metadata as any) || {};
+          return m.clientSessionId === clientSessionId;
+        });
+      }
+
+      // If no explicit clientSessionId match, check rapid duplicate (< 60s) for same amount and IP
+      if (!existingCheckoutSession) {
+        existingCheckoutSession = recentPendingSessions.find((s) => {
+          const m = (s.metadata as any) || {};
+          const isRecent = Date.now() - new Date(s.createdAt).getTime() < 60 * 1000;
+          const sameAmount = Math.abs(s.amount - finalAmount) < 0.01;
+          const sameIp = !ip || !m.ip || m.ip === ip;
+          return isRecent && sameAmount && sameIp;
+        });
+      }
+
+      let checkoutSession;
+      if (existingCheckoutSession) {
+        const existingMeta = (existingCheckoutSession.metadata as any) || {};
+        const mergedMeta = {
+          ...existingMeta,
+          ...(metadata || {}),
+          ip: ip || existingMeta.ip,
+          userAgent: userAgent || existingMeta.userAgent,
+          clientSessionId: clientSessionId || existingMeta.clientSessionId,
+          lastReopenedAt: new Date().toISOString(),
+        };
+
+        checkoutSession = await prisma.checkoutSession.update({
+          where: { id: existingCheckoutSession.id },
+          data: {
+            amount: finalAmount,
+            originalAmount: Math.round(Number(amount) * 100) / 100,
+            discountAmount,
+            couponId: appliedCouponId,
+            couponCode: appliedCouponCode,
+            title: title || existingCheckoutSession.title,
+            description: description !== undefined ? description : existingCheckoutSession.description,
+            metadata: mergedMeta,
+          },
+          include: {
+            app: {
+              select: {
+                id: true,
+                name: true,
+                logoUrl: true,
+                isVerified: true,
+              },
+            },
+          },
+        });
+      } else {
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+        const mergedMeta = {
+          ...(metadata || {}),
+          ip,
+          userAgent,
+          clientSessionId: clientSessionId || undefined,
+        };
+
+        checkoutSession = await prisma.checkoutSession.create({
+          data: {
+            appId: app.id,
+            amount: finalAmount,
+            originalAmount: Math.round(Number(amount) * 100) / 100,
+            discountAmount,
+            couponId: appliedCouponId,
+            couponCode: appliedCouponCode,
+            displayMode: displayMode || (app as any).payDesktopDefault || 'bottom_sheet',
+            currency: (currency || 'INR').toUpperCase(),
+            status: 'PENDING',
+            title: title || '180 Pay Sovereign Checkout',
+            description: description || '',
+            returnUrl: returnUrl || '',
+            cancelUrl: cancelUrl || '',
+            metadata: mergedMeta,
+            expiresAt,
+            userId,
+          },
+          include: {
+            app: {
+              select: {
+                id: true,
+                name: true,
+                logoUrl: true,
+                isVerified: true,
+              },
+            },
+          },
+        });
+      }
 
       const sessionData = {
         success: true,
@@ -490,7 +586,7 @@ export class CheckoutApiController {
   static async trackEvent(req: Request, res: Response) {
     try {
       const id = String(req.params.id);
-      const { event, language, userAgent, screen } = req.body || {};
+      const { event, language, userAgent, screen, clientSessionId } = req.body || {};
 
       const rawIp =
         req.headers['x-forwarded-for'] ||
@@ -514,6 +610,10 @@ export class CheckoutApiController {
         screen: screen || existingMeta.screen,
       };
 
+      if (clientSessionId) {
+        updatedMeta.clientSessionId = clientSessionId;
+      }
+
       if (event === 'GATEWAY_DISMISSED') {
         updatedMeta.gatewayDismissed = true;
         updatedMeta.gatewayDismissedAt = new Date().toISOString();
@@ -528,7 +628,10 @@ export class CheckoutApiController {
 
       await prisma.checkoutSession.update({
         where: { id },
-        data: { metadata: updatedMeta },
+        data: {
+          metadata: updatedMeta,
+          updatedAt: new Date(),
+        },
       });
 
       return res.json({ success: true, metadata: updatedMeta });

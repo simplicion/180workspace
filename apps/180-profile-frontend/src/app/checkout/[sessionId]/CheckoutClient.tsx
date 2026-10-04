@@ -59,6 +59,26 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
     }
   }, [params?.sessionId]);
 
+  const clientSessionId = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlSid = urlParams.get('clientSessionId');
+      if (urlSid) {
+        sessionStorage.setItem('180_client_session_id', urlSid);
+        return urlSid;
+      }
+      let storedSid = sessionStorage.getItem('180_client_session_id');
+      if (!storedSid) {
+        storedSid = 'sess_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now().toString(36);
+        sessionStorage.setItem('180_client_session_id', storedSid);
+      }
+      return storedSid;
+    } catch (_) {
+      return '';
+    }
+  }, []);
+
   useEffect(() => {
     if (!sessionId || sessionId === 'default') return;
     try {
@@ -67,13 +87,14 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           event: 'DRAWER_OPENED',
+          clientSessionId: clientSessionId || undefined,
           language: typeof navigator !== 'undefined' ? navigator.language : 'en-US',
           userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
           screen: typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : '',
         }),
       }).catch(() => {});
     } catch (_) {}
-  }, [sessionId]);
+  }, [sessionId, clientSessionId]);
 
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
@@ -736,7 +757,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/track-event`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ event: 'GATEWAY_DISMISSED' }),
+                body: JSON.stringify({ event: 'GATEWAY_DISMISSED', clientSessionId: clientSessionId || undefined }),
               }).catch(() => {});
             }
           },
@@ -749,7 +770,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/track-event`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'GATEWAY_OPENED' }),
+          body: JSON.stringify({ event: 'GATEWAY_OPENED', clientSessionId: clientSessionId || undefined }),
         }).catch(() => {});
       }
       if (toastId) toast.dismiss(toastId);

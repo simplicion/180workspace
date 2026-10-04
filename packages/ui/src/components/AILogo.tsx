@@ -15,7 +15,7 @@ export function AILogoIcon({
     className = "w-5 h-5", 
     color, 
     eyeColor = "#38bdf8",
-    size,
+    size = 20,
     style,
     ...props 
 }: React.SVGProps<SVGSVGElement> & { 

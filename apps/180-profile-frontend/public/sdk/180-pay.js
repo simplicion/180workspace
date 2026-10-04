@@ -30,6 +30,20 @@
 
   var activeModalContainer = null;
 
+  function getOrCreateClientSessionId() {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        var sid = window.sessionStorage.getItem('180_client_session_id');
+        if (!sid) {
+          sid = 'sess_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now().toString(36);
+          window.sessionStorage.setItem('180_client_session_id', sid);
+        }
+        return sid;
+      }
+    } catch (_) {}
+    return 'sess_' + Math.random().toString(36).substring(2, 12);
+  }
+
   var OneEightyPay = {
     version: '2.0.0',
 
@@ -60,7 +74,9 @@
       }
 
       var baseUrl = options.checkoutServerUrl || DEFAULT_CHECKOUT_BASE;
-      var checkoutUrl = baseUrl + '/checkout/' + encodeURIComponent(sessionId);
+      var clientSessionId = options.clientSessionId || getOrCreateClientSessionId();
+      var separator = (sessionId.indexOf('?') >= 0) ? '&' : '?';
+      var checkoutUrl = baseUrl + '/checkout/' + encodeURIComponent(sessionId) + separator + 'clientSessionId=' + encodeURIComponent(clientSessionId);
 
       // Handle Full Page Redirect
       if (uxMode === 'redirect' || uxMode === 'full_page') {

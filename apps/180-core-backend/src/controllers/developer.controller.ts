@@ -204,10 +204,13 @@ export class DeveloperApiController {
         orderBy: { createdAt: 'desc' },
       });
 
-      const capturedSessions = allSessions.filter((s) => s.status === 'CAPTURED' || s.status === 'SUCCESS');
-      const failedSessions = allSessions.filter((s) => s.status === 'FAILED');
+      // ─────────────────────────────────────────────────────────────────────────
+      // UNIFY CUSTOMER SESSIONS: Single Record per User Session
+      // Preserves 1 record per browsing session (30-min window or explicit clientSessionId).
+      // Automatically elevates status (Captured > Failed > Gateway Dropped > Intent to Pay).
+      // ─────────────────────────────────────────────────────────────────────────
+      const SESSION_WINDOW_MS = 30 * 60 * 1000; // 30-minute standard session window
 
-      // Detect gateway attempts vs drawer intent
       const isGatewayAttempt = (s: any) => {
         const meta = (s.metadata as any) || {};
         return Boolean(
@@ -220,12 +223,133 @@ export class DeveloperApiController {
         );
       };
 
-      const gatewayAttemptSessions = allSessions.filter((s) => {
+      const getStatusPriority = (s: any) => {
+        if (s.status === 'CAPTURED' || s.status === 'SUCCESS') return 4;
+        if (s.status === 'FAILED') return 3;
+        if (isGatewayAttempt(s)) return 2;
+        return 1; // INTENT_ONLY
+      };
+
+      const unifiedSessions: any[] = [];
+
+      for (const session of allSessions) {
+        const meta = (session.metadata as any) || {};
+        const sessionTime = new Date(session.createdAt).getTime();
+
+        const clientSessionId = meta.clientSessionId || meta.visitorId || meta.sessionId;
+        const userId = session.userId || (session.user && (session.user as any).id);
+        const email = ((session.user as any)?.email) || meta.customerEmail || meta.email || '';
+        const phone = ((session.user as any)?.phone) || meta.customerPhone || meta.phone || '';
+        const ip = meta.ip || meta.clientIp || '';
+        const userAgent = meta.userAgent || '';
+
+        let matchedGroup: any = null;
+
+        for (const group of unifiedSessions) {
+          const groupMeta = (group.metadata as any) || {};
+          const groupTime = new Date(group.createdAt).getTime();
+          const timeDiff = Math.abs(sessionTime - groupTime);
+
+          // Match 1: Exact client session ID
+          if (clientSessionId && groupMeta.clientSessionId && clientSessionId === groupMeta.clientSessionId) {
+            matchedGroup = group;
+            break;
+          }
+
+          // Match 2: Authenticated user ID within session window
+          if (userId && group.userId && userId === group.userId && timeDiff <= SESSION_WINDOW_MS) {
+            matchedGroup = group;
+            break;
+          }
+
+          // Match 3: Same Phone or Email within session window
+          if (phone && group.customerPhone && phone === group.customerPhone && timeDiff <= SESSION_WINDOW_MS) {
+            matchedGroup = group;
+            break;
+          }
+          if (email && group.customerEmail && email === group.customerEmail && timeDiff <= SESSION_WINDOW_MS) {
+            matchedGroup = group;
+            break;
+          }
+
+          // Match 4: Same IP and userAgent within session window
+          if (ip && groupMeta.ip && ip === groupMeta.ip) {
+            if (!userAgent || !groupMeta.userAgent || userAgent === groupMeta.userAgent) {
+              if (timeDiff <= SESSION_WINDOW_MS) {
+                matchedGroup = group;
+                break;
+              }
+            }
+          }
+
+          // Match 5: Rapid multi-click / double-call (< 60s) for same app + amount
+          if (timeDiff <= 60 * 1000 && Math.abs(session.amount - group.amount) < 0.01) {
+            matchedGroup = group;
+            break;
+          }
+        }
+
+        if (matchedGroup) {
+          matchedGroup._sessions.push(session);
+
+          // Merge metadata so complete telemetry and lifecycle trail are retained
+          matchedGroup.metadata = {
+            ...(matchedGroup.metadata as any),
+            ...(session.metadata as any),
+            drawerOpenedAt: (matchedGroup.metadata as any)?.drawerOpenedAt || meta.drawerOpenedAt,
+            gatewayInvokedAt: meta.gatewayInvokedAt || (matchedGroup.metadata as any)?.gatewayInvokedAt,
+            gatewayDismissedAt: meta.gatewayDismissedAt || (matchedGroup.metadata as any)?.gatewayDismissedAt,
+            gatewayOrderId: (matchedGroup.metadata as any)?.gatewayOrderId || meta.gatewayOrderId || meta.razorpayOrderId,
+            gatewayPaymentId: (matchedGroup.metadata as any)?.gatewayPaymentId || meta.gatewayPaymentId || meta.paymentId,
+            ip: (matchedGroup.metadata as any)?.ip || meta.ip,
+            userAgent: (matchedGroup.metadata as any)?.userAgent || meta.userAgent,
+            language: (matchedGroup.metadata as any)?.language || meta.language,
+            screen: (matchedGroup.metadata as any)?.screen || meta.screen,
+          };
+
+          // Elevate status if current session has higher priority
+          const currentPriority = getStatusPriority(matchedGroup);
+          const newPriority = getStatusPriority(session);
+          if (newPriority > currentPriority) {
+            matchedGroup.id = session.id;
+            matchedGroup.status = session.status;
+            matchedGroup.completedAt = session.completedAt || matchedGroup.completedAt;
+          }
+
+          // Ensure timestamps reflect latest active moment
+          const sessionActivityTime = new Date(meta.gatewayDismissedAt || meta.gatewayInvokedAt || meta.drawerOpenedAt || session.updatedAt || session.createdAt).getTime();
+          const groupActivityTime = new Date((matchedGroup.metadata as any)?.gatewayDismissedAt || (matchedGroup.metadata as any)?.gatewayInvokedAt || matchedGroup.lastActivityAt || matchedGroup.updatedAt || matchedGroup.createdAt).getTime();
+          const latestTime = new Date(Math.max(sessionActivityTime, groupActivityTime));
+          matchedGroup.updatedAt = latestTime;
+          matchedGroup.lastActivityAt = latestTime;
+        } else {
+          const sessionActivityTime = new Date(meta.gatewayDismissedAt || meta.gatewayInvokedAt || meta.drawerOpenedAt || session.updatedAt || session.createdAt);
+          unifiedSessions.push({
+            ...session,
+            customerPhone: phone || (session.user && (session.user as any).phone) || null,
+            customerEmail: email || (session.user && (session.user as any).email) || null,
+            lastActivityAt: sessionActivityTime,
+            _sessions: [session],
+          });
+        }
+      }
+
+      // Sort unified sessions by newest activity timestamp descending
+      unifiedSessions.sort((a, b) => {
+        const timeA = new Date(a.lastActivityAt || a.completedAt || (a.metadata as any)?.gatewayDismissedAt || a.updatedAt || a.createdAt).getTime();
+        const timeB = new Date(b.lastActivityAt || b.completedAt || (b.metadata as any)?.gatewayDismissedAt || b.updatedAt || b.createdAt).getTime();
+        return timeB - timeA;
+      });
+
+      const capturedSessions = unifiedSessions.filter((s) => s.status === 'CAPTURED' || s.status === 'SUCCESS');
+      const failedSessions = unifiedSessions.filter((s) => s.status === 'FAILED');
+
+      const gatewayAttemptSessions = unifiedSessions.filter((s) => {
         const isCaptured = s.status === 'CAPTURED' || s.status === 'SUCCESS';
         return !isCaptured && isGatewayAttempt(s);
       });
 
-      const intentOnlySessions = allSessions.filter((s) => {
+      const intentOnlySessions = unifiedSessions.filter((s) => {
         const isCaptured = s.status === 'CAPTURED' || s.status === 'SUCCESS';
         return !isCaptured && !isGatewayAttempt(s);
       });
@@ -261,14 +385,14 @@ export class DeveloperApiController {
       // Realistic Pending Settlements: Captured volume awaiting T+1 clearing cycle
       const pendingSettlements = Math.max(0, Math.round((grossVolume - withdrawableBalance) * 100) / 100);
 
-      // Conversion funnel & Intent metrics
-      const totalIntentsVolume = allSessions.reduce((sum, s) => sum + s.amount, 0);
+      // Conversion funnel & Intent metrics: Accurately counted per customer session
+      const totalIntentsVolume = unifiedSessions.reduce((sum, s) => sum + s.amount, 0);
       const gatewayAttemptsVolume = gatewayAttemptSessions.reduce((sum, s) => sum + s.amount, 0);
-      const conversionRate = allSessions.length > 0
-        ? Math.round((capturedSessions.length / allSessions.length) * 1000) / 10
+      const conversionRate = unifiedSessions.length > 0
+        ? Math.round((capturedSessions.length / unifiedSessions.length) * 1000) / 10
         : 0;
 
-      const transactions = allSessions.slice(0, 150).map((s) => {
+      const transactions = unifiedSessions.slice(0, 150).map((s) => {
         const meta = (s.metadata as any) || {};
         const isCaptured = s.status === 'CAPTURED' || s.status === 'SUCCESS';
         const isFailed = s.status === 'FAILED';
@@ -367,7 +491,9 @@ export class DeveloperApiController {
           customerPhone,
           customerEmail,
           method,
-          createdAt: s.createdAt,
+          createdAt: s.lastActivityAt || s.completedAt || meta.gatewayDismissedAt || meta.gatewayInvokedAt || meta.drawerOpenedAt || s.updatedAt || s.createdAt,
+          sessionStartedAt: s.createdAt,
+          lastActivityAt: s.lastActivityAt || s.completedAt || meta.gatewayDismissedAt || meta.gatewayInvokedAt || s.updatedAt || s.createdAt,
           completedAt: s.completedAt,
           gatewayInvokedAt: meta.gatewayInvokedAt || (hasGateway ? s.createdAt : null),
           // User Context & Telemetry

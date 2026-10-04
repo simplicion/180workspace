@@ -892,7 +892,7 @@ export function PayAppDetail({
                       <th className="px-4 py-3">Customer / Location</th>
                       <th className="px-4 py-3">Method</th>
                       <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Date &amp; Time</th>
                       <th className="px-4 py-3 text-right">Audit &amp; Receipt</th>
                     </tr>
                   </thead>
@@ -947,8 +947,13 @@ export function PayAppDetail({
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-zinc-500 text-[11px]">
-                            {new Date(tx.createdAt || Date.now()).toLocaleDateString()}
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="text-zinc-900 dark:text-zinc-200 font-medium text-xs">
+                              {new Date(tx.createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </div>
+                            <div className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
+                              {new Date(tx.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-right">
                             <button

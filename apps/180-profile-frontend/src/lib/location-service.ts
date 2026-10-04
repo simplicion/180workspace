@@ -1,5 +1,3 @@
-'use strict';
-
 import { Country } from 'country-state-city';
 
 export interface CountryItem {
