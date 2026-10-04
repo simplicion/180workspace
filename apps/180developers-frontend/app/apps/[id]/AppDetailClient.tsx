@@ -179,7 +179,7 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
 
   // Payment Transactions Search & Filtering
   const [txSearchQuery, setTxSearchQuery] = useState('');
-  const [txStatusFilter, setTxStatusFilter] = useState<'ALL' | 'CAPTURED' | 'PENDING' | 'FAILED'>('ALL');
+  const [txStatusFilter, setTxStatusFilter] = useState<'ALL' | 'CAPTURED' | 'GATEWAY_DROPPED' | 'INTENT_ONLY' | 'FAILED'>('ALL');
   const [selectedTx, setSelectedTx] = useState<any | null>(null);
 
   // Admin Payout Review

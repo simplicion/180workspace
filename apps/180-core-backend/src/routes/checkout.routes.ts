@@ -13,6 +13,7 @@ router.post('/sessions/:id/direct-order', CheckoutApiController.createDirectOrde
 router.post('/sessions/:id/direct-verify', CheckoutApiController.verifyDirectPayment);
 router.post('/sessions/:id/apply-coupon', CheckoutApiController.applyCoupon);
 router.post('/sessions/:id/remove-coupon', CheckoutApiController.removeCoupon);
+router.post('/sessions/:id/track-event', CheckoutApiController.trackEvent);
 
 export default router;
 

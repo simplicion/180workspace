@@ -59,6 +59,22 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
     }
   }, [params?.sessionId]);
 
+  useEffect(() => {
+    if (!sessionId || sessionId === 'default') return;
+    try {
+      fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/track-event`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'DRAWER_OPENED',
+          language: typeof navigator !== 'undefined' ? navigator.language : 'en-US',
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+          screen: typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : '',
+        }),
+      }).catch(() => {});
+    } catch (_) {}
+  }, [sessionId]);
+
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
   const [wallet, setWallet] = useState<any>(null);
@@ -716,12 +732,26 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           ondismiss: () => {
             if (toastId) toast.dismiss(toastId);
             setTopupLoading(false);
+            if (sessionId && sessionId !== 'default') {
+              fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/track-event`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'GATEWAY_DISMISSED' }),
+              }).catch(() => {});
+            }
           },
         },
       };
 
       const rzp = new window.Razorpay(options);
       rzp.open();
+      if (sessionId && sessionId !== 'default') {
+        fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/track-event`), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'GATEWAY_OPENED' }),
+        }).catch(() => {});
+      }
       if (toastId) toast.dismiss(toastId);
       setTopupLoading(false);
     } catch (err: any) {

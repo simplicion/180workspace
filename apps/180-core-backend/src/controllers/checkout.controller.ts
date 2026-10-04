@@ -482,5 +482,60 @@ export class CheckoutApiController {
       return res.status(400).json({ success: false, error: err.message });
     }
   }
+
+  /**
+   * POST /api/v1/checkout/sessions/:id/track-event
+   * Track checkout behavioral events (e.g. DRAWER_OPENED, GATEWAY_OPENED, GATEWAY_DISMISSED)
+   */
+  static async trackEvent(req: Request, res: Response) {
+    try {
+      const id = String(req.params.id);
+      const { event, language, userAgent, screen } = req.body || {};
+
+      const rawIp =
+        req.headers['x-forwarded-for'] ||
+        req.headers['x-real-ip'] ||
+        req.socket?.remoteAddress ||
+        req.ip ||
+        '127.0.0.1';
+      const ip = Array.isArray(rawIp) ? rawIp[0] : String(rawIp).split(',')[0].trim();
+
+      const session = await prisma.checkoutSession.findUnique({ where: { id } });
+      if (!session) {
+        return res.status(404).json({ success: false, error: 'Checkout session not found' });
+      }
+
+      const existingMeta = (session.metadata as any) || {};
+      const updatedMeta = {
+        ...existingMeta,
+        ip: existingMeta.ip || ip,
+        userAgent: userAgent || req.headers['user-agent'] || existingMeta.userAgent,
+        language: language || (typeof req.headers['accept-language'] === 'string' ? req.headers['accept-language'].split(',')[0] : 'en-US') || existingMeta.language,
+        screen: screen || existingMeta.screen,
+      };
+
+      if (event === 'GATEWAY_DISMISSED') {
+        updatedMeta.gatewayDismissed = true;
+        updatedMeta.gatewayDismissedAt = new Date().toISOString();
+        updatedMeta.lifecycleStage = 'GATEWAY_ABANDONED';
+      } else if (event === 'GATEWAY_OPENED') {
+        updatedMeta.gatewayInvoked = true;
+        updatedMeta.gatewayInvokedAt = new Date().toISOString();
+        updatedMeta.lifecycleStage = 'GATEWAY_ATTEMPTED';
+      } else if (event === 'DRAWER_OPENED') {
+        updatedMeta.drawerOpenedAt = updatedMeta.drawerOpenedAt || new Date().toISOString();
+      }
+
+      await prisma.checkoutSession.update({
+        where: { id },
+        data: { metadata: updatedMeta },
+      });
+
+      return res.json({ success: true, metadata: updatedMeta });
+    } catch (err: any) {
+      console.warn('[CheckoutApiController:trackEvent] Error:', err.message);
+      return res.status(200).json({ success: false, error: err.message });
+    }
+  }
 }
 

@@ -47,13 +47,33 @@ export interface AuthLogsData {
 export interface TransactionRecord {
   id: string;
   amount: number;
+  originalAmount?: number;
+  discountAmount?: number;
+  couponCode?: string | null;
   currency: string;
-  status: 'CAPTURED' | 'PENDING' | 'FAILED' | string;
-  createdAt: string;
+  status: 'CAPTURED' | 'GATEWAY_DROPPED' | 'INTENT_ONLY' | 'FAILED' | string;
+  statusLabel?: string;
+  stage?: string;
+  stageLabel?: string;
+  stageDescription?: string;
+  title?: string;
+  description?: string;
+  customer?: { name?: string; email?: string; phone?: string } | null;
   customerPhone?: string;
   customerName?: string;
-  upiId?: string;
+  customerEmail?: string;
+  method?: string;
   paymentMethod?: string;
+  createdAt: string;
+  completedAt?: string | null;
+  gatewayInvokedAt?: string | null;
+  ip?: string;
+  userAgent?: string;
+  language?: string;
+  location?: string;
+  gatewayOrderId?: string | null;
+  gatewayPaymentId?: string | null;
+  upiId?: string;
   notes?: Record<string, any>;
   gatewayTxId?: string;
 }
@@ -66,6 +86,12 @@ export interface PaymentAnalyticsData {
   withdrawableBalance: number;
   currency: string;
   totalTransactionsCount: number;
+  totalIntentsCount?: number;
+  totalIntentsVolume?: number;
+  gatewayAttemptsCount?: number;
+  gatewayAttemptsVolume?: number;
+  intentOnlyCount?: number;
+  conversionRate?: number;
   transactions: TransactionRecord[];
 }
 

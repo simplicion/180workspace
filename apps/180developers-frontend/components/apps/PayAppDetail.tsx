@@ -22,6 +22,10 @@ import {
   Activity,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  Compass,
+  Percent,
+  MapPin,
   Tag,
   Link2,
   Globe,
@@ -68,8 +72,8 @@ export interface PayAppDetailProps {
   fetchPaymentAnalytics: () => void;
   txSearchQuery: string;
   setTxSearchQuery: (val: string) => void;
-  txStatusFilter: 'ALL' | 'CAPTURED' | 'PENDING' | 'FAILED';
-  setTxStatusFilter: (val: 'ALL' | 'CAPTURED' | 'PENDING' | 'FAILED') => void;
+  txStatusFilter: 'ALL' | 'CAPTURED' | 'GATEWAY_DROPPED' | 'INTENT_ONLY' | 'FAILED';
+  setTxStatusFilter: (val: 'ALL' | 'CAPTURED' | 'GATEWAY_DROPPED' | 'INTENT_ONLY' | 'FAILED') => void;
   onSelectTx: (tx: TransactionRecord) => void;
   payoutBalance: number;
   payoutHistory: PayoutRecord[];
@@ -608,6 +612,131 @@ export function PayAppDetail({
           </div>
         </div>
 
+        {/* Checkout Funnel & Conversion Intelligence */}
+        {(() => {
+          const totalIntentsCount = paymentAnalytics?.totalIntentsCount || (paymentAnalytics?.transactions || []).length;
+          const totalIntentsVolume = paymentAnalytics?.totalIntentsVolume || paymentAnalytics?.grossVolume || 0;
+          const gatewayAttemptsCount = paymentAnalytics?.gatewayAttemptsCount || 0;
+          const gatewayAttemptsVolume = paymentAnalytics?.gatewayAttemptsVolume || 0;
+          const capturedCount = paymentAnalytics?.totalTransactionsCount || 0;
+          const capturedVolume = paymentAnalytics?.grossVolume || 0;
+          const conversionRate = paymentAnalytics?.conversionRate || (totalIntentsCount > 0 ? Math.round((capturedCount / totalIntentsCount) * 1000) / 10 : 0);
+
+          const gatewayPct = totalIntentsCount > 0 ? Math.min(100, Math.round(((gatewayAttemptsCount + capturedCount) / totalIntentsCount) * 100)) : 0;
+          const capturedPct = totalIntentsCount > 0 ? Math.min(100, Math.round((capturedCount / totalIntentsCount) * 100)) : 0;
+
+          return (
+            <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5 text-purple-500" />
+                    <span>Checkout Funnel &amp; Behavioral Conversion</span>
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    User drop-offs tracked from bottom sheet launch to gateway invocation and final capture.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-bold font-mono self-start sm:self-auto">
+                  <Percent className="w-3 h-3" />
+                  <span>{conversionRate}% Conversion Rate</span>
+                </div>
+              </div>
+
+              {/* 4 Funnel Metric Blocks */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-white/5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] uppercase font-semibold">
+                    <Compass className="w-3 h-3 text-blue-500" />
+                    <span>Purchase Intents</span>
+                  </div>
+                  <div className="text-base font-bold text-zinc-900 dark:text-white font-mono">
+                    ₹{totalIntentsVolume.toLocaleString()}
+                  </div>
+                  <p className="text-[10px] text-zinc-400 font-sans">
+                    {totalIntentsCount} sheets initiated
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-white/5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] uppercase font-semibold">
+                    <AlertTriangle className="w-3 h-3 text-amber-500" />
+                    <span>Gateway Invocations</span>
+                  </div>
+                  <div className="text-base font-bold text-amber-600 dark:text-amber-400 font-mono">
+                    ₹{(gatewayAttemptsVolume + capturedVolume).toLocaleString()}
+                  </div>
+                  <p className="text-[10px] text-zinc-400 font-sans">
+                    {gatewayAttemptsCount + capturedCount} opened gateway
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-white/5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] uppercase font-semibold">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                    <span>Captured Revenue</span>
+                  </div>
+                  <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                    ₹{capturedVolume.toLocaleString()}
+                  </div>
+                  <p className="text-[10px] text-zinc-400 font-sans">
+                    {capturedCount} settled payments
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-white/5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] uppercase font-semibold">
+                    <Percent className="w-3 h-3 text-purple-500" />
+                    <span>Realized Yield</span>
+                  </div>
+                  <div className="text-base font-bold text-purple-600 dark:text-purple-400 font-mono">
+                    {conversionRate}%
+                  </div>
+                  <p className="text-[10px] text-zinc-400 font-sans">
+                    Funnel efficiency
+                  </p>
+                </div>
+              </div>
+
+              {/* Visual Funnel Bar */}
+              <div className="space-y-1.5 pt-1">
+                <div className="h-3 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden flex">
+                  <div
+                    style={{ width: `${Math.max(10, capturedPct)}%` }}
+                    className="bg-emerald-500 h-full transition-all"
+                    title={`Captured: ${capturedPct}%`}
+                  />
+                  <div
+                    style={{ width: `${Math.max(0, gatewayPct - capturedPct)}%` }}
+                    className="bg-amber-500 h-full transition-all"
+                    title={`Gateway Dropped: ${Math.max(0, gatewayPct - capturedPct)}%`}
+                  />
+                  <div
+                    style={{ width: `${Math.max(0, 100 - gatewayPct)}%` }}
+                    className="bg-blue-500/40 h-full transition-all"
+                    title={`Intent Only: ${Math.max(0, 100 - gatewayPct)}%`}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 pt-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span>Captured ({capturedCount})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span>Gateway Dropped ({gatewayAttemptsCount})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span>Intent Only ({paymentAnalytics?.intentOnlyCount || Math.max(0, totalIntentsCount - gatewayAttemptsCount - capturedCount)})</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Monthly Volume Chart */}
         <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
           <div className="flex items-center justify-between">
@@ -674,7 +803,7 @@ export function PayAppDetail({
               <span>Incoming Transaction Receipts</span>
             </h3>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Search */}
               <div className="relative">
                 <Search className="w-3 h-3 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -688,19 +817,27 @@ export function PayAppDetail({
               </div>
 
               {/* Status Filter */}
-              <div className="flex p-0.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-[10px]">
-                {(['ALL', 'CAPTURED', 'PENDING', 'FAILED'] as const).map((st) => (
+              <div className="flex flex-wrap items-center p-0.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-[10px]">
+                {(
+                  [
+                    { id: 'ALL', label: 'ALL' },
+                    { id: 'CAPTURED', label: 'CAPTURED' },
+                    { id: 'GATEWAY_DROPPED', label: 'GATEWAY DROPPED' },
+                    { id: 'INTENT_ONLY', label: 'INTENT TO PAY' },
+                    { id: 'FAILED', label: 'DECLINED' },
+                  ] as const
+                ).map((st) => (
                   <button
-                    key={st}
+                    key={st.id}
                     type="button"
-                    onClick={() => setTxStatusFilter(st)}
-                    className={`px-2 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                      txStatusFilter === st
+                    onClick={() => setTxStatusFilter(st.id)}
+                    className={`px-2 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      txStatusFilter === st.id
                         ? 'bg-white dark:bg-zinc-800 text-purple-600 dark:text-purple-400 shadow-xs'
                         : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
                     }`}
                   >
-                    {st}
+                    {st.label}
                   </button>
                 ))}
               </div>
@@ -711,7 +848,20 @@ export function PayAppDetail({
           {(() => {
             const rawTxs = paymentAnalytics?.transactions || [];
             const filteredTxs = rawTxs.filter((tx: any) => {
-              if (txStatusFilter !== 'ALL' && tx.status !== txStatusFilter) return false;
+              if (txStatusFilter !== 'ALL') {
+                if (txStatusFilter === 'CAPTURED' && !(tx.status === 'CAPTURED' || tx.status === 'SUCCESS')) {
+                  return false;
+                }
+                if (txStatusFilter === 'GATEWAY_DROPPED' && tx.status !== 'GATEWAY_DROPPED') {
+                  return false;
+                }
+                if (txStatusFilter === 'INTENT_ONLY' && tx.status !== 'INTENT_ONLY') {
+                  return false;
+                }
+                if (txStatusFilter === 'FAILED' && tx.status !== 'FAILED') {
+                  return false;
+                }
+              }
               if (txSearchQuery.trim()) {
                 const q = txSearchQuery.toLowerCase();
                 const matchId = (tx.id || '').toLowerCase().includes(q);
@@ -739,50 +889,63 @@ export function PayAppDetail({
                     <tr>
                       <th className="px-4 py-3">Receipt / Tx ID</th>
                       <th className="px-4 py-3">Amount</th>
-                      <th className="px-4 py-3">Customer / UPI</th>
+                      <th className="px-4 py-3">Customer / Location</th>
                       <th className="px-4 py-3">Method</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Date</th>
-                      <th className="px-4 py-3 text-right">Receipt</th>
+                      <th className="px-4 py-3 text-right">Audit &amp; Receipt</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200 dark:divide-white/5 font-mono">
                     {filteredTxs.map((tx: any, idx: number) => {
-                      const isSuccess = tx.status === 'CAPTURED';
-                      const isPending = tx.status === 'PENDING';
+                      const isCaptured = tx.status === 'CAPTURED' || tx.status === 'SUCCESS';
+                      const isGatewayDropped = tx.status === 'GATEWAY_DROPPED';
+                      const isIntentOnly = tx.status === 'INTENT_ONLY';
+
                       return (
                         <tr key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/40 transition-colors">
                           <td className="px-4 py-3 font-semibold text-zinc-950 dark:text-white">
-                            <span className="text-[11px]">{tx.id}</span>
+                            <span className="text-[11px]">{tx.id?.slice(0, 14)}...</span>
                           </td>
                           <td className="px-4 py-3 font-bold text-zinc-900 dark:text-white">
                             {tx.currency || 'INR'} {(tx.amount || 0).toLocaleString()}
                           </td>
                           <td className="px-4 py-3 font-sans">
                             <div className="text-zinc-900 dark:text-white font-medium text-xs">
-                              {tx.customerName || '180 Wallet User'}
+                              {tx.customerName || '180 User'}
                             </div>
-                            <div className="text-[10px] text-zinc-400 font-mono">
-                              {tx.customerPhone || tx.upiId || 'Direct UPI'}
+                            <div className="text-[10px] text-zinc-400 flex items-center gap-1">
+                              <MapPin className="w-2.5 h-2.5 text-zinc-400" />
+                              <span>{tx.location || 'India (IN)'}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-sans font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-                              {tx.paymentMethod || 'UPI Intent'}
+                              {tx.method || tx.paymentMethod || '180 Pay'}
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-sans font-bold ${
-                                isSuccess
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                  : isPending
-                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                              }`}
-                            >
-                              {tx.status}
-                            </span>
+                            {isCaptured ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>CAPTURED</span>
+                              </span>
+                            ) : isGatewayDropped ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                <AlertTriangle className="w-3 h-3" />
+                                <span>GATEWAY DROPPED</span>
+                              </span>
+                            ) : isIntentOnly ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                                <Compass className="w-3 h-3" />
+                                <span>INTENT TO PAY</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-sans font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                <AlertCircle className="w-3 h-3" />
+                                <span>DECLINED</span>
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-zinc-500 text-[11px]">
                             {new Date(tx.createdAt || Date.now()).toLocaleDateString()}
@@ -794,8 +957,8 @@ export function PayAppDetail({
                               className="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-sans font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
                               title="View printable digital receipt"
                             >
-                              <Eye className="w-3 h-3" />
-                              <span>Receipt</span>
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>View Receipt</span>
                             </button>
                           </td>
                         </tr>

@@ -12,6 +12,12 @@ import {
   Loader2,
   Save,
   CheckCircle2,
+  AlertTriangle,
+  Compass,
+  Percent,
+  BarChart3,
+  ArrowRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { OneEightyPay } from '@workspace/identity-sdk';
 import toast from 'react-hot-toast';
@@ -49,6 +55,17 @@ export function PayOverviewView() {
     }
   };
 
+  const totalIntentsCount = paymentAnalytics?.totalIntentsCount || (paymentAnalytics?.transactions || []).length;
+  const totalIntentsVolume = paymentAnalytics?.totalIntentsVolume || paymentAnalytics?.grossVolume || 0;
+  const gatewayAttemptsCount = paymentAnalytics?.gatewayAttemptsCount || 0;
+  const gatewayAttemptsVolume = paymentAnalytics?.gatewayAttemptsVolume || 0;
+  const capturedCount = paymentAnalytics?.totalTransactionsCount || 0;
+  const capturedVolume = paymentAnalytics?.grossVolume || 0;
+  const conversionRate = paymentAnalytics?.conversionRate || (totalIntentsCount > 0 ? Math.round((capturedCount / totalIntentsCount) * 1000) / 10 : 0);
+
+  const gatewayPct = totalIntentsCount > 0 ? Math.min(100, Math.round(((gatewayAttemptsCount + capturedCount) / totalIntentsCount) * 100)) : 0;
+  const capturedPct = totalIntentsCount > 0 ? Math.min(100, Math.round((capturedCount / totalIntentsCount) * 100)) : 0;
+
   return (
     <div className="space-y-6">
       {/* 1. 180 Pay Service Status Toggle Card */}
@@ -76,7 +93,7 @@ export function PayOverviewView() {
                 </span>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                1-Click Sovereign Wallet & UPI checkout popup. Dedicated 180 Pay engine processes payments with 2-way verification.
+                1-Click Sovereign Wallet &amp; UPI checkout popup. Dedicated 180 Pay engine processes payments with 2-way verification.
               </p>
             </div>
           </div>
@@ -114,7 +131,7 @@ export function PayOverviewView() {
           <div>
             <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
               <Activity className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span>Financial Overview & Analytics</span>
+              <span>Financial Overview &amp; Settlements</span>
             </h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               Live collection volume, clearing settlements, and withdrawable balance.
@@ -141,7 +158,7 @@ export function PayOverviewView() {
             <div className="text-lg font-bold text-zinc-950 dark:text-white">
               {paymentAnalytics?.currency || 'INR'} {(paymentAnalytics?.grossVolume || 0).toLocaleString()}
             </div>
-            <p className="text-[10px] text-zinc-400">All-time processed</p>
+            <p className="text-[10px] text-zinc-400">Captured lifetime revenue</p>
           </div>
 
           <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-1">
@@ -178,7 +195,117 @@ export function PayOverviewView() {
           </div>
         </div>
 
-        {/* 3. Monthly Histogram */}
+        {/* 3. Checkout Funnel & Conversion Intelligence */}
+        <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5 text-purple-500" />
+                <span>Checkout Funnel &amp; Behavioral Conversion</span>
+              </h3>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                Tracking user drop-offs from initial bottom sheet launch to gateway invocation and final capture.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-bold font-mono self-start sm:self-auto">
+              <Percent className="w-3 h-3" />
+              <span>{conversionRate}% Conversion Rate</span>
+            </div>
+          </div>
+
+          {/* Funnel 4-Card Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-white/5 space-y-1">
+              <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] uppercase font-semibold">
+                <Compass className="w-3 h-3 text-blue-500" />
+                <span>Purchase Intents</span>
+              </div>
+              <div className="text-base font-bold text-zinc-900 dark:text-white font-mono">
+                ₹{totalIntentsVolume.toLocaleString()}
+              </div>
+              <p className="text-[10px] text-zinc-400 font-sans">
+                {totalIntentsCount} sheets initiated
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-white/5 space-y-1">
+              <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] uppercase font-semibold">
+                <AlertTriangle className="w-3 h-3 text-amber-500" />
+                <span>Gateway Invocations</span>
+              </div>
+              <div className="text-base font-bold text-amber-600 dark:text-amber-400 font-mono">
+                ₹{(gatewayAttemptsVolume + capturedVolume).toLocaleString()}
+              </div>
+              <p className="text-[10px] text-zinc-400 font-sans">
+                {gatewayAttemptsCount + capturedCount} opened gateway
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-white/5 space-y-1">
+              <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] uppercase font-semibold">
+                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                <span>Captured Revenue</span>
+              </div>
+              <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                ₹{capturedVolume.toLocaleString()}
+              </div>
+              <p className="text-[10px] text-zinc-400 font-sans">
+                {capturedCount} settled payments
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-white dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-white/5 space-y-1">
+              <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] uppercase font-semibold">
+                <Percent className="w-3 h-3 text-purple-500" />
+                <span>Realized Yield</span>
+              </div>
+              <div className="text-base font-bold text-purple-600 dark:text-purple-400 font-mono">
+                {conversionRate}%
+              </div>
+              <p className="text-[10px] text-zinc-400 font-sans">
+                Funnel efficiency
+              </p>
+            </div>
+          </div>
+
+          {/* Visual Funnel Bar */}
+          <div className="space-y-1.5 pt-1">
+            <div className="h-3 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden flex">
+              <div
+                style={{ width: `${Math.max(10, capturedPct)}%` }}
+                className="bg-emerald-500 h-full transition-all"
+                title={`Captured: ${capturedPct}%`}
+              />
+              <div
+                style={{ width: `${Math.max(0, gatewayPct - capturedPct)}%` }}
+                className="bg-amber-500 h-full transition-all"
+                title={`Gateway Dropped: ${Math.max(0, gatewayPct - capturedPct)}%`}
+              />
+              <div
+                style={{ width: `${Math.max(0, 100 - gatewayPct)}%` }}
+                className="bg-blue-500/40 h-full transition-all"
+                title={`Intent Only: ${Math.max(0, 100 - gatewayPct)}%`}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 pt-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>Captured ({capturedCount})</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                <span>Gateway Dropped ({gatewayAttemptsCount})</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                <span>Drawer Intent Only ({paymentAnalytics?.intentOnlyCount || Math.max(0, totalIntentsCount - gatewayAttemptsCount - capturedCount)})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Monthly Histogram */}
         <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/5 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">
@@ -231,7 +358,7 @@ export function PayOverviewView() {
           })()}
         </div>
 
-        {/* 4. Live Payment Sandbox Test */}
+        {/* 5. Live Payment Sandbox Test */}
         <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-purple-500/20 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
