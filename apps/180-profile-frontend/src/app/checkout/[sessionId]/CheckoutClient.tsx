@@ -74,6 +74,15 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
   const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [showCouponInput, setShowCouponInput] = useState(false);
 
+  // ─── Speculative Zero-Latency Order Pre-Warming Cache ────────────────────────
+  const prewarmedOrderRef = React.useRef<{
+    orderId: string;
+    amountPaise: number;
+    keyId: string;
+    amount: number;
+  } | null>(null);
+  const prewarmingPromiseRef = React.useRef<Promise<any> | null>(null);
+
   // ─── Autonomous Environment Detection ──────────────────────────────────────
   const isProduction = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -333,6 +342,79 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
     }
   }, [sessionId]);
 
+  // ─── Pre-load Razorpay SDK & Preconnect to Gateways ─────────────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // 1. Preconnect DNS & SSL to Razorpay endpoints
+    const addPreconnect = (href: string) => {
+      if (!document.querySelector(`link[href="${href}"]`)) {
+        const link = document.createElement('link');
+        link.rel = 'preconnect';
+        link.href = href;
+        document.head.appendChild(link);
+      }
+    };
+    addPreconnect('https://checkout.razorpay.com');
+    addPreconnect('https://api.razorpay.com');
+
+    // 2. Pre-fetch and compile Razorpay Checkout SDK immediately into DOM
+    if (!window.Razorpay && !document.querySelector('script[src*="checkout.razorpay.com"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  // ─── Speculative Order Pre-Warming on Dwell Time (Zero Perceived Latency) ────
+  useEffect(() => {
+    if (!session || !sessionId || session.status === 'COMPLETED' || !session.amount) return;
+
+    const isSandboxSession = Boolean(
+      sessionId && (
+        sessionId.startsWith('sess_sandbox_') ||
+        sessionId.startsWith('sess_demo_') ||
+        sessionId.startsWith('sess_180pay_') ||
+        sessionId.startsWith('cs_') ||
+        sessionId === 'default'
+      )
+    );
+
+    if (isSandboxSession && !isProduction) return;
+
+    // If order already pre-warmed for current active session amount, reuse it
+    if (prewarmedOrderRef.current && prewarmedOrderRef.current.amount === session.amount) {
+      return;
+    }
+
+    const prewarm = async () => {
+      try {
+        const res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-order`), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await res.json();
+        if (data.success && (data.data || data.orderId)) {
+          const orderInfo = data.data || data;
+          const orderObj = {
+            orderId: orderInfo.orderId,
+            amountPaise: orderInfo.amountPaise,
+            keyId: orderInfo.keyId,
+            amount: session.amount,
+          };
+          prewarmedOrderRef.current = orderObj;
+          return orderObj;
+        }
+      } catch (err) {
+        console.warn('[180 Pay] Silent background pre-warm:', err);
+      }
+      return null;
+    };
+
+    prewarmingPromiseRef.current = prewarm();
+  }, [session?.amount, sessionId, isProduction]);
+
   const handlePay = async () => {
     setPaying(true);
     const toastId = toast.loading('Authorizing payment with 180 Profile...');
@@ -449,60 +531,114 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
 
   const handleDirectPayment = async () => {
     if (!session) return;
-    setTopupLoading(true);
-    const toastId = toast.loading('Initializing payment gateway...');
 
-    try {
-      const isSandboxSession = Boolean(
-        sessionId && (
-          sessionId.startsWith('sess_sandbox_') ||
-          sessionId.startsWith('sess_demo_') ||
-          sessionId.startsWith('sess_180pay_') ||
-          sessionId.startsWith('cs_') ||
-          sessionId === 'default'
-        )
-      );
+    const isSandboxSession = Boolean(
+      sessionId && (
+        sessionId.startsWith('sess_sandbox_') ||
+        sessionId.startsWith('sess_demo_') ||
+        sessionId.startsWith('sess_180pay_') ||
+        sessionId.startsWith('cs_') ||
+        sessionId === 'default'
+      )
+    );
 
-      // In pure sandbox demo without backend, complete directly
-      if (isSandboxSession && !isProduction) {
-        await new Promise((r) => setTimeout(r, 600));
-        toast.success('Payment completed successfully!', { id: toastId });
-        setCompleted(true);
-        setTopupLoading(false);
-        const demoTxId = 'tx_direct_' + Math.random().toString(36).substring(2, 10);
-        const payload = {
-          type: '180_PAYMENT_SUCCESS',
-          sessionId,
-          transactionId: demoTxId,
-          amount: session?.amount,
-          currency: session?.currency || 'INR',
-        };
-        if (typeof window !== 'undefined') {
-          if (window.opener) window.opener.postMessage(payload, '*');
-          if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
-          setTimeout(() => {
-            if (session?.returnUrl) {
-              window.location.href = session.returnUrl;
-            } else if (window.opener) {
-              window.close();
-            }
-          }, 1500);
+    // In pure sandbox demo without backend, complete directly
+    if (isSandboxSession && !isProduction) {
+      setTopupLoading(true);
+      const toastId = toast.loading('Initializing demo payment...');
+      await new Promise((r) => setTimeout(r, 400));
+      toast.success('Payment completed successfully!', { id: toastId });
+      setCompleted(true);
+      setTopupLoading(false);
+      const demoTxId = 'tx_direct_' + Math.random().toString(36).substring(2, 10);
+      const payload = {
+        type: '180_PAYMENT_SUCCESS',
+        sessionId,
+        transactionId: demoTxId,
+        amount: session?.amount,
+        currency: session?.currency || 'INR',
+      };
+      if (typeof window !== 'undefined') {
+        if (window.opener) window.opener.postMessage(payload, '*');
+        if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
+        setTimeout(() => {
+          if (session?.returnUrl) {
+            window.location.href = session.returnUrl;
+          } else if (window.opener) {
+            window.close();
+          }
+        }, 1500);
+      }
+      return;
+    }
+
+    let orderInfo = prewarmedOrderRef.current;
+    let toastId: string | null = null;
+
+    // Zero-Latency Path: If order was pre-warmed during user dwell time, consume immediately!
+    // Otherwise fallback smoothly to awaiting in-flight prewarm or requesting order
+    if (!orderInfo || orderInfo.amount !== session.amount) {
+      setTopupLoading(true);
+      toastId = toast.loading('Opening payment gateway...');
+      try {
+        if (prewarmingPromiseRef.current) {
+          orderInfo = await prewarmingPromiseRef.current;
         }
+        if (!orderInfo || orderInfo.amount !== session.amount) {
+          const res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-order`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const data = await res.json();
+          if (!data.success) {
+            throw new Error(data.error || 'Failed to initialize payment gateway');
+          }
+          orderInfo = data.data || data;
+          prewarmedOrderRef.current = {
+            orderId: orderInfo.orderId,
+            amountPaise: orderInfo.amountPaise,
+            keyId: orderInfo.keyId,
+            amount: session.amount,
+          };
+        }
+      } catch (err: any) {
+        if (toastId) toast.error(err.message || 'Failed to prepare payment', { id: toastId });
+        setTopupLoading(false);
         return;
       }
+    }
 
-      // 1. Request direct gateway order from backend (works unauthenticated!)
-      const res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-order`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to initialize payment gateway');
+    // Ensure Razorpay SDK is available
+    if (!window.Razorpay) {
+      if (!toastId) {
+        setTopupLoading(true);
+        toastId = toast.loading('Opening payment gateway...');
       }
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const existing = document.querySelector('script[src*="checkout.razorpay.com"]') as HTMLScriptElement;
+          if (existing) {
+            if ((window as any).Razorpay) return resolve();
+            existing.addEventListener('load', () => resolve());
+            existing.addEventListener('error', () => reject(new Error('Failed to load Razorpay')));
+            setTimeout(resolve, 1000);
+          } else {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load Razorpay payment engine'));
+            document.head.appendChild(script);
+          }
+        });
+      } catch (err: any) {
+        if (toastId) toast.error(err.message, { id: toastId });
+        setTopupLoading(false);
+        return;
+      }
+    }
 
-      const { orderId, amountPaise, keyId } = data.data || data;
+    try {
+      const { orderId, amountPaise, keyId } = orderInfo!;
 
       let storedUser: any = null;
       try {
@@ -522,7 +658,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           email: storedUser?.email || undefined,
         },
         handler: async function (response: any) {
-          toast.loading('Verifying payment signature...', { id: toastId });
+          const verifyToastId = toast.loading('Verifying payment signature...');
           try {
             const verifyRes = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-verify`), {
               method: 'POST',
@@ -539,7 +675,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               throw new Error(verifyData.error || 'Payment signature verification failed');
             }
 
-            toast.success('Payment authorized & completed!', { id: toastId });
+            toast.success('Payment authorized & completed!', { id: verifyToastId });
             setCompleted(true);
 
             const liveSuccessPayload = {
@@ -571,34 +707,29 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               }
             }, 1500);
           } catch (e: any) {
-            toast.error(e.message || 'Payment verification failed', { id: toastId });
+            toast.error(e.message || 'Payment verification failed', { id: verifyToastId });
           } finally {
             setTopupLoading(false);
           }
         },
         modal: {
           ondismiss: () => {
-            toast.dismiss(toastId);
+            if (toastId) toast.dismiss(toastId);
             setTopupLoading(false);
           },
         },
       };
 
-      if (!window.Razorpay) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error('Failed to load Razorpay payment engine'));
-          document.head.appendChild(script);
-        });
-      }
-
       const rzp = new window.Razorpay(options);
       rzp.open();
-      toast.dismiss(toastId);
+      if (toastId) toast.dismiss(toastId);
+      setTopupLoading(false);
     } catch (err: any) {
-      toast.error(err.message || 'Payment gateway initialization failed', { id: toastId });
+      if (toastId) {
+        toast.error(err.message || 'Payment gateway initialization failed', { id: toastId });
+      } else {
+        toast.error(err.message || 'Payment gateway initialization failed');
+      }
       setTopupLoading(false);
     }
   };

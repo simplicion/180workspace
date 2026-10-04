@@ -452,7 +452,7 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
       width: 100%;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
       gap: 12px;
     `;
 
@@ -463,40 +463,7 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
       <div style="font-size: 13px; font-weight: 700; color: #f4f4f5; letter-spacing: -0.01em;">${opts.title}</div>
     `;
 
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.setAttribute('aria-label', 'Close');
-    closeBtn.style.cssText = `
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #a1a1aa;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      outline: none;
-      padding: 0;
-    `;
-    closeBtn.innerHTML = `
-      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-      </svg>
-    `;
-    closeBtn.onmouseenter = () => {
-      closeBtn.style.background = 'rgba(255, 255, 255, 0.18)';
-      closeBtn.style.color = '#ffffff';
-    };
-    closeBtn.onmouseleave = () => {
-      closeBtn.style.background = 'rgba(255, 255, 255, 0.08)';
-      closeBtn.style.color = '#a1a1aa';
-    };
-
     bar.appendChild(titleWrap);
-    bar.appendChild(closeBtn);
     header.appendChild(bar);
 
     // Iframe container
@@ -604,8 +571,59 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
       }
     };
 
+    // Drag to dismiss physics
+    let isDragging = false;
+    let startY = 0;
+    let currentDeltaY = 0;
+
+    const onDragStart = (clientY: number) => {
+      isDragging = true;
+      startY = clientY;
+      currentDeltaY = 0;
+      sheet.style.transition = 'none';
+      header.style.cursor = 'grabbing';
+    };
+
+    const onDragMove = (clientY: number) => {
+      if (!isDragging) return;
+      const delta = clientY - startY;
+      currentDeltaY = delta < 0 ? delta * 0.22 : delta;
+      sheet.style.transform = `translateY(${currentDeltaY}px)`;
+    };
+
+    const onDragEnd = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      header.style.cursor = 'grab';
+      sheet.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
+      if (currentDeltaY > 75) {
+        closeSheet(true);
+      } else {
+        sheet.style.transform = 'translateY(0)';
+      }
+    };
+
+    header.style.cursor = 'grab';
+    header.style.touchAction = 'none';
+
+    header.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches[0]) onDragStart(e.touches[0].clientY);
+    }, { passive: true });
+    window.addEventListener('touchmove', (e) => {
+      if (isDragging && e.touches && e.touches[0]) onDragMove(e.touches[0].clientY);
+    }, { passive: true });
+    window.addEventListener('touchend', () => { if (isDragging) onDragEnd(); });
+
+    header.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      onDragStart(e.clientY);
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (isDragging) onDragMove(e.clientY);
+    });
+    window.addEventListener('mouseup', () => { if (isDragging) onDragEnd(); });
+
     backdrop.onclick = () => closeSheet(true);
-    closeBtn.onclick = () => closeSheet(true);
     window.addEventListener('message', messageListener);
     window.addEventListener('keydown', keydownListener);
   });

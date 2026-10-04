@@ -177,75 +177,70 @@
       if (isBottomSheet) {
         drawerBaseStyles.push(
           'max-width: 520px',
-          'height: min(85vh, 740px)',
-          'border-top-left-radius: 28px',
-          'border-top-right-radius: 28px',
-          'border-top: 1px solid rgba(255, 255, 255, 0.2)',
+          'height: min(88vh, 760px)',
+          'border-top-left-radius: 32px',
+          'border-top-right-radius: 32px',
+          'border-top: 1px solid rgba(255, 255, 255, 0.4)',
+          'box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35)',
           'transform: translateY(100%)'
         );
       } else {
         drawerBaseStyles.push(
           'max-width: 480px',
           'height: min(90vh, 700px)',
-          'border-radius: 24px',
+          'border-radius: 28px',
           'border: 1px solid #e4e4e7',
           'transform: scale(0.95)'
         );
       }
       drawer.style.cssText = drawerBaseStyles.join(';');
 
-      // 3. Drag Handle / Top Header for Bottom Sheet
-      if (isBottomSheet) {
-        var dragBar = document.createElement('div');
-        dragBar.style.cssText = [
-          'width: 40px',
-          'height: 4px',
-          'border-radius: 9999px',
-          'background: #cbd5e1',
-          'margin: 10px auto 4px',
-          'cursor: grab'
-        ].join(';');
-        drawer.appendChild(dragBar);
-      }
-
-      // 4. Close Icon Button
-      var closeBtn = document.createElement('button');
-      closeBtn.type = 'button';
-      closeBtn.setAttribute('aria-label', 'Close checkout');
-      closeBtn.innerHTML = '&times;';
-      closeBtn.style.cssText = [
-        'position: absolute',
-        'top: 10px',
-        'right: 14px',
-        'width: 32px',
-        'height: 32px',
-        'border-radius: 50%',
-        'border: none',
-        'background: #f1f5f9',
-        'color: #64748b',
-        'font-size: 20px',
-        'font-weight: 300',
-        'line-height: 1',
-        'cursor: pointer',
+      // 3. Header tactile drag zone (NO cross button - clean, native app feel)
+      var header = document.createElement('div');
+      header.style.cssText = [
+        'flex-shrink: 0',
         'display: flex',
         'align-items: center',
         'justify-content: center',
-        'z-index: 10'
+        'position: relative',
+        'padding: ' + (isBottomSheet ? '14px 16px 10px' : '10px 14px'),
+        'background: #ffffff',
+        'user-select: none',
+        '-webkit-user-select: none',
+        'touch-action: none',
+        'cursor: ' + (isBottomSheet ? 'grab' : 'default')
       ].join(';');
 
-      // 5. Iframe
+      var dragBar = null;
+      if (isBottomSheet) {
+        dragBar = document.createElement('div');
+        dragBar.style.cssText = [
+          'width: 44px',
+          'height: 5px',
+          'border-radius: 9999px',
+          'background: #cbd5e1',
+          'pointer-events: none',
+          'transition: background 0.15s ease, transform 0.15s ease'
+        ].join(';');
+        header.appendChild(dragBar);
+      }
+
+      // 4. Iframe wrapper (fills remaining space below header)
+      var iframeWrapper = document.createElement('div');
+      iframeWrapper.style.cssText = 'flex: 1; width: 100%; overflow: hidden;';
+
       var iframe = document.createElement('iframe');
       iframe.src = url;
       iframe.style.cssText = [
         'width: 100%',
-        'height: calc(100% - ' + (isBottomSheet ? '20px' : '0px') + ')',
+        'height: 100%',
         'border: none',
-        'border-radius: ' + (isBottomSheet ? '28px 28px 0 0' : '24px'),
         'background: #ffffff'
       ].join(';');
 
-      drawer.appendChild(closeBtn);
-      drawer.appendChild(iframe);
+      iframeWrapper.appendChild(iframe);
+      drawer.appendChild(header);
+      drawer.appendChild(iframeWrapper);
       backdrop.appendChild(drawer);
       document.body.appendChild(backdrop);
       activeModalContainer = backdrop;
@@ -266,9 +261,12 @@
       var self = this;
 
       return new Promise(function (resolve) {
+        var removeDragListeners = function () {};
+
         var cleanup = function () {
           window.removeEventListener('message', messageListener);
           document.removeEventListener('keydown', escListener);
+          removeDragListeners();
           self.close();
         };
 
@@ -296,19 +294,135 @@
           }
         };
 
-        closeBtn.onclick = function () {
-          cleanup();
-          if (options.onCancel) options.onCancel();
-          resolve({ cancelled: true });
-        };
+        // ─── Native App Gestures: Drag Up / Drag Down Physics ─────────────
+        if (isBottomSheet) {
+          var isDragging = false;
+          var startY = 0;
+          var currentDeltaY = 0;
+          var drawerHeight = 0;
 
-        backdrop.onclick = function (e) {
+          var onDragStart = function (clientY) {
+            isDragging = true;
+            startY = clientY;
+            currentDeltaY = 0;
+            drawerHeight = drawer.offsetHeight || 600;
+            drawer.style.transition = 'none';
+            backdrop.style.transition = 'none';
+            header.style.cursor = 'grabbing';
+            if (dragBar) {
+              dragBar.style.background = '#94a3b8';
+              dragBar.style.transform = 'scaleX(1.15)';
+            }
+          };
+
+          var onDragMove = function (clientY) {
+            if (!isDragging) return;
+            var delta = clientY - startY;
+            if (delta < 0) {
+              // Upward dragging: rubber-band elastic damping resistance
+              currentDeltaY = delta * 0.22;
+            } else {
+              // Downward dragging: direct 1:1 finger tracking
+              currentDeltaY = delta;
+            }
+            drawer.style.transform = 'translateY(' + currentDeltaY + 'px)';
+            if (currentDeltaY > 0) {
+              var progress = Math.min(currentDeltaY / Math.max(drawerHeight * 0.6, 200), 1);
+              backdrop.style.opacity = String(Math.max(0.1, 1 - progress * 0.85));
+            } else {
+              backdrop.style.opacity = '1';
+            }
+          };
+
+          var onDragEnd = function () {
+            if (!isDragging) return;
+            isDragging = false;
+            header.style.cursor = 'grab';
+            if (dragBar) {
+              dragBar.style.background = '#cbd5e1';
+              dragBar.style.transform = 'scaleX(1)';
+            }
+
+            drawer.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
+            backdrop.style.transition = 'opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+
+            // Dismiss threshold: 75px
+            if (currentDeltaY > 75) {
+              drawer.style.transform = 'translateY(100%)';
+              backdrop.style.opacity = '0';
+              setTimeout(function () {
+                cleanup();
+                if (options.onCancel) options.onCancel();
+                resolve({ cancelled: true });
+              }, 220);
+            } else {
+              // Elastic snap-back
+              drawer.style.transform = 'translateY(0)';
+              backdrop.style.opacity = '1';
+            }
+          };
+
+          // Touch listeners
+          var touchStartHandler = function (e) {
+            if (e.touches && e.touches[0]) {
+              onDragStart(e.touches[0].clientY);
+            }
+          };
+          var touchMoveHandler = function (e) {
+            if (isDragging && e.touches && e.touches[0]) {
+              onDragMove(e.touches[0].clientY);
+            }
+          };
+          var touchEndHandler = function () {
+            if (isDragging) onDragEnd();
+          };
+
+          // Mouse listeners
+          var mouseDownHandler = function (e) {
+            e.preventDefault();
+            onDragStart(e.clientY);
+          };
+          var mouseMoveHandler = function (e) {
+            if (isDragging) {
+              onDragMove(e.clientY);
+            }
+          };
+          var mouseUpHandler = function () {
+            if (isDragging) onDragEnd();
+          };
+
+          header.addEventListener('touchstart', touchStartHandler, { passive: true });
+          window.addEventListener('touchmove', touchMoveHandler, { passive: true });
+          window.addEventListener('touchend', touchEndHandler, { passive: true });
+          window.addEventListener('touchcancel', touchEndHandler, { passive: true });
+
+          header.addEventListener('mousedown', mouseDownHandler);
+          window.addEventListener('mousemove', mouseMoveHandler);
+          window.addEventListener('mouseup', mouseUpHandler);
+
+          removeDragListeners = function () {
+            header.removeEventListener('touchstart', touchStartHandler);
+            window.removeEventListener('touchmove', touchMoveHandler);
+            window.removeEventListener('touchend', touchEndHandler);
+            window.removeEventListener('touchcancel', touchEndHandler);
+
+            header.removeEventListener('mousedown', mouseDownHandler);
+            window.removeEventListener('mousemove', mouseMoveHandler);
+            window.removeEventListener('mouseup', mouseUpHandler);
+          };
+        }
+
+        // ─── Instant Dismiss on Click Outside ─────────────────────────────
+        var handleBackdropDismiss = function (e) {
           if (e.target === backdrop) {
             cleanup();
             if (options.onCancel) options.onCancel();
             resolve({ cancelled: true });
           }
         };
+
+        backdrop.addEventListener('click', handleBackdropDismiss);
+        backdrop.addEventListener('touchend', handleBackdropDismiss, { passive: true });
 
         window.addEventListener('message', messageListener);
         document.addEventListener('keydown', escListener);
@@ -324,8 +438,10 @@
       var drawer = backdrop.querySelector('#one-eighty-pay-drawer');
       
       if (drawer) {
+        drawer.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
         drawer.style.transform = 'translateY(100%)';
       }
+      backdrop.style.transition = 'opacity 0.22s ease';
       backdrop.style.opacity = '0';
 
       setTimeout(function () {
@@ -334,7 +450,7 @@
         }
         document.body.style.overflow = '';
         activeModalContainer = null;
-      }, 250);
+      }, 240);
     },
 
     /**

@@ -512,6 +512,22 @@ export class CheckoutService {
 
     const amountPaise = Math.round(session.amount * 100);
 
+    // Fast-path idempotency cache: If a Razorpay order was already pre-created for this exact amount and key, reuse it!
+    const sessionMeta = (session.metadata as any) || {};
+    if (
+      sessionMeta.razorpayOrderId &&
+      sessionMeta.razorpayAmountPaise === amountPaise &&
+      sessionMeta.razorpayKeyId === keyId
+    ) {
+      return {
+        orderId: sessionMeta.razorpayOrderId,
+        amountPaise,
+        currency: session.currency || 'INR',
+        keyId,
+        gatewayType: 'RAZORPAY',
+      };
+    }
+
     // If sandbox / simulated test key, generate simulated order without remote network call
     if (keyId.includes('test_') || keyId.includes('custom_') || keyId.includes('mock_') || keyId.includes('simulated')) {
       return {
@@ -547,11 +563,29 @@ export class CheckoutService {
       }
     );
 
+    // Persist prewarmed/created order to avoid duplicate calls to Razorpay
+    try {
+      await prisma.checkoutSession.update({
+        where: { id: sessionId },
+        data: {
+          metadata: {
+            ...sessionMeta,
+            razorpayOrderId: rzpResponse.data.id,
+            razorpayAmountPaise: amountPaise,
+            razorpayKeyId: keyId,
+          },
+        },
+      });
+    } catch (metaErr: any) {
+      console.warn('[CheckoutService:createDirectOrder] Could not cache order metadata:', metaErr?.message);
+    }
+
     return {
       orderId: rzpResponse.data.id,
       amountPaise,
       currency: session.currency || 'INR',
       keyId,
+      gatewayType: 'RAZORPAY',
     };
   }
 

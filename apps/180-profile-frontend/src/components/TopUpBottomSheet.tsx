@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { CreditCard, X, ShieldCheck, CheckCircle2, Wallet, ArrowRight } from 'lucide-react';
+import { CreditCard, ShieldCheck, CheckCircle2, Wallet, ArrowRight } from 'lucide-react';
 import { Button, LogoLoader } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { getCoreApiUrl } from '@/lib/api';
@@ -24,6 +24,72 @@ export function TopUpBottomSheet({
   const [loading, setLoading] = useState(false);
 
   const quickAmounts = [500, 1000, 2500, 5000];
+
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartY = React.useRef(0);
+
+  // Pre-load Razorpay checkout JS immediately into DOM
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!(window as any).Razorpay && !document.querySelector('script[src*="checkout.razorpay.com"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  // Global drag listeners for fluid drag-to-dismiss gesture
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientY - dragStartY.current;
+      setDragY(delta < 0 ? delta * 0.22 : delta);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setDragY((prev) => {
+        if (prev > 75) {
+          onClose();
+          return 0;
+        }
+        return 0;
+      });
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches && e.touches[0]) {
+        const delta = e.touches[0].clientY - dragStartY.current;
+        setDragY(delta < 0 ? delta * 0.22 : delta);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+      setDragY((prev) => {
+        if (prev > 75) {
+          onClose();
+          return 0;
+        }
+        return 0;
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDragging, onClose]);
 
   // Close on Escape key
   useEffect(() => {
@@ -181,13 +247,30 @@ export function TopUpBottomSheet({
       {/* Bottom Sheet Drawer */}
       <div
         className="relative z-10 w-full max-w-lg bg-white rounded-t-[32px] border-t border-slate-200/90 shadow-2xl overflow-hidden p-6 sm:p-7 pb-8 animate-in slide-in-from-bottom duration-300 ease-out"
+        style={{
+          transform: `translateY(${dragY}px)`,
+          transition: isDragging ? 'none' : 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="bottom-sheet-title"
       >
-        {/* Drag Handle Bar */}
-        <div className="flex justify-center -mt-2 mb-4">
-          <div className="w-12 h-1.5 rounded-full bg-slate-300 cursor-grab" />
+        {/* Tactile Drag Handle Bar (Interactive Drag to Dismiss) */}
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            dragStartY.current = e.clientY;
+            setIsDragging(true);
+          }}
+          onTouchStart={(e) => {
+            if (e.touches && e.touches[0]) {
+              dragStartY.current = e.touches[0].clientY;
+              setIsDragging(true);
+            }
+          }}
+          className="flex justify-center -mt-3 pt-2 pb-4 cursor-grab active:cursor-grabbing touch-none select-none"
+        >
+          <div className="w-12 h-1.5 rounded-full bg-slate-300 transition-all hover:bg-slate-400" />
         </div>
 
         {/* Header */}
@@ -203,15 +286,6 @@ export function TopUpBottomSheet({
               <p className="text-xs text-slate-500">Universal 180 Pay Sovereign Ledger</p>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
-            aria-label="Close bottom sheet"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Current Balance Banner */}
