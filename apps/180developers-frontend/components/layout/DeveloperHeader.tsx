@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Menu,
-  Search,
-  Plus,
   Code2,
   Shield,
   Layers,
@@ -19,7 +17,6 @@ import {
   Check,
   Copy,
 } from 'lucide-react';
-import { Button } from '@workspace/ui';
 import ThemeToggle from '../ThemeToggle';
 import toast from 'react-hot-toast';
 
@@ -125,57 +122,10 @@ export function DeveloperHeader({
           )}
         </div>
 
-        {/* Environment Badge */}
-        <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Production Ready</span>
-        </div>
       </div>
 
-      {/* Right Area: Search, CTAs, ThemeToggle, User Avatar */}
+      {/* Right Area: ThemeToggle, User Avatar */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Quick Filter Search (if onSearchChange provided) */}
-        {onSearchChange && (
-          <div className="relative hidden xl:block w-64">
-            <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search projects..."
-              value={searchQuery || ''}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-white/10 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-500 transition-colors"
-            />
-          </div>
-        )}
-
-        {/* Interactive Playground CTA */}
-        {onTabChange && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onTabChange('playground')}
-            className="hidden sm:inline-flex rounded-xl border-zinc-200/80 dark:border-white/10 text-xs font-semibold gap-1.5 min-h-[38px] hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          >
-            <Code2 className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
-            <span>Playground</span>
-          </Button>
-        )}
-
-        {/* Register Project CTA */}
-        {onOpenRegisterModal && (
-          <Button
-            type="button"
-            onClick={onOpenRegisterModal}
-            size="sm"
-            className="rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 font-bold text-xs shadow-xs flex items-center gap-1.5 min-h-[38px] cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Register Project</span>
-            <span className="sm:hidden">New</span>
-          </Button>
-        )}
-
         {/* Theme Toggle */}
         <ThemeToggle />
 

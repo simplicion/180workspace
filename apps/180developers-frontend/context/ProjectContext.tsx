@@ -238,14 +238,20 @@ export function ProjectProvider({
     try {
       const token = localStorage.getItem('platform_auth_token');
       const apiBase = getApiBase();
-      const res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${projectId}/analytics`, {
+      let res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${projectId}/analytics`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 404) {
+        res = await fetch(`${apiBase}/api/v1/identity/developer/apps/${projectId}/payment-analytics`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
       if (res.ok) {
         const data = await res.json();
-        setPaymentAnalytics(data.analytics || null);
-        if (typeof data.analytics?.withdrawableBalance === 'number') {
-          setPayoutBalance(data.analytics.withdrawableBalance);
+        const analytics = data.analytics || data.data || data;
+        setPaymentAnalytics(analytics || null);
+        if (typeof analytics?.withdrawableBalance === 'number') {
+          setPayoutBalance(analytics.withdrawableBalance);
         }
       }
     } catch (_) {}
@@ -266,7 +272,7 @@ export function ProjectProvider({
       });
       if (res.ok) {
         const data = await res.json();
-        setPayoutHistory(data.payouts || []);
+        setPayoutHistory(data.payouts || data.data || []);
       }
     } catch (_) {}
     finally {

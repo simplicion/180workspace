@@ -824,7 +824,7 @@ function DeveloperDashboardContent() {
         />
 
         {/* Dynamic Dashboard Page Content */}
-        <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-8 flex-1 relative z-10">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-8 flex-1 relative z-10">
           {/* ─────────────────────────────────────────────────────────────────────────
               TAB 1: PROJECTS (Default Console List)
               ───────────────────────────────────────────────────────────────────────── */}
@@ -847,35 +847,6 @@ function DeveloperDashboardContent() {
                       {userProfile?.name || 'Developer'}
                     </strong>
                   </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Link
-                    href="/billing"
-                    className="rounded-xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-zinc-900 text-xs font-semibold min-h-[40px] px-3.5 flex items-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 transition-all shadow-xs"
-                  >
-                    <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>Billing & Plans</span>
-                  </Link>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleTabChange('playground')}
-                    className="rounded-xl border-zinc-200/80 dark:border-white/10 text-xs font-semibold min-h-[40px] flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                  >
-                    <Code2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>API Playground</span>
-                  </Button>
-
-                  <Button
-                    onClick={() => setShowCreateModal(true)}
-                    size="sm"
-                    className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 flex items-center gap-2 cursor-pointer min-h-[40px]"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Register New Project</span>
-                  </Button>
                 </div>
               </div>
 
@@ -1015,89 +986,89 @@ function DeveloperDashboardContent() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 xl:gap-5">
                   {filteredApps.map((app) => (
                     <div
                       key={app.id}
-                      className="rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] p-6 space-y-5 shadow-xs hover:border-zinc-300 dark:hover:border-white/20 transition-all group flex flex-col justify-between"
+                      className="rounded-3xl border border-zinc-200/80 dark:border-white/10 bg-white dark:bg-[#101012] p-5 space-y-4 shadow-xs hover:border-zinc-300 dark:hover:border-white/20 transition-all group flex flex-col justify-between"
                     >
-                      <div className="space-y-4">
+                      <div className="space-y-3.5">
                         {/* Header with App Logo and Badges */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2.5 min-w-0">
                             {app.logoUrl ? (
                               <img
                                 src={app.logoUrl}
                                 alt={app.name}
-                                className="w-11 h-11 rounded-2xl object-cover border border-zinc-200 dark:border-white/10 shrink-0"
+                                className="w-10 h-10 rounded-2xl object-cover border border-zinc-200 dark:border-white/10 shrink-0"
                               />
                             ) : (
-                              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-sm shrink-0">
+                              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
                                 {app.name[0]?.toUpperCase() || 'A'}
                               </div>
                             )}
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-base text-zinc-950 dark:text-white tracking-tight">
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h3 className="font-bold text-sm text-zinc-950 dark:text-white tracking-tight truncate max-w-[130px]" title={app.name}>
                                   {app.name}
                                 </h3>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shrink-0">
                                   Active
                                 </span>
                               </div>
-                              <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">
+                              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-1">
                                 {app.description || '180 Workspace Sovereign Business Operating System'}
                               </p>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
                             {app.enableAuth && (
                               <span
-                                className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30"
+                                className="p-1 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30"
                                 title="180 Identity SSO Active"
                               >
-                                <Shield className="w-3.5 h-3.5" />
+                                <Shield className="w-3 h-3" />
                               </span>
                             )}
                             {app.enablePay && (
                               <span
-                                className="p-1.5 rounded-lg bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/30"
+                                className="p-1 rounded-lg bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/30"
                                 title="180 Pay Checkout Active"
                               >
-                                <CreditCard className="w-3.5 h-3.5" />
+                                <CreditCard className="w-3 h-3" />
                               </span>
                             )}
                           </div>
                         </div>
 
                         {/* Client ID & Credentials Box */}
-                        <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-white/5 space-y-2">
+                        <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-white/5 space-y-1.5">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-mono text-zinc-500 dark:text-zinc-400 text-[11px]">
+                            <span className="font-mono text-zinc-500 dark:text-zinc-400 text-[10px]">
                               Client ID
                             </span>
                             <button
                               onClick={() => copyToClipboard(app.clientId, 'client')}
-                              className="flex items-center gap-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                              className="flex items-center gap-1 text-[10px] font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                             >
                               {clientIdCopied ? (
-                                <Check className="w-3 h-3 text-emerald-500" />
+                                <Check className="w-2.5 h-2.5 text-emerald-500" />
                               ) : (
-                                <Copy className="w-3 h-3" />
+                                <Copy className="w-2.5 h-2.5" />
                               )}
                               <span>{clientIdCopied ? 'Copied' : 'Copy'}</span>
                             </button>
                           </div>
-                          <div className="font-mono text-xs text-zinc-900 dark:text-zinc-200 truncate select-all">
+                          <div className="font-mono text-[11px] text-zinc-900 dark:text-zinc-200 truncate select-all">
                             {app.clientId}
                           </div>
 
-                          <div className="pt-2 border-t border-zinc-200/60 dark:border-white/5 flex items-center justify-between text-xs">
-                            <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          <div className="pt-1.5 border-t border-zinc-200/60 dark:border-white/5 flex items-center justify-between text-xs">
+                            <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
                               Secret Hint:
                             </span>
-                            <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                            <span className="font-mono text-[11px] text-zinc-600 dark:text-zinc-400">
                               {app.clientSecretHint ? `••••${app.clientSecretHint}` : '••••3c9c'}
                             </span>
                             <button
@@ -1105,40 +1076,40 @@ function DeveloperDashboardContent() {
                                 setRotatingApp(app);
                                 setShowRotateModal(true);
                               }}
-                              className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                              className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
                             >
-                              <RotateCw className="w-3 h-3" />
+                              <RotateCw className="w-2.5 h-2.5" />
                               <span>Rotate</span>
                             </button>
                           </div>
                         </div>
 
                         {/* Per-Project Billing & Usage Row */}
-                        <div className="p-3 rounded-2xl bg-zinc-100/70 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-white/5 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
-                            <span className="font-semibold text-zinc-900 dark:text-white text-[11px]">
+                        <div className="p-2.5 rounded-xl bg-zinc-100/70 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-white/5 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <CreditCard className="w-3 h-3 text-emerald-500" />
+                            <span className="font-semibold text-zinc-900 dark:text-white text-[10px]">
                               Free Sandbox Plan
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                          <div className="flex items-center gap-1 font-mono text-[10px]">
                             <span className="text-zinc-500 dark:text-zinc-400">Accrued:</span>
                             <span className="font-bold text-emerald-600 dark:text-emerald-400">₹0.00</span>
                           </div>
                         </div>
 
                         {/* Configuration Summary */}
-                        <div className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
-                          <div className="flex items-center justify-between text-[11px]">
+                        <div className="space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+                          <div className="flex items-center justify-between text-[10px]">
                             <span>Redirect URIs:</span>
                             <span className="font-mono text-zinc-900 dark:text-zinc-300">
                               {app.redirectUris?.length || 1} configured
                             </span>
                           </div>
                           {app.webhookUrl && (
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span>Payment Webhook:</span>
-                              <span className="font-mono text-purple-600 dark:text-purple-400 truncate max-w-[200px]">
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span>Webhook:</span>
+                              <span className="font-mono text-purple-600 dark:text-purple-400 truncate max-w-[130px]" title={app.webhookUrl}>
                                 {app.webhookUrl}
                               </span>
                             </div>
@@ -1147,30 +1118,30 @@ function DeveloperDashboardContent() {
                       </div>
 
                       {/* Footer Actions: Project Hub, 180 Identity, 180 Pay */}
-                      <div className="pt-3 border-t border-zinc-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="pt-2.5 border-t border-zinc-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-1.5 text-xs">
                         <Link
                           href={`/apps/${app.id}`}
-                          className="font-bold text-zinc-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 transition-colors min-h-[36px]"
+                          className="font-bold text-xs text-zinc-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1 transition-colors min-h-[32px]"
                         >
-                          <span>Manage Project</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span>Manage</span>
+                          <ArrowRight className="w-3 h-3" />
                         </Link>
 
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           {app.enableAuth && (
                             <Link
                               href={`/apps/${app.id}/identity`}
-                              className="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors"
+                              className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors"
                             >
-                              180 Identity
+                              Identity
                             </Link>
                           )}
                           {app.enablePay && (
                             <Link
                               href={`/apps/${app.id}/pay`}
-                              className="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition-colors"
+                              className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition-colors"
                             >
-                              180 Pay
+                              Pay
                             </Link>
                           )}
                         </div>

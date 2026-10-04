@@ -11,6 +11,23 @@ import { uploadBufferToR2, buildR2Key, deleteObjectFromR2 } from '@workspace/int
 import { inspectLogoBuffer, SUPPORTED_LOGO_MIMES } from '../middleware/logo-upload.middleware';
 import axios from 'axios';
 
+/**
+ * Resolves an OAuth application by internal UUID or public Client ID,
+ * optionally verifying ownership against userId.
+ */
+async function resolveApp(idOrClientId: string, userId?: string) {
+  if (!idOrClientId) return null;
+  return prisma.oAuthApp.findFirst({
+    where: {
+      OR: [
+        { id: idOrClientId },
+        { clientId: idOrClientId },
+      ],
+      ...(userId ? { userId } : {}),
+    },
+  });
+}
+
 export class DeveloperApiController {
   static listApps = DomainDeveloperController.listApps;
   static getApp = DomainDeveloperController.getApp;
@@ -31,16 +48,16 @@ export class DeveloperApiController {
       const appId = String(req.params.id);
 
       // Verify app ownership
-      const app = await prisma.oAuthApp.findFirst({
-        where: { id: appId, ...(userId ? { userId } : {}) },
-      });
+      const app = await resolveApp(appId, userId);
       if (!app) {
         return res.status(404).json({ success: false, error: 'App not found' });
       }
 
+      const appIds = [app.id, app.clientId];
+
       // Query consents and active tokens
       const consents = await prisma.oAuthConsent.findMany({
-        where: { appId },
+        where: { appId: { in: appIds } },
         include: {
           user: {
             select: {
@@ -60,12 +77,12 @@ export class DeveloperApiController {
 
       const [tokens, appUserIdentities] = await Promise.all([
         prisma.oAuthToken.findMany({
-          where: { appId },
+          where: { appId: { in: appIds } },
           orderBy: { createdAt: 'desc' },
           take: 50,
         }),
         prisma.appUserIdentity.findMany({
-          where: { appId },
+          where: { appId: { in: appIds } },
         }),
       ]);
 
@@ -122,18 +139,17 @@ export class DeveloperApiController {
 
   /**
    * POST /api/v1/developer/apps/:id/users/:targetUserId/revoke
+   * POST /api/v1/developer/apps/:id/revoke-user
    * Revokes active tokens and sessions for a specific user in this application
    */
   static async revokeUserSession(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
       const appId = String(req.params.id);
-      const targetUserId = String(req.params.targetUserId);
+      const targetUserId = String(req.body?.userId || req.params.targetUserId);
 
       // Verify app ownership
-      const app = await prisma.oAuthApp.findFirst({
-        where: { id: appId, ...(userId ? { userId } : {}) },
-      });
+      const app = await resolveApp(appId, userId);
       if (!app) {
         return res.status(404).json({ success: false, error: 'App not found' });
       }
@@ -141,7 +157,7 @@ export class DeveloperApiController {
       // Revoke all active tokens for this user in this app
       await prisma.oAuthToken.updateMany({
         where: {
-          appId,
+          appId: { in: [app.id, app.clientId] },
           userId: targetUserId,
           revokedAt: null,
         },
@@ -162,6 +178,7 @@ export class DeveloperApiController {
 
   /**
    * GET /api/v1/developer/apps/:id/payment-analytics
+   * GET /api/v1/developer/apps/:id/analytics
    * Aggregates total payments, last month volume, upcoming settlements, and ledger
    */
   static async getPaymentAnalytics(req: Request, res: Response) {
@@ -169,25 +186,25 @@ export class DeveloperApiController {
       const userId = (req as any).user?.id;
       const appId = String(req.params.id);
 
-      const app = await prisma.oAuthApp.findFirst({
-        where: { id: appId, ...(userId ? { userId } : {}) },
-      });
+      const app = await resolveApp(appId, userId);
       if (!app) {
         return res.status(404).json({ success: false, error: 'App not found' });
       }
 
+      const appIds = [app.id, app.clientId];
+
       // Checkouts
       const allSessions = await prisma.checkoutSession.findMany({
-        where: { appId },
+        where: { appId: { in: appIds } },
         include: {
           user: {
-            select: { id: true, name: true, email: true, username: true },
+            select: { id: true, name: true, email: true, username: true, phone: true },
           },
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      const capturedSessions = allSessions.filter((s) => s.status === 'CAPTURED');
+      const capturedSessions = allSessions.filter((s) => s.status === 'CAPTURED' || s.status === 'SUCCESS');
       const pendingSessions = allSessions.filter((s) => s.status === 'PENDING');
 
       // Gross lifetime volume
@@ -216,33 +233,58 @@ export class DeveloperApiController {
       const pendingSettlements = pendingSessions.reduce((sum, s) => sum + s.amount, 0);
 
       // Wallet balance
-      const appWallet = await prisma.wallet.findUnique({
-        where: { developerAppId: appId },
+      const appWallet = await prisma.wallet.findFirst({
+        where: { developerAppId: { in: appIds } },
       });
       const withdrawableBalance = appWallet ? appWallet.balance : 0;
 
+      const transactions = allSessions.slice(0, 100).map((s) => {
+        const meta = (s.metadata as any) || {};
+        const customerName =
+          s.user?.name ||
+          meta.customerName ||
+          meta.name ||
+          (meta.customerEmail ? meta.customerEmail.split('@')[0] : '') ||
+          'Customer';
+        const customerPhone = s.user?.phone || meta.customerPhone || meta.phone || '';
+        const method =
+          meta.paymentMethod ||
+          meta.paymentSource ||
+          meta.method ||
+          meta.gateway ||
+          '180 Pay / Sovereign Wallet';
+
+        return {
+          id: s.id,
+          amount: s.amount,
+          currency: s.currency || 'INR',
+          status: s.status,
+          title: s.title,
+          description: s.description,
+          customer: s.user ? { name: s.user.name, email: s.user.email, phone: s.user.phone } : null,
+          customerName,
+          customerPhone,
+          method,
+          createdAt: s.createdAt,
+          completedAt: s.completedAt,
+        };
+      });
+
+      const analyticsData = {
+        grossVolume: Math.round(grossVolume * 100) / 100,
+        thisMonthVolume: Math.round(thisMonthVolume * 100) / 100,
+        lastMonthVolume: Math.round(lastMonthVolume * 100) / 100,
+        pendingSettlements: Math.round(pendingSettlements * 100) / 100,
+        withdrawableBalance: Math.round(withdrawableBalance * 100) / 100,
+        currency: appWallet?.currency || 'INR',
+        totalTransactionsCount: capturedSessions.length,
+        transactions,
+      };
+
       return res.json({
         success: true,
-        data: {
-          grossVolume: Math.round(grossVolume * 100) / 100,
-          thisMonthVolume: Math.round(thisMonthVolume * 100) / 100,
-          lastMonthVolume: Math.round(lastMonthVolume * 100) / 100,
-          pendingSettlements: Math.round(pendingSettlements * 100) / 100,
-          withdrawableBalance: Math.round(withdrawableBalance * 100) / 100,
-          currency: appWallet?.currency || 'INR',
-          totalTransactionsCount: capturedSessions.length,
-          transactions: allSessions.slice(0, 20).map((s) => ({
-            id: s.id,
-            amount: s.amount,
-            currency: s.currency,
-            status: s.status,
-            title: s.title,
-            description: s.description,
-            customer: s.user ? { name: s.user.name, email: s.user.email } : null,
-            createdAt: s.createdAt,
-            completedAt: s.completedAt,
-          })),
-        },
+        data: analyticsData,
+        analytics: analyticsData,
       });
     } catch (err: any) {
       console.error('[DeveloperApiController:getPaymentAnalytics] Error:', err);
@@ -258,9 +300,7 @@ export class DeveloperApiController {
       const userId = (req as any).user?.id;
       const appId = String(req.params.id);
 
-      const app = await prisma.oAuthApp.findFirst({
-        where: { id: appId, ...(userId ? { userId } : {}) },
-      });
+      const app = await resolveApp(appId, userId);
       if (!app) {
         return res.status(404).json({ success: false, error: 'App not found' });
       }
@@ -270,7 +310,7 @@ export class DeveloperApiController {
       // Fallback: check latest PayoutRequest for this app
       if (!bankDetails) {
         const latestPayout = await prisma.payoutRequest.findFirst({
-          where: { appId },
+          where: { appId: { in: [app.id, app.clientId] } },
           orderBy: { requestedAt: 'desc' },
         });
         if (latestPayout?.accountDetails) {
@@ -304,9 +344,7 @@ export class DeveloperApiController {
         });
       }
 
-      const app = await prisma.oAuthApp.findFirst({
-        where: { id: appId, ...(userId ? { userId } : {}) },
-      });
+      const app = await resolveApp(appId, userId);
       if (!app) {
         return res.status(404).json({ success: false, error: 'App not found' });
       }
@@ -321,7 +359,7 @@ export class DeveloperApiController {
       };
 
       const updated = await prisma.oAuthApp.update({
-        where: { id: appId },
+        where: { id: app.id },
         data: {
           bankDetails,
         } as any,
@@ -348,12 +386,17 @@ export class DeveloperApiController {
         return res.status(401).json({ success: false, error: 'Authentication required' });
       }
 
-      const appId = String(req.params.appId);
+      const rawAppId = String(req.params.appId);
+      const app = await resolveApp(rawAppId, userId);
+      if (!app) {
+        return res.status(404).json({ success: false, error: 'OAuth Application not found' });
+      }
+
       const { amount, payoutMethod, accountDetails } = req.body;
 
       const result = await PayoutService.requestPayout({
         userId,
-        appId,
+        appId: app.id,
         amount: Number(amount),
         payoutMethod,
         accountDetails,
@@ -376,8 +419,13 @@ export class DeveloperApiController {
         return res.status(401).json({ success: false, error: 'Authentication required' });
       }
 
-      const appId = String(req.params.appId);
-      const result = await PayoutService.listPayouts(appId, userId);
+      const rawAppId = String(req.params.appId);
+      const app = await resolveApp(rawAppId, userId);
+      if (!app) {
+        return res.status(404).json({ success: false, error: 'OAuth Application not found' });
+      }
+
+      const result = await PayoutService.listPayouts(app.id, userId);
 
       return res.json({ success: true, data: result });
     } catch (err: any) {
@@ -537,9 +585,7 @@ export class DeveloperApiController {
       let updatedApp = null;
       // If appId is provided, verify app ownership and persist logoUrl
       if (appId) {
-        const existingApp = await prisma.oAuthApp.findFirst({
-          where: { id: appId, ...(userId ? { userId } : {}) },
-        });
+        const existingApp = await resolveApp(appId, userId);
 
         if (!existingApp) {
           return res.status(404).json({
@@ -558,7 +604,7 @@ export class DeveloperApiController {
         }
 
         updatedApp = await prisma.oAuthApp.update({
-          where: { id: appId },
+          where: { id: existingApp.id },
           data: { logoUrl: url },
         });
       }
@@ -586,18 +632,7 @@ export class DeveloperApiController {
   static async getGatewaySettings(req: Request, res: Response) {
     try {
       const appId = String(req.params.id);
-      const app = await prisma.oAuthApp.findUnique({
-        where: { id: appId },
-        select: {
-          id: true,
-          customGatewayType: true,
-          customGatewayKeyId: true,
-          customGatewayWebhookSecret: true,
-          customPayDomain: true,
-          customDomainStatus: true,
-          customGatewaySecret: true,
-        },
-      });
+      const app = await resolveApp(appId);
 
       if (!app) {
         return res.status(404).json({ success: false, error: 'App not found' });
@@ -626,6 +661,11 @@ export class DeveloperApiController {
   static async saveGatewaySettings(req: Request, res: Response) {
     try {
       const appId = String(req.params.id);
+      const app = await resolveApp(appId);
+      if (!app) {
+        return res.status(404).json({ success: false, error: 'App not found' });
+      }
+
       const {
         customGatewayType,
         customGatewayKeyId,
@@ -646,7 +686,7 @@ export class DeveloperApiController {
       }
 
       const updated = await prisma.oAuthApp.update({
-        where: { id: appId },
+        where: { id: app.id },
         data: updateData,
         select: {
           id: true,
@@ -701,10 +741,7 @@ export class DeveloperApiController {
   static async verifyCustomDomain(req: Request, res: Response) {
     try {
       const appId = String(req.params.id);
-      const app = await prisma.oAuthApp.findUnique({
-        where: { id: appId },
-        select: { id: true, customPayDomain: true, customDomainStatus: true },
-      });
+      const app = await resolveApp(appId);
 
       if (!app || !app.customPayDomain) {
         return res.status(400).json({ success: false, error: 'No custom pay domain configured for this app' });
@@ -746,7 +783,7 @@ export class DeveloperApiController {
       const newStatus = isVerified ? 'ACTIVE' : 'PENDING';
 
       await prisma.oAuthApp.update({
-        where: { id: appId },
+        where: { id: app.id },
         data: { customDomainStatus: newStatus },
       });
 

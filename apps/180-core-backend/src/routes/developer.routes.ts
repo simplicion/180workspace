@@ -25,7 +25,9 @@ router.delete('/apps/:id', protect, DeveloperApiController.deleteApp);
 // ─── App Real-Time Telemetry & Financial Analytics ───────────────────────────
 router.get('/apps/:id/auth-logs', protect, DeveloperApiController.getAuthLogs);
 router.post('/apps/:id/users/:targetUserId/revoke', protect, DeveloperApiController.revokeUserSession);
+router.post('/apps/:id/revoke-user', protect, DeveloperApiController.revokeUserSession);
 router.get('/apps/:id/payment-analytics', protect, DeveloperApiController.getPaymentAnalytics);
+router.get('/apps/:id/analytics', protect, DeveloperApiController.getPaymentAnalytics);
 router.get('/apps/:id/bank-details', protect, DeveloperApiController.getBankDetails);
 router.put('/apps/:id/bank-details', protect, DeveloperApiController.saveBankDetails);
 

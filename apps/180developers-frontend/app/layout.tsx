@@ -24,6 +24,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/black-icon.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://api.fontshare.com" />
+        <link
+          href="https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,300,400&display=swap"
+          rel="stylesheet"
+        />
 
         <script
           dangerouslySetInnerHTML={{
