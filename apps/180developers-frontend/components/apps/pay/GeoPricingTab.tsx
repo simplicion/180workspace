@@ -1,4 +1,4 @@
-'use strict';
+'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -12,10 +12,8 @@ import {
   TrendingDown,
   RefreshCw,
   Sparkles,
-  HelpCircle,
   Sliders,
   ArrowRight,
-  ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
@@ -104,7 +102,7 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
       if (dirRes.ok && dirData.success) {
         setDirectory(dirData.directory || []);
       }
-    } catch (err: any) {
+    } catch {
       toast.error('Failed to load geo-pricing configuration');
     } finally {
       setLoading(false);
@@ -179,7 +177,7 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
         toast.error(data.error || 'Failed to toggle PPP pricing');
       }
     } catch {
-      toast.error('Network error while toggling PPP');
+      toast.error('Network error toggling PPP pricing');
     } finally {
       setTogglingPPP(false);
     }
@@ -192,9 +190,9 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
       const token = localStorage.getItem('platform_auth_token');
       const apiBase = getApiBase();
 
-      const payload: any = {
-        countryCode: ruleCountry.toUpperCase(),
-        customCurrency: ruleCurrency.toUpperCase(),
+      const payload: Record<string, any> = {
+        countryCode: ruleCountry,
+        customCurrency: ruleCurrency,
         isEnabled: true,
       };
 
@@ -257,40 +255,46 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner & Automated PPP Toggle */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950/40 via-purple-900/20 to-zinc-950 p-6 border border-indigo-500/20 shadow-2xl backdrop-blur-xl">
+    <div className="space-y-8">
+      {/* 1. Top Banner & Automated PPP Toggle */}
+      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400">
-                <Globe className="h-4 w-4" />
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+                <Globe className="h-5 w-5" />
               </span>
-              <h2 className="text-xl font-bold text-white tracking-tight">Dynamic Geo-Pricing & PPP Engine</h2>
-              <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+              <h2 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight">
+                Dynamic Geo-Pricing & PPP Engine
+              </h2>
+              <span className="rounded-full bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
                 Cloudflare Edge Detected
               </span>
             </div>
-            <p className="text-sm text-zinc-300 leading-relaxed">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
               Automatically calculate Purchasing Power Parity (PPP) discounts based on the visitor&apos;s country header (
-              <code className="text-xs bg-zinc-800 px-1.5 py-0.5 rounded text-indigo-300">CF-IPCountry</code>). Increase
-              international revenue by making checkout affordable in developing economies while maintaining full price in high-income markets.
+              <code className="text-xs font-mono bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 px-1.5 py-0.5 rounded text-indigo-700 dark:text-indigo-300">
+                CF-IPCountry
+              </code>
+              ). Increase international revenue by making checkout affordable in developing economies while maintaining full price in high-income markets.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-zinc-900/80 p-4 rounded-xl border border-zinc-800">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-zinc-50 dark:bg-zinc-900/60 p-4 rounded-2xl border border-zinc-200 dark:border-white/10">
             <div>
-              <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Automated World Bank PPP</div>
-              <div className="text-sm font-bold text-white flex items-center gap-1.5 mt-0.5">
+              <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Automated World Bank PPP
+              </div>
+              <div className="text-sm font-bold text-zinc-950 dark:text-white flex items-center gap-1.5 mt-0.5">
                 {pppEnabled ? (
                   <>
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    <span className="text-emerald-400">Active (4 World Tiers)</span>
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">Active (4 World Tiers)</span>
                   </>
                 ) : (
                   <>
-                    <XCircle className="h-4 w-4 text-zinc-500" />
-                    <span className="text-zinc-400">Disabled (Global Flat USD)</span>
+                    <XCircle className="h-4 w-4 text-zinc-400" />
+                    <span className="text-zinc-500 dark:text-zinc-400 font-medium">Disabled (Global Flat USD)</span>
                   </>
                 )}
               </div>
@@ -302,8 +306,8 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
               size="sm"
               className={
                 pppEnabled
-                  ? 'border-zinc-700 hover:bg-zinc-800 text-zinc-200'
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                  ? 'border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-medium cursor-pointer shadow-xs rounded-xl'
+                  : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white text-xs font-medium cursor-pointer shadow-xs rounded-xl'
               }
             >
               {togglingPPP ? 'Updating...' : pppEnabled ? 'Disable PPP' : 'Enable Automated PPP'}
@@ -312,56 +316,54 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
         </div>
       </div>
 
-      {/* Live Regional Simulator */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 backdrop-blur-xl shadow-xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4 mb-6">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/20 text-purple-400">
-              <Sliders className="h-4 w-4" />
+      {/* 2. Live Regional Simulator Card */}
+      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-white/10 pb-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-500/20 text-purple-600 dark:text-purple-400">
+              <Sliders className="h-4.5 w-4.5" />
             </span>
             <div>
-              <h3 className="font-semibold text-white">Live Regional Price Simulator</h3>
-              <p className="text-xs text-zinc-400">Preview exactly how prices appear to customers worldwide</p>
+              <h3 className="text-base font-bold text-zinc-950 dark:text-white">Live Regional Price Simulator</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Preview exactly how prices appear to customers worldwide</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={runSimulation}
-              disabled={simulating}
-              className="text-xs border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-300"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${simulating ? 'animate-spin' : ''}`} />
-              Recalculate
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={runSimulation}
+            disabled={simulating}
+            className="text-xs border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-medium rounded-xl cursor-pointer shadow-xs"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${simulating ? 'animate-spin' : ''}`} />
+            Recalculate
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Base Configuration Input */}
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-medium text-zinc-400 block mb-1.5">Base Product Price</label>
+              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Base Product Price</label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                 <input
                   type="number"
                   step="0.01"
                   value={simBaseAmount}
                   onChange={(e) => setSimBaseAmount(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60 text-sm text-zinc-950 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-all font-medium"
                   placeholder="49.00"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-zinc-400 block mb-1.5">Base Currency</label>
+              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Base Currency</label>
               <select
                 value={simBaseCurrency}
                 onChange={(e) => setSimBaseCurrency(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60 text-sm text-zinc-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-all font-medium"
               >
                 <option value="USD">USD - US Dollar</option>
                 <option value="EUR">EUR - Euro</option>
@@ -370,11 +372,11 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-zinc-400 block mb-1.5">Simulate Visitor Location</label>
+              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Simulate Visitor Location</label>
               <select
                 value={simCountry}
                 onChange={(e) => setSimCountry(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60 text-sm text-zinc-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-all font-medium"
               >
                 {directory.length > 0 ? (
                   directory.map((c) => (
@@ -397,42 +399,44 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
           </div>
 
           {/* Arrow / Transition Divider */}
-          <div className="flex md:flex-col items-center justify-center text-zinc-600 gap-2">
-            <div className="hidden md:block w-px h-12 bg-zinc-800" />
-            <ArrowRight className="h-6 w-6 text-indigo-400" />
-            <div className="hidden md:block w-px h-12 bg-zinc-800" />
+          <div className="flex md:flex-col items-center justify-center text-zinc-400 gap-2">
+            <div className="hidden md:block w-px h-12 bg-zinc-200 dark:bg-white/10" />
+            <ArrowRight className="h-5 w-5 text-indigo-500 dark:text-indigo-400" />
+            <div className="hidden md:block w-px h-12 bg-zinc-200 dark:bg-white/10" />
           </div>
 
           {/* Calculated Output Card */}
-          <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-br from-indigo-950/20 via-zinc-950 to-zinc-950 p-5 flex flex-col justify-between">
+          <div className="rounded-2xl border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-950/20 p-6 flex flex-col justify-between space-y-6">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400">Localized Customer Price</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
+                  Localized Customer Price
+                </span>
                 {simResult?.isOverride ? (
-                  <span className="text-[11px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
                     Custom Override
                   </span>
                 ) : simResult?.pppApplied ? (
-                  <span className="text-[11px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                     <Sparkles className="h-3 w-3" />
                     PPP Applied
                   </span>
                 ) : (
-                  <span className="text-[11px] font-medium bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2.5 py-0.5 rounded-full">
                     Standard Rate
                   </span>
                 )}
               </div>
 
-              <div className="space-y-1">
-                <div className="text-3xl font-extrabold text-white tracking-tight">
+              <div className="space-y-1.5">
+                <div className="text-3xl sm:text-4xl font-extrabold text-zinc-950 dark:text-white tracking-tight">
                   {simResult ? simResult.formattedAmount : '...'}
                 </div>
                 {simResult && simResult.discountPercent > 0 && (
-                  <div className="flex items-center gap-2 text-xs text-zinc-400">
-                    <span className="line-through text-zinc-500">${simBaseAmount}</span>
-                    <span className="text-emerald-400 font-semibold flex items-center gap-0.5">
-                      <TrendingDown className="h-3 w-3" />
+                  <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                    <span className="line-through text-zinc-400 dark:text-zinc-500">${simBaseAmount}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5">
+                      <TrendingDown className="h-3.5 w-3.5" />
                       {simResult.discountPercent}% purchasing power discount
                     </span>
                   </div>
@@ -440,73 +444,85 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-zinc-800/80 text-xs text-zinc-400 space-y-1.5">
+            <div className="pt-4 border-t border-indigo-200/60 dark:border-white/10 text-xs text-zinc-600 dark:text-zinc-400 space-y-2">
               <div className="flex justify-between">
                 <span>Target Market:</span>
-                <span className="text-zinc-200 font-medium">{getCountryName(simCountry)}</span>
+                <span className="text-zinc-950 dark:text-zinc-200 font-bold">{getCountryName(simCountry)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Currency Settlement:</span>
-                <span className="text-zinc-200 font-medium">{simResult?.currency || 'USD'}</span>
+                <span className="text-zinc-950 dark:text-zinc-200 font-bold font-mono">{simResult?.currency || 'USD'}</span>
               </div>
               <div className="flex justify-between">
                 <span>Psychological Rounding:</span>
-                <span className="text-emerald-400 font-medium">Automatic (.99 / .00 local standard)</span>
+                <span className="text-emerald-700 dark:text-emerald-400 font-bold">Automatic (.99 / .00 local standard)</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* World Bank PPP Tiers Overview */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 backdrop-blur-xl">
-        <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
-          <span>World Bank PPP Discount Benchmark</span>
-          <span className="text-xs text-zinc-500 font-normal">Updated Quarterly</span>
-        </h3>
-        <p className="text-xs text-zinc-400 mb-4">
-          Automated pricing automatically maps international users to one of 4 purchasing power tiers:
-        </p>
+      {/* 3. World Bank PPP Tiers Overview Card */}
+      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-bold text-zinc-950 dark:text-white">World Bank PPP Discount Benchmark</h3>
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-white/10">
+              Updated Quarterly
+            </span>
+          </div>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Automated pricing automatically maps international users to one of 4 purchasing power tiers:
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-950/60">
-            <div className="text-xs font-semibold text-zinc-400 uppercase">Tier 1: High Income</div>
-            <div className="text-2xl font-bold text-white mt-1">0% Off</div>
-            <p className="text-xs text-zinc-500 mt-2">United States, United Kingdom, Canada, Australia, Germany, Japan, Singapore</p>
+          <div className="p-5 rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/40 space-y-1.5">
+            <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Tier 1: High Income</div>
+            <div className="text-2xl font-extrabold text-zinc-950 dark:text-white">0% Off</div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed pt-1">
+              United States, United Kingdom, Canada, Australia, Germany, Japan, Singapore
+            </p>
           </div>
 
-          <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-950/60">
-            <div className="text-xs font-semibold text-indigo-400 uppercase">Tier 2: Upper Middle</div>
-            <div className="text-2xl font-bold text-indigo-300 mt-1">30% Off</div>
-            <p className="text-xs text-zinc-500 mt-2">Poland, Chile, Malaysia, Hungary, Romania, Croatia</p>
+          <div className="p-5 rounded-2xl border border-indigo-200/80 dark:border-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-1.5">
+            <div className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Tier 2: Upper Middle</div>
+            <div className="text-2xl font-extrabold text-indigo-700 dark:text-indigo-300">30% Off</div>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed pt-1">
+              Poland, Chile, Malaysia, Hungary, Romania, Croatia
+            </p>
           </div>
 
-          <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-950/60">
-            <div className="text-xs font-semibold text-purple-400 uppercase">Tier 3: Middle Income</div>
-            <div className="text-2xl font-bold text-purple-300 mt-1">50% Off</div>
-            <p className="text-xs text-zinc-500 mt-2">Brazil, Mexico, Turkey, South Africa, Colombia, Argentina</p>
+          <div className="p-5 rounded-2xl border border-purple-200/80 dark:border-purple-500/20 bg-purple-50/40 dark:bg-purple-950/20 space-y-1.5">
+            <div className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">Tier 3: Middle Income</div>
+            <div className="text-2xl font-extrabold text-purple-700 dark:text-purple-300">50% Off</div>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed pt-1">
+              Brazil, Mexico, Turkey, South Africa, Colombia, Argentina
+            </p>
           </div>
 
-          <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-950/10">
-            <div className="text-xs font-semibold text-emerald-400 uppercase">Tier 4: Growth Markets</div>
-            <div className="text-2xl font-bold text-emerald-400 mt-1">60% Off</div>
-            <p className="text-xs text-zinc-400 mt-2">India, Indonesia, Philippines, Nigeria, Kenya, Vietnam, Pakistan</p>
+          <div className="p-5 rounded-2xl border border-emerald-200/80 dark:border-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-1.5">
+            <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Tier 4: Growth Markets</div>
+            <div className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400">60% Off</div>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed pt-1">
+              India, Indonesia, Philippines, Nigeria, Kenya, Vietnam, Pakistan
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Custom Country Overrides Section */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-6 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h3 className="font-semibold text-white">Custom Country Overrides</h3>
-            <p className="text-xs text-zinc-400">
+      {/* 4. Custom Country Overrides Card */}
+      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-zinc-950 dark:text-white">Custom Country Overrides</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Need specific pricing for a key partner or country? Define custom fixed rates or percentage discounts that override default PPP.
             </p>
           </div>
           <Button
             onClick={() => setShowCreateModal(true)}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 text-xs"
+            className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white shadow-xs text-xs font-medium cursor-pointer rounded-xl"
             size="sm"
           >
             <Plus className="h-4 w-4 mr-1.5" />
@@ -515,89 +531,94 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
         </div>
 
         {loading ? (
-          <div className="py-12 text-center text-zinc-500 text-sm">Loading custom overrides...</div>
+          <div className="py-16 text-center text-zinc-500 dark:text-zinc-400 text-sm">Loading custom overrides...</div>
         ) : rules.length === 0 ? (
-          <div className="py-12 text-center rounded-xl border border-dashed border-zinc-800 bg-zinc-950/40">
-            <Globe className="h-8 w-8 text-zinc-600 mx-auto mb-2" />
-            <h4 className="text-sm font-medium text-zinc-300">No Custom Overrides Defined</h4>
-            <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-1">
+          <div className="py-16 text-center rounded-2xl border-2 border-dashed border-zinc-200 dark:border-white/10 bg-zinc-50/50 dark:bg-zinc-900/20 p-8 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-2">
+              <Globe className="h-6 w-6" />
+            </div>
+            <h4 className="text-sm font-bold text-zinc-900 dark:text-white">No Custom Overrides Defined</h4>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
               Your app is currently running 100% on automated World Bank PPP tiers. Add custom overrides if you need fixed pricing in specific countries.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-zinc-800 text-xs uppercase text-zinc-400 bg-zinc-950/60">
-                <tr>
-                  <th className="py-3 px-4">Country</th>
-                  <th className="py-3 px-4">Rule Type</th>
-                  <th className="py-3 px-4">Override Value</th>
-                  <th className="py-3 px-4">Currency</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/60">
-                {rules.map((rule) => (
-                  <tr key={rule.id} className="hover:bg-zinc-800/20 transition-colors">
-                    <td className="py-3 px-4 font-medium text-white flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded bg-zinc-800 text-xs font-mono font-bold text-zinc-300">
-                        {rule.countryCode}
-                      </span>
-                      <span>{getCountryName(rule.countryCode)}</span>
-                    </td>
-                    <td className="py-3 px-4 text-zinc-300">
-                      {rule.discountPercent != null ? 'Percentage Discount' : 'Fixed Price Override'}
-                    </td>
-                    <td className="py-3 px-4 font-mono font-semibold text-emerald-400">
-                      {rule.discountPercent != null
-                        ? `${rule.discountPercent}% OFF`
-                        : `${rule.customCurrency || '$'} ${rule.fixedAmount}`}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-zinc-400">{rule.customCurrency || 'USD'}</td>
-                    <td className="py-3 px-4">
-                      {rule.isEnabled ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
-                          <XCircle className="h-3 w-3" />
-                          Disabled
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteRule(rule.id, rule.countryCode)}
-                        className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 h-8 w-8 p-0"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
+          <div className="rounded-2xl border border-zinc-200 dark:border-white/10 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-zinc-200 dark:border-white/10 text-xs uppercase font-bold text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/60">
+                  <tr>
+                    <th className="py-3 px-4">Country</th>
+                    <th className="py-3 px-4">Rule Type</th>
+                    <th className="py-3 px-4">Override Value</th>
+                    <th className="py-3 px-4">Currency</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-200 dark:divide-white/5">
+                  {rules.map((rule) => (
+                    <tr key={rule.id} className="hover:bg-zinc-50 dark:hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-zinc-950 dark:text-white flex items-center gap-2.5">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
+                          {rule.countryCode}
+                        </span>
+                        <span>{getCountryName(rule.countryCode)}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-zinc-600 dark:text-zinc-300 font-medium">
+                        {rule.discountPercent != null ? 'Percentage Discount' : 'Fixed Price Override'}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                        {rule.discountPercent != null
+                          ? `${rule.discountPercent}% OFF`
+                          : `${rule.customCurrency || '$'} ${rule.fixedAmount}`}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-zinc-600 dark:text-zinc-400 font-medium">{rule.customCurrency || 'USD'}</td>
+                      <td className="py-3.5 px-4">
+                        {rule.isEnabled ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 text-xs text-zinc-600 dark:text-zinc-400 font-medium border border-zinc-200 dark:border-white/10">
+                            <XCircle className="h-3 w-3" />
+                            Disabled
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteRule(rule.id, rule.countryCode)}
+                          className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 h-8 w-8 p-0 cursor-pointer rounded-xl"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
 
       {/* Add Country Override Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h3 className="font-semibold text-white flex items-center gap-2">
-                <Globe className="h-4 w-4 text-indigo-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-white/10 pb-4">
+              <h3 className="font-bold text-zinc-950 dark:text-white flex items-center gap-2 text-base">
+                <Globe className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                 Add Country Override
               </h3>
               <button
+                type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="text-zinc-400 hover:text-white text-lg font-bold"
+                className="text-zinc-400 hover:text-zinc-950 dark:hover:text-white text-xl font-bold cursor-pointer transition-colors"
               >
                 &times;
               </button>
@@ -605,7 +626,7 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
 
             <form onSubmit={handleCreateRule} className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-zinc-400 block mb-1">Target Country</label>
+                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Target Country</label>
                 <select
                   value={ruleCountry}
                   onChange={(e) => {
@@ -614,7 +635,7 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
                     const found = directory.find((c) => c.code === code);
                     if (found) setRuleCurrency(found.currency);
                   }}
-                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60 text-sm text-zinc-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-all font-medium"
                 >
                   {directory.length > 0 ? (
                     directory.map((c) => (
@@ -635,15 +656,15 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-zinc-400 block mb-1">Rule Model</label>
+                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Rule Model</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setRuleType('PERCENT')}
-                    className={`py-2 px-3 text-xs font-medium rounded-lg border flex items-center justify-center gap-1.5 transition-all ${
+                    className={`py-2 px-3 text-xs font-bold rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                       ruleType === 'PERCENT'
-                        ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400'
-                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
+                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 shadow-xs'
+                        : 'border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                     }`}
                   >
                     <Percent className="h-3.5 w-3.5" />
@@ -652,10 +673,10 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
                   <button
                     type="button"
                     onClick={() => setRuleType('FIXED')}
-                    className={`py-2 px-3 text-xs font-medium rounded-lg border flex items-center justify-center gap-1.5 transition-all ${
+                    className={`py-2 px-3 text-xs font-bold rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                       ruleType === 'FIXED'
-                        ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400'
-                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
+                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 shadow-xs'
+                        : 'border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                     }`}
                   >
                     <DollarSign className="h-3.5 w-3.5" />
@@ -666,50 +687,50 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
 
               {ruleType === 'PERCENT' ? (
                 <div>
-                  <label className="text-xs font-medium text-zinc-400 block mb-1">Discount Percentage (%)</label>
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Discount Percentage (%)</label>
                   <input
                     type="number"
                     min="1"
                     max="99"
                     value={ruleDiscountPercent}
                     onChange={(e) => setRuleDiscountPercent(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60 text-sm text-zinc-950 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-all font-medium"
                     placeholder="e.g. 50"
                   />
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-zinc-400 block mb-1">Fixed Amount</label>
+                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Fixed Amount</label>
                     <input
                       type="number"
                       step="0.01"
                       value={ruleFixedAmount}
                       onChange={(e) => setRuleFixedAmount(e.target.value)}
-                      className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60 text-sm text-zinc-950 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-all font-medium"
                       placeholder="1499"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-zinc-400 block mb-1">Currency</label>
+                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">Currency</label>
                     <input
                       type="text"
                       value={ruleCurrency}
                       onChange={(e) => setRuleCurrency(e.target.value.toUpperCase())}
-                      className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white uppercase focus:outline-none focus:border-indigo-500 font-mono"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60 text-sm text-zinc-950 dark:text-white uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-all font-mono font-medium"
                       placeholder="INR"
                     />
                   </div>
                 </div>
               )}
 
-              <div className="pt-2 flex justify-end gap-2">
+              <div className="pt-3 border-t border-zinc-200 dark:border-white/10 flex justify-end gap-2.5">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setShowCreateModal(false)}
-                  className="border-zinc-800 text-zinc-400"
+                  className="border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs cursor-pointer shadow-xs rounded-xl"
                 >
                   Cancel
                 </Button>
@@ -717,7 +738,7 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
                   type="submit"
                   disabled={savingRule}
                   size="sm"
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white"
+                  className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white font-medium text-xs cursor-pointer shadow-xs rounded-xl"
                 >
                   {savingRule ? 'Saving...' : 'Save Override'}
                 </Button>

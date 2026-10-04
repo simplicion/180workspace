@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Key,
   Copy,
@@ -10,7 +10,6 @@ import {
   Shield,
   CreditCard,
   Code2,
-  Terminal,
   Settings,
   ArrowRight,
   ExternalLink,
@@ -57,42 +56,6 @@ export function AppOverviewDetail({
   onRotateSecretClick,
   onOpenSettings,
 }: AppOverviewDetailProps) {
-  const [activeSdkTab, setActiveSdkTab] = useState<'identity' | 'pay'>('identity');
-  const [copiedSnippet, setCopiedSnippet] = useState(false);
-
-  const identitySnippet = `import { OneEightyIdentity } from '@workspace/identity-sdk';
-
-// Initialize 180 Identity Sovereign OAuth 2.0 / OIDC Client
-export const identity = new OneEightyIdentity({
-  clientId: '${app.clientId}',
-  redirectUri: '${(app.redirectUris && app.redirectUris[0]) || 'https://yourapp.com/callback'}',
-  scope: 'openid profile email username',
-});
-
-// Trigger 1-Click Login Popup
-await identity.loginWithPopup();`;
-
-  const paySnippet = `import { OneEightyPay } from '@workspace/identity-sdk';
-
-// Initialize 180 Pay Checkout Engine
-export const pay = new OneEightyPay({
-  clientId: '${app.clientId}',
-});
-
-// Open 1-Click Sovereign Wallet & UPI Checkout
-const result = await pay.openCheckout({
-  amount: 499,
-  currency: 'INR',
-  orderId: 'ORD_1001',
-  customerUsername: 'alice',
-});`;
-
-  const handleCopySnippet = (snippet: string) => {
-    navigator.clipboard.writeText(snippet);
-    setCopiedSnippet(true);
-    setTimeout(() => setCopiedSnippet(false), 2000);
-  };
-
   return (
     <div className="space-y-8">
       {/* 1. Project Credentials Card */}
@@ -201,62 +164,7 @@ const result = await pay.openCheckout({
         </div>
       </div>
 
-      {/* 3. Quickstart SDK Code Snippet */}
-      <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-4 shadow-sm dark:shadow-2xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Terminal className="w-4 h-4 text-zinc-900 dark:text-white" />
-            <h2 className="text-base font-bold text-zinc-950 dark:text-white">Quick Integration</h2>
-          </div>
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-xs">
-            <button
-              type="button"
-              onClick={() => setActiveSdkTab('identity')}
-              className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                activeSdkTab === 'identity'
-                  ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-xs'
-                  : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-              }`}
-            >
-              180 Identity
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSdkTab('pay')}
-              className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                activeSdkTab === 'pay'
-                  ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-xs'
-                  : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-              }`}
-            >
-              180 Pay
-            </button>
-          </div>
-        </div>
 
-        <div className="relative rounded-2xl bg-zinc-950 border border-zinc-800 text-zinc-100 p-4 font-mono text-xs overflow-x-auto shadow-inner">
-          <button
-            type="button"
-            onClick={() => handleCopySnippet(activeSdkTab === 'identity' ? identitySnippet : paySnippet)}
-            className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer z-10"
-          >
-            {copiedSnippet ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Copied</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>Copy</span>
-              </>
-            )}
-          </button>
-          <pre className="text-zinc-300 leading-relaxed">
-            {activeSdkTab === 'identity' ? identitySnippet : paySnippet}
-          </pre>
-        </div>
-      </div>
     </div>
   );
 }

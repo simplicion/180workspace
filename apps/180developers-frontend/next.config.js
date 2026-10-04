@@ -10,6 +10,15 @@ const nextConfig = {
     NEXT_PUBLIC_DEVELOPERS_API_URL: process.env.NEXT_PUBLIC_DEVELOPERS_API_URL || 'http://localhost:4002/api/v1/developers',
   },
   ...(isExport ? { output: 'export', images: { unoptimized: true } } : {}),
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/dashboard',
+        permanent: false,
+      },
+    ];
+  },
   transpilePackages: ['@workspace/ui', '@workspace/identity-sdk'],
   reactStrictMode: true,
   poweredByHeader: false,
