@@ -243,33 +243,70 @@ await OneEightyPay.openBottomSheet({
   <script is:inline define:vars={{ devConsoleUrl }}>
     function launchIdentityLogin() {
       var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      var authHost = isLocal ? 'http://localhost:3008' : 'https://profile.180workspace.com';
-      var redirectTarget = isLocal ? 'http://localhost:3008/dashboard' : devConsoleUrl;
+      var authHost = isLocal ? 'http://localhost:3009' : 'https://profile.180workspace.com';
+      var redirectTarget = isLocal ? 'http://localhost:3008/dashboard' : (devConsoleUrl || 'https://developers.180workspace.com/dashboard');
 
-      // Construct Sovereign OAuth URL
+      // Construct Sovereign OAuth URL for 180 Developers Console
       var params = [
-        'client_id=180-core-client',
+        'client_id=180-developers-portal',
         'redirect_uri=' + encodeURIComponent(redirectTarget),
         'response_type=code',
-        'scope=openid identity:read identity:email',
+        'scope=' + encodeURIComponent('openid identity:read identity:email'),
         'ux_mode=popup'
       ].join('&');
 
       var loginUrl = authHost + '/auth/login?' + params;
 
-      // Check if SDK already loaded on page, or open standard centered popup
+      // Standard centered popup dimensions
       var w = 480;
       var h = 720;
-      var left = window.screen.width / 2 - w / 2;
-      var top = window.screen.height / 2 - h / 2;
+      var left = window.screen.width ? Math.max(0, (window.screen.width - w) / 2) : 100;
+      var top = window.screen.height ? Math.max(0, (window.screen.height - h) / 2) : 100;
 
       var popup = window.open(
         loginUrl,
         '180_Core_Auth',
-        'width=' + w + ',height=' + h + ',top=' + top + ',left=' + left + ',scrollbars=yes'
+        'width=' + w + ',height=' + h + ',top=' + top + ',left=' + left + ',scrollbars=yes,status=no,toolbar=no,resizable=yes'
       );
 
-      // Listen for authentication message callback
+      if (popup && typeof popup.focus === 'function') {
+        try { popup.focus(); } catch(_) {}
+      }
+
+      // If browser blocked the popup, fallback gracefully to direct navigation
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        window.location.href = loginUrl;
+        return;
+      }
+
+      function handleAuthSuccess(token, user) {
+        if (token) {
+          try {
+            localStorage.setItem('platform_auth_token', token);
+            localStorage.setItem('token', token);
+            var isProd = window.location.protocol === 'https:';
+            var is180 = window.location.hostname.endsWith('180workspace.com');
+            var domainAttr = is180 ? '; domain=.180workspace.com' : '';
+            var secureAttr = isProd ? '; Secure' : '';
+            document.cookie = 'platform_auth_token=' + token + '; path=/; max-age=604800; SameSite=Lax' + secureAttr + domainAttr;
+          } catch (_) {}
+        }
+        if (user) {
+          try {
+            localStorage.setItem('user', JSON.stringify(user));
+          } catch (_) {}
+        }
+        try {
+          if (popup && !popup.closed) popup.close();
+        } catch (_) {}
+
+        // Automatically redirect developer directly to target dashboard with token attached
+        var sep = redirectTarget.indexOf('?') !== -1 ? '&' : '?';
+        var destinationUrl = redirectTarget + (token ? sep + 'token=' + encodeURIComponent(token) : '');
+        window.location.href = destinationUrl;
+      }
+
+      // Listen for authentication message callback from popup
       function handleMessage(e) {
         if (!e.data) return;
         var data = e.data;
@@ -277,10 +314,9 @@ await OneEightyPay.openBottomSheet({
           try { data = JSON.parse(data); } catch(_) {}
         }
         if (data.type === '180_IDENTITY_SUCCESS' || data.type === '180_AUTH_SUCCESS') {
-          if (data.authToken || data.accessToken || data.token) {
-            localStorage.setItem('platform_auth_token', data.authToken || data.accessToken || data.token);
-          }
-          window.location.href = redirectTarget;
+          var token = data.authToken || data.accessToken || data.token;
+          handleAuthSuccess(token, data.user);
+          window.removeEventListener('message', handleMessage);
         }
       }
 
@@ -291,7 +327,6 @@ await OneEightyPay.openBottomSheet({
     document.getElementById('core-hero-launch-btn')?.addEventListener('click', launchIdentityLogin);
     document.getElementById('try-identity-btn')?.addEventListener('click', launchIdentityLogin);
     document.getElementById('try-pay-btn')?.addEventListener('click', function() {
-      alert('180 Pay Sandbox: Direct checkout popup active in developer console. Signing in...');
       launchIdentityLogin();
     });
   </script>

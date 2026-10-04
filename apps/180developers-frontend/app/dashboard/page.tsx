@@ -175,9 +175,14 @@ function DeveloperDashboardContent() {
 
     const handleMessage = (e: MessageEvent) => {
       if (e.data && (e.data.type === '180_IDENTITY_SUCCESS' || e.data.type === '180_AUTH_SUCCESS')) {
-        if (e.data.token) {
-          localStorage.setItem('platform_auth_token', e.data.token);
-          document.cookie = `platform_auth_token=${e.data.token}; path=/; max-age=604800; SameSite=Lax`;
+        const receivedToken = e.data.authToken || e.data.accessToken || e.data.token;
+        if (receivedToken) {
+          localStorage.setItem('platform_auth_token', receivedToken);
+          const isProd = window.location.protocol === 'https:';
+          const is180 = window.location.hostname.endsWith('180workspace.com');
+          const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+          const secureAttr = isProd ? '; Secure' : '';
+          document.cookie = `platform_auth_token=${receivedToken}; path=/; max-age=604800; SameSite=Lax${secureAttr}${domainAttr}`;
         }
         if (e.data.user) {
           localStorage.setItem('user', JSON.stringify(e.data.user));
@@ -237,7 +242,13 @@ function DeveloperDashboardContent() {
   };
 
   const checkAuthAndFetchApps = async () => {
+    const urlToken =
+      searchParams?.get('token') ||
+      searchParams?.get('auth_token') ||
+      searchParams?.get('accessToken');
+
     let token =
+      urlToken ||
       localStorage.getItem('platform_auth_token') ||
       localStorage.getItem('auth_token') ||
       localStorage.getItem('token') ||
@@ -255,6 +266,24 @@ function DeveloperDashboardContent() {
     }
 
     localStorage.setItem('platform_auth_token', token);
+    if (typeof document !== 'undefined') {
+      const isProd = window.location.protocol === 'https:';
+      const is180 = window.location.hostname.endsWith('180workspace.com');
+      const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+      const secureAttr = isProd ? '; Secure' : '';
+      document.cookie = `platform_auth_token=${token}; path=/; max-age=604800; SameSite=Lax${secureAttr}${domainAttr}`;
+    }
+
+    // Strip incoming auth token query param from URL so clean dashboard URL remains
+    if (urlToken && typeof window !== 'undefined') {
+      try {
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('token');
+        cleanUrl.searchParams.delete('auth_token');
+        cleanUrl.searchParams.delete('accessToken');
+        window.history.replaceState({}, '', cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : '') + cleanUrl.hash);
+      } catch (_) {}
+    }
 
     try {
       const apiBase = getApiBase();

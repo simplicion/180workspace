@@ -98,7 +98,7 @@ export default function CallbackPage() {
         document.cookie = `platform_auth_token=${token}${cookieFlags}`;
 
         toast.success('Successfully authenticated as 180 Developer!');
-        router.replace('/');
+        router.replace('/dashboard');
       } catch (e: any) {
         console.error('Callback error:', e);
         setError(e.message || 'Failed to complete authentication.');
