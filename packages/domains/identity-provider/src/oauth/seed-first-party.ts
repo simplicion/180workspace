@@ -431,7 +431,7 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
 
             const knownSecret =
                 app.clientId === '180_client_70d751541f05347fe803ec8e128f5e83'
-                    ? (process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_workspace_core_dev_key')
+                    ? (process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_a58c34e77528dc342871ecc66c41e9f06522223896b851a4338eee40e2bc2276')
                     : app.clientId === '180-traffic-director'
                         ? (process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || '180_secret_traffic_director_prod_key_771829')
                         : app.clientId === '180_client_5cc136397553836e34eb37ce22d13a53'

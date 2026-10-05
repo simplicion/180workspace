@@ -292,7 +292,7 @@ export class BillingController {
                     userId: (req as any).user?.id,
                 },
                 clientId: process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_70d751541f05347fe803ec8e128f5e83',
-                clientSecret: process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_workspace_core_dev_key',
+                clientSecret: process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_a58c34e77528dc342871ecc66c41e9f06522223896b851a4338eee40e2bc2276',
             };
 
             const apiUrl = process.env.ONE_EIGHTY_API_URL || 'https://services.180workspace.com';

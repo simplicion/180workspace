@@ -10,8 +10,8 @@ export class OneEightyPayPlatformProvider implements PlatformPaymentProviderInte
 
     constructor(credentials: any = {}) {
         this.clientId = credentials.clientId || process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_70d751541f05347fe803ec8e128f5e83';
-        this.clientSecret = credentials.clientSecret || process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_workspace_core_dev_key';
-        this.webhookSecret = credentials.webhookSecret || process.env.ONE_EIGHTY_WEBHOOK_SECRET || 'whsec_workspace_core_dev_key';
+        this.clientSecret = credentials.clientSecret || process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_a58c34e77528dc342871ecc66c41e9f06522223896b851a4338eee40e2bc2276';
+        this.webhookSecret = credentials.webhookSecret || process.env.ONE_EIGHTY_WEBHOOK_SECRET || 'whsec_03cfffd0fcf90f5b91c9ea7933127b134468a61c9aca49ea';
         this.apiUrl = credentials.apiUrl || process.env.ONE_EIGHTY_API_URL || 'https://services.180workspace.com';
         this.payUrl = credentials.payUrl || process.env.NEXT_PUBLIC_180_PAY_URL || 'https://pay.180workspace.com';
     }
