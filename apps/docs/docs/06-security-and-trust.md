@@ -1,5 +1,5 @@
 ---
-id: security-and-trust
+id: 06-security-and-trust
 title: Security, Multi-Tenancy & Privacy
 sidebar_label: Security & Privacy
 sidebar_position: 6
