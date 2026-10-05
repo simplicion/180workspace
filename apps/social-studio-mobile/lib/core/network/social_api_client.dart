@@ -16,6 +16,7 @@ import '../../data/models/review.dart';
 import '../../data/models/social_account.dart';
 import '../../data/models/social_post.dart';
 import '../../data/models/task.dart';
+import '../../data/models/creator_billing.dart';
 import '../config/app_config.dart';
 import '../offline/outbox.dart';
 import '../util/json.dart';
@@ -968,5 +969,32 @@ class SocialApi {
       throw ApiException(kind: ApiErrorKind.server, message: 'Logo uploaded but the server returned no logo URL.');
     }
     return url;
+  }
+
+  // ── Creator Billing & Recharge ─────────────────────────────────────────────
+
+  /// Retrieves the creator billing status: 3-day free trial, active monthly subscription, or daily pass.
+  Future<CreatorBillingStatus> getBillingStatus() async {
+    final r = await _api.get('$base/billing/status');
+    return CreatorBillingStatus.fromJson(r);
+  }
+
+  /// Retrieves the available creator plans and daily recharge rate details.
+  Future<Json> getBillingPlans() async {
+    return await _api.get('$base/billing/plans');
+  }
+
+  /// Creates a checkout session via 180 Pay for either monthly subscription or daily recharge.
+  Future<CreatorCheckoutResult> createBillingCheckout({
+    required String type,
+    int? days,
+    String? returnUrl,
+  }) async {
+    final r = await _api.post('$base/billing/checkout', body: compact({
+      'type': type,
+      'days': days,
+      'returnUrl': returnUrl,
+    }));
+    return CreatorCheckoutResult.fromJson(r);
   }
 }

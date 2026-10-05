@@ -270,11 +270,19 @@ router.use('/v1/social-media/webhooks/meta', require('../api/v1/social-media/web
 // Public 180 Pay Webhook Receiver for Traffic Director Subscriptions
 router.post('/v1/traffic-director/billing/webhook', require('../api/v1/traffic-director/traffic-director.controller').TrafficDirectorController.handleBillingWebhook);
 
+// Public 180 Pay Webhook Receiver for 180 Social Studio Creator Subscriptions & Daily Passes
+router.post('/v1/social-media/billing/webhook', require('../api/v1/social-media/billing/social-billing.routes').socialBillingWebhookHandler);
+router.post('/social-media/billing/webhook', require('../api/v1/social-media/billing/social-billing.routes').socialBillingWebhookHandler);
+
 // Public 180 Pay Webhook Receivers for Platform Billing & Wallet Subscriptions
 router.post('/v1/platform-billing/webhooks/180-pay', require('../api/v1/platform-billing/billing.controller').BillingController.handle180PayWebhook);
 router.post('/v1/platform-billing/webhook', require('../api/v1/platform-billing/billing.controller').BillingController.handle180PayWebhook);
 router.post('/webhooks/180-pay', require('../api/v1/platform-billing/billing.controller').BillingController.handle180PayWebhook);
 router.post('/v1/wallet/webhooks/180-pay', require('../api/v1/wallet/wallet.controller').WalletController.handle180PayWebhook);
+
+// Protected Social Studio billing endpoints (accessible to creators without moduleGuard)
+router.use('/v1/social-media/billing', protect, require('../api/v1/social-media/billing/social-billing.routes').default);
+router.use('/social-media/billing', protect, require('../api/v1/social-media/billing/social-billing.routes').default);
 
 router.use('/v1/communications', protect, communicationsRoutes);
 router.use('/v1/advertising', protect, moduleGuard('advertising'), advertisingRoutes);

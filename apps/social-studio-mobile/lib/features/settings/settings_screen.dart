@@ -16,6 +16,7 @@ import '../../core/theme/theme_provider.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/universal_skeleton.dart';
 import '../auth/auth_provider.dart';
+import '../common/feature_lock_view.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -147,6 +148,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider).valueOrNull;
+    final billing = session?.entitlement.creatorBilling;
+
+    String planTitle = 'Creator Access';
+    String statusBadge = 'Active';
+    Color statusColor = AppTheme.success;
+    String planSubtitle = 'Direct creator subscription or daily pass active.';
+    String actionButtonText = 'Manage Subscription & Recharge';
+
+    if (billing?.isTrial == true) {
+      planTitle = '3-Day Free Trial';
+      statusBadge = '${billing?.trialDaysRemaining ?? 0}d left';
+      statusColor = AppTheme.warning;
+      planSubtitle = 'Complimentary creator trial active. Upgrade or recharge anytime.';
+      actionButtonText = 'Subscribe or Recharge';
+    } else if (billing?.hasActivePass == true) {
+      planTitle = 'Flexible Daily Pass';
+      statusBadge = '${billing?.passDaysRemaining ?? 0}d left';
+      statusColor = AppTheme.primary;
+      planSubtitle = 'Pay-as-you-go creator pass active.';
+      actionButtonText = 'Recharge More Days';
+    } else if (billing?.hasActiveSubscription == true) {
+      planTitle = 'Monthly Creator Plan';
+      statusBadge = '\$20/mo';
+      statusColor = AppTheme.success;
+      planSubtitle = 'Unlimited creator subscription active.';
+      actionButtonText = 'Manage Subscription';
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -155,6 +183,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: [
+          // Section: Creator Subscription & Recharge
+          _sectionHeader(context, 'Creator Plan & Access', Icons.workspace_premium_rounded),
+          SizedBox(height: 8),
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      planTitle,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        statusBadge,
+                        style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text(
+                  planSubtitle,
+                  style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                ),
+                SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const FeatureLockView()),
+                    ),
+                    icon: Icon(Icons.bolt_rounded, size: 18),
+                    label: Text(actionButtonText),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 24),
+
           // Section: Device Management
           _sectionHeader(context, 'Active Mobile Devices & Sessions', Icons.smartphone_rounded),
           SizedBox(height: 4),

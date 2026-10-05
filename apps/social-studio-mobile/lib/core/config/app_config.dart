@@ -90,7 +90,7 @@ class AppConfig {
     return 'https://profile.180workspace.com';
   }
 
-  static const String identityClientId = '180-social-studio-mobile';
+  static const String identityClientId = '180_client_266753c1171df1e2c4a391483fd2e02e';
   static String get identityRedirectUri {
     const fromEnv = String.fromEnvironment('IDENTITY_REDIRECT_URI');
     if (fromEnv.isNotEmpty) return fromEnv;

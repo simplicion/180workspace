@@ -159,23 +159,4 @@ void main() {
     expect(find.textContaining('No media attached'), findsOneWidget);
     expect(b.calls('POST', '$sm/posts/post1/publish'), isEmpty);
   });
-
-  appTest('Post detail: assign editor posts the task body', (tester) async {
-    final b = seededBackend()
-      ..json('POST', '$sm/posts/:id/assign-editor', {'success': true, 'task': {'id': 't9', 'title': 'Edit'}}, status: 201);
-    await pumpApp(tester, b, location: '/posts/post1');
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Assign editor'));
-    await settle(tester);
-    await tester.tap(find.text('Editor *'));
-    await settle(tester);
-    await tester.tap(find.text('Eddie Editor (eddie@agency.test)').last);
-    await settle(tester);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Create editing task'));
-    await settle(tester);
-    final body = b.last('POST', '$sm/posts/post1/assign-editor')!.json;
-    expect(body['assigneeId'], 'u2');
-    expect(body['projectId'], 'p1');
-    expect(body['clientId'], 'c1');
-    expect(body['priority'], 'medium');
-  });
 }

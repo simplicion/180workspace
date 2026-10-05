@@ -2,6 +2,7 @@ import '../../core/config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/util/json.dart';
+import '../../data/models/creator_billing.dart';
 
 class SessionUser {
   SessionUser({required this.id, required this.name, required this.email, this.role, this.imageUrl});
@@ -42,11 +43,18 @@ class SessionCompany {
 enum LockReason { appNotEnabled, adminDisabled, subscriptionExpired, companySuspended }
 
 class Entitlement {
-  Entitlement({this.lockReason, this.isPaidPlan = false, this.enabledApps = const [], this.message});
+  Entitlement({
+    this.lockReason,
+    this.isPaidPlan = false,
+    this.enabledApps = const [],
+    this.message,
+    this.creatorBilling,
+  });
   final LockReason? lockReason;
   final bool isPaidPlan;
   final List<String> enabledApps;
   final String? message;
+  final CreatorBillingStatus? creatorBilling;
 
   bool get hasSocial => lockReason == null;
 
@@ -132,9 +140,34 @@ class AuthRepository {
     await _api.tokens.clearSession();
   }
 
-  /// Entitlement for the social app. Uses `/me.entitlements` when the server provides it, else
-  /// the web's sources: `GET /api/billing` + `GET /api/feature-flags`.
+  /// Entitlement for the social app. First queries dedicated Creator billing (/billing/status),
+  /// then falls back to `/me.entitlements` or web billing sources.
   Future<Entitlement> entitlement(Json me) async {
+    // 1. Check dedicated 180 Social Studio Creator billing & 3-day free trial
+    try {
+      final billingJson = await _api.get('/api/v1/social-media/billing/status');
+      final creatorBilling = CreatorBillingStatus.fromJson(billingJson);
+      if (creatorBilling.canAccess) {
+        return Entitlement(
+          lockReason: null,
+          isPaidPlan: creatorBilling.hasActiveSubscription || creatorBilling.hasActivePass,
+          enabledApps: const [AppConfig.socialAppId],
+          creatorBilling: creatorBilling,
+          message: creatorBilling.message,
+        );
+      } else {
+        return Entitlement(
+          lockReason: LockReason.subscriptionExpired,
+          isPaidPlan: false,
+          enabledApps: const [],
+          creatorBilling: creatorBilling,
+          message: creatorBilling.message ?? 'Your 3-day free trial has expired. Subscribe or recharge to unlock full creator access.',
+        );
+      }
+    } catch (_) {
+      // Fallback to legacy workspace billing checks if dedicated billing route not reached
+    }
+
     const app = AppConfig.socialAppId;
     final ent = jMapOrNull(me['entitlements']);
     if (ent != null) {

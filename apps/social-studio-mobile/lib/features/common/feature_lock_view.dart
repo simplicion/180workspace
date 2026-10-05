@@ -3,88 +3,601 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/auth_provider.dart';
 import '../auth/auth_repository.dart';
 
-/// Shown when the workspace cannot use the social app: not in the plan, disabled by an admin,
-/// subscription expired, or company suspended. The server's 403s are authoritative.
-class FeatureLockView extends ConsumerWidget {
+/// Shown when the creator needs to subscribe, recharge, or when trial has expired.
+/// Also supports "Recharge & Use" flexible daily duration slider ($20 / 28 days = $0.71/day)
+/// and direct monthly subscription ($20/mo via 180 Subscriptions).
+class FeatureLockView extends ConsumerStatefulWidget {
   const FeatureLockView({super.key});
 
   static (String, String) copyFor(LockReason? reason) => switch (reason) {
         LockReason.subscriptionExpired => (
-            'Subscription expired',
-            'Your workspace subscription has ended. An administrator can renew it from the 180 Workspace billing page to restore access.'
+            '3-Day Free Trial Expired',
+            'Your free trial has ended. Subscribe monthly or recharge for flexible days to unlock full creator access.'
           ),
         LockReason.companySuspended => (
-            'Workspace suspended',
+            'Workspace Suspended',
             'This workspace has been suspended. Contact 180 Workspace support to restore access.'
           ),
         LockReason.adminDisabled => (
-            'Temporarily unavailable',
+            'Temporarily Unavailable',
             '180 Social Studio has been disabled by the platform administrator. Please check back later.'
           ),
         _ => (
-            '180 Social Studio is locked',
-            'Your workspace plan does not include 180 Social Studio. An administrator can enable it from the 180 Workspace billing hub.'
+            'Unlock 180 Social Studio',
+            'Choose a creator plan or flexible daily recharge to continue creating content.'
           ),
       };
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FeatureLockView> createState() => _FeatureLockViewState();
+}
+
+class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
+  int _selectedDays = 7;
+  bool _isLoadingCheckout = false;
+  String? _activeCheckoutType;
+
+  double _calculateRechargeAmount(int days) {
+    // $20 for 28 days = $0.714285... per day
+    return ((days * 20.0 / 28.0) * 100).round() / 100.0;
+  }
+
+  Future<void> _handleCheckout(String type, {int? days}) async {
+    setState(() {
+      _isLoadingCheckout = true;
+      _activeCheckoutType = type;
+    });
+
+    try {
+      final api = ref.read(socialApiProvider);
+      final checkout = await api.createBillingCheckout(
+        type: type,
+        days: days,
+        returnUrl: AppConfig.oauthRedirectUri,
+      );
+
+      final uri = Uri.parse(checkout.checkoutUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment page opened. Tap "Refresh Access" after completing payment.'),
+              backgroundColor: AppTheme.primary,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Could not launch checkout URL: ${checkout.checkoutUrl}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not start checkout: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingCheckout = false;
+          _activeCheckoutType = null;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider).valueOrNull;
     final ent = session?.entitlement;
-    final (title, body) = copyFor(ent?.lockReason);
+    final billing = ent?.creatorBilling;
+    final (defaultTitle, defaultBody) = FeatureLockView.copyFor(ent?.lockReason);
+
+    final title = billing?.isTrial == true && billing?.trialDaysRemaining != 0
+        ? '3-Day Free Trial'
+        : defaultTitle;
+    final body = ent?.message ?? defaultBody;
+
+    final rechargeCost = _calculateRechargeAmount(_selectedDays);
+
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 32),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.border),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Top Brand Icon & Badge
+                Center(
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppTheme.primary, AppTheme.accent],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withValues(alpha: 0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.movie_creation_rounded, size: 36, color: Colors.white),
+                  ),
                 ),
-                child: Icon(Icons.lock_outline_rounded, size: 38, color: AppTheme.warning),
-              ),
-              SizedBox(height: 24),
-              Text(title,
-                  key: Key('lock.title'),
-                  style: Theme.of(context).textTheme.titleLarge,
-                  textAlign: TextAlign.center),
-              SizedBox(height: 12),
-              Text(ent?.message ?? body, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
-              if (session != null) ...[
-                SizedBox(height: 8),
-                Text('${session.user.email} · ${session.company.name}',
-                    style: Theme.of(context).textTheme.labelSmall, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+
+                // Creator Header
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      '180 SOCIAL STUDIO CREATOR',
+                      style: TextStyle(
+                        color: AppTheme.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Title & Description
+                Text(
+                  title,
+                  key: const Key('lock.title'),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  body,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.textSecondary,
+                        height: 1.4,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+
+                if (session != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    session.user.email,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppTheme.textMuted,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+
+                const SizedBox(height: 24),
+
+                // ─── OPTION 1: Monthly Subscription Card ───────────────────────
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.primary, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primary.withValues(alpha: 0.08),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'MOST POPULAR',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Cancel anytime',
+                            style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '\$20',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            ' / month',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Direct monthly creator subscription. Automatic recurring billing via 180 Subscriptions.',
+                        style: TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.3),
+                      ),
+                      const SizedBox(height: 14),
+                      _FeatureItem(text: 'Full unlimited project & video creation'),
+                      _FeatureItem(text: 'AI Script Director & timeline editor'),
+                      _FeatureItem(text: 'Autonomous Autopilot & social scheduling'),
+                      _FeatureItem(text: 'Direct publishing to Instagram, YouTube & TikTok'),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoadingCheckout
+                              ? null
+                              : () => _handleCheckout('monthly'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          icon: _isLoadingCheckout && _activeCheckoutType == 'monthly'
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.bolt_rounded, size: 20),
+                          label: const Text(
+                            'Subscribe Monthly — \$20/mo',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // ─── OPTION 2: Flexible Daily Pass (Recharge & Use) ────────────
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.surfaceElevated,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppTheme.border),
+                              ),
+                              child: Text(
+                                'PAY AS YOU GO',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '~ \$0.71 / day',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Recharge & Use Pass',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Slide to choose how many days you need. Based on \$20 for 28 days with no ongoing commitment.',
+                        style: TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.3),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Days duration selector with badge
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Duration:',
+                              style: TextStyle(fontSize: 14, color: AppTheme.textPrimary, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              '$_selectedDays Day${_selectedDays > 1 ? 's' : ''}',
+                              style: TextStyle(
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Duration Slider
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: AppTheme.primary,
+                          inactiveTrackColor: AppTheme.border,
+                          thumbColor: AppTheme.primary,
+                          overlayColor: AppTheme.primary.withValues(alpha: 0.2),
+                          trackHeight: 6,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                        ),
+                        child: Slider(
+                          value: _selectedDays.toDouble(),
+                          min: 1,
+                          max: 28,
+                          divisions: 27,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedDays = val.round();
+                            });
+                          },
+                        ),
+                      ),
+
+                      // Quick select duration chips
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [1, 3, 7, 14, 28].map((days) {
+                          final isSelected = _selectedDays == days;
+                          final price = _calculateRechargeAmount(days);
+                          return ChoiceChip(
+                            label: Text('$days d (\$${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)})'),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              setState(() {
+                                _selectedDays = days;
+                              });
+                            },
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected ? Colors.white : AppTheme.textSecondary,
+                            ),
+                            selectedColor: AppTheme.primary,
+                            backgroundColor: AppTheme.surfaceElevated,
+                            side: BorderSide(
+                              color: isSelected ? AppTheme.primary : AppTheme.border,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            showCheckmark: false,
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Dynamic total amount display box
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceElevated,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.border),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Total Recharge',
+                                    style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                                  ),
+                                  Text(
+                                    '$_selectedDays Days Access',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '\$${rechargeCost.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoadingCheckout
+                              ? null
+                              : () => _handleCheckout('recharge', days: _selectedDays),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.primary,
+                            side: BorderSide(color: AppTheme.primary, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: _isLoadingCheckout && _activeCheckoutType == 'recharge'
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                                )
+                              : const Icon(Icons.calendar_today_rounded, size: 18),
+                          label: Text(
+                            'Recharge for $_selectedDays Day${_selectedDays > 1 ? 's' : ''} — \$${rechargeCost.toStringAsFixed(2)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // ─── Actions: Refresh Access & Sign out ────────────────────────
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: () => ref.read(sessionProvider.notifier).refreshEntitlement(),
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Refresh Access'),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => ref.read(sessionProvider.notifier).logout(),
+                      child: Text(
+                        'Sign out',
+                        style: TextStyle(color: AppTheme.textMuted),
+                      ),
+                    ),
+                  ],
+                ),
               ],
-              SizedBox(height: 28),
-              if (ent?.lockReason == LockReason.appNotEnabled || ent?.lockReason == LockReason.subscriptionExpired)
-                ElevatedButton.icon(
-                  onPressed: () => launchUrl(Uri.parse('${AppConfig.webAppUrl}/dashboard/billing'),
-                      mode: LaunchMode.externalApplication),
-                  icon: Icon(Icons.bolt_rounded, size: 18),
-                  label: Text('Open billing'),
-                ),
-              SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => ref.read(sessionProvider.notifier).refreshEntitlement(),
-                icon: Icon(Icons.refresh_rounded),
-                label: Text('Check again'),
-              ),
-              TextButton(
-                onPressed: () => ref.read(sessionProvider.notifier).logout(),
-                child: Text('Sign out'),
-              ),
-            ]),
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _FeatureItem extends StatelessWidget {
+  const _FeatureItem({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.success),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.textSecondary,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
