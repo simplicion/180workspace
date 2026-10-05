@@ -25,6 +25,16 @@ out/
 # environment variables
 .env
 .env.*
+*.env
+prod.env
+packages/keys/
+keys/
+oauth-rsa-key.json
+*-key.json
+*.key
+*.cert
+*.crt
+*.pfx
 !.env.example
 !**/.env.example
 *service-account*.json

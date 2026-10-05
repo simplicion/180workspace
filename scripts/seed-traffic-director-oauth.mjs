@@ -15,7 +15,7 @@ async function main() {
     process.exit(1);
   }
 
-  const clientId = process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '180-traffic-director';
+  const clientId = process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '180_client_b26aee801c22cb3295f041ff2a3597db';
   const secret = process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || `180_secret_${crypto.randomBytes(24).toString('hex')}`;
   const secretHash = crypto.createHash('sha256').update(secret).digest('hex');
 

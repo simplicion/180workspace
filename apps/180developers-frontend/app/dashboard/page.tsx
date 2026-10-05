@@ -495,11 +495,27 @@ function DeveloperDashboardContent() {
       toast.success('Application registered successfully!');
       setShowCreateModal(false);
 
-      if (data.clientSecret || data.credentials?.clientSecret || clientType === 'confidential') {
+      const resolvedClientId =
+        data.clientId ||
+        data.app?.clientId ||
+        data.credentials?.clientId ||
+        data.client_id;
+      const resolvedClientSecret =
+        data.clientSecret ||
+        data.app?.clientSecret ||
+        data.credentials?.clientSecret ||
+        data.client_secret;
+      const resolvedWebhookSecret =
+        data.webhookSecret ||
+        data.app?.webhookSecret ||
+        data.credentials?.webhookSecret ||
+        data.webhook_secret;
+
+      if (resolvedClientSecret || clientType === 'confidential') {
         setRevealedCredentials({
-          clientId: data.clientId || data.app?.clientId,
-          clientSecret: data.clientSecret || data.credentials?.clientSecret,
-          webhookSecret: data.webhookSecret || data.credentials?.webhookSecret,
+          clientId: resolvedClientId,
+          clientSecret: resolvedClientSecret,
+          webhookSecret: resolvedWebhookSecret,
           name: appName.trim(),
           isPublic: clientType === 'public',
         });

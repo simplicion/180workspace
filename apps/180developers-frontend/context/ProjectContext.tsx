@@ -38,6 +38,7 @@ interface ProjectContextValue {
   loadingPayoutHistory: boolean;
   fetchPayoutHistory: () => Promise<void>;
   bankDetails: BankDetailsData | null;
+  setBankDetails: (val: BankDetailsData | null) => void;
   // Webhook
   webhookUrl: string;
   setWebhookUrl: (val: string) => void;
@@ -191,6 +192,9 @@ export function ProjectProvider({
       const data = await res.json();
       const appData = data.app || data.data || data;
       setProject(appData);
+      if (appData.bankDetails) {
+        setBankDetails(appData.bankDetails);
+      }
       setEnableAuth(appData.enableAuth ?? true);
       setEnablePay(appData.enablePay ?? true);
       setWebhookUrl(appData.webhookUrl || '');
@@ -462,6 +466,7 @@ export function ProjectProvider({
         loadingPayoutHistory,
         fetchPayoutHistory,
         bankDetails,
+        setBankDetails,
         webhookUrl,
         setWebhookUrl,
         webhookSecret,

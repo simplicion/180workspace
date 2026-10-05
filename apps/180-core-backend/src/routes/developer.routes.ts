@@ -30,6 +30,7 @@ router.get('/apps/:id/payment-analytics', protect, DeveloperApiController.getPay
 router.get('/apps/:id/analytics', protect, DeveloperApiController.getPaymentAnalytics);
 router.get('/apps/:id/bank-details', protect, DeveloperApiController.getBankDetails);
 router.put('/apps/:id/bank-details', protect, DeveloperApiController.saveBankDetails);
+router.post('/apps/:id/bank-details', protect, DeveloperApiController.saveBankDetails);
 
 // ─── Custom Gateway (BYOG) & Custom Domain ────────────────────────────────────
 router.get('/apps/:id/gateway', protect, DeveloperApiController.getGatewaySettings);

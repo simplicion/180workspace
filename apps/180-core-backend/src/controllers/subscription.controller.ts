@@ -297,5 +297,215 @@ export class SubscriptionApiController {
       });
     }
   }
+
+  /**
+   * GET /api/v1/subscriptions/entitlements
+   * Fetches active user subscription entitlements and issues a cryptographically
+   * signed Subscription Entitlement Token (JWT) for offline 0ms verification.
+   */
+  static async getUserEntitlements(req: Request, res: Response) {
+    try {
+      const clientId = (req.headers['x-client-id'] || req.query.clientId) as string;
+      const clientSecret = (req.headers['x-client-secret'] || req.query.clientSecret) as string;
+      let targetUserId = (req.query.userId as string) || extractUserIdFromRequest(req);
+
+      if (!clientId) {
+        return res.status(400).json({
+          success: false,
+          error: 'x-client-id header or clientId query parameter is required',
+        });
+      }
+
+      const app = await prisma.oAuthApp.findUnique({
+        where: { clientId },
+      });
+
+      if (!app || !app.isActive) {
+        return res.status(404).json({ success: false, error: 'OAuth application not found or inactive' });
+      }
+
+      // If clientSecret is provided, verify it
+      if (clientSecret) {
+        const isValid = timingSafeCompare(hashSecret(clientSecret), app.clientSecretHash);
+        if (!isValid) {
+          return res.status(401).json({ success: false, error: 'Invalid client credentials' });
+        }
+      }
+
+      if (!targetUserId) {
+        return res.status(400).json({
+          success: false,
+          error: 'userId query parameter or valid User Bearer token is required',
+        });
+      }
+
+      // Find most recent active or trialing subscription for this app and user
+      const subscription = await (prisma as any).recurringSubscription.findFirst({
+        where: {
+          appId: app.id,
+          userId: targetUserId,
+          status: { in: ['ACTIVE', 'TRIALING'] },
+        },
+        include: {
+          plan: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      if (!subscription) {
+        return res.status(200).json({
+          success: true,
+          hasActiveSubscription: false,
+          entitlements: {
+            status: 'NONE',
+            planCode: null,
+            planName: null,
+            features: [],
+            isPro: false,
+            isEnterprise: false,
+          },
+          entitlementToken: null,
+          expiresAt: null,
+        });
+      }
+
+      const planMetadata = (subscription.plan?.metadata as any) || {};
+      const features: string[] = Array.isArray(planMetadata.featureKeys)
+        ? planMetadata.featureKeys
+        : Array.isArray(planMetadata.features)
+          ? planMetadata.features
+          : [];
+
+      const planCode = subscription.plan?.planCode || '';
+      const isEnterprise = planCode.includes('enterprise');
+      const isPro = isEnterprise || planCode.includes('pro');
+
+      const now = Math.floor(Date.now() / 1000);
+      const periodEndSec = Math.floor(new Date(subscription.currentPeriodEnd).getTime() / 1000);
+      const expSec = Math.max(now + 300, periodEndSec); // At least 5 mins
+
+      // Sign the Entitlement Token using the app's secret hash so developer can verify offline
+      const signingKey = app.clientSecretHash || JWT_SECRET;
+      const entitlementPayload = {
+        iss: '180-pay',
+        aud: app.clientId,
+        sub: targetUserId,
+        subscriptionId: subscription.id,
+        planCode: subscription.plan.planCode,
+        planName: subscription.plan.name,
+        billingCycle: subscription.billingCycle,
+        amount: subscription.amount,
+        currency: subscription.currency,
+        status: subscription.status,
+        features,
+        isPro,
+        isEnterprise,
+        currentPeriodStart: subscription.currentPeriodStart,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        nextBillingDate: subscription.nextBillingDate,
+        iat: now,
+        exp: expSec,
+      };
+
+      const entitlementToken = jwt.sign(entitlementPayload, signingKey);
+
+      return res.status(200).json({
+        success: true,
+        hasActiveSubscription: true,
+        subscription: {
+          id: subscription.id,
+          status: subscription.status,
+          planCode: subscription.plan.planCode,
+          planName: subscription.plan.name,
+          amount: subscription.amount,
+          currency: subscription.currency,
+          billingCycle: subscription.billingCycle,
+          currentPeriodStart: subscription.currentPeriodStart,
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          nextBillingDate: subscription.nextBillingDate,
+          features,
+          isPro,
+          isEnterprise,
+          metadata: planMetadata,
+        },
+        entitlementToken,
+        expiresAt: subscription.currentPeriodEnd,
+      });
+    } catch (err: any) {
+      console.error('[SubscriptionApiController:getUserEntitlements] Error:', err);
+      return res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to retrieve entitlements',
+      });
+    }
+  }
+
+  /**
+   * POST /api/v1/subscriptions/verify-token
+   * Verifies a Subscription Entitlement Token (SET) and checks real-time database revocation
+   */
+  static async verifyEntitlementToken(req: Request, res: Response) {
+    try {
+      const { token, clientId } = req.body || {};
+      if (!token) {
+        return res.status(400).json({ success: false, error: 'token is required in request body' });
+      }
+
+      // 1. Decode token to inspect claims
+      const unverified = jwt.decode(token) as any;
+      if (!unverified || !unverified.aud) {
+        return res.status(400).json({ success: false, valid: false, error: 'Invalid or malformed entitlement token' });
+      }
+
+      const targetClientId = clientId || unverified.aud;
+      const app = await prisma.oAuthApp.findUnique({
+        where: { clientId: targetClientId },
+      });
+
+      if (!app) {
+        return res.status(404).json({ success: false, valid: false, error: 'Associated application not found' });
+      }
+
+      // 2. Cryptographic signature check
+      const signingKey = app.clientSecretHash || JWT_SECRET;
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, signingKey);
+      } catch (jwtErr: any) {
+        return res.status(401).json({
+          success: false,
+          valid: false,
+          error: `Token verification failed: ${jwtErr.message}`,
+        });
+      }
+
+      // 3. Optional realtime revocation / status check in database
+      const liveSub = await (prisma as any).recurringSubscription.findUnique({
+        where: { id: decoded.subscriptionId },
+        include: { plan: true },
+      });
+
+      const isActive = liveSub && (liveSub.status === 'ACTIVE' || liveSub.status === 'TRIALING');
+
+      return res.status(200).json({
+        success: true,
+        valid: true,
+        isActive: !!isActive,
+        status: liveSub ? liveSub.status : 'NOT_FOUND',
+        claims: decoded,
+        revoked: !isActive,
+      });
+    } catch (err: any) {
+      console.error('[SubscriptionApiController:verifyEntitlementToken] Error:', err);
+      return res.status(500).json({
+        success: false,
+        valid: false,
+        error: err.message || 'Verification process failed',
+      });
+    }
+  }
 }
+
 

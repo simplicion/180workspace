@@ -2,6 +2,7 @@
 
 The following design system and UI architecture rules MUST be followed when generating or modifying code in this workspace:
 
+- Read `.agents/rules/security-and-secrets.md` for strict, zero-tolerance secrets management (MANDATORY: NO credentials, connection strings, private keys, or API tokens may ever be hardcoded).
 - Read `.agents/rules/ui-architecture.md` for rules on component creation, shared `@workspace/ui` packages, and Shadcn UI best practices.
 - Read `.agents/rules/ux-best-practices.md` for rules on mobile-first responsiveness, accessibility, and error states.
 - Read `.agents/rules/design-system.md` for rules on Tailwind styling, glassmorphism, and dark mode conventions.

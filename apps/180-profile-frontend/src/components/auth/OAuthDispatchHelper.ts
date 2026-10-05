@@ -39,7 +39,7 @@ export function buildOAuthQueryString(params: OAuthParams): string {
 export function resolveAppName(clientId: string): string {
   if (clientId === '180-workspace-platform') return '180 Workspace';
   if (clientId === '180-developer-portal') return '180 Developers';
-  if (clientId === '180-traffic-director') return '180 Traffic Director';
+  if (clientId === '180-traffic-director' || clientId === '180_client_b26aee801c22cb3295f041ff2a3597db') return '180 Traffic Director';
   if (clientId === '180-profile') return '180 Profile';
   return clientId.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 }

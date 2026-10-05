@@ -1,20 +1,29 @@
 import { PrismaClient as Client180Core } from '../packages/db-180core/generated/client/index.js';
 
+const targetUrl = process.env.CORE_DATABASE_URL;
+const sourceDevsUrl = process.env.DEVELOPERS_DATABASE_URL;
+const sourceWorkspaceUrl = process.env.WORKSPACE_DATABASE_URL || process.env.DATABASE_URL;
+
+if (!targetUrl || !sourceDevsUrl) {
+  console.error('❌ Migration requires CORE_DATABASE_URL and DEVELOPERS_DATABASE_URL to be defined in your environment.');
+  process.exit(1);
+}
+
 const targetDb = new Client180Core({
   datasources: {
-    db: { url: 'postgresql://pitchin_admin:[REDACTED_DATABASE_SECRET]@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180core_db?sslmode=require' }
+    db: { url: targetUrl }
   }
 });
 
 const sourceDevsDb = new Client180Core({
   datasources: {
-    db: { url: 'postgresql://pitchin_admin:[REDACTED_DATABASE_SECRET]@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180developers_db?sslmode=require' }
+    db: { url: sourceDevsUrl }
   }
 });
 
 const sourceWorkspace180Core = new Client180Core({
   datasources: {
-    db: { url: 'postgresql://pitchin_admin:[REDACTED_DATABASE_SECRET]@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180workspace_db?sslmode=require&schema=180core' }
+    db: { url: sourceWorkspaceUrl || targetUrl }
   }
 });
 

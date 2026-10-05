@@ -161,6 +161,12 @@ export class DeveloperController {
             return res.status(201).json({
                 success: true,
                 message: 'Application created successfully. Store your Client Secret safely, it will not be shown again.',
+                clientId: app.clientId,
+                clientSecret: rawSecret,
+                credentials: {
+                    clientId: app.clientId,
+                    clientSecret: rawSecret,
+                },
                 app: {
                     id: app.id,
                     name: app.name,

@@ -4,13 +4,24 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  GitFork, Link as LinkIcon, Activity, BarChart3, 
-  Layers, Terminal, User, Plus, Sun, Moon,
-  ExternalLink, ShieldCheck, ChevronRight, Sparkles, CreditCard
+  Activity, 
+  Link as LinkIcon, 
+  BarChart3, 
+  Layers, 
+  Terminal, 
+  User, 
+  Plus, 
+  Sun, 
+  Moon, 
+  ShieldCheck, 
+  ChevronRight, 
+  CreditCard,
+  Menu
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getAuthToken, clearAuthTokens } from '@/lib/api';
 import { TrialBanner } from '@/components/shared/TrialBanner';
+import { TrafficDirectorSidebar } from '@/components/layout/TrafficDirectorSidebar';
 
 export default function PlatformLayout({
   children,
@@ -20,16 +31,14 @@ export default function PlatformLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isDark, setIsDark] = useState<boolean>(true);
-  const [advertisingUrl, setAdvertisingUrl] = useState<string>('http://localhost:3000/advertising');
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
   useEffect(() => {
     // Read theme
     const storedTheme = localStorage.getItem('180_theme');
     const isDarkMode = storedTheme ? storedTheme === 'dark' : document.documentElement.classList.contains('dark');
     setIsDark(isDarkMode);
-
-    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    setAdvertisingUrl(isLocal ? 'http://localhost:3000/advertising' : 'https://app.180workspace.com/advertising');
 
     const token = getAuthToken();
     if (!token) {
@@ -87,86 +96,35 @@ export default function PlatformLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-black text-gray-900 dark:text-zinc-100 transition-colors duration-200">
-      {/* 180 Workspace Standard Sidebar */}
-      <aside className="w-64 border-r border-gray-200/60 dark:border-white/10 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl flex flex-col justify-between shrink-0 select-none">
-        <div>
-          {/* Logo & 180 Workspace Branding */}
-          <div className="p-5 border-b border-gray-200/60 dark:border-white/10">
-            <Link href="/traffic-director" className="flex items-center space-x-3 group">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white dark:bg-zinc-900 shadow-sm border border-gray-200/70 dark:border-white/10 group-hover:scale-105 transition-transform">
-                <img src="/black-icon.svg" alt="180workspace" className="w-5 h-5 object-contain dark:hidden" />
-                <img src="/white-icon.svg" alt="180workspace" className="w-5 h-5 object-contain hidden dark:block" />
-              </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold tracking-tight text-sm text-gray-900 dark:text-white whitespace-nowrap">
-                    <span className="text-blue-600">180</span> Traffic Director
-                  </span>
-                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50">
-                    EDGE
-                  </span>
-                </div>
-                <span className="text-[10px] text-gray-500 dark:text-gray-400">Sovereign Edge Network</span>
-              </div>
-            </Link>
-          </div>
-
-          {/* Navigation Links */}
-          <nav className="p-3 space-y-1">
-            <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-              Navigation
-            </div>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                item.href === '/traffic-director'
-                  ? pathname === '/traffic-director'
-                  : pathname.startsWith(item.href);
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100/70 dark:hover:bg-zinc-900/60'
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-gray-400 dark:text-gray-500'}`} />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-
-            <div className="pt-3 px-3 py-1.5 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-              AI Tools
-            </div>
-            <a
-              href={advertisingUrl}
-              suppressHydrationWarning
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20 transition-all border border-transparent hover:border-indigo-200/50 dark:hover:border-indigo-800/40 group"
-              title="Generate AI White Page with 180 Visual Website & Landing Page Builder"
-            >
-              <div className="flex items-center space-x-3">
-                <Sparkles className="h-4 w-4 text-indigo-500 group-hover:scale-110 transition-transform" />
-                <span>AI White Pages</span>
-              </div>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
-                Builder ↗
-              </span>
-            </a>
-          </nav>
-        </div>
-      </aside>
+      {/* 180 Workspace & Developers Platform Standard Sidebar with Hover Expand/Collapse */}
+      <TrafficDirectorSidebar
+        isMobileOpen={isMobileOpen}
+        onMobileClose={() => setIsMobileOpen(false)}
+        onExpandChange={setIsSidebarExpanded}
+      />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <main
+        className={`flex-1 ${
+          isSidebarExpanded
+            ? 'lg:ml-[280px] lg:w-[calc(100%-280px)]'
+            : 'lg:ml-[80px] lg:w-[calc(100%-80px)]'
+        } flex flex-col min-w-0 min-h-screen overflow-y-auto transition-all duration-300 ease-in-out`}
+      >
         {/* Top Header conforming to 180 Workspace design */}
-        <header className="h-16 border-b border-gray-200/60 dark:border-white/10 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md px-8 flex items-center justify-between shrink-0">
+        <header className="h-16 border-b border-gray-200/60 dark:border-white/10 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md px-4 sm:px-8 flex items-center justify-between shrink-0 sticky top-0 z-20">
           <div className="flex items-center space-x-3">
+            {/* Mobile Hamburger Menu Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsMobileOpen(true)}
+              className="lg:hidden p-2 rounded-xl text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer"
+              title="Open Navigation Menu"
+              aria-label="Open Navigation Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">180 Traffic Director</span>
             <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" />
             <span className="text-xs font-bold text-gray-900 dark:text-white">{currentNav.name}</span>

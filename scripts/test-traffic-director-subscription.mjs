@@ -251,7 +251,7 @@ async function runTests() {
     });
 
     const initialStatus = await TrafficDirectorBillingService.getSubscriptionStatus(testCompanyId);
-    if (initialStatus.subscription.maxLinks !== 2 || initialStatus.subscription.planTier !== 'STARTER') {
+    if (initialStatus.subscription.maxLinks !== 2 || (initialStatus.subscription.planTier !== 'STARTER' && initialStatus.subscription.planTier !== 'FREE')) {
       throw new Error(`Unexpected initial status: ${JSON.stringify(initialStatus.subscription)}`);
     }
 

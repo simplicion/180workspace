@@ -23,12 +23,33 @@ export class PricingTableApiController {
           name: true,
           logoUrl: true,
           clientId: true,
+          description: true,
+          allowedOrigins: true,
+          redirectUris: true,
         },
       });
 
       if (!app) {
         return res.status(404).json({ success: false, error: 'Application not found' });
       }
+
+      // Query active subscription plans registered for this app
+      const dbPlans = await (prisma as any).subscriptionPlan.findMany({
+        where: { appId: app.id, isActive: true },
+        orderBy: { amount: 'asc' },
+      });
+
+      const availablePlans = dbPlans.map((p: any) => ({
+        id: p.id,
+        planCode: p.planCode,
+        name: p.name,
+        description: p.description || '',
+        amount: p.amount,
+        currency: p.currency || 'USD',
+        interval: p.interval || 'MONTHLY',
+        trialDays: p.trialDays || 0,
+        metadata: p.metadata || {},
+      }));
 
       // Check for custom config
       const existingConfig = await (prisma as any).pricingTableConfig.findUnique({
@@ -43,64 +64,43 @@ export class PricingTableApiController {
             appName: app.name,
             appLogo: app.logoUrl,
             clientId: app.clientId,
+            appDescription: app.description || '',
+            allowedOrigins: app.allowedOrigins || [],
+            redirectUris: app.redirectUris || [],
           },
+          availablePlans,
         });
       }
 
-      // Auto-generate fallback from active subscription plans
-      const plans = await (prisma as any).subscriptionPlan.findMany({
-        where: { appId: app.id, isActive: true },
-        orderBy: { amount: 'asc' },
-      });
-
+      // If no custom config exists yet, populate plan cards strictly from actual DB plans
       let planCards: any[] = [];
-      if (plans && plans.length > 0) {
-        planCards = plans.map((p: any, idx: number) => ({
-          planCode: p.planCode,
-          name: p.name,
-          description: p.description || 'Standard access tier',
-          amount: p.amount,
-          currency: p.currency,
-          interval: p.interval,
-          isPopular: idx === 1 || plans.length === 1,
-          features: [
-            'Instant 1-Click Access',
-            'Full Platform Privileges',
-            '24/7 Developer Support',
-            'Cancel Anytime',
-          ],
-          buttonText: 'Get Started',
-        }));
+      if (dbPlans && dbPlans.length > 0) {
+        planCards = dbPlans.map((p: any, idx: number) => {
+          const meta = p.metadata || {};
+          const rawFeatures = Array.isArray(meta.features)
+            ? meta.features
+            : typeof meta.features === 'string'
+            ? [meta.features]
+            : [];
+          return {
+            planCode: p.planCode,
+            name: p.name,
+            description: p.description || '',
+            amount: p.amount,
+            currency: p.currency || 'USD',
+            interval: p.interval || 'MONTHLY',
+            trialDays: p.trialDays || 0,
+            isPopular: Boolean(meta.isPopular ?? (idx === 1 || dbPlans.length === 1)),
+            badgeText: meta.badgeText || (meta.isPopular ? 'Popular' : ''),
+            badgeColor: meta.badgeColor || 'indigo',
+            features: rawFeatures,
+            buttonText: meta.buttonText || 'Get Started',
+            buttonUrl: meta.buttonUrl || '',
+          };
+        });
       } else {
-        planCards = [
-          {
-            planCode: 'starter',
-            name: 'Starter Plan',
-            description: 'Perfect for small teams & indie builders',
-            amount: 499,
-            currency: 'INR',
-            interval: 'MONTHLY',
-            isPopular: false,
-            features: ['Up to 5,000 monthly operations', 'Basic analytics dashboard', 'Community support'],
-            buttonText: 'Choose Starter',
-          },
-          {
-            planCode: 'pro',
-            name: 'Pro Sovereign',
-            description: 'For scaling products and high-volume systems',
-            amount: 1499,
-            currency: 'INR',
-            interval: 'MONTHLY',
-            isPopular: true,
-            features: [
-              'Unlimited monthly operations',
-              'Advanced analytics & audit logs',
-              'Custom webhook endpoints',
-              'Priority 24/7 dedicated support',
-            ],
-            buttonText: 'Upgrade to Pro',
-          },
-        ];
+        // Completely clean slate: zero hardcoded fake plans!
+        planCards = [];
       }
 
       const defaultConfig = {
@@ -108,8 +108,9 @@ export class PricingTableApiController {
         appName: app.name,
         appLogo: app.logoUrl,
         clientId: app.clientId,
-        headline: 'Simple, transparent pricing',
-        subheadline: `Choose the plan that fits your growth on ${app.name}`,
+        appDescription: app.description || '',
+        headline: app.name ? `${app.name} Plans & Pricing` : 'Plans & Pricing',
+        subheadline: app.description || 'Choose the plan that fits your growth',
         theme: 'auto',
         accentColor: '#6366f1',
         billingIntervals: ['MONTHLY', 'YEARLY'],
@@ -121,6 +122,7 @@ export class PricingTableApiController {
       return res.status(200).json({
         success: true,
         config: defaultConfig,
+        availablePlans,
       });
     } catch (err: any) {
       console.error('[PricingTableApiController:getPricingTableConfig] Error:', err);
@@ -144,6 +146,7 @@ export class PricingTableApiController {
         yearlyDiscountPct,
         planCards,
         customCss,
+        syncToSubscriptionPlans = true,
       } = req.body;
 
       const app = await prisma.oAuthApp.findFirst({
@@ -160,8 +163,8 @@ export class PricingTableApiController {
         where: { appId: app.id },
         create: {
           appId: app.id,
-          headline: headline || 'Simple, transparent pricing',
-          subheadline: subheadline || 'Choose the plan that fits your growth',
+          headline: headline || `${app.name} Plans & Pricing`,
+          subheadline: subheadline !== undefined ? subheadline : 'Choose the plan that fits your growth',
           theme: theme || 'auto',
           accentColor: accentColor || '#6366f1',
           billingIntervals: Array.isArray(billingIntervals) ? billingIntervals : ['MONTHLY', 'YEARLY'],
@@ -181,14 +184,275 @@ export class PricingTableApiController {
         },
       });
 
+      // Synchronize planCards to SubscriptionPlan database table
+      if (syncToSubscriptionPlans && Array.isArray(planCards)) {
+        for (const card of planCards) {
+          if (!card.planCode || !card.name) continue;
+          const cleanCode = String(card.planCode).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '_');
+          try {
+            await (prisma as any).subscriptionPlan.upsert({
+              where: {
+                appId_planCode: {
+                  appId: app.id,
+                  planCode: cleanCode,
+                },
+              },
+              update: {
+                name: String(card.name).trim(),
+                description: card.description?.trim() || '',
+                amount: Math.round(Number(card.amount || 0) * 100) / 100,
+                currency: String(card.currency || 'USD').toUpperCase(),
+                interval: card.interval || 'MONTHLY',
+                trialDays: Number(card.trialDays) || 0,
+                isActive: true,
+                metadata: {
+                  features: Array.isArray(card.features) ? card.features : [],
+                  featureKeys: Array.isArray(card.featureKeys) ? card.featureKeys : [],
+                  isPopular: Boolean(card.isPopular),
+                  badgeText: card.badgeText || '',
+                  badgeColor: card.badgeColor || 'indigo',
+                  buttonText: card.buttonText || 'Get Started',
+                  buttonUrl: card.buttonUrl || '',
+                  trialDays: Number(card.trialDays) || 0,
+                  yearlyAmount: card.yearlyAmount ? Number(card.yearlyAmount) : undefined,
+                },
+              },
+              create: {
+                appId: app.id,
+                planCode: cleanCode,
+                name: String(card.name).trim(),
+                description: card.description?.trim() || '',
+                amount: Math.round(Number(card.amount || 0) * 100) / 100,
+                currency: String(card.currency || 'USD').toUpperCase(),
+                interval: card.interval || 'MONTHLY',
+                trialDays: Number(card.trialDays) || 0,
+                isActive: true,
+                metadata: {
+                  features: Array.isArray(card.features) ? card.features : [],
+                  featureKeys: Array.isArray(card.featureKeys) ? card.featureKeys : [],
+                  isPopular: Boolean(card.isPopular),
+                  badgeText: card.badgeText || '',
+                  badgeColor: card.badgeColor || 'indigo',
+                  buttonText: card.buttonText || 'Get Started',
+                  buttonUrl: card.buttonUrl || '',
+                  trialDays: Number(card.trialDays) || 0,
+                  yearlyAmount: card.yearlyAmount ? Number(card.yearlyAmount) : undefined,
+                },
+              },
+            });
+          } catch (syncErr: any) {
+            console.warn('[PricingTableApiController] SubscriptionPlan sync notice:', syncErr.message);
+          }
+        }
+      }
+
       return res.status(200).json({
         success: true,
         data: updated,
-        config: updated,
+        config: {
+          ...updated,
+          appName: app.name,
+          appLogo: app.logoUrl,
+          clientId: app.clientId,
+          appDescription: app.description || '',
+          allowedOrigins: app.allowedOrigins || [],
+        },
       });
     } catch (err: any) {
       console.error('[PricingTableApiController:updatePricingTableConfig] Error:', err);
       return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * GET /api/v1/pricing-tables/:appId/plans
+   * List all registered active SubscriptionPlan records for this app.
+   */
+  static async listAppSubscriptionPlans(req: Request, res: Response) {
+    try {
+      const appId = String(req.params.appId);
+      const app = await prisma.oAuthApp.findFirst({
+        where: {
+          OR: [{ id: appId }, { clientId: appId }],
+        },
+      });
+
+      if (!app) {
+        return res.status(404).json({ success: false, error: 'Application not found' });
+      }
+
+      const plans = await (prisma as any).subscriptionPlan.findMany({
+        where: { appId: app.id, isActive: true },
+        orderBy: { amount: 'asc' },
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: plans,
+      });
+    } catch (err: any) {
+      console.error('[PricingTableApiController:listAppSubscriptionPlans] Error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * GET /api/v1/pricing-tables/:appId/headless (or /public)
+   * Headless JSON API for real-world developers to fetch pricing tiers directly
+   * into their own frontend/backend with custom CSS and domain whitelisting.
+   */
+  static async getHeadlessPricing(req: Request, res: Response) {
+    try {
+      const appId = String(req.params.appId);
+      const origin = req.headers.origin || '';
+
+      const app = await prisma.oAuthApp.findFirst({
+        where: {
+          OR: [{ id: appId }, { clientId: appId }],
+        },
+        select: {
+          id: true,
+          name: true,
+          logoUrl: true,
+          clientId: true,
+          description: true,
+          allowedOrigins: true,
+        },
+      });
+
+      if (!app) {
+        return res.status(404).json({ success: false, error: 'Application not found' });
+      }
+
+      // Origin Whitelist Verification (CORS)
+      const allowedOrigins = app.allowedOrigins || [];
+      const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+      const isWhitelisted =
+        !origin ||
+        isLocalhost ||
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes('*') ||
+        origin.endsWith('180workspace.com');
+
+      if (!isWhitelisted && allowedOrigins.length > 0) {
+        return res.status(403).json({
+          success: false,
+          error: `Origin "${origin}" is not authorized. Please add it to "Allowed Origins" in your 180 Developer Console project settings.`,
+          whitelistedOrigins: allowedOrigins,
+        });
+      }
+
+      // Set CORS Headers
+      res.setHeader('Access-Control-Allow-Origin', origin || '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-client-id, Authorization');
+
+      const config = await (prisma as any).pricingTableConfig.findUnique({
+        where: { appId: app.id },
+      });
+
+      const dbPlans = await (prisma as any).subscriptionPlan.findMany({
+        where: { appId: app.id, isActive: true },
+        orderBy: { amount: 'asc' },
+      });
+
+      const profileBase =
+        process.env.PROFILE_FRONTEND_URL ||
+        process.env.NEXT_PUBLIC_PROFILE_URL ||
+        'https://profile.180workspace.com';
+
+      // Assemble mapped tiers
+      let rawCards: any[] = [];
+      if (config && Array.isArray(config.planCards) && config.planCards.length > 0) {
+        rawCards = config.planCards;
+      } else if (dbPlans.length > 0) {
+        rawCards = dbPlans.map((p: any) => ({
+          planCode: p.planCode,
+          name: p.name,
+          description: p.description || '',
+          amount: p.amount,
+          currency: p.currency || 'USD',
+          interval: p.interval || 'MONTHLY',
+          trialDays: p.trialDays || 0,
+          featureKeys: p.metadata?.featureKeys || [],
+          features: p.metadata?.features || [],
+          isPopular: p.metadata?.isPopular || false,
+        }));
+      }
+
+      const yearlyDiscount = config?.yearlyDiscountPct ?? 20;
+
+      const mappedPlans = rawCards.map((card: any) => {
+        const rawAmount = Number(card.amount) || 0;
+        const yearlyAmount = card.yearlyAmount
+          ? Number(card.yearlyAmount)
+          : Math.round(rawAmount * 12 * (1 - yearlyDiscount / 100));
+
+        // Normalize features
+        const features = (card.features || []).map((f: any) => {
+          if (typeof f === 'object' && f !== null) {
+            return {
+              text: f.text,
+              included: f.included !== false,
+              note: f.note || null,
+            };
+          }
+          return {
+            text: String(f),
+            included: true,
+            note: null,
+          };
+        });
+
+        const checkoutUrl = `${profileBase}/checkout?appId=${encodeURIComponent(
+          app.clientId
+        )}&planCode=${encodeURIComponent(card.planCode)}&interval=MONTHLY&amount=${rawAmount}&currency=${encodeURIComponent(
+          card.currency || 'USD'
+        )}&title=${encodeURIComponent(card.name)}`;
+
+        return {
+          id: card.id || card.planCode,
+          planCode: card.planCode,
+          name: card.name,
+          description: card.description || '',
+          amount: rawAmount,
+          yearlyAmount,
+          currency: card.currency || 'USD',
+          interval: card.interval || 'MONTHLY',
+          trialDays: Number(card.trialDays) || 0,
+          isPopular: Boolean(card.isPopular),
+          badgeText: card.badgeText || (card.isPopular ? 'Most Popular' : null),
+          featureKeys: Array.isArray(card.featureKeys) ? card.featureKeys : [],
+          features,
+          buttonText: card.buttonText || (rawAmount === 0 ? 'Get Started Free' : 'Subscribe'),
+          buttonUrl: card.buttonUrl || null,
+          checkoutUrl,
+        };
+      });
+
+      return res.status(200).json({
+        success: true,
+        app: {
+          id: app.id,
+          name: app.name,
+          logoUrl: app.logoUrl,
+          clientId: app.clientId,
+          description: app.description || '',
+        },
+        settings: {
+          headline: config?.headline || `${app.name} Plans & Pricing`,
+          subheadline: config?.subheadline || 'Choose the plan tailored for your growth',
+          theme: config?.theme || 'auto',
+          accentColor: config?.accentColor || '#6366f1',
+          billingIntervals: config?.billingIntervals || ['MONTHLY', 'YEARLY'],
+          yearlyDiscountPct: yearlyDiscount,
+          showTrustBadge: config?.showTrustBadge !== false,
+        },
+        plans: mappedPlans,
+      });
+    } catch (err: any) {
+      console.error('[PricingTableApiController:getHeadlessPricing] Error:', err);
+      return res.status(500).json({ success: false, error: err.message });
     }
   }
 }

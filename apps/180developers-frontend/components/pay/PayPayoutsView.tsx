@@ -10,9 +10,11 @@ import {
   ArrowUpRight,
   Send,
   X,
+  Settings,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useProject } from '@/context/ProjectContext';
+import { BankDetailsDrawer } from './BankDetailsDrawer';
 
 export function PayPayoutsView() {
   const {
@@ -21,8 +23,10 @@ export function PayPayoutsView() {
     payoutHistory,
     loadingPayoutHistory,
     fetchPayoutHistory,
+    bankDetails,
   } = useProject();
 
+  const [showBankDrawer, setShowBankDrawer] = useState(false);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState('');
   const [payoutMethod, setPayoutMethod] = useState<'UPI' | 'BANK_TRANSFER'>('UPI');
@@ -35,6 +39,16 @@ export function PayPayoutsView() {
   useEffect(() => {
     fetchPayoutHistory();
   }, [fetchPayoutHistory]);
+
+  // Sync bank details to payout request modal when available
+  useEffect(() => {
+    if (bankDetails) {
+      if (bankDetails.accountHolderName && !bankHolder) setBankHolder(bankDetails.accountHolderName);
+      if (bankDetails.accountNumber && !bankAccNumber) setBankAccNumber(bankDetails.accountNumber);
+      if (bankDetails.ifscCode && !bankIfsc) setBankIfsc(bankDetails.ifscCode);
+      if (bankDetails.upiId && !upiId) setUpiId(bankDetails.upiId);
+    }
+  }, [bankDetails]);
 
   const handleRequestPayout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,15 +255,28 @@ export function PayPayoutsView() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowPayoutModal(true)}
-            disabled={payoutBalance <= 0}
-            className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed self-start sm:self-auto"
-          >
-            <ArrowUpRight className="w-4 h-4" />
-            <span>Request Payout</span>
-          </button>
+          <div className="flex items-center gap-2.5 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setShowBankDrawer(true)}
+              className="p-2.5 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-all shadow-xs flex items-center gap-2 cursor-pointer group"
+              title="Settlement Bank & UPI Settings"
+              aria-label="Settlement Bank & UPI Settings"
+            >
+              <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform duration-200 text-purple-600 dark:text-purple-400" />
+              <span className="text-xs font-semibold">Settings</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowPayoutModal(true)}
+              disabled={payoutBalance <= 0}
+              className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ArrowUpRight className="w-4 h-4" />
+              <span>Request Payout</span>
+            </button>
+          </div>
         </div>
 
         <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-500/10 via-indigo-500/5 to-transparent border border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -265,15 +292,26 @@ export function PayPayoutsView() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={fetchPayoutHistory}
-            disabled={loadingPayoutHistory}
-            className="p-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer self-start sm:self-auto"
-            title="Refresh payout balance"
-          >
-            <RotateCw className={`w-3.5 h-3.5 ${loadingPayoutHistory ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setShowBankDrawer(true)}
+              className="p-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+              title="Settlement Bank & UPI Settings"
+              aria-label="Settlement Bank & UPI Settings"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={fetchPayoutHistory}
+              disabled={loadingPayoutHistory}
+              className="p-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+              title="Refresh payout balance"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${loadingPayoutHistory ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
 
         {/* 3. Payout History Ledger */}
@@ -334,6 +372,15 @@ export function PayPayoutsView() {
           )}
         </div>
       </div>
+
+      {/* Universal Bank Details Drawer */}
+      <BankDetailsDrawer
+        isOpen={showBankDrawer}
+        onClose={() => setShowBankDrawer(false)}
+        onSaved={() => {
+          fetchPayoutHistory();
+        }}
+      />
     </div>
   );
 }

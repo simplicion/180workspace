@@ -31,7 +31,6 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: [
       'lucide-react',
-      '@workspace/ui',
       'react-hot-toast',
     ],
   },

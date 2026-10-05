@@ -1,14 +1,22 @@
 import { PrismaClient as DevsPrisma } from '../packages/db-180core/generated/client/index.js';
 
+const oldDbUrl = process.env.DEVELOPERS_DATABASE_URL;
+const coreDbUrl = process.env.CORE_DATABASE_URL || process.env.DATABASE_URL;
+
+if (!oldDbUrl || !coreDbUrl) {
+  console.error('❌ DEVELOPERS_DATABASE_URL and CORE_DATABASE_URL must be defined in your environment.');
+  process.exit(1);
+}
+
 const oldDb = new DevsPrisma({
   datasources: {
-    db: { url: 'postgresql://pitchin_admin:[REDACTED_DATABASE_SECRET]@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180developers_db?sslmode=require' }
+    db: { url: oldDbUrl }
   }
 });
 
 const coreDb = new DevsPrisma({
   datasources: {
-    db: { url: 'postgresql://pitchin_admin:[REDACTED_DATABASE_SECRET]@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180workspace_db?sslmode=require&schema=180core' }
+    db: { url: coreDbUrl }
   }
 });
 

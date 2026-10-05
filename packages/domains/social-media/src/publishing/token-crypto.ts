@@ -42,11 +42,16 @@ let warnedFallback = false;
 function loadKeys(): { current: VaultKey; all: VaultKey[] } {
     let raw = process.env.SOCIAL_TOKEN_ENCRYPTION_KEY;
     if (!raw || !raw.trim()) {
-        // Fallback to platform token encryption key or default key so server never crashes on OAuth callbacks
-        raw = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET || 'MdeaFlKI7jI4+RTYx4+8oz9IMXA2dEyp48uPSoOqyCo=';
-        if (!warnedFallback) {
-            console.warn('⚠️ [token-vault] SOCIAL_TOKEN_ENCRYPTION_KEY not explicitly set; using default platform key for token storage.');
-            warnedFallback = true;
+        raw = process.env.TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET;
+        if (!raw || !raw.trim()) {
+            if (process.env.NODE_ENV === 'test') {
+                raw = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+            } else {
+                throw new PublishError(
+                    'TOKEN_VAULT_NOT_CONFIGURED',
+                    'SOCIAL_TOKEN_ENCRYPTION_KEY or TOKEN_ENCRYPTION_KEY must be set in environment variables. Hardcoded secret keys are strictly prohibited.'
+                );
+            }
         }
     }
     const key = parseKey(raw, 'SOCIAL_TOKEN_ENCRYPTION_KEY');

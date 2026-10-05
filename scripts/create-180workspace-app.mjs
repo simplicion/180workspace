@@ -16,7 +16,12 @@ const devDbUrl =
   process.env.CORE_DATABASE_URL ||
   process.env.DEVELOPERS_DATABASE_URL ||
   process.env.IDENTITY_DATABASE_URL ||
-  'postgresql://pitchin_admin:[REDACTED_DATABASE_SECRET]@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180developers_db?sslmode=require&schema=180core';
+  process.env.DATABASE_URL;
+
+if (!devDbUrl) {
+  console.error('❌ CORE_DATABASE_URL or DATABASE_URL must be set in your environment or .env file.');
+  process.exit(1);
+}
 
 const prisma = new PrismaClient({
   datasources: { db: { url: devDbUrl } },

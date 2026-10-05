@@ -4,7 +4,7 @@
 
 **What it runs against:** `apps/backend/.env` points at the configured databases. There is **no local Postgres** in this
 repo (no Postgres service in any `docker-compose*.yml`, and nothing listening on `localhost:5432`). `DATABASE_URL` is the
-shared **AWS RDS** instance (`pitchin-db…us-east-1.rds.amazonaws.com`). It can be reached from this machine, so nothing had
+shared **AWS RDS** instance (`<your-rds-host>.rds.amazonaws.com`). It can be reached from this machine, so nothing had
 to be started for it. Redis is the local **Memurai** service at `redis://127.0.0.1:6379`, which is already running as a
 Windows service. Docker was not needed. Docker Desktop's daemon is not running, and the CLI needs elevation.
 

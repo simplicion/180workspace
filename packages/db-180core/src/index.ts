@@ -9,8 +9,18 @@ function getCoreDatabaseUrl(): string {
     process.env.CORE_DATABASE_URL ||
     process.env.DEVELOPERS_DATABASE_URL ||
     process.env.IDENTITY_DATABASE_URL ||
-    'postgresql://pitchin_admin:[REDACTED_DATABASE_SECRET]@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180core_db?sslmode=require'
+    process.env.DATABASE_URL
   );
+
+  if (!url) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'CRITICAL: CORE_DATABASE_URL environment variable is missing in production. Hardcoded database fallback credentials are strictly prohibited.'
+      );
+    }
+    // Safe local development fallback
+    url = 'postgresql://postgres:postgres@localhost:5432/180core_db?schema=public';
+  }
 
   // Redirect legacy 180developers_db to isolated 180core_db
   if (url.includes('180developers_db')) {

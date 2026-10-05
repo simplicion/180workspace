@@ -46,7 +46,7 @@ export default function CallbackPage() {
 
         const tokenPayload = {
           grant_type: 'authorization_code',
-          client_id: '180-traffic-director',
+          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_b26aee801c22cb3295f041ff2a3597db',
           code,
           redirect_uri: redirectUri,
         };

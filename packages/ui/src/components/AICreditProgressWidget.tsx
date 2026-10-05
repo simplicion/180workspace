@@ -6,8 +6,6 @@ import toast from "react-hot-toast";
 import { AILogo, AILogoIcon } from "./AILogo";
 import { AICreditDrawer, AI_CREDITS_DRAWER_OPEN_EVENT } from "./AICreditDrawer";
 
-export { AICreditDrawer, AI_CREDITS_DRAWER_OPEN_EVENT };
-
 export interface AICreditAccountStatus {
   companyId?: string;
   tier?: "FREE" | "PRO" | "AGENCY" | string;

@@ -12,9 +12,15 @@ dotenv.config({ path: path.resolve(__dirname, '../apps/180-core-backend/.env') }
 import { PrismaClient } from '../packages/db-180core/generated/client/index.js';
 
 const devDbUrl =
+  process.env.CORE_DATABASE_URL ||
   process.env.DEVELOPERS_DATABASE_URL ||
   process.env.IDENTITY_DATABASE_URL ||
-  'postgresql://pitchin_admin:[REDACTED_DATABASE_SECRET]@pitchin-db.csne8mek4dog.us-east-1.rds.amazonaws.com:5432/180developers_db?sslmode=require';
+  process.env.DATABASE_URL;
+
+if (!devDbUrl) {
+  console.error('❌ CORE_DATABASE_URL or DATABASE_URL must be set in your environment.');
+  process.exit(1);
+}
 
 const prisma = new PrismaClient({
   datasources: { db: { url: devDbUrl } },
@@ -23,12 +29,13 @@ const prisma = new PrismaClient({
 async function main() {
   console.log('🚀 Seeding Simplicion Root User & System OAuth Apps in 180 Identity...');
 
-  const rootEmail = 'simplicion.com@gmail.com';
-  const rootPhone = '+919381420546';
-  const rootUsername = 'simplicion';
+  const rootEmail = process.env.ROOT_ADMIN_EMAIL || 'simplicion.com@gmail.com';
+  const rootPhone = process.env.ROOT_ADMIN_PHONE || '+919381420546';
+  const rootUsername = process.env.ROOT_ADMIN_USERNAME || 'simplicion';
   const rootName = 'Simplicion';
+  const rootPassword = process.env.ROOT_ADMIN_PASSWORD || 'Simplicion180Secure!';
   const salt = await bcrypt.genSalt(10);
-  const passwordHash = await bcrypt.hash('Simplicion180Admin!', salt);
+  const passwordHash = await bcrypt.hash(rootPassword, salt);
 
   // 1. Upsert Root User
   let user = await prisma.user.findFirst({
@@ -95,7 +102,7 @@ async function main() {
   }
 
   // 3. First-party OAuth Client: 180-workspace-platform
-  const platformClientSecret = '180sec_live__c28066bb706752b347e42b1d79c27db9537c148da526919144e2961d7a5afa55';
+  const platformClientSecret = process.env.PLATFORM_CLIENT_SECRET || '180sec_platform_default_key_seed';
   const platformSecretHash = await bcrypt.hash(platformClientSecret, 10);
   const platformSecretHint = platformClientSecret.slice(-4);
 

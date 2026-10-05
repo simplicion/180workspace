@@ -171,10 +171,10 @@ export class TrafficDirectorBillingService {
   }
 
   private static get180PayBaseUrl(): string {
-    if (process.env.ONE_EIGHTY_PAY_CORE_URL) {
+    if (process.env.ONE_EIGHTY_PAY_CORE_URL && !process.env.ONE_EIGHTY_PAY_CORE_URL.includes('core-backend')) {
       return process.env.ONE_EIGHTY_PAY_CORE_URL;
     }
-    if (process.env.CORE_BACKEND_INTERNAL_URL) {
+    if (process.env.CORE_BACKEND_INTERNAL_URL && !process.env.CORE_BACKEND_INTERNAL_URL.includes('core-backend')) {
       return process.env.CORE_BACKEND_INTERNAL_URL;
     }
     if (process.env.CORE_BACKEND_URL) {
@@ -183,18 +183,15 @@ export class TrafficDirectorBillingService {
     if (process.env.IDENTITY_SERVER_URL && !process.env.IDENTITY_SERVER_URL.includes('localhost')) {
       return process.env.IDENTITY_SERVER_URL;
     }
-    if (process.env.NODE_ENV === 'production') {
-      return 'http://core-backend:4003';
-    }
-    return 'http://localhost:4003';
+    return 'https://services.180workspace.com';
   }
 
   private static getClientCredentials(): { clientId: string; clientSecret: string } {
     return {
-      clientId: process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '180-traffic-director',
+      clientId: process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '180_client_b26aee801c22cb3295f041ff2a3597db',
       clientSecret:
         process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET ||
-        '180_secret_traffic_director_prod_key_771829',
+        '180_secret_655c7f44063bb7cf145b316e9cbab460765e8a5af090369ab2f37e34a2c16a11',
     };
   }
 
@@ -647,10 +644,12 @@ export class TrafficDirectorBillingService {
       },
     };
 
-    const candidateUrls = [
+    const candidateUrls = Array.from(new Set([
       payBaseUrl,
-      process.env.NODE_ENV === 'production' ? 'https://services.180workspace.com' : undefined,
-    ].filter(Boolean) as string[];
+      'https://services.180workspace.com',
+      'http://localhost:4003',
+      'http://127.0.0.1:4003',
+    ])).filter(Boolean) as string[];
 
     let sessionResponse: any = null;
     let lastError: any = null;
@@ -659,7 +658,7 @@ export class TrafficDirectorBillingService {
       try {
         sessionResponse = await axios.post(`${url}/api/v1/subscriptions/sessions`, payload, {
           headers: { 'Content-Type': 'application/json' },
-          timeout: 10000,
+          timeout: 5000,
         });
         if (sessionResponse?.data?.sessionId || sessionResponse?.data?.success) {
           break;
@@ -670,7 +669,7 @@ export class TrafficDirectorBillingService {
         try {
           sessionResponse = await axios.post(`${url}/api/v1/checkout/sessions`, payload, {
             headers: { 'Content-Type': 'application/json' },
-            timeout: 10000,
+            timeout: 5000,
           });
           if (sessionResponse?.data?.sessionId || sessionResponse?.data?.success) {
             break;

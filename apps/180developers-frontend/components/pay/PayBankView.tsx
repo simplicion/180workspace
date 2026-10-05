@@ -13,7 +13,7 @@ import toast from 'react-hot-toast';
 import { useProject } from '@/context/ProjectContext';
 
 export function PayBankView() {
-  const { projectId, bankDetails } = useProject();
+  const { projectId, bankDetails, setBankDetails, refreshProject } = useProject();
 
   const [accountHolderName, setAccountHolderName] = useState(bankDetails?.accountHolderName || '');
   const [accountNumber, setAccountNumber] = useState(bankDetails?.accountNumber || '');
@@ -57,7 +57,15 @@ export function PayBankView() {
         throw new Error(data.message || data.error || 'Failed to update settlement bank details');
       }
 
+      setBankDetails({
+        accountHolderName: accountHolderName.trim(),
+        accountNumber: accountNumber.trim(),
+        ifscCode: ifscCode.trim().toUpperCase(),
+        upiId: upiId.trim(),
+      });
+
       toast.success('Settlement bank details verified and updated successfully!');
+      await refreshProject?.();
     } catch (err: any) {
       toast.error(err.message || 'Error saving bank details');
     } finally {
