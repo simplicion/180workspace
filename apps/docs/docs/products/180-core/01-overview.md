@@ -82,7 +82,7 @@ Never expose your `CLIENT_SECRET` or `WEBHOOK_SECRET` in frontend client code, g
 
 ## Next Steps
 
-- **[Master AI Integration Prompt](/docs/core/ai-master-prompt)**: Copy a ready-to-paste AI prompt for ChatGPT/Claude/Cursor to integrate 180 Identity and 180 Pay in 2 minutes.
-- **[180 Identity Integration](/docs/core/identity/getting-started)**: Step-by-step setup for Universal Login & WhatsApp 1-Tap.
-- **[180 Pay Integration](/docs/core/pay/getting-started)**: Step-by-step setup for 1-Click Payments & Recurring Subscriptions.
-- **[Webhook Verification Guide](/docs/core/pay/webhook-integration)**: Production code examples for verifying HMAC signatures in Node.js, Next.js, and Python.
+- **[Master AI Integration Prompt](/docs/products/180-core/ai-master-prompt)**: Copy a ready-to-paste AI prompt for ChatGPT/Claude/Cursor to integrate 180 Identity and 180 Pay in 2 minutes.
+- **[180 Identity Integration](/docs/products/180-core/180-identity/getting-started)**: Step-by-step setup for Universal Login & WhatsApp 1-Tap.
+- **[180 Pay Integration](/docs/products/180-core/180-pay/getting-started)**: Step-by-step setup for 1-Click Payments & Recurring Subscriptions.
+- **[Webhook Verification Guide](/docs/products/180-core/180-pay/webhook-integration)**: Production code examples for verifying HMAC signatures in Node.js, Next.js, and Python.
