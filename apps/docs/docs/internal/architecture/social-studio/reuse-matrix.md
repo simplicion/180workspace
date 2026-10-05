@@ -1,4 +1,10 @@
-# 180WORKSPACE VIDEO ENGINE: CODEBASE REUSE MATRIX
+---
+title: Video Engine Codebase Reuse Matrix
+sidebar_label: Codebase Reuse Matrix
+sidebar_position: 4
+---
+
+# 180 Video Engine: Codebase Reuse Matrix
 **Objective:** Maximize Monorepo Synergy & Prevent Duplicate Infrastructure  
 
 ---

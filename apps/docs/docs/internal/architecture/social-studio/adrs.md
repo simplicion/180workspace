@@ -1,4 +1,10 @@
-# 180WORKSPACE VIDEO ENGINE: ARCHITECTURE DECISION RECORDS (ADRs 001–014)
+---
+title: Video Engine Architecture Decision Records (ADRs 001–014)
+sidebar_label: ADRs (001-014)
+sidebar_position: 1
+---
+
+# 180 Video Engine: Architecture Decision Records (ADRs 001–014)
 **Status:** Approved & Frozen  
 **Governing Standard:** 180 Workspace Autonomous Video Production Engine  
 

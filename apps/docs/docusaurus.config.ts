@@ -72,7 +72,7 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          to: '/docs/01-platform-overview',
+          to: '/docs/platform-overview',
           label: 'Platform Overview',
           position: 'left',
         },
@@ -111,19 +111,19 @@ const config: Config = {
           items: [
             {
               label: 'Platform Overview',
-              to: '/docs/01-platform-overview',
+              to: '/docs/platform-overview',
             },
             {
               label: 'Product Vision & Purpose',
-              to: '/docs/02-product-vision-and-purpose',
+              to: '/docs/platform-overview#1-product-vision--purpose',
             },
             {
               label: 'The Sovereign Work Graph',
-              to: '/docs/03-work-graph-architecture',
+              to: '/docs/platform-overview#2-the-sovereign-work-graph-architecture',
             },
             {
               label: 'Security & Multi-Tenancy',
-              to: '/docs/06-security-and-trust',
+              to: '/docs/platform-overview#5-security-multi-tenancy--trust',
             },
           ],
         },
@@ -153,11 +153,11 @@ const config: Config = {
           items: [
             {
               label: 'Universal Account & SSO',
-              to: '/docs/04-universal-account-and-identity',
+              to: '/docs/platform-overview#3-universal-account--identity',
             },
             {
               label: 'Developer Ecosystem & SDKs',
-              to: '/docs/05-global-developer-experience',
+              to: '/docs/platform-overview#4-global-developer-experience--sdks',
             },
             {
               label: '1-Click AI Master Prompt',

@@ -1,4 +1,10 @@
-# 180WORKSPACE VIDEO ENGINE: TECHNICAL RISKS & MITIGATION MATRIX
+---
+title: Video Engine Technical Risks & Mitigation Matrix
+sidebar_label: Technical Risks
+sidebar_position: 5
+---
+
+# 180 Video Engine: Technical Risks & Mitigation Matrix
 **Status:** Mandatory Production Risk Registry  
 **Auditor:** Senior Video Systems Architect  
 
@@ -41,14 +47,14 @@
 │ RISK 3: Audio/Video Desynchronization (Time Drift)                                          │
 ├─────────────────────────────────────────────────────────────────────────────────────────────┤
 │ Impact: Critical | Likelihood: High                                                         │
-│ Root Cause: Using JavaScript floating-point seconds (`0.1 + 0.2 != 0.3`) for timeline time  │
+│ Root Cause: Using JavaScript floating-point seconds (0.1 + 0.2 != 0.3) for timeline time   │
 │ causes accumulated rounding errors, resulting in audio drifting by 200-500ms after 5 mins. │
 │                                                                                             │
 │ Mitigation Strategy:                                                                        │
 │ 1. Exact Rational Timebase: Represent all timeline coordinates as exact integer fractions   │
-│    `RationalTime { value: i64, timescale: u32 }` (e.g., `48000` for audio, `60000/1001` for │
+│    RationalTime { value: i64, timescale: u32 } (e.g., 48000 for audio, 60000/1001 for       │
 │    29.97fps video).                                                                         │
-│ 2. Resampling Guardrails: Audio resampler (`libswresample`) locked to master clock.         │
+│ 2. Resampling Guardrails: Audio resampler (libswresample) locked to master clock.           │
 └─────────────────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -72,7 +78,7 @@
 │ Linux (Vulkan) GPU drivers leading to visual shader inconsistencies.                        │
 │                                                                                             │
 │ Mitigation Strategy:                                                                        │
-│ 1. wgpu Graphics Abstraction: Use `wgpu` (the Rust WebGPU implementation) to write unified  │
+│ 1. wgpu Graphics Abstraction: Use wgpu (the Rust WebGPU implementation) to write unified   │
 │    WGSL shaders that compile deterministically to SPIR-V (Vulkan), MSL (Metal), and DXIL   │
 │    (DirectX 12).                                                                            │
 │ 2. Automated Golden Frame CI Tests: Compare rendered frames against reference hashes on CI.│

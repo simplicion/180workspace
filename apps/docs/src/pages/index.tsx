@@ -24,7 +24,7 @@ function HomepageHeader() {
           Enterprise Engineering Blueprints, Work Graph Architecture, Multi-Tenant Database Schemas, and Developer Runbooks for the 180workspace Platform.
         </p>
         <div className={styles.buttons}>
-          <Link className={styles.primaryBtn} to="/docs/01-platform-overview">
+          <Link className={styles.primaryBtn} to="/docs/platform-overview">
             Explore Documentation <span>→</span>
           </Link>
           <Link className={styles.secondaryBtn} to="/docs/products/180-workspace/overview">
@@ -50,13 +50,13 @@ const navModules = [
   {
     title: 'Platform Overview & Purpose',
     desc: 'High-level introduction to the sovereign business platform vision, architecture, and multi-tenant security.',
-    link: '/docs/01-platform-overview',
+    link: '/docs/platform-overview',
     icon: '🌐',
   },
   {
     title: 'The Sovereign Work Graph',
     desc: 'Autonomous cross-application event propagation connecting ads, leads, media, and payments.',
-    link: '/docs/03-work-graph-architecture',
+    link: '/docs/platform-overview#2-the-sovereign-work-graph-architecture',
     icon: '⚡',
   },
   {
@@ -67,7 +67,7 @@ const navModules = [
   },
   {
     title: '180 Social Studio',
-    desc: 'AI script director, front-camera teleprompter, 1-click multi-platform publishing, and viral Auto-DM lead capture.',
+    desc: 'AI script director, front-camera teleprompter, 60fps video timeline, 1-click multi-publishing, and viral Auto-DM lead capture.',
     link: '/docs/products/180-social-studio/overview',
     icon: '🎬',
   },

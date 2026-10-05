@@ -1,4 +1,10 @@
-# 180WORKSPACE VIDEO ENGINE: IMPLEMENTATION GAPS & ROADMAP
+---
+title: Video Engine Implementation Gaps & Roadmap
+sidebar_label: Implementation Gaps
+sidebar_position: 3
+---
+
+# 180 Video Engine: Implementation Gaps & Roadmap
 **Status:** Actionable Implementation Plan  
 **Target:** From Monorepo Baseline to Autonomous Production Release  
 

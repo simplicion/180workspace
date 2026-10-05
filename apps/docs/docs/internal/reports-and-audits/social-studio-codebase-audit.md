@@ -1,4 +1,9 @@
-# 180WORKSPACE CODEBASE AUDIT: VIDEO ENGINE INTEGRATION
+---
+title: Video Engine Codebase Audit & Forensics
+sidebar_label: Video Engine Codebase Audit
+---
+
+# 180 Workspace Codebase Audit: Video Engine Integration
 **Date:** September 2026  
 **Auditor:** Senior Video Systems Architect & Lead Engineer  
 **Objective:** Phase 0 Deep-Dive Forensics for Autonomous Video Production Engine Integration  
