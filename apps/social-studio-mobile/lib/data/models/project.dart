@@ -84,7 +84,7 @@ class ProjectMetrics {
 
 class ProjectSettings {
   const ProjectSettings({
-    this.approvalRequired = true,
+    this.approvalRequired = false,
     this.defaultTimezone = 'UTC',
     this.storageRetentionDays = 30,
     this.defaultReviewerId,
@@ -96,7 +96,7 @@ class ProjectSettings {
   final String? defaultReviewerId;
 
   factory ProjectSettings.fromJson(Json j) => ProjectSettings(
-        approvalRequired: jBool(j['approvalRequired'], true),
+        approvalRequired: jBool(j['approvalRequired'], false),
         defaultTimezone: jStr(j['defaultTimezone']) ?? 'UTC',
         storageRetentionDays: jInt(j['storageRetentionDays']) ?? 30,
         defaultReviewerId: jStr(j['defaultReviewerId']),

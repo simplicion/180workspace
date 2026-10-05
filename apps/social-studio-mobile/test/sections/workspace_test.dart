@@ -69,53 +69,6 @@ void main() {
     expect(find.byType(LibraryScreen), findsOneWidget);
   });
 
-  appTest('Tasks: list renders; empty state has an action', (tester) async {
-    final b = seededBackend();
-    await pumpApp(tester, b, location: '/projects/p1/tasks');
-    expect(find.text('Edit launch teaser'), findsOneWidget);
-    expect(b.last('GET', '/api/tasks')!.query['projectId'], 'p1');
-
-    b.json('GET', '/api/tasks', {'success': true, 'tasks': []});
-    await tester.drag(find.byType(ListView).first, const Offset(0, 300));
-    await settle(tester);
-    expect(find.text('No editing tasks'), findsOneWidget);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Open content'));
-    await settle(tester);
-    expect(find.descendant(of: find.byType(AppBar), matching: find.text('Content')), findsOneWidget);
-  });
-
-  appTest('Approvals: send for approval creates a review session for the project client', (tester) async {
-    final b = seededBackend()
-      ..json('POST', '$sm/reviews/sessions', {
-        'success': true,
-        'session': {'id': 'rs1', 'token': 'tok123', 'name': 'Acme Launch review', 'status': 'pending', 'clientId': 'c1', 'projectId': 'p1'},
-      }, status: 201);
-    await pumpApp(tester, b, location: '/projects/p1/approvals');
-    await tester.tap(find.text('Send for client approval'));
-    await settle(tester);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Create review link'));
-    await settle(tester);
-    final body = b.last('POST', '$sm/reviews/sessions')!.json;
-    expect(body['clientId'], 'c1');
-    expect(body['projectId'], 'p1');
-    expect(body['name'], 'Acme Launch review');
-    expect(body['expiresInDays'], 14);
-    expect(body['startDate'], isNotNull);
-    expect(find.text('Review link ready'), findsOneWidget);
-    expect(find.textContaining('/review/tok123'), findsOneWidget);
-    // The project detail (sessions list) is reloaded after the mutation.
-    expect(b.calls('GET', '$sm/projects/p1').length, greaterThan(1));
-  });
-
-  appTest('Approvals: without a client the send action explains why, sends nothing', (tester) async {
-    final b = seededBackend()..json('GET', '$sm/projects/:id', {'success': true, 'project': projectDetailJson(clientId: null)});
-    await pumpApp(tester, b, location: '/projects/p1/approvals');
-    await tester.tap(find.text('Send for client approval'));
-    await settle(tester);
-    expect(find.textContaining('This project has no client'), findsOneWidget);
-    expect(b.calls('POST', '$sm/reviews/sessions'), isEmpty);
-  });
-
   appTest('Publishing: empty queue offers an action', (tester) async {
     await pumpApp(tester, seededBackend(), location: '/projects/p1/publishing');
     expect(find.text('Nothing in the publishing queue'), findsOneWidget);

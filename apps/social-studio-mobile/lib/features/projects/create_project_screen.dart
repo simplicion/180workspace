@@ -10,10 +10,7 @@ import '../../data/models/project.dart';
 import 'brand_voice_form.dart';
 import 'project_provider.dart';
 
-final clientsProvider = FutureProvider.autoDispose<List<ClientRef>>((ref) => ref.watch(socialApiProvider).listClients());
-
-/// New project wizard: basics & client → services → brand identity → create project.
-/// Channels are connected subsequently from the project workspace.
+/// New project wizard for creators: channel basics → brand identity → create.
 class CreateProjectScreen extends ConsumerStatefulWidget {
   const CreateProjectScreen({super.key});
 
@@ -26,11 +23,6 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   bool _saving = false;
   final _name = TextEditingController();
   final _description = TextEditingController();
-  final _clientName = TextEditingController();
-  final _clientEmail = TextEditingController();
-  String? _clientId;
-  bool _newClient = false;
-  final Set<String> _services = {'content_calendar', 'short_form_video', 'publishing'};
   BrandVoice _voice = BrandVoice(projectId: '');
   String? _pickedLogoPath;
   String _tz = 'UTC';
@@ -44,18 +36,14 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
 
   @override
   void dispose() {
-    for (final c in [_name, _description, _clientName, _clientEmail]) {
-      c.dispose();
-    }
+    _name.dispose();
+    _description.dispose();
     super.dispose();
   }
 
   String? _validate() {
     if (_step == 0) {
-      if (_name.text.trim().isEmpty) return 'Give the project a name.';
-      if (_newClient && _clientName.text.trim().isEmpty) return 'Enter the client name, or choose "No client".';
-      final email = _clientEmail.text.trim();
-      if (_newClient && email.isNotEmpty && !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) return 'That client email does not look right.';
+      if (_name.text.trim().isEmpty) return 'Give your channel or project a name.';
     }
     return null;
   }
@@ -65,13 +53,13 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
     final input = CreateProjectInput(
       name: _name.text,
       description: _description.text,
-      clientId: _newClient ? null : _clientId,
-      clientName: _newClient ? _clientName.text : null,
-      clientEmail: _newClient ? _clientEmail.text : null,
-      socialServices: _services.toList(),
+      clientId: null,
+      clientName: null,
+      clientEmail: null,
+      socialServices: const ['content_calendar', 'short_form_video', 'publishing'],
       brandVoice: _voice,
       connectedAccountIds: const [],
-      settings: ProjectSettings(approvalRequired: true, defaultTimezone: _tz),
+      settings: ProjectSettings(approvalRequired: false, defaultTimezone: _tz),
     );
     final project = await guarded(context, () => ref.read(socialApiProvider).createProject(input));
     if (!mounted) return;
@@ -99,10 +87,8 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final clients = ref.watch(clientsProvider);
-
     return Scaffold(
-      appBar: AppBar(title: Text('New project')),
+      appBar: AppBar(title: Text('New Channel / Project')),
       body: Stepper(
         currentStep: _step,
         onStepTapped: (i) => i < _step ? setState(() => _step = i) : null,
@@ -110,7 +96,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
         onStepContinue: () {
           final err = _validate();
           if (err != null) return showError(context, err);
-          if (_step < 2) {
+          if (_step < 1) {
             setState(() => _step++);
           } else {
             _create();
@@ -123,63 +109,34 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
               onPressed: _saving ? null : d.onStepContinue,
               child: _saving
                   ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text(_step == 2 ? 'Create project' : 'Next'),
+                  : Text(_step == 1 ? 'Create' : 'Next'),
             ),
             if (d.onStepCancel != null) TextButton(onPressed: d.onStepCancel, child: Text('Back')),
           ]),
         ),
         steps: [
           Step(
-            title: Text('Project & client'),
+            title: Text('Channel Details'),
             isActive: _step >= 0,
             content: Column(children: [
-              TextField(controller: _name, autofocus: true, decoration: fieldDecoration('Project name *', hint: 'e.g. Apex Gym – Q4 social')),
-              SizedBox(height: 12),
-              TextField(controller: _description, minLines: 1, maxLines: 3, decoration: fieldDecoration('Description')),
-              SizedBox(height: 12),
-              SegmentedButton<bool>(
-                segments: [ButtonSegment(value: false, label: Text('Existing / no client')), ButtonSegment(value: true, label: Text('New client'))],
-                selected: {_newClient},
-                onSelectionChanged: (s) => setState(() => _newClient = s.first),
+              TextField(
+                controller: _name,
+                autofocus: true,
+                decoration: fieldDecoration('Channel / Project name *', hint: 'e.g. Personal Brand, Tech Shorts, Podcast'),
               ),
               SizedBox(height: 12),
-              if (_newClient) ...[
-                TextField(controller: _clientName, decoration: fieldDecoration('Client name *')),
-                SizedBox(height: 12),
-                TextField(controller: _clientEmail, keyboardType: TextInputType.emailAddress, decoration: fieldDecoration('Client email', helper: 'Used for review links')),
-              ] else
-                clients.when(
-                  loading: () => LinearProgressIndicator(),
-                  error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(clientsProvider)),
-                  data: (list) => DropdownButtonFormField<String?>(
-                    isExpanded: true,
-                    initialValue: _clientId,
-                    decoration: fieldDecoration('Client', helper: 'Without a client, review links cannot be sent.'),
-                    items: [
-                      DropdownMenuItem(value: null, child: Text('No client (internal)')),
-                      for (final c in list) DropdownMenuItem(value: c.id, child: Text(c.name, overflow: TextOverflow.ellipsis)),
-                    ],
-                    onChanged: (v) => setState(() => _clientId = v),
-                  ),
-                ),
+              TextField(
+                controller: _description,
+                minLines: 1,
+                maxLines: 3,
+                decoration: fieldDecoration('Description', hint: 'What is this channel or series about?'),
+              ),
             ]),
           ),
           Step(
-            title: Text('Services'),
-            isActive: _step >= 1,
-            content: Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final e in socialServiceOptions.entries)
-                FilterChip(
-                  label: Text(e.value),
-                  selected: _services.contains(e.key),
-                  onSelected: (on) => setState(() => on ? _services.add(e.key) : _services.remove(e.key)),
-                ),
-            ]),
-          ),
-          Step(
-            title: Text('Brand identity'),
+            title: Text('Style DNA & Voice'),
             subtitle: Text('Optional, and editable later'),
-            isActive: _step >= 2,
+            isActive: _step >= 1,
             content: BrandVoiceForm(
               initial: _voice,
               onChanged: (v) => _voice = v,

@@ -26,8 +26,6 @@ class ProjectSection {
   static const all = [
     ProjectSection('calendar', 'Calendar', Icons.calendar_month_rounded),
     ProjectSection('content', 'Content', Icons.view_list_rounded),
-    ProjectSection('tasks', 'Editing tasks', Icons.assignment_rounded),
-    ProjectSection('approvals', 'Approvals', Icons.verified_rounded),
     ProjectSection('publishing', 'Publishing', Icons.send_rounded),
     ProjectSection('inbox', 'Inbox', Icons.forum_rounded),
     ProjectSection('engagement', 'Engagement', Icons.bolt_rounded),

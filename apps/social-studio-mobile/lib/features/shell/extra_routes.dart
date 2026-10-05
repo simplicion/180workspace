@@ -12,7 +12,6 @@ import '../posts/post_composer_screen.dart';
 import '../posts/post_detail_screen.dart';
 import '../projects/create_project_screen.dart';
 import '../projects/projects_list_screen.dart';
-import '../reviews/public_review_screen.dart';
 import '../settings/settings_screen.dart';
 import '../studio/camera_screen.dart';
 import '../studio/studio_drafts_service.dart';
@@ -116,7 +115,6 @@ List<RouteBase> extraRoutes() => [
               : StudioScreen();
         },
       ),
-      GoRoute(path: '/review/:token', builder: (_, s) => PublicReviewScreen(token: s.pathParameters['token']!)),
       GoRoute(path: '/oauth-callback', builder: (_, s) => OAuthCallbackScreen(query: s.uri.queryParameters)),
       GoRoute(path: '/oauth/callback', builder: (_, s) => OAuthCallbackScreen(query: s.uri.queryParameters)),
     ];

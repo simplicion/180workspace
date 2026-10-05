@@ -12,7 +12,6 @@ import '../../core/util/poll_backoff.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/platform.dart';
 import '../../data/models/social_post.dart';
-import '../../data/models/task.dart';
 import '../../data/models/user_assisted_publish_package.dart';
 import '../projects/project_provider.dart';
 import 'finish_publishing_sheet.dart';
@@ -381,21 +380,6 @@ class _PostBodyState extends ConsumerState<_PostBody> {
     });
   }
 
-  Future<void> _assignEditor() async {
-    final body = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.surface,
-      builder: (_) => _AssignEditorSheet(post: p),
-    );
-    if (body == null || !mounted) return;
-    await _run('assign', () async {
-      await ref.read(socialApiProvider).assignEditor(p.id, body);
-      _refresh();
-      if (mounted) showInfo(context, 'Editing task created', color: AppTheme.success);
-    });
-  }
-
   Future<void> _repurpose() async {
     final d = await showDatePicker(
       context: context,
@@ -485,11 +469,6 @@ class _PostBodyState extends ConsumerState<_PostBody> {
           onPressed: busy ? null : _uploadDeliverable,
           icon: Icon(Icons.upload_rounded, size: 18),
           label: Text('Upload final video'),
-        ),
-        OutlinedButton.icon(
-          onPressed: busy ? null : _assignEditor,
-          icon: Icon(Icons.person_add_alt_rounded, size: 18),
-          label: Text('Assign editor'),
         ),
         OutlinedButton.icon(
           onPressed: busy ? null : _repurpose,
@@ -681,95 +660,5 @@ class _PostBodyState extends ConsumerState<_PostBody> {
             ),
           ),
     ]);
-  }
-}
-
-class _AssignEditorSheet extends ConsumerStatefulWidget {
-  const _AssignEditorSheet({required this.post});
-  final SocialPost post;
-
-  @override
-  ConsumerState<_AssignEditorSheet> createState() => _AssignEditorSheetState();
-}
-
-class _AssignEditorSheetState extends ConsumerState<_AssignEditorSheet> {
-  String? _assigneeId;
-  DateTime? _deadline;
-  String _priority = 'medium';
-  final _instructions = TextEditingController();
-
-  @override
-  void dispose() {
-    _instructions.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final users = ref.watch(workspaceUsersProvider);
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 16),
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text('Assign an editor', style: Theme.of(context).textTheme.titleLarge),
-        SizedBox(height: 16),
-        users.when(
-          loading: () => LinearProgressIndicator(),
-          error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(workspaceUsersProvider)),
-          data: (list) => DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue: _assigneeId,
-            decoration: fieldDecoration('Editor *'),
-            items: [
-              for (final WorkspaceUser u in list)
-                DropdownMenuItem(value: u.id, child: Text(u.email == null ? u.name : '${u.name} (${u.email})', overflow: TextOverflow.ellipsis)),
-            ],
-            onChanged: (v) => setState(() => _assigneeId = v),
-          ),
-        ),
-        SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          initialValue: _priority,
-          decoration: fieldDecoration('Priority'),
-          items: [
-            DropdownMenuItem(value: 'low', child: Text('Low')),
-            DropdownMenuItem(value: 'medium', child: Text('Medium')),
-            DropdownMenuItem(value: 'high', child: Text('High')),
-            DropdownMenuItem(value: 'urgent', child: Text('Urgent')),
-          ],
-          onChanged: (v) => setState(() => _priority = v ?? 'medium'),
-        ),
-        SizedBox(height: 12),
-        OutlinedButton.icon(
-          icon: Icon(Icons.event_rounded),
-          label: Text(_deadline == null ? 'Set deadline' : 'Due ${fmtDate(_deadline)}'),
-          onPressed: () async {
-            final d = await showDatePicker(
-              context: context,
-              initialDate: DateTime.now().add(Duration(days: 2)),
-              firstDate: DateTime.now(),
-              lastDate: DateTime.now().add(Duration(days: 365)),
-            );
-            if (d != null) setState(() => _deadline = d);
-          },
-        ),
-        SizedBox(height: 12),
-        TextField(controller: _instructions, minLines: 2, maxLines: 5, decoration: fieldDecoration('Editing instructions')),
-        SizedBox(height: 16),
-        ElevatedButton(
-          onPressed: _assigneeId == null
-              ? null
-              : () => Navigator.pop(context, <String, dynamic>{
-                    'assigneeId': _assigneeId,
-                    'priority': _priority,
-                    'deadline': ?_deadline?.toUtc().toIso8601String(),
-                    if (_instructions.text.trim().isNotEmpty) 'editingInstructions': _instructions.text.trim(),
-                    'sourceMediaUrls': [...widget.post.rawMediaUrls, ...widget.post.externalStorageLinks.map((l) => l.url)],
-                    'projectId': ?widget.post.projectId,
-                    'clientId': ?widget.post.clientId,
-                  }),
-          child: Text('Create editing task'),
-        ),
-      ]),
-    );
   }
 }

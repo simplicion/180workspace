@@ -27,7 +27,6 @@ export default function SocialProjectsListPage() {
 
     // Create form state
     const [newProjectName, setNewProjectName] = useState('');
-    const [newClientName, setNewClientName] = useState('');
     const [newProjectDesc, setNewProjectDesc] = useState('');
     const [submittingCreate, setSubmittingCreate] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -68,14 +67,12 @@ export default function SocialProjectsListPage() {
             await socialProjectService.createProject({
                 name: newProjectName.trim(),
                 description: newProjectDesc.trim() || undefined,
-                client: newClientName.trim() ? { name: newClientName.trim() } : undefined,
                 status: 'in_progress',
                 priority: 'medium'
             });
-            toast.success('Social project created successfully');
+            toast.success('Creator project created successfully');
             setIsCreateModalOpen(false);
             setNewProjectName('');
-            setNewClientName('');
             setNewProjectDesc('');
             loadProjects();
         } catch (err: any) {
@@ -118,7 +115,6 @@ export default function SocialProjectsListPage() {
 
     // Aggregate metrics
     const totalScheduled = projects.reduce((acc, p) => acc + (p.metrics?.scheduledPosts || 0), 0);
-    const totalPending = projects.reduce((acc, p) => acc + (p.metrics?.pendingApprovals || 0), 0);
 
     return (
         <div className="min-h-screen p-6 md:p-10 space-y-8 bg-zinc-50/50 dark:bg-black">
@@ -130,10 +126,10 @@ export default function SocialProjectsListPage() {
                         <span>180 Workspace Suite</span>
                     </div>
                     <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
-                        180 Social Media Manager
+                        180 Creator Studio
                     </h1>
                     <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-                        Centralized project dashboard. Manage client engagements, campaigns, and launch full AI video editing and social publishing.
+                        Centralized creator dashboard. Manage channels, campaigns, and launch full AI video editing and social publishing.
                     </p>
                 </div>
 
@@ -149,26 +145,21 @@ export default function SocialProjectsListPage() {
             </div>
 
             {/* Quick Metrics Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-5 rounded-2xl bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-zinc-800/80 backdrop-blur-md">
                     <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Projects</p>
                     <p className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mt-1">{projects.length}</p>
-                    <p className="text-xs text-indigo-500 mt-1">Managed workspaces</p>
+                    <p className="text-xs text-indigo-500 mt-1">Creator channels</p>
                 </div>
                 <div className="p-5 rounded-2xl bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-zinc-800/80 backdrop-blur-md">
                     <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Scheduled Posts</p>
                     <p className="text-2xl font-black text-emerald-500 mt-1">{totalScheduled}</p>
-                    <p className="text-xs text-zinc-400 mt-1">Across all campaigns</p>
-                </div>
-                <div className="p-5 rounded-2xl bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-zinc-800/80 backdrop-blur-md">
-                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Pending Approvals</p>
-                    <p className="text-2xl font-black text-amber-500 mt-1">{totalPending}</p>
-                    <p className="text-xs text-zinc-400 mt-1">Awaiting client review</p>
+                    <p className="text-xs text-zinc-400 mt-1">Across all channels</p>
                 </div>
                 <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/20 backdrop-blur-md">
                     <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Active Campaigns</p>
                     <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{projects.filter(p => p.status === 'active' || p.status === 'in_progress').length}</p>
-                    <p className="text-xs text-zinc-400 mt-1">In production & review</p>
+                    <p className="text-xs text-zinc-400 mt-1">In active production</p>
                 </div>
             </div>
 
@@ -178,7 +169,7 @@ export default function SocialProjectsListPage() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                     <input
                         type="text"
-                        placeholder="Search projects by name or client..."
+                        placeholder="Search projects by name..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 text-sm bg-zinc-100/70 dark:bg-zinc-800/70 border border-transparent focus:border-indigo-500 rounded-xl outline-none transition text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
@@ -186,7 +177,7 @@ export default function SocialProjectsListPage() {
                 </form>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-                    {['all', 'in_progress', 'in_review', 'completed'].map((status) => (
+                    {['all', 'in_progress', 'completed'].map((status) => (
                         <button
                             key={status}
                             onClick={() => setStatusFilter(status)}
@@ -245,10 +236,10 @@ export default function SocialProjectsListPage() {
                                 className="group relative flex flex-col justify-between p-6 rounded-3xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800/80 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5"
                             >
                                 <div>
-                                    {/* Card Header: Client Badge, Status & Actions */}
+                                    {/* Card Header: Project Badge, Status & Actions */}
                                     <div className="flex items-center justify-between gap-2 mb-3">
                                         <span className="px-2.5 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 rounded-lg">
-                                            {project.client?.name || 'Internal Project'}
+                                            Creator Project
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <span className={`px-2.5 py-0.5 text-xs font-medium border rounded-full capitalize ${getStatusColor(project.status)}`}>
@@ -293,7 +284,7 @@ export default function SocialProjectsListPage() {
 
                                 {/* Micro-Metrics Footer */}
                                 <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
-                                    <div className="grid grid-cols-3 gap-2 text-center mb-4">
+                                    <div className="grid grid-cols-2 gap-2 text-center mb-4">
                                         <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
                                             <p className="text-xs text-zinc-400">Scheduled</p>
                                             <p className="text-base font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">
@@ -301,15 +292,9 @@ export default function SocialProjectsListPage() {
                                             </p>
                                         </div>
                                         <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
-                                            <p className="text-xs text-zinc-400">Pending</p>
-                                            <p className="text-base font-bold text-amber-500 mt-0.5">
-                                                {metrics.pendingApprovals}
-                                            </p>
-                                        </div>
-                                        <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
-                                            <p className="text-xs text-zinc-400">Tasks</p>
-                                            <p className="text-base font-bold text-indigo-500 mt-0.5">
-                                                {metrics.outstandingTasks}
+                                            <p className="text-xs text-zinc-400">Published</p>
+                                            <p className="text-base font-bold text-emerald-500 mt-0.5">
+                                                {metrics.publishedPosts || 0}
                                             </p>
                                         </div>
                                     </div>
@@ -352,9 +337,9 @@ export default function SocialProjectsListPage() {
                                 </div>
                                 <div>
                                     <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-                                        Create Social Project
+                                        Create Creator Project
                                     </h3>
-                                    <p className="text-xs text-zinc-400">Start a new social campaign engagement</p>
+                                    <p className="text-xs text-zinc-400">Start a new creator project or channel campaign</p>
                                 </div>
                             </div>
                             <button
@@ -373,22 +358,9 @@ export default function SocialProjectsListPage() {
                                 <input
                                     type="text"
                                     required
-                                    placeholder="e.g. Acme Q3 TikTok Growth"
+                                    placeholder="e.g. YouTube Main Channel or TikTok Growth"
                                     value={newProjectName}
                                     onChange={(e) => setNewProjectName(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-indigo-500 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                                    Client Name (Optional)
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Acme Corp"
-                                    value={newClientName}
-                                    onChange={(e) => setNewClientName(e.target.value)}
                                     className="w-full px-3.5 py-2.5 text-sm bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none focus:border-indigo-500 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
                                 />
                             </div>
@@ -485,8 +457,8 @@ export default function SocialProjectsListPage() {
                         <div className="space-y-3 text-xs">
                             <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 space-y-1.5">
                                 <div className="flex justify-between">
-                                    <span className="text-zinc-400">Client:</span>
-                                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">{projectForDetails.client?.name || 'Internal'}</span>
+                                    <span className="text-zinc-400">Type:</span>
+                                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">Creator Project</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-zinc-400">Status:</span>

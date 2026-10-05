@@ -81,12 +81,8 @@ export function isAssistedPlatform(platform: string, variant?: any): boolean {
     return false;
 }
 
-export const projectRequiresApproval = (project: any) => {
-    const s = project?.socialSettings;
-    const settings = typeof s === 'string' ? safeJson(s) : s || {};
-    return Boolean(settings?.approvalRequired);
-};
-export const isPostApproved = (post: any) => post.status === 'approved' || (post.approvedVersion != null && post.approvedVersion === post.versionNumber);
+export const projectRequiresApproval = (_project: any) => false;
+export const isPostApproved = (_post: any) => true;
 
 function safeJson(s: string) {
     try {

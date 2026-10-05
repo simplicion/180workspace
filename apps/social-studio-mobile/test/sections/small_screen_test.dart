@@ -19,8 +19,6 @@ void main() {
     '/posts/new?projectId=p1',
     '/projects/p1/calendar',
     '/projects/p1/content',
-    '/projects/p1/tasks',
-    '/projects/p1/approvals',
     '/projects/p1/publishing',
     '/projects/p1/analytics',
     '/projects/p1/brand',

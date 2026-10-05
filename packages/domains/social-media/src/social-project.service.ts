@@ -69,10 +69,6 @@ export class SocialProjectService {
             where.status = filters.status;
         }
 
-        if (filters?.clientId && filters.clientId !== 'all') {
-            where.clientIds = { has: filters.clientId };
-        }
-
         if (filters?.search) {
             where.OR = [
                 { name: { contains: filters.search, mode: 'insensitive' } },
@@ -118,10 +114,6 @@ export class SocialProjectService {
                             priority: true,
                             dueDate: true
                         }
-                    },
-                    clientReviewSessions: {
-                        where: { status: 'pending' },
-                        select: { id: true, token: true, status: true }
                     }
                 }
             }),
@@ -175,7 +167,7 @@ export class SocialProjectService {
                     publishedPosts: publishedCount,
                     totalPosts: posts.length
                 },
-                pendingReviewSessions: p.clientReviewSessions || [],
+                pendingReviewSessions: [],
                 createdAt: p.createdAt,
                 updatedAt: p.updatedAt
             };
@@ -219,10 +211,6 @@ export class SocialProjectService {
                     },
                     orderBy: { dueDate: 'asc' }
                 },
-                clientReviewSessions: {
-                    orderBy: { createdAt: 'desc' },
-                    include: { comments: true }
-                },
                 socialConversations: {
                     take: 50,
                     orderBy: { lastMessageAt: 'desc' }
@@ -234,22 +222,14 @@ export class SocialProjectService {
             throw new Error('Project not found');
         }
 
-        // Fetch client details if clientIds present
-        let client = null;
-        if (project.clientIds && project.clientIds.length > 0) {
-            client = await (prisma as any).client.findFirst({
-                where: { id: project.clientIds[0], companyId }
-            });
-        }
-
         return {
             ...project,
-            client
+            client: null
         };
     }
 
     /**
-     * Creates a new social media project with progressive setup (Client, Brand Voice, Accounts, Team)
+     * Creates a new social media project / channel for the creator
      */
     static async createProject(data: CreateSocialProjectDTO, userId: string, explicitCompanyId?: string) {
         const companyId = explicitCompanyId || (requestContext.getStore()?.companyId as string);
@@ -259,25 +239,7 @@ export class SocialProjectService {
         // Validate brand input before anything is written, so a bad colour never leaves a half-created project.
         const brand = brandPatchFromCreateBody(data);
 
-        let clientId = data.clientId;
-
-        // Auto-create client if clientName provided and clientId absent
-        if (!clientId && data.clientName) {
-            const count = await (prisma as any).client.count({ where: { companyId } });
-            const newClient = await (prisma as any).client.create({
-                data: {
-                    companyId,
-                    name: data.clientName,
-                    email: data.clientEmail || null,
-                    clientId: `CLT-${String(count + 1).padStart(4, '0')}`,
-                    status: 'active'
-                }
-            });
-            clientId = newClient.id;
-        }
-
-        const clientIds = clientId ? [clientId] : [];
-        const memberIds = (data.teamMemberIds && data.teamMemberIds.length > 0 ? data.teamMemberIds : (userId ? [userId] : [])).filter(Boolean);
+        const memberIds = userId ? [userId] : [];
 
         // 1. Create central Project record
         const project = await (prisma as any).project.create({
@@ -290,15 +252,15 @@ export class SocialProjectService {
                 projectType: 'social_media',
                 startDate: data.startDate ? new Date(data.startDate) : new Date(),
                 deadline: data.endDate ? new Date(data.endDate) : null,
-                ownerId: data.projectManagerId || userId || null,
-                clientIds,
+                ownerId: userId || null,
+                clientIds: [],
                 memberIds,
-                socialServices: data.socialServices || ['content_calendar', 'publishing', 'analytics'],
-                socialSettings: data.settings || {
-                    approvalRequired: true,
-                    defaultTimezone: 'UTC',
-                    storageRetentionDays: 30,
-                    defaultReviewerId: userId
+                socialServices: ['content_calendar', 'short_form_video', 'publishing'],
+                socialSettings: {
+                    ...(data.settings || {}),
+                    approvalRequired: false,
+                    defaultTimezone: data.settings?.defaultTimezone || 'UTC',
+                    storageRetentionDays: 30
                 }
             }
         });
@@ -318,7 +280,7 @@ export class SocialProjectService {
                 },
                 data: {
                     projectId: project.id,
-                    clientId: clientId || null
+                    clientId: null
                 }
             });
         }

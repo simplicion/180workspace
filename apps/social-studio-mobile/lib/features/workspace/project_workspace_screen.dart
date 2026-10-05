@@ -11,7 +11,6 @@ import '../projects/project_provider.dart';
 import '../manager/manager_copilot_sheet.dart';
 import 'accounts_tab.dart';
 import 'analytics_tab.dart';
-import 'approvals_tab.dart';
 import 'brand_tab.dart';
 import 'calendar_tab.dart';
 import 'content_tab.dart';
@@ -19,7 +18,6 @@ import 'engagement_tab.dart';
 import 'evergreen_tab.dart';
 import 'publishing_tab.dart';
 import 'settings_tab.dart';
-import 'tasks_tab.dart';
 
 /// `/projects/:id/:tab`: one section of a project's workspace (web `/social-projects/:id?tab=`).
 class ProjectWorkspaceScreen extends ConsumerWidget {
@@ -61,8 +59,6 @@ class ProjectWorkspaceScreen extends ConsumerWidget {
   Widget _tabBody(ProjectDetail d) => switch (tab) {
         'calendar' => CalendarTab(project: d.project),
         'content' => ContentTab(project: d.project),
-        'tasks' => TasksTab(project: d.project),
-        'approvals' => ApprovalsTab(detail: d, openSendForm: query['send'] == '1'),
         'publishing' => PublishingTab(project: d.project),
         'inbox' => ConversationList(projectId: d.project.id),
         'engagement' => EngagementTab(project: d.project),

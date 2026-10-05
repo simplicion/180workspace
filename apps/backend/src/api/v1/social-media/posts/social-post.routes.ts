@@ -1,7 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { SocialPostService, EditingTaskService, PublishDispatcher } from '@workspace/social-media';
-import { requireDesktopDevice } from '../../desktop/desktop-device';
-import { deliverableMultipart, submitForApproval } from './deliverable-upload';
+import { SocialPostService, PublishDispatcher } from '@workspace/social-media';
 import { companyOfUser, sendRouteError } from '../route-errors';
 
 const router = Router();
@@ -67,43 +65,10 @@ router.post('/:id/footage', async (req: Request, res: Response) => {
     }
 });
 
-// Assign video editor from content item
-router.post('/:id/assign-editor', async (req: Request, res: Response) => {
-    try {
-        const user = (req as any).user;
-        const { assigneeId, deadline, priority, editingInstructions, sourceMediaUrls, projectId, clientId } = req.body;
-        const task = await EditingTaskService.createEditingTask({
-            socialPostId: String(req.params.id),
-            projectId,
-            clientId,
-            assigneeId,
-            deadline,
-            priority,
-            editingInstructions,
-            sourceMediaUrls
-        }, user?.id || 'system_user');
-        res.status(201).json({ success: true, task });
-    } catch (error: any) {
-        sendRouteError(res, error, 'posts');
-    }
-});
-
-// Editor submits rendered deliverable
-router.post('/tasks/:taskId/submit-deliverable', async (req: Request, res: Response) => {
-    try {
-        const { deliverableUrl, thumbnailUrl, notes } = req.body;
-        if (!deliverableUrl) return res.status(400).json({ success: false, error: 'deliverableUrl is required' });
-        const result = await EditingTaskService.submitEditorDeliverable(String(req.params.taskId), deliverableUrl, thumbnailUrl, notes);
-        res.json(result);
-    } catch (error: any) {
-        sendRouteError(res, error, 'posts');
-    }
-});
-
 // Get 180 Media Studio launch context
 router.get('/:id/studio-launch-context', async (req: Request, res: Response) => {
     try {
-        const context = await EditingTaskService.buildMediaStudioLaunchContext(undefined, String(req.params.id));
+        const context = await SocialPostService.buildMediaStudioLaunchContext(undefined, String(req.params.id));
         res.json({ success: true, context });
     } catch (error: any) {
         sendRouteError(res, error, 'posts');
@@ -136,10 +101,6 @@ router.post('/sync-studio-render', async (req: Request, res: Response) => {
         sendRouteError(res, error, 'posts');
     }
 });
-
-// Native app (mobile/desktop): upload the rendered MP4 (multipart 'video' + optional 'thumbnail', 'notes') and move
-// the post to in_review so it appears as awaiting client approval on the web. See deliverable-upload.ts.
-router.post('/:id/submit-for-approval', requireDesktopDevice, deliverableMultipart, submitForApproval);
 
 /** Typed publishing errors keep their HTTP status and code (e.g. 503 PUBLISH_NOT_CONFIGURED, 409 APPROVAL_REQUIRED). */
 const sendPublishError = (res: Response, error: any) => sendRouteError(res, error, 'posts.publish');

@@ -260,8 +260,6 @@ router.post('/v1/traffic-director/verify-tag', (req: any, res: any, next: any) =
     }
 });
 
-// Public Social Media Review Session (Magic Link Portal)
-router.use('/v1/social-media/reviews/public', require('../api/v1/social-media/reviews/client-review.routes').publicReviewRouter);
 
 // Public social-account OAuth callback (provider redirects the browser here; trust comes from the signed one-time state)
 router.use('/v1/social-media/accounts/oauth', require('../api/v1/social-media/accounts/social-account.routes').oauthCallbackRouter);

@@ -9,21 +9,16 @@ export interface SocialProject {
     startDate?: string;
     deadline?: string;
     ownerId?: string;
-    clientIds?: string[];
-    memberIds?: string[];
-    socialServices?: string[];
     socialSettings?: Record<string, any>;
     socialAccounts?: any[];
     brandVoiceProfile?: any;
     metrics?: {
         scheduledPosts: number;
-        pendingApprovals: number;
-        outstandingTasks: number;
+        pendingApprovals?: number;
+        outstandingTasks?: number;
         publishedPosts: number;
         totalPosts: number;
     };
-    pendingReviewSessions?: any[];
-    client?: any;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -86,7 +81,7 @@ export type BrandConsciousnessPatch = Partial<Omit<BrandConsciousness, 'projectI
 };
 
 export const socialProjectService = {
-    async getProjects(params?: { search?: string; status?: string; clientId?: string; limit?: number; offset?: number }) {
+    async getProjects(params?: { search?: string; status?: string; limit?: number; offset?: number }) {
         const { data } = await api.get('/api/social-media/projects', { params });
         return data;
     },
@@ -146,7 +141,7 @@ export const socialProjectService = {
         return data.activity || [];
     },
 
-    async getPosts(params?: { projectId?: string; clientId?: string; status?: string; calendarId?: string; isEvergreen?: boolean }) {
+    async getPosts(params?: { projectId?: string; status?: string; calendarId?: string; isEvergreen?: boolean }) {
         const { data } = await api.get('/api/social-media/posts', { params });
         return data.posts || [];
     },
@@ -168,16 +163,6 @@ export const socialProjectService = {
 
     async submitFootage(postId: string, payload: { rawMediaUrls?: string[]; externalStorageLinks?: any[] }) {
         const { data } = await api.post(`/api/social-media/posts/${postId}/footage`, payload);
-        return data;
-    },
-
-    async assignEditor(postId: string, payload: any) {
-        const { data } = await api.post(`/api/social-media/posts/${postId}/assign-editor`, payload);
-        return data.task;
-    },
-
-    async submitDeliverable(taskId: string, payload: { deliverableUrl: string; thumbnailUrl?: string; notes?: string }) {
-        const { data } = await api.post(`/api/social-media/posts/tasks/${taskId}/submit-deliverable`, payload);
         return data;
     },
 

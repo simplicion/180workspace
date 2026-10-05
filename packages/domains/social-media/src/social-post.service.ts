@@ -672,4 +672,58 @@ export class SocialPostService {
 
         return { success: true, variant };
     }
+
+    /**
+     * Prepares launch context payload for 180 Media Studio (Remotion + AI Director)
+     */
+    static async buildMediaStudioLaunchContext(contentPieceId?: string, postId?: string) {
+        const companyId = requestContext.getStore()?.companyId as string;
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
+
+        let title = 'New Project';
+        let rawMediaUrls: string[] = [];
+        let script = '';
+        let targetRatio = '9:16';
+        let projectId: string | null = null;
+
+        if (postId) {
+            const post = await (prisma as any).socialPost.findFirst({
+                where: { id: postId, companyId },
+                include: { project: true }
+            });
+            if (!post) throw notFound('Post');
+            title = post.title || 'Social Video';
+            rawMediaUrls = post.rawMediaUrls || [];
+            script = post.content || '';
+            projectId = post.projectId;
+        } else if (contentPieceId) {
+            const piece = await (prisma as any).calendarContentPiece.findFirst({
+                where: pieceScope(contentPieceId, companyId),
+                include: { calendar: true }
+            });
+            if (!piece) throw notFound('Calendar piece');
+            title = piece.headline || 'Social Video';
+            rawMediaUrls = piece.rawMediaUrls || [];
+            script = piece.videoScriptOrHooks || piece.adCopyFull || '';
+            projectId = piece.calendar?.projectId || null;
+        }
+
+        return {
+            projectName: title,
+            projectId,
+            aspectRatio: targetRatio,
+            sourceClips: rawMediaUrls.map((url, idx) => ({
+                id: `clip-${idx + 1}`,
+                name: `Source Clip ${idx + 1}`,
+                url,
+                type: 'video'
+            })),
+            aiDirectorContext: {
+                scriptSummary: script,
+                recommendedPacing: 'MRBEAST_FAST',
+                suggestedCaptions: true
+            }
+        };
+    }
 }
+

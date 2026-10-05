@@ -503,15 +503,6 @@ class SocialApi {
     return SocialPost.fromJson(jMap(r['post']));
   }
 
-  Future<EditingTask> assignEditor(String postId, Json body) async {
-    final r = await _api.post('$base/posts/$postId/assign-editor', body: body);
-    return EditingTask.fromJson(jMap(r['task']));
-  }
-
-  Future<Json> submitDeliverable(String taskId, {required String deliverableUrl, String? thumbnailUrl, String? notes}) =>
-      _api.post('$base/posts/tasks/$taskId/submit-deliverable',
-          body: compact({'deliverableUrl': deliverableUrl, 'thumbnailUrl': thumbnailUrl, 'notes': notes}));
-
   Future<Json> studioLaunchContext(String postId) async {
     final r = await _api.get('$base/posts/$postId/studio-launch-context');
     return jMap(r['context']);
