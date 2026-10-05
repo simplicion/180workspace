@@ -48,9 +48,9 @@ https://offer.yourbrand.com/checkout?sub1={click_id}&sub2={campaign_id}&geo={cou
 ```
 
 At the moment of evaluation, Traffic Director dynamically replaces these placeholders:
-- `{click_id}` $\rightarrow$ Unique internal click ID (`clk_89127390`)
-- `{campaign_id}` $\rightarrow$ Ingested ad platform campaign identifier
-- `{country}` $\rightarrow$ Detected 2-letter ISO country code (`US`, `GB`, `IN`)
+- `{click_id}` -> Unique internal click ID (`clk_89127390`)
+- `{campaign_id}` -> Ingested ad platform campaign identifier
+- `{country}` -> Detected 2-letter ISO country code (`US`, `GB`, `IN`)
 
 ---
 

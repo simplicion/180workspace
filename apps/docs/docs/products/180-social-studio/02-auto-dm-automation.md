@@ -58,7 +58,7 @@ Create automated response rules in minutes:
 ## 3. Interactive DM Funnels & Data Collection
 
 Deliver more than static links:
-1. **Interactive Quick-Reply Buttons**: Ask qualifying questions inside the DM (e.g. *"What is your current monthly revenue? <$10k | $10k-$50k | $50k+"*).
+1. **Interactive Quick-Reply Buttons**: Ask qualifying questions inside the DM (e.g. *"What is your current monthly revenue? Under $10k | $10k-$50k | $50k+"*).
 2. **Phone & Email Ingestion**: Capture contact details within the conversation flow.
 3. **Dynamic Coupon Code Generation**: Distribute unique, single-use 180 Pay discount codes to increase conversion urgency.
 

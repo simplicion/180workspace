@@ -107,4 +107,4 @@ When an employee or creator logs into 180:
 ## Next Steps
 
 - Integrate 180 Identity into your own application: **[180 Identity Integration Guide](/docs/products/180-core/180-identity/getting-started)**.
-- Review developer SDK specs: **[Global Developer Experience](/docs/global-developer-experience)**.
+- Review developer SDK specs: **[Global Developer Experience](/docs/05-global-developer-experience)**.

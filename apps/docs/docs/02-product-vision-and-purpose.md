@@ -90,6 +90,6 @@ Our mission is to establish 180 as the global default substrate for modern comme
 
 ## Next Steps
 
-- Explore how data moves across products in **[The Sovereign Work Graph](/docs/work-graph-architecture)**.
-- Learn about zero-password authentication in **[Universal Account & Single Sign-On](/docs/universal-account-and-identity)**.
+- Explore how data moves across products in **[The Sovereign Work Graph](/docs/03-work-graph-architecture)**.
+- Learn about zero-password authentication in **[Universal Account & Single Sign-On](/docs/04-universal-account-and-identity)**.
 - Browse our dedicated product suites in the **[Products Directory](/docs/products/180-workspace/overview)**.

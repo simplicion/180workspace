@@ -24,22 +24,22 @@ function HomepageHeader() {
           Enterprise Engineering Blueprints, Work Graph Architecture, Multi-Tenant Database Schemas, and Developer Runbooks for the 180workspace Platform.
         </p>
         <div className={styles.buttons}>
-          <Link className={styles.primaryBtn} to="/docs/intro">
+          <Link className={styles.primaryBtn} to="/docs/01-platform-overview">
             Explore Documentation <span>→</span>
           </Link>
-          <Link className={styles.secondaryBtn} to="/docs/SYSTEM_ARCHITECTURE">
-            System Architecture
+          <Link className={styles.secondaryBtn} to="/docs/products/180-workspace/overview">
+            180 Workspace
           </Link>
-          <Link className={styles.secondaryBtn} to="/docs/API_DOCUMENTATION">
-            API Reference
+          <Link className={styles.secondaryBtn} to="/docs/products/180-core/overview">
+            180 Core
           </Link>
         </div>
         <div className={styles.tagsRow}>
-          <span className={styles.tagPill}>Modular Monolith</span>
-          <span className={styles.tagPill}>Multi-Tenant PostgreSQL</span>
-          <span className={styles.tagPill}>Socket.IO Real-Time</span>
-          <span className={styles.tagPill}>BullMQ Queues</span>
-          <span className={styles.tagPill}>Zero-Trust RBAC</span>
+          <span className={styles.tagPill}>Work Graph Architecture</span>
+          <span className={styles.tagPill}>Sovereign Identity (@username)</span>
+          <span className={styles.tagPill}>1-Click Pay Rails</span>
+          <span className={styles.tagPill}>Edge Cloaking</span>
+          <span className={styles.tagPill}>Multi-Tenant RBAC</span>
         </div>
       </div>
     </header>
@@ -48,40 +48,40 @@ function HomepageHeader() {
 
 const navModules = [
   {
-    title: 'Platform Architecture',
-    desc: 'Modular Monolith pattern, decoupled Next.js SSR and Node.js REST API, reverse proxy flow and micro-routing.',
-    link: '/docs/SYSTEM_ARCHITECTURE',
+    title: 'Platform Overview & Purpose',
+    desc: 'High-level introduction to the sovereign business platform vision, architecture, and multi-tenant security.',
+    link: '/docs/01-platform-overview',
+    icon: '🌐',
+  },
+  {
+    title: 'The Sovereign Work Graph',
+    desc: 'Autonomous cross-application event propagation connecting ads, leads, media, and payments.',
+    link: '/docs/03-work-graph-architecture',
     icon: '⚡',
   },
   {
-    title: 'Multitenancy & Database',
-    desc: 'Dynamic company-db resolution, isolated PostgreSQL namespaces, relational integrity, and Prisma schema.',
-    link: '/docs/DATABASE_SCHEMA',
-    icon: '🗄️',
+    title: '180 Workspace Suite',
+    desc: 'Modular CRM, sales pipeline, HR team directory, multi-currency invoicing, and cloud asset storage.',
+    link: '/docs/products/180-workspace/overview',
+    icon: '💼',
   },
   {
-    title: 'REST API & WebSockets',
-    desc: 'Complete endpoint catalog, standardized JSON contracts, request interceptors, and real-time event namespaces.',
-    link: '/docs/API_DOCUMENTATION',
-    icon: '📡',
+    title: '180 Social Studio',
+    desc: 'AI script director, front-camera teleprompter, 1-click multi-platform publishing, and viral Auto-DM lead capture.',
+    link: '/docs/products/180-social-studio/overview',
+    icon: '🎬',
   },
   {
-    title: 'Security & Enterprise RBAC',
-    desc: 'Role-based access hierarchies, JWT dual-token flow, companyId verification, and mutation audit logs.',
-    link: '/docs/AUTHENTICATION_AND_SECURITY',
+    title: '180 Core (Auth & Pay)',
+    desc: 'Universal login with WhatsApp 1-Tap OTP, 1-Click checkout bottom sheets, and BYOG payment gateway rails.',
+    link: '/docs/products/180-core/overview',
+    icon: '💳',
+  },
+  {
+    title: '180 Traffic Director',
+    desc: 'Sub-millisecond Cloudflare edge cloaking, threat intelligence bot defense, and dynamic macro attribution.',
+    link: '/docs/products/180-traffic-director/overview',
     icon: '🛡️',
-  },
-  {
-    title: 'Local Development Runbook',
-    desc: 'Monorepo pnpm workflows, Docker orchestration, environment variable blueprints, and hot reload setup.',
-    link: '/docs/getting-started/local-development',
-    icon: '💻',
-  },
-  {
-    title: 'Work Graph & Business Logic',
-    desc: 'Relational data flow connecting CRM, HR, Finance, Invoicing, Traffic Director, and Media Studio.',
-    link: '/docs/BUSINESS_LOGIC',
-    icon: '🔄',
   },
 ];
 

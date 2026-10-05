@@ -35,7 +35,9 @@ graph TD
 ### Feed 1: Bitwise IPv4 CIDR Matching Engine
 Traditional IP matching loops through arrays of string subnets, causing $O(N)$ CPU bottlenecks. 180 Traffic Director converts all IPv4 ranges into unsigned 32-bit integer bitmasks:
 
-$$\text{Match} = (\text{Client IP} \ \& \ \text{Subnet Mask}) == \text{Subnet Network Integer}$$
+```text
+Match = (Client_IP & Subnet_Mask) == Subnet_Network_Integer
+```
 
 This allows evaluating a client against thousands of known moderator subnets in less than **0.05 milliseconds**.
 

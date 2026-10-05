@@ -31,6 +31,8 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           routeBasePath: 'docs',
+          numberPrefixParser: false,
+          exclude: ['**/internal/**', 'internal/**'],
         },
         blog: {
           showReadingTime: true,
