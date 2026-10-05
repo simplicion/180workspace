@@ -70,18 +70,18 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          to: '/docs/platform/platform-overview',
-          label: 'Architecture',
+          to: '/docs/01-platform-overview',
+          label: 'Platform Overview',
           position: 'left',
         },
         {
-          to: '/docs/API_DOCUMENTATION',
-          label: 'API Reference',
+          to: '/docs/products/180-workspace/overview',
+          label: '180 Workspace',
           position: 'left',
         },
         {
-          href: 'https://180workspace.com/whitepapers',
-          label: 'White Papers',
+          to: '/docs/products/180-core/overview',
+          label: '180 Core',
           position: 'left',
         },
         {
@@ -105,73 +105,73 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Core Architecture',
+          title: '180 Platform',
           items: [
             {
               label: 'Platform Overview',
-              to: '/docs/platform/platform-overview',
+              to: '/docs/01-platform-overview',
             },
             {
-              label: 'System Architecture',
-              to: '/docs/SYSTEM_ARCHITECTURE',
+              label: 'Product Vision & Purpose',
+              to: '/docs/02-product-vision-and-purpose',
             },
             {
-              label: 'Database Schema & Multitenancy',
-              to: '/docs/DATABASE_SCHEMA',
+              label: 'The Sovereign Work Graph',
+              to: '/docs/03-work-graph-architecture',
             },
             {
-              label: 'Security & RBAC',
-              to: '/docs/AUTHENTICATION_AND_SECURITY',
-            },
-          ],
-        },
-        {
-          title: 'Engineering & Guides',
-          items: [
-            {
-              label: 'Developer Onboarding',
-              to: '/docs/developer-onboarding',
-            },
-            {
-              label: 'Local Development Runbook',
-              to: '/docs/getting-started/local-development',
-            },
-            {
-              label: 'Git & PR Workflow',
-              to: '/docs/getting-started/git-pr-workflow',
-            },
-            {
-              label: 'API Reference',
-              to: '/docs/API_DOCUMENTATION',
+              label: 'Security & Multi-Tenancy',
+              to: '/docs/06-security-and-trust',
             },
           ],
         },
         {
-          title: 'Ecosystem & Work Graph',
+          title: 'Products Directory',
           items: [
             {
-              label: 'Business Logic & Work Graph',
-              to: '/docs/BUSINESS_LOGIC',
+              label: '180 Workspace (Suite)',
+              to: '/docs/products/180-workspace/overview',
             },
             {
-              label: 'State Management & Sockets',
-              to: '/docs/STATE_MANAGEMENT',
+              label: '180 Social Studio',
+              to: '/docs/products/180-social-studio/overview',
             },
             {
-              label: 'Performance Analysis',
-              to: '/docs/PERFORMANCE_ANALYSIS',
+              label: '180 Core (Auth & Pay)',
+              to: '/docs/products/180-core/overview',
             },
             {
-              label: 'Folder Structure',
-              to: '/docs/FOLDER_STRUCTURE',
+              label: '180 Traffic Director',
+              to: '/docs/products/180-traffic-director/overview',
             },
           ],
         },
         {
-          title: '180workspace Platform',
+          title: 'Developers & Identity',
           items: [
             {
-              label: 'Launch Platform App',
+              label: 'Universal Account & SSO',
+              to: '/docs/04-universal-account-and-identity',
+            },
+            {
+              label: 'Developer Ecosystem & SDKs',
+              to: '/docs/05-global-developer-experience',
+            },
+            {
+              label: '1-Click AI Master Prompt',
+              to: '/docs/products/180-core/ai-master-prompt',
+            },
+            {
+              label: 'Developer Portal Console',
+              href: 'https://developers.180workspace.com',
+            },
+          ],
+        },
+        {
+          title: '180 Ecosystem',
+          items: [
+            {
+              label: 'Launch 180 Platform',
               href: 'https://app.180workspace.com',
             },
             {
