@@ -20,12 +20,28 @@ export default function CheckoutStandaloneLayout({
 
   const handleClose = () => {
     if (typeof window !== 'undefined') {
+      const closePayload = { type: '180_PAYMENT_CLOSE' };
+      const closePayloadPay = { type: '180_PAY_CLOSE' };
+
+      // 1. Post to embedding parent window (iframe drawer / bottom sheet SDK)
+      if (window.parent && window.parent !== window) {
+        try { window.parent.postMessage(closePayload, '*'); } catch (_) {}
+        try { window.parent.postMessage(JSON.stringify(closePayload), '*'); } catch (_) {}
+        try { window.parent.postMessage(closePayloadPay, '*'); } catch (_) {}
+        try { window.parent.postMessage(JSON.stringify(closePayloadPay), '*'); } catch (_) {}
+      }
+
+      // 2. Post to opener window if launched via popup
       if (window.opener && !window.opener.closed) {
-        window.opener.postMessage({ type: '180_PAYMENT_CLOSE' }, '*');
-        window.close();
-      } else if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ type: '180_PAYMENT_CLOSE' }, '*');
-      } else {
+        try { window.opener.postMessage(closePayload, '*'); } catch (_) {}
+        try { window.opener.postMessage(JSON.stringify(closePayload), '*'); } catch (_) {}
+        try { window.opener.postMessage(closePayloadPay, '*'); } catch (_) {}
+        try { window.opener.postMessage(JSON.stringify(closePayloadPay), '*'); } catch (_) {}
+        try { window.close(); } catch (_) {}
+      }
+
+      // 3. Fallback for standalone browser tab navigation
+      if ((!window.parent || window.parent === window) && (!window.opener || window.opener.closed)) {
         window.history.back();
       }
     }
@@ -56,16 +72,14 @@ export default function CheckoutStandaloneLayout({
               <span className="font-medium text-[11px] text-emerald-800 dark:text-emerald-300">256-Bit SSL</span>
             </div>
 
-            {!isInsideIframe && (
-              <button
-                type="button"
-                onClick={handleClose}
-                aria-label="Close checkout"
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close checkout"
+              className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </header>

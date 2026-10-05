@@ -545,20 +545,31 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
 
     const messageListener = (event: MessageEvent) => {
       if (!event.data) return;
-      if (event.data.type === '180_IDENTITY_ERROR' || event.data.type === '180_AUTH_ERROR') {
-        const errMessage = event.data.error_description || event.data.error || 'Authentication failed';
+      let data = event.data;
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch {
+          return;
+        }
+      }
+      if (!data || typeof data !== 'object') return;
+
+      if (data.type === '180_IDENTITY_ERROR' || data.type === '180_AUTH_ERROR' || data.type === '180_PAY_ERROR' || data.type === '180_PAYMENT_ERROR') {
+        const errMessage = data.error_description || data.error || data.message || 'Operation failed';
         const err = new Error(errMessage);
-        (err as any).data = event.data;
+        (err as any).data = data;
         opts.onError?.(err);
+        closeSheet(true);
         return;
       }
-      if (opts.closeTypes && opts.closeTypes.includes(event.data.type)) {
-        closeSheet(false);
+      if (opts.closeTypes && opts.closeTypes.includes(data.type)) {
+        closeSheet(true);
         return;
       }
-      if (opts.successTypes.includes(event.data.type)) {
+      if (opts.successTypes.includes(data.type)) {
         isResolved = true;
-        const result = opts.mapSuccess(event.data);
+        const result = opts.mapSuccess(data);
         opts.onSuccess?.(result);
         resolve(result);
         closeSheet(false);
@@ -624,6 +635,11 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
     window.addEventListener('mouseup', () => { if (isDragging) onDragEnd(); });
 
     backdrop.onclick = () => closeSheet(true);
+    root.onclick = (e) => {
+      if (e.target === root || e.target === backdrop || (sheet && !sheet.contains(e.target as Node))) {
+        closeSheet(true);
+      }
+    };
     window.addEventListener('message', messageListener);
     window.addEventListener('keydown', keydownListener);
   });
@@ -1175,7 +1191,7 @@ export const OneEightyPay = {
         url: checkoutUrl,
         title: options.title || 'Secure Payment',
         successTypes: ['180_PAYMENT_SUCCESS', '180_PAY_SUCCESS'],
-        closeTypes: ['180_PAYMENT_CLOSE'],
+        closeTypes: ['180_PAYMENT_CLOSE', '180_PAY_CLOSE', '180_IDENTITY_CLOSE', '180_MODAL_CLOSE'],
         mapSuccess: (data) => ({
           sessionId: data.sessionId || sessionId,
           transactionId: data.transactionId,
@@ -1216,7 +1232,7 @@ export const OneEightyPay = {
         url: checkoutUrl.replace('ux_mode=popup', 'ux_mode=bottom_sheet'),
         title: options.title || 'Secure Payment',
         successTypes: ['180_PAYMENT_SUCCESS', '180_PAY_SUCCESS'],
-        closeTypes: ['180_PAYMENT_CLOSE'],
+        closeTypes: ['180_PAYMENT_CLOSE', '180_PAY_CLOSE', '180_IDENTITY_CLOSE', '180_MODAL_CLOSE'],
         mapSuccess: (data) => ({
           sessionId: data.sessionId || sessionId,
           transactionId: data.transactionId,

@@ -379,6 +379,11 @@
 
       backdrop.onclick = handleCancel;
       closeBtn.onclick = handleCancel;
+      root.onclick = function (e) {
+        if (e.target === root || e.target === backdrop || (card && !card.contains(e.target))) {
+          handleCancel();
+        }
+      };
 
       // 6. PostMessage Receiver Bridge
       function onMessage(event) {
@@ -388,7 +393,7 @@
         }
 
         var successTypes = options.successTypes || ['180_IDENTITY_SUCCESS', '180_AUTH_SUCCESS', '180_PAY_SUCCESS', '180_PAYMENT_SUCCESS'];
-        var closeTypes = options.closeTypes || ['180_IDENTITY_CLOSE', '180_PAYMENT_CLOSE'];
+        var closeTypes = options.closeTypes || ['180_IDENTITY_CLOSE', '180_PAYMENT_CLOSE', '180_PAY_CLOSE', '180_MODAL_CLOSE'];
         var errorTypes = options.errorTypes || ['180_IDENTITY_ERROR', '180_AUTH_ERROR', '180_PAY_ERROR', '180_PAYMENT_ERROR'];
 
         if (successTypes.indexOf(data.type) !== -1) {
@@ -535,7 +540,7 @@
         title: options.title || '180 Pay',
         uxMode: options.uxMode || 'bottom_sheet',
         successTypes: ['180_PAYMENT_SUCCESS', '180_PAY_SUCCESS'],
-        closeTypes: ['180_PAYMENT_CLOSE'],
+        closeTypes: ['180_PAYMENT_CLOSE', '180_PAY_CLOSE', '180_MODAL_CLOSE'],
         mapSuccess: function (data) {
           return {
             sessionId: data.sessionId || sessionId,

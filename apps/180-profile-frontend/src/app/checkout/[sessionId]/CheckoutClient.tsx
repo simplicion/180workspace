@@ -187,12 +187,26 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         referenceCode: payReferenceCode,
         error: 'SESSION_EXPIRED',
       };
+      const closePayloadPay = {
+        type: '180_PAY_CLOSE',
+        sessionId,
+      };
+
+      if (window.parent && window.parent !== window) {
+        try { window.parent.postMessage(closePayload, '*'); } catch (_) {}
+        try { window.parent.postMessage(JSON.stringify(closePayload), '*'); } catch (_) {}
+        try { window.parent.postMessage(closePayloadPay, '*'); } catch (_) {}
+        try { window.parent.postMessage(JSON.stringify(closePayloadPay), '*'); } catch (_) {}
+      }
+
       if (window.opener && !window.opener.closed) {
-        window.opener.postMessage(closePayload, '*');
-        window.close();
-      } else if (window.parent && window.parent !== window) {
-        window.parent.postMessage(closePayload, '*');
-      } else {
+        try { window.opener.postMessage(closePayload, '*'); } catch (_) {}
+        try { window.opener.postMessage(JSON.stringify(closePayload), '*'); } catch (_) {}
+        try { window.opener.postMessage(closePayloadPay, '*'); } catch (_) {}
+        try { window.close(); } catch (_) {}
+      }
+
+      if ((!window.parent || window.parent === window) && (!window.opener || window.opener.closed)) {
         window.history.back();
       }
     }

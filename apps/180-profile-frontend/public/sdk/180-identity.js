@@ -219,6 +219,11 @@
 
       backdrop.onclick = function () { closeSheet(true); };
       closeBtn.onclick = function () { closeSheet(true); };
+      root.onclick = function (e) {
+        if (e.target === root || e.target === backdrop || (sheet && !sheet.contains(e.target))) {
+          closeSheet(true);
+        }
+      };
       window.addEventListener('message', messageListener);
       window.addEventListener('keydown', keydownListener);
     });

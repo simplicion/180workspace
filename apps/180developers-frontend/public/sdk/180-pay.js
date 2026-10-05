@@ -3,7 +3,7 @@
  * Fast, secure, zero-dependency payment & subscription checkout embed SDK.
  *
  * Usage:
- * <script src="https://developers.180workspace.com/sdk/180-pay.js"></script>
+ * <script src="https://profile.180workspace.com/sdk/180-pay.js"></script>
  * <script>
  *   OneEightyPay.openCheckout({
  *     sessionId: 'cs_live_...',
@@ -154,9 +154,15 @@
      * Internal: Open Bottom Sheet or Modal with Iframe
      */
     _openIframeOverlay: function (url, sessionId, uxMode, options) {
-      if (activeModalContainer) {
-        this.close();
+      var existingBackdrop = activeModalContainer || document.getElementById('one-eighty-pay-backdrop');
+      if (existingBackdrop && existingBackdrop.parentNode) {
+        existingBackdrop.parentNode.removeChild(existingBackdrop);
       }
+      var strayExisting = document.querySelectorAll('#one-eighty-pay-backdrop');
+      for (var s = 0; s < strayExisting.length; s++) {
+        if (strayExisting[s].parentNode) strayExisting[s].parentNode.removeChild(strayExisting[s]);
+      }
+      activeModalContainer = null;
 
       var isBottomSheet = uxMode === 'bottom_sheet';
 
@@ -174,6 +180,7 @@
         'align-items: ' + (isBottomSheet ? 'flex-end' : 'center'),
         'justify-content: center',
         'opacity: 0',
+        'cursor: pointer',
         'transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
       ].join(';');
 
@@ -184,9 +191,12 @@
       var drawerBaseStyles = [
         'position: relative',
         'width: 100%',
+        'display: flex',
+        'flex-direction: column',
         'background: #ffffff',
         'box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35)',
         'overflow: hidden',
+        'cursor: default',
         'transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
       ];
 
@@ -211,7 +221,7 @@
       }
       drawer.style.cssText = drawerBaseStyles.join(';');
 
-      // 3. Header tactile drag zone (NO cross button - clean, native app feel)
+      // 3. Header tactile drag zone & Close Button
       var header = document.createElement('div');
       header.style.cssText = [
         'flex-shrink: 0',
@@ -240,6 +250,34 @@
         ].join(';');
         header.appendChild(dragBar);
       }
+
+      // Close Icon Button
+      var closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.setAttribute('aria-label', 'Close checkout');
+      closeBtn.style.cssText = [
+        'position: absolute',
+        'top: 50%',
+        'right: 14px',
+        'transform: translateY(-50%)',
+        'width: 32px',
+        'height: 32px',
+        'border-radius: 50%',
+        'border: 1px solid rgba(0, 0, 0, 0.08)',
+        'background: #f1f5f9',
+        'color: #64748b',
+        'cursor: pointer',
+        'display: flex',
+        'align-items: center',
+        'justify-content: center',
+        'padding: 0',
+        'outline: none',
+        'z-index: 20',
+        'pointer-events: auto',
+        'transition: background 0.15s ease, color 0.15s ease'
+      ].join(';');
+      closeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+      header.appendChild(closeBtn);
 
       // 4. Iframe wrapper (fills remaining space below header)
       var iframeWrapper = document.createElement('div');
@@ -278,24 +316,55 @@
 
       return new Promise(function (resolve) {
         var removeDragListeners = function () {};
+        var isDismissed = false;
 
         var cleanup = function () {
+          if (isDismissed) return;
+          isDismissed = true;
           window.removeEventListener('message', messageListener);
           document.removeEventListener('keydown', escListener);
           removeDragListeners();
           self.close();
         };
 
-        var messageListener = function (event) {
-          if (!event.data || (event.data.type !== '180_PAYMENT_SUCCESS' && event.data.type !== '180_PAYMENT_CLOSE')) {
-            return;
+        var handleCloseClick = function (e) {
+          if (e) {
+            try { e.preventDefault(); } catch (_) {}
+            try { e.stopPropagation(); } catch (_) {}
           }
+          cleanup();
+          if (options.onCancel) options.onCancel();
+          resolve({ cancelled: true });
+        };
 
-          if (event.data.type === '180_PAYMENT_SUCCESS') {
+        closeBtn.addEventListener('click', handleCloseClick);
+        closeBtn.addEventListener('mousedown', function (e) {
+          e.stopPropagation();
+        });
+        closeBtn.addEventListener('touchstart', function (e) {
+          e.stopPropagation();
+        }, { passive: true });
+
+        var messageListener = function (event) {
+          if (!event.data) return;
+          var data = event.data;
+          if (typeof data === 'string') {
+            try {
+              data = JSON.parse(data);
+            } catch (_) {
+              return;
+            }
+          }
+          if (!data || typeof data !== 'object') return;
+
+          var successTypes = ['180_PAYMENT_SUCCESS', '180_PAY_SUCCESS'];
+          var closeTypes = ['180_PAYMENT_CLOSE', '180_PAY_CLOSE', '180_IDENTITY_CLOSE', '180_MODAL_CLOSE'];
+
+          if (successTypes.indexOf(data.type) !== -1) {
             cleanup();
-            if (options.onSuccess) options.onSuccess(event.data);
-            resolve(event.data);
-          } else if (event.data.type === '180_PAYMENT_CLOSE') {
+            if (options.onSuccess) options.onSuccess(data);
+            resolve(data);
+          } else if (closeTypes.indexOf(data.type) !== -1) {
             cleanup();
             if (options.onCancel) options.onCancel();
             resolve({ cancelled: true });
@@ -303,7 +372,7 @@
         };
 
         var escListener = function (e) {
-          if (e.key === 'Escape') {
+          if (e.key === 'Escape' || e.keyCode === 27) {
             cleanup();
             if (options.onCancel) options.onCancel();
             resolve({ cancelled: true });
@@ -380,6 +449,9 @@
 
           // Touch listeners
           var touchStartHandler = function (e) {
+            if (closeBtn && (e.target === closeBtn || closeBtn.contains(e.target))) {
+              return;
+            }
             if (e.touches && e.touches[0]) {
               onDragStart(e.touches[0].clientY);
             }
@@ -395,6 +467,9 @@
 
           // Mouse listeners
           var mouseDownHandler = function (e) {
+            if (closeBtn && (e.target === closeBtn || closeBtn.contains(e.target))) {
+              return;
+            }
             e.preventDefault();
             onDragStart(e.clientY);
           };
@@ -430,7 +505,7 @@
 
         // ─── Instant Dismiss on Click Outside ─────────────────────────────
         var handleBackdropDismiss = function (e) {
-          if (e.target === backdrop) {
+          if (e.target === backdrop || (drawer && !drawer.contains(e.target))) {
             cleanup();
             if (options.onCancel) options.onCancel();
             resolve({ cancelled: true });
@@ -438,7 +513,11 @@
         };
 
         backdrop.addEventListener('click', handleBackdropDismiss);
-        backdrop.addEventListener('touchend', handleBackdropDismiss, { passive: true });
+        backdrop.addEventListener('touchend', function (e) {
+          if (e.target === backdrop || (drawer && !drawer.contains(e.target))) {
+            handleBackdropDismiss(e);
+          }
+        }, { passive: true });
 
         window.addEventListener('message', messageListener);
         document.addEventListener('keydown', escListener);
@@ -449,8 +528,8 @@
      * Dismiss active checkout drawer or modal
      */
     close: function () {
-      if (!activeModalContainer) return;
-      var backdrop = activeModalContainer;
+      var backdrop = activeModalContainer || document.getElementById('one-eighty-pay-backdrop');
+      if (!backdrop) return;
       var drawer = backdrop.querySelector('#one-eighty-pay-drawer');
       
       if (drawer) {
@@ -464,8 +543,16 @@
         if (backdrop.parentNode) {
           backdrop.parentNode.removeChild(backdrop);
         }
+        var strayBackdrops = document.querySelectorAll('#one-eighty-pay-backdrop');
+        for (var i = 0; i < strayBackdrops.length; i++) {
+          if (strayBackdrops[i].parentNode) {
+            strayBackdrops[i].parentNode.removeChild(strayBackdrops[i]);
+          }
+        }
         document.body.style.overflow = '';
-        activeModalContainer = null;
+        if (activeModalContainer === backdrop) {
+          activeModalContainer = null;
+        }
       }, 240);
     },
 
