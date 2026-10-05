@@ -87,6 +87,10 @@ router.post('/developer/apps', protect, DeveloperController.createApp);
 router.put('/developer/apps/:id', protect, DeveloperController.updateApp);
 router.post('/developer/apps/:id/rotate-secret', protect, DeveloperController.rotateSecret);
 router.delete('/developer/apps/:id', protect, DeveloperController.deleteApp);
+router.get('/developer/billing/status', protect, DeveloperController.getBillingStatus);
+router.post('/developer/billing/autopay', protect, DeveloperController.setupAutoPay);
+router.post('/developer/billing/settle', protect, DeveloperController.settleManualPayment);
+router.post('/developer/billing/dunning-cycle', protect, DeveloperController.runDunningCycle);
 
 // Aliases for /api/developer/apps directly on router
 router.get('/apps', protect, DeveloperController.listApps);
@@ -95,6 +99,11 @@ router.post('/apps', protect, DeveloperController.createApp);
 router.put('/apps/:id', protect, DeveloperController.updateApp);
 router.post('/apps/:id/rotate-secret', protect, DeveloperController.rotateSecret);
 router.delete('/apps/:id', protect, DeveloperController.deleteApp);
+router.get('/billing/status', protect, DeveloperController.getBillingStatus);
+router.post('/billing/autopay', protect, DeveloperController.setupAutoPay);
+router.post('/billing/settle', protect, DeveloperController.settleManualPayment);
+router.post('/billing/dunning-cycle', protect, DeveloperController.runDunningCycle);
+
 
 // ─── 180 Identity Helper Endpoints ───────────────────────────────────────────
 

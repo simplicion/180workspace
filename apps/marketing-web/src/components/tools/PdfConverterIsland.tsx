@@ -484,7 +484,7 @@ export default function PdfConverterIsland() {
                   onClick={loadSampleImages}
                   className="inline-flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer"
                 >
-                  <span>✨ Try Sample Images (1-Click)</span>
+                  <span>Try Sample Images (1-Click)</span>
                 </button>
               </div>
             </div>
@@ -613,7 +613,7 @@ export default function PdfConverterIsland() {
                             className="p-1 text-slate-400 hover:text-indigo-600 disabled:opacity-20 cursor-pointer font-bold"
                             title="Move Right / Later"
                           >
-                            →
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"/></svg>
                           </button>
                         </div>
                         <button
@@ -622,7 +622,7 @@ export default function PdfConverterIsland() {
                           className="text-slate-400 hover:text-rose-500 p-1 cursor-pointer font-bold"
                           title="Remove Page"
                         >
-                          ✕
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                       </div>
                     </div>

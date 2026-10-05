@@ -383,7 +383,7 @@ export default function YouTubeSuiteIsland() {
 
         {/* 1-Click Speech Demos */}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-          <span className="font-bold">✨ Test 1-Click Speech Demos:</span>
+          <span className="font-bold">Test 1-Click Speech Demos:</span>
           {SAMPLE_VIDEOS.map((s) => (
             <button
               key={s.id}
@@ -428,7 +428,7 @@ export default function YouTubeSuiteIsland() {
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200'
                 }`}
               >
-                🖼️ Thumbnails Gallery
+                Thumbnails Gallery
               </button>
               <button
                 type="button"
@@ -442,7 +442,7 @@ export default function YouTubeSuiteIsland() {
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200'
                 }`}
               >
-                📝 Full Transcript
+                Full Transcript
               </button>
             </div>
           </div>
@@ -452,7 +452,7 @@ export default function YouTubeSuiteIsland() {
             <div className="p-6 rounded-3xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 shadow-lg space-y-3">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0 font-bold">
-                  ℹ️
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
                   <h5 className="text-sm font-black text-amber-900 dark:text-amber-200">
@@ -492,7 +492,7 @@ export default function YouTubeSuiteIsland() {
                       onClick={handleCopyText}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 transition-colors cursor-pointer"
                     >
-                      {copied ? '✓ Copied' : '📋 Copy Text'}
+                      {copied ? 'Copied' : 'Copy Text'}
                     </button>
                     <button
                       type="button"
@@ -513,7 +513,7 @@ export default function YouTubeSuiteIsland() {
                       onClick={handleDownloadPdf}
                       className="px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 transition-colors cursor-pointer"
                     >
-                      📄 Export PDF
+                      Export PDF
                     </button>
                   </div>
                 </div>
@@ -603,7 +603,7 @@ export default function YouTubeSuiteIsland() {
                       onClick={() => copyImageUrl(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`)}
                       className="inline-flex items-center justify-center gap-1.5 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
                     >
-                      {copiedUrl === `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` ? '✓ Copied' : 'Copy Link'}
+                      {copiedUrl === `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` ? 'Copied' : 'Copy Link'}
                     </button>
                   </div>
                 </div>
@@ -639,7 +639,7 @@ export default function YouTubeSuiteIsland() {
                       onClick={() => copyImageUrl(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`)}
                       className="inline-flex items-center justify-center gap-1.5 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
                     >
-                      {copiedUrl === `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` ? '✓ Copied' : 'Copy Link'}
+                      {copiedUrl === `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` ? 'Copied' : 'Copy Link'}
                     </button>
                   </div>
                 </div>
@@ -675,7 +675,7 @@ export default function YouTubeSuiteIsland() {
                       onClick={() => copyImageUrl(`https://img.youtube.com/vi/${videoId}/sddefault.jpg`)}
                       className="inline-flex items-center justify-center gap-1.5 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
                     >
-                      {copiedUrl === `https://img.youtube.com/vi/${videoId}/sddefault.jpg` ? '✓ Copied' : 'Copy Link'}
+                      {copiedUrl === `https://img.youtube.com/vi/${videoId}/sddefault.jpg` ? 'Copied' : 'Copy Link'}
                     </button>
                   </div>
                 </div>

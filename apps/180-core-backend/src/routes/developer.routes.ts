@@ -22,6 +22,12 @@ router.post('/apps/:id/rotate-webhook-secret', protect, DeveloperApiController.r
 router.post('/apps/:id/test-webhook', protect, DeveloperApiController.testWebhook);
 router.delete('/apps/:id', protect, DeveloperApiController.deleteApp);
 
+// ─── Developer Project Billing & Recurring Auto-Pay ─────────────────────────
+router.get('/billing/status', protect, DeveloperApiController.getBillingStatus);
+router.post('/billing/autopay', protect, DeveloperApiController.setupAutoPay);
+router.post('/billing/settle', protect, DeveloperApiController.settleManualPayment);
+router.post('/billing/dunning-cycle', protect, DeveloperApiController.runDunningCycle);
+
 // ─── App Real-Time Telemetry & Financial Analytics ───────────────────────────
 router.get('/apps/:id/auth-logs', protect, DeveloperApiController.getAuthLogs);
 router.post('/apps/:id/users/:targetUserId/revoke', protect, DeveloperApiController.revokeUserSession);

@@ -2,6 +2,7 @@
 
 import { developersPrisma as prisma } from '@workspace/db-180core';
 import { generateRandomToken, hashSecret } from '../oauth/oauth.service';
+import { DeveloperBillingService } from './developer-billing.service';
 
 export class DeveloperController {
     /**
@@ -167,22 +168,31 @@ export class DeveloperController {
      */
     static async createApp(req: any, res: any) {
         try {
-            let userId = req.user?.id;
-            if (!userId) {
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
                 return res.status(401).json({ success: false, message: 'Authentication required' });
             }
+            const userId = userIds[0];
 
-            const userEmail = req.user?.email;
-            if (userEmail) {
-                try {
-                    const devUser = await prisma.user.findFirst({
-                        where: { email: { equals: userEmail, mode: 'insensitive' } },
-                        select: { id: true }
+            // ─── SERVER-SIDE BILLING HARDENING ──────────────────────────────────
+            // 1st project is 100% Free Forever with full features access.
+            // Additional projects strictly require active subscription / auto-pay ($2.50/mo per extra project).
+            let billingSummary: any;
+            try {
+                billingSummary = await DeveloperBillingService.assertCanCreateApp(userIds, {
+                    enableAutoPay: Boolean(req.body.enableAutoPay),
+                    paymentSource: req.body.paymentSource
+                });
+            } catch (billingErr: any) {
+                if (billingErr.statusCode === 402 || billingErr.code === 'PAYMENT_REQUIRED') {
+                    return res.status(402).json({
+                        success: false,
+                        code: 'PAYMENT_REQUIRED',
+                        message: billingErr.message,
+                        billing: billingErr.data
                     });
-                    if (devUser) {
-                        userId = devUser.id;
-                    }
-                } catch (_) {}
+                }
+                throw billingErr;
             }
 
             const {
@@ -256,6 +266,7 @@ export class DeveloperController {
                     clientSecret: rawSecret,
                     webhookSecret
                 },
+                billing: billingSummary,
                 app: {
                     id: app.id,
                     name: app.name,
@@ -584,10 +595,90 @@ export class DeveloperController {
                 where: { id }
             });
 
+            // Dynamically recalculate subscription for remaining projects
+            await DeveloperBillingService.syncSubscriptionAfterAppDeletion(userIds);
+
             return res.json({ success: true, message: 'Application deleted successfully' });
         } catch (err: any) {
             console.error('[DeveloperController] deleteApp error:', err);
             return res.status(500).json({ success: false, message: err.message });
         }
     }
+
+    /**
+     * Get Developer Live Billing Status, 7-day pre-expiry warning, 3-day grace period, and lock status
+     */
+    static async getBillingStatus(req: any, res: any) {
+        try {
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
+                return res.status(401).json({ success: false, message: 'Authentication required' });
+            }
+            const billing = await DeveloperBillingService.getBillingStatus(userIds);
+            return res.json({ success: true, billing });
+        } catch (err: any) {
+            console.error('[DeveloperController] getBillingStatus error:', err);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    }
+
+    /**
+     * Activate or configure recurring auto-pay mandate for additional projects
+     */
+    static async setupAutoPay(req: any, res: any) {
+        try {
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
+                return res.status(401).json({ success: false, message: 'Authentication required' });
+            }
+            const { paymentSource } = req.body;
+            const subscription = await DeveloperBillingService.activateAutoPay(userIds[0], { paymentSource });
+            const billing = await DeveloperBillingService.getBillingStatus(userIds);
+            return res.json({
+                success: true,
+                message: 'Auto-Pay subscription activated successfully. All billable projects are unlocked and active.',
+                subscription,
+                billing
+            });
+        } catch (err: any) {
+            console.error('[DeveloperController] setupAutoPay error:', err);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    }
+
+    /**
+     * Settle payment manually (e.g. if auto-pay failed or user pays via wallet / card directly)
+     */
+    static async settleManualPayment(req: any, res: any) {
+        try {
+            const userIds = await DeveloperController.resolveUserIds(req);
+            if (!userIds.length) {
+                return res.status(401).json({ success: false, message: 'Authentication required' });
+            }
+            const settlement = await DeveloperBillingService.settleManualPayment(userIds[0]);
+            const billing = await DeveloperBillingService.getBillingStatus(userIds);
+            return res.json({
+                success: true,
+                ...settlement,
+                billing
+            });
+        } catch (err: any) {
+            console.error('[DeveloperController] settleManualPayment error:', err);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    }
+
+    /**
+     * Automated Dunning & Lockout Cycle (can be invoked by scheduled worker, cron, or admin)
+     */
+    static async runDunningCycle(req: any, res: any) {
+        try {
+            const result = await DeveloperBillingService.executeDunningCycle();
+            return res.json({ success: true, ...result });
+        } catch (err: any) {
+            console.error('[DeveloperController] runDunningCycle error:', err);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    }
 }
+

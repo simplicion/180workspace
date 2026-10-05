@@ -8,7 +8,6 @@ User-agent: *
 Allow: /
 Allow: /apps/
 Allow: /pricing/
-Allow: /enterprise/
 Allow: /developers/
 Allow: /features/
 Allow: /blog/

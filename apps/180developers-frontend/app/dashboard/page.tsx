@@ -7,7 +7,6 @@ import {
   Plus,
   Key,
   Shield,
-  Layers,
   ArrowRight,
   Copy,
   Check,
@@ -20,9 +19,8 @@ import {
   ArrowLeft,
   Send,
   RefreshCw,
-  Activity,
-  Users,
   CreditCard,
+  ShieldCheck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -425,6 +423,7 @@ function DeveloperDashboardContent() {
       toast.error('Application name is required');
       return;
     }
+
     if (!createLogoUrl.trim()) {
       toast.error('Application logo URL is required');
       return;
@@ -444,6 +443,7 @@ function DeveloperDashboardContent() {
     try {
       const token = localStorage.getItem('platform_auth_token');
       const apiBase = getApiBase();
+      const isAdditionalProject = apps.length >= 1;
 
       let res = await fetch(`${apiBase}/api/v1/identity/developer/apps`, {
         method: 'POST',
@@ -462,10 +462,11 @@ function DeveloperDashboardContent() {
           enableAuth: createEnableAuth,
           enablePay: createEnablePay,
           webhookUrl: createWebhookUrl.trim(),
+          enableAutoPay: isAdditionalProject ? true : undefined,
         }),
       });
 
-      if (!res.ok) {
+      if (!res.ok && res.status !== 402) {
         res = await fetch(`${apiBase}/api/oauth/developer/apps`, {
           method: 'POST',
           headers: {
@@ -483,16 +484,32 @@ function DeveloperDashboardContent() {
             enableAuth: createEnableAuth,
             enablePay: createEnablePay,
             webhookUrl: createWebhookUrl.trim(),
+            enableAutoPay: isAdditionalProject ? true : undefined,
           }),
         });
       }
 
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 402 || data.code === 'PAYMENT_REQUIRED') {
+          toast.error(
+            data.message ||
+              'Payment required: Additional projects require an active $2.50/mo subscription. Please configure Auto-Pay.'
+          );
+          setShowCreateModal(false);
+          router.push('/billing');
+          return;
+        }
         throw new Error(data.message || data.error || 'Failed to register application');
       }
 
-      toast.success('Application registered successfully!');
+      if (data.billing?.autoPayUpdated) {
+        toast.success(
+          `Application registered! Monthly Auto-Pay aggregated to $${data.billing.monthlyTotal.toFixed(2)}/mo.`
+        );
+      } else {
+        toast.success('Application registered successfully! (First Project 100% Free Forever)');
+      }
       setShowCreateModal(false);
 
       const resolvedClientId =
@@ -1476,6 +1493,42 @@ function DeveloperDashboardContent() {
               placeholder="https://myapp.com&#10;http://localhost:3000"
             />
           </div>
+
+          {/* Billing & Auto-Pay Mandate Status */}
+          {apps.length >= 1 ? (
+            <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 space-y-2 text-xs">
+              <div className="flex items-center justify-between font-bold text-blue-950 dark:text-blue-200">
+                <span className="flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span>Additional Project: $2.50 / month</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-mono">
+                  Full Features
+                </span>
+              </div>
+              <p className="text-zinc-600 dark:text-zinc-400 text-[11px] leading-relaxed">
+                Project #1 was 100% free forever. Creating this project will automatically set/adjust your recurring monthly auto-pay to <strong className="text-zinc-950 dark:text-white font-mono">${((apps.length) * 2.5).toFixed(2)}/mo</strong> total ($2.50 per billable project). Includes a 7-day pre-expiry warning and 3-day post-expiry grace period.
+              </p>
+              <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  defaultChecked
+                  required
+                  className="rounded text-blue-600 focus:ring-0 cursor-pointer"
+                />
+                <span className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-200">
+                  Authorize monthly recurring auto-pay of $2.50/mo for this project
+                </span>
+              </label>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 text-xs text-emerald-900 dark:text-emerald-300 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>
+                <strong>First Project Free:</strong> Your first sovereign project is 100% free forever with full OAuth 2.0 and 180 Pay features access.
+              </span>
+            </div>
+          )}
 
           <div className="pt-4 flex items-center justify-end gap-3">
             <Button

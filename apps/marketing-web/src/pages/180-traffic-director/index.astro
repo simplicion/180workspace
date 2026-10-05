@@ -75,8 +75,8 @@ const playbookSteps = [
   {
     stepNumber: "01",
     title: "Create a Dynamic Link Campaign",
-    description: "Navigate to Traffic Director → Create Link. Define your Campaign Slug, Safe Page URL (for bots/crawlers), and Offer Page URL (for real target visitors).",
-    actionSnippet: "Traffic Director → Links → + New Link"
+    description: "Navigate to Traffic Director -> Create Link. Define your Campaign Slug, Safe Page URL (for bots/crawlers), and Offer Page URL (for real target visitors).",
+    actionSnippet: "Traffic Director -> Links -> New Link"
   },
   {
     stepNumber: "02",
@@ -87,8 +87,8 @@ const playbookSteps = [
   {
     stepNumber: "03",
     title: "Deploy via Shortlink or Dynamic Tag",
-    description: "Use the generated shortlink (https://yourdomain.com/r/offer-slug) as your ad destination, or inject the 1-line dynamic script tag on your landing page.",
-    actionSnippet: "<script src=\"https://api.180workspace.com/tag/offer-slug\"></script>"
+    description: "Use the generated shortlink as your ad destination, or inject the 1-line dynamic script tag on your landing page.",
+    actionSnippet: '<script src="https://api.180workspace.com/tag/offer-slug"></script>'
   },
   {
     stepNumber: "04",
@@ -100,33 +100,33 @@ const playbookSteps = [
 
 const synergies = [
   {
-    sourceApp: "Traffic Director",
-    targetApp: "CRM & Sales",
+    sourceApp: "180 Traffic Director",
+    targetApp: "180 CRM & Sales",
     badge: "Lead Ingestion",
     description: "Captured landing page clicks automatically pass UTM parameters and attribution IDs when a lead submits a contact form."
   },
   {
-    sourceApp: "Traffic Director",
+    sourceApp: "180 Traffic Director",
     targetApp: "Advertising Module",
     badge: "ROI Sync",
     description: "Feeds verified conversion data and real customer value back into ad campaign dashboards to optimize ad bidding."
   },
   {
-    sourceApp: "Traffic Director",
-    targetApp: "Company Hub",
-    badge: "Custom CNAME",
-    description: "Utilizes Cloudflare for SaaS custom domain management to provision free SSL on all client tracking domains."
+    sourceApp: "180 Traffic Director",
+    targetApp: "180 Core",
+    badge: "Edge Security",
+    description: "Integrates with sovereign edge tokens and unified access policies for high-throughput traffic inspection."
   }
 ];
 
 const faqs = [
   {
-    question: "What is Traffic Director and how does it protect my ad spend?",
-    answer: "Traffic Director is an enterprise-grade edge routing and click evaluation engine. When someone clicks your ad, Traffic Director analyzes their IP, user-agent, and fingerprint in under 5ms. Real customers are instantly routed to your high-converting offer, while ad review crawlers, competitor spy tools, and click fraud bots are shown a compliant safe page."
+    question: "What is 180 Traffic Director and how does it protect my ad spend?",
+    answer: "180 Traffic Director is an enterprise-grade edge routing and click evaluation engine. When someone clicks your ad, Traffic Director analyzes their IP, user-agent, and fingerprint in under 5ms. Real customers are instantly routed to your high-converting offer, while ad review crawlers, competitor spy tools, and click fraud bots are shown a compliant safe page."
   },
   {
     question: "Does Traffic Director slow down page load times for my real visitors?",
-    answer: "No. Traffic Director runs directly on Cloudflare's global edge network across 300+ worldwide data centers. Evaluation takes less than 5 milliseconds, meaning your visitors experience instantaneous page loading with zero noticeable lag."
+    answer: "No. Traffic Director runs directly on Cloudflare global edge network across 300+ worldwide data centers. Evaluation takes less than 5 milliseconds, meaning your visitors experience instantaneous page loading with zero noticeable lag."
   },
   {
     question: "Can I use Traffic Director on existing WordPress, Shopify, or custom websites?",
@@ -138,13 +138,13 @@ const faqs = [
   },
   {
     question: "Can I connect my own custom branded domains for tracking links?",
-    answer: "Yes. You can connect unlimited custom domains (e.g., track.youragency.com) through our Company Hub. SSL certificates are provisioned automatically via Cloudflare with zero manual DNS configuration required after setting the initial CNAME record."
+    answer: "Yes. You can connect unlimited custom domains through our custom domains manager. SSL certificates are provisioned automatically via Cloudflare with zero manual DNS configuration required after setting the initial CNAME record."
   }
 ];
 ---
 
 <Layout 
-  title="Traffic Director & Ad Cloaking Software & Guide | 180workspace"
+  title="180 Traffic Director — Sub-5ms Edge Routing & Bot Shield | 180workspace"
   description="Sub-5ms edge traffic evaluation, bot shielding, dynamic tag injection, and ad review protection natively integrated into 180workspace."
 >
   <main class="w-full relative">
@@ -171,7 +171,7 @@ const faqs = [
     />
 
     <WorkGraphSynergy 
-      currentAppName="Traffic Director"
+      currentAppName="180 Traffic Director"
       title="Edge traffic that feeds your entire sales funnel."
       subtitle="See how real visitor clicks automatically enrich CRM contact records and calculate ad ROI."
       synergies={synergies}
@@ -185,15 +185,15 @@ const faqs = [
     />
 
     <AppBottomCTA 
-      appName="Traffic Director" 
+      appName="180 Traffic Director" 
       headline="Stop wasting ad budget on crawlers and bot clicks."
       subheadline="Start protecting your advertising campaigns today. Deploy in under 60 seconds with 180workspace."
     />
 
     <JSONLDSchema 
-      appName="Traffic Director & Ad Cloaking"
+      appName="180 Traffic Director"
       description="Sub-5ms edge traffic evaluation, bot shielding, dynamic tag injection, and ad review protection natively integrated into 180workspace."
-      urlPath="/apps/traffic-director"
+      urlPath="/180-traffic-director"
       faqs={faqs}
     />
 

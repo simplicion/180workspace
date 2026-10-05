@@ -9,9 +9,9 @@ export class OneEightyPayPlatformProvider implements PlatformPaymentProviderInte
     private payUrl: string;
 
     constructor(credentials: any = {}) {
-        this.clientId = credentials.clientId || process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_5cc136397553836e34eb37ce22d13a53';
-        this.clientSecret = credentials.clientSecret || process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_41b2bd23a7a978f197c16958ea14b4de6af9abe14ec13c9c';
-        this.webhookSecret = credentials.webhookSecret || process.env.ONE_EIGHTY_WEBHOOK_SECRET || 'whsec_91b1a44cd792ff88dc268110c139107af96d70ea';
+        this.clientId = credentials.clientId || process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_70d751541f05347fe803ec8e128f5e83';
+        this.clientSecret = credentials.clientSecret || process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_workspace_core_dev_key';
+        this.webhookSecret = credentials.webhookSecret || process.env.ONE_EIGHTY_WEBHOOK_SECRET || 'whsec_workspace_core_dev_key';
         this.apiUrl = credentials.apiUrl || process.env.ONE_EIGHTY_API_URL || 'https://services.180workspace.com';
         this.payUrl = credentials.payUrl || process.env.NEXT_PUBLIC_180_PAY_URL || 'https://pay.180workspace.com';
     }

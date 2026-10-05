@@ -25,7 +25,7 @@ import customerPortalRoutes from './routes/customer-portal.routes';
 import agentCheckoutRoutes from './routes/agent-checkout.routes';
 import pricingTableRoutes from './routes/pricing-table.routes';
 import { generalApiLimiter } from './middleware/rate-limiter.middleware';
-import { RsaKeysService, seedFirstPartyOAuthApps } from '@workspace/identity-provider';
+import { RsaKeysService, seedFirstPartyOAuthApps, DeveloperBillingService } from '@workspace/identity-provider';
 import { RecurringBillingEngine } from '@workspace/payment-provider';
 
 const app = express();
@@ -169,6 +169,7 @@ server.listen(PORT, async () => {
     setInterval(async () => {
       try {
         await RecurringBillingEngine.runRecurringBillingCycle();
+        await DeveloperBillingService.executeDunningCycle();
       } catch (e: any) {
         console.error('[180-core-backend] Error during recurring billing cycle:', e.message);
       }

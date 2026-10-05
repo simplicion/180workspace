@@ -8,9 +8,7 @@ const appCategories = [
     apps: [
       { name: "Voiceforce (AI Calling)", slug: "voiceforce", desc: "Autonomous AI phone agents & global calls", badge: "AI" },
       { name: "CRM & Sales", slug: "crm-and-sales", desc: "Lead pipelines, deal stages & contracts", badge: "Popular" },
-      { name: "Traffic Director", slug: "traffic-director", desc: "Dynamic URL cloaking & bot shielding", badge: "Core" },
-      { name: "Finance & Invoicing", slug: "finance", desc: "Cash flow, invoices & vendor bills", badge: "" },
-      { name: "Advertising", slug: "advertising", desc: "Multi-platform ad spend vs ROI", badge: "" },
+      { name: "Advertising", slug: "advertising", desc: "Multi-platform ad spend vs closed revenue", badge: "" },
     ]
   },
   {
@@ -18,27 +16,58 @@ const appCategories = [
     apps: [
       { name: "Projects & Tasks", slug: "projects-and-tasks", desc: "Kanban boards, sprints & timelogs", badge: "" },
       { name: "HR & Payroll", slug: "hr-management", desc: "Employee directory, leaves & salaries", badge: "" },
+      { name: "Finance & Analytics", slug: "finance", desc: "Cash flow, invoices & financial ledger", badge: "Core" },
+    ]
+  },
+  {
+    category: "Tools & Collaboration",
+    apps: [
       { name: "Communications", slug: "communications", desc: "Team chat & 180 HD video meetings", badge: "" },
-      { name: "Service Desk", slug: "service-desk", desc: "Customer tickets, SLAs & support", badge: "" },
+      { name: "Workspace Tools", slug: "workspace-tools", desc: "180 Docs, shared calendar & cloud storage", badge: "" },
     ]
+  }
+];
+
+const ecosystemProducts = [
+  {
+    title: "180 Workspace",
+    href: saasUrl,
+    badge: "Core OS",
+    badgeColor: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800",
+    desc: "The all-in-one business operating system with 8 connected apps on one Work Graph.",
+    iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>',
+    isExternal: false,
+    tag: "app.180workspace.com"
   },
   {
-    category: "Tools & Intelligence",
-    apps: [
-      { name: "180 Media Studio", slug: "media-editor", desc: "Autonomous video editor & >500 FPS stream engine", badge: "New" },
-      { name: "Orbit Copilot (AI)", slug: "orbit-copilot", desc: "Meeting summaries & task extraction", badge: "AI" },
-      { name: "Social Media", slug: "social-media", desc: "Universal content calendar & planner", badge: "" },
-      { name: "Workspace Tools", slug: "workspace-tools", desc: "180 Docs, cloud storage & e-sign", badge: "" },
-      { name: "Insights & BI", slug: "insights", desc: "CEO dashboard & predictive metrics", badge: "" },
-    ]
+    title: "180 Core",
+    href: "/180-core",
+    badge: "Sovereign API",
+    badgeColor: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+    desc: "Sovereign Identity SSO (WhatsApp OTP, OAuth 2.0 PKCE), Universal Profile & 180 Pay APIs.",
+    iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>',
+    isExternal: false,
+    tag: "developers.180workspace.com"
   },
   {
-    category: "Platform Governance",
-    apps: [
-      { name: "Company Hub", slug: "company-hub", desc: "Custom branding & CNAME SSL", badge: "" },
-      { name: "Identity & Security", slug: "identity-and-security", desc: "RBAC, MFA & audit logs", badge: "" },
-      { name: "Workflows & Automations", slug: "workflows-and-automations", desc: "Work Graph triggers & BullMQ", badge: "" },
-    ]
+    title: "180 Traffic Director",
+    href: "/180-traffic-director",
+    badge: "Edge Routing",
+    badgeColor: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+    desc: "Sub-5ms Cloudflare edge routing, bot mitigation, dynamic ad cloaking & traffic filtering.",
+    iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>',
+    isExternal: false,
+    tag: "traffic.180workspace.com"
+  },
+  {
+    title: "180 Social Studio",
+    href: "/180-social-studio",
+    badge: "Creative AI",
+    badgeColor: "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+    desc: "Autonomous video editor engine (Remotion) & multi-channel social media publisher.",
+    iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>',
+    isExternal: false,
+    tag: "social.180workspace.com"
   }
 ];
 
@@ -48,13 +77,6 @@ const resources = [
     href: "https://docs.180workspace.com",
     desc: "Enterprise architecture blueprints, runbooks, and multi-tenant schema guides",
     badge: "Docs",
-    isExternal: true
-  },
-  {
-    title: "Developer Portal",
-    href: "https://developers.180workspace.com",
-    desc: "Build on 180 Identity & Sovereign Pay with SDKs, APIs & webhook tools",
-    badge: "Portal",
     isExternal: true
   },
   {
@@ -94,7 +116,7 @@ const resources = [
       {/* Desktop Navigation */}
       <nav class="hidden lg:flex items-center gap-1 xl:gap-1.5" aria-label="Main Navigation">
         
-        {/* Apps Mega-Menu Trigger */}
+        {/* 1. Apps Mega-Menu Trigger (8 Workspace Apps) */}
         <div class="relative group">
           <button 
             type="button" 
@@ -109,7 +131,7 @@ const resources = [
           <div class="absolute left-0 top-full pt-2 w-[840px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
             <div class="bg-white/95 dark:bg-slate-900/95 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/15 backdrop-blur-2xl">
               <div class="grid grid-cols-3 gap-6">
-                {appCategories.slice(0, 3).map((col) => (
+                {appCategories.map((col) => (
                   <div>
                     <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 px-2">
                       {col.category}
@@ -147,9 +169,9 @@ const resources = [
 
               {/* Mega-Menu Bottom Bar */}
               <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between px-2 text-xs">
-                <span class="text-slate-500 font-medium">All 15 applications operate on one unified Work Graph database</span>
+                <span class="text-slate-500 font-medium">All 8 applications operate on one unified Work Graph database</span>
                 <a href="/apps" class="font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors">
-                  <span>Explore All Apps Directory</span>
+                  <span>Explore All 8 Apps Directory</span>
                   <span>→</span>
                 </a>
               </div>
@@ -157,33 +179,89 @@ const resources = [
           </div>
         </div>
 
-        {/* Pricing */}
+        {/* 2. Products Dropdown Trigger (Ecosystem Flagships) */}
+        <div class="relative group">
+          <button 
+            type="button" 
+            aria-expanded="false" 
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap cursor-pointer"
+          >
+            <span>Products</span>
+            <span class="text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+              Ecosystem
+            </span>
+            <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 group-hover:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+
+          {/* Products Mega-Dropdown Panel */}
+          <div class="absolute left-0 top-full pt-2 w-[540px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
+            <div class="bg-white/95 dark:bg-slate-900/95 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/15 backdrop-blur-2xl">
+              <div class="mb-3 px-2 flex items-center justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  180 Sovereign Platforms
+                </span>
+                <span class="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                  Autonomous Web & Cloud
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 gap-1.5">
+                {ecosystemProducts.map((prod) => (
+                  <a
+                    href={prod.href}
+                    target={prod.isExternal ? "_blank" : undefined}
+                    rel={prod.isExternal ? "noopener noreferrer" : undefined}
+                    class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all group/prod border border-transparent hover:border-slate-200/60 dark:hover:border-slate-700/60"
+                  >
+                    <div class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 mt-0.5 text-slate-700 dark:text-slate-300 group-hover/prod:bg-indigo-600 group-hover/prod:text-white transition-colors">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" set:html={prod.iconSvg}></svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-bold text-slate-900 dark:text-white group-hover/prod:text-indigo-600 dark:group-hover/prod:text-indigo-400 transition-colors">
+                          {prod.title}
+                        </span>
+                        <span class={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${prod.badgeColor} shrink-0`}>
+                          {prod.badge}
+                        </span>
+                      </div>
+                      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                        {prod.desc}
+                      </p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+
+              {/* Bottom Developer Banner */}
+              <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between px-2 text-xs">
+                <span class="text-slate-500 font-medium">Looking for APIs & SDKs?</span>
+                <a 
+                  href="https://developers.180workspace.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  class="font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                >
+                  <span>Visit Developer Console</span>
+                  <span>↗</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Pricing */}
         <a href="/pricing" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap">
           Pricing
         </a>
 
-        {/* Enterprise */}
-        <a href="/enterprise" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap">
-          Enterprise
+
+        {/* 5. Free Tools */}
+        <a href="/tools" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap">
+          Free Tools
         </a>
 
-        {/* Free Tools */}
-        <a href="/tools" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors flex items-center gap-1.5 whitespace-nowrap">
-          <span>Free Tools</span>
-          <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shrink-0">
-            ⚡
-          </span>
-        </a>
-
-        {/* Download App */}
-        <a href="/download" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors flex items-center gap-1.5 whitespace-nowrap">
-          <span>Download</span>
-          <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 shrink-0">
-            App
-          </span>
-        </a>
-
-        {/* Resources Dropdown */}
+        {/* 6. Resources Dropdown */}
         <div class="relative group">
           <button 
             type="button" 
@@ -200,6 +278,8 @@ const resources = [
               {resources.map((res) => (
                 <a 
                   href={res.href} 
+                  target={res.isExternal ? "_blank" : undefined}
+                  rel={res.isExternal ? "noopener noreferrer" : undefined}
                   class="block p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group/res"
                 >
                   <div class="flex items-center justify-between">
@@ -235,10 +315,10 @@ const resources = [
       
       <a 
         href={`${saasUrl}/signup?plan=momentum`} 
-        class="inline-flex items-center justify-center gap-1.5 px-4.5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap shrink-0 group cursor-pointer"
+        class="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap shrink-0 group cursor-pointer"
       >
         <span>Start with $12 Plan</span>
-        <svg class="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+        <svg class="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
       </a>
 
       {/* Mobile Menu Hamburger Button */}
@@ -258,18 +338,25 @@ const resources = [
   {/* Mobile Navigation Drawer */}
   <div id="mobile-drawer" class="lg:hidden hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl px-4 py-6 space-y-4">
     <div class="grid grid-cols-2 gap-2 pb-4 border-b border-slate-100 dark:border-slate-800/80">
-      <a href="/download" class="p-3 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-200 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 text-center col-span-2 flex items-center justify-center gap-2">
-        <span>💻 Download Native Desktop App</span>
+      <a href="/180-core" class="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-xs font-bold text-blue-700 dark:text-blue-300 text-center col-span-2 flex items-center justify-center gap-1.5">
+        <span>180 Core (Identity & Pay)</span>
+        <span class="text-[9px] text-blue-500 font-mono">/180-core</span>
       </a>
       <a href="/tools" class="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 text-center col-span-2">
-        ⚡ Free Tools Suite
+        Free Tools Suite
+      </a>
+      <a href="/180-traffic-director" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+        180 Traffic Director
+      </a>
+      <a href="/180-social-studio" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+        180 Social Studio
+      </a>
+      <a href="https://developers.180workspace.com" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center flex items-center justify-center gap-1">
+        <span>Developer Console</span>
+        <span class="text-[9px] text-indigo-500">↗</span>
       </a>
       <a href="https://docs.180workspace.com" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center flex items-center justify-center gap-1">
         <span>Docs Portal</span>
-        <span class="text-[9px] text-indigo-500">↗</span>
-      </a>
-      <a href="https://developers.180workspace.com" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center flex items-center justify-center gap-1">
-        <span>Dev Portal</span>
         <span class="text-[9px] text-indigo-500">↗</span>
       </a>
       <a href="/blog" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
@@ -282,21 +369,19 @@ const resources = [
         Case Studies
       </a>
       <a href="/apps" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
-        All 15 Apps
+        All 8 Apps
       </a>
       <a href="/pricing" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
         Pricing Plans
-      </a>
-      <a href="/enterprise" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
-        Enterprise
       </a>
     </div>
     <div class="flex flex-col gap-2 pt-1">
       <a href={`${saasUrl}/login`} class="btn-secondary w-full text-center py-2.5 text-xs font-bold">
         Sign In
       </a>
-      <a href={`${saasUrl}/signup?plan=momentum`} class="btn-primary w-full text-center py-2.5 text-xs font-bold">
-        Start with $12 Plan →
+      <a href={`${saasUrl}/signup?plan=momentum`} class="btn-primary w-full text-center py-2.5 text-xs font-bold flex items-center justify-center gap-2">
+        <span>Start with $12 Plan</span>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
       </a>
     </div>
   </div>

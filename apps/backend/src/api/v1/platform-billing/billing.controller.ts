@@ -291,8 +291,8 @@ export class BillingController {
                     couponCode: couponCode || null,
                     userId: (req as any).user?.id,
                 },
-                clientId: process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_5cc136397553836e34eb37ce22d13a53',
-                clientSecret: process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_41b2bd23a7a978f197c16958ea14b4de6af9abe14ec13c9c',
+                clientId: process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_70d751541f05347fe803ec8e128f5e83',
+                clientSecret: process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_workspace_core_dev_key',
             };
 
             const apiUrl = process.env.ONE_EIGHTY_API_URL || 'https://services.180workspace.com';
@@ -507,7 +507,7 @@ export class BillingController {
         try {
             const signature = (req.headers['x-180-signature'] || req.headers['x-signature']) as string;
             const timestamp = req.headers['x-180-timestamp'] as string;
-            const webhookSecret = process.env.ONE_EIGHTY_WEBHOOK_SECRET || 'whsec_91b1a44cd792ff88dc268110c139107af96d70ea';
+            const webhookSecret = process.env.ONE_EIGHTY_WEBHOOK_SECRET || 'whsec_workspace_core_dev_key';
 
             // 1. Prevent Replay Attacks: Enforce 5-minute (300s) maximum drift
             const currentTime = Math.floor(Date.now() / 1000);

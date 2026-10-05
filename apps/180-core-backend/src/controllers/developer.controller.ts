@@ -37,6 +37,10 @@ export class DeveloperApiController {
   static rotateWebhookSecret = DomainDeveloperController.rotateWebhookSecret;
   static testWebhook = DomainDeveloperController.testWebhook;
   static deleteApp = DomainDeveloperController.deleteApp;
+  static getBillingStatus = DomainDeveloperController.getBillingStatus;
+  static setupAutoPay = DomainDeveloperController.setupAutoPay;
+  static settleManualPayment = DomainDeveloperController.settleManualPayment;
+  static runDunningCycle = DomainDeveloperController.runDunningCycle;
 
   /**
    * GET /api/v1/developer/apps/:id/auth-logs

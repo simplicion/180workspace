@@ -429,10 +429,10 @@ export class AuthController {
             const clientId =
                 process.env.ONE_EIGHTY_CLIENT_ID ||
                 process.env.NEXT_PUBLIC_180_CLIENT_ID ||
-                '180_client_5cc136397553836e34eb37ce22d13a53';
+                '180_client_70d751541f05347fe803ec8e128f5e83';
             const clientSecret =
                 process.env.ONE_EIGHTY_CLIENT_SECRET ||
-                '180_secret_workspace_core_prod_key_5cc136';
+                '180_secret_workspace_core_dev_key';
 
             if (!identityServerUrl || !clientId || !clientSecret) {
                 console.error('[180 Identity Callback Error]: Missing ONE_EIGHTY_CLIENT_ID, ONE_EIGHTY_CLIENT_SECRET, or IDENTITY_SERVER_URL in environment');

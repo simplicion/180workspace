@@ -9,6 +9,9 @@ export const GET: APIRoute = async () => {
   // Core Platform URLs
   const corePages = [
     { url: `${baseUrl}`, priority: 1.0, changeFrequency: 'daily' },
+    { url: `${baseUrl}/180-core`, priority: 0.95, changeFrequency: 'weekly' },
+    { url: `${baseUrl}/180-traffic-director`, priority: 0.95, changeFrequency: 'weekly' },
+    { url: `${baseUrl}/180-social-studio`, priority: 0.95, changeFrequency: 'weekly' },
     { url: `${baseUrl}/tools`, priority: 0.95, changeFrequency: 'daily' },
     { url: `${baseUrl}/tools/youtube-tools`, priority: 0.90, changeFrequency: 'weekly' },
     { url: `${baseUrl}/tools/invoice-generator`, priority: 0.90, changeFrequency: 'weekly' },
@@ -16,7 +19,6 @@ export const GET: APIRoute = async () => {
     { url: `${baseUrl}/tools/utm-builder`, priority: 0.90, changeFrequency: 'weekly' },
     { url: `${baseUrl}/apps`, priority: 0.95, changeFrequency: 'weekly' },
     { url: `${baseUrl}/pricing`, priority: 0.95, changeFrequency: 'daily' },
-    { url: `${baseUrl}/enterprise`, priority: 0.90, changeFrequency: 'weekly' },
     { url: `${baseUrl}/developers`, priority: 0.90, changeFrequency: 'weekly' },
     { url: `${baseUrl}/features`, priority: 0.85, changeFrequency: 'weekly' },
     { url: `${baseUrl}/case-studies`, priority: 0.85, changeFrequency: 'monthly' },
@@ -27,24 +29,16 @@ export const GET: APIRoute = async () => {
     { url: `${baseUrl}/data-deletion`, priority: 0.60, changeFrequency: 'monthly' },
   ];
 
-  // All 16 Business Applications
+  // The 8 Core Business Applications
   const appSlugs = [
     'voiceforce',
     'crm-and-sales',
-    'traffic-director',
-    'finance',
+    'advertising',
     'projects-and-tasks',
     'hr-management',
+    'finance',
     'communications',
-    'service-desk',
-    'orbit-copilot',
-    'social-media',
-    'workspace-tools',
-    'insights',
-    'company-hub',
-    'advertising',
-    'identity-and-security',
-    'workflows-and-automations'
+    'workspace-tools'
   ];
 
   const appPages = appSlugs.map(slug => ({

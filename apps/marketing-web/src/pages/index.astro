@@ -29,42 +29,18 @@ const appCategories = [
         iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>'
       },
       {
-        name: "Traffic Director & Bot Shield",
-        slug: "traffic-director",
-        badge: "Edge Routing",
-        domain: "traffic" as const,
-        description: "Sub-5ms Cloudflare edge routing, bot mitigation, and dynamic ad cloaking.",
-        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'
-      },
-      {
         name: "Advertising Attribution & ROI",
         slug: "advertising",
         badge: "Ad Tracking",
         domain: "social" as const,
         description: "Match paid ad spend across channels directly to closed bank deposit revenue.",
-        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'
-      },
-      {
-        name: "Social Media Publisher",
-        slug: "social-media",
-        badge: "Multi-Channel",
-        domain: "social" as const,
-        description: "Visual content calendar, multi-channel scheduler, and AI post generator.",
-        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>'
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'
       }
     ]
   },
   {
     category: "Operations & Financial Execution",
     apps: [
-      {
-        name: "Finance, Invoicing & Cash Flow",
-        slug: "finance",
-        badge: "Cash Flow",
-        domain: "finance" as const,
-        description: "Automated recurring billing, Stripe payments, multi-currency ledger, and taxes.",
-        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>'
-      },
       {
         name: "Projects, Kanban & Work Logs",
         slug: "projects-and-tasks",
@@ -82,32 +58,24 @@ const appCategories = [
         iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>'
       },
       {
-        name: "Service Desk & SLA Helpdesk",
-        slug: "service-desk",
-        badge: "Support Inbox",
-        domain: "projects" as const,
-        description: "Omnichannel customer ticketing, automated SLA timers, and AI auto-responses.",
-        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>'
+        name: "Finance, Invoicing & Analytics",
+        slug: "finance",
+        badge: "Cash Flow & Ledger",
+        domain: "finance" as const,
+        description: "Automated recurring billing, invoices, expenses, multi-currency ledger, and taxes.",
+        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>'
       }
     ]
   },
   {
-    category: "Intelligence & Collaboration",
+    category: "Tools & Team Collaboration",
     apps: [
-      {
-        name: "Orbit Copilot Enterprise AI",
-        slug: "orbit-copilot",
-        badge: "Work Graph AI",
-        domain: "orbit" as const,
-        description: "Context-aware AI assistant grounded in your real business contracts and records.",
-        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>'
-      },
       {
         name: "Team Chat & HD Video Meetings",
         slug: "communications",
         badge: "Zero Add-On Fees",
         domain: "comms" as const,
-        description: "1080p HD video conferencing, team channels, and AI meeting summaries.",
+        description: "1080p HD video conferencing, team channels, and unified company messaging.",
         iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>'
       },
       {
@@ -117,47 +85,12 @@ const appCategories = [
         domain: "tools" as const,
         description: "Real-time collaborative rich documents, company wikis, and cloud file drive.",
         iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>'
-      },
-      {
-        name: "Executive Insights & BI",
-        slug: "insights",
-        badge: "CEO Dashboard",
-        domain: "insights" as const,
-        description: "Real-time MRR analytics, operational velocity, and AI anomaly detection.",
-        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>'
-      }
-    ]
-  },
-  {
-    category: "Enterprise Governance & Extensibility",
-    apps: [
-      {
-        name: "Company Hub & White-Label Portals",
-        slug: "company-hub",
-        badge: "Custom CNAME",
-        domain: "hub" as const,
-        description: "Custom CNAME domain with automatic SSL, white-label client portals, and branding.",
-        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>'
-      },
-      {
-        name: "Identity, RBAC & Security Audit",
-        slug: "identity-and-security",
-        badge: "Zero-Trust",
-        domain: "hub" as const,
-        description: "Granular app permissions, multi-factor auth, SAML SSO, and SOC2 audit logs.",
-        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>'
-      },
-      {
-        name: "Workflows & Event Automations",
-        slug: "workflows-and-automations",
-        badge: "No-Code Engine",
-        domain: "crm" as const,
-        description: "Event-driven Work Graph triggers and BullMQ background automation workers.",
-        iconSvg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>'
       }
     ]
   }
 ];
+
+const allApps = appCategories.flatMap(group => group.apps);
 ---
 
 <Layout 
@@ -174,7 +107,6 @@ const appCategories = [
 
       <div class="relative z-10 text-center max-w-5xl mx-auto">
         
-        <!-- Live Badge & Target Audience Pill -->
         <!-- Live Badge -->
         <div class="flex items-center justify-center mb-8">
           <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
@@ -202,7 +134,7 @@ const appCategories = [
             Start with $12 Plan
           </Button>
           <Button href="/apps" variant="secondary" class="w-full sm:w-auto">
-            Explore All 16 Apps
+            Explore All 8 Apps
           </Button>
         </div>
 
@@ -216,52 +148,41 @@ const appCategories = [
       </div>
     </section>
 
-    <!-- 16 Applications Bento Showcase -->
+    <!-- 8 Applications Bento Showcase -->
     <section class="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <SectionHeader 
-        badge="Complete Application Ecosystem"
-        title="16 Specialized Apps."
+        badge="Complete Application Suite"
+        title="8 Specialized Apps."
         highlightText="One Work Graph."
         subtitle="Every app is natively connected. When deals close, invoices generate, project tasks provision, and team channels activate automatically."
       />
 
-      <div class="space-y-16">
-        {appCategories.map((group) => (
-          <div>
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-6 flex items-center gap-3">
-              <span>{group.category}</span>
-              <span class="flex-1 h-px bg-slate-200 dark:bg-slate-800"></span>
-            </h3>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {group.apps.map((app) => (
-                <a 
-                  href={`/apps/${app.slug}`} 
-                  class="glass-card-interactive p-6 flex flex-col justify-between"
-                >
-                  <div>
-                    <div class="flex items-center justify-between mb-4">
-                      <div class="w-10 h-10 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-200 group-hover:scale-110 transition-transform">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" set:html={app.iconSvg}></svg>
-                      </div>
-                      <Badge text={app.badge} domain={app.domain} />
-                    </div>
-                    <h4 class="text-lg font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">
-                      {app.name}
-                    </h4>
-                    <p class="body-standard text-xs mt-2">
-                      {app.description}
-                    </p>
-                  </div>
-
-                  <div class="mt-6 flex items-center text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform">
-                    <span>Explore Playbook & Guide</span>
-                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                  </div>
-                </a>
-              ))}
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
+        {allApps.map((app) => (
+          <a 
+            href={`/apps/${app.slug}`} 
+            class="glass-card-interactive p-6 flex flex-col justify-between group hover:border-indigo-500/50 hover:shadow-xl transition-all"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <div class="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-200 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-xs">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" set:html={app.iconSvg}></svg>
+                </div>
+                <Badge text={app.badge} domain={app.domain} />
+              </div>
+              <h4 class="text-base font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                {app.name}
+              </h4>
+              <p class="body-standard text-xs mt-2 line-clamp-3">
+                {app.description}
+              </p>
             </div>
-          </div>
+
+            <div class="mt-6 flex items-center text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform">
+              <span>Explore Playbook</span>
+              <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+          </a>
         ))}
       </div>
     </section>
@@ -325,7 +246,7 @@ const appCategories = [
               Start with $12 Plan
             </Button>
             <Button href="/apps" variant="secondary" class="w-full sm:w-auto">
-              Browse All 15 App Playbooks
+              Browse All 8 App Playbooks
             </Button>
           </div>
 
@@ -340,7 +261,6 @@ const appCategories = [
           </div>
 
         </div>
-
       </div>
     </section>
 

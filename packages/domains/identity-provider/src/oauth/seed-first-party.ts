@@ -57,6 +57,64 @@ export const FIRST_PARTY_APPS = [
         logoUrl: '/icon.svg'
     },
     {
+        clientId: '180_client_70d751541f05347fe803ec8e128f5e83',
+        name: '180workspace',
+        description: 'First-party application client for 180 Workspace web platform',
+        redirectUris: [
+            'http://localhost:3000/callback',
+            'http://localhost:3000/oauth/callback',
+            'http://localhost:3001/callback',
+            'http://localhost:3001/oauth/callback',
+            'http://localhost:3002/callback',
+            'http://localhost:3002/oauth/callback',
+            'http://localhost:3003/callback',
+            'http://localhost:3003/oauth/callback',
+            'http://localhost:3008/callback',
+            'http://localhost:3008/oauth/callback',
+            'http://localhost:3009/callback',
+            'http://localhost:3009/oauth/callback',
+            'https://180workspace.com/callback',
+            'https://180workspace.com/oauth/callback',
+            'https://app.180workspace.com/callback',
+            'https://app.180workspace.com/oauth/callback',
+            'https://*.180workspace.com/callback',
+            'https://*.180workspace.com/oauth/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:3001',
+            'http://127.0.0.1:3001',
+            'http://localhost:3002',
+            'http://127.0.0.1:3002',
+            'http://localhost:3003',
+            'http://127.0.0.1:3003',
+            'http://localhost:3004',
+            'http://127.0.0.1:3004',
+            'http://localhost:3008',
+            'http://127.0.0.1:3008',
+            'http://localhost:3009',
+            'http://127.0.0.1:3009',
+            'https://180workspace.com',
+            'https://app.180workspace.com',
+            'https://*.180workspace.com'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email',
+            'identity:phone'
+        ],
+        isVerified: true,
+        isActive: true,
+        enablePay: true,
+        authDesktopDefault: 'popup',
+        authMobileDefault: 'bottom_sheet',
+        payDesktopDefault: 'bottom_sheet',
+        payMobileDefault: 'bottom_sheet',
+        logoUrl: '/icon.svg'
+    },
+    {
         clientId: '180_client_5cc136397553836e34eb37ce22d13a53',
         name: '180 Workspace Core Client',
         description: 'First-party application client for 180 Workspace web platform',
@@ -372,11 +430,13 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
             });
 
             const knownSecret =
-                app.clientId === '180-traffic-director'
-                    ? (process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || '180_secret_traffic_director_prod_key_771829')
-                    : app.clientId === '180_client_5cc136397553836e34eb37ce22d13a53'
-                        ? (process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_workspace_core_prod_key_5cc136')
-                        : `180_secret_${app.clientId}`;
+                app.clientId === '180_client_70d751541f05347fe803ec8e128f5e83'
+                    ? (process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_workspace_core_dev_key')
+                    : app.clientId === '180-traffic-director'
+                        ? (process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || '180_secret_traffic_director_prod_key_771829')
+                        : app.clientId === '180_client_5cc136397553836e34eb37ce22d13a53'
+                            ? (process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_workspace_core_prod_key_5cc136')
+                            : `180_secret_${app.clientId}`;
 
             if (!existing) {
                 await prisma.oAuthApp.create({
@@ -422,10 +482,11 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                     updateData.authMobileDefault = (app as any).authMobileDefault || 'bottom_sheet';
                 }
 
-                if (app.clientId === '180_client_5cc136397553836e34eb37ce22d13a53') {
+                if (app.clientId === '180_client_70d751541f05347fe803ec8e128f5e83' || app.clientId === '180_client_5cc136397553836e34eb37ce22d13a53') {
                     updateData.clientSecretHash = hashSecret(knownSecret);
                     updateData.clientSecretHint = knownSecret.slice(-4);
                     updateData.isActive = true;
+                    updateData.enablePay = true;
                 }
 
                 if (app.clientId === '180-traffic-director') {
