@@ -510,8 +510,15 @@ export class DeveloperApiController {
         };
       });
 
+      const platformFeePercent = 1.5;
+      const totalPlatformFee = Math.round(grossVolume * 0.015 * 100) / 100;
+      const netMerchantVolume = Math.round((grossVolume - totalPlatformFee) * 100) / 100;
+
       const analyticsData = {
         grossVolume: Math.round(grossVolume * 100) / 100,
+        platformFeePercent,
+        totalPlatformFee,
+        netMerchantVolume,
         thisMonthVolume: Math.round(thisMonthVolume * 100) / 100,
         lastMonthVolume: Math.round(lastMonthVolume * 100) / 100,
         pendingSettlements,

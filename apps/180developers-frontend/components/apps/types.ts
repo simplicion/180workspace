@@ -80,6 +80,9 @@ export interface TransactionRecord {
 
 export interface PaymentAnalyticsData {
   grossVolume: number;
+  platformFeePercent?: number;
+  totalPlatformFee?: number;
+  netMerchantVolume?: number;
   thisMonthVolume: number;
   lastMonthVolume: number;
   pendingSettlements: number;
