@@ -24,6 +24,18 @@ export function PayBottomNav() {
   const pathname = usePathname();
   const { projectId } = useProject();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [currentHash, setCurrentHash] = useState('');
+
+  React.useEffect(() => {
+    const handleHash = () => {
+      if (typeof window !== 'undefined') {
+        setCurrentHash(window.location.hash);
+      }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   const mainItems = [
     {
@@ -34,7 +46,7 @@ export function PayBottomNav() {
     },
     {
       label: 'Activity',
-      href: `/apps/${projectId}/pay/transactions`,
+      href: `/apps/${projectId}/pay#transactions`,
       icon: Receipt,
     },
     {
@@ -50,7 +62,6 @@ export function PayBottomNav() {
   ];
 
   const moreItems = [
-    { label: 'Settlement Bank', href: `/apps/${projectId}/pay/bank`, icon: Landmark },
     { label: 'Coupons & Promos', href: `/apps/${projectId}/pay/coupons`, icon: Tag },
     { label: 'Payment Links', href: `/apps/${projectId}/pay/links`, icon: Link2 },
     { label: 'Pricing Tables', href: `/apps/${projectId}/pay/pricing`, icon: Layers },
@@ -116,13 +127,44 @@ export function PayBottomNav() {
       >
         <div className="grid grid-cols-5 items-center justify-around max-w-md mx-auto">
           {mainItems.map((item) => {
-            const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+            const isActivity = item.href.includes('#transactions');
+            const isOverview = item.exact;
+            const isPayOverviewPath = pathname === `/apps/${projectId}/pay`;
+
+            let isActive = false;
+            if (isActivity) {
+              isActive = isPayOverviewPath && currentHash === '#transactions';
+            } else if (isOverview) {
+              isActive = isPayOverviewPath && currentHash !== '#transactions';
+            } else {
+              isActive = pathname.startsWith(item.href);
+            }
+
             const Icon = item.icon;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={(e) => {
+                  if (isActivity) {
+                    if (isPayOverviewPath) {
+                      e.preventDefault();
+                      const el = document.getElementById('transactions');
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth' });
+                        window.history.replaceState(null, '', `/apps/${projectId}/pay#transactions`);
+                        setCurrentHash('#transactions');
+                      }
+                    }
+                  } else if (isOverview && isPayOverviewPath) {
+                    if (currentHash === '#transactions') {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                      window.history.replaceState(null, '', `/apps/${projectId}/pay`);
+                      setCurrentHash('');
+                    }
+                  }
+                }}
                 className={`relative flex flex-col items-center justify-center py-1.5 px-1 min-h-[48px] rounded-xl transition-all duration-200 cursor-pointer ${
                   isActive
                     ? 'text-zinc-950 dark:text-white font-bold'

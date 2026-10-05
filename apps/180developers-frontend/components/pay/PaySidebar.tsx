@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   CreditCard,
   BarChart3,
-  Receipt,
   Landmark,
   Webhook,
   Tag,
@@ -70,20 +69,10 @@ export function PaySidebar({
       exact: true,
     },
     {
-      label: 'Transactions Ledger',
-      href: `/apps/${projectId}/pay/transactions`,
-      icon: Receipt,
-    },
-    {
       label: 'Payouts & Balance',
       href: `/apps/${projectId}/pay/payouts`,
       icon: CreditCard,
       badge: payoutBalance > 0 ? `₹${payoutBalance.toLocaleString()}` : undefined,
-    },
-    {
-      label: 'Settlement Bank',
-      href: `/apps/${projectId}/pay/bank`,
-      icon: Landmark,
     },
     {
       label: 'Webhooks & Dispatcher',

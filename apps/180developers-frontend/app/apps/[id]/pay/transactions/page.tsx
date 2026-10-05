@@ -1,21 +1,24 @@
 'use client';
 
-import React from 'react';
-import { AppShellLayout } from '@/components/common/AppShellLayout';
-import { PaySidebar } from '@/components/pay/PaySidebar';
-import { PayBottomNav } from '@/components/pay/PayBottomNav';
-import { PayTransactionsView } from '@/components/pay/PayTransactionsView';
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
-export default function PayTransactionsPage() {
+export default function PayTransactionsRedirectPage() {
+  const params = useParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    const id = params?.id || 'default';
+    router.replace(`/apps/${id}/pay#transactions`);
+  }, [params, router]);
+
   return (
-    <AppShellLayout
-      sidebar={<PaySidebar />}
-      bottomNav={<PayBottomNav />}
-      title="Incoming Transactions Ledger"
-      badge="Receipts"
-      badgeColor="purple"
-    >
-      <PayTransactionsView />
-    </AppShellLayout>
+    <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+      <div className="flex flex-col items-center gap-2 text-xs text-zinc-500 font-mono">
+        <Loader2 className="w-5 h-5 animate-spin text-purple-600 dark:text-purple-400" />
+        <span>Redirecting to 180 Pay Overview &amp; Ledger...</span>
+      </div>
+    </div>
   );
 }

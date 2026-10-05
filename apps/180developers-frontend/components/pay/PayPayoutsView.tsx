@@ -40,6 +40,13 @@ export function PayPayoutsView() {
     fetchPayoutHistory();
   }, [fetchPayoutHistory]);
 
+  // Auto-open bank drawer if navigated with drawer=bank (e.g. from bank redirect)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('drawer=bank')) {
+      setShowBankDrawer(true);
+    }
+  }, []);
+
   // Sync bank details to payout request modal when available
   useEffect(() => {
     if (bankDetails) {
@@ -259,12 +266,12 @@ export function PayPayoutsView() {
             <button
               type="button"
               onClick={() => setShowBankDrawer(true)}
-              className="p-2.5 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-all shadow-xs flex items-center gap-2 cursor-pointer group"
+              className="px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-all shadow-xs flex items-center gap-2 cursor-pointer group"
               title="Settlement Bank & UPI Settings"
               aria-label="Settlement Bank & UPI Settings"
             >
-              <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform duration-200 text-purple-600 dark:text-purple-400" />
-              <span className="text-xs font-semibold">Settings</span>
+              <Landmark className="w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-200" />
+              <span className="text-xs font-semibold">Settlement Bank &amp; UPI</span>
             </button>
 
             <button

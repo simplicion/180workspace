@@ -360,6 +360,7 @@ jobs:
           LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
           LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
           SOCIAL_TOKEN_ENCRYPTION_KEY: ${{ secrets.SOCIAL_TOKEN_ENCRYPTION_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CORE_DATABASE_URL: ${{ secrets.CORE_DATABASE_URL }}
           DEVELOPERS_DATABASE_URL: ${{ secrets.DEVELOPERS_DATABASE_URL }}
           DESKTOP_DEVICE_JWT_SECRET: ${{ secrets.DESKTOP_DEVICE_JWT_SECRET }}
@@ -374,7 +375,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,NEXTAUTH_SECRET,META_WEBHOOK_VERIFY_TOKEN,LINKEDIN_CLIENT_ID,LINKEDIN_CLIENT_SECRET,SOCIAL_TOKEN_ENCRYPTION_KEY,CORE_DATABASE_URL,DEVELOPERS_DATABASE_URL,DESKTOP_DEVICE_JWT_SECRET,CARTESIA_API_KEY,META_APP_ID,META_APP_SECRET,INSTAGRAM_APP_ID,INSTAGRAM_APP_SECRET,THREADS_APP_ID,THREADS_APP_SECRET
+          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,DATABASE_URL,NEXTAUTH_SECRET,META_WEBHOOK_VERIFY_TOKEN,LINKEDIN_CLIENT_ID,LINKEDIN_CLIENT_SECRET,SOCIAL_TOKEN_ENCRYPTION_KEY,CORE_DATABASE_URL,DEVELOPERS_DATABASE_URL,DESKTOP_DEVICE_JWT_SECRET,CARTESIA_API_KEY,META_APP_ID,META_APP_SECRET,INSTAGRAM_APP_ID,INSTAGRAM_APP_SECRET,THREADS_APP_ID,THREADS_APP_SECRET
           command_timeout: 30m
           script: |
             set -e
@@ -411,6 +412,13 @@ jobs:
 
             # 4. Inject production environment variables
             echo "$PRODUCTION_ENV_FILE" > .env
+
+            # 4a. DATABASE_URL — Injected from repository secret if present
+            if [ -n "$DATABASE_URL" ]; then
+              sed -i '/^DATABASE_URL=/d' .env
+              printf '\nDATABASE_URL="%s"\n' "$DATABASE_URL" >> .env
+              echo "==> DATABASE_URL configured from repository secret."
+            fi
 
             # 4b. NEXTAUTH_SECRET must be defined at runtime. The application no longer contains a fallback default
             #     (a publicly known default let anyone forge a session). If the env blob does not define it, take it

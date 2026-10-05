@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import {
   CreditCard,
   Activity,
@@ -18,10 +19,114 @@ import {
   BarChart3,
   ArrowRight,
   ShieldCheck,
+  Receipt,
+  ArrowDown,
 } from 'lucide-react';
 import { OneEightyPay } from '@workspace/identity-sdk';
 import toast from 'react-hot-toast';
 import { useProject } from '@/context/ProjectContext';
+
+function TransactionsSkeleton() {
+  return (
+    <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl animate-pulse">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
+              <Receipt className="w-4 h-4" />
+            </div>
+            <div className="h-5 w-56 bg-zinc-200 dark:bg-zinc-800 rounded-lg" />
+          </div>
+          <div className="h-3 w-80 bg-zinc-100 dark:bg-zinc-900 rounded-md" />
+        </div>
+        <div className="h-8 w-8 bg-zinc-200 dark:bg-zinc-800 rounded-xl" />
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="h-9 flex-1 w-full bg-zinc-100 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-white/10" />
+        <div className="h-9 w-full sm:w-80 bg-zinc-100 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-white/10" />
+      </div>
+
+      <div className="rounded-2xl border border-zinc-200 dark:border-white/5 overflow-hidden">
+        <div className="h-10 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-white/5" />
+        <div className="divide-y divide-zinc-200 dark:divide-white/5 p-2 space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-12 flex items-center justify-between px-4 gap-2">
+              <div className="h-4 w-28 bg-zinc-200 dark:bg-zinc-800 rounded" />
+              <div className="h-4 w-16 bg-zinc-200 dark:bg-zinc-800 rounded" />
+              <div className="h-4 w-32 bg-zinc-200 dark:bg-zinc-800 rounded hidden sm:block" />
+              <div className="h-4 w-20 bg-zinc-200 dark:bg-zinc-800 rounded hidden md:block" />
+              <div className="h-5 w-24 bg-zinc-200 dark:bg-zinc-800 rounded-full" />
+              <div className="h-4 w-24 bg-zinc-200 dark:bg-zinc-800 rounded hidden sm:block" />
+              <div className="h-7 w-20 bg-zinc-200 dark:bg-zinc-800 rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const PayTransactionsView = dynamic(
+  () => import('./PayTransactionsView').then((mod) => mod.PayTransactionsView),
+  {
+    loading: () => <TransactionsSkeleton />,
+    ssr: false,
+  }
+);
+
+function LazyTransactionsSection() {
+  const [inView, setInView] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleHash = () => {
+      if (typeof window !== 'undefined' && window.location.hash.includes('transactions')) {
+        setInView(true);
+        setTimeout(() => {
+          containerRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 80);
+      }
+    };
+
+    if (typeof window !== 'undefined' && window.location.hash.includes('transactions')) {
+      handleHash();
+      return;
+    }
+
+    window.addEventListener('hashchange', handleHash);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      {
+        rootMargin: '300px',
+        threshold: 0,
+      }
+    );
+
+    const current = containerRef.current;
+    if (current) {
+      observer.observe(current);
+    }
+
+    return () => {
+      window.removeEventListener('hashchange', handleHash);
+      if (current) observer.unobserve(current);
+      observer.disconnect();
+    };
+  }, []);
+
+  return (
+    <div id="transactions" ref={containerRef} className="scroll-mt-6">
+      {inView ? <PayTransactionsView /> : <TransactionsSkeleton />}
+    </div>
+  );
+}
 
 export function PayOverviewView() {
   const {
@@ -138,15 +243,34 @@ export function PayOverviewView() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={fetchPaymentAnalytics}
-            disabled={loadingAnalytics}
-            className="p-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer self-start sm:self-auto"
-            title="Refresh analytics"
-          >
-            <RotateCw className={`w-3.5 h-3.5 ${loadingAnalytics ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById('transactions');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth' });
+                  window.history.replaceState(null, '', '#transactions');
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer flex items-center gap-1.5"
+              title="Jump to transactions ledger"
+            >
+              <Receipt className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span>View Ledger</span>
+              <ArrowDown className="w-3 h-3 text-zinc-400" />
+            </button>
+
+            <button
+              type="button"
+              onClick={fetchPaymentAnalytics}
+              disabled={loadingAnalytics}
+              className="p-2 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+              title="Refresh analytics"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${loadingAnalytics ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -381,6 +505,9 @@ export function PayOverviewView() {
           </div>
         </div>
       </div>
+
+      {/* 3. Incoming Transactions Ledger (Lazy Loaded) */}
+      <LazyTransactionsSection />
     </div>
   );
 }
