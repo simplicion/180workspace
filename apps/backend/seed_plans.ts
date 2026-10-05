@@ -6,7 +6,7 @@ async function main() {
     const plans = [
         {
             planName: '180 Kickstart',
-            price: 0, // USD
+            price: 10, // USD
             currency: 'USD',
             billingCycle: 'monthly',
             maxUsers: 2,
@@ -25,7 +25,7 @@ async function main() {
         },
         {
             planName: '180 Momentum',
-            price: 12, // USD
+            price: 17, // USD
             currency: 'USD',
             billingCycle: 'monthly',
             maxUsers: 5,
@@ -46,7 +46,7 @@ async function main() {
         },
         {
             planName: '180 Limitless',
-            price: 15, // USD
+            price: 20, // USD
             currency: 'USD',
             billingCycle: 'monthly',
             maxUsers: 20,

@@ -20,6 +20,7 @@ import { AILogoIcon, Button } from '@workspace/ui';
 import { use180Identity } from '@workspace/identity-sdk';
 import toast from 'react-hot-toast';
 import ThemeToggle from './ThemeToggle';
+import { getDocsUrl, DOCS_LINKS } from '@/lib/docs-url';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -235,16 +236,15 @@ export default function Navbar() {
           </div>
 
           {/* 2. Docs Link */}
-          <Link
-            href="/docs"
-            className={`py-2 transition-colors ${
-              pathname === '/docs'
-                ? 'text-blue-600 dark:text-blue-400 font-bold'
-                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
-            }`}
+          <a
+            href={getDocsUrl(DOCS_LINKS.CORE_OVERVIEW)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="py-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
           >
             <span>Docs</span>
-          </Link>
+            <ExternalLink className="w-3 h-3 text-zinc-400 opacity-70" />
+          </a>
         </nav>
 
         {/* Right: Theme Toggle & Single Action Button */}
@@ -307,14 +307,19 @@ export default function Navbar() {
                     <span>Applications Dashboard</span>
                   </Link>
 
-                  <Link
-                    href="/docs"
+                  <a
+                    href={getDocsUrl(DOCS_LINKS.CORE_OVERVIEW)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     onClick={() => setUserDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                   >
-                    <Code2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    <span>Documentation</span>
-                  </Link>
+                    <div className="flex items-center gap-2.5">
+                      <Code2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span>Documentation</span>
+                    </div>
+                    <ExternalLink className="w-3 h-3 text-zinc-400" />
+                  </a>
 
                   <button
                     type="button"
@@ -384,14 +389,19 @@ export default function Navbar() {
             </Link>
           </div>
 
-          <Link
-            href="/docs"
+          <a
+            href={getDocsUrl(DOCS_LINKS.CORE_OVERVIEW)}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 min-h-[44px]"
+            className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 min-h-[44px]"
           >
-            <Code2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <span>Docs</span>
-          </Link>
+            <div className="flex items-center gap-3">
+              <Code2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>Docs</span>
+            </div>
+            <ExternalLink className="w-3 h-3 text-zinc-400" />
+          </a>
 
           {/* Auth Action on Mobile */}
           <div className="pt-3 border-t border-zinc-200 dark:border-white/10">

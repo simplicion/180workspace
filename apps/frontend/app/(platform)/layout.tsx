@@ -325,7 +325,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 if (item.appId && isAppDisabledByAdmin(item.appId)) {
                     return null;
                 }
-                const defaultApps = ['projects', 'communications', 'workspace-tools', 'ai'];
+                const defaultApps = ['projects', 'communications', 'workspace-tools'];
                 const isDefaultApp = item.appId ? defaultApps.includes(item.appId) : false;
                 const hasActivePlan = !isExpired && status !== 'expired' && status !== 'cancelled' && status !== 'No Active Plan';
                 
@@ -336,7 +336,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     // Check against the plan's max apps
                     const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 50);
                     const companyEnabledApps = company?.enabledApps || [];
-                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'operations', 'voiceforce', 'ai'];
+                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'voiceforce'];
                     
                     // Filter out system, settings, and default apps to get only custom installed apps
                     const customApps = companyEnabledApps.filter((a: string) => 
@@ -346,13 +346,13 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     
                     // Default apps are always available and don't count towards the limit
                     if (isDefaultApp) {
-                        isAppEnabled = item.appId === 'ai' || companyEnabledApps.includes(item.appId);
+                        isAppEnabled = companyEnabledApps.includes(item.appId);
                     } else {
                         isAppEnabled = allowedSubset.includes(item.appId);
                     }
                 } else {
                     // No active plan: only allow default apps if they are in enabledApps
-                    isAppEnabled = isDefaultApp && (item.appId === 'ai' || (company?.enabledApps || []).includes(item.appId));
+                    isAppEnabled = isDefaultApp && (company?.enabledApps || []).includes(item.appId);
                 }
 
                 // 2. Filter individual modules within the group

@@ -18,8 +18,10 @@ import {
   ArrowLeft,
   X,
   Code2,
+  ExternalLink,
 } from 'lucide-react';
 import { useProject } from '@/context/ProjectContext';
+import { getDocsUrl, DOCS_LINKS } from '@/lib/docs-url';
 
 export interface PaySidebarProps {
   isMobileOpen?: boolean;
@@ -229,16 +231,23 @@ export function PaySidebar({
 
       {/* 4. Bottom Footer Link */}
       <div className="p-3 border-t border-zinc-200/80 dark:border-white/10 shrink-0">
-        <Link
-          href="/docs"
+        <a
+          href={getDocsUrl(DOCS_LINKS.PAY_QUICKSTART)}
+          target="_blank"
+          rel="noopener noreferrer"
           className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors ${
             !isExpanded ? 'justify-center' : ''
           }`}
-          title="Checkout SDK Docs"
+          title="180 Pay Documentation"
         >
-          <Code2 className="w-4 h-4 shrink-0" />
-          {isExpanded && <span className="truncate">Checkout Docs</span>}
-        </Link>
+          <Code2 className="w-4 h-4 shrink-0 text-purple-500" />
+          {isExpanded && (
+            <div className="flex items-center justify-between flex-1 min-w-0">
+              <span className="truncate">Pay Docs</span>
+              <ExternalLink className="w-3 h-3 text-zinc-400" />
+            </div>
+          )}
+        </a>
       </div>
     </div>
   );

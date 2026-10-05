@@ -17,6 +17,11 @@ const nextConfig = {
         destination: '/dashboard',
         permanent: false,
       },
+      {
+        source: '/docs',
+        destination: isDev ? 'http://localhost:3005/docs/180-core/overview' : 'https://docs.180workspace.com/docs/180-core/overview',
+        permanent: false,
+      },
     ];
   },
   transpilePackages: ['@workspace/ui', '@workspace/identity-sdk'],

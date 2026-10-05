@@ -979,6 +979,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@workspace/identity-sdk':
+        specifier: workspace:*
+        version: link:../../packages/identity-sdk
       '@workspace/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -1664,6 +1667,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../db
+      '@workspace/db-180core':
+        specifier: workspace:*
+        version: link:../../db-180core
     devDependencies:
       '@types/javascript-obfuscator':
         specifier: ^0.17.0

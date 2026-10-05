@@ -14,7 +14,6 @@ import { LocationSearch } from '@/components/ui/LocationSearch';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { locationService, FormattedLocation } from '@/lib/location-service';
 import api from '@/lib/api';
-import { SubscriptionPlan } from '@/components/shared/SubscriptionPlan';
 import { industriesList } from '@workspace/common';
 
 const INDUSTRIES = industriesList.map(industry => ({

@@ -11,15 +11,15 @@ const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com
 const plans = [
   {
     name: "180 Kickstart",
-    badge: "Free Forever",
-    priceMonthly: 0,
-    priceDisplay: "$0",
+    badge: "Essential",
+    priceMonthly: 10,
+    priceDisplay: "$10",
     description: "Essential workspace foundations with unified Work Graph data isolation for solopreneurs and early ventures.",
     popular: false,
     color: "glass-card",
     buttonVariant: "secondary" as const,
-    buttonText: "Get Started Free",
-    subtext: "Free forever • No credit card required",
+    buttonText: "Get Started",
+    subtext: "Instant activation • Cancel anytime",
     features: [
       "Access to 5 Core Applications",
       "Up to 2 Team Members",
@@ -32,8 +32,8 @@ const plans = [
   {
     name: "180 Momentum",
     badge: "Most Popular",
-    priceMonthly: 12,
-    priceDisplay: "$12",
+    priceMonthly: 17,
+    priceDisplay: "$17",
     description: "Expanded application capacity, AI copilot intelligence, and custom SMTP email routing for scaling businesses.",
     popular: true,
     color: "glass-card border-indigo-500/80 bg-indigo-50/40 dark:bg-indigo-950/30 shadow-2xl shadow-indigo-900/10 ring-2 ring-indigo-500/20",
@@ -54,8 +54,8 @@ const plans = [
   {
     name: "180 Limitless",
     badge: "Scale & Enterprise",
-    priceMonthly: 15,
-    priceDisplay: "$15",
+    priceMonthly: 20,
+    priceDisplay: "$20",
     description: "Complete unrestricted access to all 15+ applications, 20 team seats, and sub-5ms edge traffic routing.",
     popular: false,
     color: "glass-card",
@@ -78,31 +78,31 @@ const plans = [
 
 const faqs = [
   {
-    question: "Is there a free tier available for 180workspace?",
-    answer: "Yes! 180 Kickstart is completely free forever for up to 2 team members, 1 website, 1 GB storage, and access to 5 core applications with zero credit card required."
+    question: "What plans are available for 180workspace?",
+    answer: "180workspace offers 3 straightforward plans: 180 Kickstart ($10/mo), 180 Momentum ($17/mo), and 180 Limitless ($20/mo) with full Work Graph isolation and no per-seat gouging."
   },
   {
     question: "How do the 14-day free trials work for paid plans?",
-    answer: "Both 180 Momentum ($12/mo) and 180 Limitless ($15/mo) include a 14-day full-access trial. You can test all features and invite your team without entering a credit card upfront."
+    answer: "Both 180 Momentum ($17/mo) and 180 Limitless ($20/mo) include a 14-day full-access trial. You can test all features and invite your team without entering a credit card upfront."
   },
   {
     question: "Can I upgrade, downgrade, or cancel at any time?",
-    answer: "Yes. You have total flexibility. You can upgrade from Kickstart to Momentum or Limitless, or cancel your paid subscription anytime from Settings > Platform Billing to revert to the free Kickstart tier without losing your data."
+    answer: "Yes. You have total flexibility. You can switch between Kickstart, Momentum, or Limitless anytime from Settings > Platform Billing, or cancel anytime without losing your workspace data."
   },
   {
     question: "What makes 180 Limitless different from other software suites?",
-    answer: "For just $15/month for your entire workspace (up to 20 users), 180 Limitless unlocks all 15+ applications—including CRM, Projects, HRMS, Communications, Invoicing, Orbit AI, and our ultra-fast Traffic Director—eliminating over $500/month in fragmented SaaS fees."
+    answer: "For just $20/month for your entire workspace (up to 20 users), 180 Limitless unlocks all 15+ applications—including CRM, Projects, HRMS, Communications, Invoicing, Orbit AI, and our ultra-fast Traffic Director—eliminating over $500/month in fragmented SaaS fees."
   },
   {
     question: "What payment methods are supported?",
-    answer: "We support all major credit cards, debit cards, and secure online checkout via Razorpay with automated invoicing and tax receipts."
+    answer: "We support all major credit cards, debit cards, UPI, and secure online checkout via 180 Pay with automated invoicing and tax receipts."
   }
 ];
 ---
 
 <Layout 
-  title="180workspace Pricing | Real, Transparent Plans with No Per-App Add-on Fees"
-  description="Explore real pricing for 180workspace. Free Kickstart ($0), Momentum ($12/mo), and Limitless ($15/mo) with full Work Graph access."
+  title="180workspace Pricing | Real, Transparent Plans at $10, $17, and $20/mo"
+  description="Explore real pricing for 180workspace. 180 Kickstart ($10/mo), Momentum ($17/mo), and Limitless ($20/mo) with full Work Graph access."
 >
   <main class="w-full relative">
     
@@ -189,12 +189,12 @@ const faqs = [
     <AppBottomCTA 
       appName="180workspace"
       headline="Ready to launch your unified workspace?"
-      subheadline="Start with 180 Kickstart for free or test 180 Limitless with a 14-day trial. Deploy in 60 seconds."
+      subheadline="Start with 180 Kickstart or test 180 Limitless with a 14-day trial. Deploy in 60 seconds."
     />
 
     <JSONLDSchema 
       appName="180workspace Pricing"
-      description="Real, transparent pricing for 180workspace. Free Kickstart ($0), Momentum ($12/mo), and Limitless ($15/mo) with full Work Graph access."
+      description="Real, transparent pricing for 180workspace. 180 Kickstart ($10/mo), Momentum ($17/mo), and Limitless ($20/mo) with full Work Graph access."
       urlPath="/pricing"
       faqs={faqs}
     />

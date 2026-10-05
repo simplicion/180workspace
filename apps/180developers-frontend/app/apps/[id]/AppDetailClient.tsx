@@ -8,8 +8,10 @@ import {
   CheckCircle2,
   Settings,
   Copy,
+  ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getDocsUrl, DOCS_LINKS } from '@/lib/docs-url';
 import {
   UniversalSkeleton,
 } from '@workspace/ui';
@@ -1021,12 +1023,27 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <Link
-                  href="/docs"
-                  className="px-4 py-2 min-h-[44px] flex items-center rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white shadow-sm transition-all"
+                <a
+                  href={
+                    activeView === 'pay'
+                      ? getDocsUrl(DOCS_LINKS.PAY_QUICKSTART)
+                      : activeView === 'identity'
+                      ? getDocsUrl(DOCS_LINKS.IDENTITY_QUICKSTART)
+                      : getDocsUrl(DOCS_LINKS.CORE_OVERVIEW)
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 min-h-[44px] flex items-center gap-1.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white shadow-sm transition-all cursor-pointer"
                 >
-                  SDK Documentation
-                </Link>
+                  <span>
+                    {activeView === 'pay'
+                      ? '180 Pay Docs'
+                      : activeView === 'identity'
+                      ? '180 Identity Docs'
+                      : 'SDK Documentation'}
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                </a>
                 {activeView === 'overview' && (
                   <button
                     type="button"

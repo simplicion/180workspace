@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import ThemeToggle from '../ThemeToggle';
 import toast from 'react-hot-toast';
+import { getDocsUrl, DOCS_LINKS } from '@/lib/docs-url';
 
 export interface DeveloperHeaderProps {
   onMobileToggle: () => void;
@@ -184,15 +185,18 @@ export function DeveloperHeader({
                     <ExternalLink className="w-3 h-3 text-zinc-400" />
                   </a>
 
-                  <Link
-                    href="/docs"
+                  <a
+                    href={getDocsUrl(DOCS_LINKS.CORE_OVERVIEW)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                   >
                     <span className="flex items-center gap-2">
                       <Code2 className="w-3.5 h-3.5 text-zinc-400" />
                       <span>Developer Docs & SDK</span>
                     </span>
-                  </Link>
+                    <ExternalLink className="w-3 h-3 text-zinc-400" />
+                  </a>
                 </div>
 
                 {onSignOut && (

@@ -38,14 +38,8 @@ const ALL_PLATFORM_APPS = [
     'crm',
     'hr',
     'finance',
-    'insights',
-    'analytics',
     'advertising',
-    'voiceforce',
-    'ai',
-    'storage',
-    'database',
-    'google-integrations'
+    'voiceforce'
 ];
 
 let cachedSubscriptionData: any = null;

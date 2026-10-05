@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
-import { Terminal, Code2, ArrowLeft, Home, BookOpen } from 'lucide-react';
+import { Terminal, Code2, ArrowLeft, Home, BookOpen, ExternalLink } from 'lucide-react';
+import { getDocsUrl, DOCS_LINKS } from '@/lib/docs-url';
 
 export default function NotFound() {
   return (
@@ -31,13 +32,16 @@ export default function NotFound() {
             <span>Applications Dashboard</span>
           </Link>
 
-          <Link
-            href="/docs"
+          <a
+            href={getDocsUrl(DOCS_LINKS.CORE_OVERVIEW)}
+            target="_blank"
+            rel="noopener noreferrer"
             className="w-full py-3 min-h-[44px] rounded-xl bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white border border-zinc-200 dark:border-white/10 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span>Integration Guides & SDK Docs</span>
-          </Link>
+            <ExternalLink className="w-3.5 h-3.5 text-zinc-400 ml-1" />
+          </a>
 
           <a
             href="https://profile.180workspace.com"

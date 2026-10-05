@@ -2,7 +2,8 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { AlertCircle, RotateCw, Home, BookOpen } from 'lucide-react';
+import { AlertCircle, RotateCw, Home, BookOpen, ExternalLink } from 'lucide-react';
+import { getDocsUrl, DOCS_LINKS } from '@/lib/docs-url';
 
 export default function ErrorBoundary({
   error,
@@ -56,13 +57,16 @@ export default function ErrorBoundary({
             <span>Return to Applications</span>
           </Link>
 
-          <Link
-            href="/docs"
+          <a
+            href={getDocsUrl(DOCS_LINKS.CORE_OVERVIEW)}
+            target="_blank"
+            rel="noopener noreferrer"
             className="w-full py-3 min-h-[44px] rounded-xl bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-zinc-200 dark:border-white/5 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span>View Documentation</span>
-          </Link>
+            <ExternalLink className="w-3.5 h-3.5 text-zinc-400 ml-1" />
+          </a>
         </div>
       </div>
     </div>

@@ -583,6 +583,180 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                     }
                 }
             }
+
+            // Seed default subscription plans for 180 Workspace Platform (180 Pay)
+            if (app.clientId === '180_client_70d751541f05347fe803ec8e128f5e83' || app.clientId === '180-workspace-platform') {
+                const targetApp = await prisma.oAuthApp.findUnique({ where: { clientId: app.clientId } });
+                if (targetApp) {
+                    if (!targetApp.enablePay) {
+                        await prisma.oAuthApp.update({
+                            where: { id: targetApp.id },
+                            data: { enablePay: true }
+                        });
+                    }
+
+                    const DEFAULT_WORKSPACE_PLANS = [
+                        {
+                            planCode: '180-kickstart',
+                            name: '180 Kickstart',
+                            description: 'Essential workspace foundations with unified Work Graph data isolation for solopreneurs and early ventures.',
+                            amount: 10.0,
+                            currency: 'USD',
+                            interval: 'MONTHLY',
+                            trialDays: 0,
+                            metadata: {
+                                features: [
+                                    { text: 'Access to 5 Core Applications', included: true },
+                                    { text: 'Up to 2 Team Members', included: true },
+                                    { text: '1 Active Website / Custom CNAME', included: true },
+                                    { text: '1 GB Cloud Storage', included: true },
+                                    { text: 'Standard Community & Ticket Support', included: true },
+                                    { text: 'Unified Work Graph Data Isolation', included: true }
+                                ],
+                                isPopular: false,
+                                badgeText: 'Essential',
+                                yearlyAmount: 96
+                            }
+                        },
+                        {
+                            planCode: '180-momentum',
+                            name: '180 Momentum',
+                            description: 'Expanded application capacity, AI copilot intelligence, and custom SMTP email routing for scaling businesses.',
+                            amount: 17.0,
+                            currency: 'USD',
+                            interval: 'MONTHLY',
+                            trialDays: 14,
+                            metadata: {
+                                features: [
+                                    { text: 'Access to 7 Applications', included: true },
+                                    { text: 'Up to 5 Team Members', included: true },
+                                    { text: 'Up to 5 Active Websites', included: true },
+                                    { text: '10 GB Cloud Storage', included: true },
+                                    { text: 'Orbit AI Copilot Access', included: true },
+                                    { text: 'Custom Email SMTP Integration', included: true },
+                                    { text: 'Priority Email & Ticket Support', included: true },
+                                    { text: 'Cross-App Event Triggers & Workflows', included: true }
+                                ],
+                                isPopular: true,
+                                badgeText: 'Most Popular',
+                                yearlyAmount: 163
+                            }
+                        },
+                        {
+                            planCode: '180-limitless',
+                            name: '180 Limitless',
+                            description: 'Complete unrestricted access to all 15+ applications, 20 team seats, and sub-5ms edge traffic routing.',
+                            amount: 20.0,
+                            currency: 'USD',
+                            interval: 'MONTHLY',
+                            trialDays: 14,
+                            metadata: {
+                                features: [
+                                    { text: 'Unlimited Access to All 15+ Applications', included: true },
+                                    { text: 'Up to 20 Team Members Included', included: true },
+                                    { text: 'Unlimited Websites & Automated SSL', included: true },
+                                    { text: '20 GB High-Speed Cloud Storage', included: true },
+                                    { text: 'Sub-5ms Traffic Director & Bot Shield', included: true },
+                                    { text: 'Dedicated Team & Priority Support', included: true },
+                                    { text: 'Orbit AI Copilot Full Capabilities', included: true },
+                                    { text: 'Custom Email SMTP & Webhook Integrations', included: true },
+                                    { text: 'Enterprise Multi-Tenant Security & RBAC', included: true }
+                                ],
+                                isPopular: false,
+                                badgeText: 'Scale & Enterprise',
+                                yearlyAmount: 192
+                            }
+                        }
+                    ];
+
+                    for (const plan of DEFAULT_WORKSPACE_PLANS) {
+                        await (prisma as any).subscriptionPlan.upsert({
+                            where: {
+                                appId_planCode: {
+                                    appId: targetApp.id,
+                                    planCode: plan.planCode
+                                }
+                            },
+                            update: {
+                                name: plan.name,
+                                description: plan.description,
+                                amount: plan.amount,
+                                currency: plan.currency,
+                                interval: plan.interval,
+                                trialDays: plan.trialDays,
+                                metadata: plan.metadata,
+                                isActive: true
+                            },
+                            create: {
+                                appId: targetApp.id,
+                                planCode: plan.planCode,
+                                name: plan.name,
+                                description: plan.description,
+                                amount: plan.amount,
+                                currency: plan.currency,
+                                interval: plan.interval,
+                                trialDays: plan.trialDays,
+                                metadata: plan.metadata,
+                                isActive: true
+                            }
+                        });
+                    }
+
+                    // Upsert PricingTableConfig
+                    await (prisma as any).pricingTableConfig.upsert({
+                        where: { appId: targetApp.id },
+                        update: {
+                            headline: '180workspace Plans & Pricing',
+                            subheadline: 'Choose the plan that fits your growth with no per-seat penalties or hidden fees.',
+                            theme: 'auto',
+                            accentColor: '#6366f1',
+                            billingIntervals: ['MONTHLY', 'YEARLY'],
+                            yearlyDiscountPct: 20,
+                            planCards: DEFAULT_WORKSPACE_PLANS.map(p => ({
+                                planCode: p.planCode,
+                                name: p.name,
+                                description: p.description,
+                                amount: p.amount,
+                                yearlyAmount: p.metadata.yearlyAmount,
+                                currency: p.currency,
+                                interval: p.interval,
+                                trialDays: p.trialDays,
+                                isPopular: p.metadata.isPopular,
+                                badgeText: p.metadata.badgeText,
+                                features: p.metadata.features,
+                                buttonText: p.trialDays > 0 ? 'Start 14-Day Free Trial' : 'Get Started',
+                                isFree: false
+                            })),
+                            customCss: ''
+                        },
+                        create: {
+                            appId: targetApp.id,
+                            headline: '180workspace Plans & Pricing',
+                            subheadline: 'Choose the plan that fits your growth with no per-seat penalties or hidden fees.',
+                            theme: 'auto',
+                            accentColor: '#6366f1',
+                            billingIntervals: ['MONTHLY', 'YEARLY'],
+                            yearlyDiscountPct: 20,
+                            planCards: DEFAULT_WORKSPACE_PLANS.map(p => ({
+                                planCode: p.planCode,
+                                name: p.name,
+                                description: p.description,
+                                amount: p.amount,
+                                yearlyAmount: p.metadata.yearlyAmount,
+                                currency: p.currency,
+                                interval: p.interval,
+                                trialDays: p.trialDays,
+                                isPopular: p.metadata.isPopular,
+                                badgeText: p.metadata.badgeText,
+                                features: p.metadata.features,
+                                buttonText: p.trialDays > 0 ? 'Start 14-Day Free Trial' : 'Get Started',
+                                isFree: false
+                            })),
+                            customCss: ''
+                        }
+                    });
+                }
+            }
         }
     } catch (e: any) {
         console.warn('[SeedFirstParty] Database seeding non-blocking note:', e.message);

@@ -1,11 +1,11 @@
 import { BillingService } from '@workspace/platform-billing';
 import { prisma } from '@workspace/db';
 
-/** Every platform app a paid plan unlocks. Mirrors the list the web client (lib/useSubscription.ts) uses. */
+/** Every platform app the 180workspace platform offers. Aligned strictly with APPS_CONFIG in frontend/lib/module-map.ts */
 export const ALL_PLATFORM_APPS = [
-    'system', 'settings', 'projects', 'communications', 'workspace-tools',
-    'crm', 'hr', 'finance', 'insights', 'analytics', 'advertising',
-    'social-media', 'traffic-director', 'voiceforce', 'media-editor', 'ai', 'storage', 'database', 'google-integrations'
+    'system', 'settings',
+    'projects', 'communications', 'workspace-tools',
+    'crm', 'hr', 'finance', 'advertising', 'voiceforce'
 ];
 
 export function isPaidPlanFor(plan: any, currentSubscription: any): boolean {
@@ -16,8 +16,31 @@ export function isPaidPlanFor(plan: any, currentSubscription: any): boolean {
     );
 }
 
-export function effectiveEnabledAppsFor(rawEnabledApps: string[], isPaidPlan: boolean): string[] {
-    return isPaidPlan ? Array.from(new Set([...rawEnabledApps, ...ALL_PLATFORM_APPS])) : rawEnabledApps;
+export function effectiveEnabledAppsFor(rawEnabledApps: string[], isPaidPlan: boolean, plan?: any): string[] {
+    const validPlatformApps = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'voiceforce'];
+    const systemApps = ['system', 'settings'];
+
+    // If on unlimited plan (Limitless or maxApps >= 999 or -1), unlock all 8 platform apps
+    const isUnlimited = plan && (plan.maxApps === -1 || plan.maxApps >= 999 || plan.planName?.toLowerCase().includes('limitless'));
+    if (isPaidPlan && isUnlimited) {
+        return Array.from(new Set([...systemApps, ...validPlatformApps]));
+    }
+
+    // Default core apps always available in 180workspace
+    const defaultApps = ['projects', 'communications', 'workspace-tools'];
+    
+    // Sanitize rawEnabledApps to only valid platform apps + system apps
+    const sanitizedRaw = (rawEnabledApps || []).filter(a => validPlatformApps.includes(a) || systemApps.includes(a));
+    const merged = Array.from(new Set([...systemApps, ...defaultApps, ...sanitizedRaw]));
+
+    // Determine plan maxApps limit (e.g. Kickstart: 5, Momentum: 7)
+    const maxApps = plan?.maxApps && plan.maxApps !== -1 && plan.maxApps < 999 ? plan.maxApps : validPlatformApps.length;
+    
+    // Separate system and non-system apps to ensure system apps don't consume seat quotas
+    const nonSystem = merged.filter(a => !systemApps.includes(a));
+    const capped = nonSystem.slice(0, maxApps);
+
+    return Array.from(new Set([...systemApps, ...capped]));
 }
 
 function isDisabledByAdmin(appId: string, disabledApps: string[], flags: Record<string, boolean>): boolean {
@@ -46,7 +69,7 @@ export async function computeEntitlements(companyId: string) {
     const enabledModules: string[] = Array.isArray(meta.enabledModules) ? meta.enabledModules : [];
 
     const isPaidPlan = isPaidPlanFor(plan, currentSubscription);
-    const enabledApps = effectiveEnabledAppsFor(rawEnabledApps, isPaidPlan);
+    const enabledApps = effectiveEnabledAppsFor(rawEnabledApps, isPaidPlan, plan);
 
     // Superadmin kill-switch (same source as the web's settings-context). Not tenant data: platform-wide flags.
     const { FeatureFlagService } = require('@workspace/platform-admin');

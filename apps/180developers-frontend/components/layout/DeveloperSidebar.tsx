@@ -20,6 +20,7 @@ import {
   FolderGit2,
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
+import { getDocsUrl, DOCS_LINKS } from '@/lib/docs-url';
 
 export interface DeveloperSidebarProps {
   activeTab: string;
@@ -124,7 +125,11 @@ export function DeveloperSidebar({
 
   const handleToolClick = (item: NavToolItem) => {
     if (item.isExternal && item.href) {
-      router.push(item.href);
+      if (item.id === 'docs') {
+        window.open(getDocsUrl(DOCS_LINKS.CORE_OVERVIEW), '_blank');
+      } else {
+        router.push(item.href);
+      }
       onMobileClose();
       return;
     }
@@ -157,7 +162,7 @@ export function DeveloperSidebar({
       label: 'API Docs & SDKs',
       icon: FileCode2,
       isExternal: true,
-      href: '/docs',
+      href: getDocsUrl(DOCS_LINKS.CORE_OVERVIEW),
     },
   ];
 

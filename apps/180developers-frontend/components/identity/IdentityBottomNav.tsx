@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Shield, Users, Activity, Lock } from 'lucide-react';
+import { Shield, Users, Activity, Lock, Webhook } from 'lucide-react';
 import { useProject } from '@/context/ProjectContext';
 
 export function IdentityBottomNav() {
@@ -32,6 +32,11 @@ export function IdentityBottomNav() {
       href: `/apps/${projectId}/identity/security`,
       icon: Lock,
     },
+    {
+      label: 'Webhooks',
+      href: `/apps/${projectId}/identity/webhooks`,
+      icon: Webhook,
+    },
   ];
 
   return (
@@ -39,7 +44,7 @@ export function IdentityBottomNav() {
       aria-label="Identity Mobile Navigation"
       className="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 dark:bg-[#101012]/95 backdrop-blur-xl border-t border-zinc-200 dark:border-white/10 shadow-lg px-2 pt-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
     >
-      <div className="grid grid-cols-4 items-center justify-around max-w-md mx-auto">
+      <div className="grid grid-cols-5 items-center justify-around max-w-md mx-auto">
         {navItems.map((item) => {
           const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
           const Icon = item.icon;

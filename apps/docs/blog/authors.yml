@@ -1,8 +1,0 @@
-one_eighty_team:
-  name: 180 Engineering Team
-  title: Core Architecture & Platform Engineering
-  url: https://180workspace.com
-  image_url: /img/logo-dark.svg
-  page: true
-  socials:
-    github: simplicion

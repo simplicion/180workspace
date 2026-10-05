@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, PlatformModal, AILogoIcon } from '@workspace/ui';
+import { getDocsUrl, DOCS_LINKS } from '@/lib/docs-url';
 import { use180Identity } from '@workspace/identity-sdk';
 
 export default function IdentityProductPage() {
@@ -107,13 +108,16 @@ export default function IdentityProductPage() {
             )}
           </Button>
 
-          <Link
-            href="/docs#identity"
-            className="w-full sm:w-auto rounded-2xl px-8 py-4 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-semibold text-sm border border-zinc-200 dark:border-white/10 shadow-sm flex items-center justify-center gap-2 transition-all"
+          <a
+            href={getDocsUrl(DOCS_LINKS.IDENTITY_QUICKSTART)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full sm:w-auto rounded-2xl px-8 py-4 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-semibold text-sm border border-zinc-200 dark:border-white/10 shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <Code2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span>Read Integration Docs</span>
-          </Link>
+            <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+          </a>
         </div>
 
         {/* Feature Pill Highlights Grid */}

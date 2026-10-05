@@ -52,7 +52,7 @@ export class BillingController {
                 prisma.company.findUnique({ where: { id: companyId } }),
                 BillingService.getActiveSubscription(companyId),
                 prisma.companyConfig.findUnique({ where: { companyId } }),
-                prisma.user.count({ where: { companyId } }),
+                prisma.user.count({ where: { companyId, deletedAt: null } }),
                 prisma.website.count({ where: { companyId } }),
                 prisma.document.aggregate({ where: { companyId }, _sum: { fileSize: true } })
             ]);
@@ -70,9 +70,9 @@ export class BillingController {
             const rawEnabledModules = Array.isArray(companyMetadata.enabledModules) ? companyMetadata.enabledModules : [];
 
             const isPaidPlan = isPaidPlanFor(plan, currentSubscription);
-            const effectiveEnabledApps = effectiveEnabledAppsFor(rawEnabledApps, isPaidPlan);
+            const effectiveEnabledApps = effectiveEnabledAppsFor(rawEnabledApps, isPaidPlan, plan);
 
-            const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'insights', 'advertising', 'social-media', 'traffic-director', 'voiceforce', 'media-editor'];
+            const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'voiceforce'];
             const activeAppsCount = effectiveEnabledApps.filter((app: string) => app !== 'system' && app !== 'settings' && validAppIds.includes(app)).length;
 
             const storageUsedBytes = storageAgg._sum.fileSize || 0;

@@ -3,6 +3,7 @@
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import Navbar from '../Navbar';
+import { getDocsUrl, DOCS_LINKS } from '@/lib/docs-url';
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -48,7 +49,9 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             </a>
             <span>•</span>
             <a
-              href="/docs"
+              href={getDocsUrl(DOCS_LINKS.CORE_OVERVIEW)}
+              target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-zinc-900 dark:hover:text-white transition-colors"
             >
               Documentation

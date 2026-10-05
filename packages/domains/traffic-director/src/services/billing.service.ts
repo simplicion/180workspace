@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import { prisma as db } from '@workspace/db';
+import { developersPrisma as corePrisma } from '@workspace/db-180core';
 
 export type TrafficDirectorTier = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE';
 
@@ -69,7 +70,7 @@ export function resolveCurrencySymbol(currencyCode: string): string {
   }
 }
 
-export const TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDefinition> = {
+export const DEFAULT_TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDefinition> = {
   FREE: {
     tier: 'FREE',
     name: '7-Day Free Trial',
@@ -139,8 +140,88 @@ export const TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDefinition>
   },
 };
 
+export const TRAFFIC_DIRECTOR_PLANS = DEFAULT_TRAFFIC_DIRECTOR_PLANS;
+
 export class TrafficDirectorBillingService {
   private static activeSubCache = new Map<string, { isActive: boolean; expiresAt: number }>();
+
+  private static cachedPlans: Record<TrafficDirectorTier, PlanDefinition> | null = null;
+  private static lastPlansFetchTime = 0;
+
+  /**
+   * Dynamically resolves official subscription plans from 180 Pay database & central platform.
+   * Enables project-specific subscription tiers configured directly in 180 Pay.
+   */
+  static async getPlans(): Promise<Record<TrafficDirectorTier, PlanDefinition>> {
+    const now = Date.now();
+    if (this.cachedPlans && now - this.lastPlansFetchTime < 60000) {
+      return this.cachedPlans;
+    }
+
+    try {
+      const { clientId } = this.getClientCredentials();
+      const projectAppId = process.env.TRAFFIC_DIRECTOR_PROJECT_ID || '7697a348-7550-4229-9595-08ba67aa9755';
+
+      // 1. Fetch live subscription plans registered under this project in 180 Pay
+      const dbPlans = await (corePrisma as any).subscriptionPlan.findMany({
+        where: {
+          appId: { in: [projectAppId, clientId] },
+          isActive: true,
+        },
+        orderBy: { amount: 'asc' },
+      });
+
+      if (dbPlans && dbPlans.length > 0) {
+        const resolved: Record<TrafficDirectorTier, PlanDefinition> = { ...DEFAULT_TRAFFIC_DIRECTOR_PLANS };
+
+        for (const p of dbPlans) {
+          const meta = (p.metadata as any) || {};
+          let tier: TrafficDirectorTier = 'STARTER';
+
+          if (meta.tier) {
+            tier = String(meta.tier).toUpperCase() as TrafficDirectorTier;
+          } else if (p.planCode.includes('enterprise')) {
+            tier = 'ENTERPRISE';
+          } else if (p.planCode.includes('pro')) {
+            tier = 'PRO';
+          } else if (p.planCode.includes('free') || p.amount === 0) {
+            tier = 'FREE';
+          } else {
+            tier = 'STARTER';
+          }
+
+          const rawFeatures = Array.isArray(meta.features)
+            ? meta.features
+            : typeof meta.features === 'string'
+            ? [meta.features]
+            : DEFAULT_TRAFFIC_DIRECTOR_PLANS[tier].features;
+
+          const maxLinks = typeof meta.maxLinks === 'number'
+            ? meta.maxLinks
+            : (tier === 'ENTERPRISE' ? -1 : tier === 'PRO' ? 5 : 2);
+
+          resolved[tier] = {
+            tier,
+            name: p.name || DEFAULT_TRAFFIC_DIRECTOR_PLANS[tier].name,
+            price: p.amount,
+            currency: p.currency || 'USD',
+            interval: p.interval || 'monthly',
+            maxLinks,
+            features: rawFeatures.map((f: any) => (typeof f === 'object' && f ? f.text : String(f))),
+          };
+        }
+
+        this.cachedPlans = resolved;
+        this.lastPlansFetchTime = now;
+        return resolved;
+      }
+    } catch (err) {
+      console.warn('[TrafficDirectorBilling] Could not load dynamic plans from 180 Pay, using platform defaults:', err);
+    }
+
+    return DEFAULT_TRAFFIC_DIRECTOR_PLANS;
+  }
+
 
   static invalidateSubscriptionCache(companyId: string) {
     if (companyId) {
@@ -457,7 +538,8 @@ export class TrafficDirectorBillingService {
     });
 
     const planTier = (sub.planTier?.toUpperCase() as TrafficDirectorTier) || 'FREE';
-    const planMeta = TRAFFIC_DIRECTOR_PLANS[planTier] || TRAFFIC_DIRECTOR_PLANS.STARTER;
+    const dynamicPlans = await this.getPlans();
+    const planMeta = dynamicPlans[planTier] || dynamicPlans.STARTER;
     const maxLinks = sub.maxLinks !== undefined ? sub.maxLinks : planMeta.maxLinks;
 
     const isUnlimited = maxLinks === -1;
@@ -469,7 +551,7 @@ export class TrafficDirectorBillingService {
     // Advanced analytics unlocked only for PRO and ENTERPRISE when subscription is active
     const hasAdvancedAnalytics = isSubscriptionActive && (planTier === 'PRO' || planTier === 'ENTERPRISE');
 
-    const availablePlans = Object.values(TRAFFIC_DIRECTOR_PLANS)
+    const availablePlans = Object.values(dynamicPlans)
       .filter((p) => p.tier !== 'FREE')
       .map((p) => {
         const localizedPrice = currency === 'INR' ? Math.round(p.price * rate) : Number((p.price * rate).toFixed(2));
@@ -550,7 +632,8 @@ export class TrafficDirectorBillingService {
       throw new Error('This coupon code has reached its maximum usage limit');
     }
 
-    const tierMeta = TRAFFIC_DIRECTOR_PLANS[targetTier] || TRAFFIC_DIRECTOR_PLANS.PRO;
+    const dynamicPlans = await this.getPlans();
+    const tierMeta = dynamicPlans[targetTier] || dynamicPlans.PRO;
     const originalPrice = tierMeta.price;
 
     let discountAmount = 0;
@@ -588,7 +671,8 @@ export class TrafficDirectorBillingService {
   }) {
     const { companyId, planTier, couponCode, returnUrl, cancelUrl } = options;
 
-    const planMeta = TRAFFIC_DIRECTOR_PLANS[planTier];
+    const dynamicPlans = await this.getPlans();
+    const planMeta = dynamicPlans[planTier];
     if (!planMeta) {
       throw new Error(`Invalid subscription plan tier: ${planTier}`);
     }
@@ -769,7 +853,8 @@ export class TrafficDirectorBillingService {
         else planTier = 'STARTER';
       }
 
-      const planMeta = TRAFFIC_DIRECTOR_PLANS[planTier] || TRAFFIC_DIRECTOR_PLANS.STARTER;
+      const dynamicPlans = await this.getPlans();
+      const planMeta = dynamicPlans[planTier] || dynamicPlans.STARTER;
 
       // Ensure company exists before creating foreign key relation
       try {

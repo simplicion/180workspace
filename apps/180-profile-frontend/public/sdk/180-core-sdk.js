@@ -363,13 +363,12 @@
       }
 
       function handleCancel() {
+        if (isResolved) return;
+        isResolved = true;
         cleanupListeners();
         closeModal();
-        if (!isResolved) {
-          isResolved = true;
-          if (options.onCancel) options.onCancel();
-          resolve(null);
-        }
+        if (options.onCancel) options.onCancel();
+        resolve(null);
       }
 
       function onKeyDown(e) {

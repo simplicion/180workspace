@@ -6,7 +6,7 @@ import { CreditCard, Zap, Shield, ArrowRight, Package, Clock, History, AlertCirc
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { LogoLoader, ConfirmModal } from "@workspace/ui";
-import { SubscriptionPlan } from '@/components/shared/SubscriptionPlan';
+import { OneEightyPricingTable } from '@workspace/identity-sdk';
 import { UsageProgressBar } from '@/components/ui/UsageProgressBar';
 import toast from 'react-hot-toast';
 import { APPS_CONFIG } from '@/lib/module-map';
@@ -229,59 +229,43 @@ export default function PlatformBillingPage() {
 
 
 
-            {/* Plans */}
-            <div className="mt-12">
-                <h2 className="text-xl font-bold tracking-tight text-gray-900 mb-6">Available Plans</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {plans.map(plan => {
-                        const isActive = currentSubscription?.planId === plan.id;
-                        const isPaidPlan = plan.price > 0;
-                        const hasActivePaidPlan = currentSubscription?.plan?.price > 0;
-                        
-                        let buttonText = 'Upgrade';
-                        let buttonVariant: 'primary' | 'danger' | 'disabled' = 'primary';
-                        
-                        if (isActive) {
-                            if (isPaidPlan) {
-                                buttonText = 'Cancel Subscription';
-                                buttonVariant = 'danger';
-                            } else {
-                                buttonText = 'Current Active Plan';
-                                buttonVariant = 'disabled';
-                            }
-                        } else if (hasActivePaidPlan) {
-                            // If they have an active paid plan, don't allow upgrade/downgrade to other plans directly
-                            // They must cancel first to revert to the free plan.
-                            buttonVariant = 'disabled';
-                        }
-                        
-                        return (
-                            <SubscriptionPlan
-                                key={plan.id}
-                                id={plan.id}
-                                name={plan.planName}
-                                description={`Best for ${plan.planName.toLowerCase()} teams`}
-                                price={plan.price}
-                                currencySymbol={currencyInfo.symbol}
-                                features={plan.features || []}
-                                isPopular={plan.price === 12 || plan.price === 15 || plan.planName.toLowerCase().includes('momentum')}
-                                badgeText={plan.price === 12 ? "Clever People Plan" : plan.price === 15 ? "Most Secret Plan" : undefined}
-                                theme={plan.price === 15 ? "violet" : "indigo"}
-                                isSelected={isActive}
-                                buttonText={buttonText}
-                                buttonVariant={buttonVariant}
-                                onSelect={async () => {
-                                    if (buttonVariant === 'disabled') return;
-                                    if (buttonVariant === 'danger') {
-                                        setIsCancelModalOpen(true);
-                                        return;
-                                    }
-                                    router.push(`/settings/platform-billing/checkout?planId=${plan.id}`);
-                                }}
-                            />
+            {/* 180 Pay Subscription Plans Engine */}
+            <div className="mt-12 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm">
+                <OneEightyPricingTable
+                    appId="8bc81b3e-8510-4144-8c47-c43fe46d71a3"
+                    apiBase={
+                        process.env.NEXT_PUBLIC_CORE_BACKEND_URL ||
+                        (typeof window !== 'undefined' &&
+                        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                            ? 'http://localhost:4003'
+                            : 'https://services.180workspace.com')
+                    }
+                    title="180workspace Subscription Plans"
+                    subtitle="Powered by 180 Pay. Choose the sovereign tier tailored for your growth."
+                    theme="auto"
+                    accentColor="#6366f1"
+                    currentPlanId={currentSubscription?.planId}
+                    activePlanCode={currentSubscription?.plan?.planName}
+                    onSelectPlan={async (plan) => {
+                        const targetPlan = plans.find(
+                            p => p.planName.toLowerCase() === plan.name.toLowerCase() ||
+                                 (plan.planCode && p.planName.toLowerCase().includes(plan.planCode.replace('180-', '')))
                         );
-                    })}
-                </div>
+                        const planId = targetPlan?.id || plan.id || plan.planCode;
+                        const isCurrentActive =
+                            currentSubscription?.planId === planId ||
+                            (currentSubscription?.plan?.planName?.toLowerCase() === plan.name.toLowerCase());
+
+                        if (isCurrentActive) {
+                            if (currentSubscription?.plan?.price > 0) {
+                                setIsCancelModalOpen(true);
+                            }
+                            return;
+                        }
+
+                        router.push(`/settings/platform-billing/checkout?planId=${planId}`);
+                    }}
+                />
             </div>
 
             <ConfirmModal 

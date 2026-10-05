@@ -13,8 +13,10 @@ import {
   X,
   ExternalLink,
   Code2,
+  Webhook,
 } from 'lucide-react';
 import { useProject } from '@/context/ProjectContext';
+import { getDocsUrl, DOCS_LINKS } from '@/lib/docs-url';
 
 export interface IdentitySidebarProps {
   isMobileOpen?: boolean;
@@ -84,6 +86,12 @@ export function IdentitySidebar({
       href: `/apps/${projectId}/identity/security`,
       icon: Lock,
       description: 'IP & URL whitelisting',
+    },
+    {
+      label: 'Webhooks & Events',
+      href: `/apps/${projectId}/identity/webhooks`,
+      icon: Webhook,
+      description: 'Real-time auth notifications & HMAC',
     },
   ];
 
@@ -213,16 +221,23 @@ export function IdentitySidebar({
 
       {/* 4. Bottom Footer Link to Docs */}
       <div className="p-3 border-t border-zinc-200/80 dark:border-white/10 shrink-0">
-        <Link
-          href="/docs"
+        <a
+          href={getDocsUrl(DOCS_LINKS.IDENTITY_QUICKSTART)}
+          target="_blank"
+          rel="noopener noreferrer"
           className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors ${
             !isExpanded ? 'justify-center' : ''
           }`}
-          title="SDK Documentation"
+          title="180 Identity Documentation"
         >
-          <Code2 className="w-4 h-4 shrink-0" />
-          {isExpanded && <span className="truncate">SDK Docs</span>}
-        </Link>
+          <Code2 className="w-4 h-4 shrink-0 text-blue-500" />
+          {isExpanded && (
+            <div className="flex items-center justify-between flex-1 min-w-0">
+              <span className="truncate">Identity Docs</span>
+              <ExternalLink className="w-3 h-3 text-zinc-400" />
+            </div>
+          )}
+        </a>
       </div>
     </div>
   );

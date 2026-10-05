@@ -11,7 +11,8 @@
   "dependencies": {
     "@prisma/client": "^5.x.x",
     "@workspace/backend-infra": "workspace:*",
-    "@workspace/db": "workspace:*"
+    "@workspace/db": "workspace:*",
+    "@workspace/db-180core": "workspace:*"
   },
   "devDependencies": {
     "@types/javascript-obfuscator": "^0.17.0",
