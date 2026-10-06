@@ -152,13 +152,14 @@ export class IdentityWalletService {
     const keyId = (process.env.RAZORPAY_KEY_ID || '').trim().replace(/^['"]|['"]$/g, '');
     const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim().replace(/^['"]|['"]$/g, '');
 
+    const hasLiveKeys = Boolean(keySecret && !keySecret.includes('simulated'));
     const isDirectOrMock =
       skipSignatureVerify ||
-      orderId?.startsWith('order_test_') ||
-      orderId?.startsWith('order_direct_') ||
-      signature === 'mock_sig_sandbox' ||
-      signature === 'direct_sovereign_pay' ||
-      signature?.startsWith('direct_');
+      (!hasLiveKeys && (
+        orderId?.startsWith('order_test_') ||
+        orderId?.startsWith('order_direct_') ||
+        signature === 'mock_sig_sandbox'
+      ));
 
     if (!isDirectOrMock) {
       if (!keySecret) {

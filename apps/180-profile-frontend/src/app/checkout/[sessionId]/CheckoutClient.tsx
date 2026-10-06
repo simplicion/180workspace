@@ -311,7 +311,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         .then((r) => r.json())
         .then((data) => {
           const sess = data.data || data.session || data;
-          if (sess && (sess.status === 'COMPLETED' || sess.isPaid)) {
+          if (sess && (sess.status === 'COMPLETED' || sess.status === 'CAPTURED' || sess.isPaid)) {
             clearInterval(interval);
             setIsConfirming(true);
             setTimeout(() => {
@@ -895,110 +895,131 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         return;
       }
 
-      setDirectPayStep('Connecting to sovereign banking rail...');
+      setDirectPayStep('Creating secure gateway order with Razorpay...');
 
-      const token =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('platform_auth_token') ||
-            localStorage.getItem('token') ||
-            localStorage.getItem('accessToken')
-          : null;
-      const authHeaders: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-
-      // Call our direct-pay endpoint to execute directly in our pop-up without Razorpay modal popup
-      let res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-pay`), {
+      const orderRes = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-order`), {
         method: 'POST',
-        headers: authHeaders,
-        body: JSON.stringify({
-          paymentMethod: selectedMethod,
-          customerEmail: session?.customerEmail || (wallet?.user as any)?.email,
-          customerPhone: session?.customerPhone,
-          upiApp: selectedUpiApp,
-          upiId: vpaInput,
-          bankCode: selectedBankObj?.code || selectedBank,
-          bankName: selectedBankObj?.name || selectedBank,
-          cardNetwork: detectedCardNetwork,
-          cardLast4: cardNumber ? cardNumber.replace(/\s+/g, '').slice(-4) : undefined,
-        }),
+        headers: { 'Content-Type': 'application/json' },
       });
+      const orderData = await orderRes.json();
+      if (!orderData.success || !orderData.orderId) {
+        throw new Error(orderData.error || 'Failed to initialize payment order with banking rail');
+      }
 
-      // If /direct-pay fallback to /pay or direct settlement if needed
-      if (!res.ok && res.status === 404) {
-        res = await fetch(getCoreApiUrl(`/api/oauth/checkout/sessions/${sessionId}/pay`), {
-          method: 'POST',
-          headers: authHeaders,
-          credentials: 'include',
+      const loadRzp = (): Promise<boolean> => {
+        return new Promise((resolve) => {
+          if ((window as any).Razorpay) return resolve(true);
+          const s = document.createElement('script');
+          s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          s.async = true;
+          s.onload = () => resolve(true);
+          s.onerror = () => resolve(false);
+          document.body.appendChild(s);
         });
-      }
-
-      // If this session is a wallet topup, also ensure user's wallet is credited
-      if (token && (session?.metadata?.isWalletTopup || session?.title?.toLowerCase().includes('top-up') || session?.title?.toLowerCase().includes('topup'))) {
-        try {
-          await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
-            method: 'POST',
-            headers: authHeaders,
-            credentials: 'include',
-            body: JSON.stringify({
-              orderId: session.id,
-              paymentId: `pay_180_${Date.now()}`,
-              signature: 'direct_sovereign_pay',
-              amount: session.amount,
-              directPay: true,
-            }),
-          });
-        } catch (_) {}
-      }
-
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || 'Payment execution failed');
-      }
-
-      setDirectPayStep('Payment captured successfully!');
-      toast.success('Payment authorized & completed!', { id: toastId });
-      setCompleted(true);
-
-      const liveSuccessPayload = {
-        type: '180_PAYMENT_SUCCESS',
-        sessionId,
-        transactionId: data.transactionId || data.data?.transactionId || `tx_${Date.now()}`,
-        amount: session?.amount,
-        currency: session?.currency,
-        paymentMethod: selectedMethod,
       };
 
-      if (typeof window !== 'undefined') {
-        if (window.opener) {
-          window.opener.postMessage(liveSuccessPayload, '*');
-        }
-        if (window.parent && window.parent !== window) {
-          window.parent.postMessage(liveSuccessPayload, '*');
-        }
+      setDirectPayStep('Opening Razorpay payment gateway...');
+      const rzpLoaded = await loadRzp();
+
+      if (rzpLoaded && (window as any).Razorpay) {
+        setTopupLoading(false);
+        setDirectPayStep('');
+
+        const options: any = {
+          key: orderData.keyId,
+          amount: orderData.amountPaise,
+          currency: session?.currency || 'INR',
+          name: session?.app?.name || '180 Sovereign Pay',
+          description: session?.title || 'Payment',
+          order_id: orderData.orderId,
+          prefill: {
+            name: (wallet?.user as any)?.name || '',
+            email: session?.customerEmail || (wallet?.user as any)?.email || '',
+            contact: session?.customerPhone || '',
+            method: selectedMethod === 'CARD' ? 'card' : selectedMethod === 'NETBANKING' ? 'netbanking' : 'upi',
+          },
+          theme: {
+            color: '#2563eb',
+          },
+          handler: async (response: any) => {
+            setIsConfirming(true);
+            setDirectPayStep('Verifying cryptographic signature with banking rail...');
+            try {
+              const verifyRes = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-verify`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  orderId: response.razorpay_order_id,
+                  paymentId: response.razorpay_payment_id,
+                  signature: response.razorpay_signature,
+                }),
+              });
+              const verifyData = await verifyRes.json();
+              if (verifyData.success) {
+                setIsConfirming(false);
+                setCompleted(true);
+                toast.success('Payment verified & captured successfully!');
+
+                const liveSuccessPayload = {
+                  type: '180_PAYMENT_SUCCESS',
+                  sessionId,
+                  transactionId: response.razorpay_payment_id,
+                  amount: session?.amount,
+                  currency: session?.currency,
+                  paymentMethod: selectedMethod,
+                };
+
+                if (typeof window !== 'undefined') {
+                  if (window.opener) window.opener.postMessage(liveSuccessPayload, '*');
+                  if (window.parent && window.parent !== window) window.parent.postMessage(liveSuccessPayload, '*');
+                }
+
+                if (sessionId && sessionId !== 'default') {
+                  fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/track-event`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event: 'DIRECT_PAYMENT_COMPLETED', clientSessionId: clientSessionId || undefined }),
+                  }).catch(() => {});
+                }
+
+                setTimeout(() => {
+                  const redirectTarget = verifyData.returnUrl || session?.returnUrl;
+                  if (redirectTarget) {
+                    window.location.href = redirectTarget;
+                  } else if (typeof window !== 'undefined') {
+                    if (window.opener) {
+                      window.close();
+                    } else if (window.parent && window.parent !== window) {
+                      window.parent.postMessage({ type: '180_PAYMENT_CLOSE', sessionId }, '*');
+                    }
+                  }
+                }, 1200);
+              } else {
+                setIsConfirming(false);
+                toast.error(verifyData.error || 'Payment signature verification failed');
+              }
+            } catch {
+              setIsConfirming(false);
+              toast.error('Network error during payment verification');
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setTopupLoading(false);
+              setDirectPayStep('');
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+        return;
       }
 
-      if (sessionId && sessionId !== 'default') {
-        fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/track-event`), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'DIRECT_PAYMENT_COMPLETED', clientSessionId: clientSessionId || undefined }),
-        }).catch(() => {});
-      }
-
-      setTimeout(() => {
-        const redirectTarget = data.returnUrl || data.data?.returnUrl || session?.returnUrl;
-        if (redirectTarget) {
-          window.location.href = redirectTarget;
-        } else if (typeof window !== 'undefined') {
-          if (window.opener) {
-            window.close();
-          } else if (window.parent && window.parent !== window) {
-            window.parent.postMessage({ type: '180_PAYMENT_CLOSE', sessionId }, '*');
-          }
-        }
-      }, 1200);
+      // If Razorpay SDK could not be loaded, transition to confirming view and start polling
+      setIsConfirming(true);
+      setTopupLoading(false);
+      setDirectPayStep('');
     } catch (err: any) {
       toast.error(err.message || 'Payment execution failed', { id: toastId });
     } finally {
@@ -1107,10 +1128,10 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                   setIsConfirming(false);
                   setCompleted(true);
                 } else {
-                  handleDirectPayment();
+                  toast.error('Payment not detected yet. Please approve the payment in your UPI app and try again.', { id: toastId });
                 }
               } catch {
-                handleDirectPayment();
+                toast.error('Payment verification failed. Please try again.', { id: toastId });
               }
             }}
             className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-600/20 active:scale-[0.99]"
@@ -1834,68 +1855,45 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                 )}
 
                 {upiMode === 'QR' && (
-                  <div className="text-center py-2 space-y-3">
-                    <div className="p-3 bg-white dark:bg-white rounded-2xl w-48 h-48 mx-auto border border-slate-200/90 shadow-md flex items-center justify-center relative">
-                      {qrCodeDataUrl ? (
-                        <img
-                          src={qrCodeDataUrl}
-                          alt="Scan with UPI App"
-                          className="w-40 h-40 object-contain rounded-lg"
-                        />
-                      ) : (
-                        <div className="w-40 h-40 flex items-center justify-center">
-                          <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
-                        </div>
-                      )}
-                      {/* Centered 180 Badge */}
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center">
-                          <div className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-[8px] flex items-center justify-center">
-                            180
-                          </div>
-                        </div>
-                      </div>
+                  <div className="text-center py-3 space-y-3.5 bg-gradient-to-b from-blue-50/50 to-slate-50/50 dark:from-blue-950/20 dark:to-zinc-900/40 p-4 rounded-2xl border border-blue-100/80 dark:border-blue-900/30">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-blue-600/25">
+                      <QrCode className="w-8 h-8" />
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">
-                        Scan with GPay, PhonePe, Paytm, or any UPI app
+                      <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        Official Razorpay Dynamic UPI QR
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-xs mx-auto">
+                        Scannable by PhonePe, Google Pay, Paytm, BHIM & CRED via official NPCI banking rail.
                       </p>
-                      <div className="flex items-center justify-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>Expires in {Math.floor(qrSecondsRemaining / 60)}:{String(qrSecondsRemaining % 60).padStart(2, '0')}</span>
-                      </div>
                     </div>
 
-                    <div className="flex items-center justify-center gap-3 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (upiIntentString) {
-                            navigator.clipboard.writeText(upiIntentString);
-                            setCopiedUpiString(true);
-                            toast.success('UPI intent link copied');
-                            setTimeout(() => setCopiedUpiString(false), 2000);
-                          }
-                        }}
-                        className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
-                      >
-                        {copiedUpiString ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedUpiString ? 'Copied' : 'Copy UPI Link'}</span>
-                      </button>
+                    {/* Supported Apps Badges */}
+                    <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">
+                      <span>Google Pay</span>
+                      <span>•</span>
+                      <span>PhonePe</span>
+                      <span>•</span>
+                      <span>Paytm</span>
+                      <span>•</span>
+                      <span>BHIM</span>
+                      <span>•</span>
+                      <span>CRED</span>
+                    </div>
 
-                      <span className="text-slate-300 dark:text-zinc-700">•</span>
+                    <button
+                      type="button"
+                      onClick={handleDirectPayment}
+                      className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-blue-600/20 active:scale-[0.99]"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      <span>Display Scannable UPI QR ({currencySymbol}{session?.amount?.toFixed(2)})</span>
+                    </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsConfirming(true);
-                        }}
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>I Have Paid / Verify</span>
-                      </button>
+                    <div className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pt-0.5">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Zero-Redirect • 100% NPCI & RBI Regulated</span>
                     </div>
                   </div>
                 )}

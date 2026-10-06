@@ -986,7 +986,10 @@ export class CheckoutService {
         throw new Error('Payment gateway key secret not configured');
       }
 
-      if (signature !== 'auto_polled_capture' && !signature?.startsWith('direct_')) {
+      const hasLiveKey = Boolean(keySecret && !keySecret.includes('simulated'));
+      const isTestMock = !hasLiveKey && (orderId?.startsWith('order_sim_') || signature === 'mock_sig_sandbox');
+
+      if (!isTestMock && signature !== 'auto_polled_capture') {
         const expectedSignature = crypto
           .createHmac('sha256', keySecret)
           .update(`${orderId}|${paymentId}`)
@@ -1144,7 +1147,13 @@ export class CheckoutService {
       throw new Error('This checkout session has expired. Please create a new one.');
     }
 
-    const { gatewayType } = this.resolveGatewayConfig(session.app);
+    const { gatewayType, keySecret } = this.resolveGatewayConfig(session.app);
+    const hasLiveGateway = Boolean(keySecret && !keySecret.includes('simulated'));
+    if (hasLiveGateway) {
+      throw new Error(
+        'Direct bypass payment is disabled in live environment. Please complete payment through Razorpay / Stripe gateway.'
+      );
+    }
     const resolvedGateway = gatewayType === 'STRIPE' ? 'STRIPE' : '180_SOVEREIGN_PAY';
     const transactionId = `pay_180_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 

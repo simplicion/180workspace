@@ -91,19 +91,16 @@ export class WalletApiController {
       const { orderId, paymentId, signature, amount, directPay } = req.body;
       const parsedAmount =
         amount !== undefined && amount !== null && !isNaN(Number(amount)) ? Number(amount) : undefined;
-      const isDirect =
-        directPay === true ||
-        signature === 'direct_sovereign_pay' ||
-        signature === 'mock_sig_sandbox' ||
-        String(paymentId || '').startsWith('pay_direct_');
+      const hasLiveKey = Boolean(process.env.RAZORPAY_KEY_SECRET && !process.env.RAZORPAY_KEY_SECRET.includes('simulated'));
+      const isTestMock = !hasLiveKey && (orderId?.startsWith('order_test_') || signature === 'mock_sig_sandbox');
 
       const result = await IdentityWalletService.verifyAndCreditTopup(
         userId,
-        orderId || `order_direct_${Date.now()}`,
-        paymentId || `pay_direct_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        signature || 'direct_sovereign_pay',
+        orderId,
+        paymentId,
+        signature,
         parsedAmount,
-        isDirect
+        isTestMock
       );
 
       return res.json({ success: true, data: result });

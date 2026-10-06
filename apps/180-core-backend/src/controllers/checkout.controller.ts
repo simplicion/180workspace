@@ -1,7 +1,7 @@
 'use strict';
 
 import { Request, Response } from 'express';
-import { CheckoutService, CouponService, WebhookDispatcherService } from '@workspace/payment-provider';
+import { CheckoutService, CouponService, WebhookDispatcherService, IdentityWalletService } from '@workspace/payment-provider';
 import { developersPrisma as prisma } from '@workspace/db-180core';
 
 export class CheckoutApiController {
@@ -793,6 +793,85 @@ export class CheckoutApiController {
     } catch (err: any) {
       console.error('[CheckoutApiController:getPaymentMethods] Error:', err);
       return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/checkout/webhook
+   * Server-to-server Razorpay asynchronous webhook for checkout sessions
+   */
+  static async handleWebhook(req: Request, res: Response) {
+    try {
+      const crypto = require('crypto');
+      const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
+      const signature = req.headers['x-razorpay-signature'] as string;
+
+      if (webhookSecret && signature) {
+        const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+        const expected = crypto.createHmac('sha256', webhookSecret).update(body).digest('hex');
+        const expectedBuf = Buffer.from(expected, 'utf-8');
+        const signatureBuf = Buffer.from(signature, 'utf-8');
+        if (expectedBuf.length !== signatureBuf.length || !crypto.timingSafeEqual(expectedBuf, signatureBuf)) {
+          return res.status(400).json({ error: 'Invalid webhook signature' });
+        }
+      }
+
+      const event = req.body.event;
+      if (event === 'payment.captured' || event === 'order.paid') {
+        const payment = req.body.payload?.payment?.entity;
+        const notes = payment?.notes || {};
+        const sessionId = notes.sessionId;
+        const orderId = payment?.order_id;
+        const paymentId = payment?.id;
+
+        if (sessionId && paymentId) {
+          await CheckoutService.verifyDirectPayment({
+            sessionId,
+            orderId: orderId || `ord_${Date.now()}`,
+            paymentId,
+            signature: 'auto_polled_capture',
+          }).catch((e: any) => console.log('[CheckoutWebhook] Processed session:', e.message));
+        }
+
+        // Also handle wallet topups if routed to this webhook
+        const userId = notes.userId;
+        const amountInr = (payment?.amount || 0) / 100;
+        if (userId && paymentId && amountInr > 0 && !sessionId) {
+          await IdentityWalletService.verifyAndCreditTopup(
+            userId,
+            orderId || `ord_${Date.now()}`,
+            paymentId,
+            signature || '',
+            amountInr,
+            true
+          ).catch((e: any) => console.log('[CheckoutWebhook] Processed wallet topup:', e.message));
+        }
+      }
+
+      return res.json({ status: 'ok' });
+    } catch (err: any) {
+      console.error('[CheckoutApiController:handleWebhook] Error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /**
+   * GET /api/v1/checkout/sessions/:id/status
+   * Live status check of payment capture (polls Razorpay API directly)
+   */
+  static async checkSessionStatus(req: Request, res: Response) {
+    try {
+      const id = String(req.params.id);
+      const session = await CheckoutService.getSession(id);
+      const isPaid = session.status === 'CAPTURED';
+      return res.json({
+        success: true,
+        status: session.status,
+        isPaid,
+        returnUrl: session.returnUrl,
+      });
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: err.message });
     }
   }
 }

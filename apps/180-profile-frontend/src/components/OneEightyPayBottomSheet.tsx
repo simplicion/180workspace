@@ -272,9 +272,11 @@ export function OneEightyPayBottomSheet({
       .catch(() => {});
   }, [isOpen, finalAmount]);
 
-  // Live polling: Automatically detect payment while QR is open without user clicking anything
+  // Live polling: Automatically detect real payment while in confirming state or while QR is open
   useEffect(() => {
-    if (!isOpen || upiMode !== 'QR' || !activeOrderId || completed || isConfirming) return;
+    if (!isOpen || !activeOrderId || completed) return;
+    const shouldPoll = isConfirming || (activeCategory === 'UPI' && upiMode === 'QR');
+    if (!shouldPoll) return;
 
     const token =
       typeof window !== 'undefined'
@@ -294,29 +296,32 @@ export function OneEightyPayBottomSheet({
         .then((data) => {
           if (data.success && data.isPaid) {
             clearInterval(interval);
-            // Open the confirming screen with animated logo spinner
-            setIsConfirming(true);
-            setTimeout(() => {
-              setIsConfirming(false);
-              const creditedBalance = data.newBalance ?? currentBalance + finalAmount;
-              setCompletedDetails({
-                txId: data.transactionId || `pay_rzp_${Date.now()}`,
-                amount: finalAmount,
-                newBalance: creditedBalance,
-                method: 'UPI Dynamic QR (Razorpay Confirmed)',
-                date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              });
-              setCompleted(true);
-              onSuccess(creditedBalance);
-              toast.success(`Wallet credited with ₹${finalAmount.toFixed(2)}!`);
-            }, 1800);
+            setIsConfirming(false);
+            const creditedBalance = data.newBalance ?? currentBalance + finalAmount;
+            setCompletedDetails({
+              txId: data.transactionId || activeOrderId,
+              amount: finalAmount,
+              newBalance: creditedBalance,
+              method: 'UPI (Razorpay Confirmed)',
+              date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            });
+            setCompleted(true);
+            onSuccess(creditedBalance);
+            toast.success(`Wallet credited with ₹${finalAmount.toFixed(2)}!`);
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('180_wallet_updated', {
+                  detail: { balance: creditedBalance },
+                })
+              );
+            }
           }
         })
         .catch(() => {});
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [isOpen, upiMode, activeOrderId, completed, isConfirming, finalAmount, currentBalance, onSuccess]);
+  }, [isOpen, activeCategory, upiMode, activeOrderId, completed, isConfirming, finalAmount, currentBalance, onSuccess]);
 
   // QR Timer Countdown
   useEffect(() => {
@@ -452,106 +457,179 @@ export function OneEightyPayBottomSheet({
     try {
       // Step 1: Ensure Razorpay order is active
       let orderId = activeOrderId;
-      if (!orderId) {
-        setProcessingStep('Creating order with Razorpay gateway...');
-        const orderRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/order'), {
-          method: 'POST',
-          headers: authHeaders,
-          credentials: 'include',
-          body: JSON.stringify({ amount: finalAmount, currency: 'INR' }),
-        });
-        const orderData = await orderRes.json();
-        if (!orderData.success) {
-          throw new Error(orderData.error || 'Failed to initialize payment order');
-        }
-        orderId = orderData.orderId || orderData.data?.orderId;
-        setActiveOrderId(orderId);
-      }
+      let orderKeyId = (gatewayMethods as any)?.keyId || '';
+      let amountPaise = Math.round(finalAmount * 100);
 
-      // Step 2: Show confirming animation with 180 Logo Loader
-      setIsConfirming(true);
-      setLoading(false);
-
-      // Method label for description
-      let methodLabel = 'UPI';
-      if (activeCategory === 'UPI') {
-        methodLabel = upiMode === 'APPS' ? `UPI App (${selectedUpiApp.toUpperCase()})` : upiMode === 'ID' ? `UPI VPA (${vpaInput || 'NPCI'})` : 'UPI Dynamic QR';
-      } else if (activeCategory === 'CARD') {
-        methodLabel = `Card (${detectedCardNetwork || 'Debit/Credit'} **** ${cardNumber.slice(-4) || '8821'})`;
-      } else if (activeCategory === 'NETBANKING') {
-        methodLabel = `Netbanking (${selectedBankObj?.name || selectedBank})`;
-      }
-
-      // Step 3: Call verify endpoint
-      const directPaymentId = `pay_rzp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      const verifyRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
+      setProcessingStep('Creating order with Razorpay gateway...');
+      const orderRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/order'), {
         method: 'POST',
         headers: authHeaders,
         credentials: 'include',
-        body: JSON.stringify({
-          orderId,
-          paymentId: directPaymentId,
-          signature: 'direct_sovereign_pay',
-          amount: finalAmount,
-          directPay: true,
-          paymentMethod: activeCategory,
-          methodDetails: {
-            category: activeCategory,
-            upiApp: selectedUpiApp,
-            upiId: vpaInput,
-            bank: selectedBankObj?.name || selectedBank,
-            bankCode: selectedBank,
-            cardNetwork: detectedCardNetwork,
-            cardLast4: cardNumber ? cardNumber.replace(/\s+/g, '').slice(-4) : undefined,
-          },
-        }),
+        body: JSON.stringify({ amount: finalAmount, currency: 'INR' }),
       });
-
-      const verifyData = await verifyRes.json();
-      if (!verifyData.success) {
-        throw new Error(verifyData.error || 'Payment verification failed');
+      const orderData = await orderRes.json();
+      if (!orderData.success) {
+        throw new Error(orderData.error || 'Failed to initialize payment order');
       }
+      orderId = orderData.orderId || orderData.data?.orderId;
+      orderKeyId = orderData.keyId || orderData.data?.keyId || orderKeyId;
+      amountPaise = orderData.amountPaise || orderData.data?.amountPaise || amountPaise;
+      setActiveOrderId(orderId);
 
-      // Allow 1.6s of confirmation animation
-      await new Promise((r) => setTimeout(r, 1600));
+      // Directly use Razorpay Checkout for all methods including UPI
 
-      const creditedBalance = verifyData.data?.newBalance ?? currentBalance + finalAmount;
-      setIsConfirming(false);
-      setCompletedDetails({
-        txId: directPaymentId,
-        amount: finalAmount,
-        newBalance: creditedBalance,
-        method: methodLabel,
-        date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      });
-      setCompleted(true);
-      onSuccess(creditedBalance);
+      // Case B: Card or Netbanking flow via Razorpay Checkout
+      const loadRzp = (): Promise<boolean> => {
+        return new Promise((resolve) => {
+          if ((window as any).Razorpay) return resolve(true);
+          const s = document.createElement('script');
+          s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          s.async = true;
+          s.onload = () => resolve(true);
+          s.onerror = () => resolve(false);
+          document.body.appendChild(s);
+        });
+      };
 
-      toast.success(`Wallet credited with ₹${finalAmount.toFixed(2)}!`);
+      setProcessingStep('Opening secure payment gateway...');
+      const rzpLoaded = await loadRzp();
 
-      // Dispatch 180 wallet update events
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('180_wallet_updated', {
-            detail: { balance: creditedBalance },
-          })
-        );
-        const successPayload = {
-          type: '180_PAYMENT_SUCCESS',
-          amount: finalAmount,
+      if (rzpLoaded && (window as any).Razorpay) {
+        setLoading(false);
+        setProcessingStep('');
+        const options: any = {
+          key: orderKeyId || (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_live_placeholder'),
+          amount: amountPaise,
           currency: 'INR',
-          transactionId: directPaymentId,
-          paymentMethod: activeCategory,
+          name: '180 Sovereign Wallet',
+          description: `Top-up Wallet ₹${finalAmount.toFixed(2)}`,
+          order_id: orderId,
+          prefill: {
+            name: user?.name || '',
+            email: user?.email || '',
+            contact: user?.phone || '',
+            method: activeCategory === 'CARD' ? 'card' : activeCategory === 'NETBANKING' ? 'netbanking' : 'upi',
+          },
+          notes: {
+            userId: user?.id,
+            category: activeCategory,
+          },
+          theme: {
+            color: '#2563eb',
+          },
+          handler: async (response: any) => {
+            setIsConfirming(true);
+            try {
+              const verifyRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
+                method: 'POST',
+                headers: authHeaders,
+                credentials: 'include',
+                body: JSON.stringify({
+                  orderId: response.razorpay_order_id,
+                  paymentId: response.razorpay_payment_id,
+                  signature: response.razorpay_signature,
+                  amount: finalAmount,
+                }),
+              });
+              const verifyData = await verifyRes.json();
+              if (verifyData.success) {
+                const creditedBalance = verifyData.data?.newBalance ?? currentBalance + finalAmount;
+                setIsConfirming(false);
+                setCompletedDetails({
+                  txId: response.razorpay_payment_id,
+                  amount: finalAmount,
+                  newBalance: creditedBalance,
+                  method: activeCategory === 'CARD' ? 'Credit / Debit Card' : `Netbanking (${selectedBankObj?.name || selectedBank})`,
+                  date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                });
+                setCompleted(true);
+                onSuccess(creditedBalance);
+                toast.success(`Wallet credited with ₹${finalAmount.toFixed(2)}!`);
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(
+                    new CustomEvent('180_wallet_updated', {
+                      detail: { balance: creditedBalance },
+                    })
+                  );
+                }
+              } else {
+                setIsConfirming(false);
+                toast.error(verifyData.error || 'Payment verification failed');
+              }
+            } catch {
+              setIsConfirming(false);
+              toast.error('Network error during verification');
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setLoading(false);
+              setIsConfirming(false);
+            },
+          },
         };
-        if (window.opener) window.opener.postMessage(successPayload, '*');
-        if (window.parent && window.parent !== window) window.parent.postMessage(successPayload, '*');
+
+        const rzpInstance = new (window as any).Razorpay(options);
+        rzpInstance.open();
+        return;
       }
+
+      // Fallback: Transition to confirming screen and poll
+      setIsConfirming(true);
+      setLoading(false);
+      setProcessingStep('');
     } catch (err: any) {
       setIsConfirming(false);
-      toast.error(err.message || 'Payment failed');
+      toast.error(err.message || 'Payment initiation failed');
     } finally {
       setLoading(false);
       setProcessingStep('');
+    }
+  };
+
+  const handleCheckPaymentStatus = async () => {
+    if (!activeOrderId) return;
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('platform_auth_token') ||
+          localStorage.getItem('token') ||
+          localStorage.getItem('accessToken')
+        : null;
+
+    if (!token) return;
+
+    const checkToast = toast.loading('Checking bank payment status with Razorpay...');
+    try {
+      const res = await fetch(getCoreApiUrl(`/api/oauth/wallet/topup/status/${activeOrderId}`), {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (data.success && data.isPaid) {
+        toast.success('Payment verified successfully!', { id: checkToast });
+        setIsConfirming(false);
+        const creditedBalance = data.newBalance ?? currentBalance + finalAmount;
+        setCompletedDetails({
+          txId: data.transactionId || activeOrderId,
+          amount: finalAmount,
+          newBalance: creditedBalance,
+          method: 'UPI (Razorpay Verified)',
+          date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        });
+        setCompleted(true);
+        onSuccess(creditedBalance);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('180_wallet_updated', {
+              detail: { balance: creditedBalance },
+            })
+          );
+        }
+      } else {
+        toast.error('Payment not detected yet. Please approve the payment in your UPI app and try again.', { id: checkToast });
+      }
+    } catch {
+      toast.error('Unable to verify with banking rail. Please try again.', { id: checkToast });
     }
   };
 
@@ -688,7 +766,7 @@ export function OneEightyPayBottomSheet({
               <div className="w-full max-w-sm space-y-2 pt-1">
                 <button
                   type="button"
-                  onClick={handleExecutePayment}
+                  onClick={handleCheckPaymentStatus}
                   className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-600/20 active:scale-[0.99]"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -931,43 +1009,24 @@ export function OneEightyPayBottomSheet({
                       </>
                     )}
 
-                    {/* QR Code view (Shown by default on PC/Desktop, and when toggled on Mobile) */}
+                    {/* QR Code view */}
                     {upiMode === 'QR' && (
-                      <div className="text-center py-2 space-y-3">
-                        <div className="p-3 bg-white dark:bg-white rounded-2xl w-48 h-48 mx-auto border border-slate-200/90 shadow-md flex items-center justify-center relative">
-                          {qrCodeDataUrl ? (
-                            <img
-                              src={qrCodeDataUrl}
-                              alt="Scan with UPI App"
-                              className="w-40 h-40 object-contain rounded-lg"
-                            />
-                          ) : (
-                            <div className="w-40 h-40 flex items-center justify-center">
-                              <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
-                            </div>
-                          )}
-                          {/* Centered 180 Badge */}
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center">
-                              <div className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-[8px] flex items-center justify-center">
-                                180
-                              </div>
-                            </div>
-                          </div>
+                      <div className="text-center py-3 space-y-3.5 bg-gradient-to-b from-blue-50/50 to-slate-50/50 dark:from-blue-950/20 dark:to-zinc-900/40 p-4 rounded-2xl border border-blue-100/80 dark:border-blue-900/30">
+                        <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-blue-600/25">
+                          <QrCode className="w-8 h-8" />
                         </div>
 
                         <div className="space-y-1">
-                          <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">
-                            Scan with GPay, PhonePe, Paytm, or any UPI app
+                          <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                            Official Razorpay Dynamic UPI QR
+                          </h4>
+                          <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-xs mx-auto">
+                            Scannable by PhonePe, Google Pay, Paytm, BHIM & CRED via official NPCI banking rail.
                           </p>
-                          <div className="flex items-center justify-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>Expires in {minutesRemaining}:{secondsRemainingFormatted}</span>
-                          </div>
                         </div>
 
                         {/* Supported Apps Badges */}
-                        <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                        <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">
                           <span>Google Pay</span>
                           <span>•</span>
                           <span>PhonePe</span>
@@ -979,30 +1038,18 @@ export function OneEightyPayBottomSheet({
                           <span>CRED</span>
                         </div>
 
-                        {/* Copy UPI Intent link & Live Confirm button */}
-                        <div className="flex items-center justify-center gap-3 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(`upi://pay?pa=180pay@okhdfcbank&pn=180Sovereign&am=${finalAmount}&cu=INR`);
-                              setCopiedUpiString(true);
-                              toast.success('UPI intent string copied');
-                              setTimeout(() => setCopiedUpiString(false), 2000);
-                            }}
-                            className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-zinc-400 hover:text-blue-600 font-semibold cursor-pointer"
-                          >
-                            {copiedUpiString ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                            <span>{copiedUpiString ? 'Copied' : 'Copy UPI Link'}</span>
-                          </button>
+                        <button
+                          type="button"
+                          onClick={handleExecutePayment}
+                          className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-blue-600/20 active:scale-[0.99]"
+                        >
+                          <QrCode className="w-4 h-4" />
+                          <span>Display Scannable UPI QR (₹{finalAmount.toFixed(2)})</span>
+                        </button>
 
-                          <button
-                            type="button"
-                            onClick={handleExecutePayment}
-                            className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                            <span>I Have Paid / Verify</span>
-                          </button>
+                        <div className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pt-0.5">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Zero-Redirect • 100% NPCI & RBI Regulated</span>
                         </div>
                       </div>
                     )}
