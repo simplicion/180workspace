@@ -518,6 +518,7 @@ function LoginFormContent() {
   };
 
   // Helper to initialize onboarding fields
+  // Helper to initialize onboarding fields
   const prepareOnboarding = (user: any, token: string) => {
     setCurrentAuthToken(token);
     setOnboardUsername(user.username || user.name?.toLowerCase().replace(/\s+/g, '_') || '');
@@ -531,17 +532,85 @@ function LoginFormContent() {
     setOnboardLongitude(user.longitude ?? null);
     setOnboardCity(user.city || '');
     setOnboardCountry(user.country || '');
+
+    // Silent background pre-fill if city or country is not yet set
+    if (!user.city && !user.country) {
+      fetch(getCoreApiUrl('/api/oauth/resolve-location'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ useIp: true }),
+      })
+        .then(parseApiResponse)
+        .then(({ ok, data }) => {
+          if (ok && data?.success && data?.location) {
+            setOnboardCity((prev) => prev || data.location.city || '');
+            setOnboardCountry((prev) => prev || data.location.country || '');
+            if (data.location.latitude) setOnboardLatitude((prev) => prev ?? data.location.latitude);
+            if (data.location.longitude) setOnboardLongitude((prev) => prev ?? data.location.longitude);
+          }
+        })
+        .catch(() => {
+          // Ignore background fetch failure
+        });
+    }
+  };
+
+  // Helper for network IP fallback when GPS/Permissions Policy blocks HTML5 geolocation
+  const fallbackToNetworkLocation = async (toastId: string, customNotice?: string) => {
+    try {
+      toast.loading('Resolving location via network...', { id: toastId });
+      const res = await fetch(getCoreApiUrl('/api/oauth/resolve-location'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ useIp: true }),
+      });
+
+      const { ok, data } = await parseApiResponse(res);
+      if (ok && data?.success && data?.location && (data.location.city || data.location.country)) {
+        setOnboardCity(data.location.city || '');
+        setOnboardCountry(data.location.country || '');
+        if (data.location.latitude) setOnboardLatitude(data.location.latitude);
+        if (data.location.longitude) setOnboardLongitude(data.location.longitude);
+        toast.success(
+          `Detected location: ${data.location.formatted || [data.location.city, data.location.country].filter(Boolean).join(', ')}`,
+          { id: toastId }
+        );
+        return true;
+      }
+    } catch (_) {
+      // Network lookup failed
+    }
+
+    // Friendly non-intrusive notification if auto-detect could not resolve
+    toast(
+      customNotice || 'Could not auto-detect location. You can enter your City and Country manually.',
+      {
+        id: toastId,
+        icon: '📍',
+        duration: 4000,
+      }
+    );
+    return false;
   };
 
   // ─── 5. 1-CLICK LOCATION DETECTION ──────────────────────────────────────────
-  const handleDetectLocation = () => {
+  const handleDetectLocation = async () => {
+    if (detectingLocation) return;
+    setDetectingLocation(true);
+
+    const toastId = 'location-detect-toast';
+    toast.loading('Detecting your location...', { id: toastId });
+
     if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
+      await fallbackToNetworkLocation(
+        toastId,
+        'GPS is not supported in this browser. Please type your city and country manually.'
+      );
+      setDetectingLocation(false);
       return;
     }
-
-    setDetectingLocation(true);
-    const toastId = toast.loading('Detecting your coordinates...');
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -574,11 +643,23 @@ function LoginFormContent() {
           setDetectingLocation(false);
         }
       },
-      (error) => {
+      async (error) => {
+        // When GPS fails or is disabled by permissions policy in embedded views (iframe/webview),
+        // seamlessly fall back to network IP location lookup.
+        const isPermissionIssue =
+          error.code === error.PERMISSION_DENIED ||
+          error.message?.toLowerCase().includes('permissions policy') ||
+          error.message?.toLowerCase().includes('denied');
+
+        await fallbackToNetworkLocation(
+          toastId,
+          isPermissionIssue
+            ? 'GPS is restricted in this embedded view. Please enter your city and country manually.'
+            : 'GPS detection timed out. Please enter your city and country manually.'
+        );
         setDetectingLocation(false);
-        toast.error(`Location detection failed: ${error.message}`, { id: toastId });
       },
-      { timeout: 10000, enableHighAccuracy: true }
+      { timeout: 5000, enableHighAccuracy: false, maximumAge: 60000 }
     );
   };
 
@@ -1246,6 +1327,7 @@ function LoginFormContent() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-blue-600" /> Location
+                  <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
                 </span>
                 <button
                   type="button"

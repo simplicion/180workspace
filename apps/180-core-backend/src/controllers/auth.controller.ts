@@ -152,12 +152,26 @@ export class AuthApiController {
 
   static async resolveLocation(req: Request, res: Response) {
     try {
-      const { latitude, longitude } = req.body;
-      if (latitude === undefined || longitude === undefined) {
-        return res.status(400).json({ success: false, message: 'Latitude and longitude are required' });
+      const { latitude, longitude, useIp } = req.body || {};
+      if (latitude !== undefined && longitude !== undefined && !useIp) {
+        const result = await LocationService.resolveCoordinates(Number(latitude), Number(longitude));
+        return res.json({ success: true, location: result, method: 'gps' });
       }
-      const result = await LocationService.resolveCoordinates(Number(latitude), Number(longitude));
-      return res.json({ success: true, location: result });
+
+      // Graceful fallback to client IP
+      let clientIp =
+        ((req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()) ||
+        req.socket.remoteAddress ||
+        '';
+      if (clientIp.startsWith('::ffff:')) {
+        clientIp = clientIp.replace('::ffff:', '');
+      }
+      if (clientIp === '::1' || clientIp === '127.0.0.1' || clientIp === 'localhost') {
+        clientIp = '';
+      }
+
+      const result = await LocationService.resolveFromIp(clientIp);
+      return res.json({ success: true, location: result, method: 'ip' });
     } catch (err: any) {
       console.error('[AuthApiController:resolveLocation] Error:', err);
       return res.status(500).json({ success: false, message: err.message });

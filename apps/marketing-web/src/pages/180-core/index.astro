@@ -6,69 +6,43 @@ const devConsoleUrl = import.meta.env.PUBLIC_DEV_CONSOLE_URL || 'https://develop
 
 <Layout
   title="180 Core — Sovereign Identity & Payment Infrastructure"
-  description="Universal authentication, sovereign profile, and wallet checkout. Integrate 180 Identity and 180 Pay with 2 lines of code."
+  description="Universal WhatsApp OTP authentication, biometric passkeys, sovereign profile, and 1-click UPI wallet checkout with 0.8% flat fee."
 >
-  <div class="relative min-h-screen bg-black text-white overflow-hidden selection:bg-blue-600 selection:text-white">
-    {/* Subtle Background Glow */}
-    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[450px] bg-gradient-to-b from-blue-600/10 via-purple-600/5 to-transparent blur-3xl pointer-events-none -z-10" />
-
-    {/* Header Navigation */}
-    <header class="border-b border-white/10 backdrop-blur-xl bg-black/60 sticky top-0 z-40">
-      <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <a href="/180-core" class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-white text-black flex items-center justify-center font-black text-sm">
-            180
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="font-bold text-base tracking-tight text-white">180 Core</span>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-white/10 text-zinc-300 border border-white/10">
-              Infrastructure
-            </span>
-          </div>
-        </a>
-
-        <div class="flex items-center gap-4">
-          <a
-            href="https://developers.180workspace.com/docs"
-            class="text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
-          >
-            Documentation
-          </a>
-          <button
-            id="core-signin-nav-btn"
-            type="button"
-            class="px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold transition-all shadow-sm cursor-pointer"
-          >
-            Sign In to Console
-          </button>
-        </div>
-      </div>
-    </header>
+  <div class="relative min-h-screen bg-black text-white overflow-hidden selection:bg-indigo-500 selection:text-white">
+    {/* Subtle Background Ambiance Glows & Grid Mesh */}
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[550px] bg-gradient-to-b from-blue-600/15 via-indigo-600/10 to-transparent blur-3xl pointer-events-none -z-10"></div>
+    <div class="absolute top-40 left-1/4 w-96 h-96 bg-purple-600/10 blur-[128px] pointer-events-none -z-10"></div>
+    <div class="absolute inset-0 bg-grid-pattern-dark opacity-10 pointer-events-none -z-10"></div>
 
     {/* Hero Section */}
-    <section class="max-w-5xl mx-auto px-6 pt-24 pb-20 text-center space-y-8">
-      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-300 backdrop-blur-md">
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-20 lg:pt-24 pb-16 sm:pb-24 text-center space-y-8">
+      {/* Eyebrow Pill */}
+      <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-900/90 border border-white/10 text-xs text-zinc-300 backdrop-blur-xl shadow-lg transition-all hover:border-white/20">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>Sovereign Cloud & Developer Infrastructure</span>
+        <span class="font-medium">Sovereign Developer Infrastructure</span>
+        <span class="text-zinc-600">/</span>
+        <span class="text-indigo-400 font-mono text-[11px] font-semibold">180 Core v2.4</span>
       </div>
 
-      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white leading-[1.08]">
-        The Sovereign Core for <br />
+      {/* Main Headline */}
+      <h1 class="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-white leading-[1.08] max-w-5xl mx-auto">
+        The Sovereign Core for <br class="hidden sm:block" />
         <span class="bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
           Identity, Profiles & Payments
         </span>
       </h1>
 
+      {/* Subtitle */}
       <p class="max-w-2xl mx-auto text-base sm:text-lg text-zinc-400 leading-relaxed font-normal">
         Build high-trust applications with two fundamental APIs. Universal WhatsApp OTP authentication and 1-click sovereign wallet checkout with instant UPI settlement.
       </p>
 
-      {/* CTA Buttons */}
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+      {/* Hero Action CTAs */}
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5 pt-2 max-w-md sm:max-w-none mx-auto">
         <button
           id="core-hero-launch-btn"
           type="button"
-          class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white text-black hover:bg-zinc-100 font-bold text-sm shadow-xl transition-all cursor-pointer min-h-[48px] flex items-center justify-center gap-2"
+          class="min-h-[48px] px-8 py-3.5 rounded-2xl bg-white text-black hover:bg-zinc-100 font-bold text-sm shadow-xl hover:shadow-white/10 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
         >
           <span>Launch Developer Console</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -78,169 +52,623 @@ const devConsoleUrl = import.meta.env.PUBLIC_DEV_CONSOLE_URL || 'https://develop
 
         <a
           href="https://developers.180workspace.com/docs"
-          class="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white hover:bg-zinc-800 font-semibold text-sm transition-all min-h-[48px] flex items-center justify-center"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="min-h-[48px] px-7 py-3.5 rounded-2xl bg-zinc-900 border border-white/10 text-zinc-200 hover:text-white hover:bg-zinc-800 font-semibold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
         >
-          Read Core API Docs
+          <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          <span>Read Core API Docs</span>
         </a>
       </div>
 
-      {/* Trust Badges */}
-      <div class="pt-8 flex flex-wrap items-center justify-center gap-8 text-xs text-zinc-500 font-mono">
-        <div class="flex items-center gap-2">
-          <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-          <span>RS256 Asymmetric JWKS</span>
+      {/* Quick Terminal Command Copy Badge */}
+      <div class="pt-2">
+        <button
+          id="copy-quickstart-btn"
+          type="button"
+          class="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-zinc-900/80 border border-white/10 hover:border-zinc-700 text-xs font-mono text-zinc-300 transition-colors group cursor-pointer"
+          data-code="npm i @workspace/identity-sdk"
+        >
+          <span class="text-zinc-500">$</span>
+          <span>npm i @workspace/identity-sdk</span>
+          <span class="w-3.5 h-3.5 text-zinc-400 group-hover:text-white transition-colors" id="copy-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-3.5 h-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </span>
+          <span id="copied-badge" class="hidden text-emerald-400 font-sans text-[11px] font-bold">Copied!</span>
+        </button>
+      </div>
+
+      {/* Trust & Performance Metrics Bar */}
+      <div class="pt-8 max-w-4xl mx-auto">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-4 sm:p-5 rounded-2xl bg-zinc-900/40 border border-white/10 backdrop-blur-md">
+          <div class="p-3 text-center sm:text-left">
+            <div class="text-xl sm:text-2xl font-black text-white tracking-tight">&lt; 24ms</div>
+            <div class="text-[11px] text-zinc-400 font-mono mt-0.5">Token JWKS Verify</div>
+          </div>
+          <div class="p-3 text-center sm:text-left border-l border-white/5">
+            <div class="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">0.8%</div>
+            <div class="text-[11px] text-zinc-400 font-mono mt-0.5">Sovereign UPI Rate</div>
+          </div>
+          <div class="p-3 text-center sm:text-left border-l border-white/5">
+            <div class="text-xl sm:text-2xl font-black text-blue-400 tracking-tight">T+0</div>
+            <div class="text-[11px] text-zinc-400 font-mono mt-0.5">Bank Settlement</div>
+          </div>
+          <div class="p-3 text-center sm:text-left border-l border-white/5">
+            <div class="text-xl sm:text-2xl font-black text-purple-400 tracking-tight">99.2%</div>
+            <div class="text-[11px] text-zinc-400 font-mono mt-0.5">WhatsApp Delivery</div>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-          <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-          <span>0.8% Sovereign UPI Fee</span>
+      </div>
+    </section>
+
+    {/* Visual Architecture Flow: How 180 Core Works */}
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <div class="text-center max-w-2xl mx-auto mb-10 space-y-3">
+        <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-400">System Architecture</span>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-white">
+          How Sovereign Core Works
+        </h2>
+        <p class="text-sm text-zinc-400">
+          From customer authentication to instant bank settlement in a unified, end-to-end cryptographic pipeline.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Step 1 */}
+        <div class="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 hover:border-blue-500/30 transition-all duration-300 relative group">
+          <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm mb-4">
+            01
+          </div>
+          <h3 class="font-bold text-base text-white mb-2">Client Touchpoint</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Your web or mobile app calls <code class="text-blue-300 font-mono text-[11px]">openPopup()</code>. Zero passwords, zero friction.
+          </p>
         </div>
-        <div class="flex items-center gap-2">
-          <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-          <span>Instant T+0 Bank Settlements</span>
+
+        {/* Step 2 */}
+        <div class="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 hover:border-indigo-500/30 transition-all duration-300 relative group">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-sm mb-4">
+            02
+          </div>
+          <h3 class="font-bold text-base text-white mb-2">WhatsApp / Passkey</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            User confirms OTP via official WhatsApp channel or biometric WebAuthn passkey in under 3 seconds.
+          </p>
+        </div>
+
+        {/* Step 3 */}
+        <div class="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 hover:border-purple-500/30 transition-all duration-300 relative group">
+          <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-sm mb-4">
+            03
+          </div>
+          <h3 class="font-bold text-base text-white mb-2">RS256 JWT Issued</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Cryptographic token signed with asymmetric RS256 JWKS key pair, verifiable offline by your backend.
+          </p>
+        </div>
+
+        {/* Step 4 */}
+        <div class="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 hover:border-emerald-500/30 transition-all duration-300 relative group">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm mb-4">
+            04
+          </div>
+          <h3 class="font-bold text-base text-white mb-2">1-Click Settlement</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            180 Pay settles instant UPI payments at 0.8% flat directly into your verified bank account (T+0).
+          </p>
         </div>
       </div>
     </section>
 
     {/* The Two Sovereign Pillars */}
-    <section class="max-w-7xl mx-auto px-6 py-16">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Pillar 1: 180 Identity */}
-        <div class="p-8 sm:p-10 rounded-3xl bg-[#101012] border border-white/10 space-y-6 flex flex-col justify-between group hover:border-blue-500/40 transition-all">
-          <div class="space-y-4">
-            <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <div>
-              <span class="text-[10px] font-mono uppercase tracking-wider text-blue-400 font-bold">
+        <div class="p-6 sm:p-8 lg:p-10 rounded-3xl bg-zinc-900/60 border border-white/10 space-y-6 flex flex-col justify-between group hover:border-blue-500/40 transition-all duration-300 shadow-xl">
+          <div class="space-y-5">
+            <div class="flex items-center justify-between">
+              <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
                 OAuth 2.0 & OIDC
               </span>
-              <h2 class="text-2xl font-bold text-white mt-1">180 Identity & Profile</h2>
             </div>
+
+            <div>
+              <span class="text-[11px] font-mono uppercase tracking-wider text-blue-400 font-bold">
+                Universal Sovereign Auth
+              </span>
+              <h2 class="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">180 Identity & Profile</h2>
+            </div>
+
             <p class="text-sm text-zinc-400 leading-relaxed">
               Universal authentication with WhatsApp OTP, Google SSO, and sovereign @usernames. Issues cryptographic RS256 JWTs with client-side modal or bottom-sheet verification.
             </p>
 
-            <ul class="space-y-2.5 pt-2 text-xs text-zinc-300">
-              <li class="flex items-center gap-2">
-                <span class="text-blue-400 font-bold">•</span>
-                <span>Zero password fatigue with biometric & WhatsApp OTP</span>
+            <ul class="space-y-3 pt-2 text-xs text-zinc-300">
+              <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-blue-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Zero password fatigue with biometric passkeys & instant WhatsApp OTP</span>
               </li>
-              <li class="flex items-center gap-2">
-                <span class="text-blue-400 font-bold">•</span>
-                <span>RFC 7636 PKCE code exchange with state protection</span>
+              <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-blue-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>RFC 7636 PKCE code exchange with anti-CSRF state protection</span>
               </li>
-              <li class="flex items-center gap-2">
-                <span class="text-blue-400 font-bold">•</span>
-                <span>Real-time session introspection & active token revocation</span>
+              <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-blue-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Real-time session introspection & active token revocation via edge endpoints</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-blue-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Sovereign profile graph synced across your entire multi-tenant app suite</span>
               </li>
             </ul>
           </div>
 
-          <div class="pt-6 border-t border-white/5">
+          <div class="pt-6 border-t border-white/5 space-y-3">
             <button
               id="try-identity-btn"
               type="button"
-              class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors cursor-pointer"
+              class="w-full min-h-[48px] py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 hover:scale-[1.01] active:scale-[0.99]"
             >
-              Test 180 Identity Flow
+              <span>Test 180 Identity Flow (Live Popup)</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
             </button>
+            <div class="text-[11px] text-center text-zinc-500 font-mono">
+              Launches real sovereign OAuth popup with fallback redirect
+            </div>
           </div>
         </div>
 
         {/* Pillar 2: 180 Pay */}
-        <div class="p-8 sm:p-10 rounded-3xl bg-[#101012] border border-white/10 space-y-6 flex flex-col justify-between group hover:border-purple-500/40 transition-all">
-          <div class="space-y-4">
-            <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-            </div>
-            <div>
-              <span class="text-[10px] font-mono uppercase tracking-wider text-purple-400 font-bold">
+        <div class="p-6 sm:p-8 lg:p-10 rounded-3xl bg-zinc-900/60 border border-white/10 space-y-6 flex flex-col justify-between group hover:border-purple-500/40 transition-all duration-300 shadow-xl">
+          <div class="space-y-5">
+            <div class="flex items-center justify-between">
+              <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
                 UPI & Escrow Checkout
               </span>
-              <h2 class="text-2xl font-bold text-white mt-1">180 Pay</h2>
             </div>
+
+            <div>
+              <span class="text-[11px] font-mono uppercase tracking-wider text-purple-400 font-bold">
+                Direct Indian Settlement
+              </span>
+              <h2 class="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">180 Pay Engine</h2>
+            </div>
+
             <p class="text-sm text-zinc-400 leading-relaxed">
               1-Click Sovereign Wallet and UPI checkout engine. Direct 2-way verification, instant settlements to verified bank accounts, and automatic HMAC-SHA256 webhooks.
             </p>
 
-            <ul class="space-y-2.5 pt-2 text-xs text-zinc-300">
-              <li class="flex items-center gap-2">
-                <span class="text-purple-400 font-bold">•</span>
-                <span>0.8% sovereign transaction fee vs 2.0% standard gateways</span>
+            <ul class="space-y-3 pt-2 text-xs text-zinc-300">
+              <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-purple-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>0.8% flat sovereign fee (saves 60% compared to standard 2.0% gateways)</span>
               </li>
-              <li class="flex items-center gap-2">
-                <span class="text-purple-400 font-bold">•</span>
-                <span>Prepaid Sovereign Wallet balance shared across ecosystem</span>
+              <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-purple-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Prepaid Sovereign Wallet balance shared seamlessly across ecosystem</span>
               </li>
-              <li class="flex items-center gap-2">
-                <span class="text-purple-400 font-bold">•</span>
-                <span>Instant automated penny-drop bank account validation</span>
+              <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-purple-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Instant automated penny-drop bank account validation and KYC verification</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-purple-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Automated HMAC-SHA256 webhooks with exponential backoff retries</span>
               </li>
             </ul>
           </div>
 
-          <div class="pt-6 border-t border-white/5">
+          <div class="pt-6 border-t border-white/5 space-y-3">
             <button
               id="try-pay-btn"
               type="button"
-              class="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors cursor-pointer"
+              class="w-full min-h-[48px] py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20 hover:scale-[1.01] active:scale-[0.99]"
             >
-              Test 180 Pay Sandbox Checkout
+              <span>Test 180 Pay Sandbox Checkout</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
             </button>
+            <div class="text-[11px] text-center text-zinc-500 font-mono">
+              Triggers authenticated sandbox payment bottom-sheet flow
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    {/* Quick Integration Code Section */}
-    <section class="max-w-4xl mx-auto px-6 py-16">
-      <div class="p-6 sm:p-8 rounded-3xl bg-[#09090b] border border-white/10 space-y-4">
-        <div class="flex items-center justify-between">
+    {/* Interactive Code Playground / Multi-Language SDK Snippets */}
+    <section class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <div class="text-center max-w-2xl mx-auto mb-8 space-y-2">
+        <span class="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">Developer First</span>
+        <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-white">
+          Integrate with 2 Lines of Code
+        </h2>
+        <p class="text-xs sm:text-sm text-zinc-400">
+          Native client and backend SDKs with full TypeScript definitions and zero dependencies.
+        </p>
+      </div>
+
+      <div class="rounded-3xl bg-zinc-950 border border-white/10 shadow-2xl overflow-hidden">
+        {/* Terminal Header & Tabs */}
+        <div class="px-4 py-3 bg-zinc-900/80 border-b border-white/5 flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
             <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
             <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
-            <span class="text-xs font-mono text-zinc-400 ml-2">Quickstart Integration</span>
+            <span class="text-xs font-mono text-zinc-400 ml-2 hidden sm:inline">180-quickstart</span>
           </div>
-          <span class="text-[11px] font-mono text-zinc-500">npm i @workspace/identity-sdk</span>
+
+          {/* Language Switcher Tabs */}
+          <div class="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/5">
+            <button
+              type="button"
+              class="code-tab-btn active px-3 py-1 rounded-lg text-xs font-mono font-semibold transition-all bg-white/10 text-white"
+              data-lang="ts"
+            >
+              TypeScript
+            </button>
+            <button
+              type="button"
+              class="code-tab-btn px-3 py-1 rounded-lg text-xs font-mono font-semibold transition-all text-zinc-400 hover:text-white"
+              data-lang="python"
+            >
+              Python
+            </button>
+            <button
+              type="button"
+              class="code-tab-btn px-3 py-1 rounded-lg text-xs font-mono font-semibold transition-all text-zinc-400 hover:text-white"
+              data-lang="curl"
+            >
+              cURL
+            </button>
+            <button
+              type="button"
+              class="code-tab-btn px-3 py-1 rounded-lg text-xs font-mono font-semibold transition-all text-zinc-400 hover:text-white"
+              data-lang="dart"
+            >
+              Flutter / Dart
+            </button>
+          </div>
+
+          {/* Copy Button */}
+          <button
+            id="copy-snippet-btn"
+            type="button"
+            class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[11px] font-mono text-zinc-300 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span id="copy-snippet-text">Copy</span>
+          </button>
         </div>
 
-        <pre class="p-4 rounded-2xl bg-black/80 border border-white/5 text-xs text-zinc-300 font-mono overflow-x-auto leading-relaxed">
-<code>{`// 1. Authenticate with Sovereign 180 Identity
+        {/* Code Content Container */}
+        <div class="p-4 sm:p-6 overflow-x-auto">
+          {/* TypeScript Snippet */}
+          <pre id="snippet-ts" class="code-snippet font-mono text-xs sm:text-sm text-zinc-300 leading-relaxed">
+<code>{`// 1. Authenticate with Sovereign 180 Identity (Client-side)
 import { OneEightyIdentity, OneEightyPay } from '@workspace/identity-sdk';
 
-await OneEightyIdentity.openPopup({
-  clientId: 'your-180-client-id',
-  onSuccess: (session) => {
-    console.log('Authenticated User:', session.user);
-  }
+const session = await OneEightyIdentity.openPopup({
+  clientId: 'app_sandbox_7a9f82d1',
+  scopes: ['openid', 'identity:read', 'identity:whatsapp'],
+  uxMode: 'popup' // Fallback to redirect on mobile WebView
 });
 
-// 2. Accept 1-Click Sovereign Payments
-await OneEightyPay.openBottomSheet({
+console.log('Sovereign User Authenticated:', session.user.username);
+// e.g., "@alex" with verified phone + RS256 token
+
+// 2. Accept 1-Click UPI & Sovereign Wallet Checkout
+const payment = await OneEightyPay.openBottomSheet({
   amount: 499,
   currency: 'INR',
-  title: 'Pro Access Subscription',
+  title: '180 Pro Monthly Subscription',
   onSuccess: (tx) => {
-    console.log('Payment Settled:', tx.transactionId);
+    console.log('Payment Settled (0.8% fee):', tx.transactionId);
   }
 });`}</code>
-        </pre>
+          </pre>
+
+          {/* Python Snippet */}
+          <pre id="snippet-python" class="code-snippet hidden font-mono text-xs sm:text-sm text-zinc-300 leading-relaxed">
+<code>{`# 1. Verify Sovereign RS256 Token on Backend (FastAPI / Django)
+import jwt
+from jwt import PyJWKClient
+
+JWKS_URL = "https://profile.180workspace.com/.well-known/jwks.json"
+jwks_client = PyJWKClient(JWKS_URL)
+
+def verify_180_token(token: str):
+    signing_key = jwks_client.get_signing_key_from_jwt(token)
+    payload = jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=["RS256"],
+        audience="app_sandbox_7a9f82d1",
+        issuer="https://profile.180workspace.com"
+    )
+    return payload # contains sovereign user claims and companyId`}</code>
+          </pre>
+
+          {/* cURL Snippet */}
+          <pre id="snippet-curl" class="code-snippet hidden font-mono text-xs sm:text-sm text-zinc-300 leading-relaxed">
+<code>{`# 1. Inspect Token or Create 180 Pay Checkout Session
+curl -X POST https://api.180workspace.com/v1/pay/sessions \\
+  -H "Authorization: Bearer 180_sec_key_live_9281ab" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "amount": 49900,
+    "currency": "INR",
+    "customer": {
+      "whatsapp": "+919876543210"
+    },
+    "settlement": "instant_t0"
+  }'`}</code>
+          </pre>
+
+          {/* Dart Snippet */}
+          <pre id="snippet-dart" class="code-snippet hidden font-mono text-xs sm:text-sm text-zinc-300 leading-relaxed">
+<code>{`// Flutter Mobile SDK Integration
+import 'package:one_eighty_core/one_eighty_core.dart';
+
+final session = await OneEightyAuth.signInWithWhatsApp(
+  context: context,
+  clientId: 'app_mobile_flutter_prod',
+);
+
+if (session.isAuthenticated) {
+  print('Welcome @\${session.user.username}!');
+  // Token stored securely in Android Keystore / iOS Keychain
+}`}</code>
+          </pre>
+        </div>
       </div>
     </section>
 
-    {/* Footer */}
-    <footer class="border-t border-white/10 py-12 text-center text-xs text-zinc-500 font-mono">
-      <p>© 2026 180 Workspace Platform. 180 Core Sovereign Infrastructure Engine.</p>
-    </footer>
+    {/* Enterprise Capabilities & Security Grid */}
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <div class="text-center max-w-2xl mx-auto mb-10 space-y-2">
+        <span class="text-xs font-mono font-bold uppercase tracking-wider text-purple-400">Security & Scale</span>
+        <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-white">
+          Built for High-Trust Enterprise Workloads
+        </h2>
+        <p class="text-xs sm:text-sm text-zinc-400">
+          Engineered for mission-critical infrastructure with end-to-end auditability and zero vendor lock-in.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Card 1 */}
+        <div class="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 space-y-3 hover:border-zinc-700 transition-colors">
+          <div class="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-mono text-xs font-bold">
+            RS
+          </div>
+          <h3 class="font-bold text-base text-white">Asymmetric Cryptography</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            RS256 and Ed25519 asymmetric signatures. Verify access tokens locally in your backend without making a network roundtrip to auth servers.
+          </p>
+        </div>
+
+        {/* Card 2 */}
+        <div class="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 space-y-3 hover:border-zinc-700 transition-colors">
+          <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center font-mono text-xs font-bold">
+            0.8
+          </div>
+          <h3 class="font-bold text-base text-white">0.8% Sovereign UPI Tier</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Cut standard 2.0% merchant gateway fees by 60%. Pass savings directly to customers or expand gross margins on subscription revenue.
+          </p>
+        </div>
+
+        {/* Card 3 */}
+        <div class="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 space-y-3 hover:border-zinc-700 transition-colors">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-mono text-xs font-bold">
+            T0
+          </div>
+          <h3 class="font-bold text-base text-white">Instant T+0 Settlements</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Funds route directly from buyer UPI intent to your verified bank accounts with automatic reconciliation and penny-drop verification.
+          </p>
+        </div>
+
+        {/* Card 4 */}
+        <div class="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 space-y-3 hover:border-zinc-700 transition-colors">
+          <div class="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-mono text-xs font-bold">
+            ID
+          </div>
+          <h3 class="font-bold text-base text-white">Multi-Tenant Isolation</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Strict <code class="text-indigo-300 font-mono text-[11px]">companyId</code> boundary enforcement across all entities, ensuring complete data sovereignty for every customer.
+          </p>
+        </div>
+
+        {/* Card 5 */}
+        <div class="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 space-y-3 hover:border-zinc-700 transition-colors">
+          <div class="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center font-mono text-xs font-bold">
+            HK
+          </div>
+          <h3 class="font-bold text-base text-white">Real-Time Webhook Engine</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            HMAC-SHA256 signed webhooks for every auth event and payment settlement with guaranteed delivery and exponential backoff retry policies.
+          </p>
+        </div>
+
+        {/* Card 6 */}
+        <div class="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 space-y-3 hover:border-zinc-700 transition-colors">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-mono text-xs font-bold">
+            MS
+          </div>
+          <h3 class="font-bold text-base text-white">Sub-5ms Edge Evaluation</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">
+            Cloudflare Edge integration routes and checks authorization sessions at the closest global point of presence with sub-5ms latency.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    {/* Frequently Asked Questions Accordion */}
+    <section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <div class="text-center max-w-2xl mx-auto mb-10 space-y-2">
+        <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-400">FAQ</span>
+        <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-white">
+          Frequently Asked Questions
+        </h2>
+        <p class="text-xs sm:text-sm text-zinc-400">
+          Everything developers need to know about integrating 180 Core.
+        </p>
+      </div>
+
+      <div class="space-y-3">
+        {/* FAQ 1 */}
+        <div class="rounded-2xl bg-zinc-900/50 border border-white/10 overflow-hidden faq-item">
+          <button
+            type="button"
+            class="w-full p-5 text-left font-bold text-sm sm:text-base text-white flex items-center justify-between gap-4 cursor-pointer faq-toggle"
+            aria-expanded="false"
+          >
+            <span>Why use WhatsApp OTP instead of standard SMS OTP?</span>
+            <svg class="w-4 h-4 text-zinc-400 transition-transform duration-200 faq-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div class="px-5 pb-5 text-xs sm:text-sm text-zinc-400 leading-relaxed hidden faq-answer">
+            SMS OTPs frequently fail due to carrier filtering, international routing delays, and high per-SMS costs ($0.03 to $0.08 per message). WhatsApp OTP provides 99.2% deliverability within 2 seconds at a fraction of the cost, complete with official verified business trust badges.
+          </div>
+        </div>
+
+        {/* FAQ 2 */}
+        <div class="rounded-2xl bg-zinc-900/50 border border-white/10 overflow-hidden faq-item">
+          <button
+            type="button"
+            class="w-full p-5 text-left font-bold text-sm sm:text-base text-white flex items-center justify-between gap-4 cursor-pointer faq-toggle"
+            aria-expanded="false"
+          >
+            <span>How does the 0.8% UPI settlement compare to standard gateways?</span>
+            <svg class="w-4 h-4 text-zinc-400 transition-transform duration-200 faq-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div class="px-5 pb-5 text-xs sm:text-sm text-zinc-400 leading-relaxed hidden faq-answer">
+            Legacy payment gateways like Razorpay, Stripe, and Cashfree charge 2.0% + GST on standard transactions. 180 Pay eliminates middleman intermediaries by connecting directly to sovereign UPI rails, reducing the fee to 0.8% and executing immediate T+0 settlements directly to verified bank accounts.
+          </div>
+        </div>
+
+        {/* FAQ 3 */}
+        <div class="rounded-2xl bg-zinc-900/50 border border-white/10 overflow-hidden faq-item">
+          <button
+            type="button"
+            class="w-full p-5 text-left font-bold text-sm sm:text-base text-white flex items-center justify-between gap-4 cursor-pointer faq-toggle"
+            aria-expanded="false"
+          >
+            <span>Can 180 Core be used outside of the 180workspace ecosystem?</span>
+            <svg class="w-4 h-4 text-zinc-400 transition-transform duration-200 faq-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div class="px-5 pb-5 text-xs sm:text-sm text-zinc-400 leading-relaxed hidden faq-answer">
+            Yes! 180 Core is an independent sovereign infrastructure layer. You can integrate our SDK into custom Next.js, React, Node.js, Python, or Flutter mobile applications with standard RFC 7636 OAuth 2.0 PKCE and standard REST/GraphQL endpoints.
+          </div>
+        </div>
+
+        {/* FAQ 4 */}
+        <div class="rounded-2xl bg-zinc-900/50 border border-white/10 overflow-hidden faq-item">
+          <button
+            type="button"
+            class="w-full p-5 text-left font-bold text-sm sm:text-base text-white flex items-center justify-between gap-4 cursor-pointer faq-toggle"
+            aria-expanded="false"
+          >
+            <span>How does token verification work on our backend?</span>
+            <svg class="w-4 h-4 text-zinc-400 transition-transform duration-200 faq-icon shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div class="px-5 pb-5 text-xs sm:text-sm text-zinc-400 leading-relaxed hidden faq-answer">
+            180 Core publishes public cryptographic keys at <code class="text-indigo-300 font-mono text-[11px]">/.well-known/jwks.json</code>. Your backend uses standard JWT libraries to verify the RS256 signature locally with sub-millisecond execution time, zero external network requests per request, and zero vulnerability to vendor downtime.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* Bottom Conversion CTA Section */}
+    <section class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+      <div class="p-8 sm:p-12 lg:p-16 rounded-3xl bg-gradient-to-b from-zinc-900 to-black border border-white/10 text-center space-y-6 relative overflow-hidden shadow-2xl">
+        <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/10 blur-[100px] pointer-events-none"></div>
+
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono text-zinc-300">
+          <span>Ready for Production</span>
+        </div>
+
+        <h2 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white max-w-2xl mx-auto leading-tight">
+          Ship on Sovereign Developer Infrastructure Today
+        </h2>
+
+        <p class="max-w-xl mx-auto text-sm sm:text-base text-zinc-400 leading-relaxed">
+          Create your developer console account in 30 seconds. Get test API keys, explore live interactive sandboxes, and start accepting payments at 0.8%.
+        </p>
+
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-4">
+          <button
+            id="core-bottom-launch-btn"
+            type="button"
+            class="w-full sm:w-auto min-h-[48px] px-8 py-3.5 rounded-2xl bg-white text-black hover:bg-zinc-100 font-bold text-sm shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span>Launch Developer Console</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+
+          <a
+            href="https://developers.180workspace.com/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="w-full sm:w-auto min-h-[48px] px-7 py-3.5 rounded-2xl bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white hover:bg-zinc-800 font-semibold text-sm transition-all flex items-center justify-center gap-2"
+          >
+            <span>Explore API Documentation</span>
+            <span class="text-zinc-500">↗</span>
+          </a>
+        </div>
+      </div>
+    </section>
   </div>
 
-  {/* Client-Side Sovereign Identity Modal Trigger & Redirect Handler */}
+  {/* Client-Side Logic: Auth Popup, Language Tabs, Copy Snippet & FAQs */}
   <script is:inline define:vars={{ devConsoleUrl }}>
+    // 1. Sovereign Identity Modal & Popup Launcher
     function launchIdentityLogin() {
       var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       var authHost = isLocal ? 'http://localhost:3009' : 'https://profile.180workspace.com';
@@ -251,7 +679,7 @@ await OneEightyPay.openBottomSheet({
         'client_id=180-developers-portal',
         'redirect_uri=' + encodeURIComponent(redirectTarget),
         'response_type=code',
-        'scope=' + encodeURIComponent('openid identity:read identity:email'),
+        'scope=' + encodeURIComponent('openid identity:read identity:email identity:whatsapp'),
         'ux_mode=popup'
       ].join('&');
 
@@ -273,7 +701,7 @@ await OneEightyPay.openBottomSheet({
         try { popup.focus(); } catch(_) {}
       }
 
-      // If browser blocked the popup, fallback gracefully to direct navigation
+      // If browser blocked popup, fallback to direct navigation
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
         window.location.href = loginUrl;
         return;
@@ -300,13 +728,11 @@ await OneEightyPay.openBottomSheet({
           if (popup && !popup.closed) popup.close();
         } catch (_) {}
 
-        // Automatically redirect developer directly to target dashboard with token attached
         var sep = redirectTarget.indexOf('?') !== -1 ? '&' : '?';
         var destinationUrl = redirectTarget + (token ? sep + 'token=' + encodeURIComponent(token) : '');
         window.location.href = destinationUrl;
       }
 
-      // Listen for authentication message callback from popup
       function handleMessage(e) {
         if (!e.data) return;
         var data = e.data;
@@ -323,11 +749,98 @@ await OneEightyPay.openBottomSheet({
       window.addEventListener('message', handleMessage);
     }
 
-    document.getElementById('core-signin-nav-btn')?.addEventListener('click', launchIdentityLogin);
+    // Attach click events
     document.getElementById('core-hero-launch-btn')?.addEventListener('click', launchIdentityLogin);
+    document.getElementById('core-bottom-launch-btn')?.addEventListener('click', launchIdentityLogin);
     document.getElementById('try-identity-btn')?.addEventListener('click', launchIdentityLogin);
-    document.getElementById('try-pay-btn')?.addEventListener('click', function() {
-      launchIdentityLogin();
+    document.getElementById('try-pay-btn')?.addEventListener('click', launchIdentityLogin);
+
+    // 2. Terminal Quickstart Copy Button
+    var copyQuickstartBtn = document.getElementById('copy-quickstart-btn');
+    if (copyQuickstartBtn) {
+      copyQuickstartBtn.addEventListener('click', function() {
+        var code = copyQuickstartBtn.getAttribute('data-code') || 'npm i @workspace/identity-sdk';
+        navigator.clipboard.writeText(code).then(function() {
+          var badge = document.getElementById('copied-badge');
+          var icon = document.getElementById('copy-icon');
+          if (badge && icon) {
+            badge.classList.remove('hidden');
+            icon.classList.add('hidden');
+            setTimeout(function() {
+              badge.classList.add('hidden');
+              icon.classList.remove('hidden');
+            }, 2000);
+          }
+        }).catch(function() {});
+      });
+    }
+
+    // 3. Multi-Language Code Tabs Switcher
+    var tabButtons = document.querySelectorAll('.code-tab-btn');
+    var snippets = {
+      ts: document.getElementById('snippet-ts'),
+      python: document.getElementById('snippet-python'),
+      curl: document.getElementById('snippet-curl'),
+      dart: document.getElementById('snippet-dart')
+    };
+
+    var activeLang = 'ts';
+
+    tabButtons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var lang = btn.getAttribute('data-lang');
+        if (!lang || !snippets[lang]) return;
+
+        tabButtons.forEach(function(b) {
+          b.classList.remove('active', 'bg-white/10', 'text-white');
+          b.classList.add('text-zinc-400');
+        });
+
+        btn.classList.add('active', 'bg-white/10', 'text-white');
+        btn.classList.remove('text-zinc-400');
+
+        Object.keys(snippets).forEach(function(k) {
+          if (snippets[k]) snippets[k].classList.add('hidden');
+        });
+
+        snippets[lang].classList.remove('hidden');
+        activeLang = lang;
+      });
+    });
+
+    // 4. Code Snippet Copy Button
+    var copySnippetBtn = document.getElementById('copy-snippet-btn');
+    if (copySnippetBtn) {
+      copySnippetBtn.addEventListener('click', function() {
+        var activeSnippet = snippets[activeLang];
+        if (!activeSnippet) return;
+        var text = activeSnippet.innerText;
+        navigator.clipboard.writeText(text).then(function() {
+          var label = document.getElementById('copy-snippet-text');
+          if (label) {
+            label.textContent = 'Copied!';
+            setTimeout(function() {
+              label.textContent = 'Copy';
+            }, 2000);
+          }
+        }).catch(function() {});
+      });
+    }
+
+    // 5. FAQ Accordion Toggle
+    var faqToggles = document.querySelectorAll('.faq-toggle');
+    faqToggles.forEach(function(toggle) {
+      toggle.addEventListener('click', function() {
+        var parent = toggle.closest('.faq-item');
+        if (!parent) return;
+        var answer = parent.querySelector('.faq-answer');
+        var icon = toggle.querySelector('.faq-icon');
+        var isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+
+        toggle.setAttribute('aria-expanded', String(!isExpanded));
+        if (answer) answer.classList.toggle('hidden');
+        if (icon) icon.classList.toggle('rotate-180');
+      });
     });
   </script>
 </Layout>

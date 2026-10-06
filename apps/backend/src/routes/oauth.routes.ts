@@ -156,15 +156,28 @@ router.get('/check-username', async (req: any, res: any) => {
     }
 });
 
-// 4. Resolve Location (HTML5 Geolocation Lat/Long -> City/Country)
+// 4. Resolve Location (HTML5 Geolocation Lat/Long -> City/Country, with IP fallback)
 router.post('/resolve-location', async (req: any, res: any) => {
     try {
-        const { latitude, longitude } = req.body;
-        if (latitude === undefined || longitude === undefined) {
-            return res.status(400).json({ success: false, message: 'latitude and longitude are required' });
+        const { latitude, longitude, useIp } = req.body || {};
+        if (latitude !== undefined && longitude !== undefined && !useIp) {
+            const result = await LocationService.resolveCoordinates(Number(latitude), Number(longitude));
+            return res.json({ success: true, location: result, method: 'gps' });
         }
-        const result = await LocationService.resolveCoordinates(Number(latitude), Number(longitude));
-        return res.json({ success: true, location: result });
+
+        let clientIp =
+            ((req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()) ||
+            req.socket?.remoteAddress ||
+            '';
+        if (clientIp.startsWith('::ffff:')) {
+            clientIp = clientIp.replace('::ffff:', '');
+        }
+        if (clientIp === '::1' || clientIp === '127.0.0.1' || clientIp === 'localhost') {
+            clientIp = '';
+        }
+
+        const result = await LocationService.resolveFromIp(clientIp);
+        return res.json({ success: true, location: result, method: 'ip' });
     } catch (e: any) {
         return res.status(500).json({ success: false, message: e.message });
     }

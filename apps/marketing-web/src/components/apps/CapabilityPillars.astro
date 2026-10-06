@@ -25,7 +25,7 @@ const {
 } = Astro.props;
 ---
 
-<section class="py-20 md:py-28 bg-slate-50/60 dark:bg-slate-950/40 border-y border-slate-200/80 dark:border-slate-800">
+<section class="py-20 md:py-28 bg-slate-50/60 dark:bg-black/40 border-y border-slate-200/80 dark:border-white/10">
   <div class="container mx-auto px-4 max-w-6xl">
     
     <SectionHeader 
@@ -47,7 +47,7 @@ const {
                 )}
               </div>
               {pillar.badge && (
-                <span class="text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-full">
+                <span class="text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 px-2.5 py-1 rounded-full">
                   {pillar.badge}
                 </span>
               )}
@@ -63,7 +63,7 @@ const {
           </div>
 
           {pillar.bullets && pillar.bullets.length > 0 && (
-            <ul class="space-y-2.5 border-t border-slate-100 dark:border-slate-800 pt-5 text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium">
+            <ul class="space-y-2.5 border-t border-slate-100 dark:border-white/10 pt-5 text-xs sm:text-sm text-slate-600 dark:text-zinc-300 font-medium">
               {pillar.bullets.map((bullet) => (
                 <li class="flex items-start gap-2">
                   <svg class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>

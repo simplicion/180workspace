@@ -100,7 +100,7 @@ const resources = [
 ];
 ---
 
-<header class="sticky top-0 z-50 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/85 dark:bg-slate-950/85 backdrop-blur-xl supports-[backdrop-filter]:bg-white/70 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] transition-all">
+<header class="sticky top-0 z-50 w-full border-b border-slate-200/80 dark:border-white/10 bg-white/85 dark:bg-black/85 backdrop-blur-xl supports-[backdrop-filter]:bg-white/70 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] transition-all">
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl flex h-16 items-center justify-between gap-4">
     
     {/* Brand Logo */}
@@ -121,7 +121,7 @@ const resources = [
           <button 
             type="button" 
             aria-expanded="false" 
-            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap cursor-pointer"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-zinc-900/60 transition-colors whitespace-nowrap cursor-pointer"
           >
             <span>Apps</span>
             <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 group-hover:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
@@ -129,18 +129,18 @@ const resources = [
 
           {/* Mega-Menu Dropdown Panel */}
           <div class="absolute left-0 top-full pt-2 w-[840px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
-            <div class="bg-white/95 dark:bg-slate-900/95 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/15 backdrop-blur-2xl">
+            <div class="bg-white/95 dark:bg-zinc-900/95 rounded-2xl p-6 border border-slate-200 dark:border-white/10 shadow-2xl shadow-black/20 backdrop-blur-2xl">
               <div class="grid grid-cols-3 gap-6">
                 {appCategories.map((col) => (
                   <div>
-                    <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 px-2">
+                    <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-3 px-2">
                       {col.category}
                     </h4>
                     <div class="space-y-1">
                       {col.apps.map((app) => (
                         <a 
                           href={`/apps/${app.slug}`} 
-                          class="flex items-start gap-2.5 p-2 rounded-xl hover:bg-indigo-50/50 dark:hover:bg-slate-800/80 transition-colors group/item"
+                          class="flex items-start gap-2.5 p-2 rounded-xl hover:bg-indigo-50/50 dark:hover:bg-zinc-800/80 transition-colors group/item"
                         >
                           <div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0 mt-0.5 text-indigo-600 dark:text-indigo-400 group-hover/item:bg-indigo-600 group-hover/item:text-white transition-colors">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
@@ -156,7 +156,7 @@ const resources = [
                                 </span>
                               )}
                             </div>
-                            <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                            <p class="text-[11px] text-slate-500 dark:text-zinc-400 line-clamp-1">
                               {app.desc}
                             </p>
                           </div>
@@ -168,8 +168,8 @@ const resources = [
               </div>
 
               {/* Mega-Menu Bottom Bar */}
-              <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between px-2 text-xs">
-                <span class="text-slate-500 font-medium">All 8 applications operate on one unified Work Graph database</span>
+              <div class="mt-4 pt-4 border-t border-slate-100 dark:border-white/10 flex items-center justify-between px-2 text-xs">
+                <span class="text-slate-500 dark:text-zinc-400 font-medium">All 8 applications operate on one unified Work Graph database</span>
                 <a href="/apps" class="font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors">
                   <span>Explore All 8 Apps Directory</span>
                   <span>→</span>
@@ -184,7 +184,7 @@ const resources = [
           <button 
             type="button" 
             aria-expanded="false" 
-            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap cursor-pointer"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-zinc-900/60 transition-colors whitespace-nowrap cursor-pointer"
           >
             <span>Products</span>
             <span class="text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
@@ -195,12 +195,12 @@ const resources = [
 
           {/* Products Mega-Dropdown Panel */}
           <div class="absolute left-0 top-full pt-2 w-[540px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
-            <div class="bg-white/95 dark:bg-slate-900/95 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/15 backdrop-blur-2xl">
+            <div class="bg-white/95 dark:bg-zinc-900/95 rounded-2xl p-5 border border-slate-200 dark:border-white/10 shadow-2xl shadow-black/20 backdrop-blur-2xl">
               <div class="mb-3 px-2 flex items-center justify-between">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
                   180 Sovereign Platforms
                 </span>
-                <span class="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                <span class="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
                   Autonomous Web & Cloud
                 </span>
               </div>
@@ -211,9 +211,9 @@ const resources = [
                     href={prod.href}
                     target={prod.isExternal ? "_blank" : undefined}
                     rel={prod.isExternal ? "noopener noreferrer" : undefined}
-                    class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all group/prod border border-transparent hover:border-slate-200/60 dark:hover:border-slate-700/60"
+                    class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition-all group/prod border border-transparent hover:border-slate-200/60 dark:hover:border-zinc-700/60"
                   >
-                    <div class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 mt-0.5 text-slate-700 dark:text-slate-300 group-hover/prod:bg-indigo-600 group-hover/prod:text-white transition-colors">
+                    <div class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center shrink-0 mt-0.5 text-slate-700 dark:text-zinc-300 group-hover/prod:bg-indigo-600 group-hover/prod:text-white transition-colors">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" set:html={prod.iconSvg}></svg>
                     </div>
                     <div class="flex-1 min-w-0">
@@ -225,7 +225,7 @@ const resources = [
                           {prod.badge}
                         </span>
                       </div>
-                      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                      <p class="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 line-clamp-1">
                         {prod.desc}
                       </p>
                     </div>
@@ -234,8 +234,8 @@ const resources = [
               </div>
 
               {/* Bottom Developer Banner */}
-              <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between px-2 text-xs">
-                <span class="text-slate-500 font-medium">Looking for APIs & SDKs?</span>
+              <div class="mt-3 pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between px-2 text-xs">
+                <span class="text-slate-500 dark:text-zinc-400 font-medium">Looking for APIs & SDKs?</span>
                 <a 
                   href="https://developers.180workspace.com" 
                   target="_blank" 
@@ -251,13 +251,13 @@ const resources = [
         </div>
 
         {/* 3. Pricing */}
-        <a href="/pricing" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap">
+        <a href="/pricing" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-zinc-900/60 transition-colors whitespace-nowrap">
           Pricing
         </a>
 
 
         {/* 5. Free Tools */}
-        <a href="/tools" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap">
+        <a href="/tools" class="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-zinc-900/60 transition-colors whitespace-nowrap">
           Free Tools
         </a>
 
@@ -266,7 +266,7 @@ const resources = [
           <button 
             type="button" 
             aria-expanded="false" 
-            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap cursor-pointer"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/60 dark:hover:bg-zinc-900/60 transition-colors whitespace-nowrap cursor-pointer"
           >
             <span>Resources</span>
             <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 group-hover:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
@@ -274,25 +274,25 @@ const resources = [
 
           {/* Resources Dropdown Menu */}
           <div class="absolute left-0 top-full pt-2 w-72 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
-            <div class="bg-white/95 dark:bg-slate-900/95 rounded-2xl p-3 border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-900/10 backdrop-blur-xl space-y-1">
+            <div class="bg-white/95 dark:bg-zinc-900/95 rounded-2xl p-3 border border-slate-200 dark:border-white/10 shadow-xl shadow-black/20 backdrop-blur-xl space-y-1">
               {resources.map((res) => (
                 <a 
                   href={res.href} 
                   target={res.isExternal ? "_blank" : undefined}
                   rel={res.isExternal ? "noopener noreferrer" : undefined}
-                  class="block p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group/res"
+                  class="block p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition-colors group/res"
                 >
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-bold text-slate-900 dark:text-white group-hover/res:text-indigo-600 dark:group-hover/res:text-indigo-400 transition-colors">
                       {res.title}
                     </span>
                     {res.badge && (
-                      <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
                         {res.badge}
                       </span>
                     )}
                   </div>
-                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                  <p class="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 line-clamp-1">
                     {res.desc}
                   </p>
                 </a>
@@ -308,14 +308,14 @@ const resources = [
     <div class="flex items-center gap-2 sm:gap-3 shrink-0">
       <a 
         href={`${saasUrl}/login`} 
-        class="hidden md:inline-flex text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-900/60 transition-colors whitespace-nowrap"
+        class="hidden md:inline-flex text-sm font-bold text-slate-700 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-xl hover:bg-slate-100/60 dark:hover:bg-zinc-900/60 transition-colors whitespace-nowrap min-h-[44px] items-center"
       >
         Sign In
       </a>
       
       <a 
         href={`${saasUrl}/signup?plan=kickstart`} 
-        class="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap shrink-0 group cursor-pointer"
+        class="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap shrink-0 group cursor-pointer min-h-[44px]"
       >
         <span>Start with $10 Plan</span>
         <svg class="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
@@ -326,7 +326,7 @@ const resources = [
         type="button"
         id="mobile-menu-btn"
         aria-label="Toggle mobile menu"
-        class="lg:hidden p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        class="lg:hidden p-2.5 min-h-[44px] min-w-[44px] rounded-xl text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center cursor-pointer"
       >
         <svg id="hamburger-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
         <svg id="close-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -336,50 +336,50 @@ const resources = [
   </div>
 
   {/* Mobile Navigation Drawer */}
-  <div id="mobile-drawer" class="lg:hidden hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl px-4 py-6 space-y-4">
-    <div class="grid grid-cols-2 gap-2 pb-4 border-b border-slate-100 dark:border-slate-800/80">
-      <a href="/180-core" class="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-xs font-bold text-blue-700 dark:text-blue-300 text-center col-span-2 flex items-center justify-center gap-1.5">
+  <div id="mobile-drawer" class="lg:hidden hidden border-t border-slate-200 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-2xl px-4 py-6 space-y-4">
+    <div class="grid grid-cols-2 gap-2 pb-4 border-b border-slate-100 dark:border-white/10">
+      <a href="/180-core" class="p-2.5 rounded-xl bg-blue-50 dark:bg-zinc-900 border border-blue-200/60 dark:border-white/10 text-xs font-bold text-blue-700 dark:text-blue-400 text-center col-span-2 flex items-center justify-center gap-1.5 min-h-[44px]">
         <span>180 Core (Identity & Pay)</span>
         <span class="text-[9px] text-blue-500 font-mono">/180-core</span>
       </a>
-      <a href="/tools" class="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 text-center col-span-2">
+      <a href="/tools" class="p-2.5 rounded-xl bg-indigo-50 dark:bg-zinc-900 border border-indigo-200/60 dark:border-white/10 text-xs font-bold text-indigo-700 dark:text-indigo-400 text-center col-span-2 min-h-[44px] flex items-center justify-center">
         Free Tools Suite
       </a>
-      <a href="/180-traffic-director" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/180-traffic-director" class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900 text-xs font-bold text-slate-800 dark:text-zinc-200 text-center min-h-[44px] flex items-center justify-center">
         180 Traffic Director
       </a>
-      <a href="/180-social-studio" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/180-social-studio" class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900 text-xs font-bold text-slate-800 dark:text-zinc-200 text-center min-h-[44px] flex items-center justify-center">
         180 Social Studio
       </a>
-      <a href="https://developers.180workspace.com" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center flex items-center justify-center gap-1">
+      <a href="https://developers.180workspace.com" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900 text-xs font-bold text-slate-800 dark:text-zinc-200 text-center flex items-center justify-center gap-1 min-h-[44px]">
         <span>Developer Console</span>
         <span class="text-[9px] text-indigo-500">↗</span>
       </a>
-      <a href="https://docs.180workspace.com" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center flex items-center justify-center gap-1">
+      <a href="https://docs.180workspace.com" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900 text-xs font-bold text-slate-800 dark:text-zinc-200 text-center flex items-center justify-center gap-1 min-h-[44px]">
         <span>Docs Portal</span>
         <span class="text-[9px] text-indigo-500">↗</span>
       </a>
-      <a href="/blog" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/blog" class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900 text-xs font-bold text-slate-800 dark:text-zinc-200 text-center min-h-[44px] flex items-center justify-center">
         Blog & News
       </a>
-      <a href="/whitepapers" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/whitepapers" class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900 text-xs font-bold text-slate-800 dark:text-zinc-200 text-center min-h-[44px] flex items-center justify-center">
         White Papers
       </a>
-      <a href="/case-studies" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/case-studies" class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900 text-xs font-bold text-slate-800 dark:text-zinc-200 text-center min-h-[44px] flex items-center justify-center">
         Case Studies
       </a>
-      <a href="/apps" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/apps" class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900 text-xs font-bold text-slate-800 dark:text-zinc-200 text-center min-h-[44px] flex items-center justify-center">
         All 8 Apps
       </a>
-      <a href="/pricing" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 text-center">
+      <a href="/pricing" class="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-900 text-xs font-bold text-slate-800 dark:text-zinc-200 text-center min-h-[44px] flex items-center justify-center">
         Pricing Plans
       </a>
     </div>
     <div class="flex flex-col gap-2 pt-1">
-      <a href={`${saasUrl}/login`} class="btn-secondary w-full text-center py-2.5 text-xs font-bold">
+      <a href={`${saasUrl}/login`} class="btn-secondary w-full text-center py-2.5 text-xs font-bold min-h-[44px] flex items-center justify-center">
         Sign In
       </a>
-      <a href={`${saasUrl}/signup?plan=kickstart`} class="btn-primary w-full text-center py-2.5 text-xs font-bold flex items-center justify-center gap-2">
+      <a href={`${saasUrl}/signup?plan=kickstart`} class="btn-primary w-full text-center py-2.5 text-xs font-bold flex items-center justify-center gap-2 min-h-[44px]">
         <span>Start with $10 Plan</span>
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
       </a>

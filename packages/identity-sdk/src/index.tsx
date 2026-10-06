@@ -494,14 +494,14 @@ function openInBottomSheet<T>(opts: BottomSheetRunnerOptions<T>): Promise<T> {
       transition: opacity 0.25s ease;
     `;
     skeleton.innerHTML = `
-      <div style="width: 24px; height: 24px; border: 2.5px solid rgba(255, 255, 255, 0.15); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+      <div style="width: 24px; height: 24px; border: 2.5px solid rgba(255, 255, 255, 0.15); border-top-color: #f4f4f5; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
       <span>Connecting to Sovereign Protocol…</span>
     `;
 
     const iframe = document.createElement('iframe');
     iframe.src = opts.url;
     iframe.title = opts.title;
-    iframe.allow = 'clipboard-write; payment';
+    iframe.allow = 'clipboard-write; payment; geolocation';
     iframe.style.cssText = `
       width: 100%;
       height: 100%;
@@ -1305,10 +1305,24 @@ export const OneEightyPay = {
   },
 
   /**
+   * Opens 180 Profile Sovereign Checkout in a centered desktop popup window
+   */
+  openPopup(options: CheckoutOptions): Promise<CheckoutResponse> {
+    return OneEightyPay.checkout({ ...options, uxMode: 'popup' });
+  },
+
+  /**
    * Opens 180 Profile Sovereign Checkout directly in an in-DOM slide-up bottom sheet
    */
   openBottomSheet(options: CheckoutOptions): Promise<CheckoutResponse> {
     return OneEightyPay.checkout({ ...options, uxMode: 'bottom_sheet' });
+  },
+
+  /**
+   * Redirects user directly to 180 Pay Sovereign Checkout in full-page mode
+   */
+  openFullPage(options: CheckoutOptions): Promise<CheckoutResponse> {
+    return OneEightyPay.checkout({ ...options, uxMode: 'full_page' });
   },
 
   /**

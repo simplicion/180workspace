@@ -79,6 +79,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final refreshToken = data['refresh_token'] as String?;
         await ref.read(tokenStoreProvider).saveSession(accessToken: accessToken, refreshToken: refreshToken);
         await ref.read(sessionProvider.notifier).retryRestore();
+        final session = ref.read(sessionProvider).valueOrNull;
+        if (session == null && mounted) {
+          final err = ref.read(sessionProvider).error;
+          setState(() => _error = err != null ? errorText(err) : 'Authentication could not establish a workspace session. Please try again.');
+        }
       }
     } catch (e) {
       if (mounted) setState(() => _error = errorText(e));
@@ -186,17 +191,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppTheme.surfaceElevated,
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: const Color(0xFF2563EB).withValues(alpha: 0.4),
+                                color: AppTheme.border,
                                 width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 6),
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
@@ -211,9 +216,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       height: 42,
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFF8FAFC),
+                                        color: AppTheme.surface,
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                        border: Border.all(color: AppTheme.border),
                                       ),
                                       child: Image.asset(
                                         'assets/logo/brand_favicon.png',
@@ -229,7 +234,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF10B981),
                                           shape: BoxShape.circle,
-                                          border: Border.all(color: Colors.white, width: 2),
+                                          border: Border.all(color: AppTheme.surfaceElevated, width: 2),
                                         ),
                                       ),
                                     ),
@@ -245,10 +250,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     children: [
                                       Text(
                                         'Continue with 180 Profile',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w700,
-                                          color: Color(0xFF0F172A),
+                                          color: AppTheme.textPrimary,
                                           letterSpacing: -0.2,
                                         ),
                                       ),
@@ -267,17 +272,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                                 // Status Indicator or Chevron
                                 _busy
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 18,
                                         height: 18,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          color: Color(0xFF2563EB),
+                                          color: AppTheme.textPrimary,
                                         ),
                                       )
-                                    : const Icon(
+                                    : Icon(
                                         Icons.chevron_right_rounded,
-                                        color: Color(0xFF94A3B8),
+                                        color: AppTheme.textMuted,
                                         size: 22,
                                       ),
                               ],
@@ -291,13 +296,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Center(
                         child: TextButton.icon(
                           onPressed: _busy ? null : () => _loginWith180Identity(fullScreen: true),
-                          icon: const Icon(Icons.open_in_full_rounded, size: 13, color: Color(0xFF94A3B8)),
-                          label: const Text(
+                          icon: Icon(Icons.open_in_full_rounded, size: 13, color: AppTheme.textMuted),
+                          label: Text(
                             'Open in Full Page Window',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
-                              color: Color(0xFF94A3B8),
+                              color: AppTheme.textMuted,
                             ),
                           ),
                         ),

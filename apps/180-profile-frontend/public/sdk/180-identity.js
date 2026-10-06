@@ -166,7 +166,7 @@
       var iframe = document.createElement('iframe');
       iframe.src = opts.url;
       iframe.title = opts.title || '180 Identity';
-      iframe.allow = 'clipboard-write; payment';
+      iframe.allow = 'clipboard-write; payment; geolocation';
       iframe.style.cssText = 'width: 100%; height: 100%; border: none; background: transparent;';
 
       iframeWrapper.appendChild(iframe);

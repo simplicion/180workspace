@@ -22,6 +22,10 @@ class OneEightySsoService {
   static const _kRefreshToken = '180_refresh_token';
   static const _kIdToken = '180_id_token';
 
+  // In-memory fallbacks to prevent Web IndexedDB/localStorage race conditions
+  static String? _ephemeralCodeVerifier;
+  static String? _ephemeralOAuthState;
+
   OneEightySsoService({FlutterSecureStorage? storage, Dio? dio})
       : _storage = storage ?? FlutterSecureStorage(),
         _dio = dio ?? Dio();
@@ -48,6 +52,9 @@ class OneEightySsoService {
     final challenge = _base64UrlNoPadding(digest.bytes);
     final state = _randomString(32);
 
+    _ephemeralCodeVerifier = verifier;
+    _ephemeralOAuthState = state;
+
     await _storage.write(key: _kCodeVerifier, value: verifier);
     await _storage.write(key: _kOAuthState, value: state);
 
@@ -56,7 +63,7 @@ class OneEightySsoService {
         'client_id': AppConfig.identityClientId,
         'redirect_uri': AppConfig.identityRedirectUri,
         'response_type': 'code',
-        'scope': 'openid identity:read identity:email messages:send',
+        'scope': 'openid identity:read identity:email',
         'state': state,
         'code_challenge': challenge,
         'code_challenge_method': 'S256',
@@ -93,7 +100,7 @@ class OneEightySsoService {
         ..style.zIndex = '999999'
         ..style.display = 'flex'
         ..style.flexDirection = 'column'
-        ..style.justifyContent = 'flex-end'
+        ..style.justifyContent = fullScreen ? 'center' : 'flex-end'
         ..style.alignItems = 'center'
         ..style.fontFamily = 'system-ui, -apple-system, sans-serif';
 
@@ -107,25 +114,30 @@ class OneEightySsoService {
         ..style.setProperty('backdrop-filter', 'blur(8px)')
         ..style.setProperty('-webkit-backdrop-filter', 'blur(8px)')
         ..style.animation = 'one-eighty-fade-in 0.25s ease-out forwards'
-        ..style.cursor = 'pointer';
+        ..style.cursor = 'pointer'
+        // CRITICAL FIX: Disable pointer-events initially so the tap/click that opened
+        // this modal in Flutter never bleeds through to dismiss the backdrop immediately.
+        ..style.pointerEvents = 'none';
 
       final sheet = html.DivElement()
         ..style.position = 'relative'
         ..style.zIndex = '1000000'
         ..style.width = '100%'
-        ..style.maxWidth = isMobile ? '100%' : '480px'
-        ..style.height = isMobile ? '90vh' : '720px'
-        ..style.maxHeight = '94vh'
-        ..style.margin = isMobile ? '0' : '0 0 24px 0'
+        ..style.maxWidth = fullScreen ? '100%' : (isMobile ? '100%' : '480px')
+        ..style.height = fullScreen ? '100vh' : (isMobile ? '90vh' : '720px')
+        ..style.maxHeight = fullScreen ? '100vh' : '94vh'
+        ..style.margin = fullScreen ? '0' : (isMobile ? '0' : '0 0 24px 0')
         ..style.background = '#09090b'
         ..style.color = '#fafafa'
-        ..style.border = '1px solid rgba(255, 255, 255, 0.12)'
-        ..style.borderRadius = isMobile ? '24px 24px 0 0' : '24px'
+        ..style.border = fullScreen ? 'none' : '1px solid rgba(255, 255, 255, 0.12)'
+        ..style.borderRadius = fullScreen ? '0' : (isMobile ? '24px 24px 0 0' : '24px')
         ..style.boxShadow = '0 -12px 40px rgba(0, 0, 0, 0.65), 0 20px 48px rgba(0, 0, 0, 0.85)'
         ..style.display = 'flex'
         ..style.flexDirection = 'column'
         ..style.overflow = 'hidden'
-        ..style.animation = 'one-eighty-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+        ..style.animation = fullScreen
+            ? 'one-eighty-fade-in 0.25s ease-out forwards'
+            : 'one-eighty-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards';
 
       final header = html.DivElement()
         ..style.flexShrink = '0'
@@ -137,13 +149,15 @@ class OneEightySsoService {
         ..style.background = '#09090b'
         ..style.position = 'relative';
 
-      final grabBar = html.DivElement()
-        ..style.width = '44px'
-        ..style.height = '4px'
-        ..style.borderRadius = '9999px'
-        ..style.background = 'rgba(255, 255, 255, 0.22)'
-        ..style.marginBottom = '8px';
-      header.append(grabBar);
+      if (!fullScreen) {
+        final grabBar = html.DivElement()
+          ..style.width = '44px'
+          ..style.height = '4px'
+          ..style.borderRadius = '9999px'
+          ..style.background = 'rgba(255, 255, 255, 0.22)'
+          ..style.marginBottom = '8px';
+        header.append(grabBar);
+      }
 
       final bar = html.DivElement()
         ..style.width = '100%'
@@ -197,18 +211,45 @@ class OneEightySsoService {
       root.append(sheet);
       html.document.body?.append(root);
 
+      bool isClosed = false;
       void closeSheet() {
-        sheet.style.animation = 'one-eighty-slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+        if (isClosed) return;
+        isClosed = true;
+        sheet.style.animation = fullScreen
+            ? 'one-eighty-fade-out 0.2s ease-in forwards'
+            : 'one-eighty-slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards';
         backdrop.style.animation = 'one-eighty-fade-out 0.25s ease-in forwards';
         Future.delayed(const Duration(milliseconds: 250), () {
           root.remove();
         });
       }
 
-      backdrop.onClick.listen((_) {
-        closeSheet();
-        if (!completer.isCompleted) completer.complete(null);
+      // Record open timestamp to ignore any lingering synthetic touch/mouse click
+      final openedAt = DateTime.now();
+
+      // Enable backdrop interaction only after slide-up animation and click event queues settle (400ms)
+      Timer(const Duration(milliseconds: 400), () {
+        if (!isClosed) {
+          backdrop.style.pointerEvents = 'auto';
+        }
       });
+
+      backdrop.onClick.listen((event) {
+        if (DateTime.now().difference(openedAt).inMilliseconds < 450) {
+          // Ignore opening click or touch bleed-through
+          return;
+        }
+        if (event.target == backdrop) {
+          closeSheet();
+          if (!completer.isCompleted) completer.complete(null);
+        }
+      });
+
+      // Stop propagation inside sheet so internal clicks/drags never bubble up to backdrop
+      sheet.onClick.listen((e) => e.stopPropagation());
+      sheet.onMouseDown.listen((e) => e.stopPropagation());
+      sheet.onTouchStart.listen((e) => e.stopPropagation());
+
       closeBtn.onClick.listen((_) {
         closeSheet();
         if (!completer.isCompleted) completer.complete(null);
@@ -216,26 +257,53 @@ class OneEightySsoService {
 
       late StreamSubscription msgSub;
       msgSub = html.window.onMessage.listen((event) async {
-        final data = event.data;
+        dynamic data = event.data;
+        if (data is String) {
+          try {
+            data = jsonDecode(data);
+          } catch (_) {}
+        }
         if (data is Map) {
-          if (data['type'] == '180_IDENTITY_CLOSE') {
+          final type = data['type'];
+          if (type == '180_IDENTITY_CLOSE') {
             closeSheet();
             msgSub.cancel();
             if (!completer.isCompleted) completer.complete(null);
-          } else if (data['type'] == '180_IDENTITY_SUCCESS' || data['type'] == '180_AUTH_SUCCESS') {
+          } else if (type == '180_IDENTITY_ERROR' || type == '180_AUTH_ERROR') {
+            closeSheet();
+            msgSub.cancel();
+            final errorDesc = data['error_description'] ?? data['error'] ?? data['message'] ?? 'Identity authentication failed';
+            if (!completer.isCompleted) completer.completeError(Exception(errorDesc));
+          } else if (type == '180_IDENTITY_SUCCESS' || type == '180_AUTH_SUCCESS') {
             closeSheet();
             msgSub.cancel();
             final returnedCode = data['code'];
             final returnedState = data['state'];
-            final directToken = data['token'];
-            if (returnedCode != null && returnedState != null) {
-              final callbackUri = Uri.parse('${AppConfig.identityRedirectUri}?code=$returnedCode&state=$returnedState');
-              final res = await handleCallbackUri(callbackUri);
-              if (!completer.isCompleted) completer.complete(res);
-            } else if (directToken != null) {
-              final tokenStr = directToken.toString();
-              await _storage.write(key: _kAccessToken, value: tokenStr);
-              if (!completer.isCompleted) completer.complete({'access_token': tokenStr, 'user': data['user']});
+            final directToken = data['token'] ?? data['accessToken'] ?? data['authToken'];
+
+            try {
+              if (returnedCode != null && returnedState != null) {
+                final directParam = directToken != null ? '&direct_token=$directToken' : '';
+                final callbackUri = Uri.parse('${AppConfig.identityRedirectUri}?code=$returnedCode&state=$returnedState$directParam');
+                final res = await handleCallbackUri(callbackUri);
+                if (!completer.isCompleted) completer.complete(res);
+              } else if (directToken != null) {
+                final tokenStr = directToken.toString();
+                await _storage.write(key: _kAccessToken, value: tokenStr);
+                if (!completer.isCompleted) completer.complete({'access_token': tokenStr, 'user': data['user']});
+              } else {
+                if (!completer.isCompleted) completer.complete(null);
+              }
+            } catch (e) {
+              debugPrint('[OneEightySsoService] Code exchange warning: $e');
+              // Graceful fallback to directToken from postMessage if PKCE code exchange encountered network/format issue
+              if (directToken != null) {
+                final tokenStr = directToken.toString();
+                await _storage.write(key: _kAccessToken, value: tokenStr);
+                if (!completer.isCompleted) completer.complete({'access_token': tokenStr, 'user': data['user']});
+              } else {
+                if (!completer.isCompleted) completer.completeError(e);
+              }
             }
           }
         }
@@ -306,12 +374,12 @@ class OneEightySsoService {
       throw Exception('Authorization code missing in OAuth callback.');
     }
 
-    final savedState = await _storage.read(key: _kOAuthState);
+    final savedState = (await _storage.read(key: _kOAuthState)) ?? _ephemeralOAuthState;
     if (savedState != null && state != null && savedState != state) {
       throw Exception('Invalid OAuth state parameter: CSRF validation failed.');
     }
 
-    final codeVerifier = await _storage.read(key: _kCodeVerifier);
+    final codeVerifier = (await _storage.read(key: _kCodeVerifier)) ?? _ephemeralCodeVerifier;
     if (codeVerifier == null || codeVerifier.isEmpty) {
       throw Exception('PKCE code verifier missing.');
     }

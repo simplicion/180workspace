@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform, kDebugMode, kIsWeb;
 
 /// Build-time configuration. Nothing in here is a secret.
 ///
@@ -6,6 +7,13 @@ import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 /// `flutter run --dart-define=API_BASE_URL=http://localhost:4002`.
 class AppConfig {
   AppConfig._();
+
+  static String get _localHost {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return '10.0.2.2';
+    }
+    return 'localhost';
+  }
 
   /// Origin of the 180 Workspace backend (no trailing slash, no `/api`).
   static String get apiBaseUrl {
@@ -18,7 +26,7 @@ class AppConfig {
       }
     }
     if (kDebugMode) {
-      return 'http://localhost:4002';
+      return 'http://$_localHost:4002';
     }
     return 'https://api.180workspace.com';
   }
@@ -34,7 +42,7 @@ class AppConfig {
       }
     }
     if (kDebugMode) {
-      return 'http://localhost:3002';
+      return 'http://$_localHost:3002';
     }
     return 'https://app.180workspace.com';
   }
@@ -69,7 +77,7 @@ class AppConfig {
       }
     }
     if (kDebugMode) {
-      return 'http://localhost:4003';
+      return 'http://$_localHost:4003';
     }
     return 'https://services.180workspace.com';
   }
@@ -85,7 +93,7 @@ class AppConfig {
       }
     }
     if (kDebugMode) {
-      return 'http://localhost:3009';
+      return 'http://$_localHost:3009';
     }
     return 'https://profile.180workspace.com';
   }

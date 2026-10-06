@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -27,7 +27,7 @@ class IdentityBottomSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.72),
+      barrierColor: Colors.black.withValues(alpha: 0.76),
       enableDrag: !fullScreen,
       builder: (ctx) => IdentityBottomSheet(
         initialUrl: initialUrl,
@@ -47,6 +47,7 @@ class _IdentityBottomSheetState extends State<IdentityBottomSheet> {
   double _progress = 0.0;
   String? _loadError;
   bool _hasHandledCallback = false;
+  bool _hasTriedHostFallback = false;
 
   bool _isCallbackUri(Uri uri) {
     return uri.scheme == 'workspace180' ||
@@ -77,7 +78,7 @@ class _IdentityBottomSheetState extends State<IdentityBottomSheet> {
     if (!kIsWeb) {
       _controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(const Color(0xFF0F172A))
+        ..setBackgroundColor(const Color(0xFF09090B))
         ..setUserAgent(
           'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
         )
@@ -208,6 +209,24 @@ class _IdentityBottomSheetState extends State<IdentityBottomSheet> {
                 return;
               }
 
+              // Auto-fallback between localhost and 10.0.2.2 on Android
+              if (!kIsWeb &&
+                  defaultTargetPlatform == TargetPlatform.android &&
+                  failingUrl != null &&
+                  !_hasTriedHostFallback) {
+                if (failingUrl.contains('localhost')) {
+                  _hasTriedHostFallback = true;
+                  final fallbackUrl = failingUrl.replaceFirst('localhost', '10.0.2.2');
+                  _controller.loadRequest(Uri.parse(fallbackUrl));
+                  return;
+                } else if (failingUrl.contains('10.0.2.2')) {
+                  _hasTriedHostFallback = true;
+                  final fallbackUrl = failingUrl.replaceFirst('10.0.2.2', 'localhost');
+                  _controller.loadRequest(Uri.parse(fallbackUrl));
+                  return;
+                }
+              }
+
               if (mounted) {
                 setState(() {
                   _loadError = error.description;
@@ -254,164 +273,200 @@ class _IdentityBottomSheetState extends State<IdentityBottomSheet> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOutCubic,
-      height: targetHeight,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: _isFullScreen
-            ? BorderRadius.zero
-            : const BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 24,
-            spreadRadius: 4,
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: _isFullScreen,
-        bottom: true,
-        child: Column(
-          children: [
-            // Top Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: const BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Color(0xFF1E293B), width: 1),
+        curve: Curves.easeOutCubic,
+        height: targetHeight,
+        decoration: BoxDecoration(
+          color: const Color(0xFF09090B),
+          borderRadius: _isFullScreen
+              ? BorderRadius.zero
+              : const BorderRadius.vertical(top: Radius.circular(20)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.65),
+              blurRadius: 28,
+              spreadRadius: 4,
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: _isFullScreen,
+          bottom: true,
+          child: Column(
+            children: [
+              // Drag Handle or Brand Icon
+              if (!_isFullScreen) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF27272A),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  // Drag Handle or Brand Icon
-                  if (!_isFullScreen) ...[
+                const SizedBox(height: 4),
+              ],
+
+              // Top Bar
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Color(0xFF27272A), width: 1),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Brand Icon Box
                     Container(
                       width: 24,
                       height: 24,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
+                        color: const Color(0xFF18181B),
                         borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF27272A), width: 1),
                       ),
                       child: const Center(
                         child: Icon(
                           Icons.lock_outline_rounded,
-                          size: 14,
-                          color: Color(0xFF38BDF8),
+                          size: 13,
+                          color: Color(0xFFFAFAFA),
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
-                  ],
-                  const Expanded(
-                    child: Text(
-                      '180 Sovereign Identity',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFF1F5F9),
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ),
-                  // Fullscreen Toggle
-                  IconButton(
-                    icon: Icon(
-                      _isFullScreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
-                      size: 20,
-                      color: const Color(0xFF94A3B8),
-                    ),
-                    tooltip: _isFullScreen ? 'Collapse to bottom sheet' : 'Expand to full page',
-                    onPressed: _toggleFullScreen,
-                  ),
-                  // Close Button
-                  IconButton(
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      size: 20,
-                      color: Color(0xFF94A3B8),
-                    ),
-                    tooltip: 'Close',
-                    onPressed: () => Navigator.of(context).pop(null),
-                  ),
-                ],
-              ),
-            ),
-
-            // Linear Progress Bar
-            if (_loading)
-              LinearProgressIndicator(
-                value: _progress > 0 ? _progress : null,
-                minHeight: 2,
-                backgroundColor: const Color(0xFF1E293B),
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF38BDF8)),
-              ),
-
-            // Content Area (WebView or Error State)
-            Expanded(
-              child: _loadError != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.wifi_off_rounded,
-                              size: 40,
-                              color: Color(0xFFEF4444),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Unable to load authentication page',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFF8FAFC),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _loadError!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  _loadError = null;
-                                  _loading = true;
-                                });
-                                _controller.reload();
-                              },
-                              icon: const Icon(Icons.refresh_rounded, size: 16),
-                              label: const Text('Retry'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2563EB),
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ],
+                    const Expanded(
+                      child: Text(
+                        '180 Sovereign Identity',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFAFAFA),
+                          letterSpacing: -0.2,
                         ),
                       ),
-                    )
-                  : (kIsWeb
-                      ? const Center(
-                          child: Text(
-                            'Web authentication handled via DOM',
-                            style: TextStyle(color: Colors.white),
+                    ),
+                    // Fullscreen Toggle
+                    IconButton(
+                      icon: Icon(
+                        _isFullScreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                        size: 20,
+                        color: const Color(0xFFA1A1AA),
+                      ),
+                      tooltip: _isFullScreen ? 'Collapse to bottom sheet' : 'Expand to full page',
+                      onPressed: _toggleFullScreen,
+                    ),
+                    // Close Button
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 20,
+                        color: Color(0xFFA1A1AA),
+                      ),
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.of(context).pop(null),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Linear Progress Bar
+              if (_loading)
+                LinearProgressIndicator(
+                  value: _progress > 0 ? _progress : null,
+                  minHeight: 2,
+                  backgroundColor: const Color(0xFF18181B),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFAFAFA)),
+                ),
+
+              // Content Area (WebView or Error State)
+              Expanded(
+                child: _loadError != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 54,
+                                height: 54,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF18181B),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: const Color(0xFF27272A)),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.wifi_off_rounded,
+                                    size: 26,
+                                    color: Color(0xFFEF4444),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Unable to load authentication page',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFFAFAFA),
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _loadError!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFFA1A1AA),
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _loadError = null;
+                                    _loading = true;
+                                    _hasTriedHostFallback = false;
+                                  });
+                                  _controller.reload();
+                                },
+                                icon: const Icon(Icons.refresh_rounded, size: 16),
+                                label: const Text('Retry'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFAFAFA),
+                                  foregroundColor: const Color(0xFF09090B),
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  textStyle: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        )
-                      : WebViewWidget(controller: _controller)),
-            ),
-          ],
+                        ),
+                      )
+                    : (kIsWeb
+                        ? const Center(
+                            child: Text(
+                              'Web authentication handled via DOM',
+                              style: TextStyle(color: Color(0xFFFAFAFA)),
+                            ),
+                          )
+                        : WebViewWidget(controller: _controller)),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

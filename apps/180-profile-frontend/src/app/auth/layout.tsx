@@ -44,7 +44,7 @@ function AuthHeader() {
         }}
       />
       <span className="font-bold text-base tracking-tight text-gray-900">
-        <span className="text-blue-600">180</span>profile
+        <span className="text-black font-extrabold">180</span>profile
       </span>
     </header>
   );
@@ -73,12 +73,12 @@ export default function AuthStandaloneLayout({
 }) {
   return (
     <div className="min-h-screen bg-white flex flex-col justify-between text-slate-900 relative overflow-hidden">
-      {/* Full Page Blue Grid Background */}
+      {/* Full Page Minimal Grid Background */}
       <div className="fixed inset-0 marketing-grid-bg pointer-events-none z-0 opacity-70" />
 
       {/* Subtle ambient gradient orbs */}
-      <div className="fixed top-0 right-0 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="fixed bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed top-0 right-0 w-[400px] h-[400px] bg-zinc-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed bottom-0 left-0 w-[400px] h-[400px] bg-zinc-400/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Watermark logo - only on standalone direct access */}
       <Suspense fallback={null}>

@@ -298,6 +298,7 @@
 
       var iframe = document.createElement('iframe');
       iframe.src = options.url;
+      iframe.allow = 'clipboard-write; payment; geolocation';
       iframe.style.cssText = 'width: 100%; height: 100%; border: none; background: transparent; opacity: 0; transition: opacity 0.2s ease;';
       iframe.onload = function () {
         spinner.style.opacity = '0';

@@ -114,4 +114,5 @@ generated/
 
 
 *.env
+.recovered_chats/
 
