@@ -273,13 +273,13 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
     }
 
     if (typeof window !== 'undefined') {
-      const isLocal =
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1';
+      const isInternalDev =
+        (window as any).__180_INTERNAL_DEV__ === true ||
+        (window as any).__180_ENV__ === 'development';
       const profileBase =
         (window as any).__180_PROFILE_URL ||
         process.env.NEXT_PUBLIC_PROFILE_URL ||
-        (isLocal ? 'http://localhost:3009' : 'https://profile.180workspace.com');
+        (isInternalDev ? 'http://localhost:3009' : 'https://profile.180workspace.com');
       const checkoutUrl = `${profileBase}/checkout?appId=${encodeURIComponent(appId)}&planCode=${encodeURIComponent(plan.planCode || plan.id || '')}&interval=${interval.toUpperCase()}&amount=${plan.monthlyAmount || plan.amount || 0}&currency=${encodeURIComponent(plan.currency || 'USD')}&title=${encodeURIComponent(plan.name)}`;
       window.open(checkoutUrl, '_blank');
     }

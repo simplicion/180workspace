@@ -74,9 +74,17 @@ export interface AdaptiveModalOptions {
   onCancel?: () => void;
 }
 
+export interface OneEightyError extends Error {
+  code?: string;
+  hint?: string;
+}
+
 export interface OneEightyAuthService {
   signIn(options?: AuthSignInOptions): Promise<AuthResult | null>;
   openAuthModal(options?: AuthSignInOptions): Promise<AuthResult | null>;
+  openLoginPopup(options?: AuthSignInOptions): Promise<AuthResult | null>;
+  openBottomSheet(options?: AuthSignInOptions): Promise<AuthResult | null>;
+  openPopup(options?: AuthSignInOptions): Promise<AuthResult | null>;
   signOut(): void;
   getUser(): any | null;
   getAccessToken(): string | null;
@@ -87,6 +95,9 @@ export interface OneEightyAuthService {
 export interface OneEightyPayService {
   checkout(options?: PayCheckoutOptions): Promise<PayResult | null>;
   openCheckoutModal(options?: PayCheckoutOptions): Promise<PayResult | null>;
+  openBottomSheet(options?: PayCheckoutOptions): Promise<PayResult | null>;
+  openPopup(options?: PayCheckoutOptions): Promise<PayResult | null>;
+  openFullPage(options?: PayCheckoutOptions): Promise<PayResult | null>;
   resolveEnvironmentMode(customMode?: EnvironmentMode): 'development' | 'production';
   generateReferenceCode(domainPrefix?: 'AUTH' | 'PAY' | 'CORE'): string;
 }
@@ -118,6 +129,7 @@ declare global {
     OneEighty: OneEightyCoreInstance;
     OneEightyCore: OneEightyCoreInstance;
     OneEightyIdentity: OneEightyAuthService;
+    OneEightyAuth: OneEightyAuthService;
     OneEightyPay: OneEightyPayService;
   }
 }
@@ -125,8 +137,12 @@ declare global {
 export const OneEighty: OneEightyCoreInstance;
 export const OneEightyCore: OneEightyCoreInstance;
 export const OneEightyIdentity: OneEightyAuthService;
+export const OneEightyAuth: OneEightyAuthService;
 export const OneEightyPay: OneEightyPayService;
 export function resolveEnvironmentMode(customMode?: EnvironmentMode): 'development' | 'production';
 export function generateReferenceCode(domainPrefix?: 'AUTH' | 'PAY' | 'CORE'): string;
+export function init180Sdk(options?: { cdnUrl?: string; timeoutMs?: number }): Promise<OneEightyAuthService>;
+export function load180CoreSdk(options?: { cdnUrl?: string; timeoutMs?: number }): Promise<OneEightyAuthService>;
 
 export default OneEighty;
+

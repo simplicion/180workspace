@@ -109,6 +109,9 @@ async function runTestSuite() {
   assert(typeof rawSdk.auth === 'object', 'OneEighty.auth namespace exists');
   assert(typeof rawSdk.auth.signIn === 'function', 'OneEighty.auth.signIn method exists');
   assert(typeof rawSdk.auth.openAuthModal === 'function', 'OneEighty.auth.openAuthModal alias exists');
+  assert(typeof rawSdk.auth.openLoginPopup === 'function', 'OneEighty.auth.openLoginPopup alias exists');
+  assert(typeof rawSdk.auth.openBottomSheet === 'function', 'OneEighty.auth.openBottomSheet alias exists');
+  assert(typeof rawSdk.auth.openPopup === 'function', 'OneEighty.auth.openPopup alias exists');
   assert(typeof rawSdk.auth.signOut === 'function', 'OneEighty.auth.signOut method exists');
   assert(typeof rawSdk.auth.getUser === 'function', 'OneEighty.auth.getUser method exists');
   assert(typeof rawSdk.auth.getAccessToken === 'function', 'OneEighty.auth.getAccessToken method exists');

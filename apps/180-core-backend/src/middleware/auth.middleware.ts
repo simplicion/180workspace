@@ -59,7 +59,7 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
         });
         if (app) {
           const consent = await prisma.oAuthConsent.findUnique({
-            where: { userId_appId: { userId, appId: app.id } },
+            where: { appId_userId: { appId: app.id, userId } },
           });
           if (!consent) {
             return res.status(401).json({
@@ -77,7 +77,7 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
       });
       if (dbToken && !dbToken.revokedAt && dbToken.expiresAt > new Date()) {
         const consent = await prisma.oAuthConsent.findUnique({
-          where: { userId_appId: { userId: dbToken.userId, appId: dbToken.appId } },
+          where: { appId_userId: { appId: dbToken.appId, userId: dbToken.userId } },
         });
         if (consent) {
           userId = dbToken.userId;

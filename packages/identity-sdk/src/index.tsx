@@ -1843,6 +1843,8 @@ export const OneEighty = {
   checkout: (opts?: any) => OneEightyPay.checkout(opts),
 };
 
+export const OneEightyAuth = OneEightyIdentity;
+
 export const OneEightyCore = OneEighty;
 
 export const OneEightyProfile = {
@@ -1850,10 +1852,57 @@ export const OneEightyProfile = {
   pay: OneEightyPay,
 };
 
+/**
+ * Dynamically loads the 180 Core SDK client into the browser.
+ * Safe for Next.js App Router ('use client'), Vite, Remix, Nuxt, and React SPAs.
+ */
+export async function init180Sdk(options?: {
+  cdnUrl?: string;
+  timeoutMs?: number;
+}): Promise<any> {
+  if (typeof window === 'undefined') return null;
+
+  const existing =
+    (window as any).OneEightyIdentity ||
+    (window as any).OneEightyAuth ||
+    (window as any).OneEighty?.auth;
+  if (existing) return existing;
+
+  const cdnUrl =
+    options?.cdnUrl || 'https://auth.180workspace.com/sdk/v1/180-core-sdk.js';
+
+  if (!document.querySelector('script[src*="180-core-sdk.js"]')) {
+    const s = document.createElement('script');
+    s.src = cdnUrl;
+    s.async = true;
+    document.body.appendChild(s);
+  }
+
+  const timeout = Date.now() + (options?.timeoutMs || 4000);
+  while (Date.now() < timeout) {
+    const inst =
+      (window as any).OneEightyIdentity ||
+      (window as any).OneEightyAuth ||
+      (window as any).OneEighty?.auth;
+    if (inst) return inst;
+    await new Promise((r) => setTimeout(r, 60));
+  }
+
+  throw new Error(
+    '[180 Core SDK] 180 Core SDK script failed to load within ' +
+      (options?.timeoutMs || 4000) +
+      'ms from ' +
+      cdnUrl
+  );
+}
+
+export const load180CoreSdk = init180Sdk;
+
 if (typeof window !== 'undefined') {
   (window as any).OneEighty = OneEighty;
   (window as any).OneEightyCore = OneEightyCore;
   (window as any).OneEightyIdentity = OneEightyIdentity;
+  (window as any).OneEightyAuth = OneEightyAuth;
   (window as any).OneEightyPay = OneEightyPay;
   (window as any).OneEightyProfile = OneEightyProfile;
 }

@@ -52,7 +52,7 @@ export async function protect(req: any, res: Response, next: NextFunction) {
 
                 if (dbToken && !dbToken.revokedAt && dbToken.expiresAt > new Date() && dbToken.user) {
                     const consent = await corePrisma.oAuthConsent.findUnique({
-                        where: { userId_appId: { userId: dbToken.userId, appId: dbToken.appId } }
+                        where: { appId_userId: { appId: dbToken.appId, userId: dbToken.userId } }
                     });
                     if (!consent) {
                         return res.status(401).json({ error: 'Access revoked for this application' });
@@ -119,7 +119,7 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                             });
                             if (app) {
                                 const consent = await corePrisma.oAuthConsent.findUnique({
-                                    where: { userId_appId: { userId: targetUserId, appId: app.id } }
+                                    where: { appId_userId: { appId: app.id, userId: targetUserId } }
                                 });
                                 if (!consent) {
                                     return res.status(401).json({ error: 'Access revoked for this application' });

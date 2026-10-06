@@ -1,5 +1,5 @@
 /**
- * 180 Core SDK (v1.0.0)
+ * 180 Core SDK (v1.0.0-sovereign)
  * Universal Zero-Dependency Client Engine for 180 Identity (Authentication/SSO) & 180 Pay (Checkout)
  * 
  * Standards: RFC 6749 (OAuth 2.0), OpenID Connect Core 1.0, RFC 7636 (PKCE S256)
@@ -16,32 +16,45 @@
   var isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
   function resolveEnvironmentMode(customMode) {
-    if (customMode === 'development' || customMode === 'production') {
-      return customMode;
+    if (customMode === 'development' || customMode === 'local_monorepo') {
+      return 'development';
     }
-    if (isBrowser && window.location) {
-      var protocol = window.location.protocol;
-      var host = (window.location.hostname || '').toLowerCase();
-      var isLocalHost =
-        host === 'localhost' ||
-        host === '127.0.0.1' ||
-        host === '0.0.0.0' ||
-        host.endsWith('.local') ||
-        host.endsWith('.test') ||
-        host.endsWith('.internal') ||
-        host.endsWith('.example');
-
-      if (protocol === 'http:' || isLocalHost) {
+    if (customMode === 'production' || customMode === 'cloud') {
+      return 'production';
+    }
+    // Explicit debug flag for internal 180 engineers testing local services
+    if (isBrowser) {
+      if (window.__180_INTERNAL_DEV__ === true || window.__180_ENV__ === 'development') {
         return 'development';
       }
-      if (protocol === 'https:') {
-        return 'production';
+      if (window.location.port === '3009' && window.__180_ENABLE_PORT_AUTODETECT__ === true) {
+        return 'development';
       }
     }
-    if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV) {
-      return process.env.NODE_ENV === 'production' ? 'production' : 'development';
+    if (typeof process !== 'undefined' && process.env && process.env.ONE_EIGHTY_ENV === 'development') {
+      return 'development';
     }
-    return 'development';
+    // Third-party consumer applications testing on localhost, staging, or production default to 180 Sovereign Cloud
+    return 'production';
+  }
+
+  function getDiagnosticHint(code) {
+    switch (code) {
+      case '180_ERR_ORIGIN_NOT_WHITELISTED':
+      case 'unauthorized_client':
+        return 'Origin (' + (isBrowser ? window.location.origin : '') + ') is not whitelisted. Register your domain or localhost in https://developers.180workspace.com under Allowed Origins.';
+      case '180_ERR_INVALID_CLIENT_ID':
+      case 'invalid_client':
+        return 'Client ID is invalid or missing. Verify NEXT_PUBLIC_180_CLIENT_ID or create an app in https://developers.180workspace.com.';
+      case '180_ERR_POPUP_BLOCKED':
+        return 'Browser blocked opening popup. Trigger signIn from a direct user click or use uxMode: "bottom_sheet".';
+      case '180_ERR_NETWORK_DISCONNECTED':
+        return 'Failed to reach 180 Sovereign Cloud. Verify internet connectivity or check https://status.180workspace.com.';
+      case '180_ERR_TIMEOUT':
+        return 'Connection timed out waiting for 180 Identity server to respond.';
+      default:
+        return 'Consult 180 Core documentation at https://docs.180workspace.com for integration guidelines.';
+    }
   }
 
   function generateReferenceCode(domainPrefix) {
@@ -410,7 +423,12 @@
           isResolved = true;
           cleanupListeners();
           closeModal();
-          var err = new Error(data.error_description || data.error || data.message || '180 Operation failed');
+          var errorCode = data.code || data.error_code || (typeof data.error === 'string' ? data.error : '180_ERR_OPERATION_FAILED');
+          var errorDesc = data.error_description || data.error || data.message || '180 Sovereign operation failed';
+          var hint = data.hint || getDiagnosticHint(errorCode);
+          var err = new Error(errorDesc);
+          err.code = errorCode;
+          err.hint = hint;
           if (options.onError) options.onError(err);
           reject(err);
         } else if (closeTypes.indexOf(data.type) !== -1) {
@@ -456,7 +474,7 @@
 
       return openAdaptiveModal({
         url: authUrl,
-        title: '180 Identity',
+        title: '180 Sovereign Identity',
         uxMode: effectiveMode,
         successTypes: ['180_IDENTITY_SUCCESS', '180_AUTH_SUCCESS'],
         closeTypes: ['180_IDENTITY_CLOSE'],
@@ -514,7 +532,7 @@
     generateReferenceCode: generateReferenceCode
   };
 
-  // ─── 180 PAY / CHECKOUT SERVICE ─────────────────────────────────────────────
+  // ─── 180 PAY / SOVEREIGN CHECKOUT SERVICE ─────────────────────────────────
   var OneEightyPay = {
     checkout: function (options) {
       options = options || {};
@@ -560,6 +578,15 @@
     openCheckoutModal: function (options) {
       return OneEightyPay.checkout(options);
     },
+    openPopup: function (options) {
+      return OneEightyPay.checkout(Object.assign({}, options, { uxMode: 'popup' }));
+    },
+    openBottomSheet: function (options) {
+      return OneEightyPay.checkout(Object.assign({}, options, { uxMode: 'bottom_sheet' }));
+    },
+    openFullPage: function (options) {
+      return OneEightyPay.checkout(Object.assign({}, options, { uxMode: 'full_page' }));
+    },
     resolveEnvironmentMode: resolveEnvironmentMode,
     generateReferenceCode: generateReferenceCode
   };
@@ -588,10 +615,19 @@
 
   // Wire auth aliases
   OneEightyAuth.openAuthModal = OneEightyAuth.signIn;
+  OneEightyAuth.openLoginPopup = function (options) {
+    return OneEightyAuth.signIn(Object.assign({}, options, { uxMode: (options && options.uxMode) || 'popup' }));
+  };
+  OneEightyAuth.openBottomSheet = function (options) {
+    return OneEightyAuth.signIn(Object.assign({}, options, { uxMode: 'bottom_sheet' }));
+  };
+  OneEightyAuth.openPopup = function (options) {
+    return OneEightyAuth.signIn(Object.assign({}, options, { uxMode: 'popup' }));
+  };
 
   // ─── UNIFIED ONE-EIGHTY CORE ROOT OBJECT ──────────────────────────────────
   var OneEighty = {
-    version: '1.0.0',
+    version: '1.0.0-sovereign',
     init: function (config) {
       if (config) {
         if (config.clientId) _config.clientId = config.clientId;
@@ -622,7 +658,7 @@
         connectedCallback() {
           var clientId = this.getAttribute('client-id') || _config.clientId || '180-core-client';
           var title = this.getAttribute('title') || 'Continue with 180 Profile';
-          var subtitle = this.getAttribute('subtitle') || 'Universal Auth · WhatsApp OTP · SSO';
+          var subtitle = this.getAttribute('subtitle') || 'Sovereign Auth · WhatsApp OTP · SSO';
           this.innerHTML = [
             '<button type="button" style="display: inline-flex; align-items: center; gap: 12px; padding: 10px 18px; border-radius: 14px; background: #ffffff; color: #09090b; border: 1.5px solid #27272a; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12); transition: all 0.18s ease; outline: none;">',
             '<div style="width: 28px; height: 28px; border-radius: 8px; background: #18181b; border: 1px solid #27272a; display: flex; align-items: center; justify-content: center; position: relative;">',
@@ -689,10 +725,52 @@
     } catch (_) {}
   }
 
+  if (isBrowser) {
+    try {
+      var handleRevoked = function (revokedClientId) {
+        if (!revokedClientId) return;
+        var currentClientId = (window.__180_CLIENT_ID || defaultClientConfig.clientId || '').toLowerCase();
+        var normRevoked = (revokedClientId || '').toLowerCase();
+        var isCurrentApp = normRevoked && (
+          normRevoked === currentClientId ||
+          (normRevoked.indexOf('social') !== -1 && currentClientId.indexOf('social') !== -1) ||
+          (normRevoked.indexOf('developer') !== -1 && currentClientId.indexOf('developer') !== -1) ||
+          (normRevoked.indexOf('workspace') !== -1 && currentClientId.indexOf('workspace') !== -1)
+        );
+        if (isCurrentApp) {
+          OneEightyAuth.signOut();
+          window.dispatchEvent(new Event('180_SIGNOUT'));
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+            window.location.reload();
+          }
+        }
+      };
+
+      if (typeof BroadcastChannel !== 'undefined') {
+        var syncChannel = new BroadcastChannel('180_auth_sync');
+        syncChannel.onmessage = function (ev) {
+          if (ev.data && ev.data.type === 'APP_REVOKED') {
+            handleRevoked(ev.data.clientId);
+          }
+        };
+      }
+
+      window.addEventListener('storage', function (ev) {
+        if (ev.key === '180_revoked_app_event' && ev.newValue) {
+          try {
+            var data = JSON.parse(ev.newValue);
+            handleRevoked(data.clientId);
+          } catch (_) {}
+        }
+      });
+    } catch (_) {}
+  }
+
   // ─── EXPORTS & BACKWARD COMPATIBILITY ─────────────────────────────────────
   global.OneEighty = OneEighty;
   global.OneEightyCore = OneEighty;
   global.OneEightyIdentity = OneEightyAuth;
+  global.OneEightyAuth = OneEightyAuth;
   global.OneEightyPay = OneEightyPay;
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -700,6 +778,7 @@
     module.exports.OneEighty = OneEighty;
     module.exports.OneEightyCore = OneEighty;
     module.exports.OneEightyIdentity = OneEightyAuth;
+    module.exports.OneEightyAuth = OneEightyAuth;
     module.exports.OneEightyPay = OneEightyPay;
   }
 })(typeof window !== 'undefined' ? window : global);

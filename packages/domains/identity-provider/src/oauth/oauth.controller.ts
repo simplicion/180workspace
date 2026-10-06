@@ -780,9 +780,9 @@ export class OAuthController {
                     }
                     const consent = await prisma.oAuthConsent.findUnique({
                         where: {
-                            userId_appId: {
-                                userId: dbToken.userId,
-                                appId: dbToken.appId
+                            appId_userId: {
+                                appId: dbToken.appId,
+                                userId: dbToken.userId
                             }
                         }
                     });
@@ -817,9 +817,9 @@ export class OAuthController {
                             if (app) {
                                 const consent = await prisma.oAuthConsent.findUnique({
                                     where: {
-                                        userId_appId: {
-                                            userId: targetUserId,
-                                            appId: app.id
+                                        appId_userId: {
+                                            appId: app.id,
+                                            userId: targetUserId
                                         }
                                     }
                                 });
@@ -956,9 +956,9 @@ export class OAuthController {
             }
             const consent = await prisma.oAuthConsent.findUnique({
                 where: {
-                    userId_appId: {
-                        userId: dbToken.userId,
-                        appId: dbToken.appId
+                    appId_userId: {
+                        appId: dbToken.appId,
+                        userId: dbToken.userId
                     }
                 }
             });
@@ -987,9 +987,9 @@ export class OAuthController {
                 if (app) {
                     const consent = await prisma.oAuthConsent.findUnique({
                         where: {
-                            userId_appId: {
-                                userId: result.payload.sub,
-                                appId: app.id
+                            appId_userId: {
+                                appId: app.id,
+                                userId: result.payload.sub
                             }
                         }
                     });
