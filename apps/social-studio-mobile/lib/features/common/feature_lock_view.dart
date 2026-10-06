@@ -155,27 +155,36 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Top Brand Icon & Badge
+                // Top Brand Logo Icon & Badge
                 Center(
                   child: Container(
-                    width: 72,
-                    height: 72,
+                    width: 76,
+                    height: 76,
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppTheme.primary, AppTheme.accent],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      color: AppTheme.surfaceElevated,
                       shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppTheme.primary.withValues(alpha: 0.35),
+                        width: 1.5,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primary.withValues(alpha: 0.3),
-                          blurRadius: 20,
+                          color: AppTheme.primary.withValues(alpha: 0.25),
+                          blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.movie_creation_rounded, size: 36, color: Colors.white),
+                    child: Image.asset(
+                      'assets/logo/brand_favicon.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.workspace_premium_rounded,
+                        size: 36,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -580,41 +589,7 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
               },
             ),
           ),
-
-          // Quick select duration chips
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [1, 3, 7, 14, 28].map((days) {
-              final isSelected = _selectedDays == days;
-              final price = _calculateRechargeAmount(days);
-              return ChoiceChip(
-                label: Text('$days d (\$${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)})'),
-                selected: isSelected,
-                onSelected: (_) {
-                  setState(() {
-                    _selectedDays = days;
-                  });
-                },
-                labelStyle: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? Colors.white : AppTheme.textSecondary,
-                ),
-                selectedColor: AppTheme.accent,
-                backgroundColor: AppTheme.surfaceElevated,
-                side: BorderSide(
-                  color: isSelected ? AppTheme.accent : AppTheme.border,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                showCheckmark: false,
-              );
-            }).toList(),
-          ),
-
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Dynamic total amount display box
           Container(
