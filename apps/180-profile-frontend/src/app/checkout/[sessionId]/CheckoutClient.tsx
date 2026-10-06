@@ -727,8 +727,6 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         sessionId && (
           sessionId.startsWith('sess_sandbox_') ||
           sessionId.startsWith('sess_demo_') ||
-          sessionId.startsWith('sess_180pay_') ||
-          sessionId.startsWith('cs_') ||
           sessionId === 'default'
         )
       );
@@ -848,8 +846,6 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         sessionId && (
           sessionId.startsWith('sess_sandbox_') ||
           sessionId.startsWith('sess_demo_') ||
-          sessionId.startsWith('sess_180pay_') ||
-          sessionId.startsWith('cs_') ||
           sessionId === 'default'
         )
       );
