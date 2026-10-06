@@ -299,4 +299,69 @@ export class IdentityWalletService {
       },
     };
   }
+
+  /**
+   * Polls or checks whether an order has been paid in Razorpay / credited
+   */
+  static async checkOrderStatus(userId: string, orderId: string) {
+    if (!orderId) {
+      return { isPaid: false, status: 'PENDING' };
+    }
+
+    // 1. Check if already recorded in ledger
+    const ledger = await prisma.ledgerEntry.findFirst({
+      where: {
+        OR: [
+          { referenceId: orderId },
+          { description: { contains: orderId } },
+        ],
+        type: 'TOPUP',
+      },
+      include: { wallet: true },
+    });
+
+    if (ledger && ledger.wallet.userId === userId) {
+      return {
+        isPaid: true,
+        status: 'PAID',
+        newBalance: ledger.balanceAfter,
+        transactionId: ledger.id,
+      };
+    }
+
+    // 2. Query Razorpay API if live credentials present
+    const keyId = (process.env.RAZORPAY_KEY_ID || '').trim().replace(/^['"]|['"]$/g, '');
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim().replace(/^['"]|['"]$/g, '');
+
+    if (keyId && keySecret && !keySecret.includes('simulated') && orderId.startsWith('order_')) {
+      try {
+        const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+        const rzpRes = await axios.get(`https://api.razorpay.com/v1/orders/${orderId}/payments`, {
+          headers: { Authorization: `Basic ${auth}` },
+          timeout: 4500,
+        });
+
+        const items = rzpRes.data?.items || [];
+        const capturedPayment = items.find((p: any) => p.status === 'captured');
+        if (capturedPayment) {
+          const result = await this.verifyAndCreditTopup(
+            userId,
+            orderId,
+            capturedPayment.id,
+            'auto_verified_poll',
+            capturedPayment.amount / 100,
+            true
+          );
+          return {
+            isPaid: true,
+            status: 'PAID',
+            newBalance: result.newBalance,
+            transactionId: capturedPayment.id,
+          };
+        }
+      } catch (_) {}
+    }
+
+    return { isPaid: false, status: 'PENDING' };
+  }
 }

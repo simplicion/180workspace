@@ -69,15 +69,6 @@ const UPI_APPS = [
   { id: 'cred', name: 'CRED UPI', iconBg: '#111827', badge: 'CRED', popular: false },
 ];
 
-const WALLET_PROVIDERS = [
-  { id: 'amazonpay', name: 'Amazon Pay', badge: 'Amazon', color: '#ff9900' },
-  { id: 'phonepe_wallet', name: 'PhonePe Wallet', badge: 'PhonePe', color: '#5f259f' },
-  { id: 'mobikwik', name: 'MobiKwik', badge: 'MobiKwik', color: '#1a73e8' },
-  { id: 'airtel', name: 'Airtel Money', badge: 'Airtel', color: '#e60000' },
-  { id: 'simpl', name: 'Simpl PayLater', badge: '1-Tap PayLater', color: '#00d285' },
-  { id: 'lazypay', name: 'LazyPay', badge: 'PayLater', color: '#333333' },
-];
-
 export function CheckoutClient({ initialSessionId }: { initialSessionId?: string } = {}) {
   const params = useParams();
   
@@ -144,15 +135,19 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
   const [wallet, setWallet] = useState<any>(null);
   const [paying, setPaying] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [topupLoading, setTopupLoading] = useState(false);
   const [directPayStep, setDirectPayStep] = useState<string>('');
-  const [selectedMethod, setSelectedMethod] = useState<'180_PAY' | 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET'>('UPI');
+  const [selectedMethod, setSelectedMethod] = useState<'UPI' | 'CARD' | 'NETBANKING'>('UPI');
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedDetails, setCopiedDetails] = useState(false);
   const [showDevInspector, setShowDevInspector] = useState(false);
 
-  // Sub-states for UPI, Card, Netbanking, Wallets
-  const [upiMode, setUpiMode] = useState<'APPS' | 'ID' | 'QR'>('APPS');
+  // Device & Platform Detection
+  const [isDesktop, setIsDesktop] = useState<boolean>(false);
+
+  // Sub-states for UPI, Card, Netbanking
+  const [upiMode, setUpiMode] = useState<'APPS' | 'ID' | 'QR'>('QR');
   const [selectedUpiApp, setSelectedUpiApp] = useState<string>('gpay');
   const [vpaInput, setVpaInput] = useState<string>('');
   const [vpaVerified, setVpaVerified] = useState<boolean>(false);
@@ -166,10 +161,74 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
   const [cardName, setCardName] = useState<string>('');
   const [saveCard, setSaveCard] = useState<boolean>(true);
 
-  // Bank & Wallet selection
+  // Bank selection
   const [selectedBank, setSelectedBank] = useState<string>('HDFC');
   const [otherBank, setOtherBank] = useState<string>('');
-  const [selectedWallet, setSelectedWallet] = useState<string>('amazonpay');
+
+  // Detect PC/Desktop view vs Mobile View
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const desktop =
+        window.innerWidth >= 768 ||
+        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsDesktop(desktop);
+      setSelectedMethod('UPI');
+      // PC view defaults to QR Code automatically
+      if (desktop) {
+        setUpiMode('QR');
+      } else {
+        setUpiMode('APPS');
+      }
+    }
+  }, []);
+
+  // Live polling: Automatically detect QR code payment without clicking buttons
+  useEffect(() => {
+    if (!sessionId || sessionId === 'default' || selectedMethod !== 'UPI' || upiMode !== 'QR' || completed || isConfirming) return;
+
+    const interval = setInterval(() => {
+      fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}`))
+        .then((r) => r.json())
+        .then((data) => {
+          const sess = data.data || data.session || data;
+          if (sess && (sess.status === 'COMPLETED' || sess.isPaid)) {
+            clearInterval(interval);
+            // Open the confirming screen with animated logo spinner
+            setIsConfirming(true);
+            setTimeout(() => {
+              setIsConfirming(false);
+              setCompleted(true);
+              const successPayload = {
+                type: '180_PAYMENT_SUCCESS',
+                sessionId,
+                transactionId: sess.metadata?.razorpayPaymentId || `pay_rzp_${Date.now()}`,
+                amount: sess.amount || session?.amount,
+                currency: sess.currency || session?.currency || 'INR',
+                paymentMethod: 'UPI_QR',
+              };
+              if (typeof window !== 'undefined') {
+                if (window.opener) window.opener.postMessage(successPayload, '*');
+                if (window.parent && window.parent !== window) window.parent.postMessage(successPayload, '*');
+              }
+              toast.success('Payment confirmed successfully!');
+              setTimeout(() => {
+                if (sess.returnUrl || session?.returnUrl) {
+                  window.location.href = sess.returnUrl || session.returnUrl;
+                } else if (typeof window !== 'undefined') {
+                  if (window.opener) window.close();
+                  else if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: '180_PAYMENT_CLOSE', sessionId }, '*');
+                  }
+                }
+              }, 1200);
+            }, 1800);
+          }
+        })
+        .catch(() => {});
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [sessionId, selectedMethod, upiMode, completed, isConfirming, session]);
 
   // QR Timer effect
   useEffect(() => {
@@ -731,7 +790,6 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           upiApp: selectedUpiApp,
           upiId: vpaInput,
           bankCode: otherBank || selectedBank,
-          walletProvider: selectedWallet,
           cardNetwork: detectedCardNetwork,
           cardLast4: cardNumber ? cardNumber.replace(/\s+/g, '').slice(-4) : undefined,
         }),
@@ -825,6 +883,50 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
       <div className="w-full py-16 text-center space-y-4 flex flex-col items-center justify-center font-sans">
         <LogoLoader size={40} className="w-10 h-10 text-blue-600" />
         <p className="text-xs text-slate-500 font-medium">Loading 180 Pay checkout...</p>
+      </div>
+    );
+  }
+
+  if (isConfirming) {
+    return (
+      <div 
+        role="alert" 
+        aria-live="assertive"
+        className="w-full py-12 px-4 text-center space-y-6 animate-in fade-in zoom-in-95 duration-200 flex flex-col items-center justify-center font-sans"
+      >
+        {/* Spinning 180 Logo with glowing ring */}
+        <div className="relative flex items-center justify-center">
+          <div className="absolute w-28 h-28 rounded-full bg-blue-500/20 dark:bg-blue-500/10 animate-ping" />
+          <div className="absolute w-24 h-24 rounded-full border-2 border-blue-500/30 border-t-blue-600 animate-spin" />
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xl shadow-blue-500/25 relative z-10">
+            <LogoLoader size={36} className="text-white" />
+          </div>
+        </div>
+
+        <div className="space-y-1.5 max-w-xs">
+          <h2 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Confirming Payment...
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+            Verifying UPI transaction with bank servers. Please do not close or refresh this window.
+          </p>
+        </div>
+
+        {/* Progress Steps */}
+        <div className="w-full max-w-xs bg-slate-50 dark:bg-zinc-900/80 p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 space-y-2.5 text-left text-xs">
+          <div className="flex items-center gap-2.5 text-slate-700 dark:text-zinc-300 font-semibold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>Transaction Received</span>
+          </div>
+          <div className="flex items-center gap-2.5 text-blue-600 dark:text-blue-400 font-semibold animate-pulse">
+            <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+            <span>Verifying Razorpay Banking Rail</span>
+          </div>
+          <div className="flex items-center gap-2.5 text-slate-400 dark:text-zinc-500">
+            <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-zinc-700 shrink-0" />
+            <span>Finalizing Checkout</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1310,18 +1412,23 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               </span>
             </div>
 
-            <div className="grid grid-cols-5 gap-1.5 bg-slate-100 dark:bg-zinc-900 p-1 rounded-2xl border border-slate-200/80 dark:border-zinc-800 text-[11px]">
+            <div className="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-zinc-900 p-1 rounded-2xl border border-slate-200/80 dark:border-zinc-800 text-[11px]">
               <button
                 type="button"
-                onClick={() => setSelectedMethod('UPI')}
+                onClick={() => {
+                  setSelectedMethod('UPI');
+                  if (isDesktop) setUpiMode('QR');
+                }}
                 className={`py-2 px-1 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
                   selectedMethod === 'UPI'
                     ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs ring-1 ring-black/5 dark:ring-white/10'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>UPI</span>
+                <div className="flex items-center gap-1">
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>UPI &amp; QR</span>
+                </div>
               </button>
 
               <button
@@ -1333,8 +1440,10 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>Cards</span>
+                <div className="flex items-center gap-1">
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Cards</span>
+                </div>
               </button>
 
               <button
@@ -1346,34 +1455,10 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Banks</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedMethod('WALLET')}
-                className={`py-2 px-1 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                  selectedMethod === 'WALLET'
-                    ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs ring-1 ring-black/5 dark:ring-white/10'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                <Wallet className="w-3.5 h-3.5" />
-                <span>Wallets</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedMethod('180_PAY')}
-                className={`py-2 px-1 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                  selectedMethod === '180_PAY'
-                    ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs ring-1 ring-black/5 dark:ring-white/10'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>180 Pay</span>
+                <div className="flex items-center gap-1">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Netbanking</span>
+                </div>
               </button>
             </div>
           </div>
@@ -1383,6 +1468,48 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
             {/* 1. UPI Tab */}
             {selectedMethod === 'UPI' && (
               <div className="space-y-3.5 animate-in fade-in-50 duration-150">
+                {/* Mobile View QR Toggle Banner */}
+                {!isDesktop && (
+                  <>
+                    {upiMode !== 'QR' ? (
+                      <button
+                        type="button"
+                        onClick={() => setUpiMode('QR')}
+                        className="w-full p-3 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 flex items-center justify-between text-left hover:border-blue-400 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                            <QrCode className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-blue-950 dark:text-blue-200 block">
+                              Show QR Code
+                            </span>
+                            <span className="text-[11px] text-blue-800/80 dark:text-blue-300/80">
+                              Scan from another phone or check QR to pay
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-zinc-800 px-2 py-1 rounded-lg border border-blue-200 dark:border-blue-900/60 flex items-center gap-1">
+                          Pay on QR <ArrowRight className="w-3 h-3" />
+                        </span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-zinc-800">
+                        <button
+                          type="button"
+                          onClick={() => setUpiMode('APPS')}
+                          className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 cursor-pointer"
+                        >
+                          <ArrowLeft className="w-3.5 h-3.5" />
+                          <span>Back to UPI Apps</span>
+                        </button>
+                        <span className="text-[11px] text-slate-500">Live Razorpay QR</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <div className="flex items-center gap-2 border-b border-slate-200 dark:border-zinc-800 pb-3 text-xs">
                   <button
                     type="button"
@@ -1553,19 +1680,38 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(`upi://pay?pa=180pay@okhdfcbank&pn=180PayMerchant&am=${session.amount}&cu=${session.currency}`);
-                        setCopiedUpiString(true);
-                        toast.success('UPI intent string copied');
-                        setTimeout(() => setCopiedUpiString(false), 2000);
-                      }}
-                      className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
-                    >
-                      {copiedUpiString ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedUpiString ? 'Copied to Clipboard' : 'Copy UPI Intent String'}</span>
-                    </button>
+                    {/* Auto-Confirming Indicator */}
+                    <div className="flex items-center justify-center gap-2 text-xs text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 dark:bg-blue-950/50 py-2 px-3 rounded-xl max-w-xs mx-auto">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Waiting for UPI payment... Auto-confirming</span>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`upi://pay?pa=180pay@okhdfcbank&pn=180PayMerchant&am=${session.amount}&cu=${session.currency}`);
+                          setCopiedUpiString(true);
+                          toast.success('UPI intent string copied');
+                          setTimeout(() => setCopiedUpiString(false), 2000);
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
+                      >
+                        {copiedUpiString ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedUpiString ? 'Copied' : 'Copy UPI Link'}</span>
+                      </button>
+
+                      <span className="text-slate-300">•</span>
+
+                      <button
+                        type="button"
+                        onClick={handleDirectPayment}
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        <span>I Have Paid / Verify</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1718,64 +1864,6 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                 </div>
               </div>
             )}
-
-            {/* 4. Wallets Tab */}
-            {selectedMethod === 'WALLET' && (
-              <div className="space-y-3 animate-in fade-in-50 duration-150">
-                <span className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">
-                  Digital Wallets &amp; PayLater
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {WALLET_PROVIDERS.map((w) => (
-                    <button
-                      key={w.id}
-                      type="button"
-                      onClick={() => setSelectedWallet(w.id)}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                        selectedWallet === w.id
-                          ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 text-blue-950 dark:text-blue-200 ring-1 ring-blue-500/20'
-                          : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          style={{ backgroundColor: w.color }}
-                          className="w-6 h-6 rounded-lg text-white font-bold text-[8px] flex items-center justify-center shrink-0 shadow-2xs"
-                        >
-                          {w.badge.slice(0, 2).toUpperCase()}
-                        </div>
-                        <span className="text-xs font-bold">{w.name}</span>
-                      </div>
-                      {selectedWallet === w.id && (
-                        <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 5. 180 Instant Pay Tab */}
-            {selectedMethod === '180_PAY' && (
-              <div className="space-y-3 animate-in fade-in-50 duration-150">
-                <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-start gap-2.5 text-xs text-blue-950 dark:text-blue-200">
-                  <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold block">180 Instant Sovereign Pay</span>
-                    <p className="text-[11px] text-blue-800/90 dark:text-blue-300/80 mt-0.5 leading-relaxed">
-                      Instant zero-redirect debit from universal prepaid escrow balance.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-white dark:bg-zinc-800/80 rounded-xl border border-slate-200 dark:border-zinc-700 flex items-center justify-between text-xs">
-                  <span className="text-slate-600 dark:text-zinc-300">Identity Holder:</span>
-                  <span className="font-bold text-slate-900 dark:text-zinc-100">
-                    {(wallet?.user as any)?.name || session?.customerEmail || 'Verified Sovereign User'}
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -1824,19 +1912,15 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               <>
                 <Lock className="w-4 h-4" />
                 <span>
-                  {selectedMethod === '180_PAY'
-                    ? `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} with 180 Pay Instant`
-                    : selectedMethod === 'UPI'
+                  {selectedMethod === 'UPI'
                     ? upiMode === 'APPS'
                       ? `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via ${selectedUpiApp.toUpperCase()}`
                       : upiMode === 'ID'
                       ? `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via UPI ID`
-                      : `I Have Paid ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via QR`
+                      : `Confirm ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} on QR`
                     : selectedMethod === 'CARD'
                     ? `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via Card ${detectedCardNetwork ? `(${detectedCardNetwork})` : ''}`
-                    : selectedMethod === 'NETBANKING'
-                    ? `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via Netbanking (${otherBank || selectedBank})`
-                    : `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via Wallet (${selectedWallet.toUpperCase()})`}
+                    : `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via Netbanking (${otherBank || selectedBank})`}
                 </span>
               </>
             )}

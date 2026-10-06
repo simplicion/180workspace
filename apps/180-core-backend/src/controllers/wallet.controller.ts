@@ -114,6 +114,24 @@ export class WalletApiController {
   }
 
   /**
+   * GET /api/v1/wallet/topup/status/:orderId
+   */
+  static async checkTopupOrderStatus(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Authentication required' });
+      }
+
+      const { orderId } = req.params;
+      const status = await IdentityWalletService.checkOrderStatus(userId, String(orderId));
+      return res.json({ success: true, ...status });
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
    * GET /api/v1/wallet/ledger
    */
   static async getLedger(req: Request, res: Response) {
