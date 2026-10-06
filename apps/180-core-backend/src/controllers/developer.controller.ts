@@ -965,12 +965,21 @@ export class DeveloperApiController {
   static async verifyGatewayCredentials(req: Request, res: Response) {
     try {
       const { keyId, keySecret, gatewayType = 'RAZORPAY' } = req.body;
-      if (!keyId || !keySecret) {
+      let resolvedSecret = keySecret;
+
+      if (!resolvedSecret && req.params.id) {
+        const app = await resolveApp(String(req.params.id));
+        if (app && (app as any).customGatewaySecret) {
+          resolvedSecret = (app as any).customGatewaySecret;
+        }
+      }
+
+      if (!keyId || !resolvedSecret) {
         return res.status(400).json({ success: false, error: 'Both Key ID and Key Secret are required for verification' });
       }
 
       if (gatewayType === 'RAZORPAY') {
-        const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+        const authHeader = 'Basic ' + Buffer.from(`${keyId}:${resolvedSecret}`).toString('base64');
         const rzpRes = await axios.get('https://api.razorpay.com/v1/orders?count=1', {
           headers: { Authorization: authHeader },
           timeout: 8000,
@@ -981,9 +990,24 @@ export class DeveloperApiController {
         }
       }
 
+      if (gatewayType === 'STRIPE') {
+        const stripeRes = await axios.get('https://api.stripe.com/v1/balance', {
+          headers: { Authorization: `Bearer ${resolvedSecret}` },
+          timeout: 8000,
+        });
+
+        if (stripeRes.status >= 200 && stripeRes.status < 300) {
+          return res.json({ success: true, message: 'Stripe credentials verified successfully!' });
+        }
+      }
+
       return res.json({ success: true, message: 'Credentials validated' });
     } catch (err: any) {
-      const msg = err.response?.data?.error?.description || err.message || 'Credentials verification failed';
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.error?.description ||
+        err.message ||
+        'Credentials verification failed';
       return res.status(400).json({ success: false, error: msg });
     }
   }

@@ -51,6 +51,7 @@
                 <data android:scheme="workspace180" />
                 <data android:scheme="one80" />
                 <data android:scheme="180social" />
+                <data android:scheme="socialstudio" />
             </intent-filter>
         </activity>
         <!-- Keeps renders alive in the background (mediaengine/RenderForegroundService.kt).

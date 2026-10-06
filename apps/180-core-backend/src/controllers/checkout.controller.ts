@@ -150,6 +150,74 @@ export class CheckoutApiController {
         throw new Error('No active OAuth application found to associate with checkout session');
       }
 
+      // Security Validation: Check Allowed Web Origins (CORS)
+      const rawOrigin = (req.headers.origin as string) || (req.headers.referer ? (() => {
+        try { return new URL(req.headers.referer as string).origin; } catch (_) { return ''; }
+      })() : '');
+      const cleanOrigin = rawOrigin ? rawOrigin.toLowerCase().replace(/\/$/, '') : '';
+
+      if (cleanOrigin && app.allowedOrigins && app.allowedOrigins.length > 0) {
+        const isOriginAllowed = app.allowedOrigins.some((ao: string) => {
+          const cleanAo = ao.trim().toLowerCase().replace(/\/$/, '');
+          return cleanAo === '*' || cleanAo === cleanOrigin;
+        });
+        const isInternalDomain = cleanOrigin.endsWith('180workspace.com') ||
+                                 cleanOrigin.includes('localhost') ||
+                                 cleanOrigin.includes('127.0.0.1');
+
+        if (!isOriginAllowed && !isInternalDomain) {
+          return res.status(403).json({
+            success: false,
+            error: 'forbidden_origin',
+            message: `Origin '${rawOrigin}' is not authorized to create checkout sessions for application '${app.name}'.`,
+            details: {
+              type: 'ORIGIN_NOT_ALLOWED',
+              origin: rawOrigin,
+              allowedOrigins: app.allowedOrigins,
+              hint: `Add '${rawOrigin}' to Allowed Web Origins (CORS) in Project Settings.`,
+            },
+          });
+        }
+      }
+
+      // Security Validation: Check returnUrl against OAuth 2.0 Redirect URIs
+      if (returnUrl && app.redirectUris && app.redirectUris.length > 0) {
+        const targetUrl = String(returnUrl).trim();
+        const isReturnUrlAllowed = app.redirectUris.some((ru: string) => {
+          const registered = ru.trim();
+          if (registered === '*') return true;
+          if (registered.toLowerCase() === targetUrl.toLowerCase()) return true;
+          try {
+            const regParsed = new URL(registered);
+            const targetParsed = new URL(targetUrl);
+            return regParsed.origin.toLowerCase() === targetParsed.origin.toLowerCase() &&
+                   regParsed.pathname === targetParsed.pathname;
+          } catch (_) {
+            // Support custom app URI schemes like socialstudio://oauth-callback
+            if (registered.includes('://') && targetUrl.includes('://')) {
+              const regScheme = registered.split('://')[0].toLowerCase();
+              const targetScheme = targetUrl.split('://')[0].toLowerCase();
+              return regScheme === targetScheme;
+            }
+            return false;
+          }
+        });
+
+        if (!isReturnUrlAllowed) {
+          return res.status(400).json({
+            success: false,
+            error: 'invalid_redirect_uri',
+            message: `The returnUrl '${returnUrl}' is not in the allowed redirect URIs for application '${app.name}'.`,
+            details: {
+              type: 'REDIRECT_URI_MISMATCH',
+              returnUrl,
+              registeredUris: app.redirectUris,
+              hint: `Add '${returnUrl}' to OAuth 2.0 Redirect URIs in Project Settings.`,
+            },
+          });
+        }
+      }
+
       let finalAmount = Math.round(Number(amount) * 100) / 100;
       let appliedCouponId: string | null = null;
       let appliedCouponCode: string | null = null;
@@ -575,6 +643,61 @@ export class CheckoutApiController {
       return res.json({ success: true, ...result, data: result });
     } catch (err: any) {
       console.error('[CheckoutApiController:verifyDirectPayment] Error:', err);
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/checkout/sessions/:id/direct-pay
+   * POST /api/oauth/checkout/sessions/:id/direct-pay
+   * Directly executes and captures payment inside the 180 Pay pop-up/bottom sheet
+   * without launching secondary Razorpay popup dialogs.
+   */
+  static async executeDirectPayment(req: Request, res: Response) {
+    try {
+      const id = String(req.params.id);
+      const { paymentMethod, customerEmail, customerPhone, upiId } = req.body || {};
+      const userId = (req as any).user?.id || undefined;
+
+      const result = await CheckoutService.executeDirectPayment({
+        sessionId: id,
+        paymentMethod: paymentMethod || '180_PAY',
+        customerEmail,
+        customerPhone,
+        upiId,
+        userId,
+      });
+
+      // Redeem coupon if attached
+      const session = await prisma.checkoutSession.findUnique({ where: { id } });
+      if (session && session.couponId) {
+        try {
+          const email = customerEmail || (session.metadata as any)?.customerEmail || (session.metadata as any)?.email || session.id;
+          await CouponService.redeemCouponAtomic({
+            couponId: session.couponId,
+            sessionId: session.id,
+            customerEmail: String(email),
+            discountApplied: session.discountAmount || 0,
+          });
+
+          WebhookDispatcherService.dispatchEvent(session.appId, {
+            event: 'coupon.redeemed',
+            data: {
+              couponId: session.couponId,
+              code: session.couponCode,
+              discountAmount: session.discountAmount,
+              sessionId: session.id,
+              customerEmail: String(email),
+            },
+          }).catch((err) => console.warn('[CheckoutApiController] Webhook dispatch error:', err.message));
+        } catch (couponErr: any) {
+          console.warn('[CheckoutApiController:executeDirectPayment] Coupon redemption warning:', couponErr.message);
+        }
+      }
+
+      return res.json({ success: true, ...result, data: result });
+    } catch (err: any) {
+      console.error('[CheckoutApiController:executeDirectPayment] Error:', err);
       return res.status(400).json({ success: false, error: err.message });
     }
   }
