@@ -297,7 +297,7 @@ export default function SubscriptionPage() {
               </span>
             </div>
             <p className="text-[11px] text-zinc-500">
-              {subData?.planTier === 'ENTERPRISE' ? 'Unlimited Allocation' : `${subData?.maxLinks} Smart Links Allocation`}
+              {subData?.planTier === 'ENTERPRISE' ? 'Unlimited Allocation' : `${subData?.maxLinks ?? 2} Smart Links Allocation`}
             </p>
           </div>
 
@@ -356,7 +356,7 @@ export default function SubscriptionPage() {
               />
             </div>
             <span className="text-[10px] text-zinc-500 block">
-              {subData?.canCreateMoreLinks
+              {(subData?.canCreateMoreLinks ?? ((subData?.currentLinksCount || 0) < (subData?.maxLinks || 2)))
                 ? 'Link quota healthy. You can create additional links.'
                 : 'Quota reached. Upgrade tier to launch more smart links.'}
             </span>
