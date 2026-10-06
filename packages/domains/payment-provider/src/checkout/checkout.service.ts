@@ -584,8 +584,8 @@ export class CheckoutService {
     }
 
     // Default Platform: Razorpay
-    let keyId = process.env.RAZORPAY_KEY_ID;
-    let keySecret = process.env.RAZORPAY_KEY_SECRET;
+    let keyId = (process.env.RAZORPAY_KEY_ID || '').trim().replace(/^['"]|['"]$/g, '');
+    let keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim().replace(/^['"]|['"]$/g, '');
 
     if (!keyId || !keySecret) {
       if (process.env.NODE_ENV !== 'production' && !keyId) {
@@ -739,8 +739,8 @@ export class CheckoutService {
       };
     }
 
-    // If sandbox / simulated test key, generate simulated order without remote network call
-    if (keyId.includes('test_') || keyId.includes('custom_') || keyId.includes('mock_') || keyId.includes('simulated')) {
+    // If simulated / dummy platform key, generate simulated order without remote network call
+    if (keyId.includes('simulated') || keyId.includes('mock_') || !keySecret || keySecret.includes('simulated')) {
       return {
         orderId: `order_sim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         amountPaise: amountSmallestUnit,

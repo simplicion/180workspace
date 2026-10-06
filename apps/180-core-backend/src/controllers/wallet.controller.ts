@@ -62,7 +62,7 @@ export class WalletApiController {
           amountInr: Number(amount),
           amountPaise: Math.round(Number(amount) * 100),
           currency: (currency || 'INR').toUpperCase(),
-          keyId: process.env.RAZORPAY_KEY_ID || '',
+          keyId: (process.env.RAZORPAY_KEY_ID || '').trim().replace(/^['"]|['"]$/g, ''),
         };
       }
 

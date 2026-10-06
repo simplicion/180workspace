@@ -93,8 +93,8 @@ export class IdentityWalletService {
       throw new Error('Top-up amount must be greater than zero');
     }
 
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId = (process.env.RAZORPAY_KEY_ID || '').trim().replace(/^['"]|['"]$/g, '');
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim().replace(/^['"]|['"]$/g, '');
 
     if (!keyId || !keySecret) {
       throw new Error('Razorpay credentials are not configured in environment');
@@ -149,8 +149,8 @@ export class IdentityWalletService {
     amountInr?: number,
     skipSignatureVerify = false
   ): Promise<VerifyTopupResult> {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId = (process.env.RAZORPAY_KEY_ID || '').trim().replace(/^['"]|['"]$/g, '');
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim().replace(/^['"]|['"]$/g, '');
 
     const isDirectOrMock =
       skipSignatureVerify ||
