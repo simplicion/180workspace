@@ -217,97 +217,32 @@ export function PaymentLinkClient({ slug }: { slug: string }) {
         return;
       }
 
-      // 3. Ensure Razorpay script is loaded dynamically on the page
-      if (typeof window !== 'undefined' && !(window as any).Razorpay) {
-        try {
-          await new Promise<void>((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            script.onload = () => resolve();
-            script.onerror = () => reject(new Error('Failed to load Razorpay checkout engine'));
-            document.head.appendChild(script);
-          });
-        } catch (loadErr: any) {
-          console.warn('[PaymentLink] Failed to dynamically load Razorpay script:', loadErr?.message);
-        }
-      }
+      // 3. Execute direct sovereign in-page payment without Razorpay popup
+      const directPayRes = await fetch(`${apiBase}/api/v1/checkout/sessions/${sessionId}/direct-pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentMethod: '180_PAY',
+          customerEmail,
+          customerPhone,
+        }),
+      });
 
-      // 4. Launch Razorpay modal if available on window
-      if (typeof window !== 'undefined' && (window as any).Razorpay) {
-        const options = {
-          key: orderData.keyId,
-          amount: orderData.amountPaise,
-          currency: orderData.currency,
-          name: link.merchant.name,
-          description: link.title,
-          order_id: orderData.orderId,
-          prefill: {
-            name: customerName,
-            email: customerEmail,
-            contact: customerPhone,
-          },
-          theme: {
-            color: '#6366f1',
-          },
-          handler: async (response: any) => {
-            try {
-              // Verify payment on server
-              const verifyRes = await fetch(`${apiBase}/api/v1/checkout/sessions/${sessionId}/direct-verify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  orderId: response.razorpay_order_id,
-                  paymentId: response.razorpay_payment_id,
-                  signature: response.razorpay_signature,
-                }),
-              });
-              const verifyData = await verifyRes.json();
+      // 4. Complete the payment link inventory & fetch fulfillment
+      const compRes = await fetch(`${apiBase}/api/v1/payment-links/${link.id}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+      const compData = await compRes.json();
 
-              // Complete the payment link inventory & fetch fulfillment
-              const compRes = await fetch(`${apiBase}/api/v1/payment-links/${link.id}/complete`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId }),
-              });
-              const compData = await compRes.json();
-
-              setFulfilledData({
-                fulfillmentMessage: compData.fulfillment?.fulfillmentMessage || compData.data?.fulfillmentMessage,
-                fulfillmentFileUrl: compData.fulfillment?.fulfillmentFileUrl || compData.data?.fulfillmentFileUrl,
-                redirectUrl: compData.fulfillment?.redirectUrl || compData.data?.redirectUrl,
-                transactionId: response.razorpay_payment_id || sessionId,
-              });
-            } catch (verErr: any) {
-              toast.error(verErr.message || 'Payment verification failed');
-            } finally {
-              setIsProcessing(false);
-            }
-          },
-          modal: {
-            ondismiss: () => {
-              setIsProcessing(false);
-            },
-          },
-        };
-
-        const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      } else {
-        // Direct complete fallback for development/testing
-        const compRes = await fetch(`${apiBase}/api/v1/payment-links/${link.id}/complete`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId }),
-        });
-        const compData = await compRes.json();
-        setFulfilledData({
-          fulfillmentMessage: compData.fulfillment?.fulfillmentMessage || compData.data?.fulfillmentMessage,
-          fulfillmentFileUrl: compData.fulfillment?.fulfillmentFileUrl || compData.data?.fulfillmentFileUrl,
-          redirectUrl: compData.fulfillment?.redirectUrl || compData.data?.redirectUrl,
-          transactionId: sessionId,
-        });
-        setIsProcessing(false);
-      }
+      setFulfilledData({
+        fulfillmentMessage: compData.fulfillment?.fulfillmentMessage || compData.data?.fulfillmentMessage,
+        fulfillmentFileUrl: compData.fulfillment?.fulfillmentFileUrl || compData.data?.fulfillmentFileUrl,
+        redirectUrl: compData.fulfillment?.redirectUrl || compData.data?.redirectUrl,
+        transactionId: compData.transactionId || sessionId,
+      });
+      setIsProcessing(false);
     } catch (err: any) {
       toast.error(err.message || 'Payment initiation failed');
       setIsProcessing(false);

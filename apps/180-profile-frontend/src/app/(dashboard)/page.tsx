@@ -25,7 +25,7 @@ import toast from 'react-hot-toast';
 import { UserProfile, ConnectedApp, LedgerEntry } from '@/types';
 import { getCoreApiUrl } from '@/lib/api';
 import { EditProfileModal } from '@/components/EditProfileModal';
-import { TopUpBottomSheet } from '@/components/TopUpBottomSheet';
+import { OneEightyPayBottomSheet } from '@/components/OneEightyPayBottomSheet';
 import { SovereignQRModal } from '@/components/SovereignQRModal';
 import { InvoiceModal } from '@/components/InvoiceModal';
 
@@ -37,6 +37,7 @@ export default function HomePage() {
   // Modals & Bottom Sheets
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isTopUpSheetOpen, setIsTopUpSheetOpen] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState<number>(1000);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<LedgerEntry | null>(null);
 
@@ -271,7 +272,10 @@ export default function HomePage() {
                 <button
                   key={amt}
                   type="button"
-                  onClick={() => setIsTopUpSheetOpen(true)}
+                  onClick={() => {
+                    setTopUpAmount(amt);
+                    setIsTopUpSheetOpen(true);
+                  }}
                   className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-200 font-bold text-xs transition-colors cursor-pointer"
                 >
                   +₹{amt}
@@ -283,7 +287,10 @@ export default function HomePage() {
           <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between gap-3">
             <Button
               variant="default"
-              onClick={() => setIsTopUpSheetOpen(true)}
+              onClick={() => {
+                setTopUpAmount(1000);
+                setIsTopUpSheetOpen(true);
+              }}
               className="px-5 py-2.5 min-h-[42px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 active:scale-95 flex items-center gap-2 cursor-pointer transition-all"
             >
               <CreditCard className="w-4 h-4" />
@@ -507,14 +514,19 @@ export default function HomePage() {
       )}
 
       {isTopUpSheetOpen && (
-        <TopUpBottomSheet
+        <OneEightyPayBottomSheet
           isOpen={isTopUpSheetOpen}
+          initialAmount={topUpAmount}
+          currentBalance={balance}
+          user={user}
           onClose={() => setIsTopUpSheetOpen(false)}
-          onSuccess={() => {
+          onSuccess={(newBal) => {
+            if (typeof newBal === 'number') {
+              setBalance(newBal);
+            }
             loadData();
             setIsTopUpSheetOpen(false);
           }}
-          currentBalance={balance}
         />
       )}
 

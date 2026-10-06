@@ -20,12 +20,13 @@ import { UniversalSkeleton, Button } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { LedgerEntry } from '@/types';
 import { InvoiceModal } from '@/components/InvoiceModal';
+import { OneEightyPayBottomSheet } from '@/components/OneEightyPayBottomSheet';
 import { getCoreApiUrl } from '@/lib/api';
 
 export default function TransactionsPage() {
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
-  const [topupLoading, setTopupLoading] = useState<boolean>(false);
+  const [isTopUpOpen, setIsTopUpOpen] = useState<boolean>(false);
   const [selectedAmount, setSelectedAmount] = useState<number>(1000);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
@@ -69,7 +70,7 @@ export default function TransactionsPage() {
     fetchWalletData();
   }, []);
 
-  const handleTopup = async () => {
+  const handleTopup = () => {
     const finalAmount = customAmount ? parseFloat(customAmount) : selectedAmount;
 
     if (!finalAmount || finalAmount <= 0) {
@@ -82,119 +83,7 @@ export default function TransactionsPage() {
       return;
     }
 
-    const token =
-      localStorage.getItem('platform_auth_token') ||
-      localStorage.getItem('token') ||
-      localStorage.getItem('accessToken');
-
-    if (!token) {
-      toast.error('Authentication token required. Please sign in to recharge wallet.');
-      return;
-    }
-
-    const authHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    };
-
-    setTopupLoading(true);
-    const toastId = toast.loading('Initializing secure Razorpay order...');
-
-    try {
-      const res = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/order'), {
-        method: 'POST',
-        headers: authHeaders,
-        credentials: 'include',
-        body: JSON.stringify({ amount: finalAmount, currency: 'INR' }),
-      });
-
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to initialize recharge order');
-      }
-
-      const { orderId, amountPaise, keyId } = data.data || data;
-
-      let storedUser: any = null;
-      try {
-        storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      } catch (_) {}
-
-      const options = {
-        key: keyId,
-        amount: amountPaise,
-        currency: 'INR',
-        name: '180 Workspace Profile',
-        description: 'Universal Prepaid Wallet Recharge',
-        order_id: orderId,
-        theme: { color: '#2563eb' },
-        prefill: {
-          name: storedUser?.name || undefined,
-          email: storedUser?.email || undefined,
-        },
-        handler: async function (response: any) {
-          const verifyToast = toast.loading('Verifying transaction on 180 Core...');
-          try {
-            const verifyRes = await fetch(getCoreApiUrl('/api/oauth/wallet/topup/verify'), {
-              method: 'POST',
-              headers: authHeaders,
-              credentials: 'include',
-              body: JSON.stringify({
-                orderId: response.razorpay_order_id,
-                paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature,
-                amount: finalAmount,
-              }),
-            });
-
-            const verifyData = await verifyRes.json();
-            if (verifyData.success) {
-              const creditedBalance = verifyData.data?.newBalance ?? (balance + finalAmount);
-              setBalance(creditedBalance);
-              toast.success(`Wallet successfully recharged with ₹${finalAmount.toFixed(2)}!`, { id: verifyToast });
-              await fetchWalletData();
-
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(
-                  new CustomEvent('180_wallet_updated', {
-                    detail: { balance: creditedBalance },
-                  })
-                );
-              }
-            } else {
-              toast.error(verifyData.error || 'Payment verification failed', { id: verifyToast });
-            }
-          } catch (e: any) {
-            toast.error('Error contacting verification server', { id: verifyToast });
-          } finally {
-            setTopupLoading(false);
-          }
-        },
-        modal: {
-          ondismiss: function () {
-            setTopupLoading(false);
-            toast.dismiss(toastId);
-          },
-        },
-      };
-
-      if (!(window as any).Razorpay) {
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.async = true;
-        document.body.appendChild(script);
-        await new Promise((resolve) => {
-          script.onload = resolve;
-        });
-      }
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-      toast.dismiss(toastId);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to start payment', { id: toastId });
-      setTopupLoading(false);
-    }
+    setIsTopUpOpen(true);
   };
 
   const filteredLedger = ledger.filter((item) => {
@@ -368,11 +257,10 @@ export default function TransactionsPage() {
 
                 <Button
                   onClick={handleTopup}
-                  disabled={topupLoading}
-                  className="w-full sm:w-auto px-8 py-3 min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                  className="w-full sm:w-auto px-8 py-3 min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <CreditCard className="w-4 h-4" />
-                  <span>{topupLoading ? 'Processing Order...' : 'Recharge via 180 Pay'}</span>
+                  <span>Recharge via 180 Pay</span>
                 </Button>
               </div>
             </div>
@@ -511,6 +399,17 @@ export default function TransactionsPage() {
           onClose={() => setSelectedInvoice(null)}
         />
       )}
+
+      <OneEightyPayBottomSheet
+        isOpen={isTopUpOpen}
+        onClose={() => setIsTopUpOpen(false)}
+        initialAmount={customAmount ? (parseFloat(customAmount) || 1000) : selectedAmount}
+        currentBalance={balance}
+        onSuccess={(creditedBalance) => {
+          setBalance(creditedBalance);
+          fetchWalletData();
+        }}
+      />
     </div>
   );
 }
