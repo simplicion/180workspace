@@ -85,24 +85,10 @@ class EngagementTab extends ConsumerWidget {
 
             SectionHeader(
               'Active Funnels & Triggers',
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => _openDryRunSheet(context, ref),
-                    icon: Icon(Icons.science_rounded, size: 16, color: AppTheme.primary),
-                    label: Text('Test Matcher', style: TextStyle(fontSize: 12, color: AppTheme.primary)),
-                  ),
-                  IconButton(
-                    tooltip: 'Refresh',
-                    icon: Icon(Icons.refresh_rounded, size: 20),
-                    onPressed: () {
-                      ref.invalidate(engagementRulesProvider(project.id));
-                      ref.invalidate(engagementStatsProvider(project.id));
-                      ref.invalidate(livePlatformMetricsProvider(project.id));
-                    },
-                  ),
-                ],
+              trailing: TextButton.icon(
+                onPressed: () => _openDryRunSheet(context, ref),
+                icon: Icon(Icons.science_rounded, size: 16, color: AppTheme.primary),
+                label: Text('Test Matcher', style: TextStyle(fontSize: 12, color: AppTheme.primary)),
               ),
             ),
             SizedBox(height: 8),

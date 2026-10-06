@@ -104,7 +104,7 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: const Text('Payment page opened. Tap "Refresh Access" after completing payment.'),
+                content: const Text('Payment page opened. Pull down to refresh after completing payment.'),
                 backgroundColor: AppTheme.primary,
                 duration: const Duration(seconds: 5),
               ),
@@ -148,14 +148,47 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Top Brand Logo Icon & Badge
+        child: Column(
+          children: [
+            // Top Header: Sign out action
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => ref.read(sessionProvider.notifier).logout(),
+                    icon: Icon(Icons.logout_rounded, size: 16, color: AppTheme.textMuted),
+                    label: Text(
+                      'Sign out',
+                      style: TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => ref.read(sessionProvider.notifier).refreshEntitlement(),
+                color: AppTheme.primary,
+                backgroundColor: AppTheme.surfaceElevated,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Top Brand Logo Icon & Badge
                 Center(
                   child: Container(
                     width: 76,
@@ -306,38 +339,15 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
                 ),
 
                 const SizedBox(height: 24),
-
-                // ─── Actions: Refresh Access & Sign out ────────────────────────
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton.tonalIcon(
-                      onPressed: () => ref.read(sessionProvider.notifier).refreshEntitlement(),
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: const Text('Refresh Access'),
-                      style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => ref.read(sessionProvider.notifier).logout(),
-                      child: Text(
-                        'Sign out',
-                        style: TextStyle(color: AppTheme.textMuted),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
         ),
       ),
-    );
+    ],
+  ),
+),
+);
   }
 
   Widget _buildMonthlyCard() {
