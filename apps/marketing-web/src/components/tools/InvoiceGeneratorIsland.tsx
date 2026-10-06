@@ -432,7 +432,7 @@ export default function InvoiceGeneratorIsland() {
             <div className="flex items-center gap-3">
               {logoUrl ? (
                 <div className="relative group w-24 h-16 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-950 p-1">
-                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                  <img src={logoUrl} alt="Logo" width={96} height={64} className="w-full h-full object-contain" />
                   <button
                     type="button"
                     onClick={() => setLogoUrl(null)}

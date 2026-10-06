@@ -141,11 +141,19 @@ const faqs = [
     answer: "Video editing executes local-first with hardware acceleration via NVENC, Apple VideoToolbox, and WebGPU shaders, eliminating long cloud upload delays for raw 4K and 8K footage."
   }
 ];
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Apps', url: '/apps' },
+  { name: '180 Social Studio', url: '/180-social-studio' }
+];
 ---
 
 <Layout 
   title="180 Social Studio — Autonomous Video Editor & Omnichannel Scheduler | 180workspace"
   description="High-speed >500 FPS video editing engine and universal multi-network social media publisher integrated on the 180 Work Graph."
+  breadcrumbs={breadcrumbs}
+  applicationCategory="MultimediaApplication"
 >
   <main class="w-full relative">
     
@@ -153,6 +161,7 @@ const faqs = [
       title="Create, edit, and publish social media at"
       highlightText="unprecedented speed."
       description="Autonomous video editing with >500 FPS stream-copy rendering combined with unified multi-channel scheduling for YouTube, Instagram, X, and LinkedIn."
+      breadcrumbs={breadcrumbs}
     />
 
     <CapabilityPillars 

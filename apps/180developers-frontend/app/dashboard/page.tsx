@@ -970,7 +970,7 @@ function DeveloperDashboardContent() {
                                 </span>
                               </div>
                               <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-1">
-                                {app.description || '180 Workspace Sovereign Business Operating System'}
+                                {app.description || '180 Workspace Business Operating System'}
                               </p>
                             </div>
                           </div>
@@ -1407,7 +1407,7 @@ function DeveloperDashboardContent() {
                     <span>180 Pay (Checkout)</span>
                   </div>
                   <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    Sovereign Wallet & 2-Way Webhooks
+                    180 Wallet & 2-Way Webhooks
                   </div>
                 </div>
               </label>
@@ -1525,7 +1525,7 @@ function DeveloperDashboardContent() {
             <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 text-xs text-emerald-900 dark:text-emerald-300 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>
-                <strong>First Project Free:</strong> Your first sovereign project is 100% free forever with full OAuth 2.0 and 180 Pay features access.
+                <strong>First Project Free:</strong> Your first project is 100% free forever with full OAuth 2.0 and 180 Pay features access.
               </span>
             </div>
           )}

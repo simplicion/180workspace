@@ -95,10 +95,10 @@ export function IdentityUsersView() {
           <div>
             <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
               <Users className="w-4 h-4 text-blue-500" />
-              <span>Authenticated Users & Sovereign Identities</span>
+              <span>Authenticated Users & Universal Identities</span>
             </h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Live directory of sovereign users who have logged into this application.
+              Live directory of authenticated users who have logged into this application.
             </p>
           </div>
 
@@ -201,7 +201,7 @@ export function IdentityUsersView() {
                                 )}
                               </div>
                               <div className="text-[10px] text-zinc-400 font-mono truncate">
-                                {log.authMethod || 'Sovereign OIDC'}
+                                {log.authMethod || 'Universal OIDC'}
                               </div>
                             </div>
                           </div>

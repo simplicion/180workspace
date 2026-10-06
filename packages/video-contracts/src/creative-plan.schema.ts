@@ -1,6 +1,7 @@
 import { VIDEO_EFFECT_TYPES, TRANSITION_TYPES } from "./edit-ir.schema";
 import { z } from "zod";
 import { RationalTimeSchema, TimeRangeSchema } from "./time";
+import { CAPTION_TEMPLATE_IDS, CAPTION_ANIMATIONS } from "./caption-templates";
 import { SpringConfigSchema, TextEnterSchema, TextExitSchema, TextLoopSchema } from "./edit-ir.schema";
 
 /** Fonts the phone renders and exports (mirrors CaptionFonts.exportFamilies in the Flutter app). */
@@ -180,10 +181,12 @@ export const AddCaptionOpSchema = z.object({
     })
   ),
   stylePreset: z.string().default("HORMOZI_BOUNCE"),
+  /** Caption template id (caption-templates.ts): supplies font, weight, outline, pill and glow. */
+  template: z.string().optional(),
   fontSize: z.number().min(16).max(200).optional(),
   position: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).optional(),
   uppercase: z.boolean().optional(),
-  animation: z.enum(["word_pop", "karaoke", "none"]).optional(),
+  animation: z.enum(CAPTION_ANIMATIONS).optional(),
   strokeColor: z.string().optional(),
   strokeWidth: z.number().min(0).max(20).optional(),
   background: z.string().optional(),
@@ -191,7 +194,7 @@ export const AddCaptionOpSchema = z.object({
 
 export const StyleCaptionOpSchema = z.object({
   type: z.literal("styleCaption"),
-  preset: z.string(),
+  preset: z.string().describe(`Caption template id (${CAPTION_TEMPLATE_IDS.join(", ")}) for a full restyle, or a basic preset name.`),
   highlightColor: z.string().optional(),
   position: z.object({ x: z.number(), y: z.number() }).optional(),
 });
@@ -508,16 +511,34 @@ export const RemoveSilencesOpSchema = z.object({
 export const AutoCaptionsOpSchema = z.object({
   type: z.literal("autoCaptions"),
   stylePreset: z.enum(["HORMOZI_BOUNCE", "ALI_ABDAAL_CLEAN", "MINIMAL_SUBTITLE", "BOLD_CENTER"]).default("HORMOZI_BOUNCE"),
-  textColor: z.string().regex(/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/).default("#FFFFFF"),
-  highlightColor: z.string().regex(/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/).default("#FFE600"),
+  /**
+   * A creator look (font, outline, colours, motion). Colours, uppercase and animation given next to it
+   * override the template; left out, the template's own values apply (PlanExpander.captionOps).
+   */
+  template: z.enum(CAPTION_TEMPLATE_IDS).optional().describe("Creator caption template. Set it when a look is named (MrBeast, Hormozi, Ali Abdaal, neon, cinematic ...)."),
+  textColor: z.string().regex(/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/).optional(),
+  highlightColor: z.string().regex(/^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/).optional(),
   wordsPerCaption: z.number().int().min(1).max(8).default(3),
   fontSize: z.number().min(16).max(200).optional(),
   position: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).optional(),
-  uppercase: z.boolean().default(false),
-  animation: z.enum(["word_pop", "karaoke", "none"]).default("word_pop"),
+  uppercase: z.boolean().optional(),
+  animation: z.enum(CAPTION_ANIMATIONS).optional(),
   strokeColor: z.string().optional(),
   strokeWidth: z.number().min(0).max(20).optional(),
   background: z.string().optional(),
+  /** Highlight one key word per caption (a number, else its longest content word). Default on. */
+  autoEmphasis: z.boolean().optional().describe("Highlight one key word per caption. On unless set to false."),
+  reason: z.string().optional(),
+});
+
+/**
+ * Converts the speech captions to another language, or to Roman letters (Hinglish). The compiler does not
+ * apply it: the director service runs the translation after compiling, because it needs the AI provider.
+ */
+export const TranslateCaptionsOpSchema = z.object({
+  type: z.literal("translateCaptions"),
+  targetLanguage: z.string().regex(/^[a-z]{2}$/).describe("ISO-639-1 code of the caption language wanted, e.g. en, hi, ta, es."),
+  script: z.enum(["native", "roman"]).default("native").describe("roman = Latin letters (Hinglish and similar); native = the language's own script."),
   reason: z.string().optional(),
 });
 
@@ -551,6 +572,7 @@ export const CreativeOperationSchema = z.discriminatedUnion("type", [
   InsertBrollOpSchema,
   AddCaptionOpSchema,
   StyleCaptionOpSchema,
+  TranslateCaptionsOpSchema,
   EmphasizeWordOpSchema,
   AddZoomOpSchema,
   AddEffectOpSchema,

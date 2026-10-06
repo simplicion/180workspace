@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import SectionHeader from '../../components/ui/SectionHeader.astro';
 import Badge from '../../components/ui/Badge.astro';
 import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import Breadcrumb from '../../components/ui/Breadcrumb.astro';
 import { prisma } from '@workspace/db';
 
 let apps = [];
@@ -17,13 +18,78 @@ try {
     }
   });
 } catch (error) {
-  console.error("Failed to fetch features for SSG:", error);
+  // Rely on robust core fallback suite
 }
+
+const defaultFeatures = [
+  {
+    slug: 'voiceforce',
+    url: '/apps/voiceforce',
+    title: 'Autonomous AI Phone Agents (Voiceforce)',
+    category: 'AI Telephony',
+    description: 'Sub-200ms conversational voice synthesis, dedicated international numbers, and automatic CRM call logging for sales and client support.'
+  },
+  {
+    slug: 'crm-and-sales',
+    url: '/apps/crm-and-sales',
+    title: 'CRM, Deal Pipelines & Proposal E-Signatures',
+    category: 'Revenue Ops',
+    description: 'Visual drag-and-drop pipelines, custom stage weighting, and legally-binding contract e-signatures with cryptographic audit logs.'
+  },
+  {
+    slug: 'advertising',
+    url: '/apps/advertising',
+    title: 'Closed-Loop Ad Attribution & ROAS Tracking',
+    category: 'Ad Analytics',
+    description: 'Real-time multi-network ad spend attribution matched directly to bank deposit revenue across Meta, Google, and TikTok ads.'
+  },
+  {
+    slug: 'projects-and-tasks',
+    url: '/apps/projects-and-tasks',
+    title: 'Agile Kanban Sprints & Billable Time Tracking',
+    category: 'Project Management',
+    description: 'Hardware-accelerated project boards, milestone roadmaps, client approval portals, and employee timelog ledger integration.'
+  },
+  {
+    slug: 'hr-management',
+    url: '/apps/hr-management',
+    title: 'Enterprise HRMS, Leave Directory & Payroll',
+    category: 'People Ops',
+    description: 'Digital time clocking, leave requests, employee records, compensation tiers, and automated multi-currency payroll calculations.'
+  },
+  {
+    slug: 'finance',
+    url: '/apps/finance',
+    title: 'Automated Invoicing & Multi-Entity Ledger',
+    category: 'Finance & Invoicing',
+    description: 'Recurring B2B retainer subscriptions via Stripe, automated late reminders, cash flow forecasting, and expense balance sheets.'
+  },
+  {
+    slug: 'communications',
+    url: '/apps/communications',
+    title: 'Encrypted Team Chat & HD WebRTC Meetings',
+    category: 'Collaboration',
+    description: 'Sub-50ms team messaging, direct channels, and embedded WebRTC 4K meetings with real-time screen sharing and AI transcripts.'
+  },
+  {
+    slug: 'workspace-tools',
+    url: '/apps/workspace-tools',
+    title: '180 Docs, Shared Calendar & Cloud Drive',
+    category: 'Workspace Tools',
+    description: 'Zero-knowledge document vaults, collaborative block editing, team scheduling, and sovereign cloud drive file synchronization.'
+  }
+];
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Features', url: '/features' }
+];
 ---
 
 <Layout 
-  title="180workspace Features & Ecosystem"
-  description="Explore the 8 native business applications included in the 180workspace operating system."
+  title="Features & Integrated Ecosystem | 180workspace"
+  description="Explore the 8 integrated business applications of 180workspace: CRM, Projects, Finance, Voiceforce AI telephony, HR, Comms & cloud storage on one Work Graph."
+  breadcrumbs={breadcrumbs}
 >
   <main class="w-full relative">
     
@@ -33,7 +99,12 @@ try {
       <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_70%_60%_at_50%_10%,#000_60%,transparent_100%)] -z-20"></div>
 
       <div class="container mx-auto px-4 max-w-5xl text-center">
-        <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm mb-8">
+        
+        <div class="flex justify-center mb-6">
+          <Breadcrumb items={breadcrumbs} />
+        </div>
+
+        <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-sm mb-6">
           <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
           <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Unified Work Graph Ecosystem</span>
         </div>
@@ -42,50 +113,36 @@ try {
           8 Integrated Applications. <span class="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">Zero Context Switching.</span>
         </h1>
         <p class="body-lead max-w-3xl mx-auto">
-          Discover the powerful suite of native business applications designed to streamline every aspect of your agency's operations.
+          Discover the powerful suite of native business applications designed to streamline every aspect of your agency's operations on one connected database.
         </p>
       </div>
     </section>
 
     <!-- Features Grid -->
-    <section class="py-8 pb-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-      {apps.length === 0 ? (
-        <div class="py-20 text-center rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 max-w-2xl mx-auto">
-          <div class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-5">
-            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-          </div>
-          <p class="body-lead mb-2">Features are currently being updated with live telemetry.</p>
-          <p class="body-standard mb-6">Explore our comprehensive App Playbooks below for detailed feature breakdowns.</p>
-          <a href="/apps" class="btn-primary">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-            <span>Explore All 8 Apps</span>
+    <section class="py-8 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {(apps.length > 0 ? apps : defaultFeatures).map(app => (
+          <a href={app.url || `/features/${app.slug}`} class="glass-card-interactive p-6 flex flex-col justify-between group hover:border-indigo-500/50 hover:shadow-xl transition-all">
+            <div>
+              <div class="mb-4">
+                <span class="badge-pill text-[10px] py-1 px-2.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800">
+                  {app.category || "Feature Spotlight"}
+                </span>
+              </div>
+              <h2 class="text-base font-bold text-slate-950 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-2.5 leading-snug">
+                {app.title || app.heroHeadline || app.seoTitle}
+              </h2>
+              <p class="body-standard text-xs text-slate-600 dark:text-zinc-400 mb-6 leading-relaxed">
+                {app.description || app.seoDescription || "Learn more about how this app integrates into the Work Graph."}
+              </p>
+            </div>
+            <div class="flex items-center text-xs font-bold text-indigo-600 dark:text-indigo-400 gap-1.5 group-hover:gap-2.5 transition-all pt-4 border-t border-slate-100 dark:border-white/10">
+              <span>Explore Capability</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </div>
           </a>
-        </div>
-      ) : (
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {apps.map(app => (
-            <a href={`/features/${app.slug}`} class="glass-card-interactive p-7 flex flex-col justify-between group">
-              <div>
-                <div class="mb-4">
-                  <span class="badge-pill text-[10px] py-1 px-2.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800">
-                    Feature Spotlight
-                  </span>
-                </div>
-                <h3 class="card-h3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-3">
-                  {app.heroHeadline || app.seoTitle}
-                </h3>
-                <p class="body-standard mb-6">
-                  {app.seoDescription || "Learn more about how this app integrates into the Work Graph."}
-                </p>
-              </div>
-              <div class="flex items-center text-xs font-bold text-indigo-600 dark:text-indigo-400 gap-1.5 group-hover:gap-2.5 transition-all">
-                <span>Explore Feature</span>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-              </div>
-            </a>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
     </section>
 
     <!-- Bottom CTA -->

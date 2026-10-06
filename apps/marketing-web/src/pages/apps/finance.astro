@@ -141,11 +141,19 @@ const faqs = [
     answer: "Yes. 180 Finance includes automated recurring billing. You can schedule weekly, monthly, or quarterly retainer invoices that automatically charge the client's saved payment method or send a payment reminder."
   }
 ];
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Apps', url: '/apps' },
+  { name: 'Finance', url: '/apps/finance' }
+];
 ---
 
 <Layout 
   title="Finance & Invoicing Software & User Guide | 180workspace"
   description="Automate client invoices, cash flow forecasting, expense tracking, and multi-currency accounting in 180workspace natively linked to CRM and Projects."
+  breadcrumbs={breadcrumbs}
+  applicationCategory="FinanceApplication"
 >
   <main class="w-full relative">
     
@@ -153,6 +161,7 @@ const faqs = [
       title="Automate invoices, cash flow & expenses"
       highlightText="with zero manual reconciliation."
       description="Stop chasing payments and wrestling with disconnected accounting software. 180 Finance connects directly to your sales contracts, project hours, and contractor bills."
+      breadcrumbs={breadcrumbs}
     />
 
     <CapabilityPillars 

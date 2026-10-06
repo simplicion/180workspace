@@ -582,6 +582,9 @@ export default function YouTubeSuiteIsland() {
                       <img
                         src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
                         alt="1080p thumbnail"
+                        width={640}
+                        height={360}
+                        loading="lazy"
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         onError={(e: any) => {
                           e.target.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
@@ -621,6 +624,9 @@ export default function YouTubeSuiteIsland() {
                       <img
                         src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
                         alt="720p thumbnail"
+                        width={480}
+                        height={360}
+                        loading="lazy"
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
@@ -657,6 +663,9 @@ export default function YouTubeSuiteIsland() {
                       <img
                         src={`https://img.youtube.com/vi/${videoId}/sddefault.jpg`}
                         alt="480p thumbnail"
+                        width={640}
+                        height={480}
+                        loading="lazy"
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>

@@ -152,7 +152,7 @@ export function OAuthAppHeader({
         <p className="text-xs text-slate-500">
           {hasApp
             ? subtitle || `Sign in to continue to ${appName}`
-            : fallbackSubtitle || subtitle || 'Sign in with your sovereign 180 Profile'}
+            : fallbackSubtitle || subtitle || 'Sign in with your 180 Profile'}
         </p>
       </div>
     </div>

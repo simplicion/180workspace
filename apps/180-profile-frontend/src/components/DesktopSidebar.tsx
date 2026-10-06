@@ -42,7 +42,7 @@ export function DesktopSidebar({ user, balance }: DesktopSidebarProps) {
       label: 'Wallet & Balance',
       href: '/wallet',
       icon: Wallet,
-      description: 'Prepaid Sovereign Ledger',
+      description: 'Prepaid 180 Ledger',
       badge: balance !== null ? `₹${balance.toFixed(2)}` : '₹0.00',
     },
     { label: 'Transactions', href: '/transactions', icon: Receipt, description: 'History & Invoices' },
@@ -59,7 +59,12 @@ export function DesktopSidebar({ user, balance }: DesktopSidebarProps) {
             <img
               src="/black-icon.svg"
               alt="180 Profile"
-              className="w-5 h-5 object-contain dark:invert"
+              className="w-5 h-5 object-contain block dark:hidden"
+            />
+            <img
+              src="/white-icon.svg"
+              alt="180 Profile"
+              className="w-5 h-5 object-contain hidden dark:block"
             />
           </div>
           <div className="flex flex-col">
@@ -69,7 +74,7 @@ export function DesktopSidebar({ user, balance }: DesktopSidebarProps) {
                 Universal
               </span>
             </span>
-            <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium">Sovereign Identity Protocol</span>
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium">Universal Identity Protocol</span>
           </div>
         </Link>
       </div>
@@ -89,7 +94,7 @@ export function DesktopSidebar({ user, balance }: DesktopSidebarProps) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
-                <span className="font-bold text-xs text-slate-900 dark:text-white truncate">{user.name || 'Sovereign User'}</span>
+                <span className="font-bold text-xs text-slate-900 dark:text-white truncate">{user.name || 'Universal User'}</span>
                 <ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
               </div>
               <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono truncate">
@@ -99,7 +104,7 @@ export function DesktopSidebar({ user, balance }: DesktopSidebarProps) {
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-[10px]">
             <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
-              Verified Sovereign ID
+              Verified Universal ID
             </span>
             <span className="text-slate-500 dark:text-zinc-400 font-mono text-[10px]">OAuth 2.0</span>
           </div>
@@ -183,7 +188,7 @@ export function DesktopSidebar({ user, balance }: DesktopSidebarProps) {
               <div className="text-2xl font-black tracking-tight text-white">
                 ₹{balance !== null ? balance.toFixed(2) : '0.00'}
               </div>
-              <p className="text-[10px] text-zinc-400 mt-0.5">Sovereign wallet shared across 180 ecosystem</p>
+              <p className="text-[10px] text-zinc-400 mt-0.5">Prepaid wallet shared across 180 ecosystem</p>
             </div>
             <Link
               href="/wallet"

@@ -424,7 +424,7 @@ function LoginFormContent() {
     }
 
     setLoading(true);
-    const toastId = toast.loading('Setting your sovereign password...');
+    const toastId = toast.loading('Setting your password...');
 
     try {
       // If user came from Google continuation, update their password directly
@@ -524,7 +524,7 @@ function LoginFormContent() {
     setOnboardUsername(user.username || user.name?.toLowerCase().replace(/\s+/g, '_') || '');
     setOnboardAvatarUrl(
       user.avatarUrl ||
-        `https://api.dicebear.com/7.x/bottts/svg?seed=${user.username || 'sovereign'}`
+        `https://api.dicebear.com/7.x/bottts/svg?seed=${user.username || '180user'}`
     );
     setOnboardAge(user.age ? String(user.age) : '');
     setOnboardHeadline(user.headline || '');
@@ -672,7 +672,7 @@ function LoginFormContent() {
     }
 
     setLoading(true);
-    const toastId = toast.loading('Finalizing your sovereign profile...');
+    const toastId = toast.loading('Finalizing your profile...');
 
     try {
       const isEmailPrimary = Boolean(currentUser?.email);
@@ -705,7 +705,7 @@ function LoginFormContent() {
         throw new Error(data.message || data.error || 'Failed to complete profile');
       }
 
-      toast.success('Welcome to 180 Sovereign Identity!', { id: toastId });
+      toast.success('Welcome to 180 Profile!', { id: toastId });
       const finalUser = data.user || currentUser;
       const finalToken = data.token || currentAuthToken;
 
@@ -798,7 +798,7 @@ function LoginFormContent() {
           ) : (
             <div className="text-center space-y-1">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">Welcome Back</h2>
-              <p className="text-xs text-slate-500">Authenticate instantly with your sovereign account</p>
+              <p className="text-xs text-slate-500">Authenticate instantly with your 180 account</p>
             </div>
           )}
 
@@ -823,7 +823,7 @@ function LoginFormContent() {
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 </div>
                 <div className="text-xs text-slate-500 font-mono truncate max-w-[200px]">
-                  {cachedUser.email || (cachedUser.username ? `@${cachedUser.username}` : cachedUser.phone || 'Sovereign Account')}
+                  {cachedUser.email || (cachedUser.username ? `@${cachedUser.username}` : cachedUser.phone || '180 Account')}
                 </div>
               </div>
             </div>

@@ -320,7 +320,7 @@ export function PayPayoutsView() {
         </div>
       )}
 
-      {/* 2. Balance & Sovereign Treasury Financial Ledger */}
+      {/* 2. Balance & Treasury Financial Ledger */}
       <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200 dark:border-white/10">
@@ -364,7 +364,7 @@ export function PayPayoutsView() {
           </div>
         </div>
 
-        {/* 3 Key Sovereign Treasury Financial Cards */}
+        {/* 3 Key Treasury Financial Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Card 1: TOTAL RECEIVED (GROSS) */}
           <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/5 space-y-3 relative overflow-hidden group hover:border-zinc-300 dark:hover:border-white/10 transition-colors">

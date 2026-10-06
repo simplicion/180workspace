@@ -1,5 +1,5 @@
 /**
- * 180 Core SDK (v1.0.0-sovereign)
+ * 180 Core SDK (v1.0.0)
  * Universal Zero-Dependency Client Engine for 180 Identity (Authentication/SSO) & 180 Pay (Checkout)
  * 
  * Standards: RFC 6749 (OAuth 2.0), OpenID Connect Core 1.0, RFC 7636 (PKCE S256)
@@ -410,7 +410,7 @@
           isResolved = true;
           cleanupListeners();
           closeModal();
-          var err = new Error(data.error_description || data.error || data.message || '180 Sovereign operation failed');
+          var err = new Error(data.error_description || data.error || data.message || '180 Operation failed');
           if (options.onError) options.onError(err);
           reject(err);
         } else if (closeTypes.indexOf(data.type) !== -1) {
@@ -456,7 +456,7 @@
 
       return openAdaptiveModal({
         url: authUrl,
-        title: '180 Sovereign Identity',
+        title: '180 Identity',
         uxMode: effectiveMode,
         successTypes: ['180_IDENTITY_SUCCESS', '180_AUTH_SUCCESS'],
         closeTypes: ['180_IDENTITY_CLOSE'],
@@ -514,7 +514,7 @@
     generateReferenceCode: generateReferenceCode
   };
 
-  // ─── 180 PAY / SOVEREIGN CHECKOUT SERVICE ─────────────────────────────────
+  // ─── 180 PAY / CHECKOUT SERVICE ─────────────────────────────────────────────
   var OneEightyPay = {
     checkout: function (options) {
       options = options || {};
@@ -591,7 +591,7 @@
 
   // ─── UNIFIED ONE-EIGHTY CORE ROOT OBJECT ──────────────────────────────────
   var OneEighty = {
-    version: '1.0.0-sovereign',
+    version: '1.0.0',
     init: function (config) {
       if (config) {
         if (config.clientId) _config.clientId = config.clientId;
@@ -622,7 +622,7 @@
         connectedCallback() {
           var clientId = this.getAttribute('client-id') || _config.clientId || '180-core-client';
           var title = this.getAttribute('title') || 'Continue with 180 Profile';
-          var subtitle = this.getAttribute('subtitle') || 'Sovereign Auth · WhatsApp OTP · SSO';
+          var subtitle = this.getAttribute('subtitle') || 'Universal Auth · WhatsApp OTP · SSO';
           this.innerHTML = [
             '<button type="button" style="display: inline-flex; align-items: center; gap: 12px; padding: 10px 18px; border-radius: 14px; background: #ffffff; color: #09090b; border: 1.5px solid #27272a; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12); transition: all 0.18s ease; outline: none;">',
             '<div style="width: 28px; height: 28px; border-radius: 8px; background: #18181b; border: 1px solid #27272a; display: flex; align-items: center; justify-content: center; position: relative;">',

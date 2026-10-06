@@ -9,15 +9,13 @@ import {
   AppWindow,
   User,
   CreditCard,
-  Menu,
-  X,
   ExternalLink,
   ShieldCheck,
   ChevronDown,
   LogOut,
   Sparkles,
 } from 'lucide-react';
-import { AILogoIcon, HelpIcon } from '@workspace/ui';
+import { HelpIcon } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { UserProfile } from '../types';
 
@@ -28,13 +26,11 @@ interface HeaderProps {
 
 export function Header({ balance, user }: HeaderProps) {
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close menus on route change or outside click
   useEffect(() => {
-    setMobileMenuOpen(false);
     setUserDropdownOpen(false);
   }, [pathname]);
 
@@ -47,7 +43,6 @@ export function Header({ balance, user }: HeaderProps) {
     const handleEscKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setUserDropdownOpen(false);
-        setMobileMenuOpen(false);
       }
     };
 
@@ -86,19 +81,26 @@ export function Header({ balance, user }: HeaderProps) {
             href="/"
             className="flex items-center gap-3 group min-h-[44px] shrink-0 cursor-pointer"
           >
-            <div className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[1px] shadow-xs shrink-0 overflow-hidden">
-              <div className="w-full h-full bg-white rounded-xl flex items-center justify-center p-1.5 overflow-hidden">
-                <AILogoIcon className="w-5 h-5 min-w-[20px] min-h-[20px] max-w-[20px] max-h-[20px] text-blue-600 group-hover:scale-110 transition-transform duration-300 shrink-0" />
-              </div>
+            <div className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200/90 dark:border-zinc-700 shadow-2xs shrink-0 flex items-center justify-center p-1.5 overflow-hidden group-hover:border-slate-300 transition-colors">
+              <img
+                src="/black-icon.svg"
+                alt="180 Logo"
+                className="w-full h-full object-contain block dark:hidden group-hover:scale-105 transition-transform"
+              />
+              <img
+                src="/white-icon.svg"
+                alt="180 Logo"
+                className="w-full h-full object-contain hidden dark:block group-hover:scale-105 transition-transform"
+              />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-sm tracking-tight text-slate-900 flex items-center gap-1.5">
+              <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
                 180 Profile
                 <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
                   Universal
                 </span>
               </span>
-              <span className="text-[11px] text-slate-500 font-medium">Identity & Sovereign Wallet</span>
+              <span className="text-[11px] text-slate-500 font-medium">Identity &amp; Universal Wallet</span>
             </div>
           </Link>
 
@@ -235,112 +237,8 @@ export function Header({ balance, user }: HeaderProps) {
               </Link>
             </div>
           )}
-
-          {/* Mobile Menu Hamburger Button */}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
-            aria-label="Toggle navigation menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
         </div>
       </div>
-
-      {/* Mobile Navigation Drawer */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-5 space-y-3 shadow-lg animate-in slide-in-from-top-2 duration-200">
-          {user ? (
-            <>
-              {/* User Mini Card */}
-              <div className="p-3 rounded-2xl bg-blue-50/50 border border-blue-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 p-[1.5px] overflow-hidden shrink-0">
-                    {user.avatarUrl ? (
-                      <img src={user.avatarUrl} alt="" className="w-full h-full rounded-full object-cover bg-white" />
-                    ) : (
-                      <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-blue-700 font-bold text-xs">
-                        {user.name ? user.name.slice(0, 1).toUpperCase() : 'U'}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-bold text-xs text-slate-900">{user.name || 'User'}</div>
-                    <div className="text-[11px] text-slate-500">{user.email || user.phone || 'Sovereign Account'}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] text-slate-400 font-medium">Balance</div>
-                  <div className="font-bold text-xs text-blue-950">₹{balance !== null ? balance.toFixed(2) : '0.00'}</div>
-                </div>
-              </div>
-
-              {/* Nav Items */}
-              <div className="space-y-1">
-                {navItems.map((item) => {
-                  const isActive =
-                    item.href === '/'
-                      ? pathname === '/'
-                      : pathname === item.href ||
-                        (item.href === '/transactions' && pathname === '/wallet') ||
-                        (item.href === '/profile' && pathname === '/settings');
-                  const Icon = item.icon;
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-xl text-sm font-semibold transition-all ${
-                        isActive
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4 text-blue-600" />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-
-              {/* Sign Out */}
-              <div className="pt-2 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="w-full flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-xl text-sm font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Sign Out</span>
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="space-y-2 pt-2">
-              <Link
-                href="/auth/login"
-                className="w-full flex items-center justify-center py-3 min-h-[44px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20"
-              >
-                Sign In with 180
-              </Link>
-            </div>
-          )}
-
-          <div className="pt-2 border-t border-slate-100">
-            <a
-              href="https://developers.180workspace.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-medium text-slate-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
-            >
-              <span>Developer Portal</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

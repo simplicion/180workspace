@@ -6,6 +6,15 @@ import '@/lib/api';
 export const metadata: Metadata = {
   title: '180 Profile — Universal Identity, Security & Wallet',
   description: 'Manage your unified 180 Profile, prepaid wallet balance, top-ups, and developer authorizations.',
+  icons: {
+    icon: [
+      { url: '/black-icon.svg', media: '(prefers-color-scheme: light)' },
+      { url: '/white-icon.svg', media: '(prefers-color-scheme: dark)' },
+      { url: '/black-icon.svg' },
+    ],
+    shortcut: '/black-icon.svg',
+    apple: '/black-icon.svg',
+  },
 };
 
 export default function RootLayout({
@@ -16,6 +25,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/black-icon.svg" media="(prefers-color-scheme: light)" />
+        <link rel="icon" href="/white-icon.svg" media="(prefers-color-scheme: dark)" />
+        <link rel="apple-touch-icon" href="/black-icon.svg" />
         <link rel="preconnect" href="https://api.fontshare.com" />
         <link
           href="https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,300,400&display=swap"

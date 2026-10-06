@@ -65,14 +65,14 @@ export function InvoiceModal({
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Billed By</span>
             <div className="font-bold text-slate-900 text-xs">180 Workspace Platform Inc.</div>
             <div className="text-[11px] text-slate-500 leading-relaxed">
-              Universal Sovereign Protocol<br />
+              Universal Protocol<br />
               GSTIN: 27AAACW1800P1Z8<br />
               support@180workspace.com
             </div>
           </div>
 
           <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Billed To (Sovereign ID)</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Billed To (Universal ID)</span>
             <div className="font-bold text-slate-900 text-xs">{userName}</div>
             <div className="text-[11px] text-slate-500 leading-relaxed">
               {userEmail}<br />

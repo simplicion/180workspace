@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/native_engine/edit_ir.dart';
 import '../../core/native_engine/media_engine_exception.dart';
 import '../../core/network/audio_transcription_service.dart';
+import 'caption_tools.dart';
 
 /// Manual editing operations on a `mobile-editir/1` timeline.
 ///
@@ -1122,9 +1123,10 @@ class TimelineOps {
     return {...style, 'highlightColor': ?highlightColor};
   }
 
-  /// The desktop Caption Studio's viral presets (same ids and values as `CAPTION_STYLE_PRESETS` in
-  /// CaptionStudioModal.tsx; font sizes and stroke widths are canvas pixels on both). `glow` is an
-  /// optional style key: renderers that do not know it ignore it.
+  /// Creator templates: same ids and values as `CAPTION_TEMPLATES` in
+  /// packages/video-contracts/src/caption-templates.ts (what the AI Director applies by name). The first
+  /// eight also match `CAPTION_STYLE_PRESETS` in the desktop CaptionStudioModal.tsx. Font sizes and stroke
+  /// widths are canvas pixels. `glow` is an optional style key: renderers that do not know it ignore it.
   static const viralCaptionPresets = <String, ({String name, String subtitle, Map<String, dynamic> style})>{
     'HORMOZI_BOUNCE': (
       name: 'Hormozi Viral',
@@ -1197,6 +1199,40 @@ class TimelineOps {
         'shadow': true, 'uppercase': true,
       },
     ),
+    'RAJ_SHAMANI_BOLD': (
+      name: 'Shamani Bold',
+      subtitle: 'White / yellow pop',
+      style: {
+        'animation': 'word_pop', 'fontFamily': 'Montserrat', 'fontWeight': 800, 'fontSizePx': 50,
+        'textColor': '#FFFFFF', 'highlightColor': '#FFD60A', 'strokeWidthPx': 3, 'strokeColor': '#000000',
+        'shadow': true,
+      },
+    ),
+    'VARUN_MAYYA_BOX': (
+      name: 'Mayya Box',
+      subtitle: 'Box behind the spoken word',
+      style: {
+        'animation': 'word_box', 'fontFamily': 'Inter', 'fontWeight': 700, 'fontSizePx': 46,
+        'textColor': '#FFFFFF', 'highlightColor': '#7C3AED', 'strokeWidthPx': 0, 'shadow': true,
+      },
+    ),
+    'IMAN_GADZHI_LUXE': (
+      name: 'Gadzhi Luxe',
+      subtitle: 'Words appear as spoken',
+      style: {
+        'animation': 'word_reveal', 'fontFamily': 'Inter', 'fontWeight': 500, 'fontSizePx': 38,
+        'textColor': '#FFFFFF', 'highlightColor': '#D4AF37', 'strokeWidthPx': 0, 'shadow': true,
+      },
+    ),
+    'MUMBAI_BUBBLE': (
+      name: 'Mumbai Bubble',
+      subtitle: 'Rounded pill, orange box',
+      style: {
+        'animation': 'word_box', 'fontFamily': 'Baloo 2', 'fontWeight': 800, 'fontSizePx': 48,
+        'textColor': '#FFFFFF', 'highlightColor': '#FF5A1F', 'strokeWidthPx': 0, 'shadow': false,
+        'background': {'color': '#111827E6', 'paddingPx': 10, 'radiusPx': 22},
+      },
+    ),
   };
 
   /// Every caption preset offered in the Captions sheet: the 4 classic ones, then the viral ones.
@@ -1207,6 +1243,77 @@ class TimelineOps {
     'BOXED': 'Boxed',
     for (final e in viralCaptionPresets.entries) e.key: e.value.name,
   };
+
+  /// Sentence-final punctuation across scripts (Latin, Devanagari danda, Arabic / Urdu, CJK).
+  static final _sentenceEnd = RegExp(r'[.!?।॥؟۔。！？]$');
+
+  /// Replaces the text of speech captions ([textById]: caption id → new text), e.g. after a translation.
+  /// The new words share the caption's own time range in proportion to their length; its range, style and
+  /// position do not change. Captions missing from [textById] are kept as they are.
+  static MobileEditIr retextCaptions(MobileEditIr ir, Map<String, String> textById) {
+    EditIrCaption retext(EditIrCaption c, String text) {
+      final parts = text.trim().split(RegExp(r'\s+'));
+      final pop = c.words.isEmpty
+          ? (c.style['animation'] == 'word_pop' ? 1.15 : 1.0)
+          : c.words.map((w) => w.scale).reduce(math.max);
+      final total = parts.fold<int>(0, (n, p) => n + p.runes.length);
+      final span = c.endMs - c.startMs;
+      final words = <EditIrWord>[];
+      var done = 0;
+      // A correction with the same number of words keeps every word's own timing and emphasis.
+      if (parts.length == c.words.length) {
+        for (final (i, w) in c.words.indexed) {
+          words.add(EditIrWord(text: parts[i], startMs: w.startMs, endMs: w.endMs, highlight: w.highlight, color: w.color, scale: w.scale));
+        }
+        parts.clear();
+      }
+      for (final p in parts) {
+        final s = math.min(c.startMs + (span * done / total).round(), c.endMs - 1);
+        done += p.runes.length;
+        final e = c.startMs + (span * done / total).round();
+        words.add(EditIrWord(text: p, startMs: s, endMs: e.clamp(s + 1, c.endMs), scale: pop));
+      }
+      final newText = words.map((w) => w.text).join(' ');
+      return EditIrCaption(id: c.id, startMs: c.startMs, endMs: c.endMs, text: newText, words: words, style: _fontFitted(c.style, newText));
+    }
+
+    return _copy(
+      ir,
+      captions: [
+        for (final c in ir.captions)
+          c.kind == 'caption' && (textById[c.id]?.trim().isNotEmpty ?? false) ? retext(c, textById[c.id]!) : c,
+      ],
+    );
+  }
+
+  /// [style] with a font family that covers the script of [text] (Hindi, Tamil, … get their Noto Sans family).
+  static Map<String, dynamic> _fontFitted(Map<String, dynamic> style, String text) {
+    final current = style['fontFamily'] as String? ?? 'Inter';
+    final fitted = CaptionTools.fontFor(text, current);
+    return fitted == current ? style : {...style, 'fontFamily': fitted};
+  }
+
+  /// Marks one key word per speech caption as highlighted (a number, else its longest content word).
+  /// Captions that already have an emphasised word are left alone, so running it again changes nothing.
+  static MobileEditIr enhanceCaptions(MobileEditIr ir) {
+    EditIrCaption enhance(EditIrCaption c) {
+      if (c.kind != 'caption' || c.words.isEmpty) return c;
+      var words = c.words;
+      if (!words.any((w) => w.highlight)) {
+        final k = CaptionTools.keywordIndex([for (final w in words) w.text]);
+        if (k != null) {
+          words = [
+            for (final (i, w) in words.indexed)
+              i == k ? EditIrWord(text: w.text, startMs: w.startMs, endMs: w.endMs, highlight: true, color: w.color, scale: w.scale) : w,
+          ];
+        }
+      }
+      if (identical(words, c.words)) return c;
+      return EditIrCaption(id: c.id, startMs: c.startMs, endMs: c.endMs, text: words.map((w) => w.text).join(' '), words: words, style: c.style);
+    }
+
+    return _copy(ir, captions: [for (final c in ir.captions) enhance(c)]);
+  }
 
   /// Word-synced captions from a source-time transcript, [wordsPerCaption] words each, breaking
   /// early on pauses and sentence ends. Replaces existing speech captions; titles are kept.
@@ -1224,10 +1331,9 @@ class TimelineOps {
         'Captions need a transcript. Transcribe the video first.',
       );
     }
-    final style = captionStyle(
-      preset,
-      highlightColor: highlightColor,
-      positionY: positionY,
+    final style = _fontFitted(
+      captionStyle(preset, highlightColor: highlightColor, positionY: positionY),
+      words.map((w) => w.text).join(' '),
     );
     // The spoken word grows a little in word_pop styles (same 1.15 as the AI Director's captions).
     final pop = style['animation'] == 'word_pop' ? 1.15 : 1.0;
@@ -1268,7 +1374,7 @@ class TimelineOps {
       final gap = group.isEmpty ? 0 : w.startMs - group.last.endMs;
       if (group.length >= wordsPerCaption || gap > 600 || gap < 0) flush();
       group.add(w);
-      if (RegExp(r'[.!?]$').hasMatch(w.text)) flush();
+      if (_sentenceEnd.hasMatch(w.text)) flush();
     }
     flush();
     // Captions must not overlap each other.
@@ -1309,10 +1415,9 @@ class TimelineOps {
     String? highlightColor,
     double? positionY,
   }) {
-    final style = captionStyle(
-      preset,
-      highlightColor: highlightColor,
-      positionY: positionY ?? 0.72,
+    final style = _fontFitted(
+      captionStyle(preset, highlightColor: highlightColor, positionY: positionY ?? 0.72),
+      [for (final c in ir.captions) if (c.kind == 'caption') c.text].join(' '),
     );
     return _copy(
       ir,

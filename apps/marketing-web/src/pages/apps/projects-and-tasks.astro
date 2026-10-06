@@ -141,11 +141,18 @@ const faqs = [
     answer: "Yes. 180 Projects includes dynamic Gantt charts where you can draw dependency links between tasks. If a predecessor task is delayed, all dependent downstream tasks adjust automatically."
   }
 ];
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Apps', url: '/apps' },
+  { name: 'Projects & Tasks', url: '/apps/projects-and-tasks' }
+];
 ---
 
 <Layout 
   title="Projects & Tasks Management Software & Guide | 180workspace"
   description="Agile sprint boards, Kanban, milestone Gantt timelines, billable work logs, and AI task extraction natively linked to CRM and Finance in 180workspace."
+  breadcrumbs={breadcrumbs}
 >
   <main class="w-full relative">
     
@@ -153,6 +160,7 @@ const faqs = [
       title="Deliver client projects on time with"
       highlightText="zero context switching."
       description="Kanban sprint boards, milestone Gantt timelines, billable time logs, and autonomous AI task extraction all connected to your sales contracts and client billing."
+      breadcrumbs={breadcrumbs}
     />
 
     <CapabilityPillars 

@@ -270,7 +270,7 @@ export function PayTransactionsView() {
                 <div>
                   <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-medium">Session Item</span>
                   <div className="font-bold text-sm text-zinc-950 dark:text-white">
-                    {selectedTx.title || '180 Pay Sovereign Checkout'}
+                    {selectedTx.title || '180 Pay 1-Click Checkout'}
                   </div>
                 </div>
                 <div className="text-right">
@@ -297,7 +297,7 @@ export function PayTransactionsView() {
                 <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-white/5">
                   <span className="text-[10px] text-zinc-400 block">Payment Method</span>
                   <span className="font-bold text-zinc-900 dark:text-white truncate block">
-                    {selectedTx.method || 'Sovereign Wallet'}
+                    {selectedTx.method || '180 Wallet'}
                   </span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-white/5">
@@ -499,7 +499,7 @@ export function PayTransactionsView() {
                   </div>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <span className="font-bold text-zinc-900 dark:text-white">
-                      {selectedTx.customerName || '180 Sovereign User'}
+                      {selectedTx.customerName || '180 User'}
                     </span>
                     <span className="font-mono text-zinc-500 text-[11px]">
                       {selectedTx.customerEmail || selectedTx.customerPhone || 'Direct App Checkout'}
@@ -658,7 +658,7 @@ export function PayTransactionsView() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-zinc-500 text-[11px]">
-                          {tx.method || 'Sovereign Wallet'}
+                          {tx.method || '180 Wallet'}
                         </td>
                         <td className="px-4 py-3">
                           {renderStatusBadge(tx.status, tx.statusLabel)}

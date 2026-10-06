@@ -141,11 +141,18 @@ const faqs = [
     answer: "Yes. Multi-tenancy allows agencies to connect separate ad accounts and lead forms for each client workspace with isolated reporting dashboards."
   }
 ];
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Apps', url: '/apps' },
+  { name: 'Advertising & Attribution', url: '/apps/advertising' }
+];
 ---
 
 <Layout 
   title="Advertising & True ROI Attribution Software & Guide | 180workspace"
   description="Multi-platform ad spend aggregation, True ROAS calculation, lead capture forms, and server-side CAPI sync in 180workspace."
+  breadcrumbs={breadcrumbs}
 >
   <main class="w-full relative">
     
@@ -153,6 +160,7 @@ const faqs = [
       title="Track real advertising ROI from ad click to"
       highlightText="closed bank revenue."
       description="Stop guessing your true marketing return. 180 Advertising connects ad spend across Meta, Google, and TikTok directly to actual closed CRM deals and paid client invoices."
+      breadcrumbs={breadcrumbs}
     />
 
     <CapabilityPillars 

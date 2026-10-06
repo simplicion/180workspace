@@ -141,7 +141,7 @@ class TransitionMotion(private val spans: List<TransitionSpan>) : MatrixTransfor
 }
 
 /**
- * Renders captions and titles (contract §3.4) with per-word timing: word_pop, karaoke, none.
+ * Renders captions and titles (contract §3.4) with per-word timing: word_pop, karaoke, word_box, word_reveal, none.
  * Drawn with a Canvas at the output frame size, so fontSizePx is in canvas pixels.
  */
 @UnstableApi
@@ -262,12 +262,26 @@ class CaptionOverlay(
             var x = cx - lineWidths[li] / 2f
             val baseline = top + li * lineHeight - fm.ascent + (lineHeight - (fm.descent - fm.ascent)) / 2f
             for (tok in line) {
+                // word_reveal: a word is not drawn before it is spoken (its room in the line is kept).
+                if (st.animation == "word_reveal" && t < tok.word.startMs) {
+                    x += tok.slot + space
+                    continue
+                }
                 val (color, scale) = styleFor(tok.word, st, t)
                 canvas.save()
                 val textX = x + (tok.slot - tok.width) / 2f
                 val wordCx = x + tok.slot / 2f
                 val wordCy = baseline + (fm.ascent + fm.descent) / 2f
                 canvas.scale(scale, scale, wordCx, wordCy)
+                // word_box: a rounded box in the highlight colour behind the spoken word.
+                if (st.animation == "word_box" && t >= tok.word.startMs && t < tok.word.endMs) {
+                    val boxColor = tok.word.color ?: st.highlightColor
+                    bg.color = boxColor
+                    bg.alpha = Color.alpha(boxColor) * alpha / 255
+                    val padX = size * 0.14f
+                    val r = size * 0.12f
+                    canvas.drawRoundRect(RectF(textX - padX, baseline + fm.ascent, textX + tok.width + padX, baseline + fm.descent), r, r, bg)
+                }
                 if (st.strokeWidthPx > 0) canvas.drawText(tok.text, textX, baseline, stroke)
                 fill.color = color
                 fill.alpha = Color.alpha(color) * alpha / 255
@@ -293,6 +307,9 @@ class CaptionOverlay(
                 t >= word.endMs -> st.highlightColor to 1f
                 else -> restingColor to 1f
             }
+            // The box carries the highlight, so the spoken word keeps the text colour.
+            "word_box" -> (if (active) st.textColor else restingColor) to 1f
+            "word_reveal" -> (if (active) activeColor else restingColor) to 1f
             else -> restingColor to 1f
         }
     }

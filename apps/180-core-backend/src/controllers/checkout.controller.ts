@@ -1,7 +1,7 @@
 'use strict';
 
 import { Request, Response } from 'express';
-import { CheckoutService, CouponService, WebhookDispatcherService, IdentityWalletService } from '@workspace/payment-provider';
+import { CheckoutService, CouponService, GeoPricingService, WebhookDispatcherService, IdentityWalletService } from '@workspace/payment-provider';
 import { developersPrisma as prisma } from '@workspace/db-180core';
 
 export class CheckoutApiController {
@@ -442,11 +442,13 @@ export class CheckoutApiController {
       const rawOrigin = req.headers.origin || req.headers.referer || '';
       const origin = typeof rawOrigin === 'string' ? rawOrigin : '';
       const baseAmount = session.originalAmount && session.originalAmount > 0 ? session.originalAmount : session.amount;
+      const orderCurrency = String(req.body.currency || session.currency || 'USD').toUpperCase();
 
       const validation = await CouponService.validateCoupon({
         appId: session.appId,
         code: String(code),
-        orderAmount: baseAmount,
+        orderAmount: typeof req.body.orderAmount === 'number' && req.body.orderAmount > 0 ? req.body.orderAmount : baseAmount,
+        orderCurrency,
         customerEmail: customerEmail ? String(customerEmail) : undefined,
         origin,
         planId: session.planId || undefined,
@@ -460,14 +462,34 @@ export class CheckoutApiController {
         });
       }
 
+      const sessionCurrency = String(session.currency || 'USD').toUpperCase();
+      const discountInSessionCurrency = orderCurrency === sessionCurrency
+        ? validation.discountAmount
+        : GeoPricingService.convertCurrency(validation.discountAmount, orderCurrency, sessionCurrency);
+
+      const finalInSessionCurrency = Math.max(
+        0,
+        Math.round((baseAmount - discountInSessionCurrency) * 100) / 100
+      );
+
       const updated = await prisma.checkoutSession.update({
         where: { id: session.id },
         data: {
           originalAmount: baseAmount,
-          amount: validation.finalAmount,
+          amount: finalInSessionCurrency,
           couponId: validation.couponId || null,
           couponCode: validation.code,
-          discountAmount: validation.discountAmount,
+          discountAmount: discountInSessionCurrency,
+          metadata: {
+            ...((session.metadata as any) || {}),
+            appliedCurrency: orderCurrency,
+            couponOrderCurrency: orderCurrency,
+            couponDiscountInOrderCurrency: validation.discountAmount,
+            couponFinalInOrderCurrency: validation.finalAmount,
+            razorpayOrderId: null,
+            razorpayAmountPaise: null,
+            razorpayCurrency: null,
+          },
         },
         include: { app: true },
       });
@@ -514,6 +536,12 @@ export class CheckoutApiController {
           couponId: null,
           couponCode: null,
           discountAmount: 0,
+          metadata: {
+            ...((session.metadata as any) || {}),
+            razorpayOrderId: null,
+            razorpayAmountPaise: null,
+            razorpayCurrency: null,
+          },
         },
         include: { app: true },
       });
@@ -583,7 +611,11 @@ export class CheckoutApiController {
   static async createDirectOrder(req: Request, res: Response) {
     try {
       const id = String(req.params.id);
-      const order = await CheckoutService.createDirectOrder(id);
+      const { currency, amount } = req.body || {};
+      const order = await CheckoutService.createDirectOrder(id, {
+        targetCurrency: currency,
+        targetAmount: typeof amount === 'number' ? amount : undefined,
+      });
       return res.json({ success: true, ...order, data: order });
     } catch (err: any) {
       console.error('[CheckoutApiController:createDirectOrder] Error:', err);

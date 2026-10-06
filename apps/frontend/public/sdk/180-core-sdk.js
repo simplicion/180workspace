@@ -689,6 +689,47 @@
     } catch (_) {}
   }
 
+  if (isBrowser) {
+    try {
+      var handleRevoked = function (revokedClientId) {
+        if (!revokedClientId) return;
+        var currentClientId = (window.__180_CLIENT_ID || defaultClientConfig.clientId || '').toLowerCase();
+        var normRevoked = (revokedClientId || '').toLowerCase();
+        var isCurrentApp = normRevoked && (
+          normRevoked === currentClientId ||
+          (normRevoked.indexOf('social') !== -1 && currentClientId.indexOf('social') !== -1) ||
+          (normRevoked.indexOf('developer') !== -1 && currentClientId.indexOf('developer') !== -1) ||
+          (normRevoked.indexOf('workspace') !== -1 && currentClientId.indexOf('workspace') !== -1)
+        );
+        if (isCurrentApp) {
+          OneEightyAuth.signOut();
+          window.dispatchEvent(new Event('180_SIGNOUT'));
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+            window.location.reload();
+          }
+        }
+      };
+
+      if (typeof BroadcastChannel !== 'undefined') {
+        var syncChannel = new BroadcastChannel('180_auth_sync');
+        syncChannel.onmessage = function (ev) {
+          if (ev.data && ev.data.type === 'APP_REVOKED') {
+            handleRevoked(ev.data.clientId);
+          }
+        };
+      }
+
+      window.addEventListener('storage', function (ev) {
+        if (ev.key === '180_revoked_app_event' && ev.newValue) {
+          try {
+            var data = JSON.parse(ev.newValue);
+            handleRevoked(data.clientId);
+          } catch (_) {}
+        }
+      });
+    } catch (_) {}
+  }
+
   // ─── EXPORTS & BACKWARD COMPATIBILITY ─────────────────────────────────────
   global.OneEighty = OneEighty;
   global.OneEightyCore = OneEighty;

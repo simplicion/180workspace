@@ -1,8 +1,14 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import AppBottomCTA from '../components/apps/AppBottomCTA.astro';
+import Breadcrumb from '../components/ui/Breadcrumb.astro';
 
 const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Case Studies', url: '/case-studies' }
+];
 
 const caseStudies = [
   {
@@ -50,8 +56,12 @@ const caseStudies = [
 <Layout 
   title="Customer Stories & Case Studies | 180workspace"
   description="See how fast-growing agencies, consultancies, and e-commerce brands accelerate revenue and cut software costs by 60%+ with 180workspace."
+  breadcrumbs={breadcrumbs}
 >
   <main class="w-full relative">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <Breadcrumb items={breadcrumbs} />
+    </div>
     
     <!-- Hero Section -->
     <section class="relative pt-24 pb-16 md:pt-36 md:pb-20 overflow-hidden">

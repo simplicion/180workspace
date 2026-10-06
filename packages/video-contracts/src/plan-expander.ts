@@ -2,6 +2,8 @@ import { CreativeEditPlan, CreativeOperation } from "./creative-plan.schema";
 import { MediaIntelligenceGraph, TranscriptWordIntelligence, ClassifiedSilence, FaceTrack, MusicBeatTrack } from "./media-intelligence.schema";
 import { EditIR } from "./edit-ir.schema";
 import { RationalTimeMath } from "./time";
+import { resolveCaptionTemplate } from "./caption-templates";
+import { captionKeywordIndex } from "./caption-enhance";
 import { MediaGraphBuilder } from "./media-graph";
 import { MobileMediaDescriptor, MobileFaceSample, mapSourceToTimeline, dominantFaceCenter, cropFor } from "./mobile-edit-ir";
 
@@ -220,31 +222,41 @@ export class PlanExpander {
   static captionOps(words: TranscriptWordIntelligence[], op: Extract<CreativeOperation, { type: "autoCaptions" }>): CreativeOperation[] {
     const ops: CreativeOperation[] = [];
     let chunk: TranscriptWordIntelligence[] = [];
+    // Explicit op values win, then the template's, then the classic defaults.
+    const tpl = resolveCaptionTemplate(op.template);
+    const textColor = op.textColor ?? tpl?.style.textColor ?? "#FFFFFF";
+    const highlightColor = op.highlightColor ?? tpl?.style.highlightColor ?? "#FFE600";
+    const uppercase = op.uppercase ?? tpl?.style.uppercase ?? false;
+    const animation = op.animation ?? tpl?.style.animation ?? "word_pop";
     const flush = () => {
       if (chunk.length === 0) return;
       const start = chunk[0].startSeconds;
       const end = Math.max(chunk[chunk.length - 1].endSeconds, start + 0.3);
-      const text = chunk.map((w) => (op.uppercase ? w.word.toUpperCase() : w.word)).join(" ");
+      // Auto emphasis: one key word per caption, unless the transcript already marks one.
+      const key = op.autoEmphasis !== false && !chunk.some((w) => w.isEmphasis) ? captionKeywordIndex(chunk.map((w) => w.word)) : null;
+      const shown = chunk.map((w) => (uppercase ? w.word.toUpperCase() : w.word));
+      const text = shown.join(" ");
       ops.push({
         type: "addCaption",
         startSec: round3(start),
         durationSec: round3(end - start),
         text,
-        textColor: op.textColor,
-        highlightColor: op.highlightColor,
+        textColor,
+        highlightColor,
         stylePreset: op.stylePreset,
-        words: chunk.map((w) => ({
-          word: op.uppercase ? w.word.toUpperCase() : w.word,
+        ...(tpl ? { template: tpl.id } : {}),
+        words: chunk.map((w, i) => ({
+          word: shown[i],
           startSec: round3(w.startSeconds),
           endSec: round3(Math.max(w.endSeconds, w.startSeconds + 0.02)),
-          highlight: !!w.isEmphasis,
-          scale: op.animation === "word_pop" ? 1.15 : 1.0,
-          ...(w.isEmphasis ? { color: op.highlightColor } : {}),
+          highlight: !!w.isEmphasis || i === key,
+          scale: animation === "word_pop" ? 1.15 : 1.0,
+          ...(w.isEmphasis || i === key ? { color: highlightColor } : {}),
         })),
         ...(op.fontSize ? { fontSize: op.fontSize } : {}),
         ...(op.position ? { position: op.position } : {}),
-        uppercase: op.uppercase,
-        animation: op.animation,
+        uppercase,
+        animation,
         ...(op.strokeColor ? { strokeColor: op.strokeColor } : {}),
         ...(op.strokeWidth !== undefined ? { strokeWidth: op.strokeWidth } : {}),
         ...(op.background ? { background: op.background } : {}),

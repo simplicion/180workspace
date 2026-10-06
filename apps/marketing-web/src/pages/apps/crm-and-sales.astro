@@ -141,11 +141,18 @@ const faqs = [
     answer: "No. 180workspace plans include unlimited leads, unlimited contacts, and multiple custom pipelines per company workspace."
   }
 ];
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Apps', url: '/apps' },
+  { name: 'CRM & Sales', url: '/apps/crm-and-sales' }
+];
 ---
 
 <Layout 
   title="CRM & Sales Pipeline Software & User Guide | 180workspace"
   description="Manage leads, visual deal pipelines, proposals, and digital e-signatures in one unified CRM natively connected to your projects and finance."
+  breadcrumbs={breadcrumbs}
 >
   <main class="w-full relative">
     
@@ -153,6 +160,7 @@ const faqs = [
       title="Close deals faster with a CRM that"
       highlightText="natively connects to delivery."
       description="Stop losing context between sales and execution. 180 CRM manages your entire client lifecycle from first ad click to proposal e-signatures and automated invoice collection."
+      breadcrumbs={breadcrumbs}
     />
 
     <CapabilityPillars 

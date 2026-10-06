@@ -5,6 +5,7 @@ import axios from 'axios';
 import { developersPrisma as prisma } from '@workspace/db-180core';
 import { IdentityWalletService } from '../wallet/identity-wallet.service';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { GeoPricingService } from '../geo/geo-pricing.service';
 
 function hashSecret(secret: string): string {
   return crypto.createHash('sha256').update(secret).digest('hex');
@@ -742,7 +743,10 @@ export class CheckoutService {
    * Creates a direct gateway order (Razorpay Order or Stripe PaymentIntent)
    * for guest or direct in-sheet checkout.
    */
-  static async createDirectOrder(sessionId: string) {
+  static async createDirectOrder(
+    sessionId: string,
+    options?: { targetCurrency?: string; targetAmount?: number }
+  ) {
     const session = await prisma.checkoutSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -763,8 +767,40 @@ export class CheckoutService {
     }
 
     const { gatewayType, keyId, keySecret } = this.resolveGatewayConfig(session.app);
-    const amountSmallestUnit = Math.round(session.amount * 100);
     const sessionMeta = (session.metadata as any) || {};
+
+    // 1. Determine target currency and amount with multi-currency conversion
+    const targetCurrency = String(
+      options?.targetCurrency || sessionMeta.appliedCurrency || session.currency || 'INR'
+    ).toUpperCase();
+
+    let targetAmount =
+      typeof options?.targetAmount === 'number' && options.targetAmount > 0
+        ? options.targetAmount
+        : session.amount;
+
+    // Convert targetAmount if targetCurrency differs from session.currency and explicit targetAmount wasn't provided
+    if (
+      options?.targetCurrency &&
+      options.targetCurrency.toUpperCase() !== (session.currency || '').toUpperCase() &&
+      (!options.targetAmount || options.targetAmount === session.amount)
+    ) {
+      targetAmount = GeoPricingService.convertCurrency(
+        session.amount,
+        session.currency || 'USD',
+        targetCurrency
+      );
+    }
+
+    let amountSmallestUnit =
+      targetCurrency === 'JPY' ? Math.round(targetAmount) : Math.round(targetAmount * 100);
+
+    // Gateway constraints: Razorpay requires min ₹1.00 (100 paise), Stripe min $0.50 (50 cents)
+    if (targetCurrency === 'INR' && amountSmallestUnit < 100) {
+      amountSmallestUnit = 100;
+    } else if (targetCurrency === 'USD' && amountSmallestUnit < 50) {
+      amountSmallestUnit = 50;
+    }
 
     // 1. STRIPE GATEWAY ROUTE
     if (gatewayType === 'STRIPE') {
@@ -772,13 +808,14 @@ export class CheckoutService {
       if (
         sessionMeta.stripePaymentIntentId &&
         sessionMeta.stripeAmountSmallestUnit === amountSmallestUnit &&
+        sessionMeta.stripeCurrency === targetCurrency &&
         sessionMeta.stripeKeyId === keyId
       ) {
         return {
           orderId: sessionMeta.stripePaymentIntentId,
           clientSecret: sessionMeta.stripeClientSecret,
           amountPaise: amountSmallestUnit,
-          currency: session.currency || 'USD',
+          currency: targetCurrency,
           keyId,
           gatewayType: 'STRIPE',
         };
@@ -796,7 +833,7 @@ export class CheckoutService {
           orderId: simPiId,
           clientSecret: simClientSecret,
           amountPaise: amountSmallestUnit,
-          currency: session.currency || 'USD',
+          currency: targetCurrency,
           keyId,
           gatewayType: 'STRIPE',
         };
@@ -805,7 +842,7 @@ export class CheckoutService {
       // Real Stripe PaymentIntent via Stripe REST API
       const params = new URLSearchParams();
       params.append('amount', String(amountSmallestUnit));
-      params.append('currency', (session.currency || 'usd').toLowerCase());
+      params.append('currency', targetCurrency.toLowerCase());
       params.append('description', `Order for ${session.title} (${session.id})`);
       params.append('metadata[sessionId]', session.id);
       params.append('metadata[appId]', session.appId);
@@ -836,6 +873,7 @@ export class CheckoutService {
               stripePaymentIntentId: pi.id,
               stripeClientSecret: pi.client_secret,
               stripeAmountSmallestUnit: amountSmallestUnit,
+              stripeCurrency: targetCurrency,
               stripeKeyId: keyId,
               gateway: 'STRIPE',
             },
@@ -849,23 +887,24 @@ export class CheckoutService {
         orderId: pi.id,
         clientSecret: pi.client_secret,
         amountPaise: amountSmallestUnit,
-        currency: session.currency || 'USD',
+        currency: targetCurrency,
         keyId,
         gatewayType: 'STRIPE',
       };
     }
 
     // 2. RAZORPAY GATEWAY ROUTE
-    // Fast-path idempotency cache: If a Razorpay order was already pre-created for this exact amount and key, reuse it!
+    // Fast-path idempotency cache: Check orderId, amountPaise, TARGET CURRENCY, and keyId!
     if (
       sessionMeta.razorpayOrderId &&
       sessionMeta.razorpayAmountPaise === amountSmallestUnit &&
+      sessionMeta.razorpayCurrency === targetCurrency &&
       sessionMeta.razorpayKeyId === keyId
     ) {
       return {
         orderId: sessionMeta.razorpayOrderId,
         amountPaise: amountSmallestUnit,
-        currency: session.currency || 'INR',
+        currency: targetCurrency,
         keyId,
         gatewayType: 'RAZORPAY',
       };
@@ -876,7 +915,7 @@ export class CheckoutService {
       return {
         orderId: `order_sim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         amountPaise: amountSmallestUnit,
-        currency: session.currency || 'INR',
+        currency: targetCurrency,
         keyId,
         gatewayType: 'RAZORPAY',
       };
@@ -888,13 +927,14 @@ export class CheckoutService {
       'https://api.razorpay.com/v1/orders',
       {
         amount: amountSmallestUnit,
-        currency: session.currency || 'INR',
+        currency: targetCurrency,
         receipt: `cs_${session.id.replace(/-/g, '').slice(0, 36)}`,
         notes: {
           sessionId: session.id,
           appId: session.appId,
           appName: session.app?.name || '180 App',
           title: session.title,
+          currency: targetCurrency,
         },
       },
       {
@@ -906,15 +946,20 @@ export class CheckoutService {
       }
     );
 
-    // Persist prewarmed/created order to avoid duplicate calls to Razorpay
+    const actualOrderId = rzpResponse.data.id;
+    const actualAmountPaise = rzpResponse.data.amount;
+    const actualCurrency = rzpResponse.data.currency;
+
+    // Persist prewarmed/created order with EXACT currency & amountPaise to avoid mismatches
     try {
       await prisma.checkoutSession.update({
         where: { id: sessionId },
         data: {
           metadata: {
             ...sessionMeta,
-            razorpayOrderId: rzpResponse.data.id,
-            razorpayAmountPaise: amountSmallestUnit,
+            razorpayOrderId: actualOrderId,
+            razorpayAmountPaise: actualAmountPaise,
+            razorpayCurrency: actualCurrency,
             razorpayKeyId: keyId,
             gateway: 'RAZORPAY',
           },
@@ -925,9 +970,9 @@ export class CheckoutService {
     }
 
     return {
-      orderId: rzpResponse.data.id,
-      amountPaise: amountSmallestUnit,
-      currency: session.currency || 'INR',
+      orderId: actualOrderId,
+      amountPaise: actualAmountPaise,
+      currency: actualCurrency,
       keyId,
       gatewayType: 'RAZORPAY',
     };

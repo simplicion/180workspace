@@ -626,7 +626,7 @@ export function AppModals({
                 <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-white/5">
                   <span className="text-[10px] text-zinc-400 block">Payment Method</span>
                   <span className="font-bold text-zinc-900 dark:text-white truncate block">
-                    {selectedTx.method || selectedTx.paymentMethod || 'Sovereign Wallet'}
+                    {selectedTx.method || selectedTx.paymentMethod || '180 Wallet'}
                   </span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-white/5">
@@ -823,7 +823,7 @@ export function AppModals({
                   </div>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <span className="font-bold text-zinc-900 dark:text-white">
-                      {selectedTx.customerName || selectedTx.customer?.name || '180 Sovereign User'}
+                      {selectedTx.customerName || selectedTx.customer?.name || '180 User'}
                     </span>
                     <span className="font-mono text-zinc-500 text-[11px]">
                       {selectedTx.customerEmail || selectedTx.customerPhone || selectedTx.customer?.email || 'Direct App Checkout'}

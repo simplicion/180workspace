@@ -134,7 +134,7 @@ export default function CallbackPage() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold tracking-tight">Authenticating Developer Account...</h2>
             <p className="text-sm text-[var(--muted-foreground)]">
-              Exchanging your sovereign authorization credentials with 180 Identity.
+              Exchanging your authorization credentials with 180 Identity.
             </p>
             <div className="flex justify-center pt-2">
               <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />

@@ -46,7 +46,7 @@ Request: `multipart/form-data`
 | field | type | required | notes |
 |---|---|---|---|
 | `audio` | file | yes | `audio/mp4`, `audio/m4a`, `audio/x-m4a`, `audio/aac`, `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/webm`, `audio/ogg`. Max **25 MB**. |
-| `language` | string | no | ISO-639-1, default `en` |
+| `language` | string | no | ISO-639-1 code, or `auto` (default) to detect the spoken language |
 
 200 response:
 ```json
@@ -72,7 +72,30 @@ Errors (`success:false`, `error` code, `message`):
 | 502 | `TRANSCRIPTION_FAILED` | the STT provider failed, or returned no word timings (the server never invents timings) |
 | 503 | `TRANSCRIPTION_UNAVAILABLE` | `CARTESIA_API_KEY` is not configured on the server |
 
+`data.language` is the ISO-639-1 code of the language that was spoken (detected when the request sent `auto`
+or nothing); `und` when the provider could not name it.
+
 Pass `data.words` straight into `media.transcript.words` of `/ai-direct`.
+
+---
+
+## 1b. `POST /api/v1/media-editor/captions/translate`
+
+Caption text in another language, or the same language in Roman letters (Hindi → Hinglish). Words only: the
+client keeps every caption's time range and spreads the new words over it.
+
+Request: `application/json`
+| field | type | required | notes |
+|---|---|---|---|
+| `captions` | `[{ id, text }]` | yes | 1–400 captions, text up to 300 characters |
+| `targetLanguage` | string | yes | ISO-639-1 code from the supported list (`CAPTION_TARGET_LANGUAGES`) |
+| `script` | string | no | `native` (default) or `roman` (Latin letters) |
+
+200 response: `{ "success": true, "data": { "targetLanguage": "hi", "script": "roman", "captions": [{ "id": "cap_1", "text": "aaj hum baat karenge" }] } }`
+— the same ids, one line per caption.
+
+Errors: 400 `INVALID_REQUEST`, 401 `UNAUTHENTICATED`, 503 `AI_NOT_CONFIGURED` (no AI provider key),
+502 `TRANSLATION_FAILED` (the provider failed or its answer did not line up one-to-one; nothing is invented).
 
 ---
 

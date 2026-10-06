@@ -5,7 +5,7 @@ import PortalShell from '../components/layout/PortalShell';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '180 Developers | Sovereign Identity & OAuth 2.0 API',
+  title: '180 Developers | Universal Identity & OAuth 2.0 API',
   description:
     'Integrate 180 Identity into your web apps, mobile apps, and APIs. Universal 1-tap WhatsApp OTP, Google sign-in, RS256 JWKS tokens, and RFC 7636 PKCE.',
   icons: {

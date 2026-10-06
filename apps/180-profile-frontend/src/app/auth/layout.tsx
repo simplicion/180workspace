@@ -59,8 +59,8 @@ function AuthFooter() {
       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
       <span>
         {clientId
-          ? 'Protected by Sovereign Identity & End-to-End Encryption'
-          : 'Protected by 180 Workspace Sovereign Identity & Ledger Protocol'}
+          ? 'Protected by Universal Identity & End-to-End Encryption'
+          : 'Protected by 180 Workspace Universal Identity & Ledger Protocol'}
       </span>
     </footer>
   );

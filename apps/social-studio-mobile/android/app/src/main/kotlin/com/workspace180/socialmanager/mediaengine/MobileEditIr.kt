@@ -513,7 +513,7 @@ data class MobileEditIr(
         }
         captions.forEach { cap ->
             if (cap.endMs <= cap.startMs) fail("caption ${cap.id}: empty range")
-            if (cap.style.animation !in setOf("none", "word_pop", "karaoke")) fail("caption ${cap.id}: animation '${cap.style.animation}' unsupported")
+            if (cap.style.animation !in setOf("none", "word_pop", "karaoke", "word_box", "word_reveal")) fail("caption ${cap.id}: animation '${cap.style.animation}' unsupported")
         }
         zooms.forEach { if (it.scale < 1.0 || it.endMs <= it.startMs) fail("zoom ${it.id}: invalid") }
         if (audio.music.size > 1) fail("mobile-editir/1 allows at most one music item")

@@ -80,7 +80,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
     }
 
     setSaving(true);
-    const toastId = toast.loading('Verifying code on 180 Sovereign Security...');
+    const toastId = toast.loading('Verifying code with 180 Security...');
     try {
       await new Promise((r) => setTimeout(r, 600));
       const updatedUser: UserProfile = {
@@ -107,7 +107,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
     <PlatformModal
       isOpen={isOpen}
       onClose={onClose}
-      title={step === 'FORM' ? 'Edit Sovereign Profile' : 'Verify Contact Credentials'}
+      title={step === 'FORM' ? 'Edit Profile' : 'Verify Contact Credentials'}
       maxWidthClass="max-w-lg"
     >
       {step === 'FORM' ? (
@@ -129,7 +129,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileM
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Sovereign Username</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Username</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">@</span>
                 <input

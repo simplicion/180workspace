@@ -73,11 +73,11 @@ export default function IdentityProductPage() {
 
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-semibold">
           <Shield className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-          <span>Universal Sovereign Authentication Protocol</span>
+          <span>Universal Authentication Protocol</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-zinc-950 dark:text-white leading-[1.1]">
-          Sovereign Authentication.{' '}
+          Universal Authentication.{' '}
           <br />
           <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-300 dark:to-purple-300 bg-clip-text text-transparent">
             One-Tap WhatsApp & Google SSO.
@@ -177,9 +177,9 @@ export default function IdentityProductPage() {
             <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
               <Users className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-zinc-950 dark:text-white text-base">Sovereign Identity Passport</h3>
+            <h3 className="font-bold text-zinc-950 dark:text-white text-base">Universal Identity Passport</h3>
             <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Users carry their verified profile (@username, avatar, KYC, and sovereign wallet) seamlessly across all ecosystem applications.
+              Users carry their verified profile (@username, avatar, KYC, and 180 wallet) seamlessly across all ecosystem applications.
             </p>
           </div>
         </div>
@@ -313,7 +313,7 @@ app.get('/api/protected', (req, res) => {
 
   jwt.verify(token, getKey, { algorithms: ['RS256'] }, (err, decoded) => {
     if (err) return res.status(401).json({ error: 'Invalid 180 Token' });
-    res.json({ message: 'Authorized sovereign user', user: decoded });
+    res.json({ message: 'Authorized user', user: decoded });
   });
 });`}
 
@@ -385,7 +385,7 @@ Future<void> signInWith180() async {
         {authPayload && (
           <div className="space-y-4 text-zinc-900 dark:text-white">
             <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Your application received the verified 180 Sovereign Identity payload and tokens.
+              Your application received the verified 180 Identity payload and tokens.
             </p>
 
             <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 space-y-2 text-xs font-mono">
@@ -395,7 +395,7 @@ Future<void> signInWith180() async {
               </div>
               <div>
                 <span className="text-zinc-500">Subject ID:</span>{' '}
-                <span className="text-blue-600 dark:text-blue-400 truncate">{authPayload.user?.id || 'usr_180 sovereign'}</span>
+                <span className="text-blue-600 dark:text-blue-400 truncate">{authPayload.user?.id || 'usr_180_universal'}</span>
               </div>
               <div>
                 <span className="text-zinc-500">Auth Code:</span>{' '}

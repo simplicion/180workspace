@@ -200,6 +200,44 @@ export const FIRST_PARTY_APPS = [
         logoUrl: '/social-studio.png'
     },
     {
+        clientId: '180_client_266753c1171df1e2c4a391483fd2e02e',
+        name: '180 Social Studio',
+        description: 'Multi-Channel Social Media Automation & Analytics',
+        redirectUris: [
+            'workspace180://oauth/callback',
+            'workspace180://oauth-callback',
+            '180social://oauth-callback',
+            '180social://oauth/callback',
+            'socialstudio://oauth-callback',
+            'socialstudio://oauth/callback',
+            'https://social.180workspace.com/#/oauth-callback',
+            'http://localhost:3007/#/oauth-callback',
+            'http://localhost:3007/oauth-callback',
+            'http://localhost:3000/callback',
+            'http://localhost:3000/social/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3007',
+            'http://127.0.0.1:3007',
+            'https://social.180workspace.com',
+            'http://localhost:3000'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email',
+            'identity:phone',
+            'social:publish'
+        ],
+        isVerified: true,
+        isActive: true,
+        authDesktopDefault: 'popup',
+        authMobileDefault: 'bottom_sheet',
+        payDesktopDefault: 'bottom_sheet',
+        payMobileDefault: 'bottom_sheet',
+        logoUrl: '/social-studio.png'
+    },
+    {
         clientId: '180-traffic-director',
         name: '180 Traffic Director',
         description: 'Enterprise Edge Traffic Router, Safe Reverse Proxy & Bot Armor',
@@ -297,7 +335,7 @@ export const FIRST_PARTY_APPS = [
         authMobileDefault: 'bottom_sheet',
         payDesktopDefault: 'bottom_sheet',
         payMobileDefault: 'bottom_sheet',
-        logoUrl: '/icon.svg'
+        logoUrl: '/black-icon.svg'
     },
     {
         clientId: '180-developer-portal',
@@ -351,7 +389,7 @@ export const FIRST_PARTY_APPS = [
         authMobileDefault: 'bottom_sheet',
         payDesktopDefault: 'bottom_sheet',
         payMobileDefault: 'bottom_sheet',
-        logoUrl: '/icon.svg'
+        logoUrl: '/black-icon.svg'
     },
     {
         clientId: '180-core-client',

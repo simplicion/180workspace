@@ -640,7 +640,7 @@ export function PaymentLinkClient({ slug }: { slug: string }) {
 
       {/* Page Footer */}
       <footer className="max-w-2xl mx-auto w-full text-center pt-6 text-[11px] text-zinc-600">
-        Powered by <span className="font-semibold text-zinc-400">180 Pay</span> · Sovereign Developer Infrastructure
+        Powered by <span className="font-semibold text-zinc-400">180 Pay</span> · Developer Infrastructure
       </footer>
     </div>
   );

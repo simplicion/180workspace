@@ -756,3 +756,14 @@ Open:
 - Loudness normalisation (both edits export at −28 LUFS) and face-aware default sticker placement (above).
 
 Follow-up plan and status of every issue from these runs: `EDIT_RUN_FIX_PLAN.md` (B1–B9 fixed 2026-10-03).
+
+## Captioning upgrade (2026-10-07)
+Plan and status: `CAPTIONING_PLAN.md`. Done: spoken-language auto-detect (`/transcribe` `language=auto`, picker in the
+Captions sheet), creator caption templates for the AI Director (`packages/video-contracts/src/caption-templates.ts`),
+caption conversion to another language or Roman letters (`/captions/translate` by hand, `translateCaptions` op for the
+Director), `word_box` / `word_reveal` motions on the phone, 4 more templates (Shamani, Mayya, Gadzhi, Mumbai Bubble).
+Since then: provider order + bake-off script (Whisper only), Indic fonts, key-word emphasis, caption correction,
+SRT/VTT export. Captions never get emoji; no paid STT added (owner rule). Open: desktop renderer
+support for the new motions, transcript correction UI, SRT/VTT export, a device run with a Hindi clip.
+Known unrelated failure: 4 lock-screen tests (`access_lock_test.dart`, `navigation_test.dart`) overflow in the
+uncommitted `feature_lock_view.dart`.

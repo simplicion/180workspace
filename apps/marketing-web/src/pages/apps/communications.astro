@@ -141,11 +141,19 @@ const faqs = [
     answer: "Yes. All WebSockets, text messages, and WebRTC video streams utilize industry-standard TLS/SSL encryption and multi-tenant company isolation."
   }
 ];
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Apps', url: '/apps' },
+  { name: 'Communications', url: '/apps/communications' }
+];
 ---
 
 <Layout 
   title="Communications & Video Meetings Software & Guide | 180workspace"
   description="Real-time team chat, 180 HD WebRTC video meetings, picture-in-picture, unified email sync, and AI meeting summaries in 180workspace."
+  breadcrumbs={breadcrumbs}
+  applicationCategory="CommunicationApplication"
 >
   <main class="w-full relative">
     
@@ -153,6 +161,7 @@ const faqs = [
       title="Team chat and HD video meetings built"
       highlightText="directly into your workspace."
       description="Eliminate Slack and Zoom bill shock. 180 Communications combines real-time team channels, browser HD video calls with Picture-in-Picture, unified email inboxes, and AI meeting summaries."
+      breadcrumbs={breadcrumbs}
     />
 
     <CapabilityPillars 

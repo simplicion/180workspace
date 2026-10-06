@@ -135,7 +135,10 @@ class LocationService {
         const stored = sessionStorage.getItem('180_live_detected_country');
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (parsed?.countryCode && parsed?.dialCode) {
+          const currentOffset = new Date().getTimezoneOffset();
+          // Invalidate stale fallback cache, or cache mismatch (e.g. cached IN when client is in Nepal with offset -345)
+          const isStaleConflict = (currentOffset === -345 && parsed.countryCode !== 'NP') || parsed.source === 'fallback';
+          if (parsed?.countryCode && parsed?.dialCode && !isStaleConflict) {
             return parsed;
           }
         }
@@ -198,14 +201,49 @@ class LocationService {
       }
     } catch (_) {}
 
-    // 3. Timezone heuristic matched dynamically against all countries in country-state-city
+    // 3. Timezone heuristic & unique UTC offset matching dynamically
     try {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (tz) {
+      const offsetMinutes = new Date().getTimezoneOffset();
+      // Nepal is UTC+05:45 (offset -345 minutes) - uniquely singular in the world!
+      if (offsetMinutes === -345) {
+        const np = this.getCountryByCode('NP') || {
+          code: 'NP',
+          name: 'Nepal',
+          dialCode: '+977',
+          flag: '🇳🇵',
+        };
+        const detected: DetectedLocation = {
+          countryCode: 'NP',
+          countryName: 'Nepal',
+          dialCode: '+977',
+          flag: np.flag || '🇳🇵',
+          source: 'timezone',
+        };
+        this.persist(detected);
+        return detected;
+      }
+
+      const rawTz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      // Canonicalize common timezone naming differences across browser/OS implementations
+      const tz = rawTz
+        .replace(/Katmandu/i, 'Kathmandu')
+        .replace(/Calcutta/i, 'Kolkata')
+        .replace(/Rangoon/i, 'Yangon')
+        .replace(/Saigon/i, 'Ho_Chi_Minh');
+
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      if (rawTz || tz) {
         const raw = Country.getAllCountries();
         for (const country of raw) {
           const timezones = (country as any).timezones as Array<{ zoneName: string }> | undefined;
-          if (timezones && timezones.some((t) => t.zoneName === tz)) {
+          if (
+            timezones &&
+            timezones.some((t) => {
+              const nt = norm(t.zoneName);
+              return nt === norm(tz) || nt === norm(rawTz);
+            })
+          ) {
             const matched = this.getCountryByCode(country.isoCode);
             if (matched) {
               const detected: DetectedLocation = {
@@ -260,6 +298,45 @@ class LocationService {
       source: 'fallback',
     };
     return fallback;
+  }
+
+  /**
+   * Reverse geocode coordinates using OpenStreetMap Nominatim API
+   */
+  async reverseGeocodeWithOpenStreetMap(latitude: number, longitude: number): Promise<DetectedLocation | null> {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+        {
+          signal: controller.signal,
+          headers: {
+            'Accept-Language': 'en-US,en;q=0.9',
+            'User-Agent': '180WorkspacePay/1.0',
+          },
+        }
+      );
+      clearTimeout(timer);
+      if (res.ok) {
+        const data = await res.json();
+        const code = (data?.address?.country_code || '').toUpperCase();
+        if (code) {
+          const matched = this.getCountryByCode(code);
+          const detected: DetectedLocation = {
+            countryCode: code,
+            countryName: data?.address?.country || matched?.name || code,
+            dialCode: matched?.dialCode || '+1',
+            flag: matched?.flag || getFlagEmoji(code),
+            city: data?.address?.city || data?.address?.town || data?.address?.village || undefined,
+            source: 'ip',
+          };
+          this.persist(detected);
+          return detected;
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   private persist(loc: DetectedLocation) {

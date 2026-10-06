@@ -170,7 +170,7 @@ export function ManageSubscriptionClient() {
               <span className="font-extrabold text-sm text-slate-900">{sub.app?.name || 'Client Application'}</span>
               <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
             </div>
-            <span className="text-[11px] text-slate-400">180 Pay Sovereign Subscription</span>
+            <span className="text-[11px] text-slate-400">180 Pay Subscription</span>
           </div>
         </div>
 
@@ -208,7 +208,7 @@ export function ManageSubscriptionClient() {
           <span className="font-semibold text-slate-700">
             {sub.paymentSource === 'RAZORPAY_MANDATE'
               ? 'Bank / Card Mandate (Razorpay Backed)'
-              : '180 Sovereign Wallet Debit'}
+              : '180 Prepaid Wallet Debit'}
           </span>
         </div>
       </div>

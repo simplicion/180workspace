@@ -5,20 +5,20 @@ import { PlatformModal, Button } from '@workspace/ui';
 import { QrCode, ShieldCheck, Smartphone, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface SovereignQRModalProps {
+interface UniversalQRModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
   userName: string;
 }
 
-export function SovereignQRModal({ isOpen, onClose, userId, userName }: SovereignQRModalProps) {
+export function UniversalQRModal({ isOpen, onClose, userId, userName }: UniversalQRModalProps) {
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(userId);
     setCopied(true);
-    toast.success('Sovereign ID copied to clipboard');
+    toast.success('Universal ID copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -26,7 +26,7 @@ export function SovereignQRModal({ isOpen, onClose, userId, userName }: Sovereig
     <PlatformModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Sovereign Companion QR Pairing"
+      title="Companion QR Pairing"
       maxWidthClass="max-w-md"
     >
       <div className="space-y-6 text-slate-800 text-xs text-center pt-2">

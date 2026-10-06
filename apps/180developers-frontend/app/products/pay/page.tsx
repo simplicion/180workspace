@@ -46,7 +46,7 @@ export default function PayProductPage() {
       amount: 499.0,
       currency: 'INR',
       title: '180 Developer Pro License',
-      description: 'Instant 1-Click Sovereign Checkout Demo',
+      description: 'Instant 1-Click Checkout Demo',
       onSuccess: (res) => {
         setPaymentResult(res);
         setShowDemoModal(true);
@@ -77,11 +77,11 @@ export default function PayProductPage() {
 
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-semibold">
           <CreditCard className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-          <span>Sovereign Wallet & 1-Click Checkout Gateway</span>
+          <span>180 Wallet & 1-Click Checkout Gateway</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-zinc-950 dark:text-white leading-[1.1]">
-          Sovereign Payments.{' '}
+          Universal Payments.{' '}
           <br />
           <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 dark:from-purple-400 dark:via-pink-300 dark:to-indigo-300 bg-clip-text text-transparent">
             1-Click Popup Checkout & 2-Way Webhooks.
@@ -89,7 +89,7 @@ export default function PayProductPage() {
         </h1>
 
         <p className="text-base sm:text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-          Accept payments instantly from customers using their 180 Profile sovereign prepaid wallet balance or UPI/Cards. 
+          Accept payments instantly from customers using their 180 Profile prepaid wallet balance or UPI/Cards. 
           Zero customer drop-off with cryptographically signed 2-way verification webhooks.
         </p>
 
@@ -145,11 +145,11 @@ export default function PayProductPage() {
         </div>
       </section>
 
-      {/* ── 2-Way Sovereign Verification Flow ──────────────────────────────── */}
+      {/* ── 2-Way Payment Verification Flow ──────────────────────────────── */}
       <section className="space-y-6 max-w-5xl mx-auto">
         <div className="text-center space-y-2">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
-            2-Way Sovereign Payment Verification
+            2-Way Payment Verification
           </h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             How 180 Pay ensures guaranteed payment fulfillment with zero chargebacks.
@@ -239,7 +239,7 @@ export default function PayProductPage() {
           </div>
 
           <pre className="text-xs sm:text-sm text-zinc-300 overflow-x-auto leading-relaxed font-mono">
-            {activeCodeTab === 'checkout' && `// 1. Frontend: Trigger 1-Click 180 Pay Sovereign Checkout Popup
+            {activeCodeTab === 'checkout' && `// 1. Frontend: Trigger 1-Click 180 Pay Checkout Popup
 import { OneEightyPay } from '@workspace/identity-sdk';
 
 export async function handlePurchase(productId: string) {
@@ -364,7 +364,7 @@ async def handle_180_webhook(request: Request, x_180_signature: str = Header(Non
         {paymentResult && (
           <div className="space-y-4 text-zinc-900 dark:text-white">
             <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Payment was authorized from the user's sovereign wallet. Webhook dispatched with <code className="text-emerald-500 font-mono">X-180-Signature</code>.
+              Payment was authorized from the user's 180 wallet. Webhook dispatched with <code className="text-emerald-500 font-mono">X-180-Signature</code>.
             </p>
 
             <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 space-y-2 text-xs font-mono">

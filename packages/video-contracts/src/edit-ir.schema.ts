@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CAPTION_ANIMATIONS } from "./caption-templates";
 import { RationalTimeSchema, TimeRangeSchema, FrameRateSchema } from "./time";
 
 /**
@@ -314,7 +315,7 @@ export const CaptionSegmentSchema = z.object({
     pillPadding: z.number().default(12).optional(),
     pillRadius: z.number().default(16).optional(),
     uppercase: z.boolean().optional(),
-    animation: z.enum(["word_pop", "karaoke", "none"]).optional(),
+    animation: z.enum(CAPTION_ANIMATIONS).optional(),
     fontWeight: z.number().int().optional(),
     /** Wrap width as a fraction of the canvas width. */
     maxWidthFraction: z.number().gt(0).max(1).optional(),

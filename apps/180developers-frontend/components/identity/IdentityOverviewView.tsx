@@ -103,7 +103,7 @@ export function IdentityOverviewView() {
                 </span>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Universal login with WhatsApp OTP, Google SSO, and sovereign @usernames. Issues RS256 asymmetric JWKS access tokens.
+                Universal login with WhatsApp OTP, Google SSO, and unified @usernames. Issues RS256 asymmetric JWKS access tokens.
               </p>
             </div>
           </div>

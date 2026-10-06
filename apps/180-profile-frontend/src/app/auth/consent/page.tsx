@@ -42,7 +42,7 @@ const SCOPE_DESCRIPTIONS: Record<string, { title: string; description: string; i
     icon: Smartphone,
   },
   'wallet:pay': {
-    title: '1-Click Sovereign 180 Pay',
+    title: '1-Click 180 Pay',
     description: 'Allows authorization of payments from your 180 Wallet balance.',
     icon: CreditCard,
   },
@@ -258,7 +258,7 @@ function ConsentForm() {
             Authorize with <span className="text-blue-600">180</span>profile
           </span>
         }
-        fallbackSubtitle="Permission is requested to access your sovereign 180 Profile details."
+        fallbackSubtitle="Permission is requested to access your 180 Profile details."
       />
 
       {/* Logged in User Bar */}

@@ -100,7 +100,7 @@ export function IdentityAppDetail({
                 </span>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Universal login with WhatsApp OTP, Google SSO, and sovereign @usernames. Issues RS256 asymmetric JWKS access tokens.
+                Universal login with WhatsApp OTP, Google SSO, and unified @usernames. Issues RS256 asymmetric JWKS access tokens.
               </p>
             </div>
           </div>
@@ -128,13 +128,13 @@ export function IdentityAppDetail({
         </div>
       </div>
 
-      {/* Connected Users & Sovereign Identities Console */}
+      {/* Connected Users & Universal Identities Console */}
       <div className="rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-sm dark:shadow-2xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200 dark:border-white/10">
           <div>
             <h2 className="text-base font-bold text-zinc-950 dark:text-white flex items-center gap-2">
               <Users className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span>Connected Users & Sovereign Identities</span>
+              <span>Connected Users & Universal Identities</span>
             </h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               Real-time directory of users who have authorized and connected to this application via 180 Identity.
@@ -170,7 +170,7 @@ export function IdentityAppDetail({
               <table className="w-full text-left text-xs">
                 <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-white/5 text-zinc-600 dark:text-zinc-400 font-semibold">
                   <tr>
-                    <th className="px-4 py-3">Sovereign Identity</th>
+                    <th className="px-4 py-3">Universal Identity</th>
                     <th className="px-4 py-3">App Username</th>
                     <th className="px-4 py-3">Verified Contact</th>
                     <th className="px-4 py-3">User ID</th>
@@ -202,7 +202,7 @@ export function IdentityAppDetail({
                                   <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
                                 )}
                               </div>
-                              <div className="text-[10px] text-zinc-400 font-mono truncate">{log.authMethod || 'Sovereign OIDC'}</div>
+                              <div className="text-[10px] text-zinc-400 font-mono truncate">{log.authMethod || 'Universal OIDC'}</div>
                             </div>
                           </div>
                         </td>
@@ -411,7 +411,7 @@ export function IdentityAppDetail({
                 <span>Interactive Live Auth Sandbox</span>
               </h4>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                Trigger your configured 180 Identity auth flows in real time using the sovereign 180 SDK.
+                Trigger your configured 180 Identity auth flows in real time using the 180 SDK.
               </p>
             </div>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-semibold self-start sm:self-auto">

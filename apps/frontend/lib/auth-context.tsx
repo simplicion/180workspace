@@ -197,6 +197,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.location.href = '/login?clearSession=true';
     };
 
+    // Cross-app real-time revocation sync
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const handleRevoked = (revokedClientId?: string) => {
+            const lower = (revokedClientId || '').toLowerCase().trim();
+            if (
+                lower.includes('workspace') ||
+                lower === '180-workspace' ||
+                lower === '180_workspace'
+            ) {
+                logout();
+            }
+        };
+
+        let channel: BroadcastChannel | null = null;
+        if (typeof BroadcastChannel !== 'undefined') {
+            try {
+                channel = new BroadcastChannel('180_auth_sync');
+                channel.onmessage = (e) => {
+                    if (e.data?.type === 'APP_REVOKED') {
+                        handleRevoked(e.data.clientId);
+                    }
+                };
+            } catch (_) {}
+        }
+
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === '180_revoked_app_event' && e.newValue) {
+                try {
+                    const parsed = JSON.parse(e.newValue);
+                    handleRevoked(parsed.clientId);
+                } catch (_) {}
+            }
+        };
+
+        window.addEventListener('storage', onStorage);
+
+        return () => {
+            try {
+                channel?.close();
+            } catch (_) {}
+            window.removeEventListener('storage', onStorage);
+        };
+    }, []);
+
     const loginWithGoogle = async (tokenId: string) => {
         try {
             const { data } = await api.post('/api/auth/google', { tokenId });

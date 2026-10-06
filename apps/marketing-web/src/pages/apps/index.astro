@@ -2,8 +2,14 @@
 import Layout from '../../layouts/Layout.astro';
 import Badge from '../../components/ui/Badge.astro';
 import AppBottomCTA from '../../components/apps/AppBottomCTA.astro';
+import Breadcrumb from '../../components/ui/Breadcrumb.astro';
 
 const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Apps', url: '/apps' }
+];
 
 const appCategories = [
   {
@@ -102,8 +108,12 @@ const appCategories = [
 <Layout 
   title="All 8 Applications & Work Graph Modules | 180workspace"
   description="Explore the 8 native applications integrated into the 180workspace business operating system. From CRM to Projects, HR, Finance, Voiceforce AI, and Communications."
+  breadcrumbs={breadcrumbs}
 >
   <main class="w-full relative">
+    <div class="container mx-auto px-4 max-w-5xl pt-4 relative z-20">
+      <Breadcrumb items={breadcrumbs} />
+    </div>
     
     {/* Hero Section */}
     <section class="pt-24 pb-16 md:pt-32 md:pb-20 text-center relative overflow-hidden">

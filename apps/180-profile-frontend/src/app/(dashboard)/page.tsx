@@ -26,7 +26,6 @@ import { UserProfile, ConnectedApp, LedgerEntry } from '@/types';
 import { getCoreApiUrl } from '@/lib/api';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { OneEightyPayBottomSheet } from '@/components/OneEightyPayBottomSheet';
-import { SovereignQRModal } from '@/components/SovereignQRModal';
 import { InvoiceModal } from '@/components/InvoiceModal';
 
 export default function HomePage() {
@@ -38,7 +37,6 @@ export default function HomePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isTopUpSheetOpen, setIsTopUpSheetOpen] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState<number>(1000);
-  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<LedgerEntry | null>(null);
 
   // Connected apps & ledger entries
@@ -132,7 +130,7 @@ export default function HomePage() {
         <section className="text-center space-y-6 pt-4">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            <span>Universal Sovereign Identity &amp; Prepaid Ledger</span>
+            <span>Universal 180 Identity &amp; Prepaid Ledger</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.15]">
@@ -192,7 +190,7 @@ export default function HomePage() {
             <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center">
               <Lock className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-base text-slate-900">Sovereign Privacy Controls</h3>
+            <h3 className="font-bold text-base text-slate-900">Unified Privacy Controls</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
               You own your data. See every authorized application, monitor active sessions, and revoke access instantly.
             </p>
@@ -216,120 +214,99 @@ export default function HomePage() {
   const extraAppsCount = connectedApps.length > 3 ? connectedApps.length - 3 : 0;
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-12">
+    <div className="space-y-6 sm:space-y-8 max-w-6xl mx-auto pb-10">
       {/* 1. Header Greeting Section */}
-      <section className="pb-2 pt-2">
-        <div className="space-y-1">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
+      <section className="pb-1 sm:pb-2 pt-1 sm:pt-2">
+        <div className="space-y-0.5 sm:space-y-1">
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
             {getGreeting()},{' '}
             <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 bg-clip-text text-transparent">
               {user.name || user.username || 'User'}
             </span>
           </h1>
 
-          <p className="text-sm font-semibold text-slate-500 font-mono">
+          <p className="text-xs sm:text-sm font-semibold text-slate-500 font-mono">
             @{user.username || (user.email ? user.email.split('@')[0] : 'user')}
           </p>
         </div>
       </section>
 
-      {/* 2. Overview Main Blocks: Total Wallet Balance & Connected Apps */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* 2. Overview Main Blocks: Both cards side-by-side in a single row on mobile and desktop */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-6">
         {/* Block 1: Total Wallet Balance Block */}
-        <div className="p-6 sm:p-7 rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+        <div className="p-3 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
           <div>
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs">
-                  <Wallet className="w-5 h-5" />
+            <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs">
+                  <Wallet className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                 </div>
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 tracking-tight">Total Wallet Balance</h2>
-                  <p className="text-xs text-slate-500">Universal 180 Pay Sovereign Ledger</p>
+                <div className="min-w-0">
+                  <h2 className="text-xs sm:text-base font-bold text-slate-900 tracking-tight truncate">
+                    Wallet Balance
+                  </h2>
+                  <p className="hidden sm:block text-xs text-slate-500">Universal 180 Pay Ledger</p>
                 </div>
               </div>
 
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                1-Click Ready
-              </span>
-            </div>
-
-            <div className="py-6 flex items-baseline gap-2">
-              <span className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">
-                ₹{balance.toFixed(2)}
-              </span>
-              <span className="text-sm font-bold text-slate-500">INR</span>
-            </div>
-
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Shared ledger balance across Voiceforce AI, Developer API metering, and workspace top-ups with zero third-party dependencies.
-            </p>
-
-            {/* Quick Recharge Chips */}
-            <div className="flex flex-wrap items-center gap-2 mt-4">
-              {[500, 1000, 2500].map((amt) => (
-                <button
-                  key={amt}
-                  type="button"
-                  onClick={() => {
-                    setTopUpAmount(amt);
-                    setIsTopUpSheetOpen(true);
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-200 font-bold text-xs transition-colors cursor-pointer"
-                >
-                  +₹{amt}
-                </button>
-              ))}
+              <div className="shrink-0">
+                <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  1-Click Ready
+                </span>
+                <span className="sm:hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                  Ready
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between gap-3">
+          <div className="pt-3 sm:pt-4">
             <Button
               variant="default"
               onClick={() => {
                 setTopUpAmount(1000);
                 setIsTopUpSheetOpen(true);
               }}
-              className="px-5 py-2.5 min-h-[42px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 active:scale-95 flex items-center gap-2 cursor-pointer transition-all"
+              className="w-full px-3 sm:px-5 py-2 sm:py-2.5 min-h-[36px] sm:min-h-[42px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer transition-all"
             >
-              <CreditCard className="w-4 h-4" />
-              <span>Top-Up Balance</span>
+              <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span>Top-Up</span>
             </Button>
-
-            <Link
-              href="/transactions"
-              className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1.5 transition-colors min-h-[40px] px-2 py-1 rounded-lg hover:bg-slate-50"
-            >
-              <span>Wallet &amp; Ledger</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
         </div>
 
         {/* Block 2: Connected Apps Block */}
-        <div className="p-6 sm:p-7 rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+        <Link
+          href="/connected-apps"
+          className="p-3 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer block"
+        >
           <div>
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0 shadow-2xs">
-                  <AppWindow className="w-5 h-5" />
+            <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0 shadow-2xs">
+                  <AppWindow className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                 </div>
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 tracking-tight">Connected Applications</h2>
-                  <p className="text-xs text-slate-500">Authorized OAuth 2.0 Ecosystem</p>
+                <div className="min-w-0">
+                  <h2 className="text-xs sm:text-base font-bold text-slate-900 tracking-tight truncate">
+                    Connected Apps
+                  </h2>
+                  <p className="hidden sm:block text-xs text-slate-500">Authorized OAuth Ecosystem</p>
                 </div>
               </div>
 
-              <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
-                {connectedApps.length} {connectedApps.length === 1 ? 'App' : 'Apps'} Connected
-              </span>
+              <div className="shrink-0">
+                <span className="text-[10px] sm:text-[11px] font-bold text-blue-700 bg-blue-50 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-blue-200">
+                  {connectedApps.length} <span className="hidden sm:inline">{connectedApps.length === 1 ? 'App' : 'Apps'}</span>
+                </span>
+              </div>
             </div>
 
             {connectedApps.length > 0 ? (
-              <div className="py-6 space-y-4">
-                {/* 3 App Icons with +N Overflow Indicator */}
-                <div className="flex items-center -space-x-3 overflow-hidden p-1">
+              <div className="py-2.5 sm:py-3 space-y-1.5">
+                {/* App Icons with Overlap */}
+                <div className="flex items-center -space-x-1.5 sm:-space-x-3 overflow-hidden p-0.5">
                   {visibleApps.map((app, idx) => {
                     const bgGradients = [
                       'from-blue-600 to-indigo-600',
@@ -339,20 +316,20 @@ export default function HomePage() {
                     return (
                       <div
                         key={app.id || idx}
-                        className="relative w-12 h-12 rounded-2xl p-[2px] bg-gradient-to-tr from-slate-200 to-slate-300 ring-4 ring-white shadow-xs shrink-0 group-hover:scale-105 transition-transform"
+                        className="relative w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl p-[1.5px] bg-gradient-to-tr from-slate-200 to-slate-300 ring-2 sm:ring-4 ring-white shadow-xs shrink-0 group-hover:scale-105 transition-transform"
                         title={app.name}
                       >
                         {app.logo ? (
                           <img
                             src={app.logo}
                             alt={app.name}
-                            className="w-full h-full rounded-2xl object-cover bg-white"
+                            className="w-full h-full rounded-[6px] sm:rounded-xl object-cover bg-white"
                           />
                         ) : (
                           <div
                             className={`w-full h-full bg-gradient-to-tr ${
                               bgGradients[idx % bgGradients.length]
-                            } text-white rounded-2xl flex items-center justify-center font-bold text-xs tracking-wider`}
+                            } text-white rounded-[6px] sm:rounded-xl flex items-center justify-center font-bold text-[9px] sm:text-xs tracking-wider`}
                           >
                             {app.name.slice(0, 2).toUpperCase()}
                           </div>
@@ -364,7 +341,7 @@ export default function HomePage() {
                   {/* +N bubble if more than 3 connected apps */}
                   {extraAppsCount > 0 && (
                     <div
-                      className="w-12 h-12 rounded-2xl bg-slate-900 text-white font-extrabold text-xs flex items-center justify-center ring-4 ring-white shadow-xs shrink-0"
+                      className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-900 text-white font-extrabold text-[9px] sm:text-xs flex items-center justify-center ring-2 sm:ring-4 ring-white shadow-xs shrink-0"
                       title={`${extraAppsCount} more connected platforms`}
                     >
                       +{extraAppsCount}
@@ -372,61 +349,92 @@ export default function HomePage() {
                   )}
                 </div>
 
-                <div className="space-y-1">
-                  <p className="text-xs font-bold text-slate-800 truncate">
-                    {connectedApps.map((a) => a.name).slice(0, 3).join(', ')}
-                    {extraAppsCount > 0 ? ` and ${extraAppsCount} more` : ''}
+                <div className="space-y-0.5">
+                  <p className="text-[10px] sm:text-xs font-bold text-slate-800 truncate">
+                    {connectedApps.map((a) => a.name).slice(0, 2).join(', ')}
+                    {connectedApps.length > 2 ? '...' : ''}
                   </p>
-                  <p className="text-[11px] text-slate-400">
-                    Automatic SSO consent &amp; granular sovereign permissions synced.
+                  <p className="text-[10px] text-slate-400 truncate">
+                    Tap to manage apps &amp; consents →
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="py-8 text-center text-xs text-slate-500 space-y-2">
-                <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-                  <AppWindow className="w-5 h-5" />
-                </div>
-                <p className="font-bold text-slate-700">No Connected Applications Yet</p>
-                <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                  Sign in to 180 Workspace, Voiceforce, or third-party platforms to connect them.
+              <div className="py-3 text-center text-xs text-slate-500 space-y-1">
+                <p className="font-bold text-[11px] sm:text-xs text-slate-700">No Apps Yet</p>
+                <p className="text-[10px] text-slate-400">
+                  Connect apps to view permissions.
                 </p>
               </div>
             )}
           </div>
-
-          <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between gap-3">
-            <Link
-              href="/connected-apps"
-              className="px-5 py-2.5 min-h-[42px] rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs active:scale-95 flex items-center gap-2 cursor-pointer transition-all"
-            >
-              <AppWindow className="w-4 h-4" />
-              <span>Manage Connected Apps</span>
-            </Link>
-
-            <span className="text-[11px] text-slate-400 hidden sm:inline">OAuth 2.0 / OIDC</span>
-          </div>
-        </div>
+        </Link>
       </div>
 
       {/* 3. Recent Activity Snippet */}
-      <section className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+      <section className="p-4 sm:p-8 rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-xs space-y-3 sm:space-y-4">
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100">
           <div>
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">Recent Ledger Activity</h2>
-            <p className="text-xs text-slate-500">Latest credits, charges, and authenticated transactions.</p>
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">Recent Activity</h2>
+            <p className="hidden sm:block text-xs text-slate-500">Latest credits, charges, and authenticated transactions.</p>
           </div>
 
           <Link
             href="/transactions"
-            className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors min-h-[36px]"
+            className="text-[11px] sm:text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors min-h-[32px] sm:min-h-[36px]"
           >
-            <span>View Full Ledger</span>
+            <span>Full Ledger</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="overflow-x-auto border border-slate-200/80 rounded-2xl">
+        {/* Mobile View for Recent Activity (sm:hidden) */}
+        <div className="sm:hidden space-y-2">
+          {recentLedger.length > 0 ? (
+            recentLedger.map((tx) => {
+              const isCredit = tx.amount > 0;
+              return (
+                <div
+                  key={tx.id}
+                  className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/80 flex items-center justify-between gap-2"
+                >
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-xs font-bold text-slate-900 truncate">
+                      {tx.description}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      {new Date(tx.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0 flex items-center gap-2">
+                    <div className={`text-xs font-extrabold ${isCredit ? 'text-emerald-600' : 'text-slate-900'}`}>
+                      {isCredit ? `+₹${tx.amount.toFixed(2)}` : `-₹${Math.abs(tx.amount).toFixed(2)}`}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedInvoice(tx)}
+                      className="h-7 w-7 p-0 rounded-lg hover:bg-slate-200 text-slate-500"
+                      title="Invoice"
+                    >
+                      <Receipt className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="py-6 text-center text-xs text-slate-500">
+              No recent transactions recorded.
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Table View (hidden sm:block) */}
+        <div className="hidden sm:block overflow-x-auto border border-slate-200/80 rounded-2xl">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] uppercase font-semibold">
               <tr>
@@ -527,15 +535,6 @@ export default function HomePage() {
             loadData();
             setIsTopUpSheetOpen(false);
           }}
-        />
-      )}
-
-      {isQRModalOpen && (
-        <SovereignQRModal
-          userId={user.id}
-          userName={user.name}
-          isOpen={isQRModalOpen}
-          onClose={() => setIsQRModalOpen(false)}
         />
       )}
 

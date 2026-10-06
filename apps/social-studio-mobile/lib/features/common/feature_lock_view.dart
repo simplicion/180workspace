@@ -1,4 +1,6 @@
+import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -43,6 +45,19 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
   int _selectedDays = 7;
   bool _isLoadingCheckout = false;
   String? _activeCheckoutType;
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _selectedTab);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   double _calculateRechargeAmount(int days) {
     // $20 for 28 days = $0.714285... per day
@@ -275,69 +290,54 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
                   ),
                 ],
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // ─── Plan / Recharge Switcher Tab ───────────────────────────
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceElevated,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.border),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _PlanTabButton(
-                          title: 'Monthly Plan',
-                          badge: 'POPULAR',
-                          badgeColor: AppTheme.primary,
-                          subtitle: '\$20/mo',
-                          icon: Icons.bolt_rounded,
-                          isSelected: _selectedTab == 0,
-                          onTap: () => setState(() => _selectedTab = 0),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: _PlanTabButton(
-                          title: 'Recharge Pass',
-                          badge: 'FLEXIBLE',
-                          badgeColor: AppTheme.accent,
-                          subtitle: '~\$0.71/d',
-                          icon: Icons.calendar_today_rounded,
-                          isSelected: _selectedTab == 1,
-                          onTap: () => setState(() => _selectedTab = 1),
-                        ),
-                      ),
-                    ],
-                  ),
+                // ─── Carousel Page Indicator Dots ───────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildPageDot(
+                      index: 0,
+                      activeColor: AppTheme.primary,
+                      isActive: _selectedTab == 0,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildPageDot(
+                      index: 1,
+                      activeColor: AppTheme.accent,
+                      isActive: _selectedTab == 1,
+                    ),
+                  ],
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
 
-                // ─── Interactive Pricing Card with Smooth Switcher ───────────
-                AnimatedSwitcher(
+                // ─── Swipeable Pricing Cards (PageView) ──────────────────────
+                AnimatedContainer(
                   duration: const Duration(milliseconds: 260),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.04),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: _selectedTab == 0
-                      ? _buildMonthlyCard()
-                      : _buildRechargeCard(rechargeCost),
+                  curve: Curves.easeOutCubic,
+                  height: _selectedTab == 0 ? 465 : 510,
+                  child: ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(
+                      dragDevices: {
+                        PointerDeviceKind.touch,
+                        PointerDeviceKind.mouse,
+                        PointerDeviceKind.trackpad,
+                      },
+                    ),
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const BouncingScrollPhysics(),
+                      onPageChanged: (index) {
+                        setState(() => _selectedTab = index);
+                      },
+                      children: [
+                        _buildMonthlyCard(),
+                        _buildRechargeCard(rechargeCost),
+                      ],
+                    ),
+                  ),
                 ),
-
                 const SizedBox(height: 24),
               ],
             ),
@@ -348,6 +348,41 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
   ),
 ),
 );
+  }
+
+  Widget _buildPageDot({
+    required int index,
+    required Color activeColor,
+    required bool isActive,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedTab = index);
+        _pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOutCubic,
+        );
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        width: isActive ? 24 : 8,
+        height: 8,
+        decoration: BoxDecoration(
+          color: isActive ? activeColor : AppTheme.border,
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: activeColor.withValues(alpha: 0.4),
+                    blurRadius: 6,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+      ),
+    );
   }
 
   Widget _buildMonthlyCard() {
@@ -431,33 +466,13 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
           const _FeatureItem(text: 'Autonomous Autopilot & social scheduling'),
           const _FeatureItem(text: 'Direct publishing to Instagram, YouTube & TikTok'),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _isLoadingCheckout
-                  ? null
-                  : () => _handleCheckout('monthly'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              icon: _isLoadingCheckout && _activeCheckoutType == 'monthly'
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.bolt_rounded, size: 20),
-              label: const Text(
-                'Subscribe Monthly — \$20/mo',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-            ),
+          _SlideToPayButton(
+            label: 'Slide to Subscribe — \$20/mo',
+            hint: '👉 Slide handle right or tap to activate with 180 Pay',
+            accentColor: AppTheme.primary,
+            icon: Icons.bolt_rounded,
+            isLoading: _isLoadingCheckout && _activeCheckoutType == 'monthly',
+            onSlideComplete: () => _handleCheckout('monthly'),
           ),
           const SizedBox(height: 10),
           Center(
@@ -575,7 +590,34 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+
+          // Hint badge for the duration slider
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.accent.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.tune_rounded, size: 14, color: AppTheme.accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Slide the bar below to customize days (1 to 28 days)',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
 
           // Duration Slider
           SliderTheme(
@@ -597,6 +639,16 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
                   _selectedDays = val.round();
                 });
               },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('1 Day (\$0.71)', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                Text('28 Days (\$20.00)', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+              ],
             ),
           ),
           const SizedBox(height: 12),
@@ -646,33 +698,13 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
 
           const SizedBox(height: 16),
 
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _isLoadingCheckout
-                  ? null
-                  : () => _handleCheckout('recharge', days: _selectedDays),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.accent,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              icon: _isLoadingCheckout && _activeCheckoutType == 'recharge'
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.calendar_today_rounded, size: 18),
-              label: Text(
-                'Recharge for $_selectedDays Day${_selectedDays > 1 ? 's' : ''} — \$${rechargeCost.toStringAsFixed(2)}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-            ),
+          _SlideToPayButton(
+            label: 'Slide to Recharge — \$${rechargeCost.toStringAsFixed(2)}',
+            hint: '👉 Slide handle right or tap to activate $_selectedDays-day pass',
+            accentColor: AppTheme.accent,
+            icon: Icons.calendar_today_rounded,
+            isLoading: _isLoadingCheckout && _activeCheckoutType == 'recharge',
+            onSlideComplete: () => _handleCheckout('recharge', days: _selectedDays),
           ),
           const SizedBox(height: 10),
           Center(
@@ -694,114 +726,7 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
   }
 }
 
-class _PlanTabButton extends StatelessWidget {
-  const _PlanTabButton({
-    required this.title,
-    required this.badge,
-    required this.badgeColor,
-    required this.subtitle,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
 
-  final String title;
-  final String badge;
-  final Color badgeColor;
-  final String subtitle;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.surface : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? badgeColor : Colors.transparent,
-            width: 1.5,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: badgeColor.withValues(alpha: 0.15),
-                    blurRadius: 12,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: isSelected ? badgeColor : AppTheme.textMuted,
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? AppTheme.textPrimary : AppTheme.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: badgeColor.withValues(alpha: isSelected ? 0.2 : 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    badge,
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: badgeColor,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected ? AppTheme.textSecondary : AppTheme.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _FeatureItem extends StatelessWidget {
   const _FeatureItem({required this.text});
@@ -828,6 +753,334 @@ class _FeatureItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Interactive "Slide to Subscribe / Recharge" slider button.
+/// Supports smooth dragging with mouse or touch, progress fill, glowing handle,
+/// shimmering chevrons, tap fallback, and haptic feedback.
+class _SlideToPayButton extends StatefulWidget {
+  const _SlideToPayButton({
+    required this.label,
+    required this.hint,
+    required this.accentColor,
+    required this.icon,
+    required this.isLoading,
+    required this.onSlideComplete,
+  });
+
+  final String label;
+  final String hint;
+  final Color accentColor;
+  final IconData icon;
+  final bool isLoading;
+  final VoidCallback onSlideComplete;
+
+  @override
+  State<_SlideToPayButton> createState() => _SlideToPayButtonState();
+}
+
+class _SlideToPayButtonState extends State<_SlideToPayButton>
+    with TickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final AnimationController _shimmerController;
+  late Animation<double> _slideAnimation;
+  double _dragPosition = 0.0;
+  bool _isCompleted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    )..addListener(() {
+        setState(() {
+          _dragPosition = _slideAnimation.value;
+        });
+      });
+
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    _shimmerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SlideToPayButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.isLoading && oldWidget.isLoading && _isCompleted) {
+      _resetSlider();
+    }
+  }
+
+  void _resetSlider() {
+    if (mounted) {
+      setState(() {
+        _isCompleted = false;
+        _dragPosition = 0.0;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const double trackHeight = 52.0;
+    const double knobSize = 44.0;
+    const double knobMargin = 4.0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final maxDrag = (constraints.maxWidth - knobSize - (knobMargin * 2))
+                .clamp(0.0, double.infinity);
+            final progress =
+                maxDrag > 0 ? (_dragPosition / maxDrag).clamp(0.0, 1.0) : 0.0;
+
+            return GestureDetector(
+              onHorizontalDragUpdate: widget.isLoading || _isCompleted
+                  ? null
+                  : (details) {
+                      if (_animController.isAnimating) _animController.stop();
+                      setState(() {
+                        _dragPosition =
+                            (_dragPosition + details.delta.dx).clamp(0.0, maxDrag);
+                      });
+                    },
+              onHorizontalDragEnd: widget.isLoading || _isCompleted
+                  ? null
+                  : (details) {
+                      final currProgress =
+                          maxDrag > 0 ? (_dragPosition / maxDrag) : 0.0;
+                      if (currProgress >= 0.78) {
+                        setState(() {
+                          _dragPosition = maxDrag;
+                          _isCompleted = true;
+                        });
+                        HapticFeedback.mediumImpact();
+                        widget.onSlideComplete();
+                      } else {
+                        _slideAnimation = Tween<double>(
+                          begin: _dragPosition,
+                          end: 0.0,
+                        ).animate(
+                          CurvedAnimation(
+                            parent: _animController,
+                            curve: Curves.easeOutCubic,
+                          ),
+                        );
+                        _animController.forward(from: 0.0);
+                      }
+                    },
+              onTap: widget.isLoading || _isCompleted
+                  ? null
+                  : () {
+                      _slideAnimation = Tween<double>(
+                        begin: _dragPosition,
+                        end: maxDrag,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: _animController,
+                          curve: Curves.easeInOutCubic,
+                        ),
+                      );
+                      _animController.forward(from: 0.0).then((_) {
+                        if (mounted) {
+                          setState(() {
+                            _isCompleted = true;
+                          });
+                          HapticFeedback.mediumImpact();
+                          widget.onSlideComplete();
+                        }
+                      });
+                    },
+              child: Container(
+                height: trackHeight,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Color.lerp(
+                    widget.accentColor.withValues(alpha: 0.12),
+                    widget.accentColor.withValues(alpha: 0.28),
+                    progress,
+                  ),
+                  borderRadius: BorderRadius.circular(trackHeight / 2),
+                  border: Border.all(
+                    color: widget.accentColor
+                        .withValues(alpha: 0.4 + (0.4 * progress)),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.accentColor
+                          .withValues(alpha: 0.15 + (0.2 * progress)),
+                      blurRadius: 14,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    // Filled track behind knob
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: (knobMargin + _dragPosition + (knobSize / 2))
+                          .clamp(0.0, constraints.maxWidth),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(trackHeight / 2),
+                          gradient: LinearGradient(
+                            colors: [
+                              widget.accentColor.withValues(alpha: 0.3),
+                              widget.accentColor.withValues(alpha: 0.65),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Centered Text Label & Shimmer Chevrons
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 50),
+                        child: AnimatedBuilder(
+                          animation: _shimmerController,
+                          builder: (context, child) {
+                            final shimmerVal = _shimmerController.value;
+                            return Opacity(
+                              opacity:
+                                  (1.0 - (progress * 1.6)).clamp(0.0, 1.0),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      widget.label,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Animated shimmer chevrons
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: List.generate(3, (i) {
+                                      final chevronOpacity =
+                                          ((shimmerVal + (i * 0.25)) % 1.0);
+                                      return Opacity(
+                                        opacity: (0.35 + (0.65 * chevronOpacity))
+                                            .clamp(0.0, 1.0),
+                                        child: Icon(
+                                          Icons.chevron_right_rounded,
+                                          size: 16,
+                                          color: widget.accentColor,
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+
+                    // Draggable Knob / Handle
+                    Positioned(
+                      left: knobMargin + _dragPosition,
+                      top: knobMargin,
+                      child: Container(
+                        width: knobSize,
+                        height: knobSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              widget.accentColor,
+                              Color.lerp(widget.accentColor, Colors.white, 0.2)!,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: widget.accentColor.withValues(alpha: 0.5),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: widget.isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  _isCompleted
+                                      ? Icons.check_rounded
+                                      : widget.icon,
+                                  size: 22,
+                                  color: Colors.white,
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+
+        const SizedBox(height: 8),
+
+        // Hint under slider
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.swipe_right_alt_rounded,
+                size: 13, color: AppTheme.textMuted),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                widget.hint,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

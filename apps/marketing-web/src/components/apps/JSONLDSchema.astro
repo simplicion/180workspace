@@ -5,29 +5,45 @@ interface FAQItem {
 }
 
 interface Props {
-  appName: string;
+  appName?: string;
+  name?: string;
   description: string;
-  urlPath: string;
+  urlPath?: string;
+  url?: string;
+  applicationCategory?: string;
+  type?: string;
   faqs?: FAQItem[];
 }
 
 const {
   appName,
+  name,
   description,
   urlPath,
+  url,
+  applicationCategory = "BusinessApplication",
+  type = "SoftwareApplication",
   faqs = []
 } = Astro.props;
 
 const rootDomain = "https://180workspace.com";
-const pageUrl = `${rootDomain}${urlPath}`;
+const resolvedName = name || appName || "Workspace";
+const displayName = resolvedName.startsWith("180") ? resolvedName : `180 ${resolvedName}`;
+
+const effectivePath = urlPath || (url ? url.replace(rootDomain, '') : (Astro.url.pathname || ''));
+let cleanPath = effectivePath;
+if (cleanPath.length > 1 && cleanPath.endsWith('/')) {
+  cleanPath = cleanPath.slice(0, -1);
+}
+const pageUrl = cleanPath.startsWith('http') ? cleanPath : `${rootDomain}${cleanPath === '/' ? '' : cleanPath}`;
 
 // SoftwareApplication Schema
 const appSchema = {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": `180 ${appName}`,
-  "operatingSystem": "Web, Cloud, All Platforms",
-  "applicationCategory": "BusinessApplication",
+  "@type": type,
+  "name": displayName,
+  "operatingSystem": "Web, Cloud, Windows, macOS, Linux, iOS, Android",
+  "applicationCategory": applicationCategory,
   "description": description,
   "url": pageUrl,
   "offers": {
@@ -50,7 +66,7 @@ const appSchema = {
 };
 
 // FAQPage Schema
-const faqSchema = faqs.length > 0 ? {
+const faqSchema = faqs && faqs.length > 0 ? {
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": faqs.map(faq => ({
@@ -83,7 +99,7 @@ const breadcrumbSchema = {
     {
       "@type": "ListItem",
       "position": 3,
-      "name": appName,
+      "name": displayName,
       "item": pageUrl
     }
   ]

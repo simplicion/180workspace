@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/media/asset_cache.dart';
@@ -16,6 +18,8 @@ import '../../core/widgets/universal_skeleton.dart';
 import '../director/ai_director_service.dart';
 import '../projects/project_provider.dart';
 import 'caption_fonts.dart';
+import 'caption_languages.dart';
+import 'caption_tools.dart';
 import 'studio_controller.dart';
 import 'sticker_maker.dart';
 import 'studio_session_screen.dart' show timecode;
@@ -1059,6 +1063,8 @@ class _TextSheetState extends State<_TextSheet> {
     ('none', 'None'),
     ('word_pop', 'Word Pop'),
     ('karaoke', 'Karaoke'),
+    ('word_box', 'Word Box'),
+    ('word_reveal', 'Word Reveal'),
   ];
 
   @override
@@ -1491,18 +1497,154 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
   String? color;
   double y = 0.72;
 
+  /// Convert captions: target language, script, and the request state.
+  String? _convertTo;
+  bool _roman = false;
+  bool _converting = false;
+  Object? _convertError;
+
+  Future<void> _convert() async {
+    final target = _convertTo;
+    if (target == null || _converting) return;
+    setState(() {
+      _converting = true;
+      _convertError = null;
+    });
+    try {
+      final texts = await widget.c.translateCaptions(target, script: _roman ? 'roman' : 'native');
+      if (!mounted) return;
+      _close(context);
+      widget.onEdit((ir) => TimelineOps.retextCaptions(ir, texts),
+          done: 'Captions converted to ${CaptionLanguages.nameOf(target)}${_roman ? ' (Roman letters)' : ''}');
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _converting = false;
+          _convertError = e;
+        });
+      }
+    }
+  }
+
+  /// Auto key-word emphasis applied when captions are added or regenerated.
+  bool _keywords = true;
+
+  /// Fix caption text: one field per speech caption while editing (caption id → controller).
+  Map<String, TextEditingController>? _fixing;
+  Object? _exportError;
+
   @override
-  Widget build(BuildContext context) {
+  void dispose() {
+    for (final t in _fixing?.values ?? const <TextEditingController>[]) {
+      t.dispose();
+    }
+    super.dispose();
+  }
+
+  List<EditIrCaption> get _speech => [for (final x in widget.c.ir!.captions) if (x.kind == 'caption') x];
+
+  void _startFixing() => setState(() => _fixing = {for (final x in _speech) x.id: TextEditingController(text: x.text)});
+
+  void _saveFixes() {
+    final old = {for (final x in _speech) x.id: x.text};
+    final changed = {
+      for (final e in _fixing!.entries)
+        if (e.value.text.trim().isNotEmpty && e.value.text.trim() != old[e.key]) e.key: e.value.text.trim(),
+    };
+    _close(context);
+    if (changed.isEmpty) return;
+    widget.onEdit((ir) => TimelineOps.retextCaptions(ir, changed), done: '${changed.length} caption${changed.length == 1 ? '' : 's'} corrected');
+  }
+
+  /// Shares the captions as .srt and .vtt files (written to the temp folder first).
+  Future<void> _exportSubtitles() async {
+    setState(() => _exportError = null);
+    try {
+      final dir = await getTemporaryDirectory();
+      final ir = widget.c.ir!;
+      final srt = await File('${dir.path}/captions.srt').writeAsString(CaptionTools.toSrt(ir), flush: true);
+      final vtt = await File('${dir.path}/captions.vtt').writeAsString(CaptionTools.toVtt(ir), flush: true);
+      await SharePlus.instance.share(ShareParams(files: [
+        XFile(srt.path, mimeType: 'application/x-subrip'),
+        XFile(vtt.path, mimeType: 'text/vtt'),
+      ]));
+    } catch (e) {
+      if (mounted) setState(() => _exportError = e);
+    }
+  }
+
+  Widget _fixBody(BuildContext context) {
+    final caps = _speech;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _Title('Fix caption text', subtitle: 'Correct any word. Timings stay as they are.'),
+      ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: caps.length,
+          itemBuilder: (context, i) => Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: TextField(
+              controller: _fixing![caps[i].id],
+              minLines: 1,
+              maxLines: 3,
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(labelText: timecode(caps[i].startMs), isDense: true),
+            ),
+          ),
+        ),
+      ),
+      SizedBox(height: 8),
+      Wrap(alignment: WrapAlignment.end, spacing: 8, children: [
+        TextButton(
+          onPressed: () => setState(() {
+            for (final t in _fixing!.values) {
+              t.dispose();
+            }
+            _fixing = null;
+          }),
+          child: Text('Cancel'),
+        ),
+        FilledButton(onPressed: _saveFixes, child: Text('Save corrections')),
+      ]),
+    ]);
+  }
+
+  // The sheet follows the controller: a new transcript (language change) updates it in place.
+  @override
+  Widget build(BuildContext context) => _fixing != null
+      ? _fixBody(context)
+      : ListenableBuilder(
+          listenable: widget.c,
+          builder: (context, _) => SingleChildScrollView(child: _body(context)),
+        );
+
+  Widget _body(BuildContext context) {
     final c = widget.c;
     final has = c.ir!.captions.any((x) => x.kind == 'caption');
     final ready = c.transcriptState == TranscriptState.ready;
+    final running = c.transcriptState == TranscriptState.running;
+    final detected = c.transcript?.language;
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       _Title('Captions',
           subtitle: ready
-              ? 'Word-synced from the transcript (${c.words.length} words).'
-              : c.transcriptState == TranscriptState.running
+              ? 'Word-synced from the transcript (${c.words.length} words'
+                  '${c.spokenLanguage == CaptionLanguages.auto && CaptionLanguages.isKnown(detected) ? ', detected ${CaptionLanguages.nameOf(detected!)}' : ''}).'
+              : running
                   ? 'Waiting for the transcript…'
                   : 'Captions need a transcript. ${errorText(c.transcriptError ?? '')}'),
+      Row(children: [
+        Expanded(child: Text('Spoken language')),
+        DropdownButton<String>(
+          value: c.spokenLanguage,
+          onChanged: running ? null : (v) => v == null ? null : c.setSpokenLanguage(v),
+          items: [
+            for (final e in CaptionLanguages.spoken.entries) DropdownMenuItem(value: e.key, child: Text(e.value)),
+          ],
+        ),
+      ]),
+      if (running) SizedBox(height: 48, child: UniversalSkeleton(type: SkeletonType.activity)),
+      SizedBox(height: 8),
       SizedBox(
         height: 84,
         child: ListView(scrollDirection: Axis.horizontal, children: [
@@ -1544,6 +1686,10 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
             ),
         ]),
       ),
+      Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+        Text('Auto'),
+        FilterChip(label: Text('Highlight key words'), selected: _keywords, onSelected: (v) => setState(() => _keywords = v)),
+      ]),
       Text('Words per caption: $words'),
       Slider(value: words.toDouble(), min: 1, max: 6, divisions: 5, onChanged: (v) => setState(() => words = v.round())),
       SegmentedButton<double>(
@@ -1578,12 +1724,64 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
               ? null
               : () {
                   _close(context);
-                  widget.onEdit((ir) => TimelineOps.autoCaptions(ir, c.words, preset: preset, wordsPerCaption: words, highlightColor: color, positionY: y),
-                      done: 'Captions added');
+                  final keywords = _keywords;
+                  widget.onEdit((ir) {
+                    final out = TimelineOps.autoCaptions(ir, c.words, preset: preset, wordsPerCaption: words, highlightColor: color, positionY: y);
+                    return keywords ? TimelineOps.enhanceCaptions(out) : out;
+                  }, done: 'Captions added');
                 },
           child: Text(has ? 'Regenerate from transcript' : 'Add captions'),
         ),
       ]),
+      if (has) ...[
+        Divider(height: 24),
+        Wrap(spacing: 8, children: [
+          OutlinedButton.icon(onPressed: _startFixing, icon: Icon(Icons.edit_note_rounded), label: Text('Fix caption text')),
+          OutlinedButton.icon(onPressed: _exportSubtitles, icon: Icon(Icons.subtitles_rounded), label: Text('Export .srt / .vtt')),
+        ]),
+        if (_exportError != null) ...[
+          Text('The subtitle files could not be shared. ${errorText(_exportError!)}', style: TextStyle(color: AppTheme.error)),
+          Wrap(spacing: 8, children: [
+            TextButton(onPressed: _exportSubtitles, child: Text('Try again')),
+            TextButton(onPressed: () => setState(() => _exportError = null), child: Text('Dismiss')),
+          ]),
+        ],
+        SizedBox(height: 8),
+        Text('Convert captions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+        Row(children: [
+          Expanded(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: _convertTo,
+              hint: Text('Choose a language'),
+              onChanged: _converting ? null : (v) => setState(() => _convertTo = v),
+              items: [
+                for (final e in CaptionLanguages.targets.entries) DropdownMenuItem(value: e.key, child: Text(e.value)),
+              ],
+            ),
+          ),
+          SizedBox(width: 8),
+          FilterChip(
+            label: Text('Roman letters'),
+            selected: _roman,
+            onSelected: _converting ? null : (v) => setState(() => _roman = v),
+          ),
+        ]),
+        if (_converting)
+          SizedBox(height: 48, child: UniversalSkeleton(type: SkeletonType.activity))
+        else if (_convertError != null) ...[
+          Text(errorText(_convertError!), style: TextStyle(color: AppTheme.error)),
+          Wrap(spacing: 8, children: [
+            TextButton(onPressed: _convert, child: Text('Try again')),
+            TextButton(onPressed: () => setState(() => _convertError = null), child: Text('Keep current captions')),
+          ]),
+        ] else
+          OutlinedButton.icon(
+            onPressed: _convertTo == null ? null : _convert,
+            icon: Icon(Icons.translate_rounded),
+            label: Text('Convert captions'),
+          ),
+      ],
     ]);
   }
 }

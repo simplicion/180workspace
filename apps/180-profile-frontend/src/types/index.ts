@@ -12,6 +12,7 @@ export interface UserProfile {
 export interface ConnectedApp {
   id: string;
   name: string;
+  description?: string;
   clientId: string;
   scopes: string[];
   authorizedAt: string;

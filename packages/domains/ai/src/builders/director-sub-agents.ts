@@ -20,6 +20,8 @@ import {
   platformMaxDurationSec,
   mapSourceToTimeline,
   withTimeout,
+  resolveCaptionTemplate,
+  findCaptionTemplateInText,
 } from "@workspace/video-contracts";
 
 type Word = { text: string; startMs: number; endMs: number };
@@ -267,8 +269,22 @@ export function applyBrandDefaults(ops: CreativeOperation[], prompt: string, sty
   const applied: string[] = [];
   const namedColour = COLOUR_WORDS.test(prompt);
   const namedPreset = PRESET_WORDS.test(prompt);
+  // A creator look named in the request ("MrBeast captions") decides the style, not the brand defaults.
+  const namedTemplate = findCaptionTemplateInText(prompt);
   for (const o of ops as any[]) {
-    if (o.type === "autoCaptions") {
+    if (o.type === "autoCaptions" && (resolveCaptionTemplate(o.template) || namedTemplate)) {
+      o.template = (resolveCaptionTemplate(o.template) || namedTemplate)!.id;
+      // No colour named: the template's own colours apply.
+      if (!namedColour) {
+        delete o.textColor;
+        delete o.highlightColor;
+      }
+      applied.push(`captions in the ${resolveCaptionTemplate(o.template)!.name} template`);
+    } else if (o.type === "styleCaption" && (resolveCaptionTemplate(o.preset) || namedTemplate)) {
+      o.preset = (resolveCaptionTemplate(o.preset) || namedTemplate)!.id;
+      if (!namedColour) delete o.highlightColor;
+      applied.push(`captions in the ${resolveCaptionTemplate(o.preset)!.name} template`);
+    } else if (o.type === "autoCaptions") {
       if (!namedColour) {
         o.textColor = style.textColor;
         o.highlightColor = style.highlightColor;

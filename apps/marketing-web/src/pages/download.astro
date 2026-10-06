@@ -5,8 +5,14 @@ import Button from '../components/ui/Button.astro';
 import FAQAccordion from '../components/apps/FAQAccordion.astro';
 import AppBottomCTA from '../components/apps/AppBottomCTA.astro';
 import JSONLDSchema from '../components/apps/JSONLDSchema.astro';
+import Breadcrumb from '../components/ui/Breadcrumb.astro';
 
 const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Download', url: '/download' }
+];
 
 const downloadLinks = {
   windowsExe: '/downloads/180Workspace-Setup-x64.exe',
@@ -234,7 +240,11 @@ const faqs = [
   description="Download the full 180 Workspace unified platform across Native Desktop (Windows, macOS, Linux), Mobile (Android APK, iOS), and Progressive Web App. Complete enterprise suite with CRM, meetings, docs, chat, and built-in hardware-accelerated Media Studio."
   canonicalUrl="https://180workspace.com/download"
   faqs={faqs}
+  breadcrumbs={breadcrumbs}
 >
+  <div class="container mx-auto px-4 max-w-7xl pt-4">
+    <Breadcrumb items={breadcrumbs} />
+  </div>
   <JSONLDSchema 
     type="SoftwareApplication"
     name="180 Workspace"

@@ -16,7 +16,7 @@ class CaptionFonts {
   CaptionFonts._();
 
   /// Families the caption presets use and that export fetches before rendering.
-  static const exportFamilies = {'Anton', 'Montserrat', 'Poppins', 'Syne', 'Outfit', 'Inter', 'Roboto', 'Bebas Neue'};
+  static const exportFamilies = {'Anton', 'Montserrat', 'Poppins', 'Syne', 'Outfit', 'Inter', 'Roboto', 'Bebas Neue', 'Baloo 2'};
 
   static FontWeight weightOf(Object? w) {
     final v = ((w as num?)?.toInt() ?? 800).clamp(100, 900);

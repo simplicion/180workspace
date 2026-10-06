@@ -35,11 +35,13 @@ export const COUNTRY_DIRECTORY: Record<string, CountryMeta> = {
   TH: { countryCode: 'TH', name: 'Thailand', currency: 'THB', symbol: '฿', flag: '🇹🇭', pppTier: 2, baseFxToUsd: 34.0 },
   MY: { countryCode: 'MY', name: 'Malaysia', currency: 'MYR', symbol: 'RM', flag: '🇲🇾', pppTier: 2, baseFxToUsd: 4.4 },
   PL: { countryCode: 'PL', name: 'Poland', currency: 'PLN', symbol: 'zł', flag: '🇵🇱', pppTier: 2, baseFxToUsd: 4.0 },
+  CN: { countryCode: 'CN', name: 'China', currency: 'CNY', symbol: '¥', flag: '🇨🇳', pppTier: 2, baseFxToUsd: 7.24 },
   CL: { countryCode: 'CL', name: 'Chile', currency: 'CLP', symbol: 'CLP$', flag: '🇨🇱', pppTier: 2, baseFxToUsd: 940.0 },
   AR: { countryCode: 'AR', name: 'Argentina', currency: 'ARS', symbol: '$', flag: '🇦🇷', pppTier: 2, baseFxToUsd: 1020.0 },
 
   // Tier 3: Lower Middle / Emerging (65% regional discount standard)
   IN: { countryCode: 'IN', name: 'India', currency: 'INR', symbol: '₹', flag: '🇮🇳', pppTier: 3, baseFxToUsd: 86.5 },
+  NP: { countryCode: 'NP', name: 'Nepal', currency: 'NPR', symbol: 'Rs', flag: '🇳🇵', pppTier: 3, baseFxToUsd: 133.6 },
   NG: { countryCode: 'NG', name: 'Nigeria', currency: 'NGN', symbol: '₦', flag: '🇳🇬', pppTier: 3, baseFxToUsd: 1550.0 },
   ID: { countryCode: 'ID', name: 'Indonesia', currency: 'IDR', symbol: 'Rp', flag: '🇮🇩', pppTier: 3, baseFxToUsd: 15800.0 },
   PK: { countryCode: 'PK', name: 'Pakistan', currency: 'PKR', symbol: '₨', flag: '🇵🇰', pppTier: 3, baseFxToUsd: 278.0 },

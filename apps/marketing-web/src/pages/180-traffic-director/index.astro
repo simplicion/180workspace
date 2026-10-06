@@ -141,11 +141,19 @@ const faqs = [
     answer: "Yes. You can connect unlimited custom domains through our custom domains manager. SSL certificates are provisioned automatically via Cloudflare with zero manual DNS configuration required after setting the initial CNAME record."
   }
 ];
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Apps', url: '/apps' },
+  { name: '180 Traffic Director', url: '/180-traffic-director' }
+];
 ---
 
 <Layout 
   title="180 Traffic Director — Sub-5ms Edge Routing & Bot Shield | 180workspace"
   description="Sub-5ms edge traffic evaluation, bot shielding, dynamic tag injection, and ad review protection natively integrated into 180workspace."
+  breadcrumbs={breadcrumbs}
+  applicationCategory="BusinessApplication"
 >
   <main class="w-full relative">
     
@@ -153,6 +161,7 @@ const faqs = [
       title="Protect ad spend and scale traffic with"
       highlightText="sub-5ms edge evaluation."
       description="Eliminate click fraud, shield ad accounts from competitor spy bots, and route visitors with precision using our zero-latency Cloudflare Edge routing engine."
+      breadcrumbs={breadcrumbs}
     />
 
     <CapabilityPillars 

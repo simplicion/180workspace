@@ -771,10 +771,26 @@ export class OAuthController {
                 // Check if token is an access token from DB
                 const dbToken = await prisma.oAuthToken.findUnique({
                     where: { accessToken: token },
-                    include: { user: true }
+                    include: { user: true, app: true }
                 });
 
-                user = dbToken?.user;
+                if (dbToken) {
+                    if (dbToken.revokedAt || dbToken.expiresAt <= new Date()) {
+                        return res.status(401).json({ error: 'invalid_token', error_description: 'Token has been revoked or expired' });
+                    }
+                    const consent = await prisma.oAuthConsent.findUnique({
+                        where: {
+                            userId_appId: {
+                                userId: dbToken.userId,
+                                appId: dbToken.appId
+                            }
+                        }
+                    });
+                    if (!consent) {
+                        return res.status(401).json({ error: 'consent_revoked', error_description: 'User access for this application has been revoked' });
+                    }
+                    user = dbToken.user;
+                }
 
                 // Check if token is platform JWT
                 if (!user) {
@@ -792,7 +808,26 @@ export class OAuthController {
                 if (!user) {
                     const verified = verifyIdToken(token);
                     const targetUserId = verified.payload?.sub || verified.payload?.id || verified.payload?.userId;
+                    const tokenAud = verified.payload?.aud;
                     if (verified.valid && targetUserId) {
+                        if (tokenAud && typeof tokenAud === 'string' && tokenAud !== '180-core') {
+                            const app = await prisma.oAuthApp.findFirst({
+                                where: { OR: [{ clientId: tokenAud }, { id: tokenAud }] }
+                            });
+                            if (app) {
+                                const consent = await prisma.oAuthConsent.findUnique({
+                                    where: {
+                                        userId_appId: {
+                                            userId: targetUserId,
+                                            appId: app.id
+                                        }
+                                    }
+                                });
+                                if (!consent) {
+                                    return res.status(401).json({ error: 'consent_revoked', error_description: 'User access for this application has been revoked' });
+                                }
+                            }
+                        }
                         user = await prisma.user.findUnique({
                             where: { id: targetUserId }
                         });
@@ -909,7 +944,61 @@ export class OAuthController {
             return res.status(400).json({ valid: false, error: 'Token is required' });
         }
 
+        // 1. Check if token is an OAuth access token stored in DB
+        const dbToken = await prisma.oAuthToken.findUnique({
+            where: { accessToken: token },
+            include: { app: true }
+        });
+
+        if (dbToken) {
+            if (dbToken.revokedAt || dbToken.expiresAt <= new Date()) {
+                return res.status(401).json({ valid: false, error: 'Token has been revoked or expired' });
+            }
+            const consent = await prisma.oAuthConsent.findUnique({
+                where: {
+                    userId_appId: {
+                        userId: dbToken.userId,
+                        appId: dbToken.appId
+                    }
+                }
+            });
+            if (!consent) {
+                return res.status(401).json({ valid: false, error: 'Application authorization has been revoked' });
+            }
+            return res.json({
+                valid: true,
+                payload: {
+                    sub: dbToken.userId,
+                    aud: dbToken.app.clientId,
+                    scopes: dbToken.scopes,
+                    exp: Math.floor(dbToken.expiresAt.getTime() / 1000)
+                }
+            });
+        }
+
+        // 2. Cryptographic ID Token verification
         const result = verifyIdToken(token, expectedClientId);
+        if (result.valid && result.payload?.sub) {
+            const clientId = result.payload?.aud || expectedClientId;
+            if (clientId && typeof clientId === 'string' && clientId !== '180-core') {
+                const app = await prisma.oAuthApp.findFirst({
+                    where: { OR: [{ clientId }, { id: clientId }] }
+                });
+                if (app) {
+                    const consent = await prisma.oAuthConsent.findUnique({
+                        where: {
+                            userId_appId: {
+                                userId: result.payload.sub,
+                                appId: app.id
+                            }
+                        }
+                    });
+                    if (!consent) {
+                        return res.status(401).json({ valid: false, error: 'Application authorization has been revoked' });
+                    }
+                }
+            }
+        }
         return res.json(result);
     }
 
@@ -957,16 +1046,47 @@ export class OAuthController {
                 orderBy: { updatedAt: 'desc' }
             });
 
-            const apps = consents.map((c) => ({
-                id: c.id,
-                name: c.app.name,
-                clientId: c.app.clientId,
-                scopes: c.scopes,
-                authorizedAt: c.grantedAt.toISOString(),
-                logo: c.app.logoUrl || undefined,
-                lastActive: c.updatedAt.toISOString(),
-                status: 'active'
-            }));
+            const apps = consents.map((c) => {
+                let logo = c.app.logoUrl || undefined;
+                let displayName = c.app.name;
+                const clientId = c.app.clientId;
+                const lowerName = (displayName || '').toLowerCase();
+                const lowerClient = (clientId || '').toLowerCase();
+
+                // Smart first-party metadata and logo resolution
+                if (lowerName.includes('social') || lowerClient.includes('social') || lowerClient.includes('266753c1171df1e2c4a391483fd2e02e')) {
+                    logo = '/social-studio.png';
+                    displayName = '180 Social Studio';
+                } else if (lowerName.includes('developer') || lowerClient.includes('developer')) {
+                    logo = '/black-icon.svg';
+                    displayName = '180 Developers Console';
+                } else if (lowerName.includes('traffic') || lowerClient.includes('traffic')) {
+                    logo = '/icon.svg';
+                    displayName = '180 Traffic Director';
+                } else if (!logo || logo === '/icon.svg') {
+                    logo = '/icon.svg';
+                }
+
+                const description = c.app.description || (
+                    lowerName.includes('social')
+                        ? 'Multi-Channel Social Media Automation & Analytics'
+                        : lowerName.includes('developer')
+                            ? 'Developer Console & API Management for 180 Workspace'
+                            : 'Authorized Sovereign 180 application'
+                );
+
+                return {
+                    id: c.id,
+                    name: displayName,
+                    description,
+                    clientId: c.app.clientId,
+                    scopes: c.scopes,
+                    authorizedAt: c.grantedAt.toISOString(),
+                    logo,
+                    lastActive: c.updatedAt.toISOString(),
+                    status: 'active'
+                };
+            });
 
             return res.json({ success: true, apps });
         } catch (err: any) {
@@ -976,7 +1096,7 @@ export class OAuthController {
     }
 
     /**
-     * 10. Revoke an Authorized Application for Current User
+     * 10. Revoke an Authorized Application for Current User & Terminate Active App Sessions
      */
     static async revokeAuthorizedApp(req: any, res: any) {
         try {
@@ -986,15 +1106,60 @@ export class OAuthController {
                 return res.status(400).json({ success: false, error: 'invalid_request', message: 'clientId is required' });
             }
 
-            const app = await prisma.oAuthApp.findUnique({ where: { clientId } });
+            const app = await prisma.oAuthApp.findFirst({
+                where: {
+                    OR: [
+                        { clientId },
+                        { id: clientId }
+                    ]
+                }
+            });
+
             if (app) {
+                // 1. Delete user consent records
                 await prisma.oAuthConsent.deleteMany({
                     where: { userId, appId: app.id }
                 });
+
+                // 2. Mark all issued OAuth tokens as revoked immediately
                 await prisma.oAuthToken.updateMany({
                     where: { userId, appId: app.id },
                     data: { revokedAt: new Date() }
                 });
+
+                // 3. Delete any active authorization codes
+                await prisma.oAuthAuthorizationCode.deleteMany({
+                    where: { userId, appId: app.id }
+                }).catch(() => {});
+
+                // 4. Invalidate global session if applicable for first-party clients
+                try {
+                    const { prisma: globalPrisma } = require('@workspace/db');
+                    if (globalPrisma?.session && (app.clientId.includes('workspace') || app.clientId.includes('developer'))) {
+                        await globalPrisma.session.deleteMany({
+                            where: { userId }
+                        }).catch(() => {});
+                    }
+                } catch (_) {}
+
+                // 5. Back-channel Logout Webhook (OpenID Connect Back-Channel Logout 1.0)
+                if (app.webhookUrl) {
+                    try {
+                        const axios = require('axios');
+                        axios.post(app.webhookUrl, {
+                            event: 'auth.session_revoked',
+                            clientId: app.clientId,
+                            userId,
+                            timestamp: new Date().toISOString()
+                        }, {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(app.webhookSecret ? { 'X-180-Signature': app.webhookSecret } : {})
+                            },
+                            timeout: 2500
+                        }).catch((e: any) => console.warn(`[OAuthController] Webhook dispatch warning for ${app.clientId}:`, e?.message));
+                    } catch (_) {}
+                }
             }
 
             return res.json({ success: true, message: `Access for ${clientId} revoked successfully` });

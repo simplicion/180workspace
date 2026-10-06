@@ -10,11 +10,16 @@ import {
   TranscriptionUnavailableError,
   TranscriptionFailedError,
   ALLOWED_AUDIO_MIME_TYPES,
+  normalizeRequestLanguage,
+  resolveDetectedLanguage,
+  sttProviderOrder,
 } from "./media-transcription";
 
 const withKeys = async (keys: { groq?: string; openai?: string }, fn: () => Promise<void>) => {
   const prevGroq = process.env.GROQ_API_KEY;
   const prevOpenAI = process.env.OPENAI_API_KEY;
+  const prevOrder = process.env.STT_PROVIDER_ORDER;
+  delete process.env.STT_PROVIDER_ORDER;
 
   delete process.env.GROQ_API_KEY;
   delete process.env.OPENAI_API_KEY;
@@ -30,6 +35,7 @@ const withKeys = async (keys: { groq?: string; openai?: string }, fn: () => Prom
 
     if (prevOpenAI !== undefined) process.env.OPENAI_API_KEY = prevOpenAI;
     else delete process.env.OPENAI_API_KEY;
+    if (prevOrder !== undefined) process.env.STT_PROVIDER_ORDER = prevOrder;
   }
 };
 
@@ -69,8 +75,68 @@ test("maps Groq Whisper word timestamps (seconds) to ms and sends verbose_json",
     assert.equal(form.get("timestamp_granularities[]"), "word");
     assert.equal(out.words.length, 5);
     assert.deepEqual(out.words[0], { text: "growth", startMs: 100, endMs: 500 });
+    assert.equal(out.provider, "groq");
     assert.equal(out.durationMs, 2500);
+    assert.equal(form.get("language"), "en");
+    assert.equal(out.language, "en", "Whisper's language name is returned as an ISO code");
   });
+});
+
+test("auto-detect: sends no language, uses the full Whisper model and returns the detected ISO code", async () => {
+  await withKeys({ groq: "gsk_test_key" }, async () => {
+    let form: FormData | undefined;
+    const fakeFetch: any = async (_url: string, init: any) => {
+      form = init.body;
+      return new Response(JSON.stringify({
+        text: "आज हम बात करेंगे",
+        language: "Hindi",
+        duration: 1.6,
+        words: [
+          { word: "आज", start: 0.1, end: 0.4 },
+          { word: "हम", start: 0.45, end: 0.7 },
+          { word: "बात", start: 0.75, end: 1.1 },
+          { word: "करेंगे", start: 1.15, end: 1.6 },
+        ],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    };
+    const out = await transcribeAudioBuffer(Buffer.from("fake-audio"), "speech.m4a", "audio/m4a", undefined, fakeFetch);
+    assert.equal(form!.get("language"), null, "no language is forced on the provider");
+    assert.equal(form!.get("model"), "whisper-large-v3");
+    assert.equal(out.language, "hi");
+    assert.equal(out.words[3].text, "करेंगे");
+  });
+});
+
+test("a failing first provider falls through to the next; STT_PROVIDER_ORDER reorders and skips keyless providers", async () => {
+  await withKeys({}, async () => {
+    const urls: string[] = [];
+    const fakeFetch: any = async (url: string) => {
+      urls.push(url);
+      if (url.includes("groq")) return new Response("quota", { status: 429 });
+      return new Response(JSON.stringify({ text: "hello there", language: "english", duration: 1, words: [{ word: "hello", start: 0, end: 0.4 }, { word: "there", start: 0.5, end: 0.9 }] }), { status: 200 });
+    };
+    const out = await transcribeAudioBuffer(Buffer.from("x"), "a.wav", "audio/wav", "en", fakeFetch, { groqKey: "gsk", openaiKey: "sk" });
+    assert.equal(urls.length, 2);
+    assert.equal(out.provider, "openai");
+  });
+  assert.deepEqual(sttProviderOrder({ groqKey: "b", openaiKey: "c" }, undefined), ["groq", "openai"]);
+  assert.deepEqual(sttProviderOrder({ groqKey: "b" }, "openai, groq ,bogus"), ["groq"]);
+  assert.deepEqual(sttProviderOrder({ openaiKey: "c" }, ""), ["openai"]);
+});
+
+test("request language: two-letter codes pass, region is dropped, anything else means auto-detect", () => {
+  assert.equal(normalizeRequestLanguage("hi"), "hi");
+  assert.equal(normalizeRequestLanguage("HI-in"), "hi");
+  assert.equal(normalizeRequestLanguage(undefined), "auto");
+  assert.equal(normalizeRequestLanguage("auto"), "auto");
+  assert.equal(normalizeRequestLanguage("hindi; drop table"), "auto");
+});
+
+test("detected language: known names map to ISO, unknown falls back to the request or 'und'", () => {
+  assert.equal(resolveDetectedLanguage("tamil", "auto"), "ta");
+  assert.equal(resolveDetectedLanguage("ta", "auto"), "ta");
+  assert.equal(resolveDetectedLanguage(undefined, "bn"), "bn");
+  assert.equal(resolveDetectedLanguage("", "auto"), "und");
 });
 
 test("maps OpenAI Whisper word timestamps (seconds) to ms and sends verbose_json with whisper-1", async () => {

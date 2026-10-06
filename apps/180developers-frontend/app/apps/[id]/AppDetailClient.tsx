@@ -1002,8 +1002,8 @@ export default function AppDetailClient({ initialView }: AppDetailClientProps) {
                     {activeView === 'overview'
                       ? `Client ID: ${app.clientId}`
                       : activeView === 'identity'
-                      ? 'Universal login, WhatsApp OTP, Google SSO & sovereign @usernames'
-                      : 'Sovereign Wallet & UPI checkout with 2-way verification'}
+                      ? 'Universal login, WhatsApp OTP, Google SSO & unified @usernames'
+                      : '180 Wallet & UPI checkout with 2-way verification'}
                   </p>
                   {activeView === 'overview' && (
                     <button

@@ -28,6 +28,8 @@ import {
 import { Button, LogoLoader, AILogoIcon } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { getCoreApiUrl } from '@/lib/api';
+import { locationService, DetectedLocation } from '@/lib/location-service';
+import { currencyService } from '@/lib/currency-service';
 
 declare global {
   interface Window {
@@ -111,10 +113,31 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
   const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [showCouponInput, setShowCouponInput] = useState(false);
 
+  // ─── Live Location & Geolocation Currency State ─────────────────────────────
+  const [detectedLocation, setDetectedLocation] = useState<DetectedLocation | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        await currencyService.fetchLiveExchangeRates();
+        const loc = await locationService.detectLiveLocation();
+        if (isMounted && loc) {
+          setDetectedLocation(loc);
+        }
+      } catch (_) {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // ─── Speculative Zero-Latency Order Pre-Warming Cache ────────────────────────
   const prewarmedOrderRef = React.useRef<{
     orderId: string;
     amountPaise: number;
+    currency: string;
     keyId: string;
     amount: number;
   } | null>(null);
@@ -212,6 +235,72 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
     }
   };
 
+  // ─── Currency & Monetary Amount Computations ───────────────────────────────
+  const userLocalCurrency = useMemo(() => {
+    if (detectedLocation?.countryCode) {
+      return currencyService.getCurrencyForCountry(detectedLocation.countryCode);
+    }
+    return 'INR';
+  }, [detectedLocation]);
+
+  const developerOriginalCurrency = useMemo(() => {
+    return String(session?.currency || 'USD').toUpperCase();
+  }, [session?.currency]);
+
+  // Defaults automatically to user's detected local currency unless manually chosen
+  const activeCurrency = useMemo(() => {
+    if (selectedCurrency) return selectedCurrency.toUpperCase();
+    return userLocalCurrency.toUpperCase();
+  }, [selectedCurrency, userLocalCurrency]);
+
+  const isLocalCurrencyActive = activeCurrency === userLocalCurrency.toUpperCase();
+
+  const handleToggleCurrency = (newCurrency: string) => {
+    const clean = newCurrency.toUpperCase();
+    if (clean === activeCurrency) return;
+    setSelectedCurrency(clean);
+    prewarmedOrderRef.current = null;
+    prewarmingPromiseRef.current = null;
+    const meta = currencyService.getCurrencyMeta(clean);
+    toast.success(`Switched currency to ${clean} (${meta.symbol})`, { id: 'curr-switch' });
+  };
+
+  const rawDeveloperOriginal = session?.originalAmount && session.originalAmount > 0
+    ? session.originalAmount
+    : session?.amount || 0;
+
+  const activeOriginalAmount = useMemo(() => {
+    if (!rawDeveloperOriginal) return 0;
+    if (activeCurrency === developerOriginalCurrency) return rawDeveloperOriginal;
+    return currencyService.convert(rawDeveloperOriginal, developerOriginalCurrency, activeCurrency);
+  }, [rawDeveloperOriginal, developerOriginalCurrency, activeCurrency]);
+
+  const activeDiscountAmount = useMemo(() => {
+    if (!session?.discountAmount) return 0;
+    if (activeCurrency === developerOriginalCurrency) return session.discountAmount;
+    return currencyService.convert(session.discountAmount, developerOriginalCurrency, activeCurrency);
+  }, [session?.discountAmount, developerOriginalCurrency, activeCurrency]);
+
+  const activeFinalAmount = useMemo(() => {
+    return Math.max(0, Math.round((activeOriginalAmount - activeDiscountAmount) * 100) / 100);
+  }, [activeOriginalAmount, activeDiscountAmount]);
+
+  const isIndia = (detectedLocation?.countryCode || '').toUpperCase() === 'IN';
+
+  const isSupportedByGateway = useMemo(() => {
+    return currencyService.isGatewaySupported(activeCurrency);
+  }, [activeCurrency]);
+
+  const chargeCurrency = useMemo(() => {
+    if (isSupportedByGateway) return activeCurrency;
+    return developerOriginalCurrency;
+  }, [isSupportedByGateway, activeCurrency, developerOriginalCurrency]);
+
+  const chargeAmount = useMemo(() => {
+    if (chargeCurrency === activeCurrency) return activeFinalAmount;
+    return Math.max(0, Math.round(currencyService.convert(activeFinalAmount, activeCurrency, chargeCurrency) * 100) / 100);
+  }, [chargeCurrency, activeCurrency, activeFinalAmount]);
+
   const handleApplyCoupon = async () => {
     const trimmedCode = couponInput.trim().toUpperCase();
     if (!trimmedCode) {
@@ -235,6 +324,8 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         body: JSON.stringify({
           code: trimmedCode,
           couponCode: trimmedCode,
+          currency: activeCurrency,
+          orderAmount: activeOriginalAmount,
           customerEmail: session?.customerEmail || (wallet?.user as any)?.email || undefined,
         }),
       });
@@ -245,16 +336,23 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         const discountAmt = data.discountAmount !== undefined ? data.discountAmount : (data.session?.discountAmount ?? 0);
         const codeUsed = data.code || trimmedCode;
 
+        // Reset pre-warming order cache immediately so order creates for new discounted amount
+        prewarmedOrderRef.current = null;
+        prewarmingPromiseRef.current = null;
+
         setSession((prev: any) => ({
           ...prev,
           ...(data.session || {}),
-          originalAmount: prev?.originalAmount || prev?.amount,
-          amount: finalAmt,
+          originalAmount: data.session?.originalAmount || prev?.originalAmount || prev?.amount,
+          amount: data.session?.amount ?? finalAmt,
           couponCode: codeUsed,
-          discountAmount: discountAmt,
+          discountAmount: data.session?.discountAmount ?? 0,
           app: prev?.app || data.session?.app,
         }));
-        toast.success(`Coupon applied: ${codeUsed} (-${session?.currency === 'USD' ? '$' : '₹'}${discountAmt})`, { id: 'coupon-toast' });
+        toast.success(
+          `Coupon applied: ${codeUsed} (-${currencyService.format(discountAmt, activeCurrency)})`,
+          { id: 'coupon-toast' }
+        );
         setCouponInput('');
         setShowCouponInput(false);
 
@@ -265,6 +363,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
             couponCode: codeUsed,
             discountAmount: discountAmt,
             finalAmount: finalAmt,
+            currency: activeCurrency,
           };
           if (window.opener && !window.opener.closed) window.opener.postMessage(couponPayload, '*');
           if (window.parent && window.parent !== window) window.parent.postMessage(couponPayload, '*');
@@ -281,6 +380,9 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
 
   const handleRemoveCoupon = async () => {
     try {
+      prewarmedOrderRef.current = null;
+      prewarmingPromiseRef.current = null;
+
       const res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/remove-coupon`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -298,6 +400,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
             type: '180_COUPON_REMOVED',
             sessionId,
             finalAmount: data.session.amount,
+            currency: activeCurrency,
           };
           if (window.opener && !window.opener.closed) window.opener.postMessage(revertPayload, '*');
           if (window.parent && window.parent !== window) window.parent.postMessage(revertPayload, '*');
@@ -343,7 +446,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         )
       );
 
-      // Robust fallback for Sandbox / Demo / Sovereign sessions
+      // Robust fallback for Sandbox / Demo / Standalone sessions
       if (!sessionInfo && isSandboxSession) {
         const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
         const queryAmount = urlParams?.get('amount') ? parseFloat(urlParams.get('amount')!) : 499.0;
@@ -420,7 +523,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
 
   // ─── Speculative Order Pre-Warming on Dwell Time (Zero Perceived Latency) ────
   useEffect(() => {
-    if (!session || !sessionId || session.status === 'COMPLETED' || !session.amount) return;
+    if (!session || !sessionId || session.status === 'COMPLETED' || !activeFinalAmount) return;
 
     const isSandboxSession = Boolean(
       sessionId && (
@@ -434,8 +537,12 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
 
     if (isSandboxSession && !isProduction) return;
 
-    // If order already pre-warmed for current active session amount, reuse it
-    if (prewarmedOrderRef.current && prewarmedOrderRef.current.amount === session.amount) {
+    // If order already pre-warmed for current charge amount and gateway currency, reuse it
+    if (
+      prewarmedOrderRef.current &&
+      prewarmedOrderRef.current.amount === chargeAmount &&
+      prewarmedOrderRef.current.currency === chargeCurrency
+    ) {
       return;
     }
 
@@ -444,6 +551,10 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         const res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-order`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currency: chargeCurrency,
+            amount: chargeAmount,
+          }),
         });
         const data = await res.json();
         if (data.success && (data.data || data.orderId)) {
@@ -451,8 +562,9 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           const orderObj = {
             orderId: orderInfo.orderId,
             amountPaise: orderInfo.amountPaise,
+            currency: orderInfo.currency || chargeCurrency,
             keyId: orderInfo.keyId,
-            amount: session.amount,
+            amount: chargeAmount,
           };
           prewarmedOrderRef.current = orderObj;
           return orderObj;
@@ -464,7 +576,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
     };
 
     prewarmingPromiseRef.current = prewarm();
-  }, [session?.amount, sessionId, isProduction]);
+  }, [chargeAmount, chargeCurrency, sessionId, isProduction]);
 
   const handlePay = async () => {
     setPaying(true);
@@ -626,17 +738,29 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
 
     // Zero-Latency Path: If order was pre-warmed during user dwell time, consume immediately!
     // Otherwise fallback smoothly to awaiting in-flight prewarm or requesting order
-    if (!orderInfo || orderInfo.amount !== session.amount) {
+    if (
+      !orderInfo ||
+      orderInfo.amount !== chargeAmount ||
+      orderInfo.currency !== chargeCurrency
+    ) {
       setTopupLoading(true);
       toastId = toast.loading('Opening payment gateway...');
       try {
         if (prewarmingPromiseRef.current) {
           orderInfo = await prewarmingPromiseRef.current;
         }
-        if (!orderInfo || orderInfo.amount !== session.amount) {
+        if (
+          !orderInfo ||
+          orderInfo.amount !== chargeAmount ||
+          orderInfo.currency !== chargeCurrency
+        ) {
           const res = await fetch(getCoreApiUrl(`/api/v1/checkout/sessions/${sessionId}/direct-order`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              currency: chargeCurrency,
+              amount: chargeAmount,
+            }),
           });
           const data = await res.json();
           if (!data.success) {
@@ -646,8 +770,9 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           prewarmedOrderRef.current = {
             orderId: orderInfo.orderId,
             amountPaise: orderInfo.amountPaise,
+            currency: orderInfo.currency || chargeCurrency,
             keyId: orderInfo.keyId,
-            amount: session.amount,
+            amount: chargeAmount,
           };
         }
       } catch (err: any) {
@@ -687,17 +812,18 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
     }
 
     try {
-      const { orderId, amountPaise, keyId } = orderInfo!;
+      const { orderId, amountPaise, keyId, currency: orderCurrency } = orderInfo!;
 
       let storedUser: any = null;
       try {
         storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       } catch (_) {}
 
-      const options = {
+      // Exact parameter match: options.amount and options.currency match the server order 100%
+      const options: any = {
         key: keyId,
         amount: amountPaise,
-        currency: session.currency || 'INR',
+        currency: orderCurrency || chargeCurrency,
         name: session.app?.name || '180 Pay Secure Checkout',
         description: session.title || 'Direct Checkout',
         order_id: orderId,
@@ -706,6 +832,20 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           name: storedUser?.name || undefined,
           email: storedUser?.email || undefined,
         },
+        ...(!isIndia ? {
+          config: {
+            display: {
+              blocks: {
+                cards: {
+                  name: 'Credit & Debit Cards',
+                  instruments: [{ method: 'card' }],
+                },
+              },
+              sequence: ['block.cards'],
+              preferences: { show_default_blocks: false },
+            },
+          },
+        } : {}),
         handler: async function (response: any) {
           const verifyToastId = toast.loading('Verifying payment signature...');
           try {
@@ -820,7 +960,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
         <div className="space-y-1">
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Payment Authorized!</h2>
           <p className="text-xs text-slate-600">
-            ₹{session?.amount?.toFixed(2)} paid to <strong className="text-slate-900">{session?.app?.name}</strong>.
+            {currencyService.format(activeFinalAmount, activeCurrency)} paid to <strong className="text-slate-900">{session?.app?.name}</strong>.
           </p>
         </div>
         <p className="text-[11px] text-slate-500">Redirecting back to application...</p>
@@ -1075,8 +1215,12 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
     ))
   );
 
-  const userBalance = isAuthenticatedWithWallet ? (wallet?.balance ?? 0) : 0;
-  const hasEnoughBalance = isAuthenticatedWithWallet && userBalance >= session.amount;
+  const rawUserBalance = isAuthenticatedWithWallet ? (wallet?.balance ?? 0) : 0;
+  const walletCurrency = String(wallet?.currency || 'INR').toUpperCase();
+  const userBalance = useMemo(() => {
+    return currencyService.convert(rawUserBalance, walletCurrency, activeCurrency);
+  }, [rawUserBalance, walletCurrency, activeCurrency]);
+  const hasEnoughBalance = isAuthenticatedWithWallet && userBalance >= activeFinalAmount;
 
   return (
     <div className="w-full space-y-5 text-slate-900 dark:text-zinc-100 font-sans antialiased">
@@ -1136,13 +1280,85 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
             )}
           </div>
           <div className="text-right shrink-0">
-            <span className="text-xl font-extrabold text-slate-900 dark:text-zinc-100 tracking-tight">
-              {session.currency === 'USD' ? '$' : '₹'}{session.amount.toFixed(2)}
-            </span>
-            <div className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase font-mono mt-0.5">
-              {session.currency} {(session.mode === 'subscription' || session.metadata?.isSubscription) ? '/ mo' : ''}
+            <div className="flex items-baseline justify-end gap-1.5">
+              <span className="text-xl font-extrabold text-slate-900 dark:text-zinc-100 tracking-tight">
+                {currencyService.format(activeFinalAmount, activeCurrency)}
+              </span>
+              {activeDiscountAmount > 0 && (
+                <span className="text-xs text-slate-400 dark:text-zinc-500 line-through font-mono">
+                  {currencyService.format(activeOriginalAmount, activeCurrency)}
+                </span>
+              )}
             </div>
+            <div className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase font-mono mt-0.5">
+              {activeCurrency} {(session.mode === 'subscription' || session.metadata?.isSubscription) ? '/ mo' : ''}
+            </div>
+            {!isSupportedByGateway && (
+              <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">
+                Billed as {currencyService.format(chargeAmount, chargeCurrency)} via Card
+              </div>
+            )}
+            {isSupportedByGateway && activeCurrency !== developerOriginalCurrency && (
+              <div className="text-[10.5px] text-blue-600 dark:text-blue-400 font-medium mt-0.5">
+                ≈ {currencyService.format(rawDeveloperOriginal, developerOriginalCurrency)}
+              </div>
+            )}
           </div>
+        </div>
+      </div>
+
+      {/* Dynamic Geolocation Currency Switcher */}
+      <div className="rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 bg-slate-50/70 dark:bg-zinc-900/40 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-blue-600/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <Globe className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                {isLocalCurrencyActive
+                  ? `Converted for ${detectedLocation?.countryName || 'India'}`
+                  : `Original ${developerOriginalCurrency} Pricing`}
+              </span>
+              {isLocalCurrencyActive && (
+                <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/70">
+                  Auto-Detected ({detectedLocation?.countryCode || 'IN'})
+                </span>
+              )}
+            </div>
+            <p className="text-[10.5px] text-slate-500 dark:text-zinc-400 leading-tight mt-0.5">
+              {isLocalCurrencyActive
+                ? `1 ${developerOriginalCurrency} ≈ ${currencyService.format(currencyService.convert(1, developerOriginalCurrency, activeCurrency), activeCurrency)}. Click ${developerOriginalCurrency} to pay in developer currency.`
+                : `Showing developer base price. Click ${userLocalCurrency} to pay in your local currency.`}
+            </p>
+          </div>
+        </div>
+
+        <div className="inline-flex rounded-xl bg-slate-200/80 dark:bg-zinc-800 p-0.5 shrink-0 self-start sm:self-auto shadow-2xs">
+          <button
+            type="button"
+            onClick={() => handleToggleCurrency(userLocalCurrency)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              isLocalCurrencyActive
+                ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-2xs'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            <span>{currencyService.getCurrencyMeta(userLocalCurrency).flag}</span>
+            <span>{userLocalCurrency} (Local)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggleCurrency(developerOriginalCurrency)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              !isLocalCurrencyActive
+                ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-2xs'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            <span>{currencyService.getCurrencyMeta(developerOriginalCurrency).flag}</span>
+            <span>{developerOriginalCurrency} (Original)</span>
+          </button>
         </div>
       </div>
 
@@ -1178,12 +1394,12 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
             </div>
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-xs text-emerald-700 dark:text-emerald-400">
-                -{session.currency === 'USD' ? '$' : '₹'}{(session.discountAmount || 0).toFixed(2)}
+                -{currencyService.format(activeDiscountAmount, activeCurrency)}
               </span>
               <button
                 type="button"
                 onClick={handleRemoveCoupon}
-                className="text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                className="text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                 title="Remove coupon"
               >
                 <X className="w-3.5 h-3.5" />
@@ -1224,7 +1440,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                   size="sm"
                   disabled={applyingCoupon || !couponInput.trim()}
                   onClick={handleApplyCoupon}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 px-3 shrink-0"
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 px-3 shrink-0 cursor-pointer"
                 >
                   {applyingCoupon ? 'Applying...' : 'Apply'}
                 </Button>
@@ -1253,7 +1469,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               180 Wallet Balance:
             </span>
             <span className="font-bold text-slate-900 dark:text-zinc-100">
-              {session.currency === 'USD' ? '$' : '₹'}{userBalance.toFixed(2)}
+              {currencyService.format(userBalance, activeCurrency)}
             </span>
           </div>
 
@@ -1261,14 +1477,14 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
             <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-zinc-800 text-slate-600 dark:text-zinc-400">
               <span>Balance after payment:</span>
               <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                {session.currency === 'USD' ? '$' : '₹'}{(userBalance - session.amount).toFixed(2)}
+                {currencyService.format(userBalance - activeFinalAmount, activeCurrency)}
               </span>
             </div>
           ) : (
             <div className="text-[11px] text-slate-600 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-800/50 p-2.5 rounded-xl border border-slate-200/70 dark:border-zinc-700/60 flex items-center justify-between">
               <span>Pay remaining with UPI / Cards:</span>
               <span className="font-bold text-slate-900 dark:text-zinc-200">
-                {session.currency === 'USD' ? '$' : '₹'}{(session.amount - userBalance).toFixed(2)}
+                {currencyService.format(Math.max(0, activeFinalAmount - userBalance), activeCurrency)}
               </span>
             </div>
           )}
@@ -1287,15 +1503,28 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-            <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
-              UPI (GPay / PhonePe / Paytm)
-            </span>
-            <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
-              Credit & Debit Cards
-            </span>
-            <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
-              Netbanking
-            </span>
+            {isIndia ? (
+              <>
+                <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
+                  UPI (GPay / PhonePe / Paytm / QR)
+                </span>
+                <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
+                  Credit & Debit Cards (RuPay / Visa / Mastercard)
+                </span>
+                <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
+                  Netbanking (All Indian Banks)
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
+                  Credit & Debit Cards (Visa / Mastercard / 3D Secure)
+                </span>
+                <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-md text-[10.5px] font-medium border border-slate-200/50 dark:border-zinc-700/50">
+                  International Online Cards
+                </span>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1314,8 +1543,8 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                 {paying
                   ? 'Processing Payment...'
                   : session.mode === 'subscription' || session.metadata?.isSubscription
-                  ? `Authorize Subscription (${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)})`
-                  : `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} with 180 Wallet`}
+                  ? `Authorize Subscription (${currencyService.format(activeFinalAmount, activeCurrency)})`
+                  : `Pay ${currencyService.format(activeFinalAmount, activeCurrency)} with 180 Wallet`}
               </span>
             </Button>
 
@@ -1326,7 +1555,13 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               className="w-full py-2.5 min-h-[42px] rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
             >
               <CreditCard className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
-              <span>{topupLoading ? 'Opening Gateway...' : 'Or Pay via UPI / Cards / Netbanking'}</span>
+              <span>
+                {topupLoading
+                  ? 'Opening Gateway...'
+                  : isIndia
+                  ? `Or Pay ${currencyService.format(activeFinalAmount, activeCurrency)} via UPI / Cards / Netbanking`
+                  : `Or Pay ${currencyService.format(chargeAmount, chargeCurrency)} via International Card`}
+              </span>
             </button>
           </>
         ) : (
@@ -1339,7 +1574,9 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
             <span>
               {topupLoading
                 ? 'Opening Payment Gateway...'
-                : `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via UPI / Cards`}
+                : isIndia
+                ? `Pay ${currencyService.format(activeFinalAmount, activeCurrency)} via UPI / Cards`
+                : `Pay ${currencyService.format(chargeAmount, chargeCurrency)} via Card`}
             </span>
           </Button>
         )}

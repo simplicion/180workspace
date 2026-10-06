@@ -288,7 +288,7 @@ export function TopUpBottomSheet({
               <h2 id="bottom-sheet-title" className="text-base font-bold text-slate-900 tracking-tight">
                 Top-Up Prepaid Wallet
               </h2>
-              <p className="text-xs text-slate-500">Universal 180 Pay Sovereign Ledger</p>
+              <p className="text-xs text-slate-500">Universal 180 Pay Ledger</p>
             </div>
           </div>
         </div>

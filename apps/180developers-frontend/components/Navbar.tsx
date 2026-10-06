@@ -226,7 +226,7 @@ export default function Navbar() {
                         </span>
                       </div>
                       <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-snug">
-                        Instant popup checkouts, sovereign wallet balances, and 2-way signed webhooks.
+                        Instant popup checkouts, 180 wallet balances, and 2-way signed webhooks.
                       </p>
                     </div>
                   </Link>

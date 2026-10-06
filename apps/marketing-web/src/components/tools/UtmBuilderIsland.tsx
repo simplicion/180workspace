@@ -278,6 +278,8 @@ export default function UtmBuilderIsland() {
                 <img
                   src={qrDataUrl}
                   alt="Campaign QR Code"
+                  width={192}
+                  height={192}
                   className="w-48 h-48 rounded-xl object-contain shadow-sm"
                 />
               ) : (

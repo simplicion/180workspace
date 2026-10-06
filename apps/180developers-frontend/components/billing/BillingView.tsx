@@ -338,7 +338,7 @@ export function BillingView() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Sovereign Developer Model</span>
+              <span>Unified Developer Model</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-zinc-950 dark:text-white">
               $2.50 <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">/ project / month</span>
@@ -441,7 +441,7 @@ export function BillingView() {
               <span>Interactive Project Cost Estimator</span>
             </h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Calculate exact monthly costs as you spin up additional sovereign applications.
+              Calculate exact monthly costs as you spin up additional workspace applications.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs font-mono font-bold text-zinc-900 dark:text-white">

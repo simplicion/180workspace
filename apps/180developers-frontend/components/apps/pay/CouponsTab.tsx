@@ -18,6 +18,8 @@ import {
   Sparkles,
   History,
   AlertTriangle,
+  Edit2,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
@@ -69,6 +71,20 @@ export function CouponsTab({ appId }: CouponsTabProps) {
   const [perCustomerLimit, setPerCustomerLimit] = useState('1');
   const [allowedOriginsText, setAllowedOriginsText] = useState('');
   const [validUntil, setValidUntil] = useState('');
+
+  // Edit Modal State
+  const [editingCoupon, setEditingCoupon] = useState<CouponItem | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editDiscountType, setEditDiscountType] = useState<'PERCENTAGE' | 'FIXED_AMOUNT'>('PERCENTAGE');
+  const [editDiscountValue, setEditDiscountValue] = useState('20');
+  const [editMaxDiscountAmount, setEditMaxDiscountAmount] = useState('500');
+  const [editMinOrderAmount, setEditMinOrderAmount] = useState('100');
+  const [editMaxRedemptions, setEditMaxRedemptions] = useState('20');
+  const [editPerCustomerLimit, setEditPerCustomerLimit] = useState('1');
+  const [editAllowedOriginsText, setEditAllowedOriginsText] = useState('');
+  const [editValidUntil, setEditValidUntil] = useState('');
+  const [editIsActive, setEditIsActive] = useState(true);
 
   // Redemptions History Drawer
   const [selectedCoupon, setSelectedCoupon] = useState<CouponItem | null>(null);
@@ -171,6 +187,110 @@ export function CouponsTab({ appId }: CouponsTabProps) {
       toast.error(err.message || 'Error creating coupon');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleOpenEdit = (coupon: CouponItem) => {
+    setEditingCoupon(coupon);
+    setEditDiscountType(coupon.discountType);
+    setEditDiscountValue(String(coupon.discountValue));
+    setEditMaxDiscountAmount(coupon.maxDiscountAmount != null ? String(coupon.maxDiscountAmount) : '');
+    setEditMinOrderAmount(coupon.minOrderAmount != null ? String(coupon.minOrderAmount) : '');
+    setEditMaxRedemptions(coupon.maxRedemptions != null ? String(coupon.maxRedemptions) : '');
+    setEditPerCustomerLimit(String(coupon.perCustomerLimit || 1));
+    setEditAllowedOriginsText((coupon.allowedOrigins || []).join('\n'));
+    setEditValidUntil(
+      coupon.validUntil ? new Date(coupon.validUntil).toISOString().slice(0, 16) : ''
+    );
+    setEditIsActive(coupon.isActive);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCoupon) return;
+
+    const val = parseFloat(editDiscountValue);
+    if (isNaN(val) || val <= 0) {
+      toast.error('Discount value must be greater than zero');
+      return;
+    }
+    if (editDiscountType === 'PERCENTAGE' && val > 100) {
+      toast.error('Percentage discount cannot exceed 100%');
+      return;
+    }
+
+    const origins = editAllowedOriginsText
+      .split('\n')
+      .map((o) => o.trim())
+      .filter(Boolean);
+
+    setEditing(true);
+    try {
+      const token = localStorage.getItem('platform_auth_token');
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/api/v1/coupons/apps/${appId}/${editingCoupon.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          discountType: editDiscountType,
+          discountValue: val,
+          maxDiscountAmount: editMaxDiscountAmount ? parseFloat(editMaxDiscountAmount) : null,
+          minOrderAmount: editMinOrderAmount ? parseFloat(editMinOrderAmount) : null,
+          maxRedemptions: editMaxRedemptions ? parseInt(editMaxRedemptions, 10) : null,
+          perCustomerLimit: editPerCustomerLimit ? parseInt(editPerCustomerLimit, 10) : 1,
+          allowedOrigins: origins,
+          validUntil: editValidUntil ? new Date(editValidUntil).toISOString() : null,
+          isActive: editIsActive,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update coupon');
+      }
+
+      toast.success(`Coupon ${editingCoupon.code} updated successfully!`);
+      setShowEditModal(false);
+      setEditingCoupon(null);
+      fetchCoupons();
+    } catch (err: any) {
+      toast.error(err.message || 'Error updating coupon');
+    } finally {
+      setEditing(false);
+    }
+  };
+
+  const handleToggleCouponStatus = async (coupon: CouponItem) => {
+    try {
+      const token = localStorage.getItem('platform_auth_token');
+      const apiBase = getApiBase();
+      const nextStatus = !coupon.isActive;
+      const res = await fetch(`${apiBase}/api/v1/coupons/apps/${appId}/${coupon.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          isActive: nextStatus,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to toggle status');
+      }
+
+      toast.success(`Coupon ${coupon.code} ${nextStatus ? 'activated' : 'paused'}`);
+      setCoupons((prev) =>
+        prev.map((c) => (c.id === coupon.id ? { ...c, isActive: nextStatus } : c))
+      );
+    } catch (err: any) {
+      toast.error(err.message || 'Error toggling coupon status');
     }
   };
 
@@ -375,22 +495,40 @@ export function CouponsTab({ appId }: CouponsTabProps) {
                           <span className="px-2.5 py-1 rounded-full bg-red-500/10 text-red-500 text-[10px] font-bold">
                             Expired
                           </span>
-                        ) : coupon.isActive ? (
-                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold">
-                            Active
-                          </span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full bg-zinc-500/10 text-zinc-500 text-[10px] font-bold">
-                            Disabled
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCouponStatus(coupon)}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                              coupon.isActive
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                                : 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20 hover:bg-zinc-500/20'
+                            }`}
+                            title={coupon.isActive ? 'Click to pause coupon' : 'Click to activate coupon'}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                coupon.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400'
+                              }`}
+                            />
+                            {coupon.isActive ? 'Active' : 'Disabled'}
+                          </button>
                         )}
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(coupon)}
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-500/10 transition-colors cursor-pointer"
+                            title="Edit Coupon"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleViewRedemptions(coupon)}
-                            className="p-1.5 rounded-lg text-zinc-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors cursor-pointer"
                             title="View Redemptions"
                           >
                             <History className="w-4 h-4" />
@@ -398,7 +536,7 @@ export function CouponsTab({ appId }: CouponsTabProps) {
                           <button
                             type="button"
                             onClick={() => handleDeleteCoupon(coupon.id, coupon.code)}
-                            className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
                             title="Delete Coupon"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -592,6 +730,225 @@ export function CouponsTab({ appId }: CouponsTabProps) {
                   className="rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold"
                 >
                   {creating ? 'Creating...' : 'Create Coupon'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT COUPON MODAL */}
+      {showEditModal && editingCoupon && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-zinc-950 dark:text-white">Edit Promotional Coupon</h3>
+                  <p className="text-xs font-mono font-bold text-purple-600 dark:text-purple-400 mt-0.5">
+                    {editingCoupon.code}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingCoupon(null);
+                }}
+                className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white text-lg p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              {/* Active Toggle */}
+              <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-zinc-900 dark:text-white">Coupon Status</span>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {editIsActive ? 'Coupon is active & ready for redemption' : 'Coupon is paused (redemptions blocked)'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={editIsActive}
+                  onClick={() => setEditIsActive(!editIsActive)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    editIsActive ? 'bg-purple-600' : 'bg-zinc-300 dark:bg-zinc-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      editIsActive ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Discount Type */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
+                  Discount Type
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditDiscountType('PERCENTAGE')}
+                    className={`py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      editDiscountType === 'PERCENTAGE'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                        : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-white/10'
+                    }`}
+                  >
+                    Percentage (%)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditDiscountType('FIXED_AMOUNT')}
+                    className={`py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      editDiscountType === 'FIXED_AMOUNT'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                        : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-white/10'
+                    }`}
+                  >
+                    Fixed Amount (₹)
+                  </button>
+                </div>
+              </div>
+
+              {/* Value & Max Cap */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
+                    {editDiscountType === 'PERCENTAGE' ? 'Discount %' : 'Discount Amount (₹)'}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={editDiscountType === 'PERCENTAGE' ? '100' : undefined}
+                    required
+                    value={editDiscountValue}
+                    onChange={(e) => setEditDiscountValue(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-sm text-zinc-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                {editDiscountType === 'PERCENTAGE' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
+                      Max Cap (₹ Optional)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 500"
+                      value={editMaxDiscountAmount}
+                      onChange={(e) => setEditMaxDiscountAmount(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-sm text-zinc-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Min Order & Capacity */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
+                    Min Order Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 100"
+                    value={editMinOrderAmount}
+                    onChange={(e) => setEditMinOrderAmount(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-sm text-zinc-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
+                    Max Redemptions (Total)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Unlimited if empty"
+                    value={editMaxRedemptions}
+                    onChange={(e) => setEditMaxRedemptions(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-sm text-zinc-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
+
+              {/* Per Customer Limit */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
+                  Per Customer Limit
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={editPerCustomerLimit}
+                  onChange={(e) => setEditPerCustomerLimit(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-sm text-zinc-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              {/* Allowed Origins */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
+                  Whitelisted Website Origins (1 per line)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder={`https://theirsass.com\nhttps://checkout.theirsass.com\nhttp://localhost:3000`}
+                  value={editAllowedOriginsText}
+                  onChange={(e) => setEditAllowedOriginsText(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-xs font-mono text-zinc-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-[11px] text-zinc-500 mt-1">
+                  Leave empty to allow this coupon globally, or enter specific origin URLs to restrict redemption.
+                </p>
+              </div>
+
+              {/* Expiry Date */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
+                  Expiration Date (Optional)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={editValidUntil}
+                  onChange={(e) => setEditValidUntil(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-sm text-zinc-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-200 dark:border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingCoupon(null);
+                  }}
+                  className="rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={editing}
+                  className="rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold flex items-center gap-2 cursor-pointer"
+                >
+                  {editing && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{editing ? 'Saving Changes...' : 'Save Coupon Changes'}</span>
                 </Button>
               </div>
             </form>

@@ -160,11 +160,18 @@ const ratesData = [
   { country: "Nepal (NTC / Ncell)", code: "+977", carrierInr: "₹22.00", speechInr: "₹1.70", totalInr: "₹42.70 / min", totalUsd: "$0.514 / min", competitorAvg: "₹48.00 – ₹60.00", badge: "Govt Monopoly" },
   { country: "Pakistan", code: "+92", carrierInr: "₹16.50", speechInr: "₹1.70", totalInr: "₹32.80 / min", totalUsd: "$0.395 / min", competitorAvg: "₹38.00 – ₹48.00", badge: "" }
 ];
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Apps', url: '/apps' },
+  { name: 'Voiceforce (AI Calling)', url: '/apps/voiceforce' }
+];
 ---
 
 <Layout 
   title="180 Voiceforce: Autonomous AI Phone Agents & Global Telephony"
   description="Deploy human-realistic AI phone agents for ₹999 with 115 minutes included. Cartesia voice streaming, BYOK LLM, instant phone numbers, and transparent 1.8x pricing."
+  breadcrumbs={breadcrumbs}
 >
   <main class="w-full relative">
     
@@ -178,6 +185,7 @@ const ratesData = [
       primaryCtaLink={`${saasUrl}/signup`}
       secondaryCtaText="Compare Country Rates"
       secondaryCtaLink="#rates-table"
+      breadcrumbs={breadcrumbs}
     />
 
     <!-- ₹999 Kickstart Offer Banner -->

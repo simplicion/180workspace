@@ -154,7 +154,7 @@ export function IdentitySecurityView() {
           <div className="text-[11px] text-zinc-400 dark:text-zinc-500 flex items-start gap-1.5 pt-1">
             <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>
-              All tokens are signed using sovereign RS256 asymmetric cryptographic keys verifiable via your public JWKS endpoint.
+              All tokens are signed using standard RS256 asymmetric cryptographic keys verifiable via your public JWKS endpoint.
             </span>
           </div>
         </div>

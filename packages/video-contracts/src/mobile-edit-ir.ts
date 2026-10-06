@@ -1,3 +1,4 @@
+import { CAPTION_ANIMATIONS } from "./caption-templates";
 import { z } from "zod";
 import {
   EditIR, VideoClip, CaptionSegment, VIDEO_EFFECT_TYPES,
@@ -125,7 +126,7 @@ export const MobileOverlayLayerSchema = OverlayLayerSchema;
 
 export const MobileCaptionStyleSchema = z.object({
   preset: z.string(),
-  animation: z.enum(["word_pop", "karaoke", "none"]),
+  animation: z.enum(CAPTION_ANIMATIONS),
   fontFamily: z.string(),
   fontWeight: z.number().int(),
   fontSizePx: z.number().positive(),

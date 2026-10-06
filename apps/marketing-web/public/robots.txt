@@ -1,17 +1,8 @@
-import type { APIRoute } from 'astro';
-
-export const GET: APIRoute = async () => {
-  const robots = `# 180workspace Robots Directives
-# Optimized for Google, Bing, and Next-Gen AI Answer Engines
+# 180workspace Robots Directives
+# Production Ready - Zero Blocked Search Engines & Crawlers
 
 User-agent: *
 Allow: /
-Allow: /apps/
-Allow: /pricing/
-Allow: /developers/
-Allow: /features/
-Allow: /blog/
-Allow: /case-studies/
 Disallow: /api/
 
 # Tier-1 Web Search Engines
@@ -33,7 +24,7 @@ Allow: /
 User-agent: Baiduspider
 Allow: /
 
-# AI Answer Engines & Real-Time Knowledge Retrievers
+# AI Answer Engines & Real-Time Knowledge Retrieval
 User-agent: GPTBot
 Allow: /
 
@@ -68,15 +59,4 @@ Allow: /
 Sitemap: https://180workspace.com/sitemap.xml
 
 # LLM Machine-Readable Index
-# Specification: https://llmstxt.org/
 LLMs-Txt: https://180workspace.com/llms.txt
-`;
-
-  return new Response(robots, {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'X-Content-Type-Options': 'nosniff',
-      'Cache-Control': 'public, max-age=86400',
-    },
-  });
-};

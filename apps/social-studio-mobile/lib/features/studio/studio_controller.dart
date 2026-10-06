@@ -12,6 +12,7 @@ import '../../core/native_engine/media_engine_service.dart';
 import '../../core/network/audio_transcription_service.dart';
 import '../director/ai_director_service.dart';
 import 'caption_fonts.dart';
+import 'caption_languages.dart';
 import 'sticker_maker.dart';
 import 'studio_drafts_service.dart';
 import 'timeline_ops.dart';
@@ -143,6 +144,29 @@ class StudioController extends ChangeNotifier {
   TranscriptState transcriptState = TranscriptState.idle;
   Transcript? transcript;
   Object? transcriptError;
+
+  /// Spoken language sent to the transcriber; `auto` lets the server detect it.
+  String spokenLanguage = CaptionLanguages.auto;
+
+  /// Changes the spoken language and transcribes again. Captions already on the timeline are kept
+  /// until the creator regenerates them.
+  Future<void> setSpokenLanguage(String code) async {
+    if (code == spokenLanguage || transcriptState == TranscriptState.running) return;
+    spokenLanguage = code;
+    await transcribe();
+  }
+
+  /// The speech captions in another language or script (server AI, words only): caption id → new text.
+  /// Apply the result with [TimelineOps.retextCaptions].
+  Future<Map<String, String>> translateCaptions(String targetLanguage, {String script = 'native'}) =>
+      transcriber.translateCaptions(
+        {
+          for (final c in _ir?.captions ?? const <EditIrCaption>[])
+            if (c.kind == 'caption' && c.text.trim().isNotEmpty) c.id: c.text,
+        },
+        targetLanguage: targetLanguage,
+        script: script,
+      );
 
   /// Source-time silences from the on-device detector; lets the director cut pauses even
   /// when there is no transcript.
@@ -513,7 +537,7 @@ class StudioController extends ChangeNotifier {
           'This video is too long to transcribe (audio over 25 MB). Trim it first.',
         );
       }
-      final t = await transcriber.transcribe(audio.path);
+      final t = await transcriber.transcribe(audio.path, language: spokenLanguage);
       if (!kIsWeb) {
         unawaited(File(audio.path).delete().catchError((_) => File(audio.path)));
       }

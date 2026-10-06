@@ -53,21 +53,47 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
     const decoded = verifyJwtToken(token) as any;
     if (decoded) {
       userId = decoded.id || decoded.sub || decoded.userId || null;
+      if (userId && decoded.aud && typeof decoded.aud === 'string' && decoded.aud !== '180-core') {
+        const app = await prisma.oAuthApp.findFirst({
+          where: { OR: [{ clientId: decoded.aud }, { id: decoded.aud }] },
+        });
+        if (app) {
+          const consent = await prisma.oAuthConsent.findUnique({
+            where: { userId_appId: { userId, appId: app.id } },
+          });
+          if (!consent) {
+            return res.status(401).json({
+              success: false,
+              error: 'Application access has been revoked',
+            });
+          }
+        }
+      }
     } else {
       // Check if it's an OAuth access token stored in database
       const dbToken = await prisma.oAuthToken.findUnique({
         where: { accessToken: token },
-        select: { userId: true, expiresAt: true, revokedAt: true },
+        select: { userId: true, appId: true, expiresAt: true, revokedAt: true },
       });
       if (dbToken && !dbToken.revokedAt && dbToken.expiresAt > new Date()) {
-        userId = dbToken.userId;
+        const consent = await prisma.oAuthConsent.findUnique({
+          where: { userId_appId: { userId: dbToken.userId, appId: dbToken.appId } },
+        });
+        if (consent) {
+          userId = dbToken.userId;
+        } else {
+          return res.status(401).json({
+            success: false,
+            error: 'Application access has been revoked',
+          });
+        }
       }
     }
 
     if (!userId) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid or expired session token',
+        error: 'Invalid, expired, or revoked session token',
       });
     }
 

@@ -579,7 +579,7 @@ export default function PdfConverterIsland() {
                       className="group relative bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-2.5 flex flex-col justify-between"
                     >
                       <div className="aspect-[3/4] rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 mb-2 relative">
-                        <img src={img.dataUrl} alt={img.name} className="w-full h-full object-cover" />
+                        <img src={img.dataUrl} alt={img.name} width={300} height={400} loading="lazy" className="w-full h-full object-cover" />
                         <span className="absolute top-1 left-1 bg-black/70 text-white font-mono text-[9px] px-1.5 py-0.5 rounded-full font-bold backdrop-blur-sm">
                           Page {idx + 1}
                         </span>

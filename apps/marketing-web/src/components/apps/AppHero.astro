@@ -1,4 +1,11 @@
 ---
+import Breadcrumb from '../ui/Breadcrumb.astro';
+
+interface BreadcrumbItem {
+  name: string;
+  url: string;
+}
+
 interface Props {
   badge?: string;
   badgeColor?: string;
@@ -9,6 +16,7 @@ interface Props {
   primaryCtaLink?: string;
   secondaryCtaText?: string;
   secondaryCtaLink?: string;
+  breadcrumbs?: BreadcrumbItem[];
 }
 
 const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
@@ -22,7 +30,8 @@ const {
   primaryCtaText = "Start Free Trial",
   primaryCtaLink = `${saasUrl}/signup`,
   secondaryCtaText = "Watch Demo Walkthrough",
-  secondaryCtaLink = "#walkthrough"
+  secondaryCtaLink = "#walkthrough",
+  breadcrumbs
 } = Astro.props;
 ---
 
@@ -32,6 +41,11 @@ const {
   <div class="absolute inset-0 bg-grid-pattern dark:bg-grid-pattern-dark [mask-image:radial-gradient(ellipse_70%_60%_at_50%_10%,#000_60%,transparent_100%)] -z-20"></div>
 
   <div class="container mx-auto px-4 max-w-5xl text-center">
+    {breadcrumbs && breadcrumbs.length > 0 && (
+      <div class="flex justify-center mb-6">
+        <Breadcrumb items={breadcrumbs} />
+      </div>
+    )}
 
 
     {/* H1 Display Title */}

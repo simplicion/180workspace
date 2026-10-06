@@ -1120,6 +1120,56 @@ export const OneEightyIdentity = {
   generateReferenceCode,
 };
 
+// Automatic cross-window / cross-app real-time revocation sync
+if (typeof window !== 'undefined') {
+  try {
+    const handleRevoked = (revokedClientId?: string) => {
+      if (!revokedClientId) return;
+      const currentClientId =
+        (window as any).__180_CLIENT_ID ||
+        (typeof process !== 'undefined' ? (process.env?.NEXT_PUBLIC_180_CLIENT_ID || process.env?.NEXT_PUBLIC_IDENTITY_CLIENT_ID) : undefined) ||
+        '';
+
+      const normRevoked = revokedClientId.toLowerCase().trim();
+      const normCurrent = (currentClientId || '').toLowerCase().trim();
+
+      const isCurrentApp =
+        normCurrent &&
+        (normCurrent === normRevoked ||
+          (normRevoked.includes('social') && normCurrent.includes('social')) ||
+          (normRevoked.includes('developer') && normCurrent.includes('developer')) ||
+          (normRevoked.includes('workspace') && normCurrent.includes('workspace')));
+
+      if (isCurrentApp) {
+        OneEightyIdentity.signOut();
+        window.dispatchEvent(new Event('180_SIGNOUT'));
+        window.dispatchEvent(new CustomEvent('180_SESSION_REVOKED', { detail: { clientId: revokedClientId } }));
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+          window.location.reload();
+        }
+      }
+    };
+
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('180_auth_sync');
+      channel.onmessage = (ev) => {
+        if (ev.data?.type === 'APP_REVOKED') {
+          handleRevoked(ev.data.clientId);
+        }
+      };
+    }
+
+    window.addEventListener('storage', (ev) => {
+      if (ev.key === '180_revoked_app_event' && ev.newValue) {
+        try {
+          const parsed = JSON.parse(ev.newValue);
+          handleRevoked(parsed.clientId);
+        } catch (_) {}
+      }
+    });
+  } catch (_) {}
+}
+
 // ============================================================================
 // 4. Core JavaScript Vanilla API: OneEightyPay
 // ============================================================================

@@ -74,7 +74,7 @@ export function GoogleSSOButton({
 
   const handleGoogleAccessToken = async (accessToken: string) => {
     setGoogleLoading(true);
-    const toastId = toast.loading('Authenticating with Google Sovereign Identity...');
+    const toastId = toast.loading('Authenticating with Google Identity...');
 
     try {
       // Proactively fetch Google userinfo to guarantee profile resolution

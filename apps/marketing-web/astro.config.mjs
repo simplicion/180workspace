@@ -16,6 +16,7 @@ dotenvConfig({ path: path.resolve(__dirname, '../../.env') });
 export default defineConfig({
   site: 'https://180workspace.com',
   output: 'static',
+  trailingSlash: 'never',
   integrations: [react(), tailwind()],
   vite: {
     server: {

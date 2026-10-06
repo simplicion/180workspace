@@ -121,11 +121,15 @@ const categoryColors: Record<string, string> = {
   "Product Updates": "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800/80",
 };
 
+const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
 const fullCanonical = blog.canonicalUrl || `https://180workspace.com/blog/${blog.slug}`;
+const blogTitle = blog.seoTitle ? 
+  (blog.seoTitle.includes("180workspace") ? blog.seoTitle : `${blog.seoTitle} | 180workspace Blog`) : 
+  `${blog.title} | 180workspace Blog`;
 ---
 
 <Layout 
-  title={`${blog.seoTitle || blog.title} | 180workspace Blog`}
+  title={blogTitle}
   description={blog.seoDescription || blog.excerpt}
   image={blog.ogImageUrl || "/og-image.png"}
   type="article"
@@ -284,7 +288,7 @@ const fullCanonical = blog.canonicalUrl || `https://180workspace.com/blog/${blog
 
               <div class="shrink-0 flex flex-col items-start sm:items-end gap-2">
                 <a 
-                  href="/signup?plan=momentum" 
+                  href={`${saasUrl}/signup?plan=momentum`} 
                   class="btn-primary px-6 py-3 text-sm font-black whitespace-nowrap shadow-lg hover:shadow-indigo-500/30"
                 >
                   {blog.ctaButtonText || "Start with $12 Plan"} →
@@ -371,7 +375,7 @@ const fullCanonical = blog.canonicalUrl || `https://180workspace.com/blog/${blog
                   <div class="text-lg font-black text-slate-900 dark:text-white my-1">$17 / month</div>
                   <p class="text-[11px] text-slate-600 dark:text-slate-400 mb-3">All 15 applications on one Work Graph.</p>
                   <a 
-                    href="/signup?plan=momentum" 
+                    href={`${saasUrl}/signup?plan=momentum`} 
                     class="block w-full py-2 px-3 rounded-lg bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors shadow-sm"
                   >
                     Start with $17 Plan

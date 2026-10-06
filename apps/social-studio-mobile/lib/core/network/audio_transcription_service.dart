@@ -29,7 +29,7 @@ class Transcript {
   final List<TranscriptWord> words;
 
   factory Transcript.fromJson(Json j) => Transcript(
-        language: jStrOr(j['language'], 'en'),
+        language: jStrOr(j['language'], 'und'),
         durationMs: jInt(j['durationMs']) ?? 0,
         text: jStrOr(j['text'], ''),
         words: jList(j['words'], TranscriptWord.fromJson),
@@ -59,7 +59,9 @@ class AudioTranscriptionService {
     return DioMediaType('audio', 'mp4');
   }
 
-  Future<Transcript> transcribe(String audioPath, {String language = 'en', CancelToken? cancelToken}) async {
+  /// [language] is an ISO-639-1 code, or `auto` to let the server detect what is spoken
+  /// ([Transcript.language] then carries the detected code).
+  Future<Transcript> transcribe(String audioPath, {String language = 'auto', CancelToken? cancelToken}) async {
     await _device.ensureToken();
     Future<Json> call() => _api.upload(
           '/api/v1/media-editor/transcribe',
@@ -90,5 +92,49 @@ class AudioTranscriptionService {
       );
     }
     return t;
+  }
+
+  /// Caption text in another language or script (`POST /api/v1/media-editor/captions/translate`).
+  /// [textById] is caption id → text; the result has the same ids. [script] is `native` or `roman`
+  /// (Latin letters, e.g. Hinglish). Words only: caption timings never leave the device.
+  Future<Map<String, String>> translateCaptions(
+    Map<String, String> textById, {
+    required String targetLanguage,
+    String script = 'native',
+    CancelToken? cancelToken,
+  }) async {
+    await _device.ensureToken();
+    Future<Json> call() => _api.post(
+          '/api/v1/media-editor/captions/translate',
+          body: {
+            'targetLanguage': targetLanguage,
+            'script': script,
+            'captions': [for (final e in textById.entries) {'id': e.key, 'text': e.value}],
+          },
+          device: true,
+          cancelToken: cancelToken,
+          timeout: AppConfig.aiReceiveTimeout,
+        );
+    Json r;
+    try {
+      r = await call();
+    } on ApiException catch (e) {
+      if (e.kind != ApiErrorKind.deviceRequired) rethrow;
+      await _device.ensureToken(forceRenew: true);
+      r = await call();
+    }
+    if (r['success'] == false) throw ApiException.fromResponse(200, r);
+    final out = <String, String>{
+      for (final c in jList(jMap(r['data'])['captions'], (Json j) => j))
+        jStrOr(c['id'], ''): jStrOr(c['text'], '').trim(),
+    };
+    if (textById.keys.any((id) => (out[id] ?? '').isEmpty)) {
+      throw ApiException(
+        kind: ApiErrorKind.server,
+        code: 'TRANSLATION_FAILED',
+        message: 'The translation did not cover every caption.',
+      );
+    }
+    return out;
   }
 }

@@ -4,6 +4,7 @@ export * from './PayOverviewView';
 export * from './PayTransactionsView';
 export * from './PayPayoutsView';
 export * from './BankDetailsDrawer';
+export * from './CheckoutUxDrawer';
 export * from './PayWebhooksView';
 export * from '../apps/pay/CouponsTab';
 export * from '../apps/pay/PaymentLinksTab';

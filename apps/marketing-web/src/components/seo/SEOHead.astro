@@ -43,12 +43,18 @@ const {
 } = Astro.props;
 
 const siteUrl = "https://180workspace.com";
-const currentPath = Astro.url.pathname;
-const canonicalUrl = explicitCanonical || `${siteUrl}${currentPath === '/' ? '' : currentPath}`;
+let cleanPath = Astro.url.pathname || '/';
+if (cleanPath.length > 1 && cleanPath.endsWith('/')) {
+  cleanPath = cleanPath.slice(0, -1);
+}
+let canonicalUrl = explicitCanonical ? 
+  (explicitCanonical.length > siteUrl.length + 1 && explicitCanonical.endsWith('/') ? explicitCanonical.slice(0, -1) : explicitCanonical) : 
+  `${siteUrl}${cleanPath === '/' ? '' : cleanPath}`;
 const absoluteImageUrl = image.startsWith('http') ? image : `${siteUrl}${image.startsWith('/') ? image : `/${image}`}`;
 
 // Formatted clean title with brand suffix if not present
-const pageTitle = title.includes("180workspace") ? title : `${title} | 180workspace`;
+const trimmedTitle = title ? title.trim() : '180workspace';
+const pageTitle = trimmedTitle.includes("180workspace") ? trimmedTitle : `${trimmedTitle} | 180workspace`;
 
 // Organization Schema (Global Brand Authority)
 const organizationSchema = {

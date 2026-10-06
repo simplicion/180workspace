@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:social_studio_mobile/core/native_engine/edit_ir.dart';
 import 'package:social_studio_mobile/core/native_engine/media_engine_exception.dart';
 import 'package:social_studio_mobile/core/network/audio_transcription_service.dart';
+import 'package:social_studio_mobile/features/studio/caption_tools.dart';
 import 'package:social_studio_mobile/features/studio/text_templates.dart';
 import 'package:social_studio_mobile/features/studio/timeline_ops.dart';
 
@@ -248,6 +249,105 @@ void main() {
   });
 
   group('text and captions', () {
+    test('caption tools: key word, script fonts and subtitle files', () {
+      expect(CaptionTools.keywordIndex(['this', 'cost', r'$500', 'amazing']), 2);
+      expect(CaptionTools.keywordIndex(['the', 'biggest', 'mistake']), 1);
+      expect(CaptionTools.keywordIndex(['so', 'here', 'we', 'go']), isNull);
+      expect(CaptionTools.fontFor('आज हम', 'Anton'), 'Noto Sans Devanagari');
+      expect(CaptionTools.fontFor('आज हम', 'Poppins'), 'Poppins');
+      expect(CaptionTools.fontFor('aaj hum', 'Anton'), 'Anton');
+
+      final ir = TimelineOps.autoCaptions(base(), words, wordsPerCaption: 6);
+      final srt = CaptionTools.toSrt(ir);
+      expect(srt, startsWith('1\n00:00:01,000 --> 00:00:03,900\nw0 w1 w2 w3 w4 w5\n\n2\n00:00:06,000 --> '));
+      final vtt = CaptionTools.toVtt(ir);
+      expect(vtt, startsWith('WEBVTT\n\n00:00:01.000 --> 00:00:03.900\nw0 w1 w2 w3 w4 w5\n'));
+    });
+
+    test('enhanceCaptions highlights one key word, adds no emoji, and is idempotent', () {
+      final spoken = [
+        for (final (i, t) in ['we', 'made', 'serious', 'money', 'so', 'here', 'we', 'go'].indexed)
+          TranscriptWord(text: t, startMs: 1000 + i * 400, endMs: 1350 + i * 400),
+      ];
+      final ir = TimelineOps.autoCaptions(
+        TimelineOps.initial(projectId: 'p1', durationMs: 10000, width: 1080, height: 1920, words: spoken),
+        spoken,
+        wordsPerCaption: 4,
+      );
+      final out = TimelineOps.enhanceCaptions(ir);
+      expect(out.captions[0].words.map((w) => w.highlight).toList(), [false, false, true, false]);
+      expect(out.captions[0].text, 'we made serious money');
+      expect(out.captions[0].words.last.endMs, ir.captions[0].words.last.endMs);
+      expect(out.captions[1].text, 'so here we go');
+      expect(out.captions[1].words.any((w) => w.highlight), isFalse);
+      final again = TimelineOps.enhanceCaptions(out);
+      expect(again.captions.map((c) => c.text).toList(), out.captions.map((c) => c.text).toList());
+    });
+
+    test('a correction with the same word count keeps every word timing; Hindi text gets a Devanagari font', () {
+      final ir = TimelineOps.autoCaptions(base(), words, preset: 'HORMOZI_BOUNCE', wordsPerCaption: 3);
+      final first = ir.captions.first;
+      final fixed = TimelineOps.retextCaptions(ir, {first.id: 'one two three'}).captions.first;
+      expect(fixed.words.map((w) => (w.startMs, w.endMs)).toList(), first.words.map((w) => (w.startMs, w.endMs)).toList());
+      expect(fixed.style['fontFamily'], 'Anton');
+      final hindi = TimelineOps.retextCaptions(ir, {first.id: 'आज हम बात'}).captions.first;
+      expect(hindi.style['fontFamily'], 'Noto Sans Devanagari');
+    });
+
+    test('new creator templates: box and reveal motions survive style normalisation with a full style', () {
+      const expected = {
+        'RAJ_SHAMANI_BOLD': 'word_pop',
+        'VARUN_MAYYA_BOX': 'word_box',
+        'IMAN_GADZHI_LUXE': 'word_reveal',
+        'MUMBAI_BUBBLE': 'word_box',
+      };
+      for (final e in expected.entries) {
+        expect(TimelineOps.captionPresets.containsKey(e.key), isTrue, reason: e.key);
+        final ir = TimelineOps.autoCaptions(base(), words, preset: e.key);
+        final style = ir.captions.first.style;
+        expect(style['preset'], e.key);
+        expect(style['animation'], e.value);
+        expect(normaliseCaptionStyle(style)['animation'], e.value);
+        expect(ir.captions.first.words.first.scale, e.value == 'word_pop' ? 1.15 : 1.0);
+      }
+      expect(TimelineOps.captionStyle('MUMBAI_BUBBLE')['background'], isNotNull);
+    });
+
+    test('auto captions break on the Hindi danda and other non-Latin sentence ends', () {
+      final hindi = [
+        for (final (i, t) in ['आज', 'हम', 'बात', 'करेंगे।', 'चलो', 'शुरू', 'करें'].indexed)
+          TranscriptWord(text: t, startMs: 1000 + i * 400, endMs: 1350 + i * 400),
+      ];
+      final ir = TimelineOps.autoCaptions(
+        TimelineOps.initial(projectId: 'p1', durationMs: 10000, width: 1080, height: 1920, words: hindi),
+        hindi,
+        wordsPerCaption: 6,
+      );
+      expect(ir.captions.map((c) => c.text).toList(), ['आज हम बात करेंगे।', 'चलो शुरू करें']);
+    });
+
+    test('retextCaptions swaps the words, keeps range and style, and times words inside the caption', () {
+      final ir = TimelineOps.autoCaptions(base(), words, preset: 'MRBEAST_HYPE', wordsPerCaption: 3);
+      final first = ir.captions.first;
+      final out = TimelineOps.retextCaptions(ir, {first.id: 'aaj hum baat karenge doston'});
+      final c = out.captions.firstWhere((x) => x.id == first.id);
+      expect(c.text, 'aaj hum baat karenge doston');
+      expect(c.words.map((w) => w.text).toList(), ['aaj', 'hum', 'baat', 'karenge', 'doston']);
+      expect((c.startMs, c.endMs), (first.startMs, first.endMs));
+      expect(c.style, first.style);
+      expect(c.words.first.startMs, c.startMs);
+      expect(c.words.last.endMs, c.endMs);
+      for (var i = 0; i < c.words.length; i++) {
+        expect(c.words[i].endMs, greaterThan(c.words[i].startMs));
+        if (i > 0) expect(c.words[i].startMs, greaterThanOrEqualTo(c.words[i - 1].endMs));
+        expect(c.words[i].scale, 1.15);
+      }
+      // Captions that were not translated are untouched.
+      expect(out.captions.where((x) => x.id != first.id).map((x) => x.text).toList(),
+          ir.captions.where((x) => x.id != first.id).map((x) => x.text).toList());
+      expect(TimelineOps.retextCaptions(ir, {first.id: '   '}).captions.first.text, first.text);
+    });
+
     test('auto captions group words, break on sentence end, never overlap, carry a full style', () {
       final ir = TimelineOps.autoCaptions(base(), words, wordsPerCaption: 4);
       final caps = ir.captions;
@@ -426,7 +526,7 @@ void main() {
         final st = TimelineOps.captionStyle(id);
         expect(st.keys, containsAll(required), reason: id);
         expect(st['preset'], id);
-        expect(['word_pop', 'karaoke', 'none'], contains(st['animation']));
+        expect(['word_pop', 'karaoke', 'word_box', 'word_reveal', 'none'], contains(st['animation']));
       }
       expect(TimelineOps.captionStyle('BOLD_POP')['fontSizePx'], 72);
       expect(TimelineOps.captionStyle('BOLD_POP')['highlightColor'], '#FFE600');

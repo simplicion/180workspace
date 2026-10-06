@@ -1,6 +1,6 @@
 /**
  * 180 Profile Unified API Gateway Helper
- * Directs all API and OAuth calls to the sovereign core backend (services.180workspace.com)
+ * Directs all API and OAuth calls to the universal core backend (services.180workspace.com)
  */
 
 const envCoreUrl = process.env.NEXT_PUBLIC_CORE_BACKEND_URL;
@@ -67,7 +67,7 @@ if (typeof window !== 'undefined' && !(window as any).__180_fetch_intercepted) {
         }
       : (init || {});
 
-    // Automatically inject Authorization Bearer token for sovereign core backend calls
+    // Automatically inject Authorization Bearer token for core backend calls
     if (isCoreTarget && typeof window !== 'undefined') {
       const headers = new Headers(modifiedInit.headers || {});
       if (!headers.has('Authorization')) {

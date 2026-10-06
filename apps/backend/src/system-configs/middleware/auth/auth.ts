@@ -51,6 +51,13 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                 const { prisma: globalPrisma } = require('@workspace/db');
 
                 if (dbToken && !dbToken.revokedAt && dbToken.expiresAt > new Date() && dbToken.user) {
+                    const consent = await corePrisma.oAuthConsent.findUnique({
+                        where: { userId_appId: { userId: dbToken.userId, appId: dbToken.appId } }
+                    });
+                    if (!consent) {
+                        return res.status(401).json({ error: 'Access revoked for this application' });
+                    }
+
                     isOAuthToken = true;
                     // Resolve user in local workspace database
                     let localUser = await globalPrisma.user.findUnique({
@@ -103,6 +110,22 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                     if (verified.valid && verified.payload?.sub) {
                         const targetUserId = verified.payload.sub;
                         const targetEmail = verified.payload.email;
+                        const aud = verified.payload.aud;
+
+                        if (aud && typeof aud === 'string' && aud !== '180-core') {
+                            const { corePrisma } = require('@workspace/db-180core');
+                            const app = await corePrisma.oAuthApp.findFirst({
+                                where: { OR: [{ clientId: aud }, { id: aud }] }
+                            });
+                            if (app) {
+                                const consent = await corePrisma.oAuthConsent.findUnique({
+                                    where: { userId_appId: { userId: targetUserId, appId: app.id } }
+                                });
+                                if (!consent) {
+                                    return res.status(401).json({ error: 'Access revoked for this application' });
+                                }
+                            }
+                        }
 
                         // 1. Look up user in workspace DB by ID or Email
                         let localUser = await globalPrisma.user.findUnique({

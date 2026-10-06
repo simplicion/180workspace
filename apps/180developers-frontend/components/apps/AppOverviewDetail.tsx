@@ -129,7 +129,7 @@ export function AppOverviewDetail({
               <span>My Apps</span>
             </h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Activated sovereign services powered by this project. Click an app to inspect live telemetry and configurations.
+              Activated services powered by this project. Click an app to inspect live telemetry and configurations.
             </p>
           </div>
           <span className="text-[11px] font-mono text-zinc-400 self-start sm:self-auto">
@@ -141,7 +141,7 @@ export function AppOverviewDetail({
           {/* App Card 1: 180 Identity */}
           <AppCard
             name="180 Identity"
-            description="Universal authentication with WhatsApp OTP, Google SSO, and sovereign @usernames. Issues RS256 asymmetric JWKS tokens."
+            description="Universal authentication with WhatsApp OTP, Google SSO, and unified @usernames. Issues RS256 asymmetric JWKS tokens."
             icon={Shield}
             enabled={enableAuth}
             protocol="OAuth 2.0 / OIDC Protocol"
@@ -153,10 +153,10 @@ export function AppOverviewDetail({
           {/* App Card 2: 180 Pay */}
           <AppCard
             name="180 Pay"
-            description="1-Click Sovereign Wallet & UPI checkout popup. Dedicated 180 Pay engine processes payments with 2-way verification."
+            description="1-Click 180 Wallet & UPI checkout popup. Dedicated 180 Pay engine processes payments with 2-way verification."
             icon={CreditCard}
             enabled={enablePay}
-            protocol="Sovereign Wallet Checkout"
+            protocol="180 Wallet Checkout"
             accentColor="purple"
             actionLabel="Open Dashboard"
             onClick={onOpenPay}

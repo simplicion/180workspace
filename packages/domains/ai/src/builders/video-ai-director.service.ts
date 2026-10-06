@@ -45,6 +45,11 @@ import {
   hasConstraints,
   fenceUntrusted,
   looksLikePromptInjection,
+  CAPTION_TARGET_LANGUAGES,
+  CaptionScript,
+  translateCaptionLines,
+  retextCaptionSegment,
+  captionFontFor,
 } from "@workspace/video-contracts";
 import { AgentRunEmitter, createLocalEmitter } from "../agent-runs/agent-events";
 import {
@@ -227,6 +232,25 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
     }
   }
 
+  /** Caption translator backed by the turn's LLM client, or the workspace's AI provider; null when there is none. */
+  private async defaultCaptionTranslator(opts: { companyId?: string; llmClient?: AIClient | null }) {
+    let client: AIClient | null | undefined = opts.llmClient;
+    if (client === undefined && opts.companyId) {
+      try {
+        const { AICompanyConfigService } = await import("../kernel/ai-company-config.service");
+        const { AIProviderService } = await import("../kernel/ai-provider.service");
+        const { settings } = await AICompanyConfigService.getCompanyAISettings(opts.companyId);
+        client = await AIProviderService.getInstance().getClient(settings);
+      } catch {
+        client = null;
+      }
+    }
+    if (!client || typeof client.generate !== "function") return null;
+    const c = client;
+    return (lines: string[], targetLanguage: string, script: CaptionScript) =>
+      translateCaptionLines(lines, targetLanguage, script, (p) => c.generate(p));
+  }
+
   private async runMobileDirector(
     request: MobileAIDirectRequest,
     opts: {
@@ -242,6 +266,11 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
       resolveStockMusic?: (query: string, durationSec: number) => Promise<ResolvedMusicTrack | string | null>;
       /** Optional SFX search (metadata + HTTPS previews only), e.g. Freesound when FREESOUND_API_KEY is set. */
       resolveSfx?: (query: string) => Promise<SfxSuggestion[]>;
+      /**
+       * Translates caption lines one-to-one (`translateCaptions` op). Defaults to the workspace's AI provider;
+       * without one the op is rejected, never faked.
+       */
+      translateCaptionLines?: (lines: string[], targetLanguage: string, script: CaptionScript) => Promise<string[]>;
       /** Brand + calendar piece context loaded by the server (never taken from the client). */
       context?: DirectorContext;
       /** Overall budget for all stock lookups (b-roll, music, SFX) in this turn. Default 8000 ms. */
@@ -414,7 +443,12 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
     events.emit("PlanValidated", { operations: expanded.operations.length, kept: planToCompile.operations.length, violations: violations.length, constraints: { lockedRanges: constraints.lockedRanges, lockedTracks: constraints.lockedTracks } });
     if (fromWords.notes.length) warnings.push(`constraints from your request: ${fromWords.notes.join("; ")}`);
 
-    const compilation = EditIRCompiler.compile(baseIR, planToCompile, []);
+    // Caption translation needs the AI provider, so it runs after compiling (see below), not in the compiler.
+    const translateOps = planToCompile.operations.filter((o: CreativeOperation) => o.type === "translateCaptions") as Array<Extract<CreativeOperation, { type: "translateCaptions" }>>;
+    const compilePlan = translateOps.length
+      ? { ...planToCompile, operations: planToCompile.operations.filter((o: CreativeOperation) => o.type !== "translateCaptions") }
+      : planToCompile;
+    const compilation = EditIRCompiler.compile(baseIR, compilePlan, []);
     let finalIR = compilation.updatedEditIR;
     const appliedOperations = [...compilation.appliedOperations];
     const rejectedOperations = [...compilation.rejectedOperations];
@@ -502,6 +536,31 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
       crit = next;
       events.emit("CriticCompleted", { round: repairRounds, score: crit.score, issues: crit.issues.length, critical: crit.issues.filter((i) => i.severity === "CRITICAL").length });
     }
+    // Caption translation, on the final captions (after cuts and repairs): text only, timings unchanged.
+    if (translateOps.length) {
+      const op = translateOps[translateOps.length - 1];
+      const language = CAPTION_TARGET_LANGUAGES[op.targetLanguage];
+      const caps = finalIR.tracks.captionTrack.filter((c) => c.role !== "title" && c.text.trim().length > 0);
+      const translate = opts.translateCaptionLines ?? (await this.defaultCaptionTranslator(opts));
+      if (!language) {
+        rejectedOperations.push(`translateCaptions: "${op.targetLanguage}" is not a supported caption language`);
+      } else if (caps.length === 0) {
+        rejectedOperations.push("translateCaptions: there are no captions to convert");
+      } else if (!translate) {
+        rejectedOperations.push("translateCaptions: no AI provider is configured, so the captions were not converted");
+      } else {
+        try {
+          const lines = await translate(caps.map((c) => c.text), op.targetLanguage, op.script);
+          if (lines.length !== caps.length) throw new Error("translation does not line up with the captions");
+          caps.forEach((c, i) => retextCaptionSegment(c, lines[i]));
+          appliedOperations.push(`Converted ${caps.length} caption(s) to ${language}${op.script === "roman" ? " in Roman letters" : ""}`);
+        } catch (err: any) {
+          console.warn("[VideoAIDirector] caption translation failed:", err?.message || err);
+          rejectedOperations.push("translateCaptions: the translation failed, so the captions are unchanged");
+        }
+      }
+    }
+
     const remainingCritical = crit.issues.filter((i) => i.severity === "CRITICAL");
     if (remainingCritical.length) warnings.push(`critic: ${remainingCritical.length} critical issue(s) remain: ${remainingCritical.slice(0, 3).map((i) => i.title).join("; ")}`);
     const critique: DirectorCritique = { score: crit.score, issues: crit.issues, repairRounds };
@@ -586,10 +645,14 @@ export class VideoAIDirectorService implements IUniversalBuilder<EditIR> {
     const projected = toMobileEditIR({ editIR: finalIR, sources, sourceWords, primaryAssetId: media.assetId, faceCenter, sfxCredits });
     warnings.push(...projected.warnings);
 
-    // Brand font on captions created this turn (the client's own font choices are kept).
+    // Brand font on captions created this turn (the client's own font choices and a caption template's font are kept).
     const oldCaptionIds = new Set((request.currentEditIR?.captions || []).map((c) => c.id));
+    const templatedIds = new Set(finalIR.tracks.captionTrack.filter((c) => c.style.presetLabel).map((c) => c.id));
     if (ctx.brand) {
-      for (const cap of projected.editIR.captions) if (!oldCaptionIds.has(cap.id)) cap.style.fontFamily = style.fontFamily;
+      for (const cap of projected.editIR.captions) {
+        // Text in a script the brand font does not cover keeps a font that can draw it.
+        if (!oldCaptionIds.has(cap.id) && !templatedIds.has(cap.id)) cap.style.fontFamily = captionFontFor(cap.text, style.fontFamily);
+      }
     }
 
     // Watermark: keep the client's, add/remove on request, never invent one without a brand logo.

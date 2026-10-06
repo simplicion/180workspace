@@ -12,6 +12,8 @@ import {
   SPEED_RAMP_PRESETS,
 } from "./creative-plan.schema";
 import { RationalTimeMath } from "./time";
+import { resolveCaptionTemplate } from "./caption-templates";
+import { captionFontFor } from "./caption-enhance";
 import { MediaAssetDescriptor } from "./project.schema";
 
 /** Shortest piece of footage two neighbouring cuts may leave between them (matches the critic's micro-clip rule). */
@@ -214,6 +216,11 @@ export class EditIRCompiler {
             }
             this.applyStyleCaption(updated, op.preset, op.highlightColor, op.position);
             appliedOperations.push(`Styled captions with preset ${op.preset}`);
+            break;
+          }
+          case "translateCaptions": {
+            // Needs the AI provider: the mobile director removes this op and applies it after compiling.
+            rejectedOperations.push("translateCaptions: caption translation is not available in this editor");
             break;
           }
           case "emphasizeWord": {
@@ -1007,8 +1014,9 @@ export class EditIRCompiler {
 
   private static applyAddCaption(editIR: EditIR, op: any) {
     const isVertical = editIR.meta.targetAspect === "9:16";
-    const highlightCol = op.highlightColor || (op.words && op.words.find((w: any) => w.color)?.color) || (isVertical ? "#FFE600" : "#FACC15");
-    const textCol = op.textColor || "#FFFFFF";
+    const tpl = resolveCaptionTemplate(op.template)?.style;
+    const highlightCol = op.highlightColor || (op.words && op.words.find((w: any) => w.color)?.color) || tpl?.highlightColor || (isVertical ? "#FFE600" : "#FACC15");
+    const textCol = op.textColor || tpl?.textColor || "#FFFFFF";
     const caption: CaptionSegment = {
       id: generateUUID(),
       role: "caption",
@@ -1022,23 +1030,31 @@ export class EditIRCompiler {
         start: RationalTimeMath.fromSeconds(w.startSec),
         end: RationalTimeMath.fromSeconds(w.endSec),
         highlight: w.highlight ?? false,
-        color: w.color || (w.highlight ? highlightCol : textCol),
+        // Template captions leave plain words uncoloured, so the spoken word takes the highlight colour
+        // (the renderer's rule), exactly like a template applied by hand.
+        ...(tpl && !w.color && !w.highlight ? {} : { color: w.color || (w.highlight ? highlightCol : textCol) }),
         scaleMultiplier: w.scale ?? 1.0,
       })),
       style: {
         preset: (op.stylePreset as any) || "HORMOZI_BOUNCE",
-        fontFamily: "Inter",
-        fontSize: op.fontSize || (isVertical ? 72 : 56),
+        fontFamily: captionFontFor(op.text, tpl?.fontFamily || "Inter"),
+        fontSize: op.fontSize || tpl?.fontSize || (isVertical ? 72 : 56),
         textColor: textCol,
         highlightColor: highlightCol,
         position: op.position || { x: 0.5, y: isVertical ? 0.72 : 0.8 },
-        shadow: true,
-        strokeWidth: op.strokeWidth ?? 6,
-        strokeColor: op.strokeColor || "#000000",
-        ...(op.background ? { pillBackground: op.background } : {}),
-        uppercase: op.uppercase ?? false,
-        animation: op.animation || "word_pop",
-        fontWeight: 800,
+        shadow: tpl ? tpl.shadow : true,
+        strokeWidth: op.strokeWidth ?? tpl?.strokeWidth ?? 6,
+        strokeColor: op.strokeColor || tpl?.strokeColor || "#000000",
+        ...(op.background
+          ? { pillBackground: op.background }
+          : tpl?.pillBackground
+            ? { pillBackground: tpl.pillBackground, pillPadding: tpl.pillPadding, pillRadius: tpl.pillRadius }
+            : {}),
+        uppercase: op.uppercase ?? tpl?.uppercase ?? false,
+        animation: op.animation || tpl?.animation || "word_pop",
+        fontWeight: tpl?.fontWeight ?? 800,
+        ...(tpl?.glow ? { glow: true } : {}),
+        ...(tpl ? { presetLabel: op.template } : {}),
       },
     };
     editIR.tracks.captionTrack.push(caption);
@@ -1050,9 +1066,40 @@ export class EditIRCompiler {
     highlightColor?: string,
     position?: { x?: number; y?: number }
   ) {
+    const template = resolveCaptionTemplate(preset);
     for (const cap of editIR.tracks.captionTrack) {
-      cap.style.preset = preset as any;
-      if (highlightColor) cap.style.highlightColor = highlightColor;
+      if (template) {
+        // A template restyles speech captions only; titles keep their own look.
+        if (cap.role === "title") continue;
+        const t = template.style;
+        const hl = highlightColor || t.highlightColor;
+        cap.style = {
+          ...cap.style,
+          presetLabel: template.id,
+          fontFamily: captionFontFor(cap.text, t.fontFamily),
+          fontWeight: t.fontWeight,
+          fontSize: t.fontSize,
+          textColor: t.textColor,
+          highlightColor: hl,
+          strokeWidth: t.strokeWidth,
+          strokeColor: t.strokeColor,
+          shadow: t.shadow,
+          uppercase: t.uppercase,
+          animation: t.animation,
+          glow: !!t.glow,
+          pillBackground: t.pillBackground,
+          pillPadding: t.pillPadding,
+          pillRadius: t.pillRadius,
+        };
+        for (const w of cap.words) {
+          if (w.highlight) w.color = hl;
+          else delete w.color;
+          w.scaleMultiplier = t.animation === "word_pop" ? 1.15 : 1.0;
+        }
+      } else {
+        cap.style.preset = preset as any;
+        if (highlightColor) cap.style.highlightColor = highlightColor;
+      }
       if (position) {
         cap.style.position = {
           x: position.x ?? cap.style.position?.x ?? 0.5,

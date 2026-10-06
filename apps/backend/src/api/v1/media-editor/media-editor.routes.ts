@@ -3,6 +3,7 @@ import { VideoStudioController } from "../workspace-tools/video-studio/video-stu
 import { AICompanyConfigService } from "@workspace/ai";
 import { requireDesktopDevice, requireNativeDevice } from "../desktop/desktop-device";
 import { audioUpload, transcribeHandler } from "./media-transcription";
+import { translateCaptionsHandler } from "./caption-translation";
 import { directorContextHandler } from "./director-context";
 
 const router: Router = Router();
@@ -13,6 +14,8 @@ router.post("/projects", VideoStudioController.saveProject);
 router.post("/ai-direct", requireDesktopDevice, VideoStudioController.executeAIDirector);
 // Mobile: word-level STT for on-device clips (audio upload only; no server-side media processing).
 router.post("/transcribe", requireNativeDevice, audioUpload, transcribeHandler);
+// Caption text to another language or script (words only; timings stay on the device).
+router.post("/captions/translate", requireNativeDevice, translateCaptionsHandler);
 // Brand + calendar-script context and greeting (no media, no LLM). See AI_DIRECTOR_CONTRACT.md §2.5.
 router.get("/director-context", directorContextHandler());
 router.post("/generate-from-prompt", requireDesktopDevice, VideoStudioController.generateFromPrompt);

@@ -1,5 +1,5 @@
 /**
- * 180 Pay Sovereign Vault & Gateway Client Embed SDK (v2.0.0)
+ * 180 Pay Vault & Gateway Client Embed SDK (v2.0.0)
  * Fast, secure, zero-dependency payment & subscription checkout embed SDK.
  *
  * Usage:
@@ -48,7 +48,7 @@
     version: '2.0.0',
 
     /**
-     * Open 180 Pay Sovereign Checkout Drawer / Modal / Popup
+     * Open 180 Pay Checkout Drawer / Modal / Popup
      * @param {Object} options
      * @returns {Promise<Object>} Resolves on payment success
      */
@@ -109,7 +109,7 @@
       );
 
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        console.warn('[180 Pay] Popup blocked or not supported on this device. Gracefully degrading to Sovereign Bottom Sheet.');
+        console.warn('[180 Pay] Popup blocked or not supported on this device. Gracefully degrading to Bottom Sheet.');
         return this._openIframeOverlay(url, sessionId, 'bottom_sheet', options);
       }
 

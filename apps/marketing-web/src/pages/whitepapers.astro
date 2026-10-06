@@ -4,8 +4,14 @@ import SectionHeader from '../components/ui/SectionHeader.astro';
 import Badge from '../components/ui/Badge.astro';
 import Button from '../components/ui/Button.astro';
 import AppBottomCTA from '../components/apps/AppBottomCTA.astro';
+import Breadcrumb from '../components/ui/Breadcrumb.astro';
 
 const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'White Papers', url: '/whitepapers' }
+];
 
 const whitepapers = [
   {
@@ -87,8 +93,12 @@ const whitepapers = [
   title="180workspace White Papers & Technical Research | Work Graph Architecture"
   description="Download technical white papers, architectural blueprints, and engineering research on the 180 Work Graph, sovereign identity protocol, and edge traffic routing."
   canonicalUrl="https://180workspace.com/whitepapers"
+  breadcrumbs={breadcrumbs}
 >
   <main class="w-full relative min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div class="container mx-auto px-4 max-w-5xl pt-4 relative z-20">
+      <Breadcrumb items={breadcrumbs} />
+    </div>
     
     <!-- Hero Header -->
     <section class="relative pt-24 pb-16 md:pt-36 md:pb-24 overflow-hidden border-b border-slate-200/80 dark:border-slate-800/80 bg-slate-950 text-white">

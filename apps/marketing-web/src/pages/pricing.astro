@@ -5,8 +5,14 @@ import AppBottomCTA from '../components/apps/AppBottomCTA.astro';
 import JSONLDSchema from '../components/apps/JSONLDSchema.astro';
 import Badge from '../components/ui/Badge.astro';
 import Button from '../components/ui/Button.astro';
+import Breadcrumb from '../components/ui/Breadcrumb.astro';
 
 const saasUrl = import.meta.env.PUBLIC_SAAS_URL || 'https://app.180workspace.com';
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Pricing', url: '/pricing' }
+];
 
 const plans = [
   {
@@ -103,8 +109,12 @@ const faqs = [
 <Layout 
   title="180workspace Pricing | Real, Transparent Plans at $10, $17, and $20/mo"
   description="Explore real pricing for 180workspace. 180 Kickstart ($10/mo), Momentum ($17/mo), and Limitless ($20/mo) with full Work Graph access."
+  breadcrumbs={breadcrumbs}
 >
   <main class="w-full relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <Breadcrumb items={breadcrumbs} />
+    </div>
     
     <!-- Hero Section -->
     <section class="relative pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">

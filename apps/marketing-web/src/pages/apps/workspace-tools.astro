@@ -141,11 +141,19 @@ const faqs = [
     answer: "Yes. You can turn any agreement into a template with dynamic fields. The system generates a public signing URL where clients or new hires can review and sign with a legally binding digital signature."
   }
 ];
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Apps', url: '/apps' },
+  { name: 'Workspace Tools', url: '/apps/workspace-tools' }
+];
 ---
 
 <Layout 
   title="Workspace Tools, Documents & Storage Software & Guide | 180workspace"
   description="Collaborative 180 Documents, enterprise cloud storage, document templates, and digital e-signatures in 180workspace."
+  breadcrumbs={breadcrumbs}
+  applicationCategory="BusinessApplication"
 >
   <main class="w-full relative">
     
@@ -153,6 +161,7 @@ const faqs = [
       title="Collaborative documents and cloud storage"
       highlightText="built natively into your work graph."
       description="Replace Google Docs, Notion, and Dropbox. 180 Workspace Tools brings collaborative documents, centralized file management, template e-signatures, and Orbit AI drafting into one system."
+      breadcrumbs={breadcrumbs}
     />
 
     <CapabilityPillars 

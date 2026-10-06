@@ -104,7 +104,7 @@ interface PricingTablesTabProps {
 
 const ACCENT_COLOR_PRESETS = [
   { name: 'Electric Indigo', hex: '#6366f1' },
-  { name: 'Sovereign Violet', hex: '#8b5cf6' },
+  { name: 'Universal Violet', hex: '#8b5cf6' },
   { name: 'Emerald Growth', hex: '#10b981' },
   { name: 'Cyber Cyan', hex: '#06b6d4' },
   { name: 'Rose Sunset', hex: '#f43f5e' },
@@ -468,7 +468,7 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
     let snippet = '';
 
     if (type === 'wc') {
-      snippet = `<!-- 180 Pay Sovereign Web Component -->\n<script src="${publicBase}/sdk/v1/180-core-sdk.js" async></script>\n<one-eighty-pricing-table\n  app-id="${appId}"\n  theme="${config.theme}"\n  accent-color="${config.accentColor}">\n</one-eighty-pricing-table>`;
+      snippet = `<!-- 180 Pay Web Component -->\n<script src="${publicBase}/sdk/v1/180-core-sdk.js" async></script>\n<one-eighty-pricing-table\n  app-id="${appId}"\n  theme="${config.theme}"\n  accent-color="${config.accentColor}">\n</one-eighty-pricing-table>`;
     } else if (type === 'iframe') {
       snippet = `<!-- 180 Pay Responsive IFrame Embed -->\n<iframe\n  src="${publicBase}/embed/pricing/${appId}"\n  width="100%"\n  height="720"\n  frameborder="0"\n  scrolling="no"\n  style="border:none;border-radius:24px;overflow:hidden;"\n></iframe>`;
     } else if (type === 'react') {
@@ -959,7 +959,7 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
                     <div className="grid grid-cols-3 gap-3">
                       {[
                         { id: 'auto', label: 'Adaptive Auto', desc: 'Syncs with user OS / browser' },
-                        { id: 'dark', label: 'Obsidian Dark', desc: 'Deep sovereign black' },
+                        { id: 'dark', label: 'Obsidian Dark', desc: 'Deep obsidian black' },
                         { id: 'light', label: 'Clean Light', desc: 'Minimal paper white' },
                       ].map((t) => (
                         <div

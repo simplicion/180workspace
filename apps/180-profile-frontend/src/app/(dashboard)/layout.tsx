@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { BottomNav } from '@/components/BottomNav';
 import { UserProfile } from '@/types';
 import { getCoreApiUrl } from '@/lib/api';
 
@@ -101,9 +102,12 @@ export default function DashboardLayout({
       <Header balance={balance} user={user} />
 
       {/* Main Content Viewport */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 relative z-10">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-10 pb-24 sm:pb-10 relative z-10">
         {children}
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <BottomNav user={user} />
 
       {/* Unified Platform Footer */}
       <Footer />

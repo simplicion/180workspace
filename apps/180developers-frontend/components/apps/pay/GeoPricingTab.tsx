@@ -14,6 +14,7 @@ import {
   Sparkles,
   Sliders,
   ArrowRight,
+  Edit2,
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
@@ -67,8 +68,9 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
   const [simResult, setSimResult] = useState<LocalizedPricingResult | null>(null);
   const [simulating, setSimulating] = useState(false);
 
-  // Create Override Modal
+  // Create/Edit Override Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [savingRule, setSavingRule] = useState(false);
   const [ruleCountry, setRuleCountry] = useState('IN');
   const [ruleType, setRuleType] = useState<'PERCENT' | 'FIXED'>('PERCENT');
@@ -215,6 +217,7 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
       if (res.ok && data.success) {
         toast.success(`Rule for ${ruleCountry} saved`);
         setShowCreateModal(false);
+        setEditingRuleId(null);
         fetchData();
         runSimulation();
       } else {
@@ -225,6 +228,16 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
     } finally {
       setSavingRule(false);
     }
+  };
+
+  const handleOpenEditRule = (rule: GeoRuleItem) => {
+    setEditingRuleId(rule.id);
+    setRuleCountry(rule.countryCode);
+    setRuleType(rule.discountPercent != null ? 'PERCENT' : 'FIXED');
+    setRuleDiscountPercent(rule.discountPercent != null ? String(rule.discountPercent) : '50');
+    setRuleFixedAmount(rule.fixedAmount != null ? String(rule.fixedAmount) : '1499');
+    setRuleCurrency(rule.customCurrency || 'INR');
+    setShowCreateModal(true);
   };
 
   const handleDeleteRule = async (ruleId: string, countryCode: string) => {
@@ -588,14 +601,26 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteRule(rule.id, rule.countryCode)}
-                          className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 h-8 w-8 p-0 cursor-pointer rounded-xl"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEditRule(rule)}
+                            className="text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 h-8 w-8 p-0 cursor-pointer rounded-xl"
+                            title="Edit Country Override"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteRule(rule.id, rule.countryCode)}
+                            className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 h-8 w-8 p-0 cursor-pointer rounded-xl"
+                            title="Delete Country Override"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -606,18 +631,21 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
         )}
       </div>
 
-      {/* Add Country Override Modal */}
+      {/* Add / Edit Country Override Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 p-6 sm:p-8 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-zinc-200 dark:border-white/10 pb-4">
               <h3 className="font-bold text-zinc-950 dark:text-white flex items-center gap-2 text-base">
                 <Globe className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                Add Country Override
+                {editingRuleId ? 'Edit Country Override' : 'Add Country Override'}
               </h3>
               <button
                 type="button"
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setEditingRuleId(null);
+                }}
                 className="text-zinc-400 hover:text-zinc-950 dark:hover:text-white text-xl font-bold cursor-pointer transition-colors"
               >
                 &times;
@@ -729,7 +757,10 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setEditingRuleId(null);
+                  }}
                   className="border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs cursor-pointer shadow-xs rounded-xl"
                 >
                   Cancel

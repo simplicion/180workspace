@@ -1523,21 +1523,36 @@ class _CaptionPreview extends StatelessWidget {
       return 1 + (w.scale - 1) * eased;
     }
 
+    bool spoken(EditIrWord w) => t >= w.startMs && t < w.endMs;
+    // Same rules as the Android renderer (VideoEffects.styleFor).
+    Color wordColor(EditIrWord w) {
+      if (anim == 'none') return text;
+      // word_box: the box carries the highlight, so the spoken word keeps the text colour.
+      if (anim == 'word_box') return spoken(w) || !w.highlight ? text : hi;
+      return spoken(w) || (anim == 'karaoke' && t >= w.endMs) || w.highlight ? hi : text;
+    }
+
     final spans = caption.words.isEmpty || caption.kind == 'text'
         ? [TextSpan(text: upper ? renderedText.toUpperCase() : renderedText)]
         : [
             for (final w in caption.words)
-              TextSpan(
-                text: '${upper ? w.text.toUpperCase() : w.text} ',
-                style: TextStyle(
-                  fontSize: baseSize * popOf(w),
-                  color: anim == 'none'
-                      ? text
-                      : (t >= w.startMs && t < w.endMs) || (anim == 'karaoke' && t >= w.endMs) || w.highlight
-                          ? hi
-                          : text,
+              if (anim == 'word_reveal' && t < w.startMs)
+                // Not spoken yet: keeps its room in the line but is not drawn.
+                TextSpan(
+                  text: '${upper ? w.text.toUpperCase() : w.text} ',
+                  style: TextStyle(color: Colors.transparent, shadows: const []),
+                )
+              else if (anim == 'word_box') ...[
+                TextSpan(
+                  text: upper ? w.text.toUpperCase() : w.text,
+                  style: TextStyle(color: wordColor(w), background: spoken(w) ? (Paint()..color = hi) : null),
                 ),
-              ),
+                TextSpan(text: ' '),
+              ] else
+                TextSpan(
+                  text: '${upper ? w.text.toUpperCase() : w.text} ',
+                  style: TextStyle(fontSize: baseSize * popOf(w), color: wordColor(w)),
+                ),
           ];
 
     Widget textWidget = Container(

@@ -178,7 +178,7 @@ function ResetPasswordContent() {
     }
 
     setLoading(true);
-    const toastId = toast.loading('Updating your sovereign password...');
+    const toastId = toast.loading('Updating your password...');
 
     try {
       const res = await fetch(getCoreApiUrl('/api/oauth/reset-password'), {
@@ -387,7 +387,7 @@ function ResetPasswordContent() {
             </div>
             <h2 className="text-lg font-bold text-slate-900 tracking-tight">Set New Password</h2>
             <p className="text-xs text-slate-500">
-              Create a new secure sovereign password for your account
+              Create a new secure password for your account
             </p>
           </div>
 

@@ -191,7 +191,7 @@ export function extractConstraintsFromPrompt(prompt: string, durationMs: number)
 /** The operations each locked track forbids. */
 export const TRACK_OPS: Record<DirectorLockableTrack, readonly string[]> = {
   music: ["addBackgroundMusic", "duckAudio"],
-  captions: ["autoCaptions", "addCaption", "styleCaption", "emphasizeWord", "clearCaptions"],
+  captions: ["autoCaptions", "addCaption", "styleCaption", "translateCaptions", "emphasizeWord", "clearCaptions"],
   broll: ["insertBroll", "addImage", "addSticker"],
   sfx: ["addSoundEffect", "autoSoundDesign"],
   effects: ["addEffect", "applyFilter", "addTransition"],

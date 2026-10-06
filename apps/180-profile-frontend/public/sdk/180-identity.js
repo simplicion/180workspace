@@ -134,7 +134,7 @@
 
       var titleWrap = document.createElement('div');
       titleWrap.style.cssText = 'display: flex; align-items: center; gap: 8px; min-width: 0;';
-      titleWrap.innerHTML = '<div style="font-size: 13px; font-weight: 700; color: #f4f4f5; letter-spacing: -0.01em;">' + (opts.title || '180 Sovereign Identity') + '</div>';
+      titleWrap.innerHTML = '<div style="font-size: 13px; font-weight: 700; color: #f4f4f5; letter-spacing: -0.01em;">' + (opts.title || '180 Identity') + '</div>';
 
       var closeBtn = document.createElement('button');
       closeBtn.type = 'button';
@@ -234,7 +234,7 @@
     isMobileDevice: isMobileDevice,
 
     /**
-     * Universal Sovereign Auth with Razorpay-style responsive in-page bottom sheet
+     * Universal Auth with Razorpay-style responsive in-page bottom sheet
      */
     openAuth: function (options) {
       options = options || {};
@@ -362,7 +362,7 @@
 
       return openInBottomSheet({
         url: authUrl,
-        title: '180 Sovereign Identity',
+        title: '180 Identity',
         state: state,
         successTypes: ['180_IDENTITY_SUCCESS', '180_AUTH_SUCCESS'],
         closeTypes: ['180_IDENTITY_CLOSE'],

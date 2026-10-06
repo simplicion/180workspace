@@ -1,11 +1,13 @@
 'use strict';
 
 import { developersPrisma as prisma } from '@workspace/db-180core';
+import { GeoPricingService } from '../geo/geo-pricing.service';
 
 export interface CouponValidationInput {
   appId: string;
   code: string;
   orderAmount: number;
+  orderCurrency?: string;
   customerEmail?: string;
   origin?: string;
   planId?: string;
@@ -257,14 +259,21 @@ export class CouponService {
       }
     }
 
-    // 6. Minimum order threshold
-    if (coupon.minOrderAmount && orderAmount < coupon.minOrderAmount) {
+    // 6. Minimum order threshold (Evaluated against the REAL monetary amount across currencies)
+    const couponBaseCurrency = 'INR';
+    const targetOrderCurrency = (input.orderCurrency || 'INR').toUpperCase();
+    const minOrderThreshold = coupon.minOrderAmount && coupon.minOrderAmount > 0
+      ? GeoPricingService.convertCurrency(coupon.minOrderAmount, couponBaseCurrency, targetOrderCurrency)
+      : 0;
+
+    if (minOrderThreshold > 0 && orderAmount < minOrderThreshold) {
+      const sym = targetOrderCurrency === 'USD' ? '$' : targetOrderCurrency === 'INR' ? '₹' : `${targetOrderCurrency} `;
       return {
         valid: false,
         code: rawCode,
         discountAmount: 0,
         finalAmount: orderAmount,
-        error: `Minimum purchase of ${coupon.minOrderAmount} required for this coupon`,
+        error: `Minimum purchase of ${sym}${minOrderThreshold} required for this coupon`,
         reasonCode: 'MIN_ORDER_NOT_MET',
       };
     }
@@ -303,18 +312,28 @@ export class CouponService {
       }
     }
 
-    // 9. Calculate Discount
+    // 9. Calculate Discount against real monetary currency
     let calculatedDiscount = 0;
     if (coupon.discountType === 'PERCENTAGE') {
       const percentageOff = (orderAmount * coupon.discountValue) / 100;
       if (coupon.maxDiscountAmount && coupon.maxDiscountAmount > 0) {
-        calculatedDiscount = Math.min(percentageOff, coupon.maxDiscountAmount);
+        const maxDiscountInOrderCurrency = GeoPricingService.convertCurrency(
+          coupon.maxDiscountAmount,
+          couponBaseCurrency,
+          targetOrderCurrency
+        );
+        calculatedDiscount = Math.min(percentageOff, maxDiscountInOrderCurrency);
       } else {
         calculatedDiscount = percentageOff;
       }
     } else {
-      // FIXED_AMOUNT
-      calculatedDiscount = Math.min(orderAmount, coupon.discountValue);
+      // FIXED_AMOUNT (Denominated in coupon base currency, converted to order currency)
+      const fixedDiscountInOrderCurrency = GeoPricingService.convertCurrency(
+        coupon.discountValue,
+        couponBaseCurrency,
+        targetOrderCurrency
+      );
+      calculatedDiscount = Math.min(orderAmount, fixedDiscountInOrderCurrency);
     }
 
     // Prevent negative final amounts and round to 2 decimal places
@@ -329,7 +348,9 @@ export class CouponService {
       discountValue: coupon.discountValue,
       discountAmount,
       finalAmount,
-      maxDiscountAmount: coupon.maxDiscountAmount,
+      maxDiscountAmount: coupon.maxDiscountAmount
+        ? GeoPricingService.convertCurrency(coupon.maxDiscountAmount, couponBaseCurrency, targetOrderCurrency)
+        : null,
     };
   }
 

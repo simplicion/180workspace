@@ -433,11 +433,60 @@ test("cmd: \"black and white look with crossfades\" -> filter + transitions at c
   assert.ok(ir.clips.slice(1).every((c) => c.transitionIn?.type === "CROSSFADE" && c.transitionIn.durationMs === 250));
 });
 
+test("captions: translateCaptions converts the final captions through the translator, keeping ranges and style", async () => {
+  const { client } = mockClient([{ text: "", toolCalls: [tc("autoCaptions", { template: "VARUN_MAYYA_BOX" }), tc("translateCaptions", { targetLanguage: "hi", script: "roman" })] }]);
+  let asked: any;
+  const res = await director.directMobile(mobileRequest("add Varun Mayya captions in Hinglish"), {
+    llmClient: client,
+    translateCaptionLines: async (lines, targetLanguage, script) => {
+      asked = { lines, targetLanguage, script };
+      return lines.map((_, i) => `yeh line ${i} hai`);
+    },
+  });
+  assertInvariants(res.editIR);
+  const caps = res.editIR.captions.filter((c) => c.kind === "caption");
+  assert.ok(caps.length > 0);
+  assert.equal(asked.lines.length, caps.length);
+  assert.deepEqual([asked.targetLanguage, asked.script], ["hi", "roman"]);
+  caps.forEach((c, i) => {
+    assert.equal(c.text, `yeh line ${i} hai`);
+    assert.deepEqual(c.words.map((w) => w.text), ["yeh", "line", String(i), "hai"]);
+    assert.equal(c.style.animation, "word_box");
+    assert.equal(c.style.preset, "VARUN_MAYYA_BOX");
+  });
+  assert.ok(res.appliedOperations.some((a) => /Converted \d+ caption\(s\) to Hindi in Roman letters/.test(a)));
+});
+
+test("captions: a failed translation is rejected and the captions stay as spoken", async () => {
+  const { client } = mockClient([{ text: "", toolCalls: [tc("autoCaptions", {}), tc("translateCaptions", { targetLanguage: "es" })] }]);
+  const res = await director.directMobile(mobileRequest("add captions and translate the captions to Spanish"), {
+    llmClient: client,
+    translateCaptionLines: async () => { throw new Error("upstream down"); },
+  });
+  assert.ok(res.rejectedOperations.some((r) => r.startsWith("translateCaptions: the translation failed")));
+  assert.ok(!res.appliedOperations.some((a) => a.startsWith("Converted")));
+  assert.ok(res.editIR.captions.filter((c) => c.kind === "caption").length > 0);
+});
+
 test("honesty: ops that cannot apply are rejected, not reported as done", async () => {
   const { res } = await runLLM("duck the music", [tc("duckAudio", {}), tc("styleCaption", { preset: "BOLD_CENTER" })]);
   assert.equal(res.appliedOperations.length, 0);
   assert.equal(res.rejectedOperations.length, 2);
   assert.match(res.summary, /2 requested change\(s\) could not be applied/);
+});
+
+test("captions: a named creator template with a named colour reaches the phone as that template", async () => {
+  const { res } = await runLLM("apply the Mr Beast type captioning with red highlights", [tc("autoCaptions", { template: "MRBEAST_HYPE", highlightColor: "#FF0000" })]);
+  assertInvariants(res.editIR);
+  const caps = res.editIR.captions.filter((c) => c.kind === "caption");
+  assert.ok(caps.length > 0);
+  for (const c of caps) {
+    assert.equal(c.style.preset, "MRBEAST_HYPE");
+    assert.equal(c.style.fontFamily, "Montserrat");
+    assert.equal(c.style.highlightColor, "#FF0000");
+    assert.equal(c.style.textColor, "#FFFFFF");
+    assert.equal(c.style.uppercase, true);
+  }
 });
 
 test("captions without a transcript are skipped with a warning (no fake captions)", async () => {

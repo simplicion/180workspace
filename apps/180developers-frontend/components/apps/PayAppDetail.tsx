@@ -154,7 +154,7 @@ export function PayAppDetail({
                 </span>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                1-Click Sovereign Wallet & UPI checkout popup. Dedicated 180 Pay engine processes payments with 2-way verification.
+                1-Click 180 Wallet & UPI checkout popup. Dedicated 180 Pay engine processes payments with 2-way verification.
               </p>
             </div>
           </div>
@@ -506,7 +506,7 @@ export function PayAppDetail({
                 <span>Interactive Live Payment Sandbox</span>
               </h4>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                Test your configured 180 Pay checkout flow instantly in real time using the sovereign 180 SDK.
+                Test your configured 180 Pay checkout flow instantly in real time using the 180 SDK.
               </p>
             </div>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-semibold self-start sm:self-auto">
