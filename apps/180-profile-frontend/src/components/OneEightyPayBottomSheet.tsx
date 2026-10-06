@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Button, LogoLoader } from '@workspace/ui';
 import toast from 'react-hot-toast';
+import QRCode from 'qrcode';
 import { getCoreApiUrl } from '@/lib/api';
 
 export interface OneEightyPayBottomSheetProps {
@@ -58,7 +59,10 @@ export function OneEightyPayBottomSheet({
   const quickAmounts = [500, 1000, 2500, 5000];
 
   // Device & Platform Detection
-  const [isDesktop, setIsDesktop] = useState<boolean>(false);
+  const [isDesktop, setIsDesktop] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  });
 
   // Active Category & Sub-modes: 3 Primary options (UPI, CARD, NETBANKING)
   const [activeCategory, setActiveCategory] = useState<PaymentCategory>('UPI');
@@ -121,9 +125,8 @@ export function OneEightyPayBottomSheet({
   // Detect PC/Desktop view vs Mobile View
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const desktop =
-        window.innerWidth >= 768 ||
-        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const desktop = !isMobile;
       setIsDesktop(desktop);
       // PC view defaults to QR Code automatically
       if (desktop) {
@@ -142,7 +145,32 @@ export function OneEightyPayBottomSheet({
 
   const finalAmount = customAmount ? parseFloat(customAmount) || 0 : selectedAmount;
 
-  // Fetch live gateway payment methods from Razorpay / Stripe
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+
+  const upiIntentString = useMemo(() => {
+    const pa = '180pay@okhdfcbank';
+    const pn = encodeURIComponent('180 Sovereign Wallet Topup');
+    const am = Number(finalAmount || 0).toFixed(2);
+    const cu = 'INR';
+    const tr = activeOrderId || `topup_${Date.now()}`;
+    const tn = encodeURIComponent(`Top-up Wallet ₹${am}`);
+    return `upi://pay?pa=${pa}&pn=${pn}&am=${am}&cu=${cu}&tr=${tr}&tn=${tn}`;
+  }, [finalAmount, activeOrderId]);
+
+  useEffect(() => {
+    if (!isOpen || !upiIntentString) return;
+    QRCode.toDataURL(upiIntentString, {
+      width: 256,
+      margin: 1,
+      errorCorrectionLevel: 'H',
+      color: {
+        dark: '#0f172a',
+        light: '#ffffff',
+      },
+    })
+      .then((url) => setQrCodeDataUrl(url))
+      .catch((err) => console.error('Failed to generate QR code:', err));
+  }, [isOpen, upiIntentString]);
   useEffect(() => {
     if (!isOpen) return;
 
@@ -605,39 +633,76 @@ export function OneEightyPayBottomSheet({
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* ────────────────── STATE 1: CONFIRMING PAYMENT SCREEN ────────────────── */}
           {isConfirming && (
-            <div className="py-12 px-4 text-center space-y-6 animate-in fade-in zoom-in-95 duration-200 flex flex-col items-center justify-center">
-              {/* Spinning 180 Logo with glowing ring */}
-              <div className="relative flex items-center justify-center">
-                <div className="absolute w-28 h-28 rounded-full bg-blue-500/20 dark:bg-blue-500/10 animate-ping" />
-                <div className="absolute w-24 h-24 rounded-full border-2 border-blue-500/30 border-t-blue-600 animate-spin" />
+            <div className="py-8 px-4 text-center space-y-5 animate-in fade-in zoom-in-95 duration-200 flex flex-col items-center justify-center">
+              {/* Spinning 180 Logo with glowing radar ring */}
+              <div className="relative flex items-center justify-center py-2">
+                <div className="absolute w-32 h-32 rounded-full bg-blue-500/15 dark:bg-blue-500/10 animate-ping" />
+                <div className="absolute w-28 h-28 rounded-full border-2 border-dashed border-blue-400/40 animate-spin" />
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xl shadow-blue-500/25 relative z-10">
-                  <LogoLoader size={36} className="text-white" />
+                  <LogoLoader size={38} className="text-white" />
                 </div>
               </div>
 
-              <div className="space-y-1.5 max-w-xs">
+              <div className="space-y-1.5 max-w-sm">
                 <h3 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
-                  Confirming Payment...
+                  Waiting for UPI payment...
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                  Verifying UPI transaction with bank servers. Please do not close or refresh this window.
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-900/60 text-blue-700 dark:text-blue-300 text-[11px] font-semibold">
+                  <RefreshCw className="w-3 h-3 animate-spin text-blue-600" />
+                  <span>Auto-confirming in real-time</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed pt-1">
+                  Approve the transaction of <strong className="text-slate-800 dark:text-zinc-200">₹{finalAmount.toFixed(2)}</strong> on your UPI app (Google Pay, PhonePe, Paytm, or BHIM).
+                </p>
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                  Do not close or refresh this sheet.
                 </p>
               </div>
 
               {/* Progress Steps */}
-              <div className="w-full max-w-xs bg-slate-50 dark:bg-zinc-900/80 p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 space-y-2.5 text-left text-xs">
-                <div className="flex items-center gap-2.5 text-slate-700 dark:text-zinc-300 font-semibold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Transaction Received</span>
+              <div className="w-full max-w-sm bg-slate-50 dark:bg-zinc-900/80 p-3.5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 space-y-2.5 text-left text-xs">
+                <div className="flex items-center justify-between text-slate-700 dark:text-zinc-300 font-semibold">
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>UPI Transaction Initiated</span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-emerald-600">DONE</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-blue-600 dark:text-blue-400 font-semibold animate-pulse">
-                  <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
-                  <span>Verifying Razorpay Banking Rail</span>
+                <div className="flex items-center justify-between text-blue-600 dark:text-blue-400 font-semibold">
+                  <div className="flex items-center gap-2.5">
+                    <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+                    <span>Verifying Razorpay Banking Rail</span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold animate-pulse">CHECKING</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-slate-400 dark:text-zinc-500">
-                  <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-zinc-700 shrink-0" />
-                  <span>Crediting Sovereign Wallet</span>
+                <div className="flex items-center justify-between text-slate-400 dark:text-zinc-500">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-zinc-700 shrink-0" />
+                    <span>Crediting Sovereign Wallet</span>
+                  </div>
+                  <span className="text-[10px] font-mono">PENDING</span>
                 </div>
+              </div>
+
+              {/* Actions */}
+              <div className="w-full max-w-sm space-y-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleExecutePayment}
+                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-blue-600/20 active:scale-[0.99]"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>I Have Already Paid (Check Now)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsConfirming(false)}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Change Payment Method / Cancel</span>
+                </button>
               </div>
             </div>
           )}
@@ -869,40 +934,26 @@ export function OneEightyPayBottomSheet({
                     {/* QR Code view (Shown by default on PC/Desktop, and when toggled on Mobile) */}
                     {upiMode === 'QR' && (
                       <div className="text-center py-2 space-y-3">
-                        <div className="p-3 bg-white dark:bg-white rounded-2xl w-44 h-44 mx-auto border border-slate-200 shadow-md flex items-center justify-center relative">
-                          {/* High contrast SVG QR with 180 Badge */}
-                          <svg className="w-36 h-36" viewBox="0 0 100 100" fill="none">
-                            <rect x="0" y="0" width="100" height="100" fill="white" />
-                            <rect x="10" y="10" width="22" height="22" fill="#0f172a" rx="3" />
-                            <rect x="14" y="14" width="14" height="14" fill="white" rx="1.5" />
-                            <rect x="17" y="17" width="8" height="8" fill="#0f172a" rx="1" />
-                            <rect x="68" y="10" width="22" height="22" fill="#0f172a" rx="3" />
-                            <rect x="72" y="14" width="14" height="14" fill="white" rx="1.5" />
-                            <rect x="75" y="17" width="8" height="8" fill="#0f172a" rx="1" />
-                            <rect x="10" y="68" width="22" height="22" fill="#0f172a" rx="3" />
-                            <rect x="14" y="72" width="14" height="14" fill="white" rx="1.5" />
-                            <rect x="17" y="75" width="8" height="8" fill="#0f172a" rx="1" />
-                            <circle cx="50" cy="50" r="9" fill="#2563eb" />
-                            <text x="50" y="53" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold">180</text>
-                            <rect x="40" y="14" width="6" height="6" fill="#0f172a" />
-                            <rect x="52" y="14" width="6" height="6" fill="#0f172a" />
-                            <rect x="40" y="24" width="6" height="6" fill="#0f172a" />
-                            <rect x="52" y="24" width="6" height="6" fill="#0f172a" />
-                            <rect x="14" y="40" width="6" height="6" fill="#0f172a" />
-                            <rect x="24" y="40" width="6" height="6" fill="#0f172a" />
-                            <rect x="14" y="52" width="6" height="6" fill="#0f172a" />
-                            <rect x="24" y="52" width="6" height="6" fill="#0f172a" />
-                            <rect x="68" y="40" width="6" height="6" fill="#0f172a" />
-                            <rect x="78" y="40" width="6" height="6" fill="#0f172a" />
-                            <rect x="68" y="52" width="6" height="6" fill="#0f172a" />
-                            <rect x="78" y="52" width="6" height="6" fill="#0f172a" />
-                            <rect x="40" y="68" width="6" height="6" fill="#0f172a" />
-                            <rect x="52" y="68" width="6" height="6" fill="#0f172a" />
-                            <rect x="40" y="78" width="6" height="6" fill="#0f172a" />
-                            <rect x="52" y="78" width="6" height="6" fill="#0f172a" />
-                            <rect x="68" y="68" width="6" height="6" fill="#0f172a" />
-                            <rect x="78" y="78" width="6" height="6" fill="#0f172a" />
-                          </svg>
+                        <div className="p-3 bg-white dark:bg-white rounded-2xl w-48 h-48 mx-auto border border-slate-200/90 shadow-md flex items-center justify-center relative">
+                          {qrCodeDataUrl ? (
+                            <img
+                              src={qrCodeDataUrl}
+                              alt="Scan with UPI App"
+                              className="w-40 h-40 object-contain rounded-lg"
+                            />
+                          ) : (
+                            <div className="w-40 h-40 flex items-center justify-center">
+                              <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
+                            </div>
+                          )}
+                          {/* Centered 180 Badge */}
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="w-7 h-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center">
+                              <div className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-[8px] flex items-center justify-center">
+                                180
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="space-y-1">
@@ -1050,22 +1101,6 @@ export function OneEightyPayBottomSheet({
                 {/* ────────────────── 2. CARDS TAB ────────────────── */}
                 {activeCategory === 'CARD' && (
                   <div className="space-y-3 animate-in fade-in-50 duration-150">
-                    <div className="bg-gradient-to-tr from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-4 border border-white/10 shadow-lg space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">180 Secure Card</span>
-                        <span className="font-bold text-xs text-indigo-300 font-mono">
-                          {detectedCardNetwork || 'Debit / Credit'}
-                        </span>
-                      </div>
-                      <div className="text-base sm:text-lg font-mono tracking-widest text-slate-200 py-1">
-                        {cardNumber || '•••• •••• •••• ••••'}
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                        <span>{cardName || 'CARDHOLDER NAME'}</span>
-                        <span>{cardExpiry || 'MM/YY'}</span>
-                      </div>
-                    </div>
-
                     <div className="space-y-2.5">
                       <div className="space-y-1">
                         <label className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">Card Number</label>
