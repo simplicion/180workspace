@@ -647,6 +647,97 @@ export class CheckoutService {
     };
   }
 
+  private static methodsCache: Map<string, { data: any; expiresAt: number }> = new Map();
+
+  /**
+   * Fetches supported payment methods dynamically from the gateway (Razorpay / Stripe).
+   * Supports dynamic banks, card networks, and country-specific ordering without hardcoding.
+   */
+  static async getPaymentMethods(app?: any, currency: string = 'INR', countryCode?: string) {
+    const { gatewayType, keyId } = this.resolveGatewayConfig(app);
+
+    const cacheKey = `${gatewayType}_${keyId}_${currency}_${countryCode || ''}`;
+    const cached = this.methodsCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+
+    const isIndia = (currency || '').toUpperCase() === 'INR' || (countryCode || '').toUpperCase() === 'IN';
+
+    // 1. If Gateway is STRIPE
+    if (gatewayType === 'STRIPE') {
+      const stripeMethods = {
+        gateway: 'STRIPE',
+        isIndia,
+        defaultMethod: 'CARD',
+        priorityOrder: ['CARD', 'NETBANKING'],
+        supportsUpi: false, // Stripe does not support Indian UPI by default
+        supportsCard: true,
+        supportsNetbanking: false,
+        cardNetworks: ['VISA', 'MASTERCARD', 'AMEX', 'DISCOVER', 'DINERS', 'JCB'],
+        banks: [],
+        popularBanks: [],
+      };
+      this.methodsCache.set(cacheKey, { data: stripeMethods, expiresAt: Date.now() + 3600 * 1000 });
+      return stripeMethods;
+    }
+
+    // 2. Gateway is RAZORPAY
+    let rzpMethodsData: any = null;
+    if (keyId && !keyId.includes('simulated')) {
+      try {
+        const auth = Buffer.from(`${keyId}:`).toString('base64');
+        const rzpRes = await axios.get('https://api.razorpay.com/v1/methods', {
+          headers: { Authorization: `Basic ${auth}` },
+          timeout: 4000,
+        });
+        rzpMethodsData = rzpRes.data;
+      } catch (err: any) {
+        console.warn('[CheckoutService:getPaymentMethods] Razorpay live fetch error:', err?.message);
+      }
+    }
+
+    const netbankingObj = rzpMethodsData?.netbanking || {};
+    const popularCodes = ['HDFC', 'SBIN', 'ICIC', 'UTIB', 'KKBK', 'PUNB_R', 'BARB_R', 'YESB', 'IDFB', 'AIRP'];
+
+    // Map all Razorpay netbanking banks
+    const banks = Object.entries(netbankingObj).map(([code, name]: [string, any]) => ({
+      code,
+      name: String(name),
+      short: code.replace(/_R|_C/g, ''),
+      popular: popularCodes.includes(code),
+    })).sort((a, b) => a.name.localeCompare(b.name));
+
+    // Popular banks list
+    const popularBanks = banks.filter(b => b.popular);
+
+    // Active Card networks
+    const cardNetworksMap = rzpMethodsData?.card_networks || {};
+    const supportedCardNetworks = Object.keys(cardNetworksMap).filter(k => cardNetworksMap[k] > 0);
+
+    const supportsUpi = isIndia && Boolean(rzpMethodsData?.upi !== false);
+
+    const methodsResult = {
+      gateway: 'RAZORPAY',
+      isIndia,
+      defaultMethod: isIndia && supportsUpi ? 'UPI' : 'CARD',
+      priorityOrder: isIndia && supportsUpi
+        ? ['UPI', 'CARD', 'NETBANKING']
+        : supportsUpi
+        ? ['CARD', 'NETBANKING', 'UPI']
+        : ['CARD', 'NETBANKING'],
+      supportsUpi,
+      supportsCard: Boolean(rzpMethodsData?.card !== false),
+      supportsNetbanking: banks.length > 0 || Boolean(rzpMethodsData?.netbanking),
+      cardNetworks: supportedCardNetworks.length > 0 ? supportedCardNetworks : ['VISA', 'MASTERCARD', 'RUPAY', 'AMEX'],
+      banks,
+      popularBanks,
+    };
+
+    this.methodsCache.set(cacheKey, { data: methodsResult, expiresAt: Date.now() + 3600 * 1000 });
+    return methodsResult;
+  }
+
   /**
    * Creates a direct gateway order (Razorpay Order or Stripe PaymentIntent)
    * for guest or direct in-sheet checkout.

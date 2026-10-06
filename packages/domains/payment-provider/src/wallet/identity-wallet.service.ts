@@ -178,7 +178,7 @@ export class IdentityWalletService {
     let finalAmount = typeof amountInr === 'number' && !isNaN(amountInr) && amountInr > 0 ? amountInr : null;
 
     // If amount is missing or not provided, fetch verified amount directly from Razorpay API
-    if (!finalAmount && !isMockOrder && keyId && keySecret && paymentId) {
+    if (!finalAmount && keyId && keySecret && paymentId && !paymentId.startsWith('mock_')) {
       try {
         const authHeader = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
         const rzpPayRes = await axios.get(`https://api.razorpay.com/v1/payments/${paymentId}`, {

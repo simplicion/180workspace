@@ -29,37 +29,11 @@ import {
   Building2,
   QrCode,
   Clock,
+  Search,
 } from 'lucide-react';
 import { Button, LogoLoader, AILogoIcon } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { getCoreApiUrl } from '@/lib/api';
-
-const POPULAR_BANKS = [
-  { code: 'HDFC', name: 'HDFC Bank', color: '#004c8f', short: 'HDFC' },
-  { code: 'SBI', name: 'State Bank of India', color: '#280071', short: 'SBI' },
-  { code: 'ICICI', name: 'ICICI Bank', color: '#b02a30', short: 'ICICI' },
-  { code: 'AXIS', name: 'Axis Bank', color: '#97144d', short: 'AXIS' },
-  { code: 'KOTAK', name: 'Kotak Mahindra', color: '#ed1c24', short: 'KOTAK' },
-  { code: 'PNB', name: 'Punjab National Bank', color: '#a20034', short: 'PNB' },
-];
-
-const OTHER_BANKS = [
-  'Bank of Baroda',
-  'Canara Bank',
-  'Union Bank of India',
-  'IndusInd Bank',
-  'IDBI Bank',
-  'Yes Bank',
-  'Federal Bank',
-  'Central Bank of India',
-  'Bank of India',
-  'Indian Overseas Bank',
-  'RBL Bank',
-  'Standard Chartered',
-  'AU Small Finance Bank',
-  'IDFC FIRST Bank',
-  'Bandhan Bank',
-];
 
 const UPI_APPS = [
   { id: 'gpay', name: 'Google Pay', iconBg: '#ea4335', badge: 'GPay', popular: true },
@@ -161,9 +135,95 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
   const [cardName, setCardName] = useState<string>('');
   const [saveCard, setSaveCard] = useState<boolean>(true);
 
-  // Bank selection
+  // Dynamic Gateway Methods (Live from Razorpay / Stripe)
+  const [gatewayMethods, setGatewayMethods] = useState<{
+    gateway: string;
+    isIndia: boolean;
+    defaultMethod: 'UPI' | 'CARD' | 'NETBANKING';
+    priorityOrder: ('UPI' | 'CARD' | 'NETBANKING')[];
+    supportsUpi: boolean;
+    supportsCard: boolean;
+    supportsNetbanking: boolean;
+    cardNetworks: string[];
+    banks: Array<{ code: string; name: string; short: string; popular: boolean }>;
+    popularBanks: Array<{ code: string; name: string; short: string; popular: boolean }>;
+  } | null>(null);
+
+  // Bank selection & Dedicated Search Screen
   const [selectedBank, setSelectedBank] = useState<string>('HDFC');
-  const [otherBank, setOtherBank] = useState<string>('');
+  const [isBankSearchOpen, setIsBankSearchOpen] = useState<boolean>(false);
+  const [bankSearchQuery, setBankSearchQuery] = useState<string>('');
+
+  // Fetch live gateway payment methods from Razorpay / Stripe
+  useEffect(() => {
+    if (!sessionId || sessionId === 'default') return;
+
+    const url = session?.id
+      ? getCoreApiUrl(`/api/v1/checkout/sessions/${session.id}/methods`)
+      : getCoreApiUrl(`/api/v1/checkout/methods?currency=${session?.currency || 'INR'}&country=IN`);
+
+    fetch(url)
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success && res.data) {
+          setGatewayMethods(res.data);
+          if (res.data.priorityOrder && res.data.priorityOrder.length > 0) {
+            setSelectedMethod((prev) =>
+              res.data.priorityOrder.includes(prev) ? prev : (res.data.defaultMethod || res.data.priorityOrder[0])
+            );
+          }
+          if (res.data.banks && res.data.banks.length > 0) {
+            const firstBank = res.data.popularBanks?.[0]?.code || res.data.banks[0].code;
+            setSelectedBank((prev) => prev || firstBank);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [sessionId, session?.id, session?.currency]);
+
+  const allBanks = useMemo(() => gatewayMethods?.banks || [], [gatewayMethods]);
+  const popularBanksList = useMemo(() => {
+    if (gatewayMethods?.popularBanks && gatewayMethods.popularBanks.length > 0) {
+      return gatewayMethods.popularBanks.slice(0, 6);
+    }
+    return allBanks.slice(0, 6);
+  }, [gatewayMethods, allBanks]);
+
+  const filteredBanks = useMemo(() => {
+    if (!bankSearchQuery.trim()) return allBanks;
+    const q = bankSearchQuery.toLowerCase();
+    return allBanks.filter(
+      (b) =>
+        b.name.toLowerCase().includes(q) ||
+        b.code.toLowerCase().includes(q) ||
+        (b.short && b.short.toLowerCase().includes(q))
+    );
+  }, [allBanks, bankSearchQuery]);
+
+  const selectedBankObj = useMemo(() => {
+    return allBanks.find((b) => b.code === selectedBank);
+  }, [allBanks, selectedBank]);
+
+  const getBankColor = (code: string) => {
+    const colors = ['#004c8f', '#280071', '#b02a30', '#97144d', '#ed1c24', '#a20034', '#0d5c3a', '#007079', '#d97706', '#4338ca'];
+    let hash = 0;
+    for (let i = 0; i < code.length; i++) {
+      hash = code.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  const availableCategories = useMemo(() => {
+    if (gatewayMethods?.priorityOrder && gatewayMethods.priorityOrder.length > 0) {
+      return gatewayMethods.priorityOrder.filter((cat) => {
+        if (cat === 'UPI') return gatewayMethods.supportsUpi;
+        if (cat === 'CARD') return gatewayMethods.supportsCard;
+        if (cat === 'NETBANKING') return gatewayMethods.supportsNetbanking;
+        return true;
+      });
+    }
+    return ['UPI', 'CARD', 'NETBANKING'] as ('UPI' | 'CARD' | 'NETBANKING')[];
+  }, [gatewayMethods]);
 
   // Detect PC/Desktop view vs Mobile View
   useEffect(() => {
@@ -789,7 +849,8 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
           customerPhone: session?.customerPhone,
           upiApp: selectedUpiApp,
           upiId: vpaInput,
-          bankCode: otherBank || selectedBank,
+          bankCode: selectedBankObj?.code || selectedBank,
+          bankName: selectedBankObj?.name || selectedBank,
           cardNetwork: detectedCardNetwork,
           cardLast4: cardNumber ? cardNumber.replace(/\s+/g, '').slice(-4) : undefined,
         }),
@@ -1412,54 +1473,46 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-zinc-900 p-1 rounded-2xl border border-slate-200/80 dark:border-zinc-800 text-[11px]">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedMethod('UPI');
-                  if (isDesktop) setUpiMode('QR');
-                }}
-                className={`py-2 px-1 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                  selectedMethod === 'UPI'
-                    ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs ring-1 ring-black/5 dark:ring-white/10'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                <div className="flex items-center gap-1">
-                  <QrCode className="w-3.5 h-3.5" />
-                  <span>UPI &amp; QR</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedMethod('CARD')}
-                className={`py-2 px-1 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                  selectedMethod === 'CARD'
-                    ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs ring-1 ring-black/5 dark:ring-white/10'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                <div className="flex items-center gap-1">
-                  <CreditCard className="w-3.5 h-3.5" />
-                  <span>Cards</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedMethod('NETBANKING')}
-                className={`py-2 px-1 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                  selectedMethod === 'NETBANKING'
-                    ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs ring-1 ring-black/5 dark:ring-white/10'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                <div className="flex items-center gap-1">
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Netbanking</span>
-                </div>
-              </button>
+            <div
+              className={`grid ${
+                availableCategories.length === 1
+                  ? 'grid-cols-1'
+                  : availableCategories.length === 2
+                  ? 'grid-cols-2'
+                  : 'grid-cols-3'
+              } gap-1.5 bg-slate-100 dark:bg-zinc-900 p-1 rounded-2xl border border-slate-200/80 dark:border-zinc-800 text-[11px]`}
+            >
+              {availableCategories.map((category) => {
+                const isActive = selectedMethod === category;
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMethod(category);
+                      if (category === 'UPI' && isDesktop) setUpiMode('QR');
+                    }}
+                    className={`py-2 px-1 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs ring-1 ring-black/5 dark:ring-white/10'
+                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1">
+                      {category === 'UPI' && <QrCode className="w-3.5 h-3.5" />}
+                      {category === 'CARD' && <CreditCard className="w-3.5 h-3.5" />}
+                      {category === 'NETBANKING' && <Building2 className="w-3.5 h-3.5" />}
+                      <span>
+                        {category === 'UPI'
+                          ? 'UPI & QR'
+                          : category === 'CARD'
+                          ? 'Cards'
+                          : 'Netbanking'}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1807,62 +1860,179 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
 
             {/* 3. Netbanking Tab */}
             {selectedMethod === 'NETBANKING' && (
-              <div className="space-y-3.5 animate-in fade-in-50 duration-150">
-                <span className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">
-                  Popular Indian Banks
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {POPULAR_BANKS.map((b) => (
-                    <button
-                      key={b.code}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBank(b.code);
-                        setOtherBank('');
-                      }}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                        selectedBank === b.code && !otherBank
-                          ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 text-blue-950 dark:text-blue-200 ring-1 ring-blue-500/20'
-                          : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          style={{ backgroundColor: b.color }}
-                          className="w-6 h-6 rounded-lg text-white font-bold text-[8px] flex items-center justify-center shrink-0 shadow-2xs"
-                        >
-                          {b.short.slice(0, 3)}
-                        </div>
-                        <span className="text-xs font-bold truncate">{b.short}</span>
-                      </div>
-                      {selectedBank === b.code && !otherBank && (
-                        <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                </div>
+              <>
+                {isBankSearchOpen ? (
+                  /* Dedicated Search Screen */
+                  <div className="space-y-3 animate-in fade-in-50 duration-150">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-zinc-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsBankSearchOpen(false);
+                          setBankSearchQuery('');
+                        }}
+                        className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5 cursor-pointer hover:underline"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Back to Popular Banks</span>
+                      </button>
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        {filteredBanks.length} Live Banks
+                      </span>
+                    </div>
 
-                <div className="space-y-1.5 pt-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">
-                    Or choose from 50+ other banks
-                  </label>
-                  <select
-                    value={otherBank}
-                    onChange={(e) => {
-                      setOtherBank(e.target.value);
-                      if (e.target.value) setSelectedBank('');
-                    }}
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:outline-none focus:border-blue-500 cursor-pointer"
-                  >
-                    <option value="">-- Choose from all available banks --</option>
-                    {OTHER_BANKS.map((bankName) => (
-                      <option key={bankName} value={bankName}>
-                        {bankName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                    {/* Search Input */}
+                    <div className="relative">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        autoFocus
+                        value={bankSearchQuery}
+                        onChange={(e) => setBankSearchQuery(e.target.value)}
+                        placeholder="Search bank name (e.g. HDFC, Axis, SBI, ICICI)..."
+                        className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-white dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-500"
+                      />
+                      {bankSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setBankSearchQuery('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Scrollable Live Banks List */}
+                    <div className="max-h-[260px] overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100 dark:divide-zinc-800/60">
+                      {filteredBanks.length === 0 ? (
+                        <div className="py-8 text-center text-xs text-slate-500 dark:text-zinc-400 space-y-1">
+                          <Building2 className="w-8 h-8 mx-auto text-slate-300 dark:text-zinc-600" />
+                          <p className="font-semibold">No banks matching "{bankSearchQuery}"</p>
+                          <p className="text-[11px]">Check spelling or browse all {allBanks.length} banks from Razorpay</p>
+                        </div>
+                      ) : (
+                        filteredBanks.map((b) => {
+                          const isSelected = selectedBank === b.code;
+                          const color = getBankColor(b.code);
+                          return (
+                            <button
+                              key={b.code}
+                              type="button"
+                              onClick={() => {
+                                setSelectedBank(b.code);
+                                setIsBankSearchOpen(false);
+                                setBankSearchQuery('');
+                              }}
+                              className={`w-full p-2.5 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-blue-50/80 dark:bg-blue-950/40 text-blue-950 dark:text-blue-200 ring-1 ring-blue-500/30'
+                                  : 'hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-800 dark:text-zinc-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                <div
+                                  style={{ backgroundColor: color }}
+                                  className="w-7 h-7 rounded-lg text-white font-extrabold text-[9px] flex items-center justify-center shrink-0 shadow-2xs uppercase"
+                                >
+                                  {b.short?.slice(0, 3) || b.code.slice(0, 3)}
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-xs font-semibold block truncate leading-tight">
+                                    {b.name}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-mono">
+                                    {b.code} {b.popular && '• Popular'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="shrink-0 flex items-center gap-1.5">
+                                {isSelected ? (
+                                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                                    <Check className="w-3 h-3 stroke-[3]" />
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-slate-400 hover:text-blue-600 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-700">
+                                    Select
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* Popular Banks view with Search Trigger */
+                  <div className="space-y-3.5 animate-in fade-in-50 duration-150">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">
+                        Popular Indian Banks
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Razorpay Live Netbanking
+                      </span>
+                    </div>
+
+                    {/* Popular Bank Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {popularBanksList.map((b) => {
+                        const isSelected = selectedBank === b.code;
+                        const color = getBankColor(b.code);
+                        return (
+                          <button
+                            key={b.code}
+                            type="button"
+                            onClick={() => setSelectedBank(b.code)}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                              isSelected
+                                ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 text-blue-950 dark:text-blue-200 ring-1 ring-blue-500/20'
+                                : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-300 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 pr-1">
+                              <div
+                                style={{ backgroundColor: color }}
+                                className="w-6 h-6 rounded-lg text-white font-bold text-[8px] flex items-center justify-center shrink-0 shadow-2xs uppercase"
+                              >
+                                {b.short?.slice(0, 3) || b.code.slice(0, 3)}
+                              </div>
+                              <span className="text-xs font-bold truncate">
+                                {b.name.split('-')[0].replace('Bank', '').trim() || b.short}
+                              </span>
+                            </div>
+                            {isSelected && (
+                              <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Dedicated Bank Search Screen Trigger Button */}
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setIsBankSearchOpen(true)}
+                        className="w-full p-2.5 rounded-xl border border-dashed border-blue-300 dark:border-blue-800/80 bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-900 dark:text-blue-300 flex items-center justify-between transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2 text-xs font-semibold">
+                          <Search className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                          <span>
+                            {selectedBankObj && !popularBanksList.some((p) => p.code === selectedBank)
+                              ? `Selected: ${selectedBankObj.name}`
+                              : `Search from all ${allBanks.length > 0 ? allBanks.length : '40+'} banks...`}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900/50 flex items-center gap-1">
+                          Search Banks <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -1920,7 +2090,7 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
                       : `Confirm ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} on QR`
                     : selectedMethod === 'CARD'
                     ? `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via Card ${detectedCardNetwork ? `(${detectedCardNetwork})` : ''}`
-                    : `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via Netbanking (${otherBank || selectedBank})`}
+                    : `Pay ${session.currency === 'USD' ? '$' : '₹'}${session.amount.toFixed(2)} via Netbanking (${selectedBankObj?.short || selectedBank})`}
                 </span>
               </>
             )}

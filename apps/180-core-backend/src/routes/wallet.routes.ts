@@ -8,6 +8,7 @@ const router = express.Router();
 
 router.get('/', protect, WalletApiController.getUserWallet);
 router.get('/balance', protect, WalletApiController.getUserWallet);
+router.get('/methods', WalletApiController.getPaymentMethods);
 router.post('/topup', protect, WalletApiController.createTopupOrder);
 router.post('/topup/order', protect, WalletApiController.createTopupOrder);
 router.get('/topup/status/:orderId', protect, WalletApiController.checkTopupOrderStatus);

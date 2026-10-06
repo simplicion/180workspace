@@ -8,6 +8,8 @@ const router = express.Router();
 
 router.post('/sessions', optionalAuth, CheckoutApiController.createCheckoutSession);
 router.get('/sessions/:id', CheckoutApiController.getCheckoutSession);
+router.get('/methods', CheckoutApiController.getPaymentMethods);
+router.get('/sessions/:id/methods', CheckoutApiController.getPaymentMethods);
 router.post('/sessions/:id/pay', protect, CheckoutApiController.payCheckoutSession);
 router.post('/sessions/:id/direct-order', CheckoutApiController.createDirectOrder);
 router.post('/sessions/:id/direct-verify', CheckoutApiController.verifyDirectPayment);

@@ -763,5 +763,37 @@ export class CheckoutApiController {
       return res.status(200).json({ success: false, error: err.message });
     }
   }
+
+  /**
+   * GET /api/v1/checkout/methods
+   * GET /api/v1/checkout/sessions/:id/methods
+   * Fetches supported gateway payment methods and live banks dynamically from Razorpay/Stripe
+   */
+  static async getPaymentMethods(req: Request, res: Response) {
+    try {
+      const sessionId = req.params.id ? String(req.params.id) : undefined;
+      let app: any = null;
+      let currency = (req.query.currency as string) || 'INR';
+
+      if (sessionId && sessionId !== 'default') {
+        const session = await prisma.checkoutSession.findUnique({
+          where: { id: sessionId },
+          include: { app: true },
+        });
+        if (session) {
+          app = session.app;
+          currency = session.currency || currency;
+        }
+      }
+
+      const country = (req.query.country as string) || (req.headers['cf-ipcountry'] as string) || undefined;
+      const methods = await CheckoutService.getPaymentMethods(app, currency, country);
+
+      return res.json({ success: true, data: methods });
+    } catch (err: any) {
+      console.error('[CheckoutApiController:getPaymentMethods] Error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
 }
 

@@ -1,7 +1,7 @@
 'use strict';
 
 import { Request, Response } from 'express';
-import { IdentityWalletService } from '@workspace/payment-provider';
+import { IdentityWalletService, CheckoutService } from '@workspace/payment-provider';
 
 export class WalletApiController {
   /**
@@ -199,6 +199,21 @@ export class WalletApiController {
     } catch (err: any) {
       console.error('[WalletApiController:handleWebhook] Error:', err);
       return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /**
+   * GET /api/v1/wallet/methods
+   * Dynamic payment methods from live gateway
+   */
+  static async getPaymentMethods(req: Request, res: Response) {
+    try {
+      const currency = (req.query.currency as string) || 'INR';
+      const country = (req.query.country as string) || (req.headers['cf-ipcountry'] as string) || undefined;
+      const methods = await CheckoutService.getPaymentMethods(undefined, currency, country);
+      return res.json({ success: true, data: methods });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
     }
   }
 }
