@@ -270,6 +270,62 @@ class SocialApi {
     return CalendarPiece.fromJson(jMap(r['piece']));
   }
 
+  /// Scene-by-scene shooting script for one video piece (Shooting Script Director agent). Cached on the piece;
+  /// [force] regenerates it after the script changed.
+  Future<ProductionScript> generateShootingScript(String projectId, String pieceId, {bool force = false}) async {
+    final r = await _api.post(
+      '$base/projects/$projectId/autopilot/pieces/$pieceId/shooting-script',
+      body: {'force': force},
+      timeout: AppConfig.aiReceiveTimeout,
+    );
+    final script = ProductionScript.tryParse(r['productionScript']);
+    if (script == null) throw const FormatException('The server returned an empty shooting script');
+    return script;
+  }
+
+  // ── Platform Team (Command Center): craft tools, AI drafting and monitoring per platform ──────────────
+
+  /// `GET /platform-team/:platform/overview`: accounts, pipeline, queue craft scores, triaged inbox, live metrics.
+  Future<Json> platformOverview(String platform, String projectId) async =>
+      jMap((await _api.get('$base/platform-team/$platform/overview', query: {'projectId': projectId}))['data']);
+
+  /// Deterministic craft tools: `hooks/score`, `beat-sheet`, `copy/lint`, `thread`, `humanize`, `profile/audit`,
+  /// `outliers`, `comments/triage`, `posts/audit`.
+  Future<Json> platformTool(String platform, String tool, Json body) async =>
+      jMap((await _api.post('$base/platform-team/$platform/$tool', body: body))['data']);
+
+  /// AI tools (`draft`, `repurpose`). Throws AI_NOT_CONFIGURED (503) when the workspace has no AI key.
+  Future<Json> platformAi(String platform, String tool, Json body) async => jMap(
+      (await _api.post('$base/platform-team/$platform/$tool', body: body, timeout: AppConfig.aiReceiveTimeout))['data']);
+
+  /// Reads fresh per-post numbers from the platform, re-ranks the account's own posts. Provider calls can be slow.
+  Future<Json> refreshPostMetrics(String platform, String projectId, {bool force = false}) async => jMap((await _api.post(
+          '$base/platform-team/$platform/posts/refresh-metrics',
+          body: {'projectId': projectId, 'force': force},
+          timeout: AppConfig.aiReceiveTimeout))['data']);
+
+  /// Competitor radar: watched handles and the last stored scan (`supported` is false where no official API exists).
+  Future<Json> radar(String platform, String projectId) async =>
+      jMap((await _api.get('$base/platform-team/$platform/radar', query: {'projectId': projectId}))['data']);
+
+  Future<Json> setRadarHandles(String platform, String projectId, List<String> handles) async =>
+      jMap((await _api.put('$base/platform-team/$platform/radar', body: {'projectId': projectId, 'handles': handles}))['data']);
+
+  Future<Json> scanRadar(String platform, String projectId) async => jMap((await _api.post(
+          '$base/platform-team/$platform/radar/scan',
+          body: {'projectId': projectId},
+          timeout: AppConfig.aiReceiveTimeout))['data']);
+
+  /// AI reply drafts for one triaged inbox conversation. Drafts only; nothing is sent.
+  Future<Json> draftReplies(String platform, String projectId, String conversationId) async => jMap((await _api.post(
+          '$base/platform-team/$platform/replies/draft',
+          body: {'projectId': projectId, 'conversationId': conversationId},
+          timeout: AppConfig.aiReceiveTimeout))['data']);
+
+  /// AI calls and output-token ceiling for a calendar with these settings, before it runs.
+  Future<Json> estimateAutopilot(String projectId, {required int days, List<String>? platforms, Map<String, dynamic>? contentMix}) async =>
+      _api.post('$base/projects/$projectId/autopilot/estimate', body: {'days': days, 'platforms': ?platforms, 'contentMix': ?contentMix});
+
   /// Starts the multi-agent autopilot calendar (brand consciousness + research). 409 = one already running.
   Future<({String jobId, String calendarId})> startAutopilot(
     String projectId, {

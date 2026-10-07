@@ -466,3 +466,36 @@ test('capability matrix is truthful: unsupported formats are rejected, supported
         assert.equal(caps.canSchedule, true);
     }
 });
+
+test('X thread: opt-in split, each post replies to the previous one, media only on post 1, partial failure is reported', async () => {
+    const x = new XPublisher();
+    const long = Array.from({ length: 9 }, (_, i) => `Point ${i + 1}: flossing every single day changes how your gums respond within a week.`).join('\n\n');
+    const single = input({ platform: 'x', format: 'text', media: [], caption: long });
+    assert.match(x.validate(single).join(), /Post as thread/, 'over 280 without the opt-in is still rejected');
+
+    const thread = input({ platform: 'x', format: 'text', media: [], caption: long, platformMeta: { thread: true } });
+    assert.deepEqual(x.validate(thread), []);
+    let n = 0;
+    mock = new FetchMock((c) => (c.url.endsWith('/2/tweets') ? json(201, { data: { id: `T${++n}` } }) : undefined)).install();
+    const out = await x.publish(thread, 'tok');
+    const posts = mock.calls.filter((c) => c.url.endsWith('/2/tweets')).map((c) => c.body);
+    assert.ok(posts.length > 1);
+    assert.equal(out.externalId, 'T1');
+    assert.equal(out.meta!.threadIds.length, posts.length);
+    assert.equal(posts[0].reply, undefined);
+    posts.slice(1).forEach((p, i) => assert.equal(p.reply.in_reply_to_tweet_id, `T${i + 1}`));
+    assert.match(posts[0].text, new RegExp(` 1/${posts.length}$`));
+    assert.equal(out.warning, undefined);
+    mock.restore();
+
+    n = 0;
+    mock = new FetchMock((c) => (c.url.endsWith('/2/tweets') ? (++n === 2 ? json(500, { detail: 'boom' }) : json(201, { data: { id: `T${n}` } })) : undefined)).install();
+    const partial = await x.publish(thread, 'tok');
+    assert.equal(partial.state, 'published');
+    assert.match(partial.warning!, /Published 1 of \d+ thread posts; post 2 failed/);
+    mock.restore();
+
+    const explicit = input({ platform: 'x', format: 'text', media: [], caption: 'ignored', platformMeta: { thread: ['first', 'x'.repeat(300)] } });
+    assert.match(x.validate(explicit).join(), /thread post 2 is over 280/);
+    assert.match(x.validate(input({ platform: 'x', format: 'text', media: [], caption: 'word '.repeat(2000), platformMeta: { thread: true } })).join(), /limited to 25 posts/);
+});

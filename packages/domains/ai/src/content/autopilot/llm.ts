@@ -41,7 +41,7 @@ export class AutopilotError extends Error {
 }
 
 /** Which agent is calling; used to pick a model and to attribute token usage. */
-export type AgentRole = 'research' | 'strategist' | 'hook_script' | 'copy' | 'critic' | 'regenerate';
+export type AgentRole = 'research' | 'strategist' | 'hook_script' | 'hook_lab' | 'copy' | 'craft' | 'critic' | 'regenerate' | 'production_script' | 'platform_draft' | 'repurpose';
 
 export interface LlmUsage {
     inputTokens: number;

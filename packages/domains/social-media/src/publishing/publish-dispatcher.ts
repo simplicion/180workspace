@@ -447,6 +447,8 @@ export class PublishDispatcher {
                     // For `processing` variants the lease doubles as "next status check at".
                     publishLeaseUntil: outcome.state === 'processing' ? new Date(timing.now() + intEnv('SOCIAL_PROCESSING_RECHECK_MS', 60_000)) : null,
                     socialAccountId: accDbId,
+                    // Provider ids the publisher produced (e.g. every post of an X thread), kept for metrics and support.
+                    ...(outcome.meta && Object.keys(outcome.meta).length ? { platformMeta: { ...asObj(variant.platformMeta), publishResult: outcome.meta } } : {}),
                 },
             });
             await db.socialPublishAttempt.update({

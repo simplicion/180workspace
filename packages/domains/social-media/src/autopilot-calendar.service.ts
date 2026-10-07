@@ -25,13 +25,18 @@ import {
     composeCaption,
     createCompanyAutopilotLLM,
     createWebSearchProviderFromEnv,
+    estimateAutopilotBudget,
     expandAutopilotFields,
     isValidTimeZone,
     normalizePlatforms,
     pieceToRow,
+    priceUsage,
+    readAutopilotPayload,
     regenerateAutopilotPiece,
     rowToPiece,
     runAutopilotPipeline,
+    runProductionScriptAgent,
+    UsageMeter,
 } from '@workspace/ai/content/autopilot';
 // Deep import on purpose: the autopilot module only needs the AI kernel, not the whole @workspace/ai index
 // (which boots Redis-backed memory services on load).
@@ -86,7 +91,7 @@ const X_TO_ACCOUNT_PLATFORM: Record<AutopilotPlatform, string> = {
 };
 const MEDIA_TYPE: Record<string, string> = { reel: 'video', carousel: 'carousel', static: 'image', text: 'text' };
 
-async function defaultLoadBrand(projectId: string, companyId: string) {
+export async function defaultLoadBrand(projectId: string, companyId: string) {
     const mod: any = SocialProjectModule;
     const svc = mod.SocialProjectService;
     const profile = await svc.getProjectBrandConsciousness(projectId, companyId);
@@ -353,7 +358,8 @@ export class AutopilotCalendarService {
             auto.draftsCreated = draftsCreated;
             auto.strategy = result.strategy;
             auto.research = result.research;
-            auto.usage = result.usage;
+            // Token usage per agent, plus money when the operator configured prices (never an assumed rate).
+            auto.usage = { ...result.usage, cost: priceUsage(result.usage) };
             await persist({
                 status: 'active',
                 totalPieces: result.pieces.length,
@@ -441,6 +447,38 @@ export class AutopilotCalendarService {
         };
     }
 
+    /**
+     * AI calls and output-token ceiling for a calendar with these settings, per agent, before anything runs.
+     * Needs no AI key. Uses the same caps the run passes to the model.
+     */
+    async estimate(params: { companyId: string; projectId: string; body: StartAutopilotBody }) {
+        const { db } = this.deps;
+        const { companyId, projectId } = params;
+        const body = params.body || {};
+        await loadProject(db, projectId, companyId);
+        const days = Number(body.days);
+        if (![7, 14, 30].includes(days)) throw new AutopilotError('INVALID_INPUT', 'days must be 7, 14 or 30');
+        let platforms: AutopilotPlatform[];
+        if (Array.isArray(body.platforms)) {
+            platforms = normalizePlatforms(body.platforms);
+        } else {
+            const brand = await this.deps.loadBrand(projectId, companyId);
+            const accounts = await db.socialAccount.findMany({ where: { companyId, projectId, isActive: true } });
+            platforms = normalizePlatforms([...(brand.profile?.targetPlatforms || []), ...accounts.map((a: any) => a.platform)]);
+        }
+        if (!platforms.length) throw new AutopilotError('INVALID_INPUT', 'No target platforms: pass platforms or set target platforms on the project');
+        let contentMix: ContentMixConfig | undefined;
+        if (body.contentMix && typeof body.contentMix === 'object') {
+            const parsed = ContentMixConfigSchema.safeParse(body.contentMix);
+            if (!parsed.success) throw new AutopilotError('INVALID_INPUT', `contentMix: ${parsed.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`);
+            contentMix = parsed.data;
+        }
+        const budget = estimateAutopilotBudget({ days, platforms, contentMix, researchEnabled: !!this.deps.search });
+        // Typical input size is not knowable up front, so money is only quoted for the output ceiling.
+        const ceiling = priceUsage({ inputTokens: 0, outputTokens: budget.maxOutputTokens });
+        return { budget, platforms, outputCeilingUsd: ceiling ? ceiling.outputUsd : null, pricesConfigured: !!ceiling };
+    }
+
     async regeneratePiece(params: { companyId: string; projectId: string; pieceId: string; instruction: unknown }) {
         const { db } = this.deps;
         const { companyId, projectId, pieceId } = params;
@@ -482,6 +520,41 @@ export class AutopilotCalendarService {
         this.deps.log('autopilot_piece_regenerated', { companyId, pieceId, usage });
         const updated = await db.calendarContentPiece.findFirst({ where: { id: pieceId, companyId } });
         return { piece: expandAutopilotFields({ ...updated, _id: updated.id }), usage };
+    }
+
+    /**
+     * Scene-by-scene shooting script for one video piece (Shooting Script Director agent). Generated once and
+     * stored on the piece; pass force to regenerate after the script changed.
+     */
+    async generateShootingScript(params: { companyId: string; projectId: string; pieceId: string; force?: boolean }) {
+        const { db } = this.deps;
+        const { companyId, projectId, pieceId } = params;
+        const project = await loadProject(db, projectId, companyId);
+        const row = await db.calendarContentPiece.findFirst({ where: { id: pieceId, companyId } });
+        if (!row) throw new AutopilotError('NOT_FOUND', 'Piece not found');
+        const calendar = await db.contentCalendar.findFirst({ where: { id: row.calendarId, companyId, projectId } });
+        if (!calendar) throw new AutopilotError('NOT_FOUND', 'Piece not found');
+        const payload = readAutopilotPayload(row);
+        const piece = rowToPiece(row);
+        if (!payload || !piece) throw new AutopilotError('INVALID_INPUT', 'Only pieces created by autopilot have a shooting script');
+        if (payload.productionScript && !params.force) return { productionScript: payload.productionScript, cached: true };
+
+        const llm = await this.deps.createLLM(companyId);
+        const brand = await this.deps.loadBrand(projectId, companyId);
+        const meter = new UsageMeter();
+        const productionScript = await runProductionScriptAgent({
+            llm,
+            brand: buildBrandContext(brand.profile, { brandName: project.name, industry: brand.profile?.industry || project.description || undefined, promptContext: brand.promptContext }),
+            piece,
+            meter,
+            log: this.deps.log,
+        });
+        await db.calendarContentPiece.updateMany({
+            where: { id: pieceId, companyId },
+            data: { videoScriptOrHooks: JSON.stringify({ ...payload, productionScript }) },
+        });
+        this.deps.log('autopilot_shooting_script', { companyId, pieceId, usage: meter.totals() });
+        return { productionScript, cached: false, usage: meter.totals() };
     }
 }
 

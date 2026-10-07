@@ -311,6 +311,15 @@ export default function SocialProjectsListPage() {
                                         </button>
 
                                         <Link
+                                            href={`/social-projects/${project.id}/command-center`}
+                                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl transition"
+                                            title="Monitor, create and check for every platform"
+                                        >
+                                            <Sparkles className="w-3.5 h-3.5" />
+                                            <span>Command Center</span>
+                                        </Link>
+
+                                        <Link
                                             href={`/media-editor?project=${project.id}`}
                                             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl shadow-md shadow-indigo-600/20 transition active:scale-95"
                                             title="Open in 180 Media Studio"

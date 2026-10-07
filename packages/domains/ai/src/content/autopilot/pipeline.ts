@@ -20,19 +20,21 @@ import {
     AutopilotPlatform, PSYCHOLOGICAL_JOBS, DESIGN_SYSTEMS, PsychologicalJob, DesignSystem,
 } from './schemas';
 import type { AutopilotBrandContext, AutopilotPiece, AutopilotRunInput, AutopilotRunResult, PieceCopy, ProgressFn } from './types';
-import { ViralScoutAgent } from './agents/viral-scout.agent';
-import { ScriptTeleprompterAgent } from './agents/script-teleprompter.agent';
-import { HumanizerVoiceAgent } from './agents/humanizer-voice.agent';
+import { platformPlaybookPrompt } from '../craft/platform-specs';
+import { AGENT_TOKEN_CAPS } from './budget';
+import { runHookLabAgent } from './agents/hook-lab.agent';
+import { runPlatformCraftAgent } from './agents/platform-craft.agent';
+import { attachCraftReport, runVoiceGuard } from './agents/voice-guard.agent';
 
 /** Output caps per call; they bound cost even if a model rambles. */
 export const TOKEN_CAPS = {
-    strategistBase: 1500,
-    strategistPerSlot: 110,
-    strategistMax: 9000,
-    hookPerSlot: 650,
-    hookMax: 8000,
-    copyPerPlatformCopy: 260,
-    copyMax: 8000,
+    strategistBase: AGENT_TOKEN_CAPS.strategistBase,
+    strategistPerSlot: AGENT_TOKEN_CAPS.strategistPerSlot,
+    strategistMax: AGENT_TOKEN_CAPS.strategistMax,
+    hookPerSlot: AGENT_TOKEN_CAPS.hookPerSlot,
+    hookMax: AGENT_TOKEN_CAPS.hookMax,
+    copyPerPlatformCopy: AGENT_TOKEN_CAPS.copyPerPlatformCopy,
+    copyMax: AGENT_TOKEN_CAPS.copyMax,
 };
 
 export interface PipelineDeps {
@@ -260,7 +262,7 @@ async function runHookScriptBatch(slots: WorkingSlot[], input: AutopilotRunInput
     const resultMap = new Map<string, HookScriptItem>();
 
     // Chunk slots into mini-batches of at most 4 slots to prevent LLM token limits and JSON truncation
-    const CHUNK_SIZE = 4;
+    const CHUNK_SIZE = AGENT_TOKEN_CAPS.hookChunk;
     const chunks: WorkingSlot[][] = [];
     for (let i = 0; i < slots.length; i += CHUNK_SIZE) {
         chunks.push(slots.slice(i, i + CHUNK_SIZE));
@@ -272,7 +274,7 @@ async function runHookScriptBatch(slots: WorkingSlot[], input: AutopilotRunInput
             role: instruction ? 'regenerate' : 'hook_script',
             meter,
             log: deps.log,
-            maxTokens: Math.min(TOKEN_CAPS.hookMax, 800 + chunk.length * TOKEN_CAPS.hookPerSlot),
+            maxTokens: Math.min(TOKEN_CAPS.hookMax, AGENT_TOKEN_CAPS.hookBase + chunk.length * TOKEN_CAPS.hookPerSlot),
             schema: HookScriptBatchSchema,
             system: 'You are a short-form video scriptwriter and hook specialist. You write words people actually say on camera.',
             prompt: [
@@ -282,6 +284,8 @@ async function runHookScriptBatch(slots: WorkingSlot[], input: AutopilotRunInput
                 '',
                 'Hook types:',
                 ...HOOK_TYPES.map((h) => `- ${h}: ${HOOK_GUIDE[h]}`),
+                '',
+                platformPlaybookPrompt(input.platforms),
                 '',
                 'For EVERY slot below write:',
                 '- headline (internal title), spokenHook (the first words said on camera, max 12 words, under 3 seconds), onScreenHook (text overlay, max 8 words).',
@@ -324,7 +328,7 @@ async function runHookScriptBatch(slots: WorkingSlot[], input: AutopilotRunInput
 // ------------------------------------------------------------------ copy
 
 async function runCopyBatch(pieces: AutopilotPiece[], input: AutopilotRunInput, deps: PipelineDeps, meter: UsageMeter, instruction?: string): Promise<void> {
-    const CHUNK_SIZE = 5;
+    const CHUNK_SIZE = AGENT_TOKEN_CAPS.copyChunk;
     const chunks: AutopilotPiece[][] = [];
     for (let i = 0; i < pieces.length; i += CHUNK_SIZE) {
         chunks.push(pieces.slice(i, i + CHUNK_SIZE));
@@ -338,7 +342,7 @@ async function runCopyBatch(pieces: AutopilotPiece[], input: AutopilotRunInput, 
             role: instruction ? 'regenerate' : 'copy',
             meter,
             log: deps.log,
-            maxTokens: Math.min(TOKEN_CAPS.copyMax, 500 + copies * TOKEN_CAPS.copyPerPlatformCopy),
+            maxTokens: Math.min(TOKEN_CAPS.copyMax, AGENT_TOKEN_CAPS.copyBase + copies * TOKEN_CAPS.copyPerPlatformCopy),
             schema: CopyBatchSchema,
             system: 'You are a social media copywriter. Each platform gets copy written for how people use that platform.',
             prompt: [
@@ -347,6 +351,8 @@ async function runCopyBatch(pieces: AutopilotPiece[], input: AutopilotRunInput, 
                 `Timezone for posting times: ${input.timezone}. Pick the best local time (HH:mm, 24h) for each platform and audience.`,
                 'Platform rules (caption length includes hashtags):',
                 ...input.platforms.map((p) => `- ${p}: max ${PLATFORM_RULES[p].maxCaptionChars} chars, max ${PLATFORM_RULES[p].maxHashtags} hashtags`),
+                platformPlaybookPrompt(input.platforms),
+                'Never invent statistics, prices, client results or personal stories; use only facts from the brand context and the piece.',
                 `Brand hashtags to include where they fit: ${input.brand.defaultHashtags.join(' ') || '(none)'}. Add topical, specific hashtags (no generic #love #instagood).`,
                 input.brand.standardCtas.length ? `Preferred CTAs: ${input.brand.standardCtas.join(' | ')}` : '',
                 input.brand.forbiddenWords.length ? `Never use: ${input.brand.forbiddenWords.join(', ')}` : '',
@@ -391,28 +397,6 @@ async function runCopyBatch(pieces: AutopilotPiece[], input: AutopilotRunInput, 
 function buildPiece(slot: WorkingSlot, hs: HookScriptItem, input: AutopilotRunInput, research: ResearchOutcome): AutopilotPiece {
     const sources = new Set<string>(slot.sourceUrls || []);
 
-    // Agent 5: Viral Scout hook evaluation & formula tagging
-    const scout = ViralScoutAgent.evaluateAndElevateHook(hs.spokenHook, slot.topic);
-
-    // Agent 6: Script Teleprompter & Beat Sheet Director (165 WPM pacing)
-    let timedBeats: any[] | undefined = undefined;
-    let teleprompterScript: string | undefined = undefined;
-    if (slot.format === 'reel' && hs.script) {
-        const directed = ScriptTeleprompterAgent.directScript({
-            hook: scout.rawHook,
-            onScreenHook: hs.onScreenHook,
-            bodyBeats: hs.script.body,
-            retentionLoop: hs.script.retentionLoop,
-            cta: hs.script.cta,
-            shotNotes: hs.shotNotes,
-        });
-        timedBeats = directed.beats;
-        teleprompterScript = directed.teleprompterText;
-    }
-
-    // Agent 8: Humanizer voice guard
-    const humanCheck = HumanizerVoiceAgent.auditAndClean(scout.rawHook);
-
     return {
         slotId: slot.slotId,
         day: slot.day,
@@ -430,7 +414,7 @@ function buildPiece(slot: WorkingSlot, hs: HookScriptItem, input: AutopilotRunIn
         designSystem: slot.designSystem || (hs as any).designSystem || hs.carouselBrief?.designSystem,
         visualDirection: slot.visualDirection || (hs as any).visualDirection || hs.visualBrief || hs.script?.visualDirection || hs.carouselBrief?.visualDirection,
         whatContentDelivers: slot.whatContentDelivers || (hs as any).whatContentDelivers || hs.script?.whatContentDelivers || hs.carouselBrief?.whatContentDelivers,
-        spokenHook: scout.rawHook,
+        spokenHook: hs.spokenHook,
         onScreenHook: hs.onScreenHook,
         script: slot.format === 'reel' ? hs.script : undefined,
         shotNotes: slot.format === 'reel' ? hs.shotNotes : undefined,
@@ -441,11 +425,6 @@ function buildPiece(slot: WorkingSlot, hs: HookScriptItem, input: AutopilotRunIn
         sources: research.researchUsed ? Array.from(sources) : [],
         critic: { verdict: 'ok', issues: [] },
         status: 'ready',
-        hookScore: scout.evaluation.totalScore,
-        hookFormula: scout.formulaName,
-        teleprompterScript,
-        timedBeats,
-        humanScore: humanCheck.humanScore,
     };
 }
 
@@ -523,26 +502,41 @@ export async function runAutopilotPipeline(input: AutopilotRunInput, deps: Pipel
     const hookMaps = await mapLimit(weeks, concurrency, async (week) => {
         const m = await runHookScriptBatch(week, input, strategy, deps, meter);
         done += 1;
-        await progress('hooks_scripts', 25 + Math.round((done / weeks.length) * 30), `SOP writer agent: hooks, scripts and carousel slides, week ${done}/${weeks.length}`);
+        await progress('hooks_scripts', 25 + Math.round((done / weeks.length) * 28), `SOP writer agent: hooks, scripts and carousel slides, week ${done}/${weeks.length}`);
         return m;
     });
     const pieces: AutopilotPiece[] = [];
     weeks.forEach((week, i) => week.forEach((slot) => pieces.push(buildPiece(slot, hookMaps[i].get(slot.slotId)!, input, research))));
 
-    // 4. Copy per week
+    // 4. Hook Lab: score every hook, rewrite the weak ones
+    await progress('hook_lab', 56, 'Hook Lab agent: scoring every hook against proven formulas');
+    const hookLab = await runHookLabAgent({ llm: deps.llm, brand: input.brand, pieces, meter, log: deps.log });
+    emit('ToolCompleted', { tool: 'hook_lab', ...hookLab });
+
+    // 5. Copy per week
     const pieceWeeks = groupByWeek(pieces);
     done = 0;
     await mapLimit(pieceWeeks, concurrency, async (week) => {
         await runCopyBatch(week, input, deps, meter);
         done += 1;
-        await progress('copy', 55 + Math.round((done / pieceWeeks.length) * 25), `SOP writer agent: captions per platform, week ${done}/${pieceWeeks.length}`);
+        await progress('copy', 58 + Math.round((done / pieceWeeks.length) * 16), `SOP writer agent: captions per platform, week ${done}/${pieceWeeks.length}`);
     });
 
-    // 5. Critic
-    await progress('critic', 82, 'Quality-control agent: brand words, claims, duplicates and SOP checks');
+    // 6. Platform Craft: per-platform feed rules, one rewrite pass for copies that break them
+    await progress('craft', 76, 'Platform Craft agent: feed fold, hashtags, links and one clear ask per platform');
+    const craft = await runPlatformCraftAgent({ llm: deps.llm, brand: input.brand, pieces, meter, log: deps.log });
+    emit('ToolCompleted', { tool: 'platform_craft', ...craft });
+
+    // 7. Voice Guard (deterministic): strip machine fingerprints before the brand review
+    const voice = runVoiceGuard(pieces);
+    emit('ToolCompleted', { tool: 'voice_guard', ...voice });
+
+    // 8. Critic
+    await progress('critic', 84, 'Quality-control agent: brand words, claims, duplicates and SOP checks');
     emit('CriticStarted', { pieces: pieces.length });
     await mapLimit(pieceWeeks, concurrency, (week) => runCriticAgent({ llm: deps.llm, brand: input.brand, pieces: week, meter }));
     enforceBrandRules(pieces, input.brand);
+    attachCraftReport(pieces);
     emit('CriticCompleted', { pieces: pieces.length, needsReview: pieces.filter((p) => p.status === 'needs_review').length, fixed: pieces.filter((p) => p.critic.verdict === 'fixed').length });
 
     const usage = meter.totals();
@@ -579,8 +573,12 @@ export async function regenerateAutopilotPiece(params: {
     const hs = (await runHookScriptBatch([slot], input, strategy, deps, meter, text)).get(slot.slotId)!;
     const next = buildPiece(slot, hs, input, { researchUsed: piece.sources.length > 0 });
     next.date = piece.date;
+    await runHookLabAgent({ llm: deps.llm, brand: input.brand, pieces: [next], meter, log: deps.log });
     await runCopyBatch([next], input, deps, meter, text);
+    await runPlatformCraftAgent({ llm: deps.llm, brand: input.brand, pieces: [next], meter, log: deps.log });
+    runVoiceGuard([next]);
     await runCriticAgent({ llm: deps.llm, brand: input.brand, pieces: [next], meter });
     enforceBrandRules([next], input.brand);
+    attachCraftReport([next]);
     return { piece: next, usage: meter.totals() };
 }

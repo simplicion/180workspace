@@ -7,7 +7,7 @@
  * things a reviewer should still fix. Stock AI words are flagged, never silently swapped, so the copy stays the
  * writer's own.
  */
-import { buildTimedBeats, reviewPieceCraft } from '../../craft/craft-review';
+import { buildTimedBeats, CraftPieceInput, reviewPieceCraft } from '../../craft/craft-review';
 import { toCraftPlatform } from '../../craft/platform-specs';
 import { TextHumanizer } from '../../craft/text-humanizer';
 import type { AutopilotPiece } from '../types';
@@ -48,7 +48,7 @@ export function attachCraftReport(pieces: AutopilotPiece[]): void {
             platforms: p.platforms,
             spokenHook: p.spokenHook,
             onScreenHook: p.onScreenHook,
-            script: p.script,
+            script: p.script as CraftPieceInput['script'],
             captions: p.captions,
             targetDurationSec: p.script?.estimatedDurationSec,
         });
@@ -57,7 +57,7 @@ export function attachCraftReport(pieces: AutopilotPiece[]): void {
         p.humanScore = report.voice?.overallScore;
         p.craft = { score: report.score, blocking: report.blocking, advice: report.advice.slice(0, 12) };
         if (p.format === 'reel' && p.script) {
-            const timed = buildTimedBeats(p.script, {
+            const timed = buildTimedBeats(p.script as NonNullable<CraftPieceInput['script']>, {
                 spokenHook: p.spokenHook,
                 onScreenHook: p.onScreenHook,
                 platform: toCraftPlatform(p.primaryPlatform) || undefined,

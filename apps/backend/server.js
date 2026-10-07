@@ -351,6 +351,8 @@ async function bootstrap() {
                     const { SocialPublishScheduler, assertTokenVaultConfigured } = require('@workspace/social-media');
                     try { assertTokenVaultConfigured(); } catch (keyErr) { console.error(`❌ [SocialPublishScheduler] ${keyErr.message} Scheduled posts will fail until it is set.`); }
                     SocialPublishScheduler.start();
+                    // Per-post metrics for outlier ranking and the strategist's memory (SOCIAL_POST_METRICS_ENABLED=false to disable).
+                    require('@workspace/social-media').PostMetricsScheduler.start();
                 } catch (spErr) {
                     console.warn('⚠️ [Bootstrap] Social publish scheduler failed to start:', spErr.message);
                 }

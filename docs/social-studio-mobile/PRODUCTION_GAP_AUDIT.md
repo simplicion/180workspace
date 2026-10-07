@@ -767,3 +767,28 @@ SRT/VTT export. Captions never get emoji; no paid STT added (owner rule). Open: 
 support for the new motions, transcript correction UI, SRT/VTT export, a device run with a Hindi clip.
 Known unrelated failure: 4 lock-screen tests (`access_lock_test.dart`, `navigation_test.dart`) overflow in the
 uncommitted `feature_lock_view.dart`.
+
+## Platform Team + 8-agent calendar (2026-10-07, uncommitted)
+Details: `PLATFORM_TEAM.md`. Commit `828b81cc` (another tool) shipped an Instagram crew whose agents returned
+stock text (fixed "$18,000 ... cost me" hooks swapped into calendar pieces, canned scripts, replies and
+competitor data, default hook score 88 on mobile). That code is removed and replaced:
+- Craft kit `packages/domains/ai/src/content/craft/` (deterministic linters for Instagram, LinkedIn, YouTube, X,
+  Facebook, TikTok; MIT notice kept).
+- Calendar pipeline is now 8 agents (adds Hook Lab, Platform Craft, Voice Guard) plus the on-demand Shooting
+  Script Director (`POST .../pieces/:pieceId/shooting-script`).
+- `/api/v1/social-media/platform-team/:platform/*` replaces `/instagram/*`.
+- Mobile: Command Center (`/command-center`), detailed script screen (`/planner/script`).
+Verified: ai + social-media typecheck clean and rebuilt; 17 craft/agent tests, 7 platform-team tests, 17 autopilot
+tests, 23 route tests; `flutter analyze` clean; 9 new Flutter tests pass. The 4 lock-screen tests still fail
+(known, `feature_lock_view.dart` overflow). Open items are listed in `PLATFORM_TEAM.md` section 6.
+
+### Platform Team follow-up (2026-10-07, uncommitted)
+All six open items from the first pass are implemented; see `PLATFORM_TEAM.md` section 5. Own-post metrics are
+read from each platform and stored on the variant, ranked automatically and fed to the strategist's memory
+(background refresh every 3 h); competitor radar uses official APIs only (Instagram, YouTube, X); triaged
+messages get AI reply drafts; X publishes real threads; calendar runs have a pre-run estimate, stored per-agent
+usage and optional pricing; the web app has a Command Center per project. Verified with fakes only: 146 backend
+tests in the related suites (144 pass; the 2 others are an environment-dependent Instagram credential check and a
+cross-file ordering issue that passes when run alone), `flutter analyze` clean, 231 Flutter tests pass (the 4
+lock-screen failures are the known ones), web typecheck adds no errors. Live-API checks are listed in
+`PLATFORM_TEAM.md` section 7.

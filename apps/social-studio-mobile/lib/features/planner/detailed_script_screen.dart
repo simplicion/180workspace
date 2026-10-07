@@ -1,668 +1,364 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/universal_skeleton.dart';
 import '../../data/models/autopilot.dart';
 import '../../data/models/content_calendar.dart';
 
-/// Detailed script & 165 WPM beat sheet screen for short-form video creators.
-/// Displays hook tension score, timed beat sheet, retention loopback, and
-/// connects directly into the Studio Teleprompter Camera.
-class DetailedScriptScreen extends StatefulWidget {
-  const DetailedScriptScreen({
-    super.key,
-    required this.piece,
-    this.calendar,
-  });
+/// Full script for one calendar video piece.
+///
+/// "Script" shows every spoken line with its timecode and pacing warnings (timing is computed from the words).
+/// "Shooting script" is the scene-by-scene plan from the Shooting Script Director agent: shot, framing, action,
+/// B-roll and edit cue per scene. It is generated on demand and never changes the spoken words.
+class DetailedScriptScreen extends ConsumerStatefulWidget {
+  const DetailedScriptScreen({super.key, required this.piece, this.calendar});
 
   final CalendarPiece piece;
   final ContentCalendar? calendar;
 
   @override
-  State<DetailedScriptScreen> createState() => _DetailedScriptScreenState();
+  ConsumerState<DetailedScriptScreen> createState() => _DetailedScriptScreenState();
 }
 
-class _DetailedScriptScreenState extends State<DetailedScriptScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _DetailedScriptScreenState extends ConsumerState<DetailedScriptScreen> with SingleTickerProviderStateMixin {
+  late final _tabs = TabController(length: 2, vsync: this);
+  late final PieceBrief? _brief = PieceBrief.parse(widget.piece.videoScriptOrHooks);
+  late ProductionScript? _shooting = _brief?.productionScript;
+  bool _generating = false;
+  Object? _error;
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
+  String? get _projectId => widget.calendar?.projectId;
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabs.dispose();
     super.dispose();
   }
 
-  void _copyFullScript(PieceBrief brief) {
-    Clipboard.setData(ClipboardData(text: brief.teleprompterText));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Teleprompter script copied to clipboard!'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _generate({bool force = false}) async {
+    final projectId = _projectId;
+    if (projectId == null || _generating) return;
+    setState(() {
+      _generating = true;
+      _error = null;
+    });
+    try {
+      final script = await ref.read(socialApiProvider).generateShootingScript(projectId, widget.piece.id, force: force);
+      if (!mounted) return;
+      setState(() => _shooting = script);
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
   }
 
-  void _launchTeleprompterCamera(PieceBrief brief) {
-    context.push('/camera', extra: {
-      'hook': brief.openingHook ?? widget.piece.headline,
-      'script': brief.teleprompterText,
-      'projectId': widget.calendar?.projectId,
-      'pieceId': widget.piece.id,
-    });
+  void _copy(String text, String what) {
+    Clipboard.setData(ClipboardData(text: text));
+    showSuccess(context, '$what copied');
   }
+
+  void _record(PieceBrief brief) => context.push('/camera', extra: {
+        'hook': brief.openingHook ?? widget.piece.headline,
+        'script': brief.teleprompterText,
+        'projectId': _projectId,
+        'pieceId': widget.piece.id,
+      });
 
   @override
   Widget build(BuildContext context) {
-    final brief = PieceBrief.parse(widget.piece.videoScriptOrHooks) ??
-        PieceBrief(
-          spokenHook: widget.piece.headline,
-          cta: widget.piece.callToAction,
-        );
-
-    final beats = brief.timedBeats;
-    final hookScore = brief.hookScore ?? 85;
-    final hookFormula = brief.hookFormula ?? 'Curiosity Gap Challenge';
-    final humanScore = brief.humanScore ?? 95;
-    final estDuration = brief.durationSec ?? (beats.isNotEmpty ? (beats.last.startSec + beats.last.durationSec).round() : 30);
-
+    final brief = _brief;
+    if (brief == null || brief.timedBeats.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: Text('Detailed script')),
+        body: EmptyView(
+          icon: Icons.description_outlined,
+          title: 'No script on this piece yet',
+          message: 'Scripts are written for video pieces. Use "AI Autopilot Rewrite" on the piece to have one written.',
+          actionLabel: 'Back to the calendar',
+          onAction: () => context.pop(),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detailed Script Studio'),
+        title: Text('Detailed script'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.copy_all_rounded),
-            tooltip: 'Copy Script',
-            onPressed: () => _copyFullScript(brief),
-          ),
-          IconButton(
-            icon: Icon(Icons.videocam_rounded, color: AppTheme.accent),
-            tooltip: 'Record with Teleprompter',
-            onPressed: () => _launchTeleprompterCamera(brief),
+            tooltip: 'Copy the spoken script',
+            icon: Icon(Icons.copy_rounded),
+            onPressed: () => _copy(brief.teleprompterText, 'Script'),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppTheme.accent,
-          tabs: const [
-            Tab(icon: Icon(Icons.speed_rounded, size: 18), text: '165 WPM Beats'),
-            Tab(icon: Icon(Icons.share_rounded, size: 18), text: '5-Platform Matrix'),
-          ],
-        ),
+        bottom: TabBar(controller: _tabs, tabs: const [Tab(text: 'Script'), Tab(text: 'Shooting script')]),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildBeatsTab(context, brief, beats, hookScore, hookFormula, humanScore, estDuration),
-          _buildPlatformMatrixTab(context, brief),
-        ],
-      ),
+      body: TabBarView(controller: _tabs, children: [_scriptTab(brief), _shootingTab(brief)]),
       bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceElevated,
-            border: Border(top: BorderSide(color: AppTheme.border.withValues(alpha: 0.6))),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _copyFullScript(brief),
-                  icon: const Icon(Icons.copy_rounded, size: 18),
-                  label: const Text('Copy Script'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () => _launchTeleprompterCamera(brief),
-                  icon: const Icon(Icons.videocam_rounded, size: 20),
-                  label: const Text(
-                    'Record with Teleprompter',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        minimum: EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: FilledButton.icon(
+          style: FilledButton.styleFrom(minimumSize: Size.fromHeight(48)),
+          onPressed: () => _record(brief),
+          icon: Icon(Icons.videocam_rounded),
+          label: Text('Record with teleprompter'),
         ),
       ),
     );
   }
 
-  Widget _buildBeatsTab(
-    BuildContext context,
-    PieceBrief brief,
-    List<TimedBeatModel> beats,
-    int hookScore,
-    String hookFormula,
-    int humanScore,
-    int estDuration,
-  ) {
+  // ── Script tab ─────────────────────────────────────────────────────────────
+
+  Widget _scriptTab(PieceBrief brief) {
+    final flagged = brief.timedBeats.where((b) => b.flags.isNotEmpty).length;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
-        // Headline
-        Text(
-          widget.piece.headline.isEmpty ? 'Short-Form Video Master Script' : widget.piece.headline,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-
-        // Metrics Row
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricTile(
-                icon: Icons.flash_on_rounded,
-                color: AppTheme.accent,
-                title: 'Hook Score',
-                value: '$hookScore/100',
-                subtitle: hookScore >= 80 ? 'Viral Potential' : 'Solid Retention',
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildMetricTile(
-                icon: Icons.timer_outlined,
-                color: AppTheme.primary,
-                title: 'Duration',
-                value: '${estDuration}s',
-                subtitle: '165 WPM Pace',
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildMetricTile(
-                icon: Icons.verified_user_outlined,
-                color: AppTheme.success,
-                title: 'Voice Guard',
-                value: '$humanScore%',
-                subtitle: 'De-robotized',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        // Formula badge
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Hook Formula: $hookFormula',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primary,
-                  ),
-                ),
-              ),
-              StatusChip(label: '< 3.0s Target', color: AppTheme.accent),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Section: Cold Open Hook
-        _buildSectionHeader('Cold Open Hook (First 3 Seconds)', Icons.record_voice_over_rounded),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceElevated,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.accent.withValues(alpha: 0.4), width: 1.5),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accent.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'SPOKEN HOOK',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.accent,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text('0:00.0 - 0:02.8', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                '“${brief.openingHook ?? widget.piece.headline}”',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  fontStyle: FontStyle.italic,
-                  height: 1.35,
-                ),
-              ),
-              if (brief.onScreenHook?.isNotEmpty == true) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black45,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppTheme.border),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.subtitles_rounded, size: 14, color: AppTheme.accentBlue),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'On-Screen Text: ${brief.onScreenHook}',
-                          style: const TextStyle(fontSize: 12, color: Colors.white70),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Section: Timed Beat-by-Beat Script
-        _buildSectionHeader('Timed Beat-by-Beat Delivery (165 WPM)', Icons.queue_music_rounded),
-        const SizedBox(height: 8),
-        for (final beat in beats) ...[
-          _buildBeatCard(beat),
-          const SizedBox(height: 10),
+        Text(widget.piece.headline, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+        SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          _Stat(label: 'Spoken length', value: '${brief.spokenSeconds.toStringAsFixed(0)}s'),
+          _Stat(label: 'Lines', value: '${brief.timedBeats.length}'),
+          if (brief.hookScore case final s?) _Stat(label: 'Hook score', value: '$s/100', color: _scoreColor(s)),
+          if (brief.humanScore case final s?) _Stat(label: 'Human voice', value: '$s/100', color: _scoreColor(s)),
+          if (brief.craftScore case final s?) _Stat(label: 'Craft score', value: '$s/100', color: _scoreColor(s)),
+        ]),
+        if (brief.hookFormula case final f?) ...[
+          SizedBox(height: 8),
+          Text('Hook shape: $f', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
         ],
-
-        if (brief.retentionLoop?.isNotEmpty == true) ...[
-          const SizedBox(height: 14),
-          _buildSectionHeader('Retention Loopback (Infinite Watch-Time Bridge)', Icons.loop_rounded),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.all_inclusive_rounded, size: 20, color: AppTheme.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Loopback Transition Phrase:',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primary),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '“${brief.retentionLoop!}”',
-                        style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+        if (brief.craftBlocking.isNotEmpty) _Notice(title: 'Fix before posting', lines: brief.craftBlocking, color: AppTheme.error),
+        if (brief.onScreenHook case final t? when t.isNotEmpty) ...[
+          SectionHeader('On-screen hook'),
+          SectionCard(child: Text(t, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
         ],
-
-        if (brief.cta?.isNotEmpty == true) ...[
-          const SizedBox(height: 14),
-          _buildSectionHeader('Spoken Call to Action (CTA)', Icons.ads_click_rounded),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppTheme.success.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.campaign_rounded, size: 20, color: AppTheme.success),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    brief.cta!,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-
+        SectionHeader(
+          'Line by line',
+          trailing: flagged == 0 ? null : Text('$flagged to tighten', style: TextStyle(fontSize: 11, color: AppTheme.warning, fontWeight: FontWeight.w700)),
+        ),
+        for (final b in brief.timedBeats) _BeatCard(beat: b),
         if (brief.shotNotes.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          _buildSectionHeader('Director & Camera Notes', Icons.movie_creation_outlined),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceElevated,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppTheme.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final note in brief.shotNotes)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.fiber_manual_record, size: 8, color: AppTheme.accent),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(note, style: const TextStyle(fontSize: 13, color: Colors.white70)),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+          SectionHeader('Shot notes'),
+          SectionCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (final n in brief.shotNotes) Padding(padding: EdgeInsets.only(bottom: 6), child: Text('• $n', style: TextStyle(fontSize: 13, color: AppTheme.textSecondary))),
+            ]),
           ),
         ],
-        const SizedBox(height: 40),
+        if (brief.craftAdvice.isNotEmpty) _Notice(title: 'Ways to make it stronger', lines: brief.craftAdvice, color: AppTheme.accent),
       ],
     );
   }
 
-  Widget _buildBeatCard(TimedBeatModel beat) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.border.withValues(alpha: 0.7)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  beat.timecode,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primary,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Beat ${beat.index} (${beat.durationSec.toStringAsFixed(1)}s)',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-              ),
-              const Spacer(),
-              if (beat.retentionDevice?.isNotEmpty == true)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentBlue.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    beat.retentionDevice!,
-                    style: TextStyle(fontSize: 10, color: AppTheme.accentBlue, fontWeight: FontWeight.w600),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            beat.spokenWords,
-            style: const TextStyle(fontSize: 14.5, height: 1.4),
-          ),
-          if (beat.visualAction?.isNotEmpty == true) ...[
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.videocam_outlined, size: 14, color: Colors.white54),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    beat.visualAction!,
-                    style: const TextStyle(fontSize: 11.5, color: Colors.white54, fontStyle: FontStyle.italic),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+  // ── Shooting script tab ────────────────────────────────────────────────────
 
-  Widget _buildPlatformMatrixTab(BuildContext context, PieceBrief brief) {
-    final hook = brief.openingHook ?? widget.piece.headline;
-
+  Widget _shootingTab(PieceBrief brief) {
+    if (_generating) {
+      return Padding(padding: EdgeInsets.all(16), child: UniversalSkeleton(type: SkeletonType.detail, itemCount: 4));
+    }
+    if (_error case final e?) {
+      return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        ErrorView(error: e, onRetry: () => _generate(force: _shooting != null), compact: true),
+        TextButton(onPressed: () => _tabs.animateTo(0), child: Text('Use the timed script instead')),
+      ]);
+    }
+    final s = _shooting;
+    if (s == null) {
+      return EmptyView(
+        icon: Icons.movie_creation_outlined,
+        title: 'Turn this script into a shot list',
+        message: _projectId == null
+            ? 'Open this piece from its calendar to generate a shooting script.'
+            : 'Get a scene-by-scene plan: shot, framing, what to do on camera, B-roll and edit cues. Your spoken words stay exactly as written.',
+        actionLabel: _projectId == null ? 'Back to the calendar' : 'Generate shooting script',
+        onAction: _projectId == null ? () => context.pop() : _generate,
+      );
+    }
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
-        Text(
-          'Agency-Grade 5-Platform Strategy',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        if (s.logline.isNotEmpty) Text(s.logline, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          _Stat(label: 'Runtime', value: '${s.totalSeconds.toStringAsFixed(0)}s'),
+          _Stat(label: 'Scenes', value: '${s.scenes.length}'),
+          if (s.aspect.isNotEmpty) _Stat(label: 'Frame', value: s.aspect),
+        ]),
+        if (s.flags.isNotEmpty) _Notice(title: 'Pacing to fix', lines: s.flags, color: AppTheme.warning),
+        SectionHeader('Before you record'),
+        SectionCard(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _kv('Location', s.location),
+            _kv('Lighting', s.lighting),
+            _kv('Wardrobe', s.wardrobe),
+            _kv('Props', s.props.join(', ')),
+            _kv('Captions', s.captionStyle),
+            _kv('Music', s.musicMood),
+          ]),
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Every platform has strict feed truncation cutoffs and native consumption mechanics.',
-          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-        ),
-        const SizedBox(height: 16),
-
-        _buildPlatformCard(
-          platformName: 'Instagram (Reel & Carousel)',
-          icon: Icons.camera_alt_outlined,
-          color: const Color(0xFFE1306C),
-          cutoff: '125 chars before "... more"',
-          format: 'Vertical Reel (9:16) / 1080x1350 Carousel',
-          advice: 'Front-load hook in first 125 chars to force caption expand. Cap hashtags to 5.',
-          preview: hook.length > 125 ? '${hook.substring(0, 125)}... more' : '$hook\n\n... more',
-        ),
-        const SizedBox(height: 12),
-
-        _buildPlatformCard(
-          platformName: 'LinkedIn (Thought Leadership)',
-          icon: Icons.business_center_outlined,
-          color: const Color(0xFF0A66C2),
-          cutoff: '140 chars / 2 lines before "...see more"',
-          format: 'PDF Slide Document / Professional Post',
-          advice: 'Create professional tension. End with a discussion trigger. 3 high-authority hashtags.',
-          preview: hook.length > 140 ? '${hook.substring(0, 140)}...see more' : '$hook\n\n...see more',
-        ),
-        const SizedBox(height: 12),
-
-        _buildPlatformCard(
-          platformName: 'Twitter / X (Thread & Video)',
-          icon: Icons.tag_rounded,
-          color: const Color(0xFF1DA1F2),
-          cutoff: '280 chars per tweet',
-          format: 'Hook Tweet + 4-Tweet Educational Thread',
-          advice: 'Optimize opening tweet for bookmarking and quote retweets. No hashtags in tweet 1.',
-          preview: hook.length > 270 ? '${hook.substring(0, 267)}... 🧵👇' : '$hook\n\n🧵👇',
-        ),
-        const SizedBox(height: 12),
-
-        _buildPlatformCard(
-          platformName: 'YouTube Shorts',
-          icon: Icons.play_circle_outline_rounded,
-          color: const Color(0xFFFF0000),
-          cutoff: '60 chars title cutoff',
-          format: 'Shorts (60s max, vertical)',
-          advice: 'First 1.8 seconds must be a cold open. Title must not truncate on mobile screens.',
-          preview: hook.length > 60 ? '${hook.substring(0, 57)}...' : hook,
-        ),
-        const SizedBox(height: 12),
-
-        _buildPlatformCard(
-          platformName: 'Facebook Feed & Groups',
-          icon: Icons.people_alt_outlined,
-          color: const Color(0xFF1877F2),
-          cutoff: '150 chars fold cutoff',
-          format: 'Conversation Post & Short Video',
-          advice: 'Trigger comment interactions in first 30 minutes to activate algorithmic distribution.',
-          preview: hook.length > 150 ? '${hook.substring(0, 150)}... See More' : '$hook\n\nSee More',
-        ),
-        const SizedBox(height: 40),
-      ],
-    );
-  }
-
-  Widget _buildPlatformCard({
-    required String platformName,
-    required IconData icon,
-    required Color color,
-    required String cutoff,
-    required String format,
-    required String advice,
-    required String preview,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 8),
-              Text(
-                platformName,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
+        SectionHeader('Scenes'),
+        for (final scene in s.scenes) _SceneCard(scene: scene),
+        if (s.checklist.isNotEmpty) ...[
+          SectionHeader('Checklist'),
+          SectionCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (final c in s.checklist)
+                Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Icon(Icons.check_circle_outline_rounded, size: 16, color: AppTheme.success),
+                    SizedBox(width: 8),
+                    Expanded(child: Text(c, style: TextStyle(fontSize: 13))),
+                  ]),
                 ),
-                child: Text(
-                  cutoff,
-                  style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(format, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-          const SizedBox(height: 6),
-          Text(advice, style: const TextStyle(fontSize: 12, color: Colors.white70)),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.black38,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppTheme.border.withValues(alpha: 0.4)),
-            ),
-            child: Text(
-              preview,
-              style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Colors.white60),
-            ),
+            ]),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: AppTheme.accent),
-        const SizedBox(width: 6),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.3),
+        SizedBox(height: 12),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(minimumSize: Size.fromHeight(44)),
+          onPressed: () async {
+            final ok = await confirm(context, title: 'Regenerate the shooting script?', message: 'The current scenes will be replaced. The spoken script does not change.', action: 'Regenerate');
+            if (ok) _generate(force: true);
+          },
+          icon: Icon(Icons.refresh_rounded, size: 18),
+          label: Text('Regenerate'),
         ),
       ],
     );
   }
 
-  Widget _buildMetricTile({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String value,
-    required String subtitle,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 4),
-              Text(title, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-          Text(subtitle, style: TextStyle(fontSize: 10, color: color)),
-        ],
+  Widget _kv(String k, String v) => v.trim().isEmpty
+      ? SizedBox.shrink()
+      : Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(width: 84, child: Text(k, style: TextStyle(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w600))),
+            Expanded(child: Text(v, style: TextStyle(fontSize: 13))),
+          ]),
+        );
+}
+
+Color _scoreColor(int score) => score >= 70 ? AppTheme.success : score >= 50 ? AppTheme.warning : AppTheme.error;
+
+const _roleLabels = {'hook': 'Hook', 'body': 'Beat', 'loop': 'Loop back', 'cta': 'Call to action'};
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value, this.color});
+  final String label;
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(color: AppTheme.surfaceElevated, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: color ?? AppTheme.textPrimary)),
+          Text(label, style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+        ]),
+      );
+}
+
+class _Notice extends StatelessWidget {
+  const _Notice({required this.title, required this.lines, required this.color});
+  final String title;
+  final List<String> lines;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.only(top: 12),
+        child: SectionCard(
+          borderColor: color.withValues(alpha: 0.5),
+          padding: EdgeInsets.all(12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+            SizedBox(height: 6),
+            for (final l in lines) Padding(padding: EdgeInsets.only(bottom: 4), child: Text('• $l', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary))),
+          ]),
+        ),
+      );
+}
+
+class _BeatCard extends StatelessWidget {
+  const _BeatCard({required this.beat});
+  final TimedBeatModel beat;
+
+  @override
+  Widget build(BuildContext context) {
+    final flagged = beat.flags.isNotEmpty;
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8),
+      child: SectionCard(
+        padding: EdgeInsets.all(12),
+        borderColor: flagged ? AppTheme.warning.withValues(alpha: 0.6) : null,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Text(beat.timecode, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.accent, fontFeatures: const [FontFeature.tabularFigures()])),
+            SizedBox(width: 8),
+            Text(_roleLabels[beat.role] ?? 'Beat', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textMuted)),
+            Spacer(),
+            Text('${beat.durationSec.toStringAsFixed(1)}s', style: TextStyle(fontSize: 11, color: flagged ? AppTheme.warning : AppTheme.textMuted, fontWeight: FontWeight.w600)),
+          ]),
+          SizedBox(height: 6),
+          SelectableText(beat.spokenWords, style: TextStyle(fontSize: 15, height: 1.35, color: AppTheme.textPrimary)),
+          if (beat.screenText case final t? when t.isNotEmpty) _line(Icons.title_rounded, 'On screen: $t'),
+          if (beat.retentionDevice case final d? when d.isNotEmpty) _line(Icons.anchor_rounded, d),
+          for (final f in beat.flags) _line(Icons.timer_outlined, f, color: AppTheme.warning),
+        ]),
       ),
     );
   }
 }
+
+class _SceneCard extends StatelessWidget {
+  const _SceneCard({required this.scene});
+  final ProductionScene scene;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.only(bottom: 8),
+        child: SectionCard(
+          padding: EdgeInsets.all(12),
+          borderColor: scene.flags.isEmpty ? null : AppTheme.warning.withValues(alpha: 0.6),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Text('${scene.index}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.textMuted)),
+              SizedBox(width: 8),
+              Text(scene.timecode, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.accent, fontFeatures: const [FontFeature.tabularFigures()])),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('${scene.purpose} · ${scene.shotLabel}', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textMuted)),
+              ),
+              Text('${scene.durationSec.toStringAsFixed(1)}s', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600)),
+            ]),
+            SizedBox(height: 6),
+            if (scene.spokenLine.isNotEmpty)
+              SelectableText(scene.spokenLine, style: TextStyle(fontSize: 15, height: 1.35, color: AppTheme.textPrimary))
+            else
+              Text('No speech', style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: AppTheme.textMuted)),
+            if (scene.onScreenText.isNotEmpty) _line(Icons.title_rounded, 'On screen: ${scene.onScreenText}'),
+            if (scene.framing.isNotEmpty) _line(Icons.crop_free_rounded, scene.framing),
+            if (scene.action.isNotEmpty) _line(Icons.accessibility_new_rounded, scene.action),
+            if (scene.bRoll.isNotEmpty) _line(Icons.video_library_outlined, 'B-roll: ${scene.bRoll}'),
+            if (scene.editCue.isNotEmpty) _line(Icons.content_cut_rounded, scene.editCue),
+            if (scene.audioCue.isNotEmpty) _line(Icons.music_note_rounded, scene.audioCue),
+            if (scene.delivery.isNotEmpty) _line(Icons.record_voice_over_outlined, scene.delivery),
+            for (final f in scene.flags) _line(Icons.timer_outlined, f, color: AppTheme.warning),
+          ]),
+        ),
+      );
+}
+
+Widget _line(IconData icon, String text, {Color? color}) => Padding(
+      padding: EdgeInsets.only(top: 6),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, size: 14, color: color ?? AppTheme.textMuted),
+        SizedBox(width: 6),
+        Expanded(child: Text(text, style: TextStyle(fontSize: 12, color: color ?? AppTheme.textSecondary))),
+      ]),
+    );

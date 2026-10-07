@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/util/json.dart';
 import '../../core/util/poll_backoff.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
@@ -68,26 +69,65 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
     super.dispose();
   }
 
+  Map<String, dynamic> get _mixPayload => <String, dynamic>{
+    'mode': _mixPreset == 'custom' ? 'custom' : 'preset',
+    'preset': _mixPreset,
+    'dailyReels': _mixPreset == 'custom'
+        ? _customReels
+        : (_mixPreset == 'daily_2_carousels_1_reel'
+            ? 1
+            : (_mixPreset == 'daily_1_carousel' ? 0 : 1)),
+    'dailyCarousels': _mixPreset == 'custom'
+        ? _customCarousels
+        : (_mixPreset == 'daily_2_carousels_1_reel'
+            ? 2
+            : (_mixPreset == 'daily_1_carousel' || _mixPreset == 'daily_1_reel_1_carousel' ? 1 : 0)),
+    'targetReelDurationSec': _targetReelDurationSec,
+    'carouselSlideCount': _carouselSlideCount,
+  };
+
+  /// Shows how many AI calls this plan makes and its output-token ceiling, before anything is generated.
+  Future<void> _showEstimate() async {
+    if (_platforms.isEmpty) return showError(context, 'Choose at least one platform.');
+    final r = await guarded(context, () => ref.read(socialApiProvider).estimateAutopilot(widget.project.id, days: _days, platforms: _platforms.toList(), contentMix: _mixPayload));
+    if (r == null || !mounted) return;
+    final budget = jMap(r['budget']);
+    const names = {
+      'research': 'Research', 'strategist': 'Strategy', 'hook_script': 'Hooks and scripts', 'hook_lab': 'Hook Lab',
+      'copy': 'Captions', 'craft': 'Platform Craft', 'critic': 'Quality review',
+    };
+    final usd = jDouble(r['outputCeilingUsd']);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('AI usage for this plan'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${jInt(budget['pieces']) ?? 0} pieces across ${jInt(budget['platforms']) ?? 0} platform(s), up to ${jInt(budget['calls']) ?? 0} AI calls.', style: TextStyle(fontWeight: FontWeight.w600)),
+            SizedBox(height: 12),
+            for (final a in jList(budget['agents'], (m) => m))
+              Padding(
+                padding: EdgeInsets.only(bottom: 6),
+                child: Row(children: [
+                  Expanded(child: Text('${names[jStr(a['agent'])] ?? jStrOr(a['agent'], '')}${jBool(a['conditional']) ? ' (only if needed)' : ''}', style: TextStyle(fontSize: 13))),
+                  Text('${jBool(a['conditional']) ? 'up to ' : ''}${jInt(a['calls']) ?? 0}', style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                ]),
+              ),
+            SizedBox(height: 8),
+            Text('Output ceiling: ${jInt(budget['maxOutputTokens']) ?? 0} tokens${usd == null ? '' : ' (up to \$${usd.toStringAsFixed(2)} of output)'}. Real usage is usually lower; the finished calendar records what was used.',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+          ]),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('Close'))],
+      ),
+    );
+  }
+
   Future<void> _start_() async {
     if (_platforms.isEmpty) return showError(context, 'Choose at least one platform.');
     setState(() => _starting = true);
     try {
-      final mixPayload = <String, dynamic>{
-        'mode': _mixPreset == 'custom' ? 'custom' : 'preset',
-        'preset': _mixPreset,
-        'dailyReels': _mixPreset == 'custom'
-            ? _customReels
-            : (_mixPreset == 'daily_2_carousels_1_reel'
-                ? 1
-                : (_mixPreset == 'daily_1_carousel' ? 0 : 1)),
-        'dailyCarousels': _mixPreset == 'custom'
-            ? _customCarousels
-            : (_mixPreset == 'daily_2_carousels_1_reel'
-                ? 2
-                : (_mixPreset == 'daily_1_carousel' || _mixPreset == 'daily_1_reel_1_carousel' ? 1 : 0)),
-        'targetReelDurationSec': _targetReelDurationSec,
-        'carouselSlideCount': _carouselSlideCount,
-      };
+      final mixPayload = _mixPayload;
 
       final r = await ref.read(socialApiProvider).startAutopilot(
             widget.project.id,
@@ -473,6 +513,7 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
                 label: Text(_starting ? 'Starting Swarm…' : 'Generate $_days-day calendar'),
               ),
               SizedBox(height: 4),
+              TextButton(onPressed: _starting ? null : _showEstimate, child: Text('See AI usage for this plan')),
               TextButton(onPressed: widget.onUseClassic, child: Text('Use the classic generator instead')),
             ],
           ),

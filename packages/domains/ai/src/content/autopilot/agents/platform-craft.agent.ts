@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { inventedFigures } from '../../craft/craft-review';
 import { CopyLintResult, PlatformCopyLinter } from '../../craft/copy-linter';
 import { PLATFORM_CRAFT, toCraftPlatform } from '../../craft/platform-specs';
+import { AGENT_TOKEN_CAPS, optionalAgentLimits } from '../budget';
 import { runJsonAgent } from '../json-agent';
 import { AutopilotLLM, UsageMeter } from '../llm';
 import { AUTOPILOT_PLATFORMS, AutopilotPlatform } from '../schemas';
@@ -26,12 +27,14 @@ const CraftFixSchema = z.object({
 
 /** WARN checks worth an LLM round-trip; the rest are advice for the reviewer. */
 const REWRITE_ON_WARN = new Set(['FOLD_HOOK', 'STOCK_PHRASES']);
-const MAX_FIXES_PER_CALL = 12;
+const MAX_FIXES_PER_CALL = AGENT_TOKEN_CAPS.craftChunk;
 
 export interface PlatformCraftOutcome {
     linted: number;
     failing: number;
     rewritten: number;
+    /** Failing copies left for the reviewer because the run's fix-call limit was reached. */
+    skipped: number;
     error?: string;
 }
 
@@ -56,7 +59,7 @@ export async function runPlatformCraftAgent(params: {
     meter?: UsageMeter;
     log?: (event: string, data: Record<string, unknown>) => void;
 }): Promise<PlatformCraftOutcome> {
-    const outcome: PlatformCraftOutcome = { linted: 0, failing: 0, rewritten: 0 };
+    const outcome: PlatformCraftOutcome = { linted: 0, failing: 0, rewritten: 0, skipped: 0 };
     const failing: { piece: AutopilotPiece; platform: AutopilotPlatform; copy: PieceCopy; lint: CopyLintResult; problems: string[] }[] = [];
     for (const piece of params.pieces) {
         for (const platform of piece.platforms) {
@@ -71,6 +74,13 @@ export async function runPlatformCraftAgent(params: {
     }
     outcome.failing = failing.length;
     if (!failing.length) return outcome;
+    const limits = optionalAgentLimits();
+    // Worst failures first, so a capped run spends its calls where they matter most.
+    failing.sort((a, b) => a.lint.score - b.lint.score);
+    const budget = limits.rewritesEnabled ? limits.craftMaxFixCalls * MAX_FIXES_PER_CALL : 0;
+    outcome.skipped = Math.max(0, failing.length - budget);
+    failing.length = Math.min(failing.length, budget);
+    if (!failing.length) return outcome;
 
     try {
         for (let i = 0; i < failing.length; i += MAX_FIXES_PER_CALL) {
@@ -83,7 +93,7 @@ export async function runPlatformCraftAgent(params: {
                 role: 'craft',
                 meter: params.meter,
                 log: params.log,
-                maxTokens: Math.min(8000, 500 + chunk.length * 420),
+                maxTokens: Math.min(AGENT_TOKEN_CAPS.craftMax, AGENT_TOKEN_CAPS.craftBase + chunk.length * AGENT_TOKEN_CAPS.craftPerFix),
                 schema: CraftFixSchema,
                 system: 'You are a platform-native social copy editor. You fix captions so they follow each platform\'s feed mechanics. You change as little as needed and never invent facts.',
                 prompt: [

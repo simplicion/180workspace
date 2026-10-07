@@ -474,7 +474,11 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                         'visibility': _visibility,
                       })
                     : p == SocialPlatform.x
-                        ? {'publishingMode': 'user_assisted'}
+                        // Over 280 characters: published as a numbered thread (each post replies to the last).
+                        ? {
+                            'publishingMode': 'user_assisted',
+                            if ((_ownText(_variantText[p], _copiedCaption[p], _content.text.trim()) ?? _content.text.trim()).characters.length > 280) 'thread': true,
+                          }
                         : {},
           ).toCreateJson(),
       ],
@@ -1480,7 +1484,9 @@ class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet
                 spec.name == 'YouTube' ? 'YouTube Description' : '${platform.label} Caption',
                 hint: widget.globalCaption.isNotEmpty ? widget.globalCaption : 'Enter caption for ${platform.label}',
                 helper: isOverLimit
-                    ? '⚠️ Warning: Exceeds ${platform.label} character limit!'
+                    ? (platform == SocialPlatform.x
+                        ? 'Over 280 characters: this goes out as a thread of about ${(captionLength / 270).ceil()} posts.'
+                        : 'Over the ${platform.label} character limit. Shorten it before publishing.')
                     : (widget.customCaptionController.text.trim() == widget.globalCaption.trim() && widget.globalCaption.isNotEmpty)
                         ? 'Pre-filled with your post description. Edit if you wish to customize.'
                         : null,

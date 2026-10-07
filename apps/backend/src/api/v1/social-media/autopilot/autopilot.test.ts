@@ -487,3 +487,34 @@ test('HTTP routes: 202 start, 200 job, 503 when AI is not configured, 404 across
         await Promise.all([a.close(), b.close(), c.close()]);
     }
 });
+
+test('budget: the estimate bounds what a 30-day run really calls, per agent; cost only when prices are configured', async () => {
+    const env = setup();
+    const est = await env.service.estimate({ companyId: 'co-1', projectId: 'p1', body: { days: 30 } as any });
+    assert.equal(est.budget.pieces, 30);
+    assert.equal(est.pricesConfigured, false);
+    assert.equal(est.outputCeilingUsd, null);
+    await assert.rejects(env.service.estimate({ companyId: 'co-2', projectId: 'p1', body: { days: 30 } as any }), (e: any) => e.code === 'NOT_FOUND');
+    await assert.rejects(env.service.estimate({ companyId: 'co-1', projectId: 'p1', body: { days: 9 } as any }), (e: any) => e.code === 'INVALID_INPUT');
+
+    const { calendarId } = await start(env.service, {});
+    await Promise.all(env.jobs);
+    const usage = env.tables.contentCalendar.find((c) => c.id === calendarId).metadata.autopilot.usage;
+    assert.equal(usage.cost, null, 'no price configured -> no money figure');
+    const by = (agent: string) => est.budget.agents.find((a: any) => a.agent === agent)!;
+    // Mandatory agents: the run makes exactly the estimated calls when every reply is valid first time.
+    for (const [agent, role] of [['strategist', 'strategist'], ['hook_script', 'hook_script'], ['copy', 'copy'], ['critic', 'critic']] as const) {
+        assert.equal(usage.byRole[role].calls, by(agent).calls, `${agent} calls`);
+        assert.ok(usage.byRole[role].outputTokens <= by(agent).maxOutputTokens, `${agent} output within its ceiling`);
+    }
+    // Conditional agents never exceed their bound.
+    assert.ok((usage.byRole.hook_lab?.calls || 0) <= by('hook_lab').calls * 2);
+    assert.ok((usage.byRole.craft?.calls || 0) <= by('craft').calls * 2);
+    assert.ok(usage.calls <= est.budget.worstCaseCalls);
+
+    const { priceUsage, estimateAutopilotBudget } = await import('@workspace/ai/content/autopilot');
+    assert.deepEqual(priceUsage({ inputTokens: 2_000_000, outputTokens: 1_000_000 }, { AUTOPILOT_PRICE_INPUT_PER_MTOK_USD: '3', AUTOPILOT_PRICE_OUTPUT_PER_MTOK_USD: '15' } as any)!.totalUsd, 21);
+    assert.equal(priceUsage({ inputTokens: 1, outputTokens: 1 }, {} as any), null);
+    const off = estimateAutopilotBudget({ days: 7, platforms: ['instagram', 'x'] }, { rewritesEnabled: false, craftMaxFixCalls: 3 });
+    assert.equal(off.agents.find((a) => a.agent === 'hook_lab')!.calls + off.agents.find((a) => a.agent === 'craft')!.calls, 0);
+});

@@ -41,7 +41,9 @@ class AutopilotJob {
     'research': 'Researching your niche',
     'strategy': 'Planning the strategy',
     'hooks_scripts': 'Writing hooks and scripts',
+    'hook_lab': 'Scoring and sharpening hooks',
     'copy': 'Writing captions',
+    'craft': 'Checking platform rules',
     'critic': 'Reviewing quality',
     'saving': 'Saving your calendar',
     'done': 'Done',
@@ -148,6 +150,8 @@ class ScriptBeat {
   final String? retentionDevice;
 }
 
+/// One line of the script with its time on screen, from the server's `timedBeats` (computed from the words at the
+/// platform's speaking pace). `role` is hook | body | loop | cta.
 class TimedBeatModel {
   const TimedBeatModel({
     required this.index,
@@ -155,10 +159,11 @@ class TimedBeatModel {
     required this.startSec,
     required this.durationSec,
     required this.spokenWords,
+    this.role = 'body',
+    this.wordCount = 0,
     this.screenText,
-    this.visualAction,
     this.retentionDevice,
-    this.isConcrete = true,
+    this.flags = const [],
   });
 
   final int index;
@@ -166,23 +171,168 @@ class TimedBeatModel {
   final double startSec;
   final double durationSec;
   final String spokenWords;
+  final String role;
+  final int wordCount;
   final String? screenText;
-  final String? visualAction;
   final String? retentionDevice;
-  final bool isConcrete;
+
+  /// Pacing problems for this line (hook over the window, a long line with no cut).
+  final List<String> flags;
 
   factory TimedBeatModel.fromJson(Json j) => TimedBeatModel(
         index: jInt(j['index']) ?? 1,
-        timecode: jStrOr(j['timecode'], '0:00.0'),
+        timecode: jStrOr(j['timecode'], ''),
         startSec: jDouble(j['startSec']) ?? 0.0,
-        durationSec: jDouble(j['durationSec']) ?? 3.0,
-        spokenWords: jStrOr(j['spokenWords'] ?? j['text'] ?? j['beat'], ''),
+        durationSec: jDouble(j['durationSec']) ?? 0.0,
+        spokenWords: jStrOr(j['spokenWords'] ?? j['text'], ''),
+        role: jStrOr(j['role'], 'body'),
+        wordCount: jInt(j['wordCount']) ?? 0,
         screenText: jStr(j['screenText']),
-        visualAction: jStr(j['visualAction']),
         retentionDevice: jStr(j['retentionDevice']),
-        isConcrete: j['isConcrete'] as bool? ?? true,
+        flags: jStrList(j['flags']),
+      );
+
+  /// Times real script lines at [wpm] for pieces saved before the server stored `timedBeats`.
+  /// Adds nothing but the clock: no invented text, cues or scores.
+  static List<TimedBeatModel> fromLines(List<({String text, String role, String? device, String? screen})> lines, {double wpm = 165}) {
+    final out = <TimedBeatModel>[];
+    var clock = 0.0;
+    for (final l in lines) {
+      final words = l.text.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+      if (words == 0) continue;
+      final dur = (words / (wpm / 60) * 10).round() / 10;
+      final m = clock ~/ 60;
+      out.add(TimedBeatModel(
+        index: out.length + 1,
+        timecode: '$m:${(clock % 60).toStringAsFixed(1).padLeft(4, '0')}',
+        startSec: (clock * 10).round() / 10,
+        durationSec: dur,
+        spokenWords: l.text.trim(),
+        role: l.role,
+        wordCount: words,
+        screenText: l.screen,
+        retentionDevice: l.device,
+        flags: [
+          if (l.role == 'hook' && dur > 3) 'Hook takes ${dur}s; it has to land in under 3s.',
+          if (l.role != 'hook' && dur > 4) '${dur}s on one line: plan a cut, B-roll or text pop inside it.',
+        ],
+      ));
+      clock += dur;
+    }
+    return out;
+  }
+}
+
+/// One scene of the shooting script (`productionScript.scenes`).
+class ProductionScene {
+  const ProductionScene({
+    required this.index,
+    required this.timecode,
+    required this.durationSec,
+    required this.purpose,
+    required this.spokenLine,
+    required this.shot,
+    this.onScreenText = '',
+    this.framing = '',
+    this.action = '',
+    this.bRoll = '',
+    this.editCue = '',
+    this.audioCue = '',
+    this.delivery = '',
+    this.flags = const [],
+  });
+
+  final int index;
+  final String timecode;
+  final double durationSec;
+  final String purpose;
+  final String spokenLine;
+  final String shot;
+  final String onScreenText;
+  final String framing;
+  final String action;
+  final String bRoll;
+  final String editCue;
+  final String audioCue;
+  final String delivery;
+  final List<String> flags;
+
+  String get shotLabel => shot.replaceAll('_', ' ');
+
+  factory ProductionScene.fromJson(Json j) => ProductionScene(
+        index: jInt(j['index']) ?? 1,
+        timecode: jStrOr(j['timecode'], ''),
+        durationSec: jDouble(j['durationSec']) ?? 0.0,
+        purpose: jStrOr(j['purpose'], 'value'),
+        spokenLine: jStrOr(j['spokenLine'], ''),
+        shot: jStrOr(j['shot'], ''),
+        onScreenText: jStrOr(j['onScreenText'], ''),
+        framing: jStrOr(j['framing'], ''),
+        action: jStrOr(j['action'], ''),
+        bRoll: jStrOr(j['bRoll'], ''),
+        editCue: jStrOr(j['editCue'], ''),
+        audioCue: jStrOr(j['audioCue'], ''),
+        delivery: jStrOr(j['delivery'], ''),
+        flags: jStrList(j['flags']),
       );
 }
+
+/// `POST /projects/:id/autopilot/pieces/:pieceId/shooting-script` -> `productionScript`.
+class ProductionScript {
+  const ProductionScript({
+    required this.scenes,
+    required this.totalSeconds,
+    this.platform = '',
+    this.aspect = '',
+    this.logline = '',
+    this.location = '',
+    this.lighting = '',
+    this.wardrobe = '',
+    this.props = const [],
+    this.captionStyle = '',
+    this.musicMood = '',
+    this.checklist = const [],
+    this.flags = const [],
+  });
+
+  final List<ProductionScene> scenes;
+  final double totalSeconds;
+  final String platform;
+  final String aspect;
+  final String logline;
+  final String location;
+  final String lighting;
+  final String wardrobe;
+  final List<String> props;
+  final String captionStyle;
+  final String musicMood;
+  final List<String> checklist;
+  final List<String> flags;
+
+  static ProductionScript? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final j = raw.cast<String, dynamic>();
+    final scenes = jList(j['scenes'], ProductionScene.fromJson);
+    if (scenes.isEmpty) return null;
+    final setup = jMap(j['setup']);
+    return ProductionScript(
+      scenes: scenes,
+      totalSeconds: jDouble(j['totalSeconds']) ?? 0.0,
+      platform: jStrOr(j['platform'], ''),
+      aspect: jStrOr(j['aspect'], ''),
+      logline: jStrOr(j['logline'], ''),
+      location: jStrOr(setup['location'], ''),
+      lighting: jStrOr(setup['lighting'], ''),
+      wardrobe: jStrOr(setup['wardrobe'], ''),
+      props: jStrList(setup['props']),
+      captionStyle: jStrOr(j['captionStyle'], ''),
+      musicMood: jStrOr(j['musicMood'], ''),
+      checklist: jStrList(j['checklist']),
+      flags: jStrList(j['flags']),
+    );
+  }
+}
+
 
 /// The autopilot piece payload the server stores as JSON in `videoScriptOrHooks`.
 /// [PieceBrief.parse] returns null for plain-text scripts (older calendars, user edits).
@@ -208,6 +358,10 @@ class PieceBrief {
     this.hookFormula,
     this.humanScore,
     this.timedBeats = const [],
+    this.craftScore,
+    this.craftBlocking = const [],
+    this.craftAdvice = const [],
+    this.productionScript,
     this.raw = const {},
   });
 
@@ -231,6 +385,12 @@ class PieceBrief {
   final String? hookFormula;
   final int? humanScore;
   final List<TimedBeatModel> timedBeats;
+
+  /// Server craft report: 0-100, what must be fixed before posting, and softer advice. Null on older pieces.
+  final int? craftScore;
+  final List<String> craftBlocking;
+  final List<String> craftAdvice;
+  final ProductionScript? productionScript;
   final Json raw;
 
   static PieceBrief? parse(String text) {
@@ -258,98 +418,20 @@ class PieceBrief {
     }
     final visual = j['visualBrief'];
     final shotNotes = jStrList(j['shotNotes']);
-    final parsedTimedBeats = <TimedBeatModel>[];
-    if (j['timedBeats'] is List) {
-      for (final tb in j['timedBeats'] as List) {
-        if (tb is Map) {
-          parsedTimedBeats.add(TimedBeatModel.fromJson(tb.cast<String, dynamic>()));
-        }
-      }
+    var timedBeats = <TimedBeatModel>[
+      for (final tb in j['timedBeats'] is List ? j['timedBeats'] as List : [])
+        if (tb is Map) TimedBeatModel.fromJson(tb.cast<String, dynamic>()),
+    ];
+    final opening = jStr(j['spokenHook']) ?? jStr(script['hook']);
+    if (timedBeats.isEmpty && body.isNotEmpty) {
+      timedBeats = TimedBeatModel.fromLines([
+        if (opening != null) (text: opening, role: 'hook', device: null, screen: jStr(j['onScreenHook'])),
+        for (final b in body) (text: b.beat, role: 'body', device: b.retentionDevice, screen: null),
+        if (jStr(script['retentionLoop']) case final loop?) (text: loop, role: 'loop', device: null, screen: null),
+        if (jStr(script['cta']) case final cta?) (text: cta, role: 'cta', device: null, screen: null),
+      ]);
     }
-
-    final opening = jStr(j['spokenHook']) ?? jStr(script['hook']) ?? jStr(j['onScreenHook']);
-
-    // If server hasn't saved precomputed timedBeats, synthesize them at 165 WPM
-    if (parsedTimedBeats.isEmpty && opening != null && opening.isNotEmpty) {
-      double clock = 0.0;
-      const wps = 165.0 / 60.0; // 2.75 words/sec
-
-      String fmtTc(double s) {
-        final m = (s ~/ 60).toString();
-        final sec = (s % 60).toStringAsFixed(1).padLeft(4, '0');
-        return '$m:$sec';
-      }
-
-      // Beat 1: Hook
-      final hookWords = opening.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
-      final hookDur = (hookWords / wps).clamp(1.5, 4.0);
-      parsedTimedBeats.add(TimedBeatModel(
-        index: 1,
-        timecode: fmtTc(clock),
-        startSec: clock,
-        durationSec: hookDur,
-        spokenWords: opening,
-        screenText: jStr(j['onScreenHook']),
-        visualAction: shotNotes.isNotEmpty ? shotNotes.first : 'Direct camera gaze, high energy cold open',
-        retentionDevice: 'Pattern Interrupt Hook',
-        isConcrete: true,
-      ));
-      clock += hookDur;
-
-      // Body Beats
-      for (var i = 0; i < body.length; i++) {
-        final b = body[i];
-        final words = b.beat.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
-        final dur = (words / wps).clamp(2.0, 7.0);
-        parsedTimedBeats.add(TimedBeatModel(
-          index: i + 2,
-          timecode: fmtTc(clock),
-          startSec: clock,
-          durationSec: dur,
-          spokenWords: b.beat,
-          visualAction: (i + 1 < shotNotes.length) ? shotNotes[i + 1] : 'Cut to dynamic B-roll or frame punch-in',
-          retentionDevice: b.retentionDevice ?? (i == 0 ? 'Problem Setup' : 'Core Value Insight'),
-          isConcrete: true,
-        ));
-        clock += dur;
-      }
-
-      // Retention Loop Beat
-      final loop = jStr(script['retentionLoop']);
-      if (loop != null && loop.isNotEmpty) {
-        final loopWords = loop.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
-        final loopDur = (loopWords / wps).clamp(2.0, 5.0);
-        parsedTimedBeats.add(TimedBeatModel(
-          index: parsedTimedBeats.length + 1,
-          timecode: fmtTc(clock),
-          startSec: clock,
-          durationSec: loopDur,
-          spokenWords: loop,
-          visualAction: 'Snap visual cut / emphasize key lesson',
-          retentionDevice: 'Retention Loopback',
-          isConcrete: true,
-        ));
-        clock += loopDur;
-      }
-
-      // CTA Beat
-      final ctaText = jStr(script['cta']);
-      if (ctaText != null && ctaText.isNotEmpty) {
-        final ctaWords = ctaText.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
-        final ctaDur = (ctaWords / wps).clamp(2.0, 4.5);
-        parsedTimedBeats.add(TimedBeatModel(
-          index: parsedTimedBeats.length + 1,
-          timecode: fmtTc(clock),
-          startSec: clock,
-          durationSec: ctaDur,
-          spokenWords: ctaText,
-          screenText: 'Follow for more / Save this reel',
-          visualAction: 'Point to comment or follow prompt',
-          retentionDevice: 'Conversion CTA',
-          isConcrete: true,
-        ));
-      }
-    }
+    final craft = jMap(j['craft']);
 
     return PieceBrief(
       format: jStr(j['format']),
@@ -359,7 +441,7 @@ class PieceBrief {
       body: body,
       retentionLoop: jStr(script['retentionLoop']),
       cta: jStr(script['cta']),
-      durationSec: jInt(script['estimatedDurationSec']) ?? (parsedTimedBeats.isNotEmpty ? (parsedTimedBeats.last.startSec + parsedTimedBeats.last.durationSec).round() : null),
+      durationSec: jInt(script['estimatedDurationSec']),
       shotNotes: shotNotes,
       carouselTitle: jStr(carousel['title']),
       carouselSlides: [
@@ -371,13 +453,20 @@ class PieceBrief {
       designSystem: jStr(j['designSystem']) ?? jStr(carousel['designSystem']),
       visualDirection: jStr(j['visualDirection']) ?? jStr(script['visualDirection']) ?? jStr(carousel['visualDirection']),
       whatContentDelivers: jStr(j['whatContentDelivers']) ?? jStr(script['whatContentDelivers']) ?? jStr(carousel['whatContentDelivers']),
-      hookScore: jInt(j['hookScore']) ?? (opening != null && opening.isNotEmpty ? 88 : null),
-      hookFormula: jStr(j['hookFormula']) ?? (opening != null ? 'Proven Outlier Hook' : null),
-      humanScore: jInt(j['humanScore']) ?? 95,
-      timedBeats: parsedTimedBeats,
+      hookScore: jInt(j['hookScore']),
+      hookFormula: jStr(j['hookFormula']),
+      humanScore: jInt(j['humanScore']),
+      timedBeats: timedBeats,
+      craftScore: jInt(craft['score']),
+      craftBlocking: jStrList(craft['blocking']),
+      craftAdvice: jStrList(craft['advice']),
+      productionScript: ProductionScript.tryParse(j['productionScript']),
       raw: j,
     );
   }
+
+  /// Spoken length of the whole script in seconds, from the timed beats.
+  double get spokenSeconds => timedBeats.isEmpty ? 0 : timedBeats.last.startSec + timedBeats.last.durationSec;
 
   /// The best line to open a recording with.
   String? get openingHook => spokenHook ?? hook ?? onScreenHook;
@@ -386,9 +475,6 @@ class PieceBrief {
 
   /// Plain words for the teleprompter: hook, beats, loop, CTA. No labels, nothing the creator shouldn't say.
   String get teleprompterText {
-    if (timedBeats.isNotEmpty) {
-      return timedBeats.map((b) => b.spokenWords).join('\n\n');
-    }
     return [
       ?openingHook,
       for (final b in body) b.beat,

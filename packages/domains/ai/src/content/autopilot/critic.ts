@@ -8,6 +8,7 @@
  */
 import { AutopilotLLM, UsageMeter } from './llm';
 import { runJsonAgent } from './json-agent';
+import { AGENT_TOKEN_CAPS } from './budget';
 import { CriticReviewSchema } from './schemas';
 import { PLATFORM_RULES, composeCaption } from './platform-rules';
 import type { AutopilotBrandContext, AutopilotPiece, PieceCopy } from './types';
@@ -164,7 +165,7 @@ export async function runCriticAgent(params: {
         llm: params.llm,
         role: 'critic',
         meter: params.meter,
-        maxTokens: Math.min(6000, 400 + pieces.length * 350),
+        maxTokens: Math.min(AGENT_TOKEN_CAPS.criticMax, AGENT_TOKEN_CAPS.criticBase + pieces.length * AGENT_TOKEN_CAPS.criticPerPiece),
         schema: CriticReviewSchema,
         system: 'You are a strict brand editor. You check social posts against the brand rules and fix what breaks them. You change as little as possible.',
         prompt: [

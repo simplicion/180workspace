@@ -3,6 +3,10 @@
  * Media: POST /2/media/upload/initialize → POST /2/media/upload/{id}/append (multipart, segment_index) →
  *        POST /2/media/upload/{id}/finalize → GET /2/media/upload?command=STATUS&media_id= until succeeded
  * Post:  POST /2/tweets { text, media: { media_ids } }; first comment = a reply to the new post.
+ * Thread: platformMeta.thread = true splits a caption over the limit into numbered posts ("1/4"), or
+ *         platformMeta.thread = string[] gives the posts explicitly. Post 1 carries the media; each later post
+ *         replies to the one before it. X has no atomic thread call, so a failure mid-thread leaves the posts that
+ *         were already published and is reported as a warning with how many went out.
  * Requires OAuth 2.0 user context with tweet.write + media.write, and an X API tier that allows posting.
  * Verified 2026-09-27 against docs.x.com/x-api/media/quickstart/media-upload-chunked + best-practices and
  * docs.x.com/x-api/getting-started/pricing: up to 4 images (≤ 5 MB, JPG/PNG/GIF/WEBP) OR 1 GIF (≤ 15 MB) OR 1 video
@@ -30,6 +34,50 @@ export function weightedTweetLength(text: string): number {
     return n + urls * 23;
 }
 
+/** Most posts one thread may contain; longer text is a validation error, not a silent cut. */
+export const X_THREAD_MAX_POSTS = 25;
+
+/**
+ * Splits text into posts of at most `limit` weighted characters: paragraphs first, then sentences, then words.
+ * Each post ends with " n/total". Returns the text unchanged (one item) when it already fits.
+ */
+export function splitXThread(text: string, limit = 280): string[] {
+    const clean = text.trim();
+    if (weightedTweetLength(clean) <= limit) return [clean];
+    const max = limit - 6; // room for " 12/25"
+    const units: string[] = [];
+    for (const para of clean.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)) {
+        if (weightedTweetLength(para) <= max) { units.push(para); continue; }
+        for (const sentence of para.match(/[^.!?]+[.!?]*\s*/g) || [para]) {
+            const sen = sentence.trim();
+            if (!sen) continue;
+            if (weightedTweetLength(sen) <= max) { units.push(sen); continue; }
+            let buf = '';
+            for (const word of sen.split(/\s+/)) {
+                const next = buf ? `${buf} ${word}` : word;
+                if (weightedTweetLength(next) > max && buf) { units.push(buf); buf = word; } else buf = next;
+            }
+            if (buf) units.push(buf);
+        }
+    }
+    const posts: string[] = [];
+    let cur = '';
+    for (const u of units) {
+        const next = cur ? `${cur}\n\n${u}` : u;
+        if (weightedTweetLength(next) > max && cur) { posts.push(cur); cur = u; } else cur = next;
+    }
+    if (cur) posts.push(cur);
+    return posts.map((p, i) => `${p} ${i + 1}/${posts.length}`);
+}
+
+/** The posts to publish for this input: explicit thread, auto-split thread, or the single caption. */
+export function xThreadPosts(input: PublishInput, limit: number): string[] {
+    const t = input.platformMeta?.thread;
+    if (Array.isArray(t)) return t.map((p) => String(p ?? '').trim()).filter(Boolean);
+    if (t === true) return splitXThread(input.caption, limit);
+    return [input.caption];
+}
+
 const isGif = (m: { url: string; mimeType?: string }) => m.mimeType === 'image/gif' || /\.gif(\?|$)/i.test(m.url);
 
 /** X-specific failure mapping: no paid credits / not enrolled → clear, non-retryable; duplicate text → validation. */
@@ -55,7 +103,15 @@ export class XPublisher implements PlatformPublisher {
     validate(input: PublishInput): string[] {
         const issues: string[] = [];
         const max = this.maxChars(input);
-        if (weightedTweetLength(input.caption) > max) issues.push(`X posts are limited to ${max} characters (URLs count as 23).`);
+        const posts = xThreadPosts(input, max);
+        if (posts.length > 1) {
+            if (posts.length > X_THREAD_MAX_POSTS) issues.push(`X threads are limited to ${X_THREAD_MAX_POSTS} posts here (this one needs ${posts.length}). Shorten the text.`);
+            posts.forEach((p, i) => {
+                if (weightedTweetLength(p) > max) issues.push(`X thread post ${i + 1} is over ${max} characters (URLs count as 23).`);
+            });
+        } else if (weightedTweetLength(posts[0] ?? input.caption) > max) {
+            issues.push(`X posts are limited to ${max} characters (URLs count as 23). Turn on "Post as thread" to split it.`);
+        }
         if (input.firstComment && weightedTweetLength(input.firstComment) > max) issues.push(`X reply (first comment) is limited to ${max} characters.`);
         checkUrls(input, issues);
         const videos = input.media.filter((m) => m.kind === 'video');
@@ -138,19 +194,30 @@ export class XPublisher implements PlatformPublisher {
         for (const m of input.media.filter((x) => x.kind === 'video' || x.kind === 'image').slice(0, 4)) {
             mediaIds.push(await this.uploadMedia(m.url, m.kind as 'video' | 'image', token));
         }
-        const body: Record<string, any> = { text: input.caption };
+        const posts = xThreadPosts(input, this.maxChars(input));
+        const body: Record<string, any> = { text: posts[0] ?? input.caption };
         if (mediaIds.length) body.media = { media_ids: mediaIds };
         const id = await this.tweet(body, token, 'X post');
         const handle = input.account.username?.replace(/^@/, '');
 
         let warning: string | undefined;
-        if (input.firstComment?.trim()) {
+        const threadIds = [id];
+        for (let i = 1; i < posts.length; i++) {
             try {
-                await this.tweet({ text: input.firstComment, reply: { in_reply_to_tweet_id: id } }, token, 'X reply');
+                threadIds.push(await this.tweet({ text: posts[i], reply: { in_reply_to_tweet_id: threadIds[threadIds.length - 1] } }, token, `X thread post ${i + 1}`));
             } catch (e: any) {
-                warning = `Posted, but the reply failed: ${e.message}`;
+                // Post 1 is live and cannot be un-posted here; report exactly how far the thread got.
+                warning = `Published ${threadIds.length} of ${posts.length} thread posts; post ${i + 1} failed: ${e.message}`;
+                break;
             }
         }
-        return { externalId: id, url: handle ? `https://x.com/${handle}/status/${id}` : `https://x.com/i/web/status/${id}`, state: 'published', meta: { mediaIds }, warning };
+        if (input.firstComment?.trim()) {
+            try {
+                await this.tweet({ text: input.firstComment, reply: { in_reply_to_tweet_id: threadIds[threadIds.length - 1] } }, token, 'X reply');
+            } catch (e: any) {
+                warning = [warning, `Posted, but the reply failed: ${e.message}`].filter(Boolean).join(' ');
+            }
+        }
+        return { externalId: id, url: handle ? `https://x.com/${handle}/status/${id}` : `https://x.com/i/web/status/${id}`, state: 'published', meta: { mediaIds, ...(posts.length > 1 ? { threadIds, threadPlanned: posts.length } : {}) }, warning };
     }
 }

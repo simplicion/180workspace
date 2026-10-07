@@ -42,6 +42,7 @@ export {
 export type { UniversalSkeletonProps, SkeletonProps, SkeletonBoundaryProps, CompoundLayoutConfig, SkeletonType } from './components/Skeleton';
 export * from './components/Button';
 export * from './components/Input';
+export * from './components/Textarea';
 export * from './components/Card';
 export * from './components/MarketingHeader';
 export * from './components/LogoLoader';

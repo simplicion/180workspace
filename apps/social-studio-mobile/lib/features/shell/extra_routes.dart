@@ -20,7 +20,7 @@ import '../studio/studio_screen.dart';
 import '../studio/studio_session_screen.dart';
 import '../workspace/oauth_callback_screen.dart';
 import '../workspace/project_workspace_screen.dart';
-import '../instagram_hub/instagram_command_screen.dart';
+import '../command_center/platform_command_screen.dart';
 import '../planner/detailed_script_screen.dart';
 
 String? _q(GoRouterState s, String k) {
@@ -51,7 +51,7 @@ List<StatefulShellBranch> shellBranches() => [
 /// Full-screen routes outside the bottom navigation.
 List<RouteBase> extraRoutes() => [
       GoRoute(path: '/settings', builder: (_, _) => SettingsScreen()),
-      GoRoute(path: '/instagram', builder: (_, _) => const InstagramCommandScreen()),
+      GoRoute(path: '/command-center', builder: (_, s) => PlatformCommandScreen(initialPlatform: _q(s, 'platform'))),
       GoRoute(path: '/projects', builder: (_, _) => ProjectsListScreen()),
       GoRoute(path: '/projects/new', builder: (_, _) => CreateProjectScreen()),
       GoRoute(

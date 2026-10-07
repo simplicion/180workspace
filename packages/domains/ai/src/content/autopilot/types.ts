@@ -72,19 +72,12 @@ export interface AutopilotPiece {
     hookScore?: number;
     hookFormula?: string;
     teleprompterScript?: string;
-    timedBeats?: Array<{
-        index: number;
-        timecode: string;
-        startSec: number;
-        durationSec: number;
-        wordCount: number;
-        spokenWords: string;
-        screenText?: string;
-        visualAction?: string;
-        retentionDevice?: string;
-        isConcrete: boolean;
-    }>;
+    timedBeats?: import('../craft/craft-review').TimedBeat[];
     humanScore?: number;
+    /** Deterministic craft report computed from the final text (see craft/craft-review). */
+    craft?: { score: number; blocking: string[]; advice: string[] };
+    /** Scene-by-scene shooting script, generated on demand for video pieces. */
+    productionScript?: import('./agents/production-script.agent').ProductionScript;
 }
 
 export interface AutopilotRunResult {
@@ -95,6 +88,6 @@ export interface AutopilotRunResult {
     provider: string;
 }
 
-export type AutopilotStage = 'queued' | 'research' | 'strategy' | 'hooks_scripts' | 'copy' | 'critic' | 'saving' | 'done';
+export type AutopilotStage = 'queued' | 'research' | 'strategy' | 'hooks_scripts' | 'hook_lab' | 'copy' | 'craft' | 'critic' | 'saving' | 'done';
 
 export type ProgressFn = (stage: AutopilotStage, progress: number, detail?: string) => void | Promise<void>;

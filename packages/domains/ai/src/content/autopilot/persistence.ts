@@ -67,6 +67,8 @@ export function pieceToRow(piece: AutopilotPiece, calendarId: string, companyId:
         ...(piece.hookScore ? { hookScore: piece.hookScore } : {}),
         ...(piece.hookFormula ? { hookFormula: piece.hookFormula } : {}),
         ...(piece.humanScore ? { humanScore: piece.humanScore } : {}),
+        ...(piece.craft ? { craft: piece.craft } : {}),
+        ...(piece.productionScript ? { productionScript: piece.productionScript } : {}),
     };
     const notes = [
         piece.psychologicalJob ? `Psychological Job: ${piece.psychologicalJob}` : '',
@@ -129,6 +131,13 @@ export function expandAutopilotFields<T extends Record<string, any>>(row: T): T 
         captions: a.captions || {},
         sources: a.sources || [],
         critic: a.critic || null,
+        hookScore: a.hookScore ?? null,
+        hookFormula: a.hookFormula || null,
+        humanScore: a.humanScore ?? null,
+        craft: a.craft || null,
+        timedBeats: a.timedBeats || [],
+        teleprompterText: a.teleprompterText || null,
+        productionScript: a.productionScript || null,
         postingTime: (row as any).postingTimeTz || '',
     };
 }

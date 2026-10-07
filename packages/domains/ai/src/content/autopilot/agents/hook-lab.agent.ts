@@ -14,6 +14,7 @@ import { HOOKS_DATA } from '../../craft/data/hooks.data';
 import { HOOK_PASS_SCORE, inventedFigures } from '../../craft/craft-review';
 import { HookEvaluation, HookScorer } from '../../craft/hook-scorer';
 import { PLATFORM_CRAFT, toCraftPlatform } from '../../craft/platform-specs';
+import { AGENT_TOKEN_CAPS, optionalAgentLimits } from '../budget';
 import { runJsonAgent } from '../json-agent';
 import { AutopilotLLM, UsageMeter } from '../llm';
 import type { AutopilotBrandContext, AutopilotPiece } from '../types';
@@ -74,6 +75,14 @@ export async function runHookLabAgent(params: {
     const weak = pieces.filter((p) => isWeak(evals.get(p.slotId)!));
     const outcome: HookLabOutcome = { scored: pieces.length, weak: weak.length, rewritten: 0 };
     if (!weak.length) return outcome;
+    if (!optionalAgentLimits().rewritesEnabled) {
+        // Operator turned the rewrite pass off: hooks are still scored and the weak ones flagged for review.
+        for (const p of weak) {
+            const e = evals.get(p.slotId)!;
+            p.critic.issues.push(`weak hook (${e.totalScore}/100): ${e.dealbreaker || e.recommendations[0] || 'needs a sharper opening'}`);
+        }
+        return outcome;
+    }
 
     try {
         const { value } = await runJsonAgent({
@@ -81,7 +90,7 @@ export async function runHookLabAgent(params: {
             role: 'hook_lab',
             meter: params.meter,
             log: params.log,
-            maxTokens: Math.min(4000, 500 + weak.length * 220),
+            maxTokens: Math.min(AGENT_TOKEN_CAPS.hookLabMax, AGENT_TOKEN_CAPS.hookLabBase + weak.length * AGENT_TOKEN_CAPS.hookLabPerHook),
             schema: HookLabSchema,
             system: 'You are a hook editor for short-form video and social posts. You rewrite weak opening lines so a stranger stops scrolling. You never invent facts.',
             prompt: [

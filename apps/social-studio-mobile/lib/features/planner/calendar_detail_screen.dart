@@ -508,27 +508,9 @@ class _DayPieceCard extends StatelessWidget {
           ),
           SizedBox(width: 6),
           StatusChip(label: piece.status.label, color: piece.status.color),
-          if (isVideo || brief?.hasScript == true) ...[
+          if (brief != null && brief.timedBeats.isNotEmpty) ...[
             SizedBox(width: 6),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.accent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: AppTheme.accent.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.speed_rounded, size: 10, color: AppTheme.accent),
-                  SizedBox(width: 3),
-                  Text(
-                    '165 WPM Script',
-                    style: TextStyle(fontSize: 10, color: AppTheme.accent, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
+            StatusChip(label: 'Script ${brief.spokenSeconds.toStringAsFixed(0)}s', color: AppTheme.accent),
           ],
           if (piece.psychologicalJob?.isNotEmpty == true || brief?.psychologicalJob?.isNotEmpty == true) ...[
             SizedBox(width: 6),
@@ -608,7 +590,7 @@ class _DayPieceCard extends StatelessWidget {
                   });
                 },
                 icon: Icon(Icons.menu_book_rounded, size: 14),
-                label: Text('Detailed Script'),
+                label: Text('Full script'),
               ),
             ),
             SizedBox(width: 6),
@@ -693,7 +675,7 @@ class _PieceTile extends StatelessWidget {
                   fmtDate(piece.dateScheduled),
                   piece.platform,
                   piece.contentType,
-                  if (hasScript) '📜 165 WPM Script',
+                  if (hasScript && brief != null && brief.timedBeats.isNotEmpty) 'Script ${brief.spokenSeconds.toStringAsFixed(0)}s',
                   piece.status.label,
                 ].where((s) => s.isNotEmpty).join(' · '),
                 style: Theme.of(context).textTheme.labelSmall,
@@ -703,7 +685,7 @@ class _PieceTile extends StatelessWidget {
           if (hasScript) ...[
             IconButton(
               icon: Icon(Icons.menu_book_rounded, size: 18, color: AppTheme.accent),
-              tooltip: 'Detailed Script',
+              tooltip: 'Full script',
               onPressed: () => context.push('/planner/script', extra: {
                 'piece': piece,
                 'calendar': calendar,
@@ -1087,7 +1069,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
               });
             },
             icon: Icon(Icons.menu_book_rounded, size: 18),
-            label: Text('📜 Open Detailed Script Studio (165 WPM Beats)'),
+            label: Text('View detailed script'),
           ),
           SizedBox(height: 10),
           FilledButton.icon(

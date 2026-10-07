@@ -260,6 +260,18 @@ export function formatMemoryContext(rows: AgentMemoryRow[], audience: 'director'
         }
     }
 
+    if (audience === 'strategist') {
+        // Posts that beat the account's own median by 3x or more (written by the post-metrics ranking).
+        const winners = rows
+            .filter((r) => r.kind === 'performance' && typeof r.payload?.outlierMultiple === 'number' && r.payload.outlierMultiple >= 3 && r.payload?.hook)
+            .sort((a, b) => b.payload.outlierMultiple - a.payload.outlierMultiple)
+            .slice(0, 4);
+        if (winners.length) {
+            lines.push('Own outlier posts of this account (measured multiple of its median; build on these angles and hook shapes, do not copy the wording):');
+            lines.push(fenceUntrusted('memory', winners.map((r) => `${r.payload.outlierMultiple}x on ${sanitizeInlineUntrusted(String(r.payload.platform || ''), 20)}${r.payload.formulaName ? ` [${sanitizeInlineUntrusted(String(r.payload.formulaName), 40)}]` : ''}: ${sanitizeInlineUntrusted(String(r.payload.hook), 160)}`).join(' | '), { maxChars: 700 }).block);
+        }
+    }
+
     // Hard cap so memory never crowds out the brand or the request.
     const out: string[] = [];
     let used = 0;

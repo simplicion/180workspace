@@ -28,7 +28,7 @@ docs relevant to the task.
 | Web app (Next.js) | `apps/frontend` — social: `app/(platform)/(social-media-management-app)`, studio: `app/(platform)/(media-editor-app)/media-editor` (`MediaStudioWorkspace.tsx`) |
 | Social Studio Client | `apps/social-studio-mobile` (Flutter multi-platform client: Mobile & Desktop) |
 | Social domain | `packages/domains/social-media/src` — brand-consciousness.ts, content-calendar, calendar-piece-media, creative/ (carousels+image models), publishing/ (oauth, token-vault, publishers, scheduler, webhooks), engagement/ (matcher, dispatcher, AI agent, AI reply-all), social-insights |
-| AI domain | `packages/domains/ai/src` — kernel/ (provider + company AI key resolution), builders/video-ai-director.service.ts (director), content/autopilot/* (multi-agent calendar) |
+| AI domain | `packages/domains/ai/src` — kernel/ (provider + company AI key resolution), builders/video-ai-director.service.ts (director), content/autopilot/* (8-agent calendar), content/craft/* (per-platform hook/copy/script linters) |
 | Video contracts | `packages/video-contracts/src` — edit-ir schema/compiler, mobile-edit-ir.ts, director-tools.ts, plan-expander.ts, music-catalog.ts |
 | Video runtime | `packages/video-engine-runtime` — intelligence modules, stock sourcing tools, FFmpeg helpers, edge tests |
 | DB | `packages/db/prisma/schema.prisma` + `migrations/` (never run migrations against shared DBs) |
@@ -60,7 +60,8 @@ docs relevant to the task.
 ## Key docs (read on demand, don't preload)
 `docs/social-studio-mobile/`: PRODUCTION_GAP_AUDIT.md (current status + phased plan — **start here**),
 AUTONOMOUS_MULTI_AGENT_PLAN.md, AI_DIRECTOR_CONTRACT.md, BRAND_CONSCIOUSNESS_API.md, BACKEND_LOCAL.md
-(local run + test users), FEATURE_PARITY.md (large), FREE_MEDIA_SOURCES.md, PUBLISHING.md (if present).
+(local run + test users), FEATURE_PARITY.md (large), FREE_MEDIA_SOURCES.md, PUBLISHING.md (if present), PLATFORM_TEAM.md (craft kit, calendar agents,
+Command Center API).
 
 ## Working efficiently (owner's usage limits are tight)
 - Check `git status`/`git log -5` and PRODUCTION_GAP_AUDIT.md before planning; don't re-audit what's documented.
