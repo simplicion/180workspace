@@ -202,6 +202,7 @@ async function runStrategist(input: AutopilotRunInput, research: ResearchOutcome
         maxTokens,
         schema: StrategySchema,
         log: deps.log,
+        tolerateCheckOnRepair: true,
         system: 'You are a senior social media strategist. You plan high-converting content from audience psychology and crisp value delivery.',
         prompt,
         normalize: (raw: any) => normaliseStrategy(raw, { days, platforms, allowedUrls, brandPositioning: brand.positioning }),
@@ -274,6 +275,7 @@ async function runHookScriptBatch(slots: WorkingSlot[], input: AutopilotRunInput
             role: instruction ? 'regenerate' : 'hook_script',
             meter,
             log: deps.log,
+            tolerateCheckOnRepair: true,
             maxTokens: Math.min(TOKEN_CAPS.hookMax, AGENT_TOKEN_CAPS.hookBase + chunk.length * TOKEN_CAPS.hookPerSlot),
             schema: HookScriptBatchSchema,
             system: 'You are a short-form video scriptwriter and hook specialist. You write words people actually say on camera.',
@@ -315,7 +317,7 @@ async function runHookScriptBatch(slots: WorkingSlot[], input: AutopilotRunInput
                 '',
                 'Return JSON only: {"items":[{"slotId":"","headline":"","hookType":"","psychologicalJob":"","designSystem":"","whatContentDelivers":"","visualDirection":"","spokenHook":"","onScreenHook":"","script":{},"shotNotes":[],"carouselBrief":{},"visualBrief":""}]} (omit keys that do not apply).',
             ].join('\n'),
-            normalize: (raw: any) => normaliseHookScript(raw, chunk),
+            normalize: (raw: any, opts?: { attempt: number }) => normaliseHookScript(raw, chunk, opts),
             check: (batch) => hookScriptProblems(batch.items, chunk),
         });
         for (const item of value.items) {
@@ -342,6 +344,7 @@ async function runCopyBatch(pieces: AutopilotPiece[], input: AutopilotRunInput, 
             role: instruction ? 'regenerate' : 'copy',
             meter,
             log: deps.log,
+            tolerateCheckOnRepair: true,
             maxTokens: Math.min(TOKEN_CAPS.copyMax, AGENT_TOKEN_CAPS.copyBase + copies * TOKEN_CAPS.copyPerPlatformCopy),
             schema: CopyBatchSchema,
             system: 'You are a social media copywriter. Each platform gets copy written for how people use that platform.',
@@ -365,7 +368,7 @@ async function runCopyBatch(pieces: AutopilotPiece[], input: AutopilotRunInput, 
                 'Return JSON only: {"items":[{"slotId":"","copies":[{"platform":"instagram","caption":"","cta":"","hashtags":["#tag"],"postingTime":"18:30"}]}]}',
                 'Every piece needs one copy per listed platform.',
             ].filter((l) => l !== '').join('\n'),
-            normalize: (raw: any) => normaliseCopy(raw, chunk),
+            normalize: (raw: any, opts?: { attempt: number }) => normaliseCopy(raw, chunk, opts),
             check: (batch) => {
                 const problems: string[] = [];
                 const seen = new Set<string>();

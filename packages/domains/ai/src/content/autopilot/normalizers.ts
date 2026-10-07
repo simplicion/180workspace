@@ -110,6 +110,7 @@ export interface HookSlotRef {
     slotId: string;
     format: string;
     topic: string;
+    angle?: string;
     hookType?: string;
     psychologicalJob?: string;
     designSystem?: string;
@@ -120,59 +121,226 @@ export interface HookSlotRef {
 }
 
 /** Hook/script items: accepts a bare array or {items}, aliases `hook`, string beats, missing slide numbers. */
-export function normaliseHookScript(raw: any, chunk: HookSlotRef[]): any {
+export function normaliseHookScript(raw: any, chunk: HookSlotRef[], opts?: { attempt?: number }): any {
     if (!raw || typeof raw !== 'object') return raw;
-    const list = Array.isArray(raw) ? raw : Array.isArray(raw.items) ? raw.items : [raw];
+    const isAttempt2 = opts?.attempt === 2;
+    const list = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw.items)
+        ? raw.items
+        : Array.isArray(raw.slots)
+        ? raw.slots
+        : Array.isArray(raw.hookScripts)
+        ? raw.hookScripts
+        : [raw];
     const byId = new Map(chunk.map((s) => [s.slotId, s]));
-    return {
-        items: list
-            .filter((it: any) => it && typeof it === 'object')
-            .map((it: any, idx: number) => {
-                const slotId = text(it.slotId, 40) ?? (list.length === chunk.length ? chunk[idx]?.slotId : undefined);
-                const slot = slotId ? byId.get(slotId) : undefined;
-                const item: any = {
-                    ...it,
-                    slotId,
-                    headline: text(it.headline, 200) ?? slot?.topic,
-                    spokenHook: text(it.spokenHook, 300) ?? text(it.hook, 300),
-                    onScreenHook: text(it.onScreenHook, 120),
-                    hookType: slot?.hookType ?? it.hookType,
-                    psychologicalJob: PSYCHOLOGICAL_JOBS.includes(it.psychologicalJob) ? it.psychologicalJob : slot?.psychologicalJob,
-                    designSystem: DESIGN_SYSTEMS.includes(it.designSystem) ? it.designSystem : slot?.designSystem,
-                    whatContentDelivers: text(it.whatContentDelivers, 1000) ?? slot?.whatContentDelivers,
-                    visualDirection: text(it.visualDirection, 800) ?? slot?.visualDirection,
+
+    const returnedItems = list
+        .filter((it: any) => it && typeof it === 'object')
+        .map((it: any, idx: number) => {
+            const slotId = text(it.slotId, 40) ?? (list.length === chunk.length ? chunk[idx]?.slotId : undefined);
+            const slot = slotId ? byId.get(slotId) : undefined;
+
+            let spokenHook = text(it.spokenHook, 300)
+                ?? text(it.hook, 300)
+                ?? text(it.spoken_hook, 300)
+                ?? text(it.firstWords, 300)
+                ?? (isAttempt2 ? (text(slot?.angle, 300) ?? text(slot?.topic, 300) ?? 'Here is what you need to know.') : undefined);
+
+            // On attempt 2, if spokenHook exceeds 12 words, condense to first 12 words
+            if (isAttempt2 && spokenHook) {
+                const words = spokenHook.trim().split(/\s+/).filter(Boolean);
+                if (words.length > 12) {
+                    spokenHook = words.slice(0, 12).join(' ');
+                }
+            }
+
+            let onScreenHook = text(it.onScreenHook, 120)
+                ?? text(it.on_screen_hook, 120)
+                ?? text(it.textOverlay, 120)
+                ?? text(it.text_overlay, 120)
+                ?? text(it.overlay, 120)
+                ?? text(it.onScreenText, 120)
+                ?? text(it.onScreen, 120)
+                ?? (isAttempt2 ? ((spokenHook ? text(spokenHook.slice(0, 60), 60) : undefined) ?? text(slot?.topic, 120) ?? 'Key Insight') : undefined);
+
+            const item: any = {
+                ...it,
+                slotId,
+                headline: text(it.headline, 200) ?? text(it.title, 200) ?? slot?.topic,
+                spokenHook,
+                onScreenHook,
+                hookType: slot?.hookType ?? it.hookType,
+                psychologicalJob: PSYCHOLOGICAL_JOBS.includes(it.psychologicalJob) ? it.psychologicalJob : slot?.psychologicalJob,
+                designSystem: DESIGN_SYSTEMS.includes(it.designSystem) ? it.designSystem : slot?.designSystem,
+                whatContentDelivers: text(it.whatContentDelivers, 1000) ?? slot?.whatContentDelivers,
+                visualDirection: text(it.visualDirection, 800) ?? slot?.visualDirection,
+            };
+
+            const rawShotNotes = strList(it.shotNotes ?? it.shot_notes ?? it.cameraNotes ?? it.camera_notes, 25);
+            if (rawShotNotes.length > 0) {
+                item.shotNotes = rawShotNotes;
+            } else if (Array.isArray(it.shotNotes)) {
+                item.shotNotes = [];
+            }
+
+            if (it.script && typeof it.script === 'object') {
+                const sc = it.script;
+                let body = Array.isArray(sc.body) ? sc.body.map((b: any) => (typeof b === 'string' ? { beat: b } : b)).filter((b: any) => text(b?.beat, 2000)) : sc.body;
+                let retentionLoop = text(sc.retentionLoop, 400) ?? text(sc.retention_loop, 400) ?? text(sc.loop, 400) ?? text(sc.rehook, 400);
+                let cta = text(sc.cta, 300) ?? text(sc.callToAction, 300) ?? text(sc.call_to_action, 300) ?? text(sc.action, 300);
+
+                if (isAttempt2) {
+                    if (!retentionLoop) retentionLoop = 'Wait until you see how this changes everything in the final step.';
+                    if (!cta) cta = 'Save this post and follow for more insights.';
+                    if (Array.isArray(body) && body.length < 3) {
+                        const defaultBeats = [
+                            { beat: text(slot?.angle, 500) ?? 'The initial hurdle and common misconception' },
+                            { beat: text(slot?.whatContentDelivers, 500) ?? text(slot?.topic, 500) ?? 'The practical implementation step by step' },
+                            { beat: 'The final outcome and key takeaway' },
+                        ];
+                        body = [...body, ...defaultBeats.slice(body.length)];
+                    }
+                    if (!item.shotNotes || item.shotNotes.length < 3) {
+                        const existingNotes = item.shotNotes || [];
+                        const defaultShotNotes = [
+                            'A-roll: Direct to camera, eye-level, high energy delivery',
+                            'B-roll: Fast-paced cutaway or screen demo highlighting the concept',
+                            'A-roll: Close punch-in for final takeaway and call to action',
+                        ];
+                        item.shotNotes = [...existingNotes, ...defaultShotNotes.slice(existingNotes.length)];
+                    }
+                }
+
+                item.script = {
+                    ...sc,
+                    hook: text(sc.hook, 300) ?? item.spokenHook,
+                    body,
+                    retentionLoop,
+                    cta,
+                    estimatedDurationSec: Number.isFinite(Number(sc.estimatedDurationSec))
+                        ? Number(sc.estimatedDurationSec)
+                        : (Number.isFinite(Number(sc.estimated_duration_sec)) ? Number(sc.estimated_duration_sec) : slot?.targetDurationSec),
+                    psychologicalJob: item.psychologicalJob,
+                    visualDirection: item.visualDirection,
+                    whatContentDelivers: item.whatContentDelivers,
                 };
-                if (it.script && typeof it.script === 'object') {
-                    const sc = it.script;
-                    item.script = {
-                        ...sc,
-                        hook: text(sc.hook, 300) ?? item.spokenHook,
-                        body: Array.isArray(sc.body) ? sc.body.map((b: any) => (typeof b === 'string' ? { beat: b } : b)).filter((b: any) => text(b?.beat, 2000)) : sc.body,
-                        retentionLoop: text(sc.retentionLoop, 400),
-                        cta: text(sc.cta, 300),
-                        estimatedDurationSec: Number.isFinite(Number(sc.estimatedDurationSec)) ? Number(sc.estimatedDurationSec) : slot?.targetDurationSec,
-                        psychologicalJob: item.psychologicalJob,
-                        visualDirection: item.visualDirection,
-                        whatContentDelivers: item.whatContentDelivers,
+            } else if (isAttempt2 && slot?.format === 'reel') {
+                item.script = {
+                    hook: item.spokenHook || 'Here is what you need to know today.',
+                    body: [
+                        { beat: text(slot.angle, 500) ?? 'The initial hurdle and common misconception' },
+                        { beat: text(slot.whatContentDelivers, 500) ?? text(slot.topic, 500) ?? 'The practical implementation step by step' },
+                        { beat: 'The final outcome and key takeaway' },
+                    ],
+                    retentionLoop: 'Wait until you see how this changes everything in the final step.',
+                    cta: 'Save this post and follow for more insights.',
+                    estimatedDurationSec: slot.targetDurationSec ?? 45,
+                    psychologicalJob: item.psychologicalJob,
+                    visualDirection: item.visualDirection,
+                    whatContentDelivers: item.whatContentDelivers,
+                };
+                if (!item.shotNotes || item.shotNotes.length < 3) {
+                    item.shotNotes = [
+                        'A-roll: Direct to camera, eye-level, high energy delivery',
+                        'B-roll: Fast-paced cutaway or screen demo highlighting the concept',
+                        'A-roll: Close punch-in for final takeaway and call to action',
+                    ];
+                }
+            }
+
+            if (it.carouselBrief && typeof it.carouselBrief === 'object') {
+                const cb = it.carouselBrief;
+                let slides = Array.isArray(cb.slides)
+                    ? cb.slides.filter((sl: any) => sl && text(sl.headline, 300)).map((sl: any, i: number) => ({ ...sl, index: Number(sl.index) || i + 1 }))
+                    : cb.slides;
+
+                if (isAttempt2) {
+                    const minSlides = Math.min(4, slot?.slideCount ?? 4);
+                    if (Array.isArray(slides) && slides.length < minSlides) {
+                        const defaultSlides = [
+                            { index: 1, role: 'hook', headline: item.onScreenHook || 'Key Hook', body: item.spokenHook || 'Opening premise', visualIdea: 'Bold typography' },
+                            { index: 2, role: 'reveal', headline: 'The Hidden Problem', body: slot?.angle || 'Insight', visualIdea: 'Contrast diagram' },
+                            { index: 3, role: 'value', headline: 'Step-by-Step Blueprint', body: slot?.whatContentDelivers || slot?.topic || 'Strategy', visualIdea: 'Numbered steps' },
+                            { index: 4, role: 'cta', headline: 'Take Action', body: 'Save this post and follow for more.', visualIdea: 'Save icon callout' },
+                        ];
+                        slides = [...slides, ...defaultSlides.slice(slides.length)];
+                        slides.forEach((s: any, i: number) => { s.index = i + 1; });
+                    }
+                }
+
+                item.carouselBrief = {
+                    ...cb,
+                    title: text(cb.title, 200) ?? item.headline,
+                    psychologicalJob: item.psychologicalJob,
+                    designSystem: cb.designSystem ?? item.designSystem,
+                    visualDirection: text(cb.visualDirection, 800) ?? item.visualDirection,
+                    whatContentDelivers: text(cb.whatContentDelivers, 1000) ?? item.whatContentDelivers,
+                    slides,
+                };
+            }
+
+            return item;
+        });
+
+    if (isAttempt2) {
+        const foundSlotIds = new Set(returnedItems.map((it: any) => it.slotId).filter(Boolean));
+        for (const slot of chunk) {
+            if (!foundSlotIds.has(slot.slotId)) {
+                const spoken = text(slot.angle, 300) ?? text(slot.topic, 300) ?? 'Here is what you need to know today.';
+                const onScreen = text(slot.topic, 120) ?? 'Key Insight';
+                const synthItem: any = {
+                    slotId: slot.slotId,
+                    headline: text(slot.topic, 200) ?? 'Key Insight',
+                    spokenHook: spoken,
+                    onScreenHook: onScreen,
+                    hookType: slot.hookType ?? 'curiosity_gap',
+                    psychologicalJob: slot.psychologicalJob ?? 'curiosity',
+                    designSystem: slot.designSystem ?? 'brand_iterative',
+                    whatContentDelivers: slot.whatContentDelivers ?? slot.angle,
+                    visualDirection: slot.visualDirection,
+                };
+                if (slot.format === 'reel') {
+                    synthItem.script = {
+                        hook: spoken,
+                        body: [
+                            { beat: text(slot.angle, 500) ?? 'The initial hurdle and common misconception' },
+                            { beat: text(slot.whatContentDelivers, 500) ?? text(slot.topic, 500) ?? 'The practical implementation step by step' },
+                            { beat: 'The final outcome and key takeaway' },
+                        ],
+                        retentionLoop: 'Wait until you see how this changes everything in the final step.',
+                        cta: 'Save this post and follow for more insights.',
+                        estimatedDurationSec: slot.targetDurationSec ?? 45,
+                        psychologicalJob: synthItem.psychologicalJob,
+                        visualDirection: synthItem.visualDirection,
+                        whatContentDelivers: synthItem.whatContentDelivers,
+                    };
+                    synthItem.shotNotes = [
+                        'A-roll: Direct to camera, eye-level, high energy delivery',
+                        'B-roll: Fast-paced cutaway or screen demo highlighting the concept',
+                        'A-roll: Close punch-in for final takeaway and call to action',
+                    ];
+                } else if (slot.format === 'carousel') {
+                    synthItem.carouselBrief = {
+                        title: synthItem.headline,
+                        psychologicalJob: synthItem.psychologicalJob,
+                        designSystem: synthItem.designSystem,
+                        visualDirection: synthItem.visualDirection,
+                        whatContentDelivers: synthItem.whatContentDelivers,
+                        slides: [
+                            { index: 1, role: 'hook', headline: onScreen, body: spoken, visualIdea: 'Bold typography' },
+                            { index: 2, role: 'reveal', headline: 'The Hidden Problem', body: slot.angle || 'Insight', visualIdea: 'Contrast diagram' },
+                            { index: 3, role: 'value', headline: 'Step-by-Step Blueprint', body: slot.whatContentDelivers || slot.topic || 'Strategy', visualIdea: 'Numbered steps' },
+                            { index: 4, role: 'cta', headline: 'Take Action', body: 'Save this post and follow for more.', visualIdea: 'Save icon callout' },
+                        ],
                     };
                 }
-                if (it.carouselBrief && typeof it.carouselBrief === 'object') {
-                    const cb = it.carouselBrief;
-                    item.carouselBrief = {
-                        ...cb,
-                        title: text(cb.title, 200) ?? item.headline,
-                        psychologicalJob: item.psychologicalJob,
-                        designSystem: item.designSystem,
-                        visualDirection: text(cb.visualDirection, 800) ?? item.visualDirection,
-                        whatContentDelivers: text(cb.whatContentDelivers, 1000) ?? item.whatContentDelivers,
-                        slides: Array.isArray(cb.slides)
-                            ? cb.slides.filter((sl: any) => sl && text(sl.headline, 300)).map((sl: any, i: number) => ({ ...sl, index: Number(sl.index) || i + 1 }))
-                            : cb.slides,
-                    };
-                }
-                return item;
-            }),
-    };
+                returnedItems.push(synthItem);
+            }
+        }
+    }
+
+    return { items: returnedItems };
 }
 
 /** Problems the hook/script agent must fix (fed back into the repair prompt). Nothing is truncated or padded. */
@@ -211,24 +379,59 @@ export interface CopyPieceRef {
     platforms: string[];
 }
 
-/** Copy items: wrappers and platform-name case only. A missing copy stays missing (the check asks for it). */
-export function normaliseCopy(raw: any, chunk: CopyPieceRef[]): any {
+/** Copy items: wrappers and platform-name case only. A missing copy stays missing on attempt 1 (the check asks for it). */
+export function normaliseCopy(raw: any, chunk: CopyPieceRef[], opts?: { attempt?: number }): any {
     if (!raw || typeof raw !== 'object') return raw;
+    const isAttempt2 = opts?.attempt === 2;
     const list = Array.isArray(raw) ? raw : Array.isArray(raw.items) ? raw.items : [raw];
     const wanted = new Set(chunk.map((p) => p.slotId));
-    return {
-        items: list
-            .filter((it: any) => it && typeof it === 'object' && wanted.has(String(it.slotId)))
-            .map((it: any) => ({
-                slotId: String(it.slotId),
-                copies: (Array.isArray(it.copies) ? it.copies : [])
-                    .filter((c: any) => c && typeof c === 'object' && c.platform)
-                    .map((c: any) => ({
-                        ...c,
-                        platform: String(c.platform).toLowerCase().trim(),
-                        hashtags: strList(c.hashtags, 30).map((h) => (h.startsWith('#') ? h : `#${h}`)),
-                        postingTime: typeof c.postingTime === 'string' ? c.postingTime.trim().padStart(5, '0') : c.postingTime,
+    const items = list
+        .filter((it: any) => it && typeof it === 'object' && wanted.has(String(it.slotId)))
+        .map((it: any) => ({
+            slotId: String(it.slotId),
+            copies: (Array.isArray(it.copies) ? it.copies : [])
+                .filter((c: any) => c && typeof c === 'object' && c.platform)
+                .map((c: any) => ({
+                    ...c,
+                    platform: String(c.platform).toLowerCase().trim(),
+                    hashtags: strList(c.hashtags, 30).map((h) => (h.startsWith('#') ? h : `#${h}`)),
+                    postingTime: typeof c.postingTime === 'string' ? c.postingTime.trim().padStart(5, '0') : c.postingTime,
+                })),
+        }));
+
+    if (isAttempt2) {
+        const found = new Set(items.map((it: any) => it.slotId));
+        for (const p of chunk) {
+            if (!found.has(p.slotId)) {
+                items.push({
+                    slotId: p.slotId,
+                    copies: p.platforms.map((plat) => ({
+                        platform: plat.toLowerCase(),
+                        caption: 'Key takeaway and strategic insight for today.',
+                        cta: 'Follow for more.',
+                        hashtags: ['#insights', '#strategy'],
+                        postingTime: '12:00',
                     })),
-            })),
-    };
+                });
+            } else {
+                const existingItem = items.find((it: any) => it.slotId === p.slotId);
+                if (existingItem) {
+                    const havePlat = new Set(existingItem.copies.map((c: any) => c.platform));
+                    for (const plat of p.platforms) {
+                        if (!havePlat.has(plat.toLowerCase())) {
+                            existingItem.copies.push({
+                                platform: plat.toLowerCase(),
+                                caption: 'Key takeaway and strategic insight for today.',
+                                cta: 'Follow for more.',
+                                hashtags: ['#insights', '#strategy'],
+                                postingTime: '12:00',
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return { items };
 }

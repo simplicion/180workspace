@@ -301,6 +301,25 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
     return Math.max(0, Math.round(currencyService.convert(activeFinalAmount, activeCurrency, chargeCurrency) * 100) / 100);
   }, [chargeCurrency, activeCurrency, activeFinalAmount]);
 
+  // Check if current user is actively logged into a 180 Profile wallet session
+  const isAuthenticatedWithWallet = Boolean(
+    wallet &&
+    (wallet.userId || wallet.id) &&
+    typeof wallet.balance === 'number' &&
+    (typeof window !== 'undefined' && Boolean(
+      localStorage.getItem('platform_auth_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('accessToken')
+    ))
+  );
+
+  const rawUserBalance = isAuthenticatedWithWallet ? (wallet?.balance ?? 0) : 0;
+  const walletCurrency = String(wallet?.currency || 'INR').toUpperCase();
+  const userBalance = useMemo(() => {
+    return currencyService.convert(rawUserBalance, walletCurrency, activeCurrency);
+  }, [rawUserBalance, walletCurrency, activeCurrency]);
+  const hasEnoughBalance = isAuthenticatedWithWallet && userBalance >= activeFinalAmount;
+
   const handleApplyCoupon = async () => {
     const trimmedCode = couponInput.trim().toUpperCase();
     if (!trimmedCode) {
@@ -1202,25 +1221,6 @@ export function CheckoutClient({ initialSessionId }: { initialSessionId?: string
       sessionId === 'default'
     )
   );
-
-  // Check if current user is actively logged into a 180 Profile wallet session
-  const isAuthenticatedWithWallet = Boolean(
-    wallet &&
-    (wallet.userId || wallet.id) &&
-    typeof wallet.balance === 'number' &&
-    (typeof window !== 'undefined' && Boolean(
-      localStorage.getItem('platform_auth_token') ||
-      localStorage.getItem('token') ||
-      localStorage.getItem('accessToken')
-    ))
-  );
-
-  const rawUserBalance = isAuthenticatedWithWallet ? (wallet?.balance ?? 0) : 0;
-  const walletCurrency = String(wallet?.currency || 'INR').toUpperCase();
-  const userBalance = useMemo(() => {
-    return currencyService.convert(rawUserBalance, walletCurrency, activeCurrency);
-  }, [rawUserBalance, walletCurrency, activeCurrency]);
-  const hasEnoughBalance = isAuthenticatedWithWallet && userBalance >= activeFinalAmount;
 
   return (
     <div className="w-full space-y-5 text-slate-900 dark:text-zinc-100 font-sans antialiased">

@@ -80,6 +80,32 @@ test('hook/script: shape fixed, problems reported instead of truncation or stock
     assert.ok(!JSON.stringify(n).match(/Stop scrolling|Save this|Comment below|Key Insight/));
 });
 
+test('hook/script attempt 2: self-heals missing items, shot notes, cta and condenses spoken hook', () => {
+    const chunk = [
+        { slotId: 's1', format: 'reel', topic: 'Grind size', angle: 'Too coarse ruins espresso' },
+        { slotId: 's2', format: 'carousel', topic: 'Water', slideCount: 3 },
+    ];
+    const n = normaliseHookScript(
+        [{ slotId: 's1', hook: 'one two three four five six seven eight nine ten eleven twelve thirteen', script: { body: ['a', 'b'] } }],
+        chunk,
+        { attempt: 2 }
+    );
+    assert.equal(n.items.length, 2);
+    const s1 = n.items[0];
+    assert.equal(s1.slotId, 's1');
+    assert.equal(s1.spokenHook.split(/\s+/).length, 12);
+    assert.ok(s1.onScreenHook);
+    assert.ok(s1.script.cta);
+    assert.ok(s1.script.retentionLoop);
+    assert.ok(s1.script.body.length >= 3);
+    assert.ok(s1.shotNotes.length >= 3);
+    const s2 = n.items[1];
+    assert.equal(s2.slotId, 's2');
+    assert.ok(s2.carouselBrief.slides.length >= 3);
+    const problems = hookScriptProblems(n.items, chunk);
+    assert.equal(problems.length, 0); // No problems remaining on attempt 2!
+});
+
 test('copy normaliser never writes a caption or a posting time', () => {
     const n = normaliseCopy({ items: [{ slotId: 's1', copies: [{ platform: 'Instagram', hashtags: ['coffee'], postingTime: '9:30' }] }, { slotId: 'other', copies: [] }] }, [{ slotId: 's1', platforms: ['instagram'] }]);
     assert.equal(n.items.length, 1);

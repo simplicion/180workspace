@@ -11,9 +11,11 @@ export interface JsonAgentCall<T> {
     maxTokens: number;
     meter?: UsageMeter;
     /** Optional hook to normalize/repair raw data before schema validation. */
-    normalize?: (raw: any) => any;
+    normalize?: (raw: any, opts?: { attempt: number }) => any;
     /** Extra semantic checks after schema validation; return a list of problems (empty = ok). */
     check?: (value: T) => string[];
+    /** If true, soft semantic check warnings on attempt 2 are logged as warnings rather than throwing AI_INVALID_OUTPUT (as long as schema validation passed). */
+    tolerateCheckOnRepair?: boolean;
     log?: (event: string, data: Record<string, unknown>) => void;
 }
 
@@ -92,12 +94,20 @@ export function extractJson(text: string): unknown {
     throw new Error('unterminated JSON in reply');
 }
 
+export interface ValidationResult<T> {
+    ok: boolean;
+    value?: T;
+    errors: string[];
+    schemaPassedData?: T;
+}
+
 function validate<T>(
     text: string,
     schema: ZodType<T>,
     check?: (v: T) => string[],
-    normalize?: (raw: any) => any,
-): { ok: true; value: T } | { ok: false; errors: string[] } {
+    normalize?: (raw: any, opts?: { attempt: number }) => any,
+    attempt: number = 1,
+): ValidationResult<T> {
     let raw: unknown;
     try {
         raw = extractJson(text);
@@ -107,7 +117,7 @@ function validate<T>(
 
     if (normalize) {
         try {
-            raw = normalize(raw);
+            raw = normalize(raw, { attempt });
         } catch (normErr: any) {
             // If normalization fails, proceed with raw to let zod provide path errors
         }
@@ -119,16 +129,18 @@ function validate<T>(
         return { ok: false, errors };
     }
     const problems = check ? check(parsed.data) : [];
-    if (problems.length) return { ok: false, errors: problems.slice(0, 20) };
-    return { ok: true, value: parsed.data };
+    if (problems.length) {
+        return { ok: false, errors: problems.slice(0, 20), schemaPassedData: parsed.data };
+    }
+    return { ok: true, value: parsed.data, errors: [] };
 }
 
 export async function runJsonAgent<T>(call: JsonAgentCall<T>): Promise<JsonAgentResult<T>> {
     const first = await call.llm.complete({ role: call.role, system: call.system, prompt: call.prompt, maxTokens: call.maxTokens });
     call.meter?.record(call.role, first.usage);
-    const v1 = validate(first.text, call.schema, call.check, call.normalize);
-    if (v1.ok === true) return { value: (v1 as { value: T }).value, repaired: false };
-    const errors1 = (v1 as { errors: string[] }).errors;
+    const v1 = validate(first.text, call.schema, call.check, call.normalize, 1);
+    if (v1.ok && v1.value !== undefined) return { value: v1.value, repaired: false };
+    const errors1 = v1.errors;
 
     call.log?.('agent_repair', { role: call.role, errors: errors1 });
     const repairPrompt = [
@@ -141,8 +153,20 @@ export async function runJsonAgent<T>(call: JsonAgentCall<T>): Promise<JsonAgent
     ].join('\n');
     const second = await call.llm.complete({ role: call.role, system: call.system, prompt: repairPrompt, maxTokens: call.maxTokens });
     call.meter?.record(call.role, second.usage);
-    const v2 = validate(second.text, call.schema, call.check, call.normalize);
-    if (v2.ok === true) return { value: (v2 as { value: T }).value, repaired: true };
+    const v2 = validate(second.text, call.schema, call.check, call.normalize, 2);
+    if (v2.ok && v2.value !== undefined) return { value: v2.value, repaired: true };
 
-    throw new AutopilotError('AI_INVALID_OUTPUT', `The ${call.role} agent returned invalid output twice`, { errors: (v2 as { errors: string[] }).errors });
+    // Recovery path 1: Attempt 2 matched schema, only check heuristics reported warnings (if allowed)
+    if (call.tolerateCheckOnRepair && v2.schemaPassedData !== undefined) {
+        call.log?.('agent_repaired_with_warnings', { role: call.role, warnings: v2.errors });
+        return { value: v2.schemaPassedData, repaired: true };
+    }
+
+    // Recovery path 2: Attempt 1 had valid schema data (only check heuristics had warnings) and attempt 2 failed
+    if (call.tolerateCheckOnRepair && v1.schemaPassedData !== undefined) {
+        call.log?.('agent_fallback_v1_schema_data', { role: call.role, v2Errors: v2.errors, v1Warnings: v1.errors });
+        return { value: v1.schemaPassedData, repaired: true };
+    }
+
+    throw new AutopilotError('AI_INVALID_OUTPUT', `The ${call.role} agent returned invalid output twice`, { errors: v2.errors });
 }
