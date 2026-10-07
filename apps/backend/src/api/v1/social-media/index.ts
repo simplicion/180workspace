@@ -16,11 +16,15 @@ import agentOsRoutes from './projects/agent-os.routes';
 import managerRoutes from './manager/manager.routes';
 import studioLibraryRoutes from './library/studio-library.routes';
 import socialBillingRoutes from './billing/social-billing.routes';
+import instagramRoutes from './instagram/instagram.routes';
 
 const router = Router();
 
 // Creator billing & recharge routes
 router.use('/billing', socialBillingRoutes);
+
+// Dedicated Instagram Agent Crew & Monitoring
+router.use('/instagram', instagramRoutes);
 
 // Autopilot (WS2) is mounted before the generic project routes so /projects/:id/autopilot/* reaches it.
 router.use('/projects/:id/autopilot', autopilotRoutes);

@@ -800,3 +800,24 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
         console.warn('[SeedFirstParty] Database seeding non-blocking note:', e.message);
     }
 }
+
+/**
+ * Checks if a given client ID or application identifier belongs to the official 180 Workspace first-party ecosystem.
+ * First-party applications are trusted by default and do not require user-granted OAuth consent screens.
+ */
+export function isFirstPartyApp(clientIdOrId: string | undefined | null): boolean {
+    if (!clientIdOrId) return false;
+    const clean = String(clientIdOrId).trim().toLowerCase();
+    if (
+        clean === '180-core' ||
+        clean === '180-workspace-platform' ||
+        clean === '180workspace' ||
+        clean === '180_client_70d751541f05347fe803ec8e128f5e83' ||
+        clean === '180_client_266753c1171df1e2c4a391483fd2e02e'
+    ) {
+        return true;
+    }
+    return FIRST_PARTY_APPS.some(
+        a => a.clientId.toLowerCase() === clean || (a as any).id?.toLowerCase() === clean || a.name.toLowerCase() === clean
+    );
+}

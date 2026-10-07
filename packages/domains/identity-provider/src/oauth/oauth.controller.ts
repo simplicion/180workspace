@@ -11,7 +11,7 @@ import {
     getJwks,
     ISSUER
 } from './oauth.service';
-import { FIRST_PARTY_APPS } from './seed-first-party';
+import { FIRST_PARTY_APPS, isFirstPartyApp } from './seed-first-party';
 import { UsernameService } from '../user/username.service';
 
 /**
@@ -660,6 +660,27 @@ export class OAuthController {
                     }
                 });
 
+                // Auto-upsert consent record (implicit consent for first-party & authorized apps)
+                try {
+                    await prisma.oAuthConsent.upsert({
+                        where: {
+                            appId_userId: {
+                                appId: authCode.app.id,
+                                userId: authCode.user.id
+                            }
+                        },
+                        create: {
+                            appId: authCode.app.id,
+                            userId: authCode.user.id,
+                            scopes: authCode.scopes
+                        },
+                        update: {
+                            scopes: authCode.scopes,
+                            updatedAt: new Date()
+                        }
+                    });
+                } catch (_) {}
+
                 let appScopedUsername = authCode.user.username || '';
                 try {
                     const appUser = await prisma.appUserIdentity.findUnique({
@@ -778,16 +799,18 @@ export class OAuthController {
                     if (dbToken.revokedAt || dbToken.expiresAt <= new Date()) {
                         return res.status(401).json({ error: 'invalid_token', error_description: 'Token has been revoked or expired' });
                     }
-                    const consent = await prisma.oAuthConsent.findUnique({
-                        where: {
-                            appId_userId: {
-                                appId: dbToken.appId,
-                                userId: dbToken.userId
+                    if (!isFirstPartyApp(dbToken.app?.clientId)) {
+                        const consent = await prisma.oAuthConsent.findUnique({
+                            where: {
+                                appId_userId: {
+                                    appId: dbToken.appId,
+                                    userId: dbToken.userId
+                                }
                             }
+                        });
+                        if (!consent) {
+                            return res.status(401).json({ error: 'consent_revoked', error_description: 'User access for this application has been revoked' });
                         }
-                    });
-                    if (!consent) {
-                        return res.status(401).json({ error: 'consent_revoked', error_description: 'User access for this application has been revoked' });
                     }
                     user = dbToken.user;
                 }
@@ -810,11 +833,11 @@ export class OAuthController {
                     const targetUserId = verified.payload?.sub || verified.payload?.id || verified.payload?.userId;
                     const tokenAud = verified.payload?.aud;
                     if (verified.valid && targetUserId) {
-                        if (tokenAud && typeof tokenAud === 'string' && tokenAud !== '180-core') {
+                        if (tokenAud && typeof tokenAud === 'string' && tokenAud !== '180-core' && !isFirstPartyApp(tokenAud)) {
                             const app = await prisma.oAuthApp.findFirst({
                                 where: { OR: [{ clientId: tokenAud }, { id: tokenAud }] }
                             });
-                            if (app) {
+                            if (app && !isFirstPartyApp(app.clientId)) {
                                 const consent = await prisma.oAuthConsent.findUnique({
                                     where: {
                                         appId_userId: {
@@ -954,16 +977,18 @@ export class OAuthController {
             if (dbToken.revokedAt || dbToken.expiresAt <= new Date()) {
                 return res.status(401).json({ valid: false, error: 'Token has been revoked or expired' });
             }
-            const consent = await prisma.oAuthConsent.findUnique({
-                where: {
-                    appId_userId: {
-                        appId: dbToken.appId,
-                        userId: dbToken.userId
+            if (!isFirstPartyApp(dbToken.app?.clientId)) {
+                const consent = await prisma.oAuthConsent.findUnique({
+                    where: {
+                        appId_userId: {
+                            appId: dbToken.appId,
+                            userId: dbToken.userId
+                        }
                     }
+                });
+                if (!consent) {
+                    return res.status(401).json({ valid: false, error: 'Application authorization has been revoked' });
                 }
-            });
-            if (!consent) {
-                return res.status(401).json({ valid: false, error: 'Application authorization has been revoked' });
             }
             return res.json({
                 valid: true,
@@ -980,11 +1005,11 @@ export class OAuthController {
         const result = verifyIdToken(token, expectedClientId);
         if (result.valid && result.payload?.sub) {
             const clientId = result.payload?.aud || expectedClientId;
-            if (clientId && typeof clientId === 'string' && clientId !== '180-core') {
+            if (clientId && typeof clientId === 'string' && clientId !== '180-core' && !isFirstPartyApp(clientId)) {
                 const app = await prisma.oAuthApp.findFirst({
                     where: { OR: [{ clientId }, { id: clientId }] }
                 });
-                if (app) {
+                if (app && !isFirstPartyApp(app.clientId)) {
                     const consent = await prisma.oAuthConsent.findUnique({
                         where: {
                             appId_userId: {

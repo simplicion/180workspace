@@ -54,6 +54,11 @@ PreferredSizeWidget workspaceAppBar(BuildContext context, WidgetRef ref, {List<W
           show180ManagerCopilot(context, projectId: p?.id);
         },
       ),
+      IconButton(
+        icon: const Icon(Icons.radar_rounded, color: Color(0xFFE1306C)),
+        tooltip: 'Instagram Command Center',
+        onPressed: () => context.push('/instagram'),
+      ),
       SyncIndicator(),
       IconButton(
         icon: Icon(Icons.account_circle_rounded, color: AppTheme.textSecondary),
@@ -364,6 +369,16 @@ void showProfileAndAccountsSheet(BuildContext context, WidgetRef ref) {
                   const SizedBox(height: 10),
 
                   // The 4 Core Navigation Options
+                  _ProfileSheetTile(
+                    icon: Icons.radar_rounded,
+                    iconColor: const Color(0xFFE1306C),
+                    title: 'Instagram Command Center',
+                    subtitle: '13-agent crew: Hook scorer, beat sheet, feed simulator',
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/instagram');
+                    },
+                  ),
                   _ProfileSheetTile(
                     icon: Icons.folder_special_rounded,
                     iconColor: AppTheme.accentBlue,

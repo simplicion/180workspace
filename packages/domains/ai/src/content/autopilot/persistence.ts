@@ -62,6 +62,11 @@ export function pieceToRow(piece: AutopilotPiece, calendarId: string, companyId:
         ...(piece.carouselBrief ? {
             carouselSlides: piece.carouselBrief.slides.map((s) => ({ slide: s.index, type: s.role, title: s.headline, body: s.body })),
         } : {}),
+        ...(piece.timedBeats ? { timedBeats: piece.timedBeats } : {}),
+        ...(piece.teleprompterScript ? { teleprompterText: piece.teleprompterScript } : {}),
+        ...(piece.hookScore ? { hookScore: piece.hookScore } : {}),
+        ...(piece.hookFormula ? { hookFormula: piece.hookFormula } : {}),
+        ...(piece.humanScore ? { humanScore: piece.humanScore } : {}),
     };
     const notes = [
         piece.psychologicalJob ? `Psychological Job: ${piece.psychologicalJob}` : '',

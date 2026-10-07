@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '@workspace/identity';
 import { logAction } from '../../../../system-configs/utils/audit';
@@ -162,6 +163,72 @@ export class AuthController {
     static async refreshToken(req: Request, res: Response, next: NextFunction) {
         try {
             const presented = req.body?.refreshToken ? String(req.body.refreshToken) : '';
+
+            // Handle 180 Identity OAuth Refresh Tokens (e.g. 180_ref_...)
+            if (presented && (presented.startsWith('180_ref_') || presented.startsWith('180_'))) {
+                // 1. Try local corePrisma if connected
+                try {
+                    const { corePrisma } = require('@workspace/db-180core');
+                    const existingToken = await corePrisma.oAuthToken.findUnique({
+                        where: { refreshToken: presented },
+                        include: { user: true, app: true }
+                    });
+                    if (existingToken && !existingToken.revokedAt && existingToken.expiresAt > new Date()) {
+                        const newAccessToken = '180_acc_' + crypto.randomBytes(32).toString('hex');
+                        const newRefreshToken = '180_ref_' + crypto.randomBytes(32).toString('hex');
+                        const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+                        await corePrisma.oAuthToken.update({
+                            where: { id: existingToken.id },
+                            data: { accessToken: newAccessToken, refreshToken: newRefreshToken, expiresAt }
+                        });
+                        return res.json({
+                            token: newAccessToken,
+                            accessToken: newAccessToken,
+                            refreshToken: newRefreshToken,
+                            tokenType: 'Bearer',
+                            expiresIn: 900
+                        });
+                    }
+                } catch (_) {}
+
+                // 2. Try remote Core Identity /api/oauth/token endpoint
+                try {
+                    const candidateCoreUrls = [
+                        process.env.CORE_BACKEND_INTERNAL_URL,
+                        process.env.IDENTITY_SERVER_URL,
+                        process.env.CORE_BACKEND_URL,
+                        'https://services.180workspace.com',
+                        'http://core-backend:4003',
+                        'http://localhost:4003'
+                    ].filter(Boolean) as string[];
+
+                    for (const coreUrl of candidateCoreUrls) {
+                        try {
+                            const cleanUrl = coreUrl.replace(/\/$/, '');
+                            const coreRes = await fetch(`${cleanUrl}/api/oauth/token`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    grant_type: 'refresh_token',
+                                    refresh_token: presented,
+                                    client_id: '180_client_266753c1171df1e2c4a391483fd2e02e'
+                                })
+                            });
+                            if (coreRes.ok) {
+                                const refreshedData: any = await coreRes.json();
+                                return res.json({
+                                    token: refreshedData.access_token || refreshedData.token,
+                                    accessToken: refreshedData.access_token || refreshedData.token,
+                                    refreshToken: refreshedData.refresh_token || presented,
+                                    tokenType: 'Bearer',
+                                    expiresIn: refreshedData.expires_in || 900
+                                });
+                            }
+                        } catch (_) {}
+                    }
+                } catch (_) {}
+            }
+
             let claims: RefreshClaims | null = null;
             if (presented) {
                 try {

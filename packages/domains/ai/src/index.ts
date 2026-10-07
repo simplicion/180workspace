@@ -40,6 +40,7 @@ export * from './builders';
 // Content Calendar & Marketing
 export * from './content/ai-content-calendar.service';
 export * from './content/autopilot';
+export * from './content/craft';
 
 // Analytics & Automation & CRM
 export * from './analytics/ai-business-insights.service';

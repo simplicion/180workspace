@@ -20,6 +20,9 @@ import {
     AutopilotPlatform, PSYCHOLOGICAL_JOBS, DESIGN_SYSTEMS, PsychologicalJob, DesignSystem,
 } from './schemas';
 import type { AutopilotBrandContext, AutopilotPiece, AutopilotRunInput, AutopilotRunResult, PieceCopy, ProgressFn } from './types';
+import { ViralScoutAgent } from './agents/viral-scout.agent';
+import { ScriptTeleprompterAgent } from './agents/script-teleprompter.agent';
+import { HumanizerVoiceAgent } from './agents/humanizer-voice.agent';
 
 /** Output caps per call; they bound cost even if a model rambles. */
 export const TOKEN_CAPS = {
@@ -387,6 +390,29 @@ async function runCopyBatch(pieces: AutopilotPiece[], input: AutopilotRunInput, 
 
 function buildPiece(slot: WorkingSlot, hs: HookScriptItem, input: AutopilotRunInput, research: ResearchOutcome): AutopilotPiece {
     const sources = new Set<string>(slot.sourceUrls || []);
+
+    // Agent 5: Viral Scout hook evaluation & formula tagging
+    const scout = ViralScoutAgent.evaluateAndElevateHook(hs.spokenHook, slot.topic);
+
+    // Agent 6: Script Teleprompter & Beat Sheet Director (165 WPM pacing)
+    let timedBeats: any[] | undefined = undefined;
+    let teleprompterScript: string | undefined = undefined;
+    if (slot.format === 'reel' && hs.script) {
+        const directed = ScriptTeleprompterAgent.directScript({
+            hook: scout.rawHook,
+            onScreenHook: hs.onScreenHook,
+            bodyBeats: hs.script.body,
+            retentionLoop: hs.script.retentionLoop,
+            cta: hs.script.cta,
+            shotNotes: hs.shotNotes,
+        });
+        timedBeats = directed.beats;
+        teleprompterScript = directed.teleprompterText;
+    }
+
+    // Agent 8: Humanizer voice guard
+    const humanCheck = HumanizerVoiceAgent.auditAndClean(scout.rawHook);
+
     return {
         slotId: slot.slotId,
         day: slot.day,
@@ -404,7 +430,7 @@ function buildPiece(slot: WorkingSlot, hs: HookScriptItem, input: AutopilotRunIn
         designSystem: slot.designSystem || (hs as any).designSystem || hs.carouselBrief?.designSystem,
         visualDirection: slot.visualDirection || (hs as any).visualDirection || hs.visualBrief || hs.script?.visualDirection || hs.carouselBrief?.visualDirection,
         whatContentDelivers: slot.whatContentDelivers || (hs as any).whatContentDelivers || hs.script?.whatContentDelivers || hs.carouselBrief?.whatContentDelivers,
-        spokenHook: hs.spokenHook,
+        spokenHook: scout.rawHook,
         onScreenHook: hs.onScreenHook,
         script: slot.format === 'reel' ? hs.script : undefined,
         shotNotes: slot.format === 'reel' ? hs.shotNotes : undefined,
@@ -415,6 +441,11 @@ function buildPiece(slot: WorkingSlot, hs: HookScriptItem, input: AutopilotRunIn
         sources: research.researchUsed ? Array.from(sources) : [],
         critic: { verdict: 'ok', issues: [] },
         status: 'ready',
+        hookScore: scout.evaluation.totalScore,
+        hookFormula: scout.formulaName,
+        teleprompterScript,
+        timedBeats,
+        humanScore: humanCheck.humanScore,
     };
 }
 

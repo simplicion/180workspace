@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/util/json.dart';
@@ -19,6 +20,8 @@ import '../studio/studio_screen.dart';
 import '../studio/studio_session_screen.dart';
 import '../workspace/oauth_callback_screen.dart';
 import '../workspace/project_workspace_screen.dart';
+import '../instagram_hub/instagram_command_screen.dart';
+import '../planner/detailed_script_screen.dart';
 
 String? _q(GoRouterState s, String k) {
   final v = s.uri.queryParameters[k];
@@ -48,6 +51,7 @@ List<StatefulShellBranch> shellBranches() => [
 /// Full-screen routes outside the bottom navigation.
 List<RouteBase> extraRoutes() => [
       GoRoute(path: '/settings', builder: (_, _) => SettingsScreen()),
+      GoRoute(path: '/instagram', builder: (_, _) => const InstagramCommandScreen()),
       GoRoute(path: '/projects', builder: (_, _) => ProjectsListScreen()),
       GoRoute(path: '/projects/new', builder: (_, _) => CreateProjectScreen()),
       GoRoute(
@@ -76,6 +80,18 @@ List<RouteBase> extraRoutes() => [
         builder: (_, s) => CalendarGeneratorScreen(extendFrom: s.extra is ContentCalendar ? s.extra as ContentCalendar : null),
       ),
       GoRoute(path: '/planner/:id', builder: (_, s) => CalendarDetailScreen(calendarId: s.pathParameters['id']!)),
+      GoRoute(
+        path: '/planner/script',
+        builder: (_, s) {
+          final x = _extra(s);
+          final piece = x['piece'] is CalendarPiece ? x['piece'] as CalendarPiece : null;
+          final calendar = x['calendar'] is ContentCalendar ? x['calendar'] as ContentCalendar : null;
+          if (piece == null) {
+            return const Scaffold(body: Center(child: Text('Script piece not found')));
+          }
+          return DetailedScriptScreen(piece: piece, calendar: calendar);
+        },
+      ),
       GoRoute(path: '/inbox/:id', builder: (_, s) => ConversationScreen(conversationId: s.pathParameters['id']!)),
       GoRoute(
         path: '/camera',

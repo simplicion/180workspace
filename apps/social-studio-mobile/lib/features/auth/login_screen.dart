@@ -74,12 +74,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context: context,
         fullScreen: fullScreen,
       );
-      if (data != null && data['access_token'] != null) {
-        final accessToken = data['access_token'] as String;
+      if (data != null && (data['access_token'] != null || data['id_token'] != null)) {
+        final accessToken = (data['access_token'] ?? data['id_token']) as String;
         final refreshToken = data['refresh_token'] as String?;
         await ref.read(tokenStoreProvider).saveSession(accessToken: accessToken, refreshToken: refreshToken);
         await ref.read(sessionProvider.notifier).retryRestore();
-        final session = ref.read(sessionProvider).valueOrNull;
+        var session = ref.read(sessionProvider).valueOrNull;
+        if (session == null && mounted) {
+          final idToken = data['id_token'] as String?;
+          if (idToken != null && idToken.isNotEmpty && idToken != accessToken) {
+            await ref.read(tokenStoreProvider).saveSession(accessToken: idToken, refreshToken: refreshToken);
+            await ref.read(sessionProvider.notifier).retryRestore();
+            session = ref.read(sessionProvider).valueOrNull;
+          }
+        }
         if (session == null && mounted) {
           final err = ref.read(sessionProvider).error;
           setState(() => _error = err != null ? errorText(err) : 'Authentication could not establish a workspace session. Please try again.');

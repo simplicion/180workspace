@@ -508,6 +508,28 @@ class _DayPieceCard extends StatelessWidget {
           ),
           SizedBox(width: 6),
           StatusChip(label: piece.status.label, color: piece.status.color),
+          if (isVideo || brief?.hasScript == true) ...[
+            SizedBox(width: 6),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: AppTheme.accent.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.speed_rounded, size: 10, color: AppTheme.accent),
+                  SizedBox(width: 3),
+                  Text(
+                    '165 WPM Script',
+                    style: TextStyle(fontSize: 10, color: AppTheme.accent, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (piece.psychologicalJob?.isNotEmpty == true || brief?.psychologicalJob?.isNotEmpty == true) ...[
             SizedBox(width: 6),
             Expanded(
@@ -566,11 +588,30 @@ class _DayPieceCard extends StatelessWidget {
                 );
               },
               icon: Icon(Icons.description_rounded, size: 14),
-              label: Text('Master Brief'),
+              label: Text('Brief'),
             ),
           ),
-          if (isVideo) ...[
-            SizedBox(width: 8),
+          if (isVideo || brief?.hasScript == true) ...[
+            SizedBox(width: 6),
+            Expanded(
+              child: FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
+                  foregroundColor: AppTheme.primary,
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push('/planner/script', extra: {
+                    'piece': piece,
+                    'calendar': calendar,
+                  });
+                },
+                icon: Icon(Icons.menu_book_rounded, size: 14),
+                label: Text('Detailed Script'),
+              ),
+            ),
+            SizedBox(width: 6),
             Expanded(
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
@@ -622,33 +663,57 @@ class _PieceTile extends StatelessWidget {
   final CalendarPiece piece;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: 8),
-        child: SectionCard(
-          padding: EdgeInsets.all(12),
-          onTap: () => showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: AppTheme.surface,
-            builder: (_) => PieceSheet(calendar: calendar, piece: piece),
-          ),
-          child: Row(children: [
-            Container(width: 4, height: 40, decoration: BoxDecoration(color: piece.status.color, borderRadius: BorderRadius.circular(2))),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(piece.headline.isEmpty ? '(no headline)' : piece.headline,
-                    maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w600)),
-                SizedBox(height: 4),
-                Text(
-                  [fmtDate(piece.dateScheduled), piece.platform, piece.contentType, piece.status.label].where((s) => s.isNotEmpty).join(' · '),
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              ]),
-            ),
-          ]),
+  Widget build(BuildContext context) {
+    final brief = PieceBrief.parse(piece.videoScriptOrHooks);
+    final isVideo = piece.contentType.toLowerCase().contains('reel') ||
+        piece.contentType.toLowerCase().contains('video') ||
+        piece.contentType.toLowerCase().contains('short');
+    final hasScript = isVideo || brief?.hasScript == true;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8),
+      child: SectionCard(
+        padding: EdgeInsets.all(12),
+        onTap: () => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: AppTheme.surface,
+          builder: (_) => PieceSheet(calendar: calendar, piece: piece),
         ),
-      );
+        child: Row(children: [
+          Container(width: 4, height: 40, decoration: BoxDecoration(color: piece.status.color, borderRadius: BorderRadius.circular(2))),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(piece.headline.isEmpty ? '(no headline)' : piece.headline,
+                  maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w600)),
+              SizedBox(height: 4),
+              Text(
+                [
+                  fmtDate(piece.dateScheduled),
+                  piece.platform,
+                  piece.contentType,
+                  if (hasScript) '📜 165 WPM Script',
+                  piece.status.label,
+                ].where((s) => s.isNotEmpty).join(' · '),
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ]),
+          ),
+          if (hasScript) ...[
+            IconButton(
+              icon: Icon(Icons.menu_book_rounded, size: 18, color: AppTheme.accent),
+              tooltip: 'Detailed Script',
+              onPressed: () => context.push('/planner/script', extra: {
+                'piece': piece,
+                'calendar': calendar,
+              }),
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
 }
 
 class PieceSheet extends ConsumerStatefulWidget {
@@ -1007,6 +1072,23 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
             p.contentType.toLowerCase().contains('reel') ||
             p.contentType.toLowerCase().contains('short') ||
             p.contentType.toLowerCase().contains('tiktok')) ...[
+          SizedBox(height: 10),
+          FilledButton.tonalIcon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
+              foregroundColor: AppTheme.primary,
+              padding: EdgeInsets.symmetric(vertical: 12),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              context.push('/planner/script', extra: {
+                'piece': p,
+                'calendar': widget.calendar,
+              });
+            },
+            icon: Icon(Icons.menu_book_rounded, size: 18),
+            label: Text('📜 Open Detailed Script Studio (165 WPM Beats)'),
+          ),
           SizedBox(height: 10),
           FilledButton.icon(
             style: FilledButton.styleFrom(

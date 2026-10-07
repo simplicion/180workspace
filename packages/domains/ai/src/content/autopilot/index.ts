@@ -14,3 +14,7 @@ export * from './agents/neuromarketing-research.agent';
 export * from './agents/cadence-flow.agent';
 export * from './agents/creative-copywriter.agent';
 export * from './agents/qc-brand-auditor.agent';
+export * from './agents/viral-scout.agent';
+export * from './agents/script-teleprompter.agent';
+export * from './agents/cross-platform-transmuter.agent';
+export * from './agents/humanizer-voice.agent';

@@ -109,6 +109,19 @@ export default function HomePage() {
 
   useEffect(() => {
     loadData();
+
+    const handleWalletUpdated = (e: any) => {
+      if (typeof e.detail?.balance === 'number') {
+        setBalance(e.detail.balance);
+      } else {
+        loadData();
+      }
+    };
+
+    window.addEventListener('180_wallet_updated', handleWalletUpdated);
+    return () => {
+      window.removeEventListener('180_wallet_updated', handleWalletUpdated);
+    };
   }, []);
 
   if (loading) {
@@ -259,6 +272,21 @@ export default function HomePage() {
                   Ready
                 </span>
               </div>
+            </div>
+
+            {/* Wallet Current Available Balance Display */}
+            <div className="py-2.5 sm:py-3 space-y-0.5">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  ₹{Number(balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  INR
+                </span>
+              </div>
+              <p className="text-[10px] sm:text-xs text-slate-500 font-medium truncate">
+                Available across all 180 apps
+              </p>
             </div>
           </div>
 

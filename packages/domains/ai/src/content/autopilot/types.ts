@@ -69,6 +69,22 @@ export interface AutopilotPiece {
     sources: string[];
     critic: { verdict: 'ok' | 'fixed' | 'flag'; issues: string[] };
     status: 'ready' | 'needs_review';
+    hookScore?: number;
+    hookFormula?: string;
+    teleprompterScript?: string;
+    timedBeats?: Array<{
+        index: number;
+        timecode: string;
+        startSec: number;
+        durationSec: number;
+        wordCount: number;
+        spokenWords: string;
+        screenText?: string;
+        visualAction?: string;
+        retentionDevice?: string;
+        isConcrete: boolean;
+    }>;
+    humanScore?: number;
 }
 
 export interface AutopilotRunResult {

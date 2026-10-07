@@ -39,6 +39,32 @@ export async function protect(req: any, res: Response, next: NextFunction) {
         } catch (jwtErr: any) {
             // Check if this is an OAuth access token from 180 Identity or an RS256 token
             try {
+                let isFirstPartyAppFn: any = null;
+                try {
+                    isFirstPartyAppFn = require('@workspace/identity-provider').isFirstPartyApp;
+                } catch (_) {
+                    try {
+                        isFirstPartyAppFn = require('@workspace/identity').isFirstPartyApp;
+                    } catch (_) {}
+                }
+                const checkIsFirstParty = (clientId: string | undefined | null) => {
+                    if (!clientId) return false;
+                    const clean = String(clientId).trim().toLowerCase();
+                    if (
+                        clean === '180-core' ||
+                        clean === '180-workspace-platform' ||
+                        clean === '180workspace' ||
+                        clean === '180_client_70d751541f05347fe803ec8e128f5e83' ||
+                        clean === '180_client_266753c1171df1e2c4a391483fd2e02e'
+                    ) {
+                        return true;
+                    }
+                    if (typeof isFirstPartyAppFn === 'function') {
+                        return isFirstPartyAppFn(clientId);
+                    }
+                    return false;
+                };
+
                 let dbToken: any = null;
                 try {
                     const { corePrisma } = require('@workspace/db-180core');
@@ -48,14 +74,67 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                     });
                 } catch (_) {}
 
+                // Decoupled Core OIDC Introspection: If dbToken wasn't found in DB (e.g. decoupled microservice architecture)
+                // and token is an opaque OAuth token (180_acc_... or 180_...), introspect against the identity server over HTTP.
+                if (!dbToken && (token.startsWith('180_acc_') || token.startsWith('180_'))) {
+                    try {
+                        const candidateCoreUrls = [
+                            process.env.CORE_BACKEND_INTERNAL_URL,
+                            process.env.IDENTITY_SERVER_URL,
+                            process.env.CORE_BACKEND_URL,
+                            'https://services.180workspace.com',
+                            'http://core-backend:4003',
+                            'http://localhost:4003'
+                        ].filter(Boolean) as string[];
+
+                        for (const coreUrl of candidateCoreUrls) {
+                            try {
+                                const cleanUrl = coreUrl.replace(/\/$/, '');
+                                const coreRes = await fetch(`${cleanUrl}/api/oauth/userinfo`, {
+                                    headers: { Authorization: `Bearer ${token}` }
+                                });
+                                if (coreRes.ok) {
+                                    const coreData: any = await coreRes.json();
+                                    const u = coreData.user || coreData.data || coreData;
+                                    if (u && (u.id || u.sub)) {
+                                        dbToken = {
+                                            userId: u.id || u.sub,
+                                            appId: '180_client_266753c1171df1e2c4a391483fd2e02e',
+                                            scopes: ['openid', 'identity:read'],
+                                            expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+                                            user: {
+                                                id: u.id || u.sub,
+                                                email: u.email,
+                                                name: u.name,
+                                                username: u.username,
+                                                phone: u.phone,
+                                                avatarUrl: u.avatarUrl || u.picture,
+                                                googleId: u.googleId
+                                            },
+                                            app: { clientId: '180_client_266753c1171df1e2c4a391483fd2e02e' }
+                                        };
+                                        break;
+                                    }
+                                }
+                            } catch (_) {}
+                        }
+                    } catch (_) {}
+                }
+
                 const { prisma: globalPrisma } = require('@workspace/db');
 
-                if (dbToken && !dbToken.revokedAt && dbToken.expiresAt > new Date() && dbToken.user) {
-                    const consent = await corePrisma.oAuthConsent.findUnique({
-                        where: { appId_userId: { appId: dbToken.appId, userId: dbToken.userId } }
-                    });
-                    if (!consent) {
-                        return res.status(401).json({ error: 'Access revoked for this application' });
+                if (dbToken && (!dbToken.revokedAt || dbToken.revokedAt === null) && (!dbToken.expiresAt || dbToken.expiresAt > new Date()) && dbToken.user) {
+                    const isFirstParty = checkIsFirstParty(dbToken.app?.clientId);
+                    if (!isFirstParty) {
+                        try {
+                            const { corePrisma } = require('@workspace/db-180core');
+                            const consent = await corePrisma.oAuthConsent.findUnique({
+                                where: { appId_userId: { appId: dbToken.appId, userId: dbToken.userId } }
+                            });
+                            if (!consent) {
+                                return res.status(401).json({ error: 'Access revoked for this application' });
+                            }
+                        } catch (_) {}
                     }
 
                     isOAuthToken = true;
@@ -112,19 +191,21 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                         const targetEmail = verified.payload.email;
                         const aud = verified.payload.aud;
 
-                        if (aud && typeof aud === 'string' && aud !== '180-core') {
-                            const { corePrisma } = require('@workspace/db-180core');
-                            const app = await corePrisma.oAuthApp.findFirst({
-                                where: { OR: [{ clientId: aud }, { id: aud }] }
-                            });
-                            if (app) {
-                                const consent = await corePrisma.oAuthConsent.findUnique({
-                                    where: { appId_userId: { appId: app.id, userId: targetUserId } }
+                        if (aud && typeof aud === 'string' && aud !== '180-core' && !checkIsFirstParty(aud)) {
+                            try {
+                                const { corePrisma } = require('@workspace/db-180core');
+                                const app = await corePrisma.oAuthApp.findFirst({
+                                    where: { OR: [{ clientId: aud }, { id: aud }] }
                                 });
-                                if (!consent) {
-                                    return res.status(401).json({ error: 'Access revoked for this application' });
+                                if (app && !checkIsFirstParty(app.clientId)) {
+                                    const consent = await corePrisma.oAuthConsent.findUnique({
+                                        where: { appId_userId: { appId: app.id, userId: targetUserId } }
+                                    });
+                                    if (!consent) {
+                                        return res.status(401).json({ error: 'Access revoked for this application' });
+                                    }
                                 }
-                            }
+                            } catch (_) {}
                         }
 
                         // 1. Look up user in workspace DB by ID or Email
@@ -392,14 +473,38 @@ export async function protect(req: any, res: Response, next: NextFunction) {
         }
         req.user.companyId = decoded.companyId || req.company?.id || user.companyId;
 
-        // If user still doesn't have companyId, attempt resolving from adminEmail in company
+        // If user still doesn't have companyId, attempt resolving from adminEmail in company or auto-provision workspace
         if (!req.user.companyId && user.email) {
             try {
                 const { prisma: globalPrisma } = require('@workspace/db');
-                const adminCompany = await globalPrisma.company.findFirst({
-                    where: { adminEmail: { equals: user.email, mode: 'insensitive' } },
+                let adminCompany = await globalPrisma.company.findFirst({
+                    where: {
+                        OR: [
+                            { adminEmail: { equals: user.email, mode: 'insensitive' } },
+                            { users: { some: { id: user.id } } }
+                        ]
+                    },
                     select: { id: true }
                 });
+                if (!adminCompany) {
+                    const companyName = `${user.name || user.username || 'User'}'s Workspace`;
+                    const slug = `${(user.username || user.name || 'workspace').toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now().toString(36)}`;
+                    adminCompany = await globalPrisma.company.create({
+                        data: {
+                            name: companyName,
+                            slug,
+                            adminEmail: user.email,
+                            databaseConfigured: true,
+                            isOnboardingComplete: true,
+                            subscriptionStatus: 'active',
+                            metadata: JSON.stringify({
+                                enabledApps: ['social-media', 'video-studio', 'creator-billing', 'analytics'],
+                                enabledModules: ['social-media', 'video-studio', 'creator-billing']
+                            })
+                        },
+                        select: { id: true }
+                    });
+                }
                 if (adminCompany) {
                     req.user.companyId = adminCompany.id;
                     try {
@@ -409,7 +514,9 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                         });
                     } catch (_) {}
                 }
-            } catch (_) {}
+            } catch (err: any) {
+                console.warn('[Auth] Tenant resolution note:', err?.message);
+            }
         }
         
         // If company-context.js fell back to the global Prisma client because it couldn't extract companyId

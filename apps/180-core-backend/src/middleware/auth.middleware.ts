@@ -3,6 +3,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { developersPrisma as prisma } from '@workspace/db-180core';
+import { isFirstPartyApp } from '@workspace/identity-provider';
 
 export function verifyJwtToken(token: string): any {
   const secrets = [
@@ -53,11 +54,11 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
     const decoded = verifyJwtToken(token) as any;
     if (decoded) {
       userId = decoded.id || decoded.sub || decoded.userId || null;
-      if (userId && decoded.aud && typeof decoded.aud === 'string' && decoded.aud !== '180-core') {
+      if (userId && decoded.aud && typeof decoded.aud === 'string' && decoded.aud !== '180-core' && !isFirstPartyApp(decoded.aud)) {
         const app = await prisma.oAuthApp.findFirst({
           where: { OR: [{ clientId: decoded.aud }, { id: decoded.aud }] },
         });
-        if (app) {
+        if (app && !isFirstPartyApp(app.clientId)) {
           const consent = await prisma.oAuthConsent.findUnique({
             where: { appId_userId: { appId: app.id, userId } },
           });
@@ -76,16 +77,26 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
         select: { userId: true, appId: true, expiresAt: true, revokedAt: true },
       });
       if (dbToken && !dbToken.revokedAt && dbToken.expiresAt > new Date()) {
-        const consent = await prisma.oAuthConsent.findUnique({
-          where: { appId_userId: { appId: dbToken.appId, userId: dbToken.userId } },
-        });
-        if (consent) {
+        let isFirstParty = false;
+        try {
+          const app = await prisma.oAuthApp.findUnique({ where: { id: dbToken.appId } });
+          isFirstParty = isFirstPartyApp(app?.clientId);
+        } catch (_) {}
+
+        if (isFirstParty) {
           userId = dbToken.userId;
         } else {
-          return res.status(401).json({
-            success: false,
-            error: 'Application access has been revoked',
+          const consent = await prisma.oAuthConsent.findUnique({
+            where: { appId_userId: { appId: dbToken.appId, userId: dbToken.userId } },
           });
+          if (consent) {
+            userId = dbToken.userId;
+          } else {
+            return res.status(401).json({
+              success: false,
+              error: 'Application access has been revoked',
+            });
+          }
         }
       }
     }
