@@ -119,12 +119,13 @@ function ForgotPasswordContent() {
         </form>
 
         <div className="pt-2 text-center border-t border-slate-100">
-          <a
-            href={`/auth/login${oauthQuery}`}
-            className="text-xs text-blue-600 font-bold hover:text-blue-800 hover:underline"
+          <button
+            type="button"
+            onClick={() => router.push(`/auth/login${oauthQuery}`)}
+            className="text-xs text-blue-600 font-bold hover:text-blue-800 hover:underline cursor-pointer"
           >
             ← Back to Sign In
-          </a>
+          </button>
         </div>
       </div>
     </div>

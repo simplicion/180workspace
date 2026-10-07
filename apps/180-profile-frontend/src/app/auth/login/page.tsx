@@ -28,6 +28,7 @@ import { OAuthAppHeader } from '@/components/auth/OAuthAppHeader';
 import { GoogleSSOButton } from '@/components/auth/GoogleSSOButton';
 import { OAuthErrorCard, OAuthErrorDetails } from '@/components/auth/OAuthErrorCard';
 import { SmartAuthInput } from '@/components/auth/SmartAuthInput';
+import { ForgotPasswordModal } from '@/components/auth/ForgotPasswordModal';
 import { getCoreApiUrl } from '@/lib/api';
 
 type AuthScreenMode = 'login' | 'signup' | 'otp' | 'password' | 'onboarding';
@@ -59,6 +60,16 @@ function LoginFormContent() {
   // Cached User Session (for 1-click return)
   const [cachedUser, setCachedUser] = useState<any>(null);
   const [showFullLogin, setShowFullLogin] = useState(false);
+
+  // Forgot Password Modal State
+  const [isForgotPasswordModalOpen, setIsForgotPasswordModalOpen] = useState(false);
+
+  const handleOpenForgotPassword = () => {
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    setIsForgotPasswordModalOpen(true);
+  };
 
   // Login Form State
   const [loginEmailOrPhone, setLoginEmailOrPhone] = useState('');
@@ -201,6 +212,16 @@ function LoginFormContent() {
     }
     if (searchParams.get('reset_success') === 'true') {
       toast.success('Password updated! Please enter your new password to sign in.', { duration: 6000 });
+      setShowFullLogin(true);
+    }
+    const modeParam = searchParams.get('mode');
+    if (
+      modeParam === 'forgot-password' ||
+      modeParam === 'forgot_password' ||
+      searchParams.get('action') === 'forgot-password' ||
+      searchParams.get('action') === 'forgot_password'
+    ) {
+      setIsForgotPasswordModalOpen(true);
       setShowFullLogin(true);
     }
   }, [searchParams]);
@@ -912,12 +933,13 @@ function LoginFormContent() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-bold text-slate-700">Password</label>
-                <a
-                  href={`/auth/forgot-password${oauthQuery}`}
+                <button
+                  type="button"
+                  onClick={handleOpenForgotPassword}
                   className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-semibold"
                 >
                   Forgot Password?
-                </a>
+                </button>
               </div>
               <input
                 type="password"
@@ -1396,6 +1418,53 @@ function LoginFormContent() {
       )}
         </>
       )}
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          MODAL: FORGOT & RESET PASSWORD
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <ForgotPasswordModal
+        isOpen={isForgotPasswordModalOpen}
+        onClose={() => setIsForgotPasswordModalOpen(false)}
+        initialCredential={loginEmailOrPhone}
+        oauthParams={oauthParams}
+        oauthAppName={oauthApp?.name}
+        onSuccess={async (credential, newPw) => {
+          setLoginEmailOrPhone(credential);
+          setLoginPassword(newPw);
+          // Auto-submit login with newly set credentials
+          setLoading(true);
+          const toastId = toast.loading(oauthApp ? `Signing in to ${oauthApp.name}...` : 'Signing in...');
+          try {
+            const res = await fetch(getCoreApiUrl('/api/oauth/login'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                emailOrPhone: credential.trim(),
+                password: newPw,
+              }),
+            });
+            const { ok, data } = await parseApiResponse(res);
+            if (ok && data.success) {
+              toast.success('Signed in successfully!', { id: toastId });
+              if (!data.isOnboarded) {
+                setCurrentUser(data.user);
+                setCurrentAuthToken(data.token);
+                prepareOnboarding(data.user, data.token);
+                setMode('onboarding');
+              } else {
+                await dispatchOAuthSuccess(data.user, data.token, oauthParams);
+              }
+            } else {
+              toast.success('Password updated! Please sign in with your new password.', { id: toastId });
+            }
+          } catch (err: any) {
+            toast.success('Password updated! Please sign in with your new password.', { id: toastId });
+          } finally {
+            setLoading(false);
+          }
+        }}
+      />
     </div>
   );
 }
