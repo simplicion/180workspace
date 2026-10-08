@@ -616,19 +616,49 @@ export class TrafficDirectorBillingService {
     }
 
     const code = couponCode.trim().toUpperCase();
-    const coupon = await (db as any).coupon.findUnique({
-      where: { couponCode: code },
+
+    // Find candidate apps for Traffic Director
+    const candidateAppIds = [
+      '7697a348-7550-4229-9595-08ba67aa9755',
+      'f037c87a-a294-443f-b15e-6e40c0df6391',
+      process.env.TRAFFIC_DIRECTOR_PROJECT_ID,
+      process.env.TRAFFIC_DIRECTOR_CLIENT_ID,
+      '180-traffic-director',
+      '180_client_b26aee801c22cb3295f041ff2a3597db',
+    ].filter(Boolean) as string[];
+
+    // Fetch matching coupon from 180 Core database
+    let coupon = await (corePrisma as any).coupon.findFirst({
+      where: {
+        appId: { in: candidateAppIds },
+        code: { equals: code, mode: 'insensitive' },
+      },
+      orderBy: { createdAt: 'desc' },
     });
+
+    if (!coupon) {
+      coupon = await (corePrisma as any).coupon.findFirst({
+        where: {
+          code: { equals: code, mode: 'insensitive' },
+          isActive: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
 
     if (!coupon || !coupon.isActive) {
       throw new Error('Invalid or inactive coupon code');
     }
 
-    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+    if (coupon.validFrom && new Date(coupon.validFrom) > new Date()) {
+      throw new Error('This coupon is not active yet');
+    }
+
+    if (coupon.validUntil && new Date(coupon.validUntil) < new Date()) {
       throw new Error('This coupon code has expired');
     }
 
-    if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
+    if (coupon.maxRedemptions && coupon.redemptionsCount >= coupon.maxRedemptions) {
       throw new Error('This coupon code has reached its maximum usage limit');
     }
 
@@ -637,8 +667,10 @@ export class TrafficDirectorBillingService {
     const originalPrice = tierMeta.price;
 
     let discountAmount = 0;
-    if (coupon.discountType === 'percentage') {
-      discountAmount = Math.round((originalPrice * (coupon.discountValue / 100)) * 100) / 100;
+    const isPercentage = String(coupon.discountType).toUpperCase() === 'PERCENTAGE';
+    if (isPercentage) {
+      const pctDiscount = Math.round((originalPrice * (coupon.discountValue / 100)) * 100) / 100;
+      discountAmount = pctDiscount;
     } else {
       discountAmount = Math.min(originalPrice, coupon.discountValue);
     }
@@ -647,14 +679,14 @@ export class TrafficDirectorBillingService {
 
     return {
       valid: true,
-      couponCode: coupon.couponCode,
+      couponCode: coupon.code,
       discountType: coupon.discountType,
       discountValue: coupon.discountValue,
       originalPrice,
       discountAmount,
       finalPrice,
       currency: 'USD',
-      message: `Coupon "${coupon.couponCode}" applied successfully! You save $${discountAmount.toFixed(2)}.`,
+      message: `Coupon "${coupon.code}" applied successfully! You save $${discountAmount.toFixed(2)}.`,
     };
   }
 

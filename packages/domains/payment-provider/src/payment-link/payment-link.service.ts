@@ -3,6 +3,7 @@
 import crypto from 'crypto';
 import { developersPrisma as prisma } from '@workspace/db-180core';
 import { WebhookDispatcherService } from '../webhook/webhook-dispatcher.service';
+import { GeoPricingService, COUNTRY_DIRECTORY } from '../geo/geo-pricing.service';
 
 export interface CreatePaymentLinkInput {
   title: string;
@@ -37,6 +38,23 @@ export interface UpdatePaymentLinkInput {
   isActive?: boolean;
 }
 
+export interface RegionalPricingInfo {
+  isApplied: boolean;
+  countryCode: string;
+  countryName: string;
+  flag: string;
+  currency: string;
+  symbol: string;
+  originalAmount: number;
+  originalCurrency: string;
+  discountPercentage?: number;
+  banner?: {
+    flag: string;
+    headline: string;
+    message: string;
+  };
+}
+
 export interface PublicPaymentLinkResult {
   id: string;
   slug: string;
@@ -49,6 +67,7 @@ export interface PublicPaymentLinkResult {
   allowCoupons: boolean;
   isAvailable: boolean;
   isSoldOut: boolean;
+  regionalPricing?: RegionalPricingInfo;
   merchant: {
     name: string;
     logoUrl?: string;
@@ -131,8 +150,9 @@ export class PaymentLinkService {
   /**
    * 2. Resolves a Payment Link for public checkout page rendering.
    * Conceals private fulfillment secrets until payment is verified.
+   * Dynamically applies regional multi-pricing rules & PPP discounts.
    */
-  static async getPublicPaymentLink(slug: string): Promise<PublicPaymentLinkResult> {
+  static async getPublicPaymentLink(slug: string, visitorCountry?: string): Promise<PublicPaymentLinkResult> {
     const cleanSlug = (slug || '').trim().toLowerCase();
     const link = await (prisma as any).paymentLink.findUnique({
       where: { slug: cleanSlug },
@@ -155,18 +175,92 @@ export class PaymentLinkService {
     const isSoldOut = link.maxPurchases !== null && link.purchasesCount >= link.maxPurchases;
     const isAvailable = Boolean(link.isActive && !isSoldOut);
 
+    let finalAmount = link.amount;
+    let finalCurrency = link.currency;
+    let regionalPricing: RegionalPricingInfo | undefined;
+
+    const multiPricing = (link.metadata as any)?.multiPricing;
+    const country = (visitorCountry || '').trim().toUpperCase();
+
+    if (multiPricing && multiPricing.enabled && country) {
+      const rules = Array.isArray(multiPricing.rules) ? multiPricing.rules : [];
+      const matchedRule = rules.find((r: any) => (r.countryCode || '').toUpperCase() === country);
+      const meta = COUNTRY_DIRECTORY[country] || {
+        name: country,
+        currency: matchedRule?.currency || 'USD',
+        symbol: '$',
+        flag: '🌐',
+      };
+
+      if (matchedRule && matchedRule.amount > 0) {
+        finalAmount = Number(matchedRule.amount);
+        finalCurrency = (matchedRule.currency || meta.currency || 'USD').toUpperCase();
+        const discountPct =
+          matchedRule.discountPct !== undefined && matchedRule.discountPct !== null
+            ? matchedRule.discountPct
+            : link.amount > 0
+            ? Math.max(0, Math.round(((link.amount - finalAmount) / link.amount) * 100))
+            : 0;
+
+        regionalPricing = {
+          isApplied: true,
+          countryCode: country,
+          countryName: meta.name || country,
+          flag: meta.flag || '🌐',
+          currency: finalCurrency,
+          symbol: matchedRule.symbol || meta.symbol || finalCurrency,
+          originalAmount: link.amount,
+          originalCurrency: link.currency,
+          discountPercentage: discountPct > 0 ? discountPct : undefined,
+          banner: {
+            flag: meta.flag || '🌐',
+            headline: `Special Regional Pricing (${meta.name || country})`,
+            message: `Localized price applied for visitors in ${meta.name || country}.`,
+          },
+        };
+      } else if (multiPricing.mode === 'HYBRID' || multiPricing.mode === 'PPP_FALLBACK') {
+        try {
+          const ppp = await GeoPricingService.resolveLocalizedPricing({
+            appId: link.appId,
+            baseAmount: link.amount,
+            baseCurrency: link.currency,
+            visitorCountry: country,
+          });
+          if (ppp && ppp.hasRegionalDiscount) {
+            finalAmount = ppp.localizedAmount;
+            finalCurrency = ppp.currency;
+            regionalPricing = {
+              isApplied: true,
+              countryCode: ppp.countryCode,
+              countryName: ppp.countryName,
+              flag: ppp.flag,
+              currency: ppp.currency,
+              symbol: ppp.symbol,
+              originalAmount: ppp.originalAmount,
+              originalCurrency: ppp.originalCurrency,
+              discountPercentage: ppp.discountPercentage,
+              banner: ppp.banner,
+            };
+          }
+        } catch {
+          // Non-blocking fallback to standard base price
+        }
+      }
+    }
+
     return {
       id: link.id,
       slug: link.slug,
       title: link.title,
       description: link.description || '',
-      amount: link.amount,
-      currency: link.currency,
+      amount: finalAmount,
+      currency: finalCurrency,
       collectPhone: link.collectPhone,
       collectAddress: link.collectAddress,
       allowCoupons: link.allowCoupons,
       isAvailable,
       isSoldOut,
+      regionalPricing,
       merchant: {
         name: link.app?.name || '180 Workspace Merchant',
         logoUrl: link.app?.logoUrl || '',

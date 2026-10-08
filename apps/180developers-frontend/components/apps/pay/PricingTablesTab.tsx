@@ -43,6 +43,7 @@ import {
 import { Button, UniversalSkeleton } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
 import { getApiBase, getPublicBase, getAuthToken } from '@/lib/api-config';
+import { MultiPricingDrawer, MultiPricingConfig } from '@/components/pay/MultiPricingDrawer';
 
 export interface PlanFeatureItem {
   text: string;
@@ -67,6 +68,7 @@ export interface PlanCard {
   buttonText?: string;
   buttonUrl?: string;
   isFree?: boolean;
+  multiPricing?: MultiPricingConfig;
 }
 
 export interface PricingConfig {
@@ -173,6 +175,14 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
   const [newFeatureText, setNewFeatureText] = useState('');
   const [newFeatureIncluded, setNewFeatureIncluded] = useState(true);
 
+  // Multi-Pricing Drawer State for Tier
+  const [showMultiPricingDrawer, setShowMultiPricingDrawer] = useState(false);
+  const [cardMultiPricing, setCardMultiPricing] = useState<MultiPricingConfig>({
+    enabled: false,
+    mode: 'HYBRID',
+    rules: [],
+  });
+
   // Headless & Entitlements Tab State
   const [liveHeadlessData, setLiveHeadlessData] = useState<any>(null);
   const [testingHeadless, setTestingHeadless] = useState(false);
@@ -278,6 +288,7 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
     setNewFeatureKeyInput('');
     setNewFeatureText('');
     setNewFeatureIncluded(true);
+    setCardMultiPricing({ enabled: false, mode: 'HYBRID', rules: [] });
     setShowCardModal(true);
   };
 
@@ -300,6 +311,17 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
     setCardIsFree(Boolean(card.isFree || card.amount === 0));
     setCardFeatureKeys(Array.isArray(card.featureKeys) ? card.featureKeys : []);
     setNewFeatureKeyInput('');
+
+    const existingMp = card.multiPricing;
+    if (existingMp && typeof existingMp === 'object') {
+      setCardMultiPricing({
+        enabled: Boolean(existingMp.enabled),
+        mode: existingMp.mode || 'HYBRID',
+        rules: Array.isArray(existingMp.rules) ? existingMp.rules : [],
+      });
+    } else {
+      setCardMultiPricing({ enabled: false, mode: 'HYBRID', rules: [] });
+    }
 
     // Normalize features
     const normalized = (card.features || []).map((f) => {
@@ -406,6 +428,7 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
       buttonText: cardButtonText.trim() || (cardIsFree ? 'Get Started Free' : 'Choose Plan'),
       buttonUrl: cardButtonUrl.trim() || undefined,
       isFree: cardIsFree || amountVal === 0,
+      multiPricing: cardMultiPricing,
     };
 
     const updated = [...config.planCards];
@@ -865,6 +888,16 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
                               </>
                             )}
                           </div>
+
+                          {/* Regional Multi-Pricing Indicator */}
+                          {card.multiPricing?.enabled && (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-600 dark:text-purple-400 font-semibold w-fit">
+                              <Globe className="w-3 h-3 text-purple-500 shrink-0" />
+                              <span>
+                                {card.multiPricing.rules?.length || 0} Regional Override{(card.multiPricing.rules?.length || 0) === 1 ? '' : 's'} Active
+                              </span>
+                            </div>
+                          )}
 
                           {/* Features Summary */}
                           <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
@@ -1814,6 +1847,41 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
                 </div>
               </div>
 
+              {/* Regional Multi-Pricing Configuration Box for Subscription Tier */}
+              {!cardIsFree && (
+                <div className="p-3.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/40 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">
+                      <Globe className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                        <span>Multi-Currency & Regional Rules</span>
+                        {cardMultiPricing.enabled && cardMultiPricing.rules.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold">
+                            {cardMultiPricing.rules.length} Active ({cardMultiPricing.mode})
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 truncate">
+                        {cardMultiPricing.enabled
+                          ? `${cardMultiPricing.rules.length} custom country price rule(s) configured`
+                          : 'Offer localized pricing or PPP discounts in other countries'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowMultiPricingDrawer(true)}
+                    className="rounded-xl text-xs font-semibold shrink-0 cursor-pointer border-purple-200 dark:border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                  >
+                    {cardMultiPricing.enabled ? 'Edit Rules' : 'Add Multi-Pricing'}
+                  </Button>
+                </div>
+              )}
+
               {/* Row 4: Badge & Popular Toggle */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <div>
@@ -2056,6 +2124,16 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
         </div>
       )}
 
+      {/* Reusable Multi-Pricing Rule Drawer for Subscription Tier */}
+      <MultiPricingDrawer
+        isOpen={showMultiPricingDrawer}
+        onClose={() => setShowMultiPricingDrawer(false)}
+        baseAmount={parseFloat(cardAmount) || 0}
+        baseCurrency={cardCurrency}
+        itemName={cardName || 'Plan Tier'}
+        value={cardMultiPricing}
+        onChange={(newConfig) => setCardMultiPricing(newConfig)}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import { Check, Sparkles, Shield, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button, LogoLoader } from '@workspace/ui';
 import { CORE_BACKEND_URL } from '@/lib/api';
@@ -27,6 +28,24 @@ interface PlanCard {
   buttonText?: string;
   buttonUrl?: string;
   isFree?: boolean;
+  originalAmount?: number;
+  originalCurrency?: string;
+  regionalPricing?: {
+    isApplied: boolean;
+    countryCode: string;
+    countryName: string;
+    flag: string;
+    currency: string;
+    symbol: string;
+    originalAmount: number;
+    originalCurrency: string;
+    discountPercentage?: number;
+    banner?: {
+      flag: string;
+      headline: string;
+      message: string;
+    };
+  };
 }
 
 interface PricingConfig {
@@ -47,7 +66,24 @@ interface PricingConfig {
   showIntervalToggle?: boolean;
 }
 
-export function PricingEmbedClient({ appId }: { appId: string }) {
+export function PricingEmbedClient({ appId: initialAppId }: { appId?: string } = {}) {
+  const params = useParams();
+
+  // Resilient appId extraction for static SSG exports (Cloudflare Pages rewrites)
+  const getInitialAppId = useCallback(() => {
+    if (initialAppId && initialAppId !== 'default') return initialAppId;
+    const pAppId = params?.appId as string;
+    if (pAppId && pAppId !== 'default') return pAppId;
+    if (typeof window !== 'undefined') {
+      const match = window.location.pathname.match(/\/embed\/pricing\/([^/?#]+)/i);
+      if (match && match[1] && match[1] !== 'default') {
+        return decodeURIComponent(match[1]);
+      }
+    }
+    return '';
+  }, [initialAppId, params?.appId]);
+
+  const [appId, setAppId] = useState<string>(getInitialAppId);
   const [config, setConfig] = useState<PricingConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,8 +101,9 @@ export function PricingEmbedClient({ appId }: { appId: string }) {
     return process.env.NEXT_PUBLIC_PROFILE_URL || 'https://profile.180workspace.com';
   };
 
-  const fetchConfig = useCallback(async () => {
-    if (!appId || appId === 'default') {
+  const fetchConfig = useCallback(async (targetAppId?: string) => {
+    const idToFetch = targetAppId || appId || getInitialAppId();
+    if (!idToFetch || idToFetch === 'default') {
       setLoading(false);
       setError('Please provide a valid application ID');
       return;
@@ -75,7 +112,14 @@ export function PricingEmbedClient({ appId }: { appId: string }) {
     setError(null);
     try {
       const apiBase = getApiBase();
-      const res = await fetch(`${apiBase}/api/v1/pricing-tables/${appId}`);
+      const countryParam =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('country')
+          : null;
+      const url = `${apiBase}/api/v1/pricing-tables/${encodeURIComponent(idToFetch)}${
+        countryParam ? `?country=${encodeURIComponent(countryParam)}` : ''
+      }`;
+      const res = await fetch(url);
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to load pricing table');
@@ -86,11 +130,18 @@ export function PricingEmbedClient({ appId }: { appId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [appId]);
+  }, [appId, getInitialAppId]);
 
   useEffect(() => {
-    fetchConfig();
-  }, [fetchConfig]);
+    const currentId = getInitialAppId();
+    if (currentId && currentId !== 'default') {
+      setAppId(currentId);
+      fetchConfig(currentId);
+    } else {
+      setLoading(false);
+      setError('Please provide a valid application ID');
+    }
+  }, [getInitialAppId, fetchConfig]);
 
   const handleSelectPlan = (plan: PlanCard) => {
     // If a custom external action URL was defined
@@ -239,6 +290,16 @@ export function PricingEmbedClient({ appId }: { appId: string }) {
                 ? '€'
                 : plan.currency === 'GBP'
                 ? '£'
+                : plan.currency === 'BRL'
+                ? 'R$'
+                : plan.currency === 'CAD' || plan.currency === 'AUD'
+                ? '$'
+                : plan.currency === 'JPY'
+                ? '¥'
+                : plan.currency === 'PHP'
+                ? '₱'
+                : plan.currency === 'NGN'
+                ? '₦'
                 : '$';
 
             const badgeText = plan.badgeText || (plan.isPopular ? 'Most Popular' : null);
@@ -285,6 +346,29 @@ export function PricingEmbedClient({ appId }: { appId: string }) {
                       </div>
                     ) : (
                       <>
+                        {plan.regionalPricing?.isApplied &&
+                          plan.originalAmount &&
+                          plan.originalAmount !== plan.amount && (
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs text-zinc-500 line-through font-mono">
+                                {plan.originalCurrency === 'INR'
+                                  ? '₹'
+                                  : plan.originalCurrency === 'EUR'
+                                  ? '€'
+                                  : plan.originalCurrency === 'GBP'
+                                  ? '£'
+                                  : '$'}
+                                {selectedInterval === 'YEARLY'
+                                  ? Math.round(plan.originalAmount * 12 * (1 - yearlyDiscount / 100))
+                                  : plan.originalAmount}
+                              </span>
+                              {plan.regionalPricing.discountPercentage ? (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                                  {plan.regionalPricing.discountPercentage}% Off
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
                         <div className="flex items-baseline gap-1">
                           <span className="text-3xl font-black text-white font-mono">
                             {currencySymbol}
@@ -294,6 +378,12 @@ export function PricingEmbedClient({ appId }: { appId: string }) {
                             /{selectedInterval === 'YEARLY' ? 'year' : 'month'}
                           </span>
                         </div>
+                        {plan.regionalPricing?.isApplied && (
+                          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-indigo-400 font-medium">
+                            <span>{plan.regionalPricing.flag}</span>
+                            <span>Localized for {plan.regionalPricing.countryName}</span>
+                          </div>
+                        )}
                         {selectedInterval === 'YEARLY' && (
                           <p className="text-[11px] text-emerald-400 font-medium mt-1">
                             Billed annually ({currencySymbol}

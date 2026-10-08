@@ -290,10 +290,31 @@ export class GeoPricingService {
   /**
    * 5. Developer Management: Set Country Rule
    */
-  static async setCountryRule(appId: string, data: SetCountryRuleInput) {
-    const countryCode = data.countryCode.trim().toUpperCase();
+  static async setCountryRule(appId: string, data: SetCountryRuleInput | any) {
+    const countryCode = (data.countryCode || '').trim().toUpperCase();
+    if (!countryCode) {
+      throw new Error('countryCode is required');
+    }
     const meta = COUNTRY_DIRECTORY[countryCode];
-    const currency = data.currency || (meta ? meta.currency : 'USD');
+    const currency = data.currency || data.customCurrency || (meta ? meta.currency : 'USD');
+    const overrideType =
+      data.overrideType ||
+      (data.discountPercent !== undefined || data.discountPct !== undefined || data.ruleType === 'PERCENT'
+        ? 'PERCENTAGE_DISCOUNT'
+        : 'FIXED_PRICE');
+    const discountPct =
+      data.discountPct !== undefined && data.discountPct !== null
+        ? Number(data.discountPct)
+        : data.discountPercent !== undefined && data.discountPercent !== null
+        ? Math.round(Number(data.discountPercent))
+        : null;
+    const planOverrides =
+      data.planOverrides !== undefined
+        ? data.planOverrides
+        : data.fixedAmount !== undefined && data.fixedAmount !== null
+        ? { default: Number(data.fixedAmount) }
+        : null;
+    const isActive = data.isActive !== undefined ? Boolean(data.isActive) : data.isEnabled !== undefined ? Boolean(data.isEnabled) : true;
 
     return await (prisma as any).geoPricingRule.upsert({
       where: {
@@ -306,17 +327,17 @@ export class GeoPricingService {
         appId,
         countryCode,
         currency,
-        overrideType: data.overrideType,
-        discountPct: data.discountPct || null,
-        planOverrides: data.planOverrides || null,
-        isActive: data.isActive !== undefined ? data.isActive : true,
+        overrideType,
+        discountPct,
+        planOverrides,
+        isActive,
       },
       update: {
         currency,
-        overrideType: data.overrideType,
-        discountPct: data.discountPct || null,
-        planOverrides: data.planOverrides || null,
-        isActive: data.isActive !== undefined ? data.isActive : true,
+        overrideType,
+        discountPct,
+        planOverrides,
+        isActive,
       },
     });
   }
@@ -346,10 +367,21 @@ export class GeoPricingService {
    * 7. Developer Management: List Country Rules
    */
   static async listCountryRules(appId: string) {
-    return await (prisma as any).geoPricingRule.findMany({
+    const rules = await (prisma as any).geoPricingRule.findMany({
       where: { appId },
       orderBy: { countryCode: 'asc' },
     });
+
+    return rules.map((r: any) => ({
+      ...r,
+      customCurrency: r.currency,
+      discountPercent: r.discountPct,
+      isEnabled: r.isActive,
+      fixedAmount:
+        r.planOverrides && typeof r.planOverrides === 'object'
+          ? (r.planOverrides as any).default ?? (typeof r.planOverrides === 'number' ? r.planOverrides : null)
+          : null,
+    }));
   }
 
   /**

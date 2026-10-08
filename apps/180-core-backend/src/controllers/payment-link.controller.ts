@@ -12,7 +12,13 @@ export class PaymentLinkApiController {
   static async getPublicPaymentLink(req: Request, res: Response) {
     try {
       const slug = String(req.params.slug);
-      const link = await PaymentLinkService.getPublicPaymentLink(slug);
+      const visitorCountry =
+        (req.query.country as string) ||
+        (req.headers['cf-ipcountry'] as string) ||
+        (req.headers['x-country-code'] as string) ||
+        (req.headers['x-vercel-ip-country'] as string);
+
+      const link = await PaymentLinkService.getPublicPaymentLink(slug, visitorCountry);
       return res.status(200).json({ success: true, data: link, link });
     } catch (err: any) {
       console.error('[PaymentLinkApiController:getPublicPaymentLink] Error:', err);

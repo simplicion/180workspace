@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import {
   ShieldCheck,
@@ -20,9 +20,24 @@ import { Button, LogoLoader } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { getCoreApiUrl } from '@/lib/api';
 
-export function ManageSubscriptionClient() {
+export function ManageSubscriptionClient({ id: initialId }: { id?: string } = {}) {
   const params = useParams();
-  const subscriptionId = (params?.id as string) || '';
+
+  // Resilient subscriptionId extraction for static SSG exports (Cloudflare Pages rewrites)
+  const getInitialSubscriptionId = useCallback(() => {
+    if (initialId && initialId !== 'default') return initialId;
+    const pId = params?.id as string;
+    if (pId && pId !== 'default') return pId;
+    if (typeof window !== 'undefined') {
+      const match = window.location.pathname.match(/\/checkout\/manage-subscription\/([^/?#]+)/i);
+      if (match && match[1] && match[1] !== 'default') {
+        return decodeURIComponent(match[1]);
+      }
+    }
+    return '';
+  }, [initialId, params?.id]);
+
+  const [subscriptionId, setSubscriptionId] = useState<string>(getInitialSubscriptionId);
 
   const [loading, setLoading] = useState(true);
   const [sub, setSub] = useState<any>(null);
@@ -30,10 +45,15 @@ export function ManageSubscriptionClient() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('Found an alternative solution');
 
-  const fetchDetails = async () => {
+  const fetchDetails = useCallback(async (idToFetch?: string) => {
+    const targetId = idToFetch || subscriptionId || getInitialSubscriptionId();
+    if (!targetId || targetId === 'default') {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const res = await fetch(getCoreApiUrl(`/api/v1/subscriptions/${encodeURIComponent(subscriptionId)}`), {
+      const res = await fetch(getCoreApiUrl(`/api/v1/subscriptions/${encodeURIComponent(targetId)}`), {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -45,10 +65,10 @@ export function ManageSubscriptionClient() {
 
       if (data && data.success && data.subscription) {
         setSub(data.subscription);
-      } else if (subscriptionId === 'preview' || subscriptionId.startsWith('sub_demo_')) {
+      } else if (targetId === 'preview' || targetId.startsWith('sub_demo_')) {
         // High fidelity preview state
         setSub({
-          id: subscriptionId,
+          id: targetId,
           planCode: 'traffic-pro',
           planName: 'Traffic Director Pro Armor',
           description: 'Max 5 Smart Links with Dynamic Shield & Multi-AdBot Cloaking',
@@ -74,11 +94,17 @@ export function ManageSubscriptionClient() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [subscriptionId, getInitialSubscriptionId]);
 
   useEffect(() => {
-    fetchDetails();
-  }, [subscriptionId]);
+    const currentId = getInitialSubscriptionId();
+    if (currentId && currentId !== 'default') {
+      setSubscriptionId(currentId);
+      fetchDetails(currentId);
+    } else {
+      setLoading(false);
+    }
+  }, [getInitialSubscriptionId, fetchDetails]);
 
   const handleCancelSubscription = async () => {
     try {

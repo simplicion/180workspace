@@ -199,14 +199,21 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
 
       const payload: Record<string, any> = {
         countryCode: ruleCountry,
+        currency: ruleCurrency,
         customCurrency: ruleCurrency,
+        overrideType: ruleType === 'PERCENT' ? 'PERCENTAGE_DISCOUNT' : 'FIXED_PRICE',
         isEnabled: true,
+        isActive: true,
       };
 
       if (ruleType === 'PERCENT') {
-        payload.discountPercent = parseFloat(ruleDiscountPercent);
+        const pct = parseFloat(ruleDiscountPercent);
+        payload.discountPercent = pct;
+        payload.discountPct = Math.round(pct);
       } else {
-        payload.fixedAmount = parseFloat(ruleFixedAmount);
+        const amt = parseFloat(ruleFixedAmount);
+        payload.fixedAmount = amt;
+        payload.planOverrides = { default: amt };
       }
 
       const res = await fetch(`${apiBase}/api/v1/geo-pricing/apps/${appId}`, {
@@ -235,13 +242,29 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
     }
   };
 
-  const handleOpenEditRule = (rule: GeoRuleItem) => {
+  const handleOpenEditRule = (rule: GeoRuleItem | any) => {
     setEditingRuleId(rule.id);
     setRuleCountry(rule.countryCode);
-    setRuleType(rule.discountPercent != null ? 'PERCENT' : 'FIXED');
-    setRuleDiscountPercent(rule.discountPercent != null ? String(rule.discountPercent) : '50');
-    setRuleFixedAmount(rule.fixedAmount != null ? String(rule.fixedAmount) : '1499');
-    setRuleCurrency(rule.customCurrency || 'INR');
+    const isPercent =
+      rule.overrideType === 'PERCENTAGE_DISCOUNT' ||
+      rule.discountPercent != null ||
+      rule.discountPct != null;
+    setRuleType(isPercent ? 'PERCENT' : 'FIXED');
+    setRuleDiscountPercent(
+      rule.discountPercent != null
+        ? String(rule.discountPercent)
+        : rule.discountPct != null
+        ? String(rule.discountPct)
+        : '50'
+    );
+    setRuleFixedAmount(
+      rule.fixedAmount != null
+        ? String(rule.fixedAmount)
+        : rule.planOverrides?.default != null
+        ? String(rule.planOverrides.default)
+        : '1499'
+    );
+    setRuleCurrency(rule.customCurrency || rule.currency || 'INR');
     setShowCreateModal(true);
   };
 
@@ -588,14 +611,16 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
                         <span>{getCountryName(rule.countryCode)}</span>
                       </td>
                       <td className="py-3.5 px-4 text-zinc-600 dark:text-zinc-300 font-medium">
-                        {rule.discountPercent != null ? 'Percentage Discount' : 'Fixed Price Override'}
+                        {(rule.discountPercent != null || (rule as any).discountPct != null || (rule as any).overrideType === 'PERCENTAGE_DISCOUNT')
+                          ? 'Percentage Discount'
+                          : 'Fixed Price Override'}
                       </td>
                       <td className="py-3.5 px-4 font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                        {rule.discountPercent != null
-                          ? `${rule.discountPercent}% OFF`
-                          : `${rule.customCurrency || '$'} ${rule.fixedAmount}`}
+                        {(rule.discountPercent != null || (rule as any).discountPct != null)
+                          ? `${rule.discountPercent ?? (rule as any).discountPct}% OFF`
+                          : `${rule.customCurrency || (rule as any).currency || '$'} ${rule.fixedAmount ?? (rule as any).planOverrides?.default ?? '0'}`}
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-zinc-600 dark:text-zinc-400 font-medium">{rule.customCurrency || 'USD'}</td>
+                      <td className="py-3.5 px-4 font-mono text-zinc-600 dark:text-zinc-400 font-medium">{rule.customCurrency || (rule as any).currency || 'USD'}</td>
                       <td className="py-3.5 px-4">
                         {rule.isEnabled ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">

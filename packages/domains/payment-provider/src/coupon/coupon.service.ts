@@ -137,45 +137,25 @@ export class CouponService {
       };
     }
 
-    // 1. Fetch Coupon record scoped to appId (supporting both primary key UUID and clientId)
-    let coupon = await (prisma as any).coupon.findUnique({
+    // 1. Fetch Coupon record scoped to appId (supporting candidate sibling app IDs)
+    const candidateAppIds = await this.getCandidateAppIds(appId);
+
+    let coupon = await (prisma as any).coupon.findFirst({
       where: {
-        appId_code: {
-          appId,
-          code: rawCode,
-        },
+        appId: { in: candidateAppIds },
+        code: { equals: rawCode, mode: 'insensitive' },
       },
     });
 
     if (!coupon) {
+      // Fallback: look for active coupon by code matching the app name or global
       coupon = await (prisma as any).coupon.findFirst({
         where: {
-          appId,
           code: { equals: rawCode, mode: 'insensitive' },
+          isActive: true,
         },
+        orderBy: { createdAt: 'desc' },
       });
-    }
-
-    if (!coupon) {
-      const oauthApp = await (prisma as any).oAuthApp.findFirst({
-        where: {
-          OR: [
-            { id: appId },
-            { clientId: appId },
-          ],
-        },
-      });
-      if (oauthApp) {
-        coupon = await (prisma as any).coupon.findFirst({
-          where: {
-            appId: oauthApp.id,
-            OR: [
-              { code: rawCode },
-              { code: { equals: rawCode, mode: 'insensitive' } },
-            ],
-          },
-        });
-      }
     }
 
     if (!coupon) {
@@ -245,9 +225,33 @@ export class CouponService {
       }
     }
 
-    // 5. Plan applicability check
+    // 5. Plan applicability check (supports direct plan ID, planCode, and sibling plan IDs)
     if (coupon.validPlans && coupon.validPlans.length > 0) {
-      if (!planId || !coupon.validPlans.includes(planId)) {
+      let planEligible = Boolean(planId && coupon.validPlans.includes(planId));
+
+      if (!planEligible && planId) {
+        const currentPlan = await (prisma as any).subscriptionPlan.findUnique({
+          where: { id: planId },
+        });
+
+        if (currentPlan) {
+          if (coupon.validPlans.includes(currentPlan.planCode)) {
+            planEligible = true;
+          } else {
+            const matchingSiblingPlan = await (prisma as any).subscriptionPlan.findFirst({
+              where: {
+                id: { in: coupon.validPlans },
+                planCode: currentPlan.planCode,
+              },
+            });
+            if (matchingSiblingPlan) {
+              planEligible = true;
+            }
+          }
+        }
+      }
+
+      if (!planEligible) {
         return {
           valid: false,
           code: rawCode,
@@ -414,6 +418,68 @@ export class CouponService {
     });
   }
 
+  /**
+   * Resolves all candidate App IDs (primary UUID, client ID, and sibling apps)
+   * that belong to the same application / product ecosystem.
+   */
+  public static async getCandidateAppIds(appId: string): Promise<string[]> {
+    const candidateSet = new Set<string>();
+    if (appId) {
+      candidateSet.add(appId);
+    }
+
+    try {
+      const app = await (prisma as any).oAuthApp.findFirst({
+        where: {
+          OR: [
+            { id: appId },
+            { clientId: appId },
+          ],
+        },
+      });
+
+      if (app) {
+        candidateSet.add(app.id);
+        candidateSet.add(app.clientId);
+
+        const siblingApps = await (prisma as any).oAuthApp.findMany({
+          where: {
+            OR: [
+              { name: { equals: app.name, mode: 'insensitive' } },
+              ...(app.clientId === '180-traffic-director' || app.clientId.includes('180_client_b26aee')
+                ? [
+                    { clientId: '180-traffic-director' },
+                    { clientId: { contains: '180_client_b26aee' } },
+                    { id: '7697a348-7550-4229-9595-08ba67aa9755' },
+                    { id: 'f037c87a-a294-443f-b15e-6e40c0df6391' },
+                  ]
+                : []),
+              ...(app.clientId === '180-social-studio' || app.clientId.includes('180_client_social')
+                ? [
+                    { clientId: '180-social-studio' },
+                    { clientId: { contains: '180_client_social' } },
+                  ]
+                : []),
+              ...(app.clientId === '180-workspace' || app.clientId.includes('180_client_workspace')
+                ? [
+                    { clientId: '180-workspace' },
+                    { clientId: { contains: '180_client_workspace' } },
+                  ]
+                : []),
+            ],
+          },
+        });
+
+        for (const sibling of siblingApps) {
+          candidateSet.add(sibling.id);
+          candidateSet.add(sibling.clientId);
+        }
+      }
+    } catch (_) {}
+
+    return Array.from(candidateSet);
+  }
+
   public static async resolveAppId(appId: string): Promise<string> {
     const oauthApp = await (prisma as any).oAuthApp.findFirst({
       where: {
@@ -459,7 +525,7 @@ export class CouponService {
       throw new Error(`Coupon code "${normalizedCode}" already exists for this application`);
     }
 
-    return await (prisma as any).coupon.create({
+    const createdCoupon = await (prisma as any).coupon.create({
       data: {
         appId: targetAppId,
         code: normalizedCode,
@@ -476,6 +542,68 @@ export class CouponService {
         isActive: data.isActive !== undefined ? data.isActive : true,
       },
     });
+
+    // Also synchronize to any sibling OAuth apps with matching name / linked clientIds
+    try {
+      const currentApp = await (prisma as any).oAuthApp.findUnique({ where: { id: targetAppId } });
+      if (currentApp) {
+        const siblingApps = await (prisma as any).oAuthApp.findMany({
+          where: {
+            id: { not: targetAppId },
+            OR: [
+              { name: { equals: currentApp.name, mode: 'insensitive' } },
+              ...(currentApp.clientId === '180-traffic-director' || currentApp.clientId.includes('180_client_b26aee')
+                ? [{ clientId: '180-traffic-director' }, { clientId: { contains: '180_client_b26aee' } }]
+                : []),
+              ...(currentApp.clientId === '180-social-studio' || currentApp.clientId.includes('180_client_social')
+                ? [{ clientId: '180-social-studio' }, { clientId: { contains: '180_client_social' } }]
+                : []),
+            ],
+          },
+        });
+
+        for (const sibling of siblingApps) {
+          await (prisma as any).coupon.upsert({
+            where: {
+              appId_code: {
+                appId: sibling.id,
+                code: normalizedCode,
+              },
+            },
+            create: {
+              appId: sibling.id,
+              code: normalizedCode,
+              discountType: data.discountType,
+              discountValue: Number(data.discountValue),
+              maxDiscountAmount: data.maxDiscountAmount ? Number(data.maxDiscountAmount) : null,
+              minOrderAmount: data.minOrderAmount ? Number(data.minOrderAmount) : 0,
+              maxRedemptions: data.maxRedemptions ? Number(data.maxRedemptions) : null,
+              perCustomerLimit: data.perCustomerLimit ? Number(data.perCustomerLimit) : 1,
+              allowedOrigins: (data.allowedOrigins || []).map(normalizeOrigin).filter(Boolean),
+              validPlans: data.validPlans || [],
+              validFrom: data.validFrom ? new Date(data.validFrom) : new Date(),
+              validUntil: data.validUntil ? new Date(data.validUntil) : null,
+              isActive: data.isActive !== undefined ? data.isActive : true,
+            },
+            update: {
+              discountType: data.discountType,
+              discountValue: Number(data.discountValue),
+              maxDiscountAmount: data.maxDiscountAmount ? Number(data.maxDiscountAmount) : null,
+              minOrderAmount: data.minOrderAmount ? Number(data.minOrderAmount) : 0,
+              maxRedemptions: data.maxRedemptions ? Number(data.maxRedemptions) : null,
+              perCustomerLimit: data.perCustomerLimit ? Number(data.perCustomerLimit) : 1,
+              allowedOrigins: (data.allowedOrigins || []).map(normalizeOrigin).filter(Boolean),
+              validPlans: data.validPlans || [],
+              validFrom: data.validFrom ? new Date(data.validFrom) : new Date(),
+              validUntil: data.validUntil ? new Date(data.validUntil) : null,
+              isActive: data.isActive !== undefined ? data.isActive : true,
+            },
+          }).catch(() => {});
+        }
+      }
+    } catch (_) {}
+
+    return createdCoupon;
   }
 
   /**

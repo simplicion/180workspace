@@ -14,10 +14,12 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  Globe,
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
 import { getApiBase, getPublicBase, getAuthToken } from '@/lib/api-config';
+import { MultiPricingDrawer, MultiPricingConfig } from '@/components/pay/MultiPricingDrawer';
 
 interface PaymentLinkItem {
   id: string;
@@ -33,6 +35,7 @@ interface PaymentLinkItem {
   redirectUrl?: string;
   fulfillmentMessage?: string;
   fulfillmentFileUrl?: string;
+  metadata?: Record<string, any>;
   createdAt: string;
 }
 
@@ -45,7 +48,7 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  // Create Modal
+  // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
@@ -57,6 +60,15 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
   const [fulfillmentMessage, setFulfillmentMessage] = useState('');
   const [fulfillmentFileUrl, setFulfillmentFileUrl] = useState('');
   const [redirectUrl, setRedirectUrl] = useState('');
+
+  // Multi-Pricing Drawer State
+  const [showMultiPricingDrawer, setShowMultiPricingDrawer] = useState(false);
+  const [activeEditingLink, setActiveEditingLink] = useState<PaymentLinkItem | null>(null);
+  const [multiPricingConfig, setMultiPricingConfig] = useState<MultiPricingConfig>({
+    enabled: false,
+    mode: 'HYBRID',
+    rules: [],
+  });
 
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
@@ -119,6 +131,9 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
           fulfillmentMessage: fulfillmentMessage.trim() || undefined,
           fulfillmentFileUrl: fulfillmentFileUrl.trim() || undefined,
           redirectUrl: redirectUrl.trim() || undefined,
+          metadata: {
+            multiPricing: multiPricingConfig,
+          },
         }),
       });
 
@@ -132,6 +147,7 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
       setTitle('');
       setDescription('');
       setCustomSlug('');
+      setMultiPricingConfig({ enabled: false, mode: 'HYBRID', rules: [] });
       fetchLinks();
     } catch (err: any) {
       const msg = err.message === 'Failed to fetch'
@@ -140,6 +156,61 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
       toast.error(msg);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleOpenMultiPricingForNewLink = () => {
+    setActiveEditingLink(null);
+    setShowMultiPricingDrawer(true);
+  };
+
+  const handleOpenMultiPricingForExistingLink = (link: PaymentLinkItem) => {
+    setActiveEditingLink(link);
+    const existing = link.metadata?.multiPricing;
+    if (existing && typeof existing === 'object') {
+      setMultiPricingConfig({
+        enabled: Boolean(existing.enabled),
+        mode: existing.mode || 'HYBRID',
+        rules: Array.isArray(existing.rules) ? existing.rules : [],
+      });
+    } else {
+      setMultiPricingConfig({ enabled: false, mode: 'HYBRID', rules: [] });
+    }
+    setShowMultiPricingDrawer(true);
+  };
+
+  const handleSaveMultiPricing = async (newConfig: MultiPricingConfig) => {
+    setMultiPricingConfig(newConfig);
+
+    if (activeEditingLink) {
+      // Save directly to the existing payment link via PUT
+      try {
+        const token = getAuthToken();
+        const apiBase = getApiBase();
+        const res = await fetch(`${apiBase}/api/v1/payment-links/apps/${appId}/${activeEditingLink.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            metadata: {
+              ...(activeEditingLink.metadata || {}),
+              multiPricing: newConfig,
+            },
+          }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          toast.success(`Multi-pricing saved for "${activeEditingLink.title}"!`);
+          fetchLinks();
+        } else {
+          toast.error(data.error || 'Failed to update payment link multi-pricing');
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to update payment link');
+      }
     }
   };
 
@@ -268,6 +339,22 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
                   <p className="text-xs text-zinc-600 dark:text-zinc-300 line-clamp-2">{link.description}</p>
                 )}
 
+                {link.metadata?.multiPricing?.enabled && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-500/20 text-[11px] text-indigo-700 dark:text-indigo-300 font-medium">
+                    <Globe className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                    <span>
+                      {link.metadata.multiPricing.rules?.length || 0} Regional Override{link.metadata.multiPricing.rules?.length === 1 ? '' : 's'} Active ({link.metadata.multiPricing.mode})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMultiPricingForExistingLink(link)}
+                      className="ml-auto text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                    >
+                      Edit Rules
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-white/5 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="text-zinc-500">Sales:</span>
@@ -282,6 +369,14 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMultiPricingForExistingLink(link)}
+                      className="p-2 rounded-xl text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
+                      title="Configure Regional Multi-Pricing"
+                    >
+                      <Globe className="w-4 h-4" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => copyLinkUrl(link.slug)}
@@ -390,6 +485,39 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
                 </div>
               </div>
 
+              {/* Regional Multi-Pricing Configuration Box */}
+              <div className="p-3.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/40 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                    <Globe className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                      <span>Multi-Currency & Regional Rules</span>
+                      {multiPricingConfig.enabled && multiPricingConfig.rules.length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold">
+                          {multiPricingConfig.rules.length} Active ({multiPricingConfig.mode})
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-zinc-500 truncate">
+                      {multiPricingConfig.enabled
+                        ? `${multiPricingConfig.rules.length} custom country price rule(s) configured`
+                        : 'Offer localized pricing or PPP discounts in other countries'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenMultiPricingForNewLink}
+                  className="rounded-xl text-xs font-semibold shrink-0 cursor-pointer border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                >
+                  {multiPricingConfig.enabled ? 'Edit Rules' : 'Add Multi-Pricing'}
+                </Button>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5">
@@ -455,6 +583,20 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
           </div>
         </div>
       )}
+
+      {/* Reusable Multi-Pricing Rule Drawer */}
+      <MultiPricingDrawer
+        isOpen={showMultiPricingDrawer}
+        onClose={() => {
+          setShowMultiPricingDrawer(false);
+          setActiveEditingLink(null);
+        }}
+        baseAmount={activeEditingLink ? activeEditingLink.amount : (parseFloat(amount) || 1)}
+        baseCurrency={activeEditingLink ? activeEditingLink.currency : currency}
+        itemName={activeEditingLink ? activeEditingLink.title : (title || 'New Payment Link')}
+        value={multiPricingConfig}
+        onChange={handleSaveMultiPricing}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import {
   ShieldCheck,
   Clock,
@@ -63,10 +64,27 @@ interface PortalData {
 }
 
 interface PortalSessionClientProps {
-  sessionToken: string;
+  sessionToken?: string;
 }
 
-export function PortalSessionClient({ sessionToken }: PortalSessionClientProps) {
+export function PortalSessionClient({ sessionToken: initialSessionToken }: PortalSessionClientProps = {}) {
+  const params = useParams();
+
+  // Resilient sessionToken extraction for static SSG exports (Cloudflare Pages rewrites)
+  const getInitialSessionToken = useCallback(() => {
+    if (initialSessionToken && initialSessionToken !== 'default') return initialSessionToken;
+    const pToken = (params?.sessionToken as string) || '';
+    if (pToken && pToken !== 'default') return pToken;
+    if (typeof window !== 'undefined') {
+      const match = window.location.pathname.match(/\/portal(?:\/session)?\/([^/?#]+)/i);
+      if (match && match[1] && match[1] !== 'default') {
+        return decodeURIComponent(match[1]);
+      }
+    }
+    return '';
+  }, [initialSessionToken, params?.sessionToken]);
+
+  const [sessionToken, setSessionToken] = useState<string>(getInitialSessionToken);
   const [data, setData] = useState<PortalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,11 +101,17 @@ export function PortalSessionClient({ sessionToken }: PortalSessionClientProps) 
   const [linked, setLinked] = useState(false);
 
   // Fetch session data
-  const fetchPortalData = useCallback(async () => {
+  const fetchPortalData = useCallback(async (tokenToFetch?: string) => {
+    const targetToken = tokenToFetch || sessionToken || getInitialSessionToken();
+    if (!targetToken || targetToken === 'default') {
+      setLoading(false);
+      setError('This customer billing session has expired or is invalid.');
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
-      const url = getCoreApiUrl(`/api/v1/customer-portal/sessions/${encodeURIComponent(sessionToken)}`);
+      const url = getCoreApiUrl(`/api/v1/customer-portal/sessions/${encodeURIComponent(targetToken)}`);
       const res = await fetch(url, {
         headers: { 'Content-Type': 'application/json' },
       });
@@ -103,11 +127,18 @@ export function PortalSessionClient({ sessionToken }: PortalSessionClientProps) 
     } finally {
       setLoading(false);
     }
-  }, [sessionToken]);
+  }, [sessionToken, getInitialSessionToken]);
 
   useEffect(() => {
-    fetchPortalData();
-  }, [fetchPortalData]);
+    const currentToken = getInitialSessionToken();
+    if (currentToken && currentToken !== 'default') {
+      setSessionToken(currentToken);
+      fetchPortalData(currentToken);
+    } else {
+      setLoading(false);
+      setError('This customer billing session has expired or is invalid.');
+    }
+  }, [getInitialSessionToken, fetchPortalData]);
 
   // Session countdown timer
   useEffect(() => {

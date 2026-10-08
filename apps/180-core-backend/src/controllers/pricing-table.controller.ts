@@ -2,6 +2,91 @@
 
 import { Request, Response } from 'express';
 import { developersPrisma as prisma } from '@workspace/db-180core';
+import { COUNTRY_DIRECTORY } from '@workspace/payment-provider';
+
+function applyMultiPricingToPlanCards(planCards: any[], visitorCountry?: string) {
+  if (!visitorCountry || !Array.isArray(planCards)) return planCards;
+  const country = visitorCountry.trim().toUpperCase();
+  const meta = (COUNTRY_DIRECTORY as any)[country] || {
+    name: country,
+    currency: 'USD',
+    symbol: '$',
+    flag: '🌐',
+  };
+
+  return planCards.map((card) => {
+    if (card.isFree || !card.amount) return card;
+    const mp = card.multiPricing;
+    if (!mp || !mp.enabled) return card;
+
+    const rules = Array.isArray(mp.rules) ? mp.rules : [];
+    const matchedRule = rules.find((r: any) => (r.countryCode || '').toUpperCase() === country);
+
+    if (matchedRule && matchedRule.amount > 0) {
+      const discountPct =
+        matchedRule.discountPct !== undefined && matchedRule.discountPct !== null
+          ? matchedRule.discountPct
+          : card.amount > 0
+          ? Math.max(0, Math.round(((card.amount - matchedRule.amount) / card.amount) * 100))
+          : 0;
+
+      return {
+        ...card,
+        originalAmount: card.amount,
+        originalCurrency: card.currency,
+        amount: Number(matchedRule.amount),
+        currency: (matchedRule.currency || meta.currency || 'USD').toUpperCase(),
+        regionalPricing: {
+          isApplied: true,
+          countryCode: country,
+          countryName: meta.name || country,
+          flag: meta.flag || '🌐',
+          currency: (matchedRule.currency || meta.currency || 'USD').toUpperCase(),
+          symbol: matchedRule.symbol || meta.symbol || '$',
+          originalAmount: card.amount,
+          originalCurrency: card.currency,
+          discountPercentage: discountPct > 0 ? discountPct : undefined,
+          banner: {
+            flag: meta.flag || '🌐',
+            headline: `Special Regional Pricing (${meta.name || country})`,
+            message: `Localized price applied for members in ${meta.name || country}.`,
+          },
+        },
+      };
+    }
+
+    // Hybrid or PPP Fallback
+    if ((mp.mode === 'HYBRID' || mp.mode === 'PPP_FALLBACK') && meta.pppDiscountPct && meta.pppDiscountPct > 0) {
+      const discount = meta.pppDiscountPct;
+      const discountedAmount = Math.max(1, Math.round(card.amount * (1 - discount / 100)));
+      return {
+        ...card,
+        originalAmount: card.amount,
+        originalCurrency: card.currency,
+        amount: discountedAmount,
+        currency: card.currency,
+        regionalPricing: {
+          isApplied: true,
+          countryCode: country,
+          countryName: meta.name || country,
+          flag: meta.flag || '🌐',
+          currency: card.currency,
+          symbol: meta.symbol || '$',
+          originalAmount: card.amount,
+          originalCurrency: card.currency,
+          discountPercentage: discount,
+          banner: {
+            flag: meta.flag || '🌐',
+            headline: `Purchasing Power Parity Discount (${discount}% Off)`,
+            message: `We've automatically applied a regional discount for visitors from ${meta.name || country}.`,
+          },
+        },
+      };
+    }
+
+    return card;
+  });
+}
 
 export class PricingTableApiController {
   /**
@@ -56,11 +141,20 @@ export class PricingTableApiController {
         where: { appId: app.id },
       });
 
+      const visitorCountry = String(
+        req.query.country || req.headers['cf-ipcountry'] || req.headers['x-country-code'] || ''
+      ).trim().toUpperCase();
+
       if (existingConfig) {
+        const localizedCards = applyMultiPricingToPlanCards(
+          existingConfig.planCards || [],
+          visitorCountry
+        );
         return res.status(200).json({
           success: true,
           config: {
             ...existingConfig,
+            planCards: localizedCards,
             appName: app.name,
             appLogo: app.logoUrl,
             clientId: app.clientId,
@@ -96,8 +190,10 @@ export class PricingTableApiController {
             features: rawFeatures,
             buttonText: meta.buttonText || 'Get Started',
             buttonUrl: meta.buttonUrl || '',
+            multiPricing: meta.multiPricing,
           };
         });
+        planCards = applyMultiPricingToPlanCards(planCards, visitorCountry);
       } else {
         // Completely clean slate: zero hardcoded fake plans!
         planCards = [];
@@ -377,8 +473,14 @@ export class PricingTableApiController {
           featureKeys: p.metadata?.featureKeys || [],
           features: p.metadata?.features || [],
           isPopular: p.metadata?.isPopular || false,
+          multiPricing: p.metadata?.multiPricing,
         }));
       }
+
+      const visitorCountry = String(
+        req.query.country || req.headers['cf-ipcountry'] || req.headers['x-country-code'] || ''
+      ).trim().toUpperCase();
+      rawCards = applyMultiPricingToPlanCards(rawCards, visitorCountry);
 
       const yearlyDiscount = config?.yearlyDiscountPct ?? 20;
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -25,6 +26,23 @@ import { Button, LogoLoader } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
 import { CORE_BACKEND_URL } from '@/lib/api';
 
+export interface RegionalPricingData {
+  isApplied: boolean;
+  countryCode: string;
+  countryName: string;
+  flag: string;
+  currency: string;
+  symbol: string;
+  originalAmount: number;
+  originalCurrency: string;
+  discountPercentage?: number;
+  banner?: {
+    flag: string;
+    headline: string;
+    message: string;
+  };
+}
+
 interface PublicPaymentLink {
   id: string;
   slug: string;
@@ -37,12 +55,27 @@ interface PublicPaymentLink {
   allowCoupons: boolean;
   isAvailable: boolean;
   isSoldOut: boolean;
+  regionalPricing?: RegionalPricingData;
   merchant: {
     name: string;
     logoUrl?: string;
     clientId: string;
   };
 }
+
+const getSymbol = (currency: string, overrideSymbol?: string) => {
+  if (overrideSymbol && overrideSymbol !== currency) return overrideSymbol;
+  switch ((currency || '').toUpperCase()) {
+    case 'INR': return '₹';
+    case 'GBP': return '£';
+    case 'EUR': return '€';
+    case 'BRL': return 'R$';
+    case 'CAD': return 'C$';
+    case 'AUD': return 'A$';
+    case 'JPY': return '¥';
+    default: return '$';
+  }
+};
 
 interface FulfillmentData {
   fulfillmentMessage?: string;
@@ -51,7 +84,24 @@ interface FulfillmentData {
   transactionId?: string;
 }
 
-export function PaymentLinkClient({ slug }: { slug: string }) {
+export function PaymentLinkClient({ slug: initialSlug }: { slug?: string } = {}) {
+  const params = useParams();
+
+  // Resilient slug extraction for static SSG exports (Cloudflare Pages rewrites)
+  const getInitialSlug = useCallback(() => {
+    if (initialSlug && initialSlug !== 'default') return initialSlug;
+    const pSlug = params?.slug as string;
+    if (pSlug && pSlug !== 'default') return pSlug;
+    if (typeof window !== 'undefined') {
+      const match = window.location.pathname.match(/\/(?:link|pay\/l)\/([^/?#]+)/i);
+      if (match && match[1] && match[1] !== 'default') {
+        return decodeURIComponent(match[1]);
+      }
+    }
+    return '';
+  }, [initialSlug, params?.slug]);
+
+  const [slug, setSlug] = useState<string>(getInitialSlug);
   const [loading, setLoading] = useState(true);
   const [link, setLink] = useState<PublicPaymentLink | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,8 +130,9 @@ export function PaymentLinkClient({ slug }: { slug: string }) {
     return CORE_BACKEND_URL;
   };
 
-  const fetchLink = useCallback(async () => {
-    if (!slug || slug === 'default') {
+  const fetchLink = useCallback(async (slugToFetch?: string) => {
+    const targetSlug = slugToFetch || slug || getInitialSlug();
+    if (!targetSlug || targetSlug === 'default') {
       setLoading(false);
       setError('Please provide a valid payment link');
       return;
@@ -90,7 +141,7 @@ export function PaymentLinkClient({ slug }: { slug: string }) {
     setError(null);
     try {
       const apiBase = getApiBase();
-      const res = await fetch(`${apiBase}/api/v1/payment-links/public/${slug}`);
+      const res = await fetch(`${apiBase}/api/v1/payment-links/public/${encodeURIComponent(targetSlug)}`);
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(json.error || 'Payment link not found or inactive');
@@ -101,11 +152,18 @@ export function PaymentLinkClient({ slug }: { slug: string }) {
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, getInitialSlug]);
 
   useEffect(() => {
-    fetchLink();
-  }, [fetchLink]);
+    const currentSlug = getInitialSlug();
+    if (currentSlug && currentSlug !== 'default') {
+      setSlug(currentSlug);
+      fetchLink(currentSlug);
+    } else {
+      setLoading(false);
+      setError('Please provide a valid payment link');
+    }
+  }, [getInitialSlug, fetchLink]);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim() || !link) return;
@@ -170,6 +228,8 @@ export function PaymentLinkClient({ slug }: { slug: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          appId: link.merchant.clientId || link.id,
+          clientId: link.merchant.clientId || undefined,
           amount: currentPayableAmount,
           currency: link.currency || 'INR',
           title: link.title,
@@ -327,7 +387,14 @@ export function PaymentLinkClient({ slug }: { slug: string }) {
           {error || 'This payment link does not exist, has expired, or was deactivated by the seller.'}
         </p>
         <Button
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            const retrySlug = getInitialSlug();
+            if (retrySlug && retrySlug !== 'default') {
+              fetchLink(retrySlug);
+            } else {
+              window.location.reload();
+            }
+          }}
           className="bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-4 py-2 rounded-xl"
         >
           Try Again
@@ -462,25 +529,53 @@ export function PaymentLinkClient({ slug }: { slug: string }) {
               {appliedCoupon ? (
                 <div className="space-y-0.5">
                   <span className="text-xs text-zinc-500 line-through font-mono">
-                    {link.currency === 'INR' ? '₹' : '$'}
+                    {getSymbol(link.currency, link.regionalPricing?.symbol)}
                     {link.amount.toFixed(2)}
                   </span>
                   <div className="text-2xl font-black text-emerald-400 font-mono">
-                    {link.currency === 'INR' ? '₹' : '$'}
+                    {getSymbol(link.currency, link.regionalPricing?.symbol)}
                     {appliedCoupon.finalAmount.toFixed(2)}
                   </div>
                   <span className="inline-block text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    -{link.currency === 'INR' ? '₹' : '$'}{appliedCoupon.discountAmount.toFixed(2)} Saved
+                    -{getSymbol(link.currency, link.regionalPricing?.symbol)}{appliedCoupon.discountAmount.toFixed(2)} Saved
                   </span>
                 </div>
               ) : (
-                <div className="text-2xl sm:text-3xl font-black text-white font-mono">
-                  {link.currency === 'INR' ? '₹' : '$'}
-                  {link.amount.toFixed(2)}
+                <div className="space-y-0.5">
+                  {link.regionalPricing?.isApplied && link.regionalPricing.originalCurrency !== link.currency && (
+                    <span className="text-xs text-zinc-500 line-through font-mono block">
+                      {getSymbol(link.regionalPricing.originalCurrency)}
+                      {link.regionalPricing.originalAmount.toFixed(2)} {link.regionalPricing.originalCurrency}
+                    </span>
+                  )}
+                  <div className="text-2xl sm:text-3xl font-black text-white font-mono">
+                    {getSymbol(link.currency, link.regionalPricing?.symbol)}
+                    {link.amount.toFixed(2)}
+                  </div>
+                  {link.regionalPricing?.isApplied && link.regionalPricing.discountPercentage ? (
+                    <span className="inline-block text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      {link.regionalPricing.discountPercentage}% Regional Savings
+                    </span>
+                  ) : null}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Regional Multi-Pricing Banner */}
+          {link.regionalPricing?.isApplied && (
+            <div className="p-3.5 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 backdrop-blur-md flex items-center gap-3">
+              <span className="text-2xl">{link.regionalPricing.banner?.flag || link.regionalPricing.flag}</span>
+              <div className="min-w-0">
+                <h4 className="text-xs font-bold text-indigo-300">
+                  {link.regionalPricing.banner?.headline || `Special Localized Price (${link.regionalPricing.countryName})`}
+                </h4>
+                <p className="text-[11px] text-zinc-300 leading-tight">
+                  {link.regionalPricing.banner?.message || 'A targeted regional price has been automatically applied.'}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Sold Out Notice */}
           {link.isSoldOut ? (
