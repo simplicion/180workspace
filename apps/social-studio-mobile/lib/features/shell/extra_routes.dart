@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/util/json.dart';
+import '../../core/widgets/common.dart';
 import '../../data/models/content_calendar.dart';
 import '../inbox/conversation_screen.dart';
 import '../inbox/inbox_screen.dart';
@@ -22,6 +24,7 @@ import '../workspace/oauth_callback_screen.dart';
 import '../workspace/project_workspace_screen.dart';
 import '../command_center/platform_command_screen.dart';
 import '../planner/detailed_script_screen.dart';
+import '../planner/planner_providers.dart';
 
 String? _q(GoRouterState s, String k) {
   final v = s.uri.queryParameters[k];
@@ -79,19 +82,50 @@ List<RouteBase> extraRoutes() => [
         path: '/planner/new',
         builder: (_, s) => CalendarGeneratorScreen(extendFrom: s.extra is ContentCalendar ? s.extra as ContentCalendar : null),
       ),
-      GoRoute(path: '/planner/:id', builder: (_, s) => CalendarDetailScreen(calendarId: s.pathParameters['id']!)),
       GoRoute(
         path: '/planner/script',
         builder: (_, s) {
           final x = _extra(s);
-          final piece = x['piece'] is CalendarPiece ? x['piece'] as CalendarPiece : null;
-          final calendar = x['calendar'] is ContentCalendar ? x['calendar'] as ContentCalendar : null;
-          if (piece == null) {
-            return const Scaffold(body: Center(child: Text('Script piece not found')));
+          final pieceExtra = x['piece'] is CalendarPiece ? x['piece'] as CalendarPiece : null;
+          final calendarExtra = x['calendar'] is ContentCalendar ? x['calendar'] as ContentCalendar : null;
+          final calendarId = _q(s, 'calendarId') ?? calendarExtra?.id;
+          final pieceId = _q(s, 'pieceId') ?? pieceExtra?.id;
+
+          if (pieceExtra != null) {
+            return DetailedScriptScreen(piece: pieceExtra, calendar: calendarExtra);
           }
-          return DetailedScriptScreen(piece: piece, calendar: calendar);
+          if (calendarId != null && pieceId != null) {
+            return Consumer(
+              builder: (context, ref, _) {
+                final calAsync = ref.watch(calendarDetailProvider(calendarId));
+                return calAsync.when(
+                  data: (cal) {
+                    final p = cal.pieces.where((item) => item.id == pieceId).firstOrNull;
+                    if (p == null) {
+                      return Scaffold(
+                        appBar: AppBar(title: const Text('Detailed script')),
+                        body: const EmptyView(
+                          icon: Icons.description_outlined,
+                          title: 'Script piece not found',
+                          message: 'This piece could not be found in the calendar.',
+                        ),
+                      );
+                    }
+                    return DetailedScriptScreen(piece: p, calendar: cal);
+                  },
+                  loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+                  error: (e, _) => Scaffold(
+                    appBar: AppBar(title: const Text('Detailed script')),
+                    body: ErrorView(error: e, onRetry: () => ref.invalidate(calendarDetailProvider(calendarId))),
+                  ),
+                );
+              },
+            );
+          }
+          return const Scaffold(body: Center(child: Text('Script piece not found')));
         },
       ),
+      GoRoute(path: '/planner/:id', builder: (_, s) => CalendarDetailScreen(calendarId: s.pathParameters['id']!)),
       GoRoute(path: '/inbox/:id', builder: (_, s) => ConversationScreen(conversationId: s.pathParameters['id']!)),
       GoRoute(
         path: '/camera',

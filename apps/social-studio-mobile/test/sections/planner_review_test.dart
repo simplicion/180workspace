@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:social_studio_mobile/core/widgets/universal_skeleton.dart';
 import 'package:social_studio_mobile/features/planner/calendar_detail_screen.dart';
 import 'package:social_studio_mobile/features/planner/calendar_generator_screen.dart';
+import 'package:social_studio_mobile/features/planner/detailed_script_screen.dart';
 
 import '../support/app_harness.dart';
 import '../support/fake_backend.dart';
@@ -52,6 +53,28 @@ void main() {
       await tester.tap(find.text('In progress').last);
       await settle(tester);
       expect(b.last('PUT', '$sm/content-calendar/cal1/pieces/piece1')!.json, {'status': 'in_progress'});
+    });
+
+    appTest('piece "View detailed script" button opens DetailedScriptScreen via /planner/script', (tester) async {
+      final b = seededBackend();
+      await pumpApp(tester, b, location: '/planner/cal1');
+      await tester.tap(find.text('3 myths about shipping'));
+      await settle(tester);
+      expect(find.text('View detailed script'), findsOneWidget);
+      await tester.tap(find.text('View detailed script'));
+      await settle(tester);
+      expect(find.byType(DetailedScriptScreen), findsOneWidget);
+    });
+
+    appTest('day sheet "Full script" button opens DetailedScriptScreen via /planner/script', (tester) async {
+      final b = seededBackend();
+      await pumpApp(tester, b, location: '/planner/cal1');
+      await tester.tap(find.text('2').first);
+      await settle(tester);
+      expect(find.text('Full script'), findsOneWidget);
+      await tester.tap(find.text('Full script'));
+      await settle(tester);
+      expect(find.byType(DetailedScriptScreen), findsOneWidget);
     });
   });
 }

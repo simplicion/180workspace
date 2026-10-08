@@ -584,10 +584,13 @@ class _DayPieceCard extends StatelessWidget {
                 ),
                 onPressed: () {
                   Navigator.pop(context);
-                  context.push('/planner/script', extra: {
-                    'piece': piece,
-                    'calendar': calendar,
-                  });
+                  context.push(
+                    '/planner/script?calendarId=${calendar.id}&pieceId=${piece.id}',
+                    extra: {
+                      'piece': piece,
+                      'calendar': calendar,
+                    },
+                  );
                 },
                 icon: Icon(Icons.menu_book_rounded, size: 14),
                 label: Text('Full script'),
@@ -686,10 +689,13 @@ class _PieceTile extends StatelessWidget {
             IconButton(
               icon: Icon(Icons.menu_book_rounded, size: 18, color: AppTheme.accent),
               tooltip: 'Full script',
-              onPressed: () => context.push('/planner/script', extra: {
-                'piece': piece,
-                'calendar': calendar,
-              }),
+              onPressed: () => context.push(
+                '/planner/script?calendarId=${calendar.id}&pieceId=${piece.id}',
+                extra: {
+                  'piece': piece,
+                  'calendar': calendar,
+                },
+              ),
             ),
           ],
         ]),
@@ -1062,10 +1068,13 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
             ),
             onPressed: () {
               Navigator.pop(context);
-              context.push('/planner/script', extra: {
-                'piece': p,
-                'calendar': widget.calendar,
-              });
+              context.push(
+                '/planner/script?calendarId=${widget.calendar.id}&pieceId=${p.id}',
+                extra: {
+                  'piece': p,
+                  'calendar': widget.calendar,
+                },
+              );
             },
             icon: Icon(Icons.menu_book_rounded, size: 18),
             label: Text('View detailed script'),
