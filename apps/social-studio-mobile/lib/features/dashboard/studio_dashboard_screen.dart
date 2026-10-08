@@ -13,7 +13,6 @@ import '../../data/models/social_account.dart';
 import '../../data/models/social_post.dart';
 import '../auth/auth_provider.dart';
 import '../manager/manager_copilot_sheet.dart';
-import '../planner/planner_providers.dart';
 import '../projects/project_provider.dart';
 import '../projects/project_switcher.dart';
 
@@ -582,8 +581,6 @@ class _Overview extends ConsumerWidget {
               final scheduledThisWeek = d.metric('postsScheduledThisWeek');
               final scheduledThisMonth = d.metrics['postsScheduledThisMonth'] ?? project.metrics.scheduledPosts;
               final postedThisMonth = d.metric('postsPublishedThisMonth');
-              final calAsync = ref.watch(projectCalendarsProvider(project.id));
-              final hasCalendar = calAsync.valueOrNull?.isNotEmpty ?? false;
               final filteredAttention = d.attentionItems.where((item) =>
                   item.type != 'approval_required' &&
                   item.type != 'overdue_task' &&
@@ -678,13 +675,21 @@ class _Overview extends ConsumerWidget {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Scheduled this month',
+                                'Scheduled & Runway',
                                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
                               ),
                               const SizedBox(height: 2),
                               Wrap(
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
+                                  Text(
+                                    '$daysLeftInMonth days left',
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.accentBlue),
+                                  ),
+                                  Text(
+                                    ' · ',
+                                    style: TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                                  ),
                                   Text(
                                     'Scheduled this week',
                                     style: TextStyle(fontSize: 10, color: AppTheme.textMuted),
@@ -734,86 +739,7 @@ class _Overview extends ConsumerWidget {
                   ),
                   const SizedBox(height: 10),
 
-                  // 3. Content Calendar & Runway Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SectionCard(
-                          padding: const EdgeInsets.all(12),
-                          onTap: () => context.push('/projects/${project.id}/calendar'),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.calendar_month_rounded, color: AppTheme.accent, size: 18),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      'Content Calendar',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                hasCalendar ? 'Created (30-Day)' : 'Not created',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: hasCalendar ? AppTheme.success : AppTheme.warning,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                hasCalendar ? 'Autopilot synced' : 'Tap to generate',
-                                style: TextStyle(fontSize: 10.5, color: AppTheme.textMuted),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: SectionCard(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.timelapse_rounded, color: AppTheme.accentBlue, size: 18),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      '$monthName Runway',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '$daysLeftInMonth days left',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${now.day}/${lastDayOfMonth.day} month elapsed',
-                                style: TextStyle(fontSize: 10.5, color: AppTheme.textMuted),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // 4. 180 Manager AI · Social Growth Pulse
+                  // 3. 180 Manager AI · Social Growth Pulse
                   _buildAiSocialPulseCard(context, project, d, daysLeftInMonth, monthName),
                   const SizedBox(height: 10),
 

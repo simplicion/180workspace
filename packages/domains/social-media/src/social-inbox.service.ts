@@ -219,5 +219,165 @@ Return ONLY JSON: [{"tone": "short tone label", "text": "reply"}]`;
 
         return { conversation, message, duplicate: false };
     }
+
+    /**
+     * Active sync of conversations from connected platform accounts (Instagram Graph API, etc.)
+     * Pulls recent DMs and media comments, ingesting them as SocialConversation and SocialMessage records.
+     */
+    static async syncConversations(params: { companyId: string; projectId?: string; platform?: string }) {
+        const { companyId, projectId, platform } = params;
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
+
+        const db = getDb();
+        const { SocialTokenVault } = require('./publishing/token-vault');
+        const { metaGraphUrl } = require('./publishing/config');
+        const { providerFetch, readBody } = require('./publishing/http');
+
+        const where: any = { companyId, isActive: true };
+        if (projectId) where.projectId = projectId;
+        if (platform) where.platform = platform;
+
+        const accounts = await db.socialAccount.findMany({ where });
+        let syncedCount = 0;
+        const notes: string[] = [];
+
+        for (const acc of accounts) {
+            const plat = String(acc.platform).toLowerCase();
+            if (plat !== 'instagram') continue;
+
+            let token: string;
+            try {
+                token = await SocialTokenVault.getAccessToken(acc);
+            } catch (err: any) {
+                notes.push(`Account ${acc.accountName || acc.id}: cannot decrypt token (${err?.message || 'missing'})`);
+                continue;
+            }
+
+            const igUserId = acc.platformAccountId;
+            if (!igUserId) continue;
+
+            // 1. Fetch Instagram Direct Conversations
+            try {
+                const convUrl = metaGraphUrl(
+                    `${encodeURIComponent(igUserId)}/conversations?platform=instagram&fields=id,updated_time,participants,messages{id,created_time,from,message,to}&limit=15`,
+                    token,
+                    'instagram'
+                );
+                const res = await providerFetch('instagram', convUrl, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    timeoutMs: 15_000,
+                });
+                const body = await readBody(res);
+                if (res.ok && Array.isArray(body?.data)) {
+                    for (const thread of body.data) {
+                        const threadId = String(thread.id || '');
+                        if (!threadId) continue;
+                        const participants = Array.isArray(thread.participants?.data) ? thread.participants.data : [];
+                        const other = participants.find((p: any) => String(p.id) !== igUserId) || participants[0];
+                        const participantName = other?.name || other?.username || (other?.id ? `User ${String(other.id).slice(-4)}` : 'Instagram User');
+                        const participantHandle = other?.username || other?.id || 'anonymous';
+
+                        const msgs = Array.isArray(thread.messages?.data) ? thread.messages.data : [];
+                        const latest = msgs[0];
+                        const text = latest?.message || '[Direct Message]';
+
+                        await SocialInboxService.ingestMessage({
+                            companyId,
+                            projectId: acc.projectId || undefined,
+                            socialAccountId: acc.id,
+                            platform: 'instagram',
+                            platformThreadId: threadId,
+                            participantName,
+                            participantHandle,
+                            messageContent: text,
+                            platformMessageId: latest?.id ? String(latest.id) : undefined,
+                        });
+                        syncedCount++;
+                    }
+                } else if (body?.error) {
+                    notes.push(`Instagram DMs: ${body.error.message || 'error'}`);
+                }
+            } catch (err: any) {
+                console.warn('[SocialInboxSync] Direct messages fetch failed:', err?.message);
+                notes.push(`Instagram DMs sync: ${err?.message}`);
+            }
+
+            // 2. Fetch Recent Media Comments
+            try {
+                const mediaUrl = metaGraphUrl(
+                    `${encodeURIComponent(igUserId)}/media?fields=id,caption,comments{id,text,timestamp,from,username}&limit=10`,
+                    token,
+                    'instagram'
+                );
+                const res = await providerFetch('instagram', mediaUrl, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    timeoutMs: 15_000,
+                });
+                const body = await readBody(res);
+                if (res.ok && Array.isArray(body?.data)) {
+                    for (const media of body.data) {
+                        const comments = Array.isArray(media.comments?.data) ? media.comments.data : [];
+                        for (const c of comments) {
+                            const cid = String(c.id || '');
+                            if (!cid) continue;
+                            const fromUser = c.from?.username || c.username || 'Instagram User';
+                            const fromHandle = c.from?.username || c.username || 'anonymous';
+                            const text = c.text || '';
+                            if (!text) continue;
+
+                            await SocialInboxService.ingestMessage({
+                                companyId,
+                                projectId: acc.projectId || undefined,
+                                socialAccountId: acc.id,
+                                platform: 'instagram',
+                                platformThreadId: `comment:${cid}`,
+                                participantName: fromUser,
+                                participantHandle: fromHandle,
+                                messageContent: text,
+                                platformMessageId: cid,
+                            });
+                            syncedCount++;
+                        }
+                    }
+                } else if (body?.error) {
+                    notes.push(`Instagram Comments: ${body.error.message || 'error'}`);
+                }
+            } catch (err: any) {
+                console.warn('[SocialInboxSync] Media comments fetch failed:', err?.message);
+                notes.push(`Instagram comments sync: ${err?.message}`);
+            }
+        }
+
+        return {
+            synced: syncedCount,
+            accountsChecked: accounts.length,
+            notes,
+        };
+    }
+
+    /**
+     * Seeds a realistic incoming test conversation for local verification.
+     */
+    static async seedTestConversation(companyId: string, projectId: string | null, socialAccountId?: string) {
+        const db = getDb();
+        const account = socialAccountId
+            ? await db.socialAccount.findFirst({ where: { id: socialAccountId, companyId } })
+            : await db.socialAccount.findFirst({ where: { companyId, platform: 'instagram', isActive: true } });
+
+        const sid = account?.id || null;
+        const pid = projectId || account?.projectId || null;
+
+        return SocialInboxService.ingestMessage({
+            companyId,
+            projectId: pid || undefined,
+            socialAccountId: sid || 'demo-ig',
+            platform: 'instagram',
+            platformThreadId: `test_${Date.now()}`,
+            participantName: 'Alex Rivera',
+            participantHandle: 'alex.rivera.brand',
+            messageContent: 'Hey! Loved your recent video on personal branding. Are you currently taking new 1-on-1 strategy clients?',
+            platformMessageId: `msg_${Date.now()}`,
+        });
+    }
 }
 

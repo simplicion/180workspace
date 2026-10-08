@@ -21,6 +21,9 @@ void main() {
     expect(find.byType(UniversalSkeleton), findsNothing);
     expect(find.text('Q3 launch campaign'), findsOneWidget);
     expect(find.text('Scheduled this week'), findsOneWidget);
+    expect(find.text('Scheduled & Runway'), findsOneWidget);
+    expect(find.textContaining('days left'), findsOneWidget);
+    expect(find.text('Created (30-Day)'), findsNothing);
     expect(find.text('2'), findsWidgets); // postsScheduledThisWeek from the dashboard payload
     expect(b.last('GET', '$sm/projects/p1/dashboard'), isNotNull);
   });
