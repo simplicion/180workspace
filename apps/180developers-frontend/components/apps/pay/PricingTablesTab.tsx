@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { Button, UniversalSkeleton } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
+import { getApiBase, getPublicBase, getAuthToken } from '@/lib/api-config';
 
 export interface PlanFeatureItem {
   text: string;
@@ -179,19 +180,11 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
 
 
 
-  const getApiBase = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4003';
-  };
-
-  const getPublicBase = () => {
-    return process.env.NEXT_PUBLIC_PROFILE_URL || 'http://localhost:3009';
-  };
-
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
       const apiBase = getApiBase();
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const res = await fetch(`${apiBase}/api/v1/pricing-tables/${appId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -234,7 +227,7 @@ export function PricingTablesTab({ appId }: PricingTablesTabProps) {
     setSaving(true);
     try {
       const apiBase = getApiBase();
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const res = await fetch(`${apiBase}/api/v1/pricing-tables/${appId}`, {
         method: 'PUT',
         headers: {

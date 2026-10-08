@@ -548,7 +548,7 @@ class _CanvasSheetState extends State<_CanvasSheet> {
             widget.c.ir!.sources.firstOrNull?.width ?? 0, widget.c.ir!.sources.firstOrNull?.height ?? 0, widget.c.ir!.canvas) ==
         null;
 
-  static const _labels = {'9:16': 'Reels · TikTok · Shorts', '1:1': 'Square', '4:5': 'Feed portrait', '16:9': 'YouTube · landscape'};
+  static const _labels = {'9:16': 'Reels · Shorts', '1:1': 'Square', '4:5': 'Feed portrait', '16:9': 'YouTube · landscape'};
 
   @override
   Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [

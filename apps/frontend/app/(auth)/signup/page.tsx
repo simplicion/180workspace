@@ -371,7 +371,6 @@ export default function SignupFlow() {
                         isProcessing={loading}
                         disabled={isOpeningIdentity || loading} 
                         text="Create Workspace with 180 Profile"
-                        subtitle="Sovereign Auth · WhatsApp OTP · SSO"
                         processingText="Setting up your sovereign account…"
                         onSuccess={handleIdentitySuccess}
                     />

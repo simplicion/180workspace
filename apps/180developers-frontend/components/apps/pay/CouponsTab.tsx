@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
+import { getApiBase, getAuthToken } from '@/lib/api-config';
 
 interface CouponItem {
   id: string;
@@ -94,23 +95,20 @@ export function CouponsTab({ appId }: CouponsTabProps) {
   // Copied state
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const getApiBase = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4003';
-  };
-
   const fetchCoupons = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/coupons/apps/${appId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setCoupons(data.coupons || data.data || []);
       }
     } catch (err: any) {
+      console.error('[CouponsTab] Failed to load coupons:', err);
       toast.error('Failed to load coupons');
     } finally {
       setLoading(false);
@@ -151,7 +149,11 @@ export function CouponsTab({ appId }: CouponsTabProps) {
 
     setCreating(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Authentication required. Please log in again.');
+        return;
+      }
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/coupons/apps/${appId}`, {
         method: 'POST',
@@ -184,7 +186,10 @@ export function CouponsTab({ appId }: CouponsTabProps) {
       setAllowedOriginsText('');
       fetchCoupons();
     } catch (err: any) {
-      toast.error(err.message || 'Error creating coupon');
+      const msg = err.message === 'Failed to fetch'
+        ? 'Network error: Unable to reach the API server. Please check your connection.'
+        : (err.message || 'Error creating coupon');
+      toast.error(msg);
     } finally {
       setCreating(false);
     }
@@ -227,7 +232,11 @@ export function CouponsTab({ appId }: CouponsTabProps) {
 
     setEditing(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/coupons/apps/${appId}/${editingCoupon.id}`, {
         method: 'PUT',
@@ -258,7 +267,10 @@ export function CouponsTab({ appId }: CouponsTabProps) {
       setEditingCoupon(null);
       fetchCoupons();
     } catch (err: any) {
-      toast.error(err.message || 'Error updating coupon');
+      const msg = err.message === 'Failed to fetch'
+        ? 'Network error: Unable to reach the API server.'
+        : (err.message || 'Error updating coupon');
+      toast.error(msg);
     } finally {
       setEditing(false);
     }
@@ -266,7 +278,11 @@ export function CouponsTab({ appId }: CouponsTabProps) {
 
   const handleToggleCouponStatus = async (coupon: CouponItem) => {
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
       const apiBase = getApiBase();
       const nextStatus = !coupon.isActive;
       const res = await fetch(`${apiBase}/api/v1/coupons/apps/${appId}/${coupon.id}`, {
@@ -290,7 +306,10 @@ export function CouponsTab({ appId }: CouponsTabProps) {
         prev.map((c) => (c.id === coupon.id ? { ...c, isActive: nextStatus } : c))
       );
     } catch (err: any) {
-      toast.error(err.message || 'Error toggling coupon status');
+      const msg = err.message === 'Failed to fetch'
+        ? 'Network error: Unable to reach the API server.'
+        : (err.message || 'Error toggling coupon status');
+      toast.error(msg);
     }
   };
 
@@ -298,7 +317,11 @@ export function CouponsTab({ appId }: CouponsTabProps) {
     if (!confirm(`Are you sure you want to delete coupon ${codeName}?`)) return;
 
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/coupons/apps/${appId}/${id}`, {
         method: 'DELETE',
@@ -309,7 +332,10 @@ export function CouponsTab({ appId }: CouponsTabProps) {
       toast.success('Coupon deleted');
       fetchCoupons();
     } catch (err: any) {
-      toast.error(err.message || 'Error deleting coupon');
+      const msg = err.message === 'Failed to fetch'
+        ? 'Network error: Unable to reach the API server.'
+        : (err.message || 'Error deleting coupon');
+      toast.error(msg);
     }
   };
 
@@ -317,10 +343,10 @@ export function CouponsTab({ appId }: CouponsTabProps) {
     setSelectedCoupon(coupon);
     setLoadingRedemptions(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/coupons/apps/${appId}/${coupon.id}/redemptions`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
       if (res.ok && data.success) {

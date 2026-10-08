@@ -330,7 +330,7 @@ test('platform metrics: live values come from the provider, failures are PLATFOR
     db.project.rows.push({ id: 'proj-m', companyId: 'co-1' });
     await seedAccount('m-ig', 'co-1', 'instagram', 'ig-m', 'proj-m');
     await seedAccount('m-fb', 'co-1', 'facebook', 'fb-m', 'proj-m');
-    await db.socialAccount.create({ data: { id: 'm-th', companyId: 'co-1', platform: 'threads', platformAccountId: 'mock_th', accountName: 't', projectId: 'proj-m', followersCount: 42 } });
+    await db.socialAccount.create({ data: { id: 'm-th', companyId: 'co-1', platform: 'threads', platformAccountId: 'mock_th', accountName: 't', projectId: 'proj-m', followersCount: 42, metadata: { followersCount: 42 } } });
     fetchMock.restore();
     fetchMock = new FetchMock((c) => {
         if (c.url.includes('/ig-m?')) return json(200, { followers_count: 1200 });

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -17,6 +18,8 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/universal_skeleton.dart';
 import '../auth/auth_provider.dart';
 import '../common/feature_lock_view.dart';
+import '../projects/project_provider.dart';
+import '../projects/project_switcher.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -149,6 +152,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider).valueOrNull;
     final billing = session?.entitlement.creatorBilling;
+    final activeProject = ref.watch(activeProjectProvider).valueOrNull;
 
     String planTitle = 'Creator Access';
     String statusBadge = 'Active';
@@ -183,6 +187,119 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: [
+          // Section: Device Management
+          _sectionHeader(context, 'Active Mobile Devices & Sessions', Icons.smartphone_rounded),
+          SizedBox(height: 4),
+          Text(
+            'Manage authorized mobile devices (Android & iOS) and active sessions linked to your account. Up to 20 devices. When the limit is reached, older idle sessions are signed out automatically.',
+            style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color),
+          ),
+          SizedBox(height: 10),
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Theme.of(context).dividerColor),
+            ),
+            child: _loadingDevices
+                ? SizedBox(height: 120, child: UniversalSkeleton(type: SkeletonType.activity))
+                : _devicesError != null
+                    ? ErrorView(error: _devicesError!, compact: true, onRetry: _loadDevices)
+                : _devices.isEmpty
+                    ? Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('No active devices recorded.', style: TextStyle(color: AppTheme.textMuted)),
+                      )
+                    : Column(
+                        children: [
+                          for (int i = 0; i < _devices.length; i++) ...[
+                            if (i > 0) Divider(height: 1),
+                            _buildDeviceTile(_devices[i]),
+                          ],
+                        ],
+                      ),
+          ),
+
+          SizedBox(height: 24),
+
+          // Section: Appearance
+          _sectionHeader(context, 'Appearance', Icons.palette_outlined),
+          const SizedBox(height: 8),
+          _card(context, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SegmentedButton<ThemeMode>(
+              key: const Key('settings.theme'),
+              showSelectedIcon: true,
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  label: Text('Dark'),
+                  icon: Icon(Icons.dark_mode_outlined, size: 16),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  label: Text('Light'),
+                  icon: Icon(Icons.light_mode_outlined, size: 16),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  label: Text('System'),
+                  icon: Icon(Icons.brightness_auto_outlined, size: 16),
+                ),
+              ],
+              selected: {ref.watch(themeModeProvider)},
+              onSelectionChanged: (v) => ref.read(themeModeProvider.notifier).setThemeMode(v.first),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Choose between Obsidian Dark (pure black & gray mix) and Crisp Light (official 180 blue & white). System dynamically matches your OS appearance.',
+              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+            ),
+          ])),
+
+          SizedBox(height: 24),
+
+          // Section: Notifications
+          _sectionHeader(context, 'Notifications', Icons.notifications_outlined),
+          SizedBox(height: 8),
+          _card(context, _pushPanel(context)),
+
+          SizedBox(height: 24),
+
+          // Section: Storage & Cache
+          _sectionHeader(context, 'Storage & Media Cache', Icons.storage_rounded),
+          SizedBox(height: 8),
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Theme.of(context).dividerColor),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Temporary Render & B-roll Cache', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      SizedBox(height: 4),
+                      Text('Current cache: $_cacheSizeStr', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                    ],
+                  ),
+                ),
+                FilledButton.tonal(
+                  onPressed: _clearingCache ? null : _clearCache,
+                  child: _clearingCache
+                      ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : Text('Clear'),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 24),
+
           // Section: Creator Subscription & Recharge
           _sectionHeader(context, 'Creator Plan & Access', Icons.workspace_premium_rounded),
           SizedBox(height: 8),
@@ -238,118 +355,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           SizedBox(height: 24),
 
-          // Section: Device Management
-          _sectionHeader(context, 'Active Mobile Devices & Sessions', Icons.smartphone_rounded),
-          SizedBox(height: 4),
-          Text(
-            'Manage authorized mobile devices (Android & iOS) and active sessions linked to your account. Up to 20 devices. When the limit is reached, older idle sessions are signed out automatically.',
-            style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color),
-          ),
-          SizedBox(height: 10),
-          Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).dividerColor),
-            ),
-            child: _loadingDevices
-                ? SizedBox(height: 120, child: UniversalSkeleton(type: SkeletonType.activity))
-                : _devicesError != null
-                    ? ErrorView(error: _devicesError!, compact: true, onRetry: _loadDevices)
-                : _devices.isEmpty
-                    ? Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('No active devices recorded.', style: TextStyle(color: AppTheme.textMuted)),
-                      )
-                    : Column(
-                        children: [
-                          for (int i = 0; i < _devices.length; i++) ...[
-                            if (i > 0) Divider(height: 1),
-                            _buildDeviceTile(_devices[i]),
-                          ],
-                        ],
-                      ),
-          ),
-
-          SizedBox(height: 24),
-
-          // Section: Storage & Cache
-          _sectionHeader(context, 'Storage & Media Cache', Icons.storage_rounded),
-          SizedBox(height: 8),
-          Container(
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).dividerColor),
-            ),
-            child: Row(
+          // Section: Project Settings
+          if (activeProject != null) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Temporary Render & B-roll Cache', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      SizedBox(height: 4),
-                      Text('Current cache: $_cacheSizeStr', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-                    ],
+                Expanded(child: _sectionHeader(context, 'Project Settings', Icons.tune_rounded)),
+                InkWell(
+                  onTap: () => showProjectSwitcherSheet(context, ref),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          activeProject.name,
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.unfold_more_rounded, size: 16, color: AppTheme.primary),
+                      ],
+                    ),
                   ),
                 ),
-                FilledButton.tonal(
-                  onPressed: _clearingCache ? null : _clearCache,
-                  child: _clearingCache
-                      ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text('Clear'),
-                ),
               ],
-            ),
-          ),
-
-          SizedBox(height: 24),
-
-          // Section: Appearance
-          _sectionHeader(context, 'Appearance', Icons.palette_outlined),
-          const SizedBox(height: 8),
-          _card(context, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SegmentedButton<ThemeMode>(
-              key: const Key('settings.theme'),
-              showSelectedIcon: true,
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text('Dark'),
-                  icon: Icon(Icons.dark_mode_outlined, size: 16),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text('Light'),
-                  icon: Icon(Icons.light_mode_outlined, size: 16),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text('System'),
-                  icon: Icon(Icons.brightness_auto_outlined, size: 16),
-                ),
-              ],
-              selected: {ref.watch(themeModeProvider)},
-              onSelectionChanged: (v) => ref.read(themeModeProvider.notifier).setThemeMode(v.first),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Choose between Obsidian Dark (pure black & gray mix) and Crisp Light (official 180 blue & white). System dynamically matches your OS appearance.',
-              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+            _card(
+              context,
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.tune_rounded, color: AppTheme.primary, size: 20),
+                  ),
+                  title: Text(activeProject.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: Text('Customize name, status, services, workflow & retention', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                  trailing: Icon(Icons.chevron_right_rounded, size: 20, color: AppTheme.textMuted),
+                  onTap: () => context.push('/projects/${activeProject.id}/settings'),
+                ),
+              ),
             ),
-          ])),
-
-          SizedBox(height: 24),
-
-          // Section: Notifications
-          _sectionHeader(context, 'Notifications', Icons.notifications_outlined),
-          SizedBox(height: 8),
-          _card(context, _pushPanel(context)),
-
-          SizedBox(height: 24),
+            const SizedBox(height: 24),
+          ],
 
           // Section: About (real values only)
           _sectionHeader(context, 'About', Icons.info_outline_rounded),
@@ -382,7 +438,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Divider(height: 16),
                 _updateItem(
                   '📱 Real-Time Channel Previews',
-                  'Interactive pixel-faithful previews for Instagram, TikTok 9:16, YouTube Shorts, LinkedIn, Facebook, and Twitter/X inside the post composer.',
+                  'Interactive pixel-faithful previews for Instagram, YouTube Shorts, LinkedIn, Facebook, and Twitter/X inside the post composer.',
                 ),
                 Divider(height: 16),
                 _updateItem(

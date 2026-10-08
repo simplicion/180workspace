@@ -542,7 +542,6 @@ class BrandConsciousness {
   static const platforms = {
     'instagram': 'Instagram',
     'facebook': 'Facebook',
-    'tiktok': 'TikTok',
     'youtube': 'YouTube',
     'linkedin': 'LinkedIn',
     'twitter': 'X',

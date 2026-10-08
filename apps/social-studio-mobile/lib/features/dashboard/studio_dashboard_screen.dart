@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/sync_indicator.dart';
 import '../../core/widgets/universal_skeleton.dart';
+import '../../data/models/platform.dart';
 import '../../data/models/project.dart';
 import '../../data/models/social_account.dart';
 import '../../data/models/social_post.dart';
@@ -24,19 +25,24 @@ class ProjectSection {
   final IconData icon;
 
   static const all = [
-    ProjectSection('calendar', 'Calendar', Icons.calendar_month_rounded),
     ProjectSection('content', 'Content', Icons.view_list_rounded),
     ProjectSection('publishing', 'Publishing', Icons.send_rounded),
-    ProjectSection('inbox', 'Inbox', Icons.forum_rounded),
     ProjectSection('engagement', 'Engagement', Icons.bolt_rounded),
     ProjectSection('analytics', 'Analytics', Icons.insights_rounded),
-    ProjectSection('brand', 'Brand identity', Icons.record_voice_over_rounded),
+    ProjectSection('brand', 'Identity', Icons.badge_rounded),
     ProjectSection('accounts', 'Channels', Icons.hub_rounded),
     ProjectSection('evergreen', 'Evergreen queue', Icons.autorenew_rounded),
-    ProjectSection('settings', 'Settings', Icons.tune_rounded),
   ];
 
-  static ProjectSection? byTab(String tab) => all.where((s) => s.tab == tab).firstOrNull;
+  static ProjectSection? byTab(String tab) =>
+      all.where((s) => s.tab == tab).firstOrNull ??
+      switch (tab) {
+        'calendar' => const ProjectSection('calendar', 'Calendar', Icons.calendar_month_rounded),
+        'brand' => const ProjectSection('brand', 'Identity', Icons.badge_rounded),
+        'settings' => const ProjectSection('settings', 'Project settings', Icons.tune_rounded),
+        'inbox' => const ProjectSection('inbox', 'Inbox', Icons.forum_rounded),
+        _ => null,
+      };
 }
 
 /// Standard workspace app bar: project switcher, sync badge, account profile & channels sheet.
@@ -543,6 +549,32 @@ class _Overview extends ConsumerWidget {
         padding: EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
           _Header(project: project),
+          SectionHeader('Workspace'),
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.1,
+            children: [
+              for (final s in ProjectSection.all)
+                SectionCard(
+                  padding: const EdgeInsets.all(10),
+                  onTap: () => context.push('/projects/${project.id}/${s.tab}'),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(s.icon, color: AppTheme.primary),
+                    const SizedBox(height: 6),
+                    Text(s.label,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1.15)),
+                  ]),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
           dashboard.when(
             loading: () => Padding(padding: EdgeInsets.all(32), child: LoadingView()),
             error: (e, _) => ErrorView(error: e, compact: true, onRetry: () => ref.invalidate(projectDashboardProvider(project.id))),
@@ -589,45 +621,125 @@ class _Overview extends ConsumerWidget {
 
                   SectionHeader('Performance & Momentum'),
 
-                  // 3 Key Data Points in 1 Single Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _KpiCompact(
-                          'Scheduled this week',
-                          scheduledThisWeek,
-                          Icons.event_rounded,
-                          AppTheme.accentBlue,
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: _KpiCompact(
-                          'Scheduled this month',
-                          scheduledThisMonth,
-                          Icons.calendar_month_rounded,
-                          AppTheme.accent,
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: _KpiCompact(
-                          'Posted this month',
-                          postedThisMonth,
-                          Icons.rocket_launch_rounded,
-                          AppTheme.success,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 10),
+                  // 1. MTD Cross-Platform Reach & Views Card (Hero Growth Card)
+                  _buildCrossPlatformViewsCard(context, ref, project, now, monthName),
+                  const SizedBox(height: 10),
 
-                  // Content Calendar & Runway Row
+                  // 2. Streamlined Monthly Cadence & Momentum Row (Posted MTD vs Scheduled Queue)
                   Row(
                     children: [
                       Expanded(
                         child: SectionCard(
-                          padding: EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Icon(Icons.rocket_launch_rounded, color: AppTheme.success, size: 20),
+                                  Text(
+                                    '$postedThisMonth',
+                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Posted this month',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Delivered MTD',
+                                style: TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SectionCard(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          onTap: () => context.push('/projects/${project.id}/calendar'),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Icon(Icons.calendar_month_rounded, color: AppTheme.accent, size: 20),
+                                  Text(
+                                    '$scheduledThisMonth',
+                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Scheduled this month',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                              ),
+                              const SizedBox(height: 2),
+                              Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    'Scheduled this week',
+                                    style: TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                                  ),
+                                  Text(
+                                    ': ',
+                                    style: TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                                  ),
+                                  Text(
+                                    '$scheduledThisWeek',
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Cadence Velocity Progress
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceElevated,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.borderSubtle),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.trending_up_rounded, size: 14, color: AppTheme.accent),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '$postedThisMonth delivered · $scheduledThisMonth in queue',
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${((postedThisMonth + scheduledThisMonth) == 0 ? 0 : (postedThisMonth / (postedThisMonth + scheduledThisMonth) * 100)).toInt()}% delivered',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.accent),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // 3. Content Calendar & Runway Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SectionCard(
+                          padding: const EdgeInsets.all(12),
                           onTap: () => context.push('/projects/${project.id}/calendar'),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -635,7 +747,7 @@ class _Overview extends ConsumerWidget {
                               Row(
                                 children: [
                                   Icon(Icons.calendar_month_rounded, color: AppTheme.accent, size: 18),
-                                  SizedBox(width: 6),
+                                  const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       'Content Calendar',
@@ -645,7 +757,7 @@ class _Overview extends ConsumerWidget {
                                   ),
                                 ],
                               ),
-                              SizedBox(height: 6),
+                              const SizedBox(height: 6),
                               Text(
                                 hasCalendar ? 'Created (30-Day)' : 'Not created',
                                 style: TextStyle(
@@ -654,7 +766,7 @@ class _Overview extends ConsumerWidget {
                                   color: hasCalendar ? AppTheme.success : AppTheme.warning,
                                 ),
                               ),
-                              SizedBox(height: 2),
+                              const SizedBox(height: 2),
                               Text(
                                 hasCalendar ? 'Autopilot synced' : 'Tap to generate',
                                 style: TextStyle(fontSize: 10.5, color: AppTheme.textMuted),
@@ -663,17 +775,17 @@ class _Overview extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: SectionCard(
-                          padding: EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
                                   Icon(Icons.timelapse_rounded, color: AppTheme.accentBlue, size: 18),
-                                  SizedBox(width: 6),
+                                  const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       '$monthName Runway',
@@ -683,12 +795,12 @@ class _Overview extends ConsumerWidget {
                                   ),
                                 ],
                               ),
-                              SizedBox(height: 6),
+                              const SizedBox(height: 6),
                               Text(
                                 '$daysLeftInMonth days left',
                                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
                               ),
-                              SizedBox(height: 2),
+                              const SizedBox(height: 2),
                               Text(
                                 '${now.day}/${lastDayOfMonth.day} month elapsed',
                                 style: TextStyle(fontSize: 10.5, color: AppTheme.textMuted),
@@ -699,63 +811,47 @@ class _Overview extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                  // 180 Manager AI · Social Growth Pulse (3-4 lines summary)
+                  // 4. 180 Manager AI · Social Growth Pulse
                   _buildAiSocialPulseCard(context, project, d, daysLeftInMonth, monthName),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                  // Secondary Workflow Metrics
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 2.1,
-                    children: [
-                      _Kpi('In editing', d.metric('editingTasksInProgress'), Icons.movie_creation_rounded, AppTheme.accent),
-                      _Kpi('Publishing failures', d.metric('publishingFailures'), Icons.report_rounded, AppTheme.error),
-                    ],
-                  ),
-
+                  // 5. Upcoming Content Section (with Next Drop spotlight)
                   SectionHeader(
                     'Upcoming content',
-                    trailing: TextButton(onPressed: () => context.push('/projects/${project.id}/calendar'), child: Text('Calendar')),
+                    trailing: TextButton(onPressed: () => context.push('/projects/${project.id}/calendar'), child: const Text('Calendar')),
                   ),
                   if (d.upcomingContent.isEmpty)
-                    SectionCard(child: Text('No upcoming posts scheduled.'))
-                  else
-                    for (final post in d.upcomingContent.take(6)) PostTile(post: post),
+                    SectionCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Icon(Icons.event_available_rounded, color: AppTheme.textMuted, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'No upcoming posts scheduled.',
+                              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => context.push('/projects/${project.id}/calendar'),
+                            child: const Text('Schedule post'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    _buildNextDropSpotlightCard(context, d.upcomingContent.first),
+                    if (d.upcomingContent.length > 1) ...[
+                      const SizedBox(height: 6),
+                      for (final post in d.upcomingContent.skip(1).take(5)) PostTile(post: post),
+                    ],
+                  ],
                 ],
               );
             },
-          ),
-          SectionHeader('Workspace'),
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.1,
-            children: [
-              for (final s in ProjectSection.all)
-                SectionCard(
-                  padding: EdgeInsets.all(10),
-                  onTap: () => context.push('/projects/${project.id}/${s.tab}'),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(s.icon, color: AppTheme.primary),
-                    SizedBox(height: 6),
-                    // Two lines max so long labels never overflow a tile on small phones.
-                    Text(s.label,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1.15)),
-                  ]),
-                ),
-            ],
           ),
           SectionHeader('Recent activity'),
           activity.when(
@@ -882,6 +978,298 @@ class _Overview extends ConsumerWidget {
     );
   }
 
+  Widget _buildCrossPlatformViewsCard(
+    BuildContext context,
+    WidgetRef ref,
+    Project project,
+    DateTime now,
+    String monthName,
+  ) {
+    final metricsAsync = ref.watch(projectLiveMetricsProvider(project.id));
+
+    return metricsAsync.when(
+      data: (metrics) => _buildViewsCardBody(context, project, now, metrics),
+      loading: () => Container(
+        height: 110,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: const Center(child: UniversalSkeleton(type: SkeletonType.metrics, height: 60)),
+      ),
+      error: (_, _) => _buildViewsCardBody(context, project, now, const []),
+    );
+  }
+
+  Widget _buildViewsCardBody(
+    BuildContext context,
+    Project project,
+    DateTime now,
+    List<Map<String, dynamic>> metrics,
+  ) {
+    num totalViews = 0;
+    final platformViews = <String, num>{};
+    final accounts = project.socialAccounts;
+
+    for (final m in metrics) {
+      final plat = (m['platform'] as String? ?? '').toLowerCase();
+      final views = (m['views'] as num?) ?? (m['reach'] as num?) ?? 0;
+      totalViews += views;
+      if (plat.isNotEmpty) {
+        platformViews[plat] = (platformViews[plat] ?? 0) + views;
+      }
+    }
+
+    final bool hasAccounts = accounts.isNotEmpty;
+    final String shortMonth = DateFormat('MMM').format(now);
+    final String mtdRange = '1–${now.day} $shortMonth';
+
+    return SectionCard(
+      padding: const EdgeInsets.all(16),
+      borderColor: AppTheme.primary.withValues(alpha: 0.35),
+      onTap: () => context.push('/projects/${project.id}/analytics'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Header Row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.auto_graph_rounded, color: AppTheme.accent, size: 15),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Cross-Platform Views',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              if (accounts.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.success.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: AppTheme.success,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${accounts.length} active',
+                        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: AppTheme.success),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceElevated,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppTheme.borderSubtle),
+                ),
+                child: Text(
+                  mtdRange,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Big Aggregate Number
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 2,
+            children: [
+              Text(
+                _formatCompact(totalViews),
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textPrimary,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              Text(
+                'total views across linked channels',
+                style: TextStyle(fontSize: 11.5, color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Platform Breakdown
+          if (!hasAccounts && metrics.isEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceElevated,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.borderSubtle),
+              ),
+              child: Row(
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.play_circle_fill_rounded, size: 14, color: Color(0xFFFF0000)),
+                      SizedBox(width: 3),
+                      Icon(Icons.camera_alt_rounded, size: 14, color: Color(0xFFE1306C)),
+                      SizedBox(width: 3),
+                      Icon(Icons.music_note_rounded, size: 14, color: Color(0xFF25F4EE)),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Connect channels to track views.',
+                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  TextButton(
+                    onPressed: () => context.push('/projects/${project.id}/accounts'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Connect', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final entry in platformViews.entries) ...[
+                    _PlatformViewChip(
+                      platformId: entry.key,
+                      views: entry.value,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (platformViews.isEmpty && hasAccounts)
+                    for (final acc in accounts) ...[
+                      _PlatformViewChip(
+                        platformId: acc.platform.id,
+                        views: 0,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNextDropSpotlightCard(BuildContext context, SocialPost post) {
+    return SectionCard(
+      padding: const EdgeInsets.all(14),
+      borderColor: AppTheme.accent.withValues(alpha: 0.35),
+      onTap: () => context.push('/posts/${post.id}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt_rounded, size: 12, color: AppTheme.accent),
+                    const SizedBox(width: 2),
+                    Text(
+                      'NEXT DROP',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.accent,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  fmtDateTime(post.scheduledFor),
+                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final p in post.platforms.take(3))
+                    Padding(
+                      padding: const EdgeInsets.only(left: 3),
+                      child: Icon(p.icon, size: 13, color: p.color),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            post.displayTitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+          ),
+          if (post.hook != null && post.hook!.trim().isNotEmpty && post.hook != post.displayTitle) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Hook: "${post.hook}"',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppTheme.textSecondary),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   static IconData _attentionIcon(String type) => switch (type) {
         'approval_required' => Icons.verified_rounded,
         'publishing_failed' => Icons.report_rounded,
@@ -890,6 +1278,58 @@ class _Overview extends ConsumerWidget {
         'reauth_needed' => Icons.link_off_rounded,
         _ => Icons.info_rounded,
       };
+}
+
+class _PlatformViewChip extends StatelessWidget {
+  const _PlatformViewChip({required this.platformId, required this.views});
+  final String platformId;
+  final num views;
+
+  @override
+  Widget build(BuildContext context) {
+    final platform = SocialPlatform.parse(platformId);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceElevated,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.borderSubtle),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(platform.icon, size: 16, color: platform.color),
+          const SizedBox(width: 6),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                platform.label,
+                style: TextStyle(fontSize: 10, color: AppTheme.textSecondary, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                '${_formatCompact(views)} views',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatCompact(num number) {
+  if (number >= 1000000) {
+    final v = number / 1000000;
+    return '${v.toStringAsFixed(v >= 10 ? 0 : 1)}M';
+  }
+  if (number >= 1000) {
+    final v = number / 1000;
+    return '${v.toStringAsFixed(v >= 10 ? 0 : 1)}K';
+  }
+  return NumberFormat.decimalPattern().format(number);
 }
 
 /// Clean Hero card showing active project info, status, description, and timezone.
@@ -924,65 +1364,6 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// Compact 1-row KPI card.
-class _KpiCompact extends StatelessWidget {
-  const _KpiCompact(this.label, this.value, this.icon, this.color);
-  final String label;
-  final int value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => SectionCard(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: color, size: 20),
-                Text(
-                  '$value',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppTheme.textSecondary, height: 1.15),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      );
-}
-
-class _Kpi extends StatelessWidget {
-  const _Kpi(this.label, this.value, this.icon, this.color);
-  final String label;
-  final int value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => SectionCard(
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(children: [
-          Icon(icon, color: color, size: 18),
-          SizedBox(width: 8),
-          Expanded(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('$value', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-              Text(label, style: TextStyle(fontSize: 10.5, color: AppTheme.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
-            ]),
-          ),
-        ]),
-      );
-}
 
 /// Compact post row used across the app.
 class PostTile extends StatelessWidget {

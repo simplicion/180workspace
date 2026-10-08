@@ -658,7 +658,10 @@
         connectedCallback() {
           var clientId = this.getAttribute('client-id') || _config.clientId || '180-core-client';
           var title = this.getAttribute('title') || 'Continue with 180 Profile';
-          var subtitle = this.getAttribute('subtitle') || 'Sovereign Auth · WhatsApp OTP · SSO';
+          var subtitle = this.getAttribute('subtitle') || '';
+          var subtitleHtml = subtitle
+            ? '<span style="font-size: 10px; font-weight: 500; color: #71717a;">' + subtitle + '</span>'
+            : '';
           this.innerHTML = [
             '<button type="button" style="display: inline-flex; align-items: center; gap: 12px; padding: 10px 18px; border-radius: 14px; background: #ffffff; color: #09090b; border: 1.5px solid #27272a; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12); transition: all 0.18s ease; outline: none;">',
             '<div style="width: 28px; height: 28px; border-radius: 8px; background: #18181b; border: 1px solid #27272a; display: flex; align-items: center; justify-content: center; position: relative;">',
@@ -667,7 +670,7 @@
             '</div>',
             '<div style="display: flex; flex-direction: column; text-align: left; line-height: 1.2;">',
             '<span style="font-size: 13.5px; font-weight: 700; color: #09090b;">' + title + '</span>',
-            '<span style="font-size: 10px; font-weight: 500; color: #71717a;">' + subtitle + '</span>',
+            subtitleHtml,
             '</div>',
             '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2.5" style="margin-left: 4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>',
             '</button>'

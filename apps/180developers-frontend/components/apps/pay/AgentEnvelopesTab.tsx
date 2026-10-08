@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
+import { getApiBase, getAuthToken } from '@/lib/api-config';
 
 interface AgentEnvelopeItem {
   id: string;
@@ -53,14 +54,14 @@ export function AgentEnvelopesTab({ appId }: AgentEnvelopesTabProps) {
   const [createdEnvelopeName, setCreatedEnvelopeName] = useState('');
   const [copiedKey, setCopiedKey] = useState(false);
 
-  const getApiBase = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4003';
-  };
-
   const fetchEnvelopes = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/developer/agent-envelopes/apps/${appId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -98,9 +99,14 @@ export function AgentEnvelopesTab({ appId }: AgentEnvelopesTabProps) {
       return;
     }
 
+    const token = getAuthToken();
+    if (!token) {
+      toast.error('Authentication session missing. Please log in again.');
+      return;
+    }
+
     setCreating(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
       const apiBase = getApiBase();
 
       let expiresAt: string | undefined = undefined;
@@ -148,8 +154,13 @@ export function AgentEnvelopesTab({ appId }: AgentEnvelopesTabProps) {
       return;
     }
 
+    const token = getAuthToken();
+    if (!token) {
+      toast.error('Authentication session missing. Please log in again.');
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('platform_auth_token');
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/developer/agent-envelopes/apps/${appId}/${id}`, {
         method: 'DELETE',

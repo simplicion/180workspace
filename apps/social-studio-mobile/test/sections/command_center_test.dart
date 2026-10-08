@@ -24,9 +24,31 @@ final monitorList = find.descendant(of: find.byKey(const Key('cc-monitor-list'))
 
 void main() {
   group('Command Center', () {
+    appTest('All Channels overview: renders monthly script quota and 24h agent intelligence pulse', (tester) async {
+      final b = seededBackend()
+        ..json('GET', '$sm/projects/:id/analytics', {
+          'success': true,
+          'analytics': {
+            'postsPublished': 5,
+            'postsCreated': 12,
+            'postsScheduledInRange': 3,
+            'postsScheduledUpcoming': 3,
+            'postsFailed': 0,
+            'published_instagram': 3,
+            'published_linkedin': 2,
+          },
+        });
+      await pumpApp(tester, b, location: '/command-center');
+      expect(find.text('Command Center & Analytics'), findsOneWidget);
+      expect(find.text('Monthly Content & Script Capacity'), findsOneWidget);
+      expect(find.text('18 scripts remaining for this month\'s target'), findsOneWidget);
+      expect(find.text('24-Hour AI Agent Intelligence Pulse'), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
+    });
+
     appTest('no account connected: an empty state with a connect action and no sample numbers', (tester) async {
       final b = seededBackend()..json('GET', '$sm/platform-team/:platform/overview', _overview(_empty));
-      await pumpApp(tester, b, location: '/command-center');
+      await pumpApp(tester, b, location: '/command-center?platform=instagram');
       expect(find.text('No Instagram account connected'), findsOneWidget);
       expect(find.text('Connect Instagram'), findsOneWidget);
       expect(find.textContaining('@scale_growth'), findsNothing);
@@ -54,7 +76,7 @@ void main() {
           },
           'metrics': [{'socialAccountId': 'a1', 'source': 'unavailable', 'followersCount': null, 'unavailable': {'message': 'Missing permission r_organization_social'}}],
         }));
-      await pumpApp(tester, b, location: '/command-center');
+      await pumpApp(tester, b, location: '/command-center?platform=instagram');
       await tester.tap(find.text('LinkedIn'));
       await settle(tester);
 
@@ -69,7 +91,7 @@ void main() {
 
     appTest('overview error: retry and a second way out', (tester) async {
       final b = seededBackend()..fail('GET', '$sm/platform-team/:platform/overview', 500, 'boom');
-      await pumpApp(tester, b, location: '/command-center');
+      await pumpApp(tester, b, location: '/command-center?platform=instagram');
       expect(find.text('Try again'), findsOneWidget);
       expect(find.text('Open connected accounts'), findsOneWidget);
     });
@@ -102,7 +124,7 @@ void main() {
       final b = seededBackend()
         ..json('GET', '$sm/platform-team/:platform/overview', _overview(_empty))
         ..json('POST', '$sm/platform-team/:platform/draft', {'success': false, 'code': 'AI_NOT_CONFIGURED', 'error': 'No usable AI provider key for this workspace.'}, status: 503);
-      await pumpApp(tester, b, location: '/command-center');
+      await pumpApp(tester, b, location: '/command-center?platform=instagram');
       await tester.tap(find.text('Create'));
       await settle(tester);
       await tester.enterText(find.widgetWithText(TextField, 'Your idea'), 'Why gums bleed when you floss');

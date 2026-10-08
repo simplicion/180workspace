@@ -89,12 +89,17 @@ final brandVoiceProvider = FutureProvider.autoDispose.family<BrandVoice, String>
   return ref.watch(socialApiProvider).getBrandVoice(projectId);
 });
 
+final projectLiveMetricsProvider = FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, id) {
+  return ref.watch(socialApiProvider).getLivePlatformMetrics(id);
+});
+
 /// Invalidates everything derived from a project after a mutation.
 extension WidgetRefInvalidate on WidgetRef {
   void refreshProjectData(String projectId) {
     invalidate(projectDetailProvider(projectId));
     invalidate(projectDashboardProvider(projectId));
     invalidate(projectActivityProvider(projectId));
+    invalidate(projectLiveMetricsProvider(projectId));
     invalidate(allProjectsProvider);
   }
 }

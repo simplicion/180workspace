@@ -374,12 +374,6 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                           mediaPath: result.outputPath,
                           projectId: c.projectId,
                         ),
-                        redditPayload: RedditPublishPayload(
-                          title: 'Video created with 180 Studio',
-                          body: e.credits.isNotEmpty ? 'Credits:\n${e.credits.join('\n')}' : '',
-                          mediaPath: result.outputPath,
-                          projectId: c.projectId,
-                        ),
                       ),
                     ),
                   );
@@ -450,7 +444,7 @@ class _ExportSettingsFormState extends State<_ExportSettingsForm> {
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: Text('Platform loudness'),
-        subtitle: Text('Brings the voice to ${ExportSettings.targetLufs.round()} LUFS like Reels, Shorts and TikTok, without clipping'),
+        subtitle: Text('Brings the voice to ${ExportSettings.targetLufs.round()} LUFS like Reels and Shorts, without clipping'),
         value: s.normalizeLoudness,
         onChanged: (v) => setState(() => s = s.copyWith(normalizeLoudness: v)),
       ),

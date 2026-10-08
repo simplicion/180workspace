@@ -9,6 +9,7 @@ import '../../core/widgets/universal_skeleton.dart';
 
 /// Platforms the Command Center covers, in tab order. `id` is the API path segment.
 const commandPlatforms = <({String id, String label, IconData icon, bool carousel})>[
+  (id: 'all', label: 'All', icon: Icons.hub_rounded, carousel: false),
   (id: 'instagram', label: 'Instagram', icon: Icons.camera_alt_outlined, carousel: true),
   (id: 'linkedin', label: 'LinkedIn', icon: Icons.work_outline_rounded, carousel: true),
   (id: 'youtube', label: 'YouTube', icon: Icons.smart_display_outlined, carousel: false),
@@ -16,7 +17,7 @@ const commandPlatforms = <({String id, String label, IconData icon, bool carouse
   (id: 'facebook', label: 'Facebook', icon: Icons.facebook_rounded, carousel: true),
 ];
 
-String platformLabel(String id) => commandPlatforms.where((p) => p.id == id).firstOrNull?.label ?? id;
+String platformLabel(String id) => id == 'all' ? 'All Channels' : commandPlatforms.where((p) => p.id == id).firstOrNull?.label ?? id;
 
 Color scoreColor(num score) => score >= 70 ? AppTheme.success : score >= 50 ? AppTheme.warning : AppTheme.error;
 

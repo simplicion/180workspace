@@ -32,49 +32,21 @@ void main() {
       expect(restored.mimeType, 'video/mp4');
     });
 
-    test('RedditPublishPayload normalizes subreddit correctly', () {
-      final p1 = RedditPublishPayload(
-        subreddit: 'r/technology',
-        title: 'How we built an Android social media OS',
-        body: 'Full breakdown inside...',
-      );
-      expect(p1.normalizedSubreddit, 'technology');
-
-      final p2 = RedditPublishPayload(
-        subreddit: '/r/socialmedia',
-        title: 'Growth strategies',
-      );
-      expect(p2.normalizedSubreddit, 'socialmedia');
-
-      final p3 = RedditPublishPayload(
-        subreddit: 'startups',
-        title: 'Launching today',
-      );
-      expect(p3.normalizedSubreddit, 'startups');
-    });
-
-    test('UserAssistedPublishPackage bundles X and Reddit payloads', () {
+    test('UserAssistedPublishPackage bundles X payload', () {
       final package = UserAssistedPublishPackage(
         id: 'post_999',
         projectId: 'proj_1',
         title: 'Universal Post Title',
         caption: 'Universal Post Caption',
         xPayload: XPublishPayload(text: 'X Caption #growth'),
-        redditPayload: RedditPublishPayload(
-          subreddit: 'startups',
-          title: 'Reddit Title',
-          body: 'Reddit Body',
-        ),
       );
 
       final json = package.toJson();
       expect(json['id'], 'post_999');
       expect(json['xPayload']['text'], 'X Caption #growth');
-      expect(json['redditPayload']['title'], 'Reddit Title');
 
       final restored = UserAssistedPublishPackage.fromJson(json);
       expect(restored.xPayload?.text, 'X Caption #growth');
-      expect(restored.redditPayload?.title, 'Reddit Title');
     });
   });
 
@@ -99,49 +71,19 @@ void main() {
       );
       expect(overLimit.any((issue) => issue.contains('280 characters')), isTrue);
     });
-
-    test('RedditUserAssistedPublisher validates required post title', () {
-      // Empty title
-      final emptyTitle = RedditUserAssistedPublisher.validate(
-        RedditPublishPayload(title: '  '),
-      );
-      expect(emptyTitle, contains('Post title is required for Reddit.'));
-
-      // Valid title
-      final valid = RedditUserAssistedPublisher.validate(
-        RedditPublishPayload(title: 'Valid Reddit Discussion Title'),
-      );
-      expect(valid, isEmpty);
-    });
   });
 
   group('Platform Capability Registry', () {
-    test('X and Reddit are identified as user-assisted platforms', () {
+    test('X is identified as user-assisted platform', () {
       final xCap = PlatformCapabilityRegistry.getCapabilities(SocialPlatform.x);
       expect(xCap.userAssistedPublishing, isTrue);
       expect(xCap.apiPublishing, isFalse);
       expect(xCap.requiresExternalPostButton, isTrue);
-
-      final redditCap = PlatformCapabilityRegistry.getCapabilities(SocialPlatform.reddit);
-      expect(redditCap.userAssistedPublishing, isTrue);
-      expect(redditCap.apiPublishing, isFalse);
-      expect(redditCap.requiresExternalPostButton, isTrue);
     });
 
     test('Builds official web fallback URLs accurately', () {
       final xUrl = PlatformCapabilityRegistry.getXWebComposeUrl(text: 'Hello World & Friends');
       expect(xUrl.toString(), 'https://x.com/intent/post?text=Hello%20World%20%26%20Friends');
-
-      final redditUrl = PlatformCapabilityRegistry.getRedditWebComposeUrl(
-        subreddit: 'r/technology',
-        title: 'Title with spaces',
-        body: 'Body text',
-      );
-      expect(redditUrl.scheme, 'https');
-      expect(redditUrl.host, 'www.reddit.com');
-      expect(redditUrl.path, '/r/technology/submit');
-      expect(redditUrl.queryParameters['title'], 'Title with spaces');
-      expect(redditUrl.queryParameters['text'], 'Body text');
     });
   });
 
@@ -180,7 +122,7 @@ void main() {
       expect(recordedStatus, 'user_confirmed');
     });
 
-    testWidgets('CentralizedManualPublishSheet displays X and Reddit sections', (tester) async {
+    testWidgets('CentralizedManualPublishSheet displays X section', (tester) async {
       final package = UserAssistedPublishPackage(
         id: 'post_test_ui',
         projectId: 'proj_ui',
@@ -191,19 +133,8 @@ void main() {
             platform: SocialPlatform.x,
             caption: 'This is the test copy for publishing.',
           ),
-          SocialPlatform.reddit: UniversalPlatformPayload(
-            platform: SocialPlatform.reddit,
-            caption: 'This is the test copy for publishing.',
-            title: 'Test Discussion Title',
-            subreddit: 'socialmedia',
-          ),
         },
         xPayload: XPublishPayload(text: 'This is the test copy for publishing.'),
-        redditPayload: RedditPublishPayload(
-          subreddit: 'socialmedia',
-          title: 'Test Discussion Title',
-          body: 'This is the test copy for publishing.',
-        ),
       );
 
       await tester.pumpWidget(
@@ -219,7 +150,6 @@ void main() {
 
       expect(find.text('Finish Publishing'), findsOneWidget);
       expect(find.text('Post on X'), findsWidgets);
-      expect(find.text('Post on Reddit'), findsWidgets);
       expect(find.text('180 Workspace never automatically clicks the final platform Post button. You review and confirm publication in the native app.'), findsOneWidget);
     });
   });

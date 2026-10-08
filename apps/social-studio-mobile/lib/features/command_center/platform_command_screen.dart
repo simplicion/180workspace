@@ -8,6 +8,7 @@ import '../../core/util/json.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/universal_skeleton.dart';
 import '../projects/project_provider.dart';
+import 'all_channels_overview.dart';
 import 'cc_widgets.dart';
 import 'create_tab.dart';
 import 'check_tab.dart';
@@ -17,9 +18,9 @@ import 'insights_sections.dart';
 final platformOverviewProvider = FutureProvider.autoDispose.family<Json, ({String platform, String projectId})>(
     (ref, k) => ref.watch(socialApiProvider).platformOverview(k.platform, k.projectId));
 
-/// Command Center: one growth team per platform (Instagram, LinkedIn, YouTube, X, Facebook).
-/// Monitor = what is live for the connected account. Create = AI drafts written to that platform's rules.
-/// Check = score a hook, caption, script or profile before it goes out.
+/// Command Center: unified growth engine and multi-platform cockpit.
+/// 'all' = cross-channel intelligence overview, monthly script quotas, and 24h agent pulse.
+/// platform-specific = Monitor (live metrics & queue), Create (AI drafts), Check (scoring tools).
 class PlatformCommandScreen extends ConsumerStatefulWidget {
   const PlatformCommandScreen({super.key, this.initialPlatform});
   final String? initialPlatform;
@@ -32,59 +33,76 @@ class _PlatformCommandScreenState extends ConsumerState<PlatformCommandScreen> {
   late String _platform = commandPlatforms.any((p) => p.id == widget.initialPlatform) ? widget.initialPlatform! : commandPlatforms.first.id;
 
   @override
+  void didUpdateWidget(PlatformCommandScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialPlatform != null &&
+        widget.initialPlatform != _platform &&
+        commandPlatforms.any((p) => p.id == widget.initialPlatform)) {
+      setState(() => _platform = widget.initialPlatform!);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final project = ref.watch(activeProjectProvider);
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Command Center'),
-          bottom: PreferredSize(
-            preferredSize: Size.fromHeight(104),
-            child: Column(children: [
-              SizedBox(
-                height: 56,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  children: [
-                    for (final p in commandPlatforms)
-                      Padding(
-                        padding: EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          materialTapTargetSize: MaterialTapTargetSize.padded,
-                          avatar: Icon(p.icon, size: 16, color: _platform == p.id ? AppTheme.primary : AppTheme.textSecondary),
-                          label: Text(p.label),
-                          selected: _platform == p.id,
-                          onSelected: (_) => setState(() => _platform = p.id),
-                        ),
+    final isAll = _platform == 'all';
+
+    final scaffold = Scaffold(
+      appBar: AppBar(
+        title: Text(isAll ? 'Command Center & Analytics' : 'Command Center · ${platformLabel(_platform)}'),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(isAll ? 56 : 104),
+          child: Column(children: [
+            SizedBox(
+              height: 56,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                children: [
+                  for (final p in commandPlatforms)
+                    Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        materialTapTargetSize: MaterialTapTargetSize.padded,
+                        avatar: Icon(p.icon, size: 16, color: _platform == p.id ? AppTheme.primary : AppTheme.textSecondary),
+                        label: Text(p.label),
+                        selected: _platform == p.id,
+                        onSelected: (_) => setState(() => _platform = p.id),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
+            ),
+            if (!isAll)
               TabBar(tabs: const [Tab(text: 'Monitor'), Tab(text: 'Create'), Tab(text: 'Check')]),
-            ]),
-          ),
+          ]),
         ),
-        body: TabBarView(children: [
-          project.when(
-            loading: () => Padding(padding: EdgeInsets.all(16), child: UniversalSkeleton(type: SkeletonType.metrics, itemCount: 4)),
-            error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(allProjectsProvider)),
-            data: (p) => p == null
-                ? EmptyView(
-                    icon: Icons.folder_open_rounded,
-                    title: 'Create a project to monitor',
-                    message: 'Monitoring reads the accounts, posts and inbox of a project.',
-                    actionLabel: 'New project',
-                    onAction: () => context.push('/projects/new'),
+      ),
+      body: project.when(
+        loading: () => Padding(padding: EdgeInsets.all(16), child: UniversalSkeleton(type: SkeletonType.metrics, itemCount: 4)),
+        error: (e, _) => ErrorView(error: e, onRetry: () => ref.invalidate(allProjectsProvider)),
+        data: (p) => p == null
+            ? EmptyView(
+                icon: Icons.folder_open_rounded,
+                title: 'Create a project to monitor',
+                message: 'Monitoring reads the accounts, posts and inbox of a project.',
+                actionLabel: 'New project',
+                onAction: () => context.push('/projects/new'),
+              )
+            : isAll
+                ? AllChannelsOverview(
+                    project: p,
+                    onSelectPlatform: (id) => setState(() => _platform = id),
                   )
-                : _MonitorTab(key: ValueKey('$_platform-${p.id}'), platform: _platform, projectId: p.id, projectName: p.name),
-          ),
-          CreateTab(key: ValueKey('create-$_platform'), platform: _platform, projectId: project.value?.id),
-          CheckTab(key: ValueKey('check-$_platform'), platform: _platform),
-        ]),
+                : TabBarView(children: [
+                    _MonitorTab(key: ValueKey('$_platform-${p.id}'), platform: _platform, projectId: p.id, projectName: p.name),
+                    CreateTab(key: ValueKey('create-$_platform'), platform: _platform, projectId: p.id),
+                    CheckTab(key: ValueKey('check-$_platform'), platform: _platform),
+                  ]),
       ),
     );
+
+    return isAll ? scaffold : DefaultTabController(length: 3, child: scaffold);
   }
 }
 
@@ -170,6 +188,28 @@ class _MonitorTab extends ConsumerWidget {
         for (final m in metrics) _MetricsCard(metric: m),
         if (jStr(o['metricsError']) case final err?)
           Padding(padding: EdgeInsets.only(top: 4), child: Text('Live metrics could not be loaded: $err', style: TextStyle(fontSize: 12, color: AppTheme.warning))),
+
+        SectionHeader('24-Hour Agent Recommendations', trailing: StatusChip(label: '24h Monitor Active', color: AppTheme.success)),
+        SectionCard(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(Icons.auto_awesome_rounded, color: AppTheme.accent, size: 16),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Autonomous Agent Intelligence ($label)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              ),
+            ]),
+            SizedBox(height: 8),
+            Text(
+              accounts.isEmpty
+                  ? 'Connect your $label account to let autonomous agents analyze reach, algorithm updates, and hook performance every 24 hours.'
+                  : (o['rewardedSignals'] is List && (o['rewardedSignals'] as List).isNotEmpty)
+                      ? '$label algorithms are currently prioritizing ${(o['rewardedSignals'] as List).join(' & ')}. Focus on hooks with strong pattern interrupts.'
+                      : 'Background agents monitor reach velocity, audience signals, and queue craft scores every 24 hours.',
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.35),
+            ),
+          ]),
+        ),
 
         SectionHeader('Publishing, last 30 days'),
         Row(children: [

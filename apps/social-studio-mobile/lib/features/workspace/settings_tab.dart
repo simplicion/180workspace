@@ -10,8 +10,9 @@ import '../projects/project_provider.dart';
 
 /// Project settings (`PUT /projects/:id`: name, description, status, services, socialSettings).
 class SettingsTab extends ConsumerStatefulWidget {
-  const SettingsTab({super.key, required this.project});
+  const SettingsTab({super.key, required this.project, this.scrollable = true});
   final Project project;
+  final bool scrollable;
 
   @override
   ConsumerState<SettingsTab> createState() => _SettingsTabState();
@@ -26,6 +27,22 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   late String _tz = widget.project.settings.defaultTimezone;
   late int _retention = widget.project.settings.storageRetentionDays;
   bool _saving = false;
+
+  @override
+  void didUpdateWidget(SettingsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.project.id != widget.project.id) {
+      _name.text = widget.project.name;
+      _description.text = widget.project.description ?? '';
+      _status = widget.project.status == ProjectStatus.unknown ? ProjectStatus.inProgress : widget.project.status;
+      _services
+        ..clear()
+        ..addAll(widget.project.socialServices);
+      _approval = widget.project.settings.approvalRequired;
+      _tz = widget.project.settings.defaultTimezone;
+      _retention = widget.project.settings.storageRetentionDays;
+    }
+  }
 
   @override
   void dispose() {
@@ -83,15 +100,16 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   @override
   Widget build(BuildContext context) {
     final tzOptions = {...timezoneOptions, _tz}.toList();
-    return ListView(padding: EdgeInsets.fromLTRB(16, 12, 16, 96), children: [
+    final children = [
       TextField(controller: _name, decoration: fieldDecoration('Project name')),
       SizedBox(height: 12),
       TextField(controller: _description, minLines: 2, maxLines: 5, decoration: fieldDecoration('Description')),
       SizedBox(height: 12),
       DropdownButtonFormField<ProjectStatus>(
+        isExpanded: true,
         initialValue: _status,
         decoration: fieldDecoration('Status'),
-        items: [for (final s in ProjectStatus.editable) DropdownMenuItem(value: s, child: Text(s.label))],
+        items: [for (final s in ProjectStatus.editable) DropdownMenuItem(value: s, child: Text(s.label, overflow: TextOverflow.ellipsis))],
         onChanged: (v) => setState(() => _status = v ?? _status),
       ),
       SectionHeader('Services'),
@@ -112,13 +130,15 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         subtitle: Text('Posts must be approved before they publish'),
       ),
       DropdownButtonFormField<String>(
+        isExpanded: true,
         initialValue: _tz,
         decoration: fieldDecoration('Default timezone'),
-        items: [for (final t in tzOptions) DropdownMenuItem(value: t, child: Text(t))],
+        items: [for (final t in tzOptions) DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))],
         onChanged: (v) => setState(() => _tz = v ?? _tz),
       ),
       SizedBox(height: 12),
       DropdownButtonFormField<int>(
+        isExpanded: true,
         initialValue: _retention,
         decoration: fieldDecoration('Keep raw footage for'),
         items: [for (final d in {7, 14, 30, 60, 90, _retention}) DropdownMenuItem(value: d, child: Text('$d days'))],
@@ -136,6 +156,12 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
         icon: Icon(Icons.delete_forever_rounded),
         label: Text('Delete project'),
       ),
-    ]);
+    ];
+
+    if (!widget.scrollable) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
+    }
+
+    return ListView(padding: EdgeInsets.fromLTRB(16, 12, 16, 96), children: children);
   }
 }

@@ -49,7 +49,7 @@ void main() {
         ..on('GET', '$sm/platform-team/:platform/overview', (_) => FakeResponse.json(_ok(_overview(ownPosts: ++loads > 1 ? _ranked : null))))
         ..json('GET', '$sm/platform-team/:platform/radar', _ok(_radarEmpty))
         ..json('POST', '$sm/platform-team/:platform/posts/refresh-metrics', _ok({'refresh': {'checked': 6, 'updated': 6, 'skippedFresh': 0, 'failed': []}, 'ranking': _ranked, 'remembered': 6}));
-      await pumpApp(tester, b, location: '/command-center');
+      await pumpApp(tester, b, location: '/command-center?platform=instagram');
       final list = monitorList;
       await tester.scrollUntilVisible(find.text('Refresh numbers'), 300, scrollable: list);
       expect(find.textContaining('6 published posts have no numbers yet'), findsOneWidget);
@@ -79,7 +79,7 @@ void main() {
             'provenFormulas': [],
           },
         }));
-      await pumpApp(tester, b, location: '/command-center');
+      await pumpApp(tester, b, location: '/command-center?platform=instagram');
       final list = monitorList;
       await tester.scrollUntilVisible(find.widgetWithText(TextField, 'Add a handle'), 300, scrollable: list);
       await tester.enterText(find.widgetWithText(TextField, 'Add a handle'), '@rival');
@@ -114,8 +114,8 @@ void main() {
           'nextStep': 'Answer in public, then continue in DM.',
           'suggestions': [{'tone': 'warm', 'text': 'Happy to help. I will send the details in a DM.'}],
         }));
-      await pumpApp(tester, b, location: '/command-center');
-      await tester.scrollUntilVisible(find.text('Draft reply'), 300, scrollable: monitorList);
+      await pumpApp(tester, b, location: '/command-center?platform=instagram');
+      await tester.scrollUntilVisible(find.text('Draft reply'), 500, scrollable: monitorList);
       await tester.tap(find.text('Draft reply'));
       await settle(tester);
       expect(find.text('Reply to @ana'), findsOneWidget);

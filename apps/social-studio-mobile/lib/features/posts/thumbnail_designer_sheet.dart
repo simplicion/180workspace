@@ -127,7 +127,7 @@ class _ThumbnailDesignerSheetState extends ConsumerState<ThumbnailDesignerSheet>
         context,
         outcome.queued
             ? 'Thumbnail saved on this phone; it syncs when you are back online.'
-            : 'Thumbnail saved. It is used as the YouTube thumbnail and the Reels / Pinterest cover.',
+            : 'Thumbnail saved. It is used as the YouTube thumbnail and the Reels cover.',
       );
     } catch (e) {
       if (mounted) showError(context, e);

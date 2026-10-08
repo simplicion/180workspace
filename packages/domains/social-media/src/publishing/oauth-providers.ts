@@ -4,7 +4,6 @@
  */
 import { META_GRAPH_VERSION, PublishPlatform, requireAppCredentials } from './config';
 import { linkedInApiVersion } from './linkedin-version';
-import { redditUserAgent } from '../adapters/reddit.adapter';
 import { PublishError } from './errors';
 import { providerFetch, providerMessage, readBody } from './http';
 
@@ -451,43 +450,6 @@ const xProvider: OAuthProvider = {
     },
 };
 
-// ── TikTok ───────────────────────────────────────────────────────────────────
-
-const tiktokProvider: OAuthProvider = {
-    platform: 'tiktok',
-    usesPkce: false,
-    selectable: false,
-    authorizeUrl({ state, redirectUri }) {
-        const { clientId } = requireAppCredentials('tiktok');
-        const q = new URLSearchParams({ client_key: clientId, response_type: 'code', scope: envScopes('TIKTOK_SCOPES', ['user.info.basic', 'video.publish', 'video.upload']).join(','), redirect_uri: redirectUri, state });
-        return `https://www.tiktok.com/v2/auth/authorize/?${q}`;
-    },
-    async exchangeCode({ code, redirectUri }) {
-        const { clientId, clientSecret } = requireAppCredentials('tiktok');
-        const b = await oauthJson('tiktok', await providerFetch('tiktok', 'https://open.tiktokapis.com/v2/oauth/token/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: form({ client_key: clientId, client_secret: clientSecret, code, grant_type: 'authorization_code', redirect_uri: redirectUri }),
-        }), 'TikTok code exchange');
-        return { accessToken: b.access_token, refreshToken: b.refresh_token ?? null, expiresAt: expiresIn(b.expires_in), refreshExpiresAt: expiresIn(b.refresh_expires_in), scopes: splitScopes(b.scope), tokenType: b.token_type };
-    },
-    async refresh(refreshToken) {
-        const { clientId, clientSecret } = requireAppCredentials('tiktok');
-        const b = await oauthJson('tiktok', await providerFetch('tiktok', 'https://open.tiktokapis.com/v2/oauth/token/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: form({ client_key: clientId, client_secret: clientSecret, grant_type: 'refresh_token', refresh_token: refreshToken }),
-        }), 'TikTok token refresh');
-        return { accessToken: b.access_token, refreshToken: b.refresh_token ?? refreshToken, expiresAt: expiresIn(b.expires_in), refreshExpiresAt: expiresIn(b.refresh_expires_in), scopes: splitScopes(b.scope), tokenType: b.token_type };
-    },
-    async discoverAccounts(tokens) {
-        const res = await providerFetch('tiktok', 'https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,username', { headers: { Authorization: `Bearer ${tokens.accessToken}` } });
-        const b = await readBody(res);
-        if (!res.ok || (b?.error?.code && b.error.code !== 'ok')) throw new PublishError('OAUTH_PROVIDER_ERROR', `TikTok profile: ${providerMessage(b, `HTTP ${res.status}`)}`, { platform: 'tiktok' });
-        const u = b.data?.user || {};
-        return [{ candidateId: `user:${u.open_id}`, platform: 'tiktok', kind: 'user', platformAccountId: String(u.open_id), accountName: u.display_name || u.username, username: u.username || u.display_name, profileImageUrl: u.avatar_url ?? null, metadata: { unionId: u.union_id }, tokens }];
-    },
-};
 
 // ── Threads ──────────────────────────────────────────────────────────────────
 
@@ -574,161 +536,6 @@ const threadsProvider: OAuthProvider = {
     },
 };
 
-// ── Pinterest ────────────────────────────────────────────────────────────────
-
-const pinterestProvider: OAuthProvider = {
-    platform: 'pinterest',
-    usesPkce: false,
-    selectable: false,
-    authorizeUrl({ state, redirectUri }) {
-        const { clientId } = requireAppCredentials('pinterest');
-        const scopes = envScopes('PINTEREST_SCOPES', ['boards:read', 'boards:write', 'pins:read', 'pins:write', 'user_accounts:read']);
-        const p = new URLSearchParams({
-            client_id: clientId,
-            redirect_uri: redirectUri,
-            response_type: 'code',
-            scope: scopes.join(','),
-            state,
-        });
-        return `https://www.pinterest.com/oauth/?${p}`;
-    },
-    async exchangeCode({ code, redirectUri }) {
-        const { clientId, clientSecret } = requireAppCredentials('pinterest');
-        const authHeader = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
-        const b = await oauthJson('pinterest', await providerFetch('pinterest', 'https://api.pinterest.com/v5/oauth/token', {
-            method: 'POST',
-            headers: {
-                Authorization: authHeader,
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: form({ grant_type: 'authorization_code', code, redirect_uri: redirectUri }),
-        }), 'Pinterest token exchange');
-        return {
-            accessToken: b.access_token,
-            refreshToken: b.refresh_token,
-            expiresAt: expiresIn(b.expires_in),
-            refreshExpiresAt: expiresIn(b.refresh_token_expires_in),
-            scopes: splitScopes(b.scope),
-            tokenType: b.token_type,
-        };
-    },
-    async discoverAccounts(tokens) {
-        const res = await providerFetch('pinterest', 'https://api.pinterest.com/v5/user_account', {
-            headers: { Authorization: `Bearer ${tokens.accessToken}` },
-        });
-        const b = await readBody(res);
-        if (!res.ok) throw new PublishError('OAUTH_PROVIDER_ERROR', `Pinterest profile: ${providerMessage(b, `HTTP ${res.status}`)}`, { platform: 'pinterest' });
-        return [{
-            candidateId: `user:${b.username || b.id || 'me'}`,
-            platform: 'pinterest',
-            kind: 'user',
-            platformAccountId: String(b.id || b.username),
-            accountName: b.business_name || b.username,
-            username: b.username,
-            profileImageUrl: b.profile_image ?? null,
-            metadata: { accountType: b.account_type },
-            tokens,
-        }];
-    },
-    async refresh(refreshToken) {
-        const { clientId, clientSecret } = requireAppCredentials('pinterest');
-        const authHeader = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
-        const b = await oauthJson('pinterest', await providerFetch('pinterest', 'https://api.pinterest.com/v5/oauth/token', {
-            method: 'POST',
-            headers: { Authorization: authHeader, 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: form({ grant_type: 'refresh_token', refresh_token: refreshToken }),
-        }), 'Pinterest token refresh');
-        return {
-            accessToken: b.access_token,
-            refreshToken: b.refresh_token ?? refreshToken,
-            expiresAt: expiresIn(b.expires_in),
-            scopes: splitScopes(b.scope),
-            tokenType: b.token_type,
-        };
-    },
-};
-
-// ── Reddit ───────────────────────────────────────────────────────────────────
-
-const redditProvider: OAuthProvider = {
-    platform: 'reddit',
-    usesPkce: false,
-    selectable: false,
-    authorizeUrl({ state, redirectUri }) {
-        const { clientId } = requireAppCredentials('reddit');
-        const scopes = envScopes('REDDIT_SCOPES', ['identity', 'submit', 'read']);
-        const p = new URLSearchParams({
-            client_id: clientId,
-            response_type: 'code',
-            state,
-            redirect_uri: redirectUri,
-            duration: 'permanent',
-            scope: scopes.join(','),
-        });
-        return `https://www.reddit.com/api/v1/authorize?${p}`;
-    },
-    async exchangeCode({ code, redirectUri }) {
-        const { clientId, clientSecret } = requireAppCredentials('reddit');
-        const authHeader = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
-        const b = await oauthJson('reddit', await providerFetch('reddit', 'https://www.reddit.com/api/v1/access_token', {
-            method: 'POST',
-            headers: {
-                Authorization: authHeader,
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': redditUserAgent(),
-            },
-            body: form({ grant_type: 'authorization_code', code, redirect_uri: redirectUri }),
-        }), 'Reddit token exchange');
-        return {
-            accessToken: b.access_token,
-            refreshToken: b.refresh_token,
-            expiresAt: expiresIn(b.expires_in),
-            scopes: splitScopes(b.scope),
-            tokenType: b.token_type,
-        };
-    },
-    async discoverAccounts(tokens) {
-        const res = await providerFetch('reddit', 'https://oauth.reddit.com/api/v1/me', {
-            headers: {
-                Authorization: `Bearer ${tokens.accessToken}`,
-                'User-Agent': redditUserAgent(),
-            },
-        });
-        const b = await readBody(res);
-        if (!res.ok) throw new PublishError('OAUTH_PROVIDER_ERROR', `Reddit profile: ${providerMessage(b, `HTTP ${res.status}`)}`, { platform: 'reddit' });
-        return [{
-            candidateId: `user:${b.id || b.name}`,
-            platform: 'reddit',
-            kind: 'user',
-            platformAccountId: String(b.id || b.name),
-            accountName: b.subreddit?.title || b.name,
-            username: b.name,
-            profileImageUrl: b.icon_img?.split('?')[0] ?? null,
-            metadata: { totalKarma: b.total_karma },
-            tokens,
-        }];
-    },
-    async refresh(refreshToken) {
-        const { clientId, clientSecret } = requireAppCredentials('reddit');
-        const authHeader = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
-        const b = await oauthJson('reddit', await providerFetch('reddit', 'https://www.reddit.com/api/v1/access_token', {
-            method: 'POST',
-            headers: {
-                Authorization: authHeader,
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': redditUserAgent(),
-            },
-            body: form({ grant_type: 'refresh_token', refresh_token: refreshToken }),
-        }), 'Reddit token refresh');
-        return {
-            accessToken: b.access_token,
-            refreshToken: b.refresh_token ?? refreshToken,
-            expiresAt: expiresIn(b.expires_in),
-            scopes: splitScopes(b.scope),
-            tokenType: b.token_type,
-        };
-    },
-};
 
 const providers: Record<PublishPlatform, OAuthProvider> = {
     facebook: facebookProvider,
@@ -737,9 +544,6 @@ const providers: Record<PublishPlatform, OAuthProvider> = {
     youtube: youtubeProvider,
     linkedin: linkedinProvider,
     x: xProvider,
-    tiktok: tiktokProvider,
-    pinterest: pinterestProvider,
-    reddit: redditProvider,
 };
 
 export function getOAuthProvider(platform: PublishPlatform): OAuthProvider {

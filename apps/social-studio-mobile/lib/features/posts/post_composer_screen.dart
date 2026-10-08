@@ -119,7 +119,6 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
   late final _content = TextEditingController(text: _p?.content ?? jStr(widget.prefill['content']) ?? '');
   late final _hook = TextEditingController(text: _p?.hook ?? jStr(widget.prefill['hook']) ?? '');
   late final _firstComment = TextEditingController(text: _p?.firstComment ?? '');
-  late String _mediaType = _p?.mediaType ?? jStr(widget.prefill['mediaType']) ?? 'video';
   late DateTime? _scheduledFor = _p?.scheduledFor ?? widget.date;
   late bool _evergreen = _p?.isEvergreen ?? false;
   late String _visibility = _p?.metadata['visibility']?.toString() ?? 'public';
@@ -127,6 +126,18 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
   late final Set<SocialPlatform> _platforms = {
     ...?_p?.platforms,
     ...jStrList(widget.prefill['platforms']).map(SocialPlatform.parse).where((p) => p != SocialPlatform.unknown),
+  };
+
+  late final Map<SocialPlatform, String> _platformFormat = {
+    for (final v in _p?.variants ?? const <PostVariant>[])
+      if (v.platformMeta['format'] != null)
+        v.platform: v.platformMeta['format'].toString()
+      else if (v.platformMeta['isShort'] == true)
+        v.platform: 'short'
+      else if (v.platformMeta['instagramFormat'] != null)
+        v.platform: v.platformMeta['instagramFormat'].toString()
+      else if (v.platformMeta['facebookFormat'] != null)
+        v.platform: v.platformMeta['facebookFormat'].toString(),
   };
 
   late final Map<SocialPlatform, TextEditingController> _variantText = {
@@ -139,6 +150,66 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
   };
 
   late final List<String> _mediaUrls = [...?_p?.mediaUrls, ...jStrList(widget.prefill['mediaUrls'])];
+
+  static bool _isVideoUrl(String url) {
+    final lower = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.m4v') ||
+        lower.endsWith('.avi') ||
+        lower.endsWith('.mkv') ||
+        lower.contains('/video/') ||
+        lower.contains('video=true') ||
+        lower.contains('format=video');
+  }
+
+  /// Automatically deduces media type from attached files:
+  /// - 0 files: 'text' (or prefill/existing if editing)
+  /// - 1 video file: 'video'
+  /// - 1 image file: 'image'
+  /// - 2+ files (photos or mixed video + photos): 'carousel'
+  String get _detectedMediaType {
+    if (_mediaUrls.isEmpty) {
+      return _p?.mediaType ?? jStr(widget.prefill['mediaType']) ?? 'video';
+    }
+    final hasVideo = _mediaUrls.any(_isVideoUrl);
+    if (_mediaUrls.length == 1) {
+      return hasVideo ? 'video' : 'image';
+    }
+    return 'carousel';
+  }
+
+  String get _mediaType => _detectedMediaType;
+
+  String _effectiveFormatFor(SocialPlatform platform) {
+    final configured = _platformFormat[platform];
+    if (configured != null) return configured;
+    final m = _detectedMediaType;
+    switch (platform) {
+      case SocialPlatform.youtube:
+        return m == 'video' ? 'short' : (m == 'image' || m == 'carousel' || m == 'text' ? 'community' : 'video');
+      case SocialPlatform.instagram:
+        return m == 'video' ? 'reel' : 'post';
+      case SocialPlatform.facebook:
+        return m == 'video' ? 'reel' : 'post';
+      default:
+        return 'post';
+    }
+  }
+
+  String _formatDisplayName(SocialPlatform platform, String format) {
+    switch (platform) {
+      case SocialPlatform.youtube:
+        return format == 'short' ? 'Short' : format == 'community' ? 'Community' : 'Video';
+      case SocialPlatform.instagram:
+        return format == 'reel' ? 'Reel' : format == 'story' ? 'Story' : 'Post';
+      case SocialPlatform.facebook:
+        return format == 'reel' ? 'Reel' : 'Post';
+      default:
+        return 'Post';
+    }
+  }
   bool _saving = false;
   double? _uploadProgress;
 
@@ -150,12 +221,6 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
   bool _engagementAutoLike = true;
   /// The funnel rule already attached to the post being edited (loaded in initState), updated instead of duplicated.
   EngagementRule? _existingFunnel;
-
-  late final _redditTitle = TextEditingController(
-      text: _p?.variants.where((v) => v.platform == SocialPlatform.reddit).firstOrNull?.platformMeta['title']?.toString() ?? '');
-  late final _redditSubreddit = TextEditingController(
-      text: _p?.variants.where((v) => v.platform == SocialPlatform.reddit).firstOrNull?.platformMeta['subreddit']?.toString() ??
-          'socialmedia');
 
   @override
   void initState() {
@@ -236,8 +301,6 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
       _engagementKeyword,
       _engagementCommentReply,
       _engagementDmTemplate,
-      _redditTitle,
-      _redditSubreddit,
       ..._variantText.values,
       ..._variantTitle.values,
     ]) {
@@ -261,40 +324,92 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
     setState(() => _scheduledFor = DateTime(d.year, d.month, d.day, t.hour, t.minute));
   }
 
-  Future<void> _addMedia() async {
+  Future<void> _showMediaPickerSheet() async {
     final picker = ImagePicker();
-    if (_mediaType == 'carousel') {
-      final List<XFile> files = await picker.pickMultiImage();
-      if (files.isEmpty || !mounted) return;
-      for (final f in files) {
-        if (!mounted) return;
-        setState(() => _uploadProgress = 0);
-        final bytes = await f.readAsBytes();
-        if (!mounted) return;
-        final url = await guarded(
-          context,
-          () => ref.read(socialApiProvider).uploadFile(
-            f.path,
-            fileBytes: bytes,
-            filename: f.name,
-            onProgress: (s, t) {
-              if (mounted && t > 0) setState(() => _uploadProgress = s / t);
-            },
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Add Media',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Upload photos or video. System automatically detects formats & carousels.',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                tileColor: AppTheme.surface,
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.photo_library_rounded, color: AppTheme.primary),
+                ),
+                title: const Text('Photos & Images', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                subtitle: const Text('Select single photo or multiple images for a carousel', style: TextStyle(fontSize: 12)),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+                onTap: () async {
+                  Navigator.pop(sheetCtx);
+                  final List<XFile> files = await picker.pickMultiImage();
+                  if (files.isEmpty || !mounted) return;
+                  for (final f in files) {
+                    if (!mounted) return;
+                    await _uploadLocal(f);
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                tileColor: AppTheme.surface,
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.videocam_rounded, color: AppTheme.accent),
+                ),
+                title: const Text('Video', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                subtitle: const Text('Reels, Shorts, long-form videos, or video carousels', style: TextStyle(fontSize: 12)),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+                onTap: () async {
+                  Navigator.pop(sheetCtx);
+                  final XFile? file = await picker.pickVideo(source: ImageSource.gallery);
+                  if (file == null || !mounted) return;
+                  await _uploadLocal(file);
+                },
+              ),
+            ],
           ),
-        );
-        if (url != null && mounted) {
-          setState(() => _mediaUrls.add(url));
-        }
-      }
-      if (mounted) setState(() => _uploadProgress = null);
-      return;
-    }
-
-    final XFile? file = _mediaType == 'video'
-        ? await picker.pickVideo(source: ImageSource.gallery)
-        : await picker.pickImage(source: ImageSource.gallery);
-    if (file == null || !mounted) return;
-    await _uploadLocal(file);
+        ),
+      ),
+    );
   }
 
   /// Uploads one local file (picked, or the video just exported from Studio) and attaches it to the post.
@@ -364,13 +479,21 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         globalCaption: _content.text.trim(),
         customCaptionController: captionCtrl,
         customTitleController: titleCtrl,
-        redditSubredditController: platform == SocialPlatform.reddit ? _redditSubreddit : null,
+        selectedFormat: _effectiveFormatFor(platform),
+        detectedMediaType: _detectedMediaType,
+        mediaCount: _mediaUrls.length,
+        onFormatChanged: (newFormat) {
+          setState(() => _platformFormat[platform] = newFormat);
+        },
         onSaved: () {
           setState(() => _platforms.add(platform));
           Navigator.pop(ctx);
         },
         onRemoved: () {
-          setState(() => _platforms.remove(platform));
+          setState(() {
+            _platforms.remove(platform);
+            _platformFormat.remove(platform);
+          });
           Navigator.pop(ctx);
         },
       ),
@@ -458,28 +581,36 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
             // '' = use the main caption (also when the platform copy was never edited).
             customContent: _ownText(_variantText[p], _copiedCaption[p], _content.text.trim()) ?? '',
             firstComment: metadata['firstComment'] as String?,
-            platformMeta: p == SocialPlatform.reddit
-                ? compact({
-                    'publishingMode': 'user_assisted',
-                    'subreddit': _redditSubreddit.text.trim().replaceFirst(RegExp(r'^/?r/'), ''),
-                    'title': _ownText(_variantTitle[p], _copiedTitle[p], _title.text.trim()) != null
-                        ? _variantTitle[p]!.text.trim()
-                        : (_title.text.trim().isNotEmpty ? _title.text.trim() : null),
-                  })
-                : p == SocialPlatform.youtube
+            platformMeta: p == SocialPlatform.youtube
                     ? compact({
                         'title': _ownText(_variantTitle[p], _copiedTitle[p], _title.text.trim()) != null
                             ? _variantTitle[p]!.text.trim()
                             : (_title.text.trim().isNotEmpty ? _title.text.trim() : null),
                         'visibility': _visibility,
+                        'format': _platformFormat[p],
+                        'isShort': _platformFormat[p] == 'short' ? true : null,
                       })
-                    : p == SocialPlatform.x
-                        // Over 280 characters: published as a numbered thread (each post replies to the last).
-                        ? {
-                            'publishingMode': 'user_assisted',
-                            if ((_ownText(_variantText[p], _copiedCaption[p], _content.text.trim()) ?? _content.text.trim()).characters.length > 280) 'thread': true,
-                          }
-                        : {},
+                    : p == SocialPlatform.instagram
+                        ? (_platformFormat[p] != null
+                            ? <String, dynamic>{
+                                'format': _platformFormat[p]!,
+                                'instagramFormat': _platformFormat[p]!,
+                              }
+                            : const <String, dynamic>{})
+                        : p == SocialPlatform.facebook
+                            ? (_platformFormat[p] != null
+                                ? <String, dynamic>{
+                                    'format': _platformFormat[p]!,
+                                    'facebookFormat': _platformFormat[p]!,
+                                  }
+                                : const <String, dynamic>{})
+                            : p == SocialPlatform.x
+                                // Over 280 characters: published as a numbered thread (each post replies to the last).
+                                ? <String, dynamic>{
+                                    'publishingMode': 'user_assisted',
+                                    if ((_ownText(_variantText[p], _copiedCaption[p], _content.text.trim()) ?? _content.text.trim()).characters.length > 280) 'thread': true,
+                                  }
+                                : const <String, dynamic>{},
           ).toCreateJson(),
       ],
       if (_p == null) ...{
@@ -523,6 +654,72 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
     } else {
       context.pop();
     }
+  }
+
+  Widget _buildMediaStatusBadge() {
+    if (_mediaUrls.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.auto_awesome_rounded, size: 14, color: AppTheme.textSecondary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Auto-detect: Attach photos or a video to automatically set post format.',
+                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final type = _detectedMediaType;
+    final isVideo = type == 'video';
+    final isCarousel = type == 'carousel';
+
+    final Color badgeColor = isVideo
+        ? AppTheme.accent
+        : isCarousel
+            ? AppTheme.accentBlue
+            : AppTheme.primary;
+    final IconData badgeIcon = isVideo
+        ? Icons.videocam_rounded
+        : isCarousel
+            ? Icons.view_carousel_rounded
+            : Icons.image_rounded;
+    final String label = isVideo
+        ? 'Video detected (1 video) • Ready for Reels, Shorts, and Feed'
+        : isCarousel
+            ? 'Carousel detected (${_mediaUrls.length} files) • Multiple photos & videos'
+            : 'Single Photo detected • Ready for Feed & Community posts';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: badgeColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(badgeIcon, size: 16, color: badgeColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: badgeColor),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -605,18 +802,6 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
               // STEP 1: CONTENT, MEDIA & CHANNEL ASSIGNMENT
               // ════════════════════════════════════════════
               if (_currentStep == 0) ...[
-                // Media Type Selector
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'video', label: Text('Video'), icon: Icon(Icons.videocam_rounded)),
-                    ButtonSegment(value: 'image', label: Text('Image'), icon: Icon(Icons.image_rounded)),
-                    ButtonSegment(value: 'carousel', label: Text('Carousel'), icon: Icon(Icons.view_carousel_rounded)),
-                  ],
-                  selected: {_mediaType},
-                  onSelectionChanged: (s) => setState(() => _mediaType = s.first),
-                ),
-                const SizedBox(height: 16),
-
                 // Post Title (Universal)
                 TextField(
                   controller: _title,
@@ -666,19 +851,18 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
 
                 const SizedBox(height: 16),
 
-                // Media Attachment
+                // Media Attachment with Auto-Detection
                 SectionHeader(
                   'Media Files',
                   trailing: TextButton.icon(
-                    onPressed: _uploadProgress != null ? null : _addMedia,
+                    onPressed: _uploadProgress != null ? null : _showMediaPickerSheet,
                     icon: const Icon(Icons.add_photo_alternate_rounded, size: 16),
-                    label: Text(_mediaType == 'video'
-                        ? 'Add Video'
-                        : _mediaType == 'carousel'
-                            ? 'Add Images'
-                            : 'Add Image'),
+                    label: const Text('Add Media'),
                   ),
                 ),
+                const SizedBox(height: 4),
+                _buildMediaStatusBadge(),
+                const SizedBox(height: 8),
                 for (final url in _mediaUrls)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -689,7 +873,7 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                         color: AppTheme.surfaceElevated,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(_mediaType == 'video' ? Icons.movie_rounded : Icons.image_rounded, color: AppTheme.primary),
+                      child: Icon(_isVideoUrl(url) ? Icons.movie_rounded : Icons.image_rounded, color: AppTheme.primary),
                     ),
                     title: Text(
                       Uri.tryParse(url)?.pathSegments.lastOrNull ?? url,
@@ -711,21 +895,17 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                 const SizedBox(height: 16),
 
                 // Channels & Customization Tiles
-                Row(
-                  children: [
-                    const Expanded(
-                      child: SectionHeader('Target Channels'),
-                    ),
-                    TextButton.icon(
-                      onPressed: _showPreview,
-                      icon: const Icon(Icons.remove_red_eye_rounded, size: 16),
-                      label: const Text('Live Preview'),
-                    ),
-                  ],
+                SectionHeader(
+                  'Target Channels',
+                  trailing: TextButton.icon(
+                    onPressed: _showPreview,
+                    icon: const Icon(Icons.remove_red_eye_rounded, size: 16),
+                    label: const Text('Live Preview'),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Select platforms to post to. Tap a channel to customize platform-specific title, description, or first comments.',
+                  'Select platforms to post to. Tap a channel to customize platform-specific title, description, or format (Reels, Shorts, Community).',
                   style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 12),
@@ -742,9 +922,17 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                         account: accounts.where((a) => a.platform == p).firstOrNull,
                         hasCustomOverride: _ownText(_variantText[p], _copiedCaption[p], _content.text.trim()) != null ||
                             _ownText(_variantTitle[p], _copiedTitle[p], _title.text.trim()) != null,
+                        formatLabel: _platforms.contains(p) ? _formatDisplayName(p, _effectiveFormatFor(p)) : null,
                         onToggle: () {
-                          setState(() => _platforms.add(p));
-                          _openPlatformCustomization(p);
+                          if (_platforms.contains(p)) {
+                            setState(() {
+                              _platforms.remove(p);
+                              _platformFormat.remove(p);
+                            });
+                          } else {
+                            setState(() => _platforms.add(p));
+                            _openPlatformCustomization(p);
+                          }
                         },
                         onCustomize: () => _openPlatformCustomization(p),
                       ),
@@ -753,43 +941,33 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
 
                 const SizedBox(height: 32),
 
-                // Step 1 Actions
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          if (_content.text.trim().isEmpty) {
-                            showError(context, 'The caption cannot be empty.');
-                            return;
-                          }
-                          if (_platforms.isEmpty) {
-                            showError(context, 'Select at least one social channel.');
-                            return;
-                          }
-                          setState(() => _currentStep = 1);
-                        },
-                        icon: const Icon(Icons.tune_rounded, size: 16),
-                        label: const Text('Schedule / Funnel'),
-                      ),
+                // Step 1 Primary Action
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: _saving ? null : _save,
-                        icon: _saving
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.send_rounded, size: 18),
-                        label: Text(_p != null ? 'Save post' : 'Create post'),
-                      ),
+                    onPressed: () {
+                      if (_content.text.trim().isEmpty) {
+                        showError(context, 'The caption cannot be empty.');
+                        return;
+                      }
+                      if (_platforms.isEmpty) {
+                        showError(context, 'Select at least one social channel.');
+                        return;
+                      }
+                      setState(() => _currentStep = 1);
+                    },
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                    label: const Text(
+                      'Next: Schedule & Funnel',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
-                  ],
+                  ),
                 ),
               ],
 
@@ -1056,12 +1234,16 @@ class _StepTab extends StatelessWidget {
 // ───────────────────────────────────────────
 // Channel Selection & Customization Tile
 // ───────────────────────────────────────────
+// ───────────────────────────────────────────
+// Channel Selection & Customization Tile
+// ───────────────────────────────────────────
 class _ChannelTile extends StatelessWidget {
   const _ChannelTile({
     required this.platform,
     required this.isSelected,
     this.account,
     required this.hasCustomOverride,
+    this.formatLabel,
     required this.onToggle,
     required this.onCustomize,
   });
@@ -1070,6 +1252,7 @@ class _ChannelTile extends StatelessWidget {
   final bool isSelected;
   final dynamic account;
   final bool hasCustomOverride;
+  final String? formatLabel;
   final VoidCallback onToggle;
   final VoidCallback onCustomize;
 
@@ -1080,7 +1263,12 @@ class _ChannelTile extends StatelessWidget {
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(platform.label),
+          Flexible(
+            child: Text(
+              formatLabel != null ? '${platform.label} • $formatLabel' : platform.label,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
           if (hasCustomOverride) ...[
             const SizedBox(width: 4),
             Container(
@@ -1090,7 +1278,7 @@ class _ChannelTile extends StatelessWidget {
             ),
           ],
           if (isSelected) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             InkWell(
               onTap: onCustomize,
               child: const Icon(Icons.tune_rounded, size: 14, color: Colors.white70),
@@ -1108,6 +1296,111 @@ class _ChannelTile extends StatelessWidget {
 // ───────────────────────────────────────────
 // Platform Customization Bottom Sheet & Specifications
 // ───────────────────────────────────────────
+class _FormatOption {
+  const _FormatOption({
+    required this.id,
+    required this.label,
+    required this.icon,
+    required this.description,
+  });
+
+  final String id;
+  final String label;
+  final IconData icon;
+  final String description;
+}
+
+List<_FormatOption> _getPlatformFormatOptions(SocialPlatform platform) {
+  switch (platform) {
+    case SocialPlatform.youtube:
+      return const [
+        _FormatOption(
+          id: 'short',
+          label: '⚡ Short',
+          icon: Icons.bolt_rounded,
+          description: 'Vertical 9:16 video under 3m. Auto-tags #shorts.',
+        ),
+        _FormatOption(
+          id: 'video',
+          label: '📹 Video',
+          icon: Icons.videocam_rounded,
+          description: 'Standard landscape (16:9) or regular YouTube video.',
+        ),
+        _FormatOption(
+          id: 'community',
+          label: '💬 Community',
+          icon: Icons.forum_rounded,
+          description: 'Text or image announcement for subscribers.',
+        ),
+      ];
+    case SocialPlatform.instagram:
+      return const [
+        _FormatOption(
+          id: 'reel',
+          label: '⚡ Reel',
+          icon: Icons.movie_filter_rounded,
+          description: 'Vertical 9:16 video for Reels feed & Explore recommendations.',
+        ),
+        _FormatOption(
+          id: 'post',
+          label: '📸 Carousel / Post',
+          icon: Icons.view_carousel_rounded,
+          description: 'Feed post with photo(s) or mixed photo & video carousel.',
+        ),
+        _FormatOption(
+          id: 'story',
+          label: '📖 Story',
+          icon: Icons.auto_stories_rounded,
+          description: '24-hour vertical photo or video story.',
+        ),
+      ];
+    case SocialPlatform.facebook:
+      return const [
+        _FormatOption(
+          id: 'reel',
+          label: '⚡ Reel',
+          icon: Icons.movie_filter_rounded,
+          description: 'Vertical short video (3s–90s) for Facebook Reels.',
+        ),
+        _FormatOption(
+          id: 'post',
+          label: '📝 Page Post',
+          icon: Icons.feed_rounded,
+          description: 'Standard Page post, photo album, or long video.',
+        ),
+      ];
+    case SocialPlatform.linkedin:
+      return const [
+        _FormatOption(
+          id: 'post',
+          label: '💼 LinkedIn Post',
+          icon: Icons.article_rounded,
+          description: 'Universal post: text, single image, multi-image, or video.',
+        ),
+      ];
+    case SocialPlatform.threads:
+      return const [
+        _FormatOption(
+          id: 'post',
+          label: '🧵 Threads Post',
+          icon: Icons.forum_rounded,
+          description: 'Universal post: text, photo carousel (up to 10), or video.',
+        ),
+      ];
+    case SocialPlatform.x:
+      return const [
+        _FormatOption(
+          id: 'post',
+          label: '🐦 Tweet / Thread',
+          icon: Icons.chat_bubble_outline_rounded,
+          description: '280-char post (auto-threads if longer) with media.',
+        ),
+      ];
+    default:
+      return const [];
+  }
+}
+
 class _PlatformSpec {
   const _PlatformSpec({
     required this.name,
@@ -1127,37 +1420,89 @@ class _PlatformSpec {
   final List<String> features;
   final String guidelines;
 
-  static _PlatformSpec forPlatform(SocialPlatform platform) {
+  static _PlatformSpec forPlatform(SocialPlatform platform, [String? format]) {
     switch (platform) {
       case SocialPlatform.instagram:
+        if (format == 'reel') {
+          return const _PlatformSpec(
+            name: 'Instagram Reel',
+            mediaTypes: 'Vertical Video (MP4 / MOV)',
+            aspectRatios: '9:16 (3s–15 min)',
+            maxChars: 2200,
+            features: ['Up to 30 hashtags', 'Reels Explore distribution', 'First comment auto-delivery'],
+            guidelines: 'Reels receive highest organic reach on Instagram. Use catchy audio and hook viewers in the first 3 seconds.',
+          );
+        } else if (format == 'story') {
+          return const _PlatformSpec(
+            name: 'Instagram Story',
+            mediaTypes: 'Vertical Photo or Video',
+            aspectRatios: '9:16 (Full-screen, 3–60s video)',
+            maxChars: 2200,
+            features: ['24-hour expiration', 'Direct message replies'],
+            guidelines: 'Stories expire after 24 hours. Great for daily updates, behind-the-scenes, and announcements.',
+          );
+        }
         return const _PlatformSpec(
-          name: 'Instagram',
-          mediaTypes: 'Reels (Video), Feed (Image/Carousel)',
-          aspectRatios: '9:16 (Reels/Stories), 1:1 or 4:5 (Feed)',
+          name: 'Instagram Post / Carousel',
+          mediaTypes: 'Single photo or up to 10 photos & videos',
+          aspectRatios: '1:1 (Square) or 4:5 (Portrait)',
           maxChars: 2200,
-          features: ['Up to 30 hashtags', '@mentions', 'First comment auto-delivery'],
-          guidelines: 'Visuals are paramount. Use engaging hooks in the first line and put hashtags in the caption or first comment.',
+          features: ['Multi-item carousel (photos & videos)', 'Up to 30 hashtags', 'First comment auto-delivery'],
+          guidelines: 'Carousels support photos and videos mixed together. Great for educational carousels and swipeable content.',
         );
+
       case SocialPlatform.youtube:
+        if (format == 'community') {
+          return const _PlatformSpec(
+            name: 'YouTube Community Post',
+            mediaTypes: 'Images (JPEG / PNG) or Text only',
+            aspectRatios: '1:1 (Square) or 16:9 Landscape',
+            maxChars: 5000,
+            features: ['Community tab shelf', 'Subscriber feed alerts', 'Photo polls / updates'],
+            guidelines: 'Community posts keep your subscribers engaged between video uploads. Great for text discussions and announcements.',
+          );
+        } else if (format == 'short') {
+          return const _PlatformSpec(
+            name: 'YouTube Short',
+            mediaTypes: 'Vertical Video (MP4 / MOV / WebM)',
+            aspectRatios: '9:16 (Vertical) or 1:1, up to 3 mins',
+            maxChars: 5000,
+            maxTitleChars: 100,
+            features: ['Auto-tagged #shorts', 'Shorts shelf recommendations', 'Title (max 100 chars)'],
+            guidelines: 'YouTube Shorts hook viewers in the first 3 seconds. The #shorts hashtag is automatically appended.',
+          );
+        }
         return const _PlatformSpec(
-          name: 'YouTube',
+          name: 'YouTube Video',
           mediaTypes: 'Video (MP4 / MOV / WebM)',
-          aspectRatios: '16:9 (Landscape) or 9:16 (Shorts under 60s)',
+          aspectRatios: '16:9 (Landscape) or standard video',
           maxChars: 5000,
           maxTitleChars: 100,
           features: ['Title (max 100 chars)', 'Description chapters & timestamps', 'Privacy control'],
-          guidelines: 'Title is crucial for search & algorithm CTR. Include keywords, links, and hashtags in the description.',
+          guidelines: 'Title and thumbnail are crucial for search & algorithm CTR. Include keywords, links, and hashtags in description.',
         );
+
       case SocialPlatform.facebook:
+        if (format == 'reel') {
+          return const _PlatformSpec(
+            name: 'Facebook Reel',
+            mediaTypes: 'Vertical Video (MP4 / MOV, 3s–90s)',
+            aspectRatios: '9:16 (Reels)',
+            maxChars: 63206,
+            features: ['Facebook Reels feed', 'Algorithm distribution'],
+            guidelines: 'Reels are recommended to non-followers across Facebook for maximum organic audience growth.',
+          );
+        }
         return const _PlatformSpec(
-          name: 'Facebook',
-          mediaTypes: 'Video, Image, or Status Post',
-          aspectRatios: '16:9, 1:1, or 9:16 (Reels)',
+          name: 'Facebook Page Post',
+          mediaTypes: 'Photos, Videos, or Status Update',
+          aspectRatios: '16:9, 1:1, or photo albums',
           maxChars: 63206,
           maxTitleChars: 255,
-          features: ['Page / Group targeting', 'Video title', 'Link previews'],
-          guidelines: 'Great for community discussions. Videos between 1-3 minutes perform exceptionally well.',
+          features: ['Page timeline', 'Photo albums', 'Link previews'],
+          guidelines: 'Great for community discussions. Videos between 1-3 minutes and photo albums perform exceptionally well.',
         );
+
       case SocialPlatform.linkedin:
         return const _PlatformSpec(
           name: 'LinkedIn',
@@ -1168,15 +1513,17 @@ class _PlatformSpec {
           features: ['Professional headlines', 'Rich text formatting', '3-5 relevant hashtags'],
           guidelines: 'Focus on professional insights, career learnings, and business value. Spaced-out paragraphs improve read-through.',
         );
+
       case SocialPlatform.x:
         return const _PlatformSpec(
           name: 'X (Twitter)',
           mediaTypes: 'Up to 4 images, 1 video, or text-only',
           aspectRatios: '16:9 or 1:1',
           maxChars: 280,
-          features: ['Concise 280 chars', 'Trending hashtags', 'Thread-ready'],
-          guidelines: 'Keep copy punchy and fast-paced. Media attachments stand out in dense feeds.',
+          features: ['Concise 280 chars', 'Trending hashtags', 'Thread-ready (auto-splits > 280)'],
+          guidelines: 'Keep copy punchy and fast-paced. Over 280 chars will publish as an automated numbered thread.',
         );
+
       case SocialPlatform.threads:
         return const _PlatformSpec(
           name: 'Threads',
@@ -1184,37 +1531,9 @@ class _PlatformSpec {
           aspectRatios: '9:16, 1:1, or 4:5',
           maxChars: 500,
           features: ['500 character limit', 'Conversational tone', 'Instagram identity sync'],
-          guidelines: 'Prioritize conversational prompts and community engagement.',
+          guidelines: 'Prioritize conversational prompts, community replies, and engaging bite-sized discussions.',
         );
-      case SocialPlatform.tiktok:
-        return const _PlatformSpec(
-          name: 'TikTok',
-          mediaTypes: 'Vertical Video (9:16) required',
-          aspectRatios: '9:16 Fullscreen vertical',
-          maxChars: 2200,
-          features: ['Vertical video', 'Trending sound pairing', 'Search SEO keywords'],
-          guidelines: 'High-energy hook in the first 2 seconds. Add relevant search keywords in your caption.',
-        );
-      case SocialPlatform.reddit:
-        return const _PlatformSpec(
-          name: 'Reddit',
-          mediaTypes: 'Text, Link, Image, or Video',
-          aspectRatios: 'Any',
-          maxChars: 40000,
-          maxTitleChars: 300,
-          features: ['Subreddit targeting (Required)', 'Markdown formatting', 'Community discussion'],
-          guidelines: 'Avoid overly promotional language. Follow subreddit rules and deliver genuine community value.',
-        );
-      case SocialPlatform.pinterest:
-        return const _PlatformSpec(
-          name: 'Pinterest',
-          mediaTypes: 'Vertical Image or Video Pin',
-          aspectRatios: '2:3 recommended (1000 x 1500 px)',
-          maxChars: 500,
-          maxTitleChars: 100,
-          features: ['Pin title', 'Search keywords', 'Destination link'],
-          guidelines: 'High-quality vertical imagery with clear text overlays and actionable tips drives saves.',
-        );
+
       default:
         return _PlatformSpec(
           name: platform.label,
@@ -1235,7 +1554,10 @@ class _PlatformCustomizationSheet extends StatefulWidget {
     required this.globalCaption,
     required this.customCaptionController,
     required this.customTitleController,
-    this.redditSubredditController,
+    required this.selectedFormat,
+    required this.detectedMediaType,
+    required this.mediaCount,
+    required this.onFormatChanged,
     required this.onSaved,
     required this.onRemoved,
   });
@@ -1245,7 +1567,10 @@ class _PlatformCustomizationSheet extends StatefulWidget {
   final String globalCaption;
   final TextEditingController customCaptionController;
   final TextEditingController customTitleController;
-  final TextEditingController? redditSubredditController;
+  final String selectedFormat;
+  final String detectedMediaType;
+  final int mediaCount;
+  final ValueChanged<String> onFormatChanged;
   final VoidCallback onSaved;
   final VoidCallback onRemoved;
 
@@ -1254,6 +1579,9 @@ class _PlatformCustomizationSheet extends StatefulWidget {
 }
 
 class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet> {
+  late String _currentFormat = widget.selectedFormat;
+  bool _hasManuallyChangedFormat = false;
+
   @override
   void initState() {
     super.initState();
@@ -1265,14 +1593,12 @@ class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet
     }
     widget.customCaptionController.addListener(_onChanged);
     widget.customTitleController.addListener(_onChanged);
-    widget.redditSubredditController?.addListener(_onChanged);
   }
 
   @override
   void dispose() {
     widget.customCaptionController.removeListener(_onChanged);
     widget.customTitleController.removeListener(_onChanged);
-    widget.redditSubredditController?.removeListener(_onChanged);
     super.dispose();
   }
 
@@ -1283,14 +1609,12 @@ class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet
   @override
   Widget build(BuildContext context) {
     final platform = widget.platform;
-    final spec = _PlatformSpec.forPlatform(platform);
+    final formatOptions = _getPlatformFormatOptions(platform);
+    final spec = _PlatformSpec.forPlatform(platform, _currentFormat);
     final hasTitle = spec.maxTitleChars != null ||
-        platform == SocialPlatform.youtube ||
+        (platform == SocialPlatform.youtube && _currentFormat != 'community') ||
         platform == SocialPlatform.facebook ||
-        platform == SocialPlatform.linkedin ||
-        platform == SocialPlatform.reddit ||
-        platform == SocialPlatform.pinterest;
-    final isReddit = platform == SocialPlatform.reddit;
+        platform == SocialPlatform.linkedin;
 
     final captionLength = widget.customCaptionController.text.characters.length;
     final isOverLimit = captionLength > spec.maxChars;
@@ -1357,6 +1681,98 @@ class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet
             ),
             const SizedBox(height: 14),
 
+            // Publishing Format Selector (if platform has multiple format options)
+            if (formatOptions.isNotEmpty) ...[
+              Text(
+                'Publishing Format',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  for (final opt in formatOptions)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _currentFormat = opt.id;
+                              _hasManuallyChangedFormat = true;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                            decoration: BoxDecoration(
+                              color: _currentFormat == opt.id
+                                  ? platform.color.withValues(alpha: 0.22)
+                                  : AppTheme.surface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: _currentFormat == opt.id
+                                    ? platform.color
+                                    : AppTheme.borderSubtle,
+                                width: _currentFormat == opt.id ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  opt.icon,
+                                  size: 18,
+                                  color: _currentFormat == opt.id ? platform.color : AppTheme.textSecondary,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  opt.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: _currentFormat == opt.id ? FontWeight.bold : FontWeight.w500,
+                                    color: _currentFormat == opt.id ? Colors.white : AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              if ((_currentFormat == 'reel' || _currentFormat == 'short' || _currentFormat == 'video') &&
+                  widget.detectedMediaType != 'video' &&
+                  widget.detectedMediaType != 'carousel') ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warning.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 16, color: AppTheme.warning),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${platform.label} format expects a video file. Attach a video in Step 1 or switch to photo/community format.',
+                          style: TextStyle(fontSize: 11, color: AppTheme.warning),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+            ],
+
             // Platform Requirements & Specs Card
             Container(
               padding: const EdgeInsets.all(12),
@@ -1374,7 +1790,7 @@ class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          '${platform.label} Requirements & Specs',
+                          '${spec.name} Requirements & Specs',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1417,7 +1833,7 @@ class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet
                 children: [
                   Text(
                     platform == SocialPlatform.youtube
-                        ? 'YouTube Video Title *'
+                        ? (_currentFormat == 'short' ? 'YouTube Shorts Title *' : 'YouTube Video Title *')
                         : '${platform.label} Title',
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
@@ -1443,26 +1859,14 @@ class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet
               const SizedBox(height: 14),
             ],
 
-            // Reddit Subreddit target
-            if (isReddit && widget.redditSubredditController != null) ...[
-              const Text(
-                'Target Subreddit *',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: widget.redditSubredditController!,
-                decoration: fieldDecoration('Subreddit target', hint: 'e.g. socialmedia or technology'),
-              ),
-              const SizedBox(height: 14),
-            ],
-
             // Caption / Content Field
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  spec.name == 'YouTube' ? 'Video Description' : '${spec.name} Caption',
+                  platform == SocialPlatform.youtube
+                      ? (_currentFormat == 'community' ? 'Community Post Message' : 'Video Description')
+                      : '${platform.label} Caption',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 Text(
@@ -1481,7 +1885,9 @@ class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet
               minLines: 4,
               maxLines: 10,
               decoration: fieldDecoration(
-                spec.name == 'YouTube' ? 'YouTube Description' : '${platform.label} Caption',
+                platform == SocialPlatform.youtube
+                    ? (_currentFormat == 'community' ? 'Community Post Message' : 'YouTube Description')
+                    : '${platform.label} Caption',
                 hint: widget.globalCaption.isNotEmpty ? widget.globalCaption : 'Enter caption for ${platform.label}',
                 helper: isOverLimit
                     ? (platform == SocialPlatform.x
@@ -1502,7 +1908,12 @@ class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              onPressed: widget.onSaved,
+              onPressed: () {
+                if (_hasManuallyChangedFormat) {
+                  widget.onFormatChanged(_currentFormat);
+                }
+                widget.onSaved();
+              },
               icon: const Icon(Icons.check_rounded, size: 18),
               label: Text('Save ${platform.label} Settings', style: const TextStyle(fontWeight: FontWeight.bold)),
             ),

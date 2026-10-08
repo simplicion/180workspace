@@ -324,7 +324,7 @@ export async function fetchLivePlatformMetrics(params: { projectId: string; comp
 
     const accounts = await db.socialAccount.findMany({
         where: { companyId, projectId, isActive: true },
-        select: { id: true, companyId: true, platform: true, platformAccountId: true, accountName: true, followersCount: true, reauthRequired: true, updatedAt: true },
+        select: { id: true, companyId: true, platform: true, platformAccountId: true, accountName: true, metadata: true, reauthRequired: true, updatedAt: true },
     });
     const graph = (p: string, token?: string, plat?: string) => metaGraphUrl(p, token, plat);
     const now = new Date();
@@ -333,6 +333,14 @@ export async function fetchLivePlatformMetrics(params: { projectId: string; comp
 
     return Promise.all(
         accounts.map(async (acc: any): Promise<LivePlatformMetric> => {
+            const meta = (acc.metadata && typeof acc.metadata === 'object' ? acc.metadata : {}) as Record<string, any>;
+            const storedFollowers = typeof acc.followersCount === 'number'
+                ? acc.followersCount
+                : typeof meta.followersCount === 'number'
+                ? meta.followersCount
+                : typeof meta.followerCount === 'number'
+                ? meta.followerCount
+                : null;
             const base: LivePlatformMetric = {
                 socialAccountId: acc.id,
                 platform: acc.platform,
@@ -340,7 +348,7 @@ export async function fetchLivePlatformMetrics(params: { projectId: string; comp
                 accountName: acc.accountName || acc.platform,
                 source: 'stored',
                 fetchedAt: acc.updatedAt ? new Date(acc.updatedAt).toISOString() : null,
-                followersCount: typeof acc.followersCount === 'number' ? acc.followersCount : null,
+                followersCount: storedFollowers,
                 reach: null,
                 impressions: null,
                 engagements: null,

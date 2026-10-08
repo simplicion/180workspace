@@ -1,4 +1,3 @@
-'use strict';
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -21,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
+import { getApiBase, getAuthToken } from '@/lib/api-config';
 
 interface GatewaySettings {
   customGatewayType: 'NONE' | 'RAZORPAY' | 'STRIPE';
@@ -51,15 +51,11 @@ export function CustomGatewayTab({ appId }: CustomGatewayTabProps) {
 
   const [showSecret, setShowSecret] = useState(false);
 
-  const getApiBase = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4003';
-  };
-
   const fetchSettings = useCallback(async () => {
     setLoading(true);
     try {
       const apiBase = getApiBase();
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const res = await fetch(`${apiBase}/api/v1/developer/apps/${appId}/gateway`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -89,7 +85,7 @@ export function CustomGatewayTab({ appId }: CustomGatewayTabProps) {
     setSaving(true);
     try {
       const apiBase = getApiBase();
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const res = await fetch(`${apiBase}/api/v1/developer/apps/${appId}/gateway`, {
         method: 'PUT',
         headers: {
@@ -135,7 +131,7 @@ export function CustomGatewayTab({ appId }: CustomGatewayTabProps) {
     setVerifying(true);
     try {
       const apiBase = getApiBase();
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const res = await fetch(`${apiBase}/api/v1/developer/apps/${appId}/gateway/verify`, {
         method: 'POST',
         headers: {
@@ -170,7 +166,7 @@ export function CustomGatewayTab({ appId }: CustomGatewayTabProps) {
     setVerifyingDomain(true);
     try {
       const apiBase = getApiBase();
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const res = await fetch(`${apiBase}/api/v1/developer/apps/${appId}/custom-domain/verify`, {
         method: 'POST',
         headers: {

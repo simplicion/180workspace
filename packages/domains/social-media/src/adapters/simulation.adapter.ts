@@ -58,13 +58,6 @@ export class SimulatedPlatformPublisher implements PlatformPublisher {
             case 'x':
                 permalink = `https://x.com/${handle}/status/${simId}`;
                 break;
-            case 'pinterest':
-                permalink = `https://www.pinterest.com/pin/${simId}/`;
-                break;
-            case 'reddit':
-                const sr = input.platformMeta?.subreddit || 'u_' + handle;
-                permalink = `https://www.reddit.com/r/${sr}/comments/${simId}`;
-                break;
             default:
                 permalink = `https://${this.platform}.com/post/${simId}`;
         }

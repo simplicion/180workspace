@@ -6,7 +6,6 @@ import { InstagramPublisher } from '../adapters/meta.adapter';
 import { YouTubeAdapter } from '../adapters/youtube.adapter';
 import { LinkedInAdapter } from '../adapters/linkedin.adapter';
 import { ThreadsAdapter } from '../adapters/threads.adapter';
-import { TikTokAdapter } from '../adapters/tiktok.adapter';
 import { META_GRAPH_VERSION, metaGraphUrl } from '../publishing/config';
 import { PublishError } from '../publishing/errors';
 import { expectOk, providerFetch } from '../publishing/http';
@@ -67,9 +66,6 @@ export async function replyToComment(platform: string, account: ActionAccount, c
             return;
         case 'threads':
             await ThreadsAdapter.replyToThread(account.platformAccountId, commentId || mediaId || '', text, token);
-            return;
-        case 'tiktok':
-            await TikTokAdapter.replyToComment(commentId, text, token);
             return;
         case 'x':
             await post('x', `${xApi()}/2/tweets`, token, { text, reply: { in_reply_to_tweet_id: commentId } }, 'X reply');

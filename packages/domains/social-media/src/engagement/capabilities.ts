@@ -54,8 +54,6 @@ export function platformCapabilities(platform: string): PlatformCapabilities {
             const paid = xPaid();
             return { like: paid, reply: paid, dm: paid, messagingWindowHours: undefined, note: paid ? undefined : 'X engagement needs a paid API tier (set X_API_TIER).' };
         }
-        case 'tiktok':
-            return { like: false, reply: true, dm: false, note: 'TikTok allows comment replies only.' };
         case 'threads':
             return { like: false, reply: true, dm: false, note: 'Threads allows public replies only.' };
         default:

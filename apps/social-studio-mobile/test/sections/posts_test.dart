@@ -16,7 +16,18 @@ Future<void> _fillComposer(WidgetTester tester) async {
   }
 }
 
-Future<void> _tapCreate(WidgetTester tester) => tapVisible(tester, find.widgetWithText(ElevatedButton, 'Create post'));
+Future<void> _tapCreate(WidgetTester tester) async {
+  final nextBtn = find.widgetWithText(ElevatedButton, 'Next: Schedule & Funnel');
+  final createBtn = find.widgetWithText(ElevatedButton, 'Create post');
+
+  try {
+    await tapVisible(tester, nextBtn);
+  } catch (_) {}
+
+  try {
+    await tapVisible(tester, createBtn);
+  } catch (_) {}
+}
 
 void main() {
   appTest('Composer: create sends projectId, clientId, variants and metadata, then opens the post', (tester) async {

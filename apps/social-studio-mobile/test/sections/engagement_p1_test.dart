@@ -47,7 +47,7 @@ void main() {
     await tester.enterText(find.widgetWithText(TextField, 'Caption *'), 'Our new drop lands Friday.');
     await tapVisible(tester, find.widgetWithText(FilterChip, 'Instagram'));
     if (find.text('Save Instagram Settings').evaluate().isNotEmpty) await tapVisible(tester, find.text('Save Instagram Settings'));
-    await tapVisible(tester, find.text('Schedule / Funnel'));
+    await tapVisible(tester, find.widgetWithText(ElevatedButton, 'Next: Schedule & Funnel'));
     await tapVisible(tester, find.text('Enable Auto-DM & Comment Funnel'));
 
     // DM text is required once the funnel is on: nothing is sent without it.

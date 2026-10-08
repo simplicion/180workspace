@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
+import { getApiBase, getPublicBase, getAuthToken } from '@/lib/api-config';
 
 interface PaymentLinkItem {
   id: string;
@@ -59,21 +60,13 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
 
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
-  const getApiBase = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4003';
-  };
-
-  const getPublicBase = () => {
-    return process.env.NEXT_PUBLIC_PROFILE_URL || 'http://localhost:3009';
-  };
-
   const fetchLinks = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/payment-links/apps/${appId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -104,7 +97,11 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
 
     setCreating(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/payment-links/apps/${appId}`, {
         method: 'POST',
@@ -137,7 +134,10 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
       setCustomSlug('');
       fetchLinks();
     } catch (err: any) {
-      toast.error(err.message || 'Error creating payment link');
+      const msg = err.message === 'Failed to fetch'
+        ? 'Network error: Unable to reach the API server.'
+        : (err.message || 'Error creating payment link');
+      toast.error(msg);
     } finally {
       setCreating(false);
     }
@@ -147,7 +147,11 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
     if (!confirm(`Are you sure you want to delete payment link /${slugName}?`)) return;
 
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/payment-links/apps/${appId}/${id}`, {
         method: 'DELETE',
@@ -158,7 +162,10 @@ export function PaymentLinksTab({ appId }: PaymentLinksTabProps) {
       toast.success('Payment link deleted');
       fetchLinks();
     } catch (err: any) {
-      toast.error(err.message || 'Error deleting payment link');
+      const msg = err.message === 'Failed to fetch'
+        ? 'Network error: Unable to reach the API server.'
+        : (err.message || 'Error deleting payment link');
+      toast.error(msg);
     }
   };
 

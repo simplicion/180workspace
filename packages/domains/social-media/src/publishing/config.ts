@@ -2,8 +2,8 @@ import { PublishError } from './errors';
 import { linkedInApiVersion } from './linkedin-version';
 
 /** Canonical platform ids used by accounts, variants and publishers. `twitter` is an alias of `x`. */
-export type PublishPlatform = 'instagram' | 'facebook' | 'youtube' | 'linkedin' | 'x' | 'tiktok' | 'threads' | 'pinterest' | 'reddit';
-export const PUBLISH_PLATFORMS: PublishPlatform[] = ['instagram', 'facebook', 'youtube', 'linkedin', 'x', 'tiktok', 'threads', 'pinterest', 'reddit'];
+export type PublishPlatform = 'instagram' | 'facebook' | 'youtube' | 'linkedin' | 'x' | 'threads';
+export const PUBLISH_PLATFORMS: PublishPlatform[] = ['instagram', 'facebook', 'youtube', 'linkedin', 'x', 'threads'];
 
 export function normalizePlatform(raw: unknown): PublishPlatform | null {
     const v = String(raw ?? '').toLowerCase().trim();
@@ -13,9 +13,6 @@ export function normalizePlatform(raw: unknown): PublishPlatform | null {
     if (v.startsWith('insta')) return 'instagram';
     if (v === 'facebook' || v === 'fb') return 'facebook';
     if (v === 'linkedin') return 'linkedin';
-    if (v === 'tiktok') return 'tiktok';
-    if (v === 'pinterest' || v === 'pin') return 'pinterest';
-    if (v === 'reddit' || v === 'red') return 'reddit';
     return null;
 }
 
@@ -32,9 +29,6 @@ const CREDENTIAL_ENV: Record<PublishPlatform, { id: string[]; secret: string[] }
     youtube: { id: ['YOUTUBE_CLIENT_ID', 'GOOGLE_CLIENT_ID'], secret: ['YOUTUBE_CLIENT_SECRET', 'GOOGLE_CLIENT_SECRET'] },
     linkedin: { id: ['LINKEDIN_CLIENT_ID'], secret: ['LINKEDIN_CLIENT_SECRET'] },
     x: { id: ['X_CLIENT_ID', 'TWITTER_CLIENT_ID'], secret: ['X_CLIENT_SECRET', 'TWITTER_CLIENT_SECRET'] },
-    tiktok: { id: ['TIKTOK_CLIENT_KEY'], secret: ['TIKTOK_CLIENT_SECRET'] },
-    pinterest: { id: ['PINTEREST_APP_ID'], secret: ['PINTEREST_APP_SECRET'] },
-    reddit: { id: ['REDDIT_CLIENT_ID'], secret: ['REDDIT_CLIENT_SECRET'] },
 };
 
 /**

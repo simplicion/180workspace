@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
+import { getApiBase, getAuthToken } from '@/lib/api-config';
 
 interface GeoRuleItem {
   id: string;
@@ -78,19 +79,15 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
   const [ruleFixedAmount, setRuleFixedAmount] = useState('1499');
   const [ruleCurrency, setRuleCurrency] = useState('INR');
 
-  const getApiBase = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4003';
-  };
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
       const apiBase = getApiBase();
 
       const [rulesRes, dirRes] = await Promise.all([
         fetch(`${apiBase}/api/v1/geo-pricing/apps/${appId}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         }),
         fetch(`${apiBase}/api/v1/geo-pricing/directory`),
       ]);
@@ -157,7 +154,11 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
   const handleTogglePPP = async () => {
     setTogglingPPP(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
       const apiBase = getApiBase();
       const newStatus = !pppEnabled;
 
@@ -189,7 +190,11 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
     e.preventDefault();
     setSavingRule(true);
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
       const apiBase = getApiBase();
 
       const payload: Record<string, any> = {
@@ -243,7 +248,11 @@ export function GeoPricingTab({ appId }: GeoPricingTabProps) {
   const handleDeleteRule = async (ruleId: string, countryCode: string) => {
     if (!confirm(`Are you sure you want to delete the override for ${countryCode}?`)) return;
     try {
-      const token = localStorage.getItem('platform_auth_token');
+      const token = getAuthToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/api/v1/geo-pricing/apps/${appId}/${ruleId}`, {
         method: 'DELETE',

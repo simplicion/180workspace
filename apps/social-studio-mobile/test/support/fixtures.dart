@@ -194,6 +194,14 @@ FakeBackend seededBackend() {
       'upcomingContent': [postJson(status: 'scheduled', scheduledFor: '2026-09-28T10:00:00.000Z')],
     },
   });
+  b.json('GET', '$sm/projects/:id/platform-metrics', {
+    'success': true,
+    'metrics': [
+      {'platform': 'instagram', 'followersCount': 12400, 'reach': 48500, 'views': 84200, 'engagements': 4200, 'source': 'live'},
+      {'platform': 'youtube', 'followersCount': 8900, 'reach': 62000, 'views': 142800, 'engagements': 6100, 'source': 'live'},
+      {'platform': 'linkedin', 'followersCount': 24000, 'reach': 110000, 'views': 211000, 'engagements': 14500, 'source': 'stored'},
+    ],
+  });
   b.json('GET', '$sm/projects/:id/activity', {'success': true, 'activity': []});
   b.json('GET', '$sm/posts', {'success': true, 'posts': [postJson()]});
   b.json('GET', '$sm/posts/:id', {'success': true, 'post': postJson()});

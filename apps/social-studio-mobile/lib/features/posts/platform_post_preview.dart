@@ -41,12 +41,10 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
 
   static const _supportedPreviewPlatforms = [
     SocialPlatform.instagram,
-    SocialPlatform.tiktok,
     SocialPlatform.youtube,
     SocialPlatform.linkedin,
     SocialPlatform.facebook,
     SocialPlatform.x,
-    SocialPlatform.reddit,
   ];
 
   @override
@@ -99,7 +97,7 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
             child: Container(
               constraints: BoxConstraints(maxWidth: 380),
               decoration: BoxDecoration(
-                color: _platform == SocialPlatform.tiktok || _platform == SocialPlatform.youtube
+                color: _platform == SocialPlatform.youtube
                     ? Colors.black
                     : Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(20),
@@ -115,12 +113,10 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
               clipBehavior: Clip.antiAlias,
               child: switch (_platform) {
                 SocialPlatform.instagram => _buildInstagramPreview(),
-                SocialPlatform.tiktok => _buildTikTokPreview(),
                 SocialPlatform.youtube => _buildYouTubeShortsPreview(),
                 SocialPlatform.linkedin => _buildLinkedInPreview(),
                 SocialPlatform.facebook => _buildFacebookPreview(),
                 SocialPlatform.x => _buildTwitterPreview(),
-                SocialPlatform.reddit => _buildRedditPreview(),
                 _ => _buildInstagramPreview(),
               },
             ),
@@ -282,155 +278,6 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
     );
   }
 
-  // ── TikTok Preview ───────────────────────────────────────────────────────
-  Widget _buildTikTokPreview() {
-    final hasMedia = widget.mediaUrls.isNotEmpty;
-    final firstMedia = widget.mediaUrls.firstOrNull;
-
-    return AspectRatio(
-      aspectRatio: 9 / 16,
-      child: Container(
-        color: Color(0xFF121212),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background Video Canvas
-            if (hasMedia && firstMedia != null)
-              Image.network(
-                firstMedia,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _mediaPlaceholder(Icons.tiktok_rounded, 'TikTok Vertical Video'),
-              )
-            else
-              _mediaPlaceholder(Icons.music_video_rounded, 'TikTok 9:16 Full Screen'),
-
-            // Subtle dark gradient vignette
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.black.withValues(alpha: 0.2), Colors.transparent, Colors.black.withValues(alpha: 0.85)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: [0.0, 0.4, 1.0],
-                  ),
-                ),
-              ),
-            ),
-
-            // Top Header: Following | For You
-            Positioned(
-              top: 14,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Following', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-                  SizedBox(width: 14),
-                  Text('For You', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                ],
-              ),
-            ),
-
-            // Right Action Column (Avatar, Heart, Comments, Save, Share, Sound Disc)
-            Positioned(
-              right: 8,
-              bottom: 24,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Stack(
-                    alignment: Alignment.bottomCenter,
-                    clipBehavior: Clip.none,
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.white24,
-                        backgroundImage: widget.avatarUrl != null ? NetworkImage(widget.avatarUrl!) : null,
-                        child: widget.avatarUrl == null
-                            ? Icon(Icons.person_rounded, color: Colors.white, size: 20)
-                            : null,
-                      ),
-                      Positioned(
-                        bottom: -5,
-                        child: Container(
-                          padding: EdgeInsets.all(2),
-                          decoration: BoxDecoration(color: Color(0xFFFE2C55), shape: BoxShape.circle),
-                          child: Icon(Icons.add, size: 12, color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 18),
-                  _tikTokActionIcon(Icons.favorite_rounded, '84.2K'),
-                  SizedBox(height: 14),
-                  _tikTokActionIcon(Icons.mode_comment_rounded, '1,029'),
-                  SizedBox(height: 14),
-                  _tikTokActionIcon(Icons.bookmark_rounded, '9,812'),
-                  SizedBox(height: 14),
-                  _tikTokActionIcon(Icons.share_rounded, 'Share'),
-                  SizedBox(height: 16),
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF202020),
-                      border: Border.all(color: Colors.white30, width: 2),
-                    ),
-                    child: Icon(Icons.music_note_rounded, size: 16, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-
-            // Bottom Info Column (Creator handle, Caption, Sound)
-            Positioned(
-              left: 12,
-              right: 76,
-              bottom: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Text(_displayHandle, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                      SizedBox(width: 4),
-                      Icon(Icons.verified_rounded, size: 14, color: Color(0xFF20D5EC)),
-                    ],
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    widget.caption.isEmpty ? 'Compelling short-form caption with #trending tags...' : widget.caption,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.white, fontSize: 12, height: 1.3),
-                  ),
-                  SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.music_note_rounded, size: 13, color: Colors.white70),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          '$_displayAuthor · Original Sound - High Energy',
-                          style: TextStyle(color: Colors.white70, fontSize: 11),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // ── YouTube Shorts Preview ───────────────────────────────────────────────
   Widget _buildYouTubeShortsPreview() {
@@ -752,16 +599,6 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
     );
   }
 
-  Widget _tikTokActionIcon(IconData icon, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: Colors.white, size: 28),
-        SizedBox(height: 2),
-        Text(label, style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
 
   Widget _shortsActionIcon(IconData icon, String label) {
     return Column(
@@ -785,172 +622,5 @@ class _PlatformPostPreviewState extends State<PlatformPostPreview> {
     );
   }
 
-  // ── Reddit Post Preview ──────────────────────────────────────────────────
-  Widget _buildRedditPreview() {
-    final hasMedia = widget.mediaUrls.isNotEmpty;
-    final firstMedia = widget.mediaUrls.firstOrNull;
-    final titleText = widget.title ?? widget.hook ?? 'Discussion & Insights';
-    final author = widget.username != null && widget.username!.isNotEmpty
-        ? (widget.username!.startsWith('u/') ? widget.username! : 'u/${widget.username}')
-        : 'u/$_displayAuthor';
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Reddit Header
-        Padding(
-          padding: EdgeInsets.fromLTRB(12, 12, 12, 8),
-          child: Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFFFF4500),
-                ),
-                child: Icon(Icons.forum_rounded, size: 16, color: Colors.white),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'r/socialmedia',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimary),
-                        ),
-                        SizedBox(width: 4),
-                        Text('• 2h', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-                      ],
-                    ),
-                    Text(
-                      author,
-                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Color(0xFF0045AC),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text('Join', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-            ],
-          ),
-        ),
-
-        // Post Title
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Text(
-            titleText,
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary, height: 1.25),
-          ),
-        ),
-
-        // Body Text
-        if (widget.caption.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
-            child: Text(
-              widget.caption,
-              maxLines: _expandedCaption ? null : 4,
-              overflow: _expandedCaption ? null : TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, color: AppTheme.textPrimary, height: 1.4),
-            ),
-          ),
-
-        // Media container
-        if (hasMedia)
-          Container(
-            height: 220,
-            margin: EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(color: Colors.black),
-            child: firstMedia != null && firstMedia.startsWith('http')
-                ? Image.network(
-                    firstMedia,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _mediaPlaceholder(
-                      _mediaType == 'video' ? Icons.videocam_rounded : Icons.image_rounded,
-                      _mediaType == 'video' ? 'Reddit Video' : 'Reddit Image',
-                    ),
-                  )
-                : _mediaPlaceholder(
-                    _mediaType == 'video' ? Icons.videocam_rounded : Icons.image_rounded,
-                    _mediaType == 'video' ? 'Reddit Video (Tap to Play)' : 'Reddit Image',
-                  ),
-          ),
-
-        // Reddit Engagement Bar
-        Padding(
-          padding: EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: Row(
-            children: [
-              // Upvote / Score / Downvote capsule
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.arrow_upward_rounded, size: 16, color: Color(0xFFFF4500)),
-                    SizedBox(width: 4),
-                    Text('142', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textPrimary)),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_downward_rounded, size: 16, color: AppTheme.textSecondary),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8),
-
-              // Comments capsule
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.chat_bubble_outline_rounded, size: 14, color: AppTheme.textSecondary),
-                    SizedBox(width: 4),
-                    Text('28', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-              Spacer(),
-
-              // Share button
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.share_outlined, size: 14, color: AppTheme.textSecondary),
-                    SizedBox(width: 4),
-                    Text('Share', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }

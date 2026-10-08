@@ -174,10 +174,7 @@ class _PostBodyState extends ConsumerState<_PostBody> {
 
   Future<void> _openCentralizedManualPublishSheet() async {
     final xVariant = p.variants.where((v) => v.platform == SocialPlatform.x).firstOrNull;
-    final redditVariant = p.variants.where((v) => v.platform == SocialPlatform.reddit).firstOrNull;
     final videoUrl = p.finalVideoUrl ?? p.mediaUrls.where((u) => u.endsWith('.mp4')).firstOrNull ?? p.mediaUrls.firstOrNull;
-
-    final redditMeta = redditVariant?.platformMeta ?? {};
 
     final Map<SocialPlatform, UniversalPlatformPayload> payloads = {};
     for (final v in p.variants) {
@@ -187,7 +184,6 @@ class _PostBodyState extends ConsumerState<_PostBody> {
         title: v.platformMeta['title']?.toString() ?? p.title,
         mediaPath: videoUrl,
         projectId: p.projectId,
-        subreddit: v.platformMeta['subreddit']?.toString(),
       );
     }
 
@@ -201,13 +197,6 @@ class _PostBodyState extends ConsumerState<_PostBody> {
       platformPayloads: payloads,
       xPayload: XPublishPayload(
         text: xVariant?.customContent?.isNotEmpty == true ? xVariant!.customContent! : p.content,
-        mediaPath: videoUrl,
-        projectId: p.projectId,
-      ),
-      redditPayload: RedditPublishPayload(
-        subreddit: redditMeta['subreddit']?.toString() ?? 'socialmedia',
-        title: redditMeta['title']?.toString() ?? ((p.title?.isNotEmpty ?? false) ? p.title! : p.content),
-        body: redditVariant?.customContent?.isNotEmpty == true ? redditVariant!.customContent! : p.content,
         mediaPath: videoUrl,
         projectId: p.projectId,
       ),

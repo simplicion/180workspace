@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button, LogoLoader } from '@workspace/ui';
 import { toast } from 'react-hot-toast';
+import { CORE_BACKEND_URL } from '@/lib/api';
 
 interface PublicPaymentLink {
   id: string;
@@ -76,7 +77,7 @@ export function PaymentLinkClient({ slug }: { slug: string }) {
   const [copiedSecret, setCopiedSecret] = useState(false);
 
   const getApiBase = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4003';
+    return CORE_BACKEND_URL;
   };
 
   const fetchLink = useCallback(async () => {

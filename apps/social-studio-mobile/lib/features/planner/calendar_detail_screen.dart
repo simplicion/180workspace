@@ -732,7 +732,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
 
   bool get _isVideoPiece {
     final t = _currentPiece.contentType.toLowerCase();
-    return t.contains('video') || t.contains('reel') || t.contains('short') || t.contains('tiktok');
+    return t.contains('video') || t.contains('reel') || t.contains('short');
   }
 
   bool get _isCarousel =>
@@ -1052,8 +1052,7 @@ class _PieceSheetState extends ConsumerState<PieceSheet> {
         ]),
         if (p.contentType.toLowerCase().contains('video') ||
             p.contentType.toLowerCase().contains('reel') ||
-            p.contentType.toLowerCase().contains('short') ||
-            p.contentType.toLowerCase().contains('tiktok')) ...[
+            p.contentType.toLowerCase().contains('short')) ...[
           SizedBox(height: 10),
           FilledButton.tonalIcon(
             style: FilledButton.styleFrom(

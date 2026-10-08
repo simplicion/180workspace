@@ -200,14 +200,21 @@ class EngagementTab extends ConsumerWidget {
                 for (final m in metrics) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         (m['platform'] as String? ?? 'channel').toUpperCase(),
                         style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                       ),
-                      Text(
-                        _metricLine(m),
-                        style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _metricLine(m),
+                          textAlign: TextAlign.end,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
+                          style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                        ),
                       ),
                     ],
                   ),
@@ -1530,7 +1537,7 @@ class _DryRunTesterSheetState extends ConsumerState<_DryRunTesterSheet> {
                   Wrap(
                     spacing: 8,
                     children: [
-                      for (final p in ['instagram', 'youtube', 'linkedin', 'threads', 'tiktok'])
+                      for (final p in ['instagram', 'youtube', 'linkedin', 'threads', 'x'])
                         ChoiceChip(
                           label: Text(p[0].toUpperCase() + p.substring(1)),
                           selected: _selectedPlatform == p,

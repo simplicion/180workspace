@@ -414,10 +414,24 @@ export class CouponService {
     });
   }
 
+  public static async resolveAppId(appId: string): Promise<string> {
+    const oauthApp = await (prisma as any).oAuthApp.findFirst({
+      where: {
+        OR: [
+          { id: appId },
+          { clientId: appId },
+        ],
+      },
+      select: { id: true },
+    });
+    return oauthApp ? oauthApp.id : appId;
+  }
+
   /**
    * 3. Developer Management: Create Coupon
    */
   static async createCoupon(appId: string, data: CreateCouponInput) {
+    const targetAppId = await this.resolveAppId(appId);
     const normalizedCode = data.code.trim().toUpperCase();
 
     if (!normalizedCode) {
@@ -435,7 +449,7 @@ export class CouponService {
     const existing = await (prisma as any).coupon.findUnique({
       where: {
         appId_code: {
-          appId,
+          appId: targetAppId,
           code: normalizedCode,
         },
       },
@@ -447,7 +461,7 @@ export class CouponService {
 
     return await (prisma as any).coupon.create({
       data: {
-        appId,
+        appId: targetAppId,
         code: normalizedCode,
         discountType: data.discountType,
         discountValue: Number(data.discountValue),
@@ -468,8 +482,9 @@ export class CouponService {
    * 4. Developer Management: Update Coupon
    */
   static async updateCoupon(appId: string, couponId: string, data: UpdateCouponInput) {
+    const targetAppId = await this.resolveAppId(appId);
     const coupon = await (prisma as any).coupon.findFirst({
-      where: { id: couponId, appId },
+      where: { id: couponId, appId: targetAppId },
     });
 
     if (!coupon) {
@@ -502,8 +517,9 @@ export class CouponService {
    * 5. Developer Management: Delete Coupon
    */
   static async deleteCoupon(appId: string, couponId: string) {
+    const targetAppId = await this.resolveAppId(appId);
     const coupon = await (prisma as any).coupon.findFirst({
-      where: { id: couponId, appId },
+      where: { id: couponId, appId: targetAppId },
     });
 
     if (!coupon) {
@@ -519,19 +535,20 @@ export class CouponService {
    * 6. Developer Management: List Coupons
    */
   static async listCoupons(appId: string, options?: { page?: number; limit?: number }) {
+    const targetAppId = await this.resolveAppId(appId);
     const page = Math.max(1, options?.page || 1);
     const limit = Math.min(100, Math.max(1, options?.limit || 20));
     const skip = (page - 1) * limit;
 
     const [coupons, total] = await Promise.all([
       (prisma as any).coupon.findMany({
-        where: { appId },
+        where: { appId: targetAppId },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
       (prisma as any).coupon.count({
-        where: { appId },
+        where: { appId: targetAppId },
       }),
     ]);
 
@@ -548,8 +565,9 @@ export class CouponService {
    * 7. Developer Management: Get Coupon Redemptions
    */
   static async getCouponRedemptions(appId: string, couponId: string) {
+    const targetAppId = await this.resolveAppId(appId);
     const coupon = await (prisma as any).coupon.findFirst({
-      where: { id: couponId, appId },
+      where: { id: couponId, appId: targetAppId },
     });
 
     if (!coupon) {

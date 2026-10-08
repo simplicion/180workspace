@@ -401,94 +401,100 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'MOST POPULAR',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'MOST POPULAR',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Cancel anytime',
-                style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '\$20',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              Text(
-                ' / month',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Direct monthly creator subscription. Automatic recurring billing via 180 Subscriptions.',
-            style: TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.3),
-          ),
-          const SizedBox(height: 14),
-          const _FeatureItem(text: 'Full unlimited project & video creation'),
-          const _FeatureItem(text: 'AI Script Director & timeline editor'),
-          const _FeatureItem(text: 'Autonomous Autopilot & social scheduling'),
-          const _FeatureItem(text: 'Direct publishing to Instagram, YouTube & TikTok'),
-          const SizedBox(height: 16),
-          _SlideToPayButton(
-            label: 'Slide to Subscribe — \$20/mo',
-            hint: '👉 Slide handle right or tap to activate with 180 Pay',
-            accentColor: AppTheme.primary,
-            icon: Icons.bolt_rounded,
-            isLoading: _isLoadingCheckout && _activeCheckoutType == 'monthly',
-            onSlideComplete: () => _handleCheckout('monthly'),
-          ),
-          const SizedBox(height: 10),
-          Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.shield_outlined, size: 12, color: AppTheme.textMuted),
-                const SizedBox(width: 4),
+                const SizedBox(width: 8),
                 Text(
-                  'Opens in-app 180 Pay bottom sheet · Instant activation',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                  'Cancel anytime',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '\$20',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                Text(
+                  ' / month',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Direct monthly creator subscription. Automatic recurring billing via 180 Subscriptions.',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.3),
+            ),
+            const SizedBox(height: 14),
+            const _FeatureItem(text: 'Full unlimited project & video creation'),
+            const _FeatureItem(text: 'AI Script Director & timeline editor'),
+            const _FeatureItem(text: 'Autonomous Autopilot & social scheduling'),
+            const _FeatureItem(text: 'Direct publishing to Instagram, YouTube & LinkedIn'),
+            const SizedBox(height: 16),
+            _SlideToPayButton(
+              label: 'Slide to Subscribe — \$20/mo',
+              hint: '👉 Slide handle right or tap to activate with 180 Pay',
+              accentColor: AppTheme.primary,
+              icon: Icons.bolt_rounded,
+              isLoading: _isLoadingCheckout && _activeCheckoutType == 'monthly',
+              onSlideComplete: () => _handleCheckout('monthly'),
+            ),
+            const SizedBox(height: 10),
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.shield_outlined, size: 12, color: AppTheme.textMuted),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      'Opens in-app 180 Pay bottom sheet · Instant activation',
+                      style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -509,8 +515,10 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -713,16 +721,20 @@ class _FeatureLockViewState extends ConsumerState<FeatureLockView> {
               children: [
                 Icon(Icons.bolt_rounded, size: 12, color: AppTheme.textMuted),
                 const SizedBox(width: 4),
-                Text(
-                  'Opens in-app 180 Pay bottom sheet · No recurring charge',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                Flexible(
+                  child: Text(
+                    'Opens in-app 180 Pay bottom sheet · No recurring charge',
+                    style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 

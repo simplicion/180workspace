@@ -55,6 +55,7 @@ export type OpenAuthOptions = OpenPopupOptions;
 export interface RenderButtonOptions extends OpenPopupOptions {
   theme?: 'obsidian' | 'dark' | 'light' | 'gradient';
   text?: string;
+  subtitle?: string;
 }
 
 export interface CheckoutResponse {
@@ -1010,12 +1011,14 @@ export const OneEightyIdentity = {
     title.style.cssText = 'font-size: 12.5px; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; color: #0f172a;';
     title.innerText = text;
 
-    const subtitle = document.createElement('div');
-    subtitle.style.cssText = 'font-size: 9.5px; font-weight: 500; margin-top: 1px; line-height: 1.2; color: #64748b;';
-    subtitle.innerText = 'Sovereign Auth · WhatsApp OTP · SSO';
-
     textWrap.appendChild(title);
-    textWrap.appendChild(subtitle);
+
+    if (options.subtitle) {
+      const subtitle = document.createElement('div');
+      subtitle.style.cssText = 'font-size: 9.5px; font-weight: 500; margin-top: 1px; line-height: 1.2; color: #64748b;';
+      subtitle.innerText = options.subtitle;
+      textWrap.appendChild(subtitle);
+    }
 
     // Arrow
     const arrow = document.createElement('div');
@@ -1674,7 +1677,7 @@ export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = (
   state,
   theme = 'obsidian',
   text = 'Continue with 180 Profile',
-  subtitle = 'Sovereign Auth · WhatsApp OTP · SSO',
+  subtitle,
   loadingText = 'Opening 180 Profile…',
   processingText = 'Logging into 180 Workspace…',
   className = '',
@@ -1806,9 +1809,11 @@ export const OneEightyIdentityButton: React.FC<OneEightyIdentityButtonProps> = (
             text
           )}
         </div>
-        <div className="text-[10px] font-medium mt-0.5 leading-tight text-gray-500">
-          {isProcessing ? 'Verifying sovereign session & redirecting…' : isOpeningIdentity ? 'Authenticate in the popup window' : subtitle}
-        </div>
+        {(isProcessing || isOpeningIdentity || subtitle) && (
+          <div className="text-[10px] font-medium mt-0.5 leading-tight text-gray-500">
+            {isProcessing ? 'Verifying sovereign session & redirecting…' : isOpeningIdentity ? 'Authenticate in the popup window' : subtitle}
+          </div>
+        )}
       </div>
 
       {/* ── Arrow / Single Loading Spinner ───────────────────────────── */}

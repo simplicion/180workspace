@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Check, Sparkles, Shield, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button, LogoLoader } from '@workspace/ui';
+import { CORE_BACKEND_URL } from '@/lib/api';
 
 interface PlanFeatureItem {
   text: string;
@@ -53,11 +54,15 @@ export function PricingEmbedClient({ appId }: { appId: string }) {
   const [selectedInterval, setSelectedInterval] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
 
   const getApiBase = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4003';
+    return CORE_BACKEND_URL;
   };
 
   const getProfileBase = () => {
-    return process.env.NEXT_PUBLIC_PROFILE_URL || 'http://localhost:3009';
+    if (typeof window !== 'undefined') {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      return isLocal ? 'http://localhost:3009' : (process.env.NEXT_PUBLIC_PROFILE_URL || 'https://profile.180workspace.com');
+    }
+    return process.env.NEXT_PUBLIC_PROFILE_URL || 'https://profile.180workspace.com';
   };
 
   const fetchConfig = useCallback(async () => {

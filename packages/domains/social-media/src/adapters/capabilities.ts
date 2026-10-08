@@ -33,7 +33,7 @@ export interface PlatformPublishCapabilities {
 
 const MB = 1024 * 1024;
 
-export const PUBLISH_CAPABILITIES: Record<Exclude<PublishPlatform, 'tiktok'>, PlatformPublishCapabilities> = {
+export const PUBLISH_CAPABILITIES: Record<PublishPlatform, PlatformPublishCapabilities> = {
     instagram: {
         platform: 'instagram',
         canPublishText: false,
@@ -147,44 +147,6 @@ export const PUBLISH_CAPABILITIES: Record<Exclude<PublishPlatform, 'tiktok'>, Pl
         carousel: { min: 2, max: 4 },
         video: { minSec: 0.5, maxSec: 20 * 60, maxBytes: 512 * MB },
         requirements: ['Paid X API access (pay-per-use credits since 2026-02-06)', 'OAuth 2.0 scopes tweet.write + media.write + offline.access'],
-    },
-    pinterest: {
-        platform: 'pinterest',
-        canPublishText: false,
-        canPublishImage: true,
-        canPublishVideo: true,
-        canPublishCarousel: true,
-        canPublishStories: false,
-        canPublishReels: false,
-        canPublishDocument: false,
-        canSchedule: true,
-        nativeScheduling: false,
-        mediaAsLink: false,
-        maxCaptionChars: 800,
-        maxTitleChars: 100,
-        titleRequired: false,
-        carousel: { min: 2, max: 5 },
-        video: { minSec: 4, maxSec: 15 * 60, maxBytes: 2048 * MB },
-        requirements: ['Pinterest business account', 'Standard API access (Trial access only creates sandbox Pins)', 'A destination board'],
-    },
-    reddit: {
-        platform: 'reddit',
-        canPublishText: true,
-        canPublishImage: true,
-        canPublishVideo: true,
-        canPublishCarousel: false,
-        canPublishStories: false,
-        canPublishReels: false,
-        canPublishDocument: false,
-        canSchedule: true,
-        nativeScheduling: false,
-        mediaAsLink: true,
-        maxCaptionChars: 40000,
-        maxTitleChars: 300,
-        titleRequired: true,
-        carousel: null,
-        video: null,
-        requirements: ['Reddit app approved under the Data API terms (commercial use needs Reddit approval)', '100 requests/min per OAuth client', 'Subreddit rules (flair, karma, link/self restrictions) apply'],
     },
 };
 
