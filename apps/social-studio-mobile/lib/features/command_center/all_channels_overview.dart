@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -33,6 +34,15 @@ class AllChannelsOverview extends ConsumerStatefulWidget {
 class _AllChannelsOverviewState extends ConsumerState<AllChannelsOverview> {
   String _range = '30d';
 
+  Future<void> _handleRefresh() async {
+    HapticFeedback.lightImpact();
+    final key = (widget.project.id, _range);
+    ref.invalidate(projectAnalyticsProvider(key));
+    try {
+      await ref.read(projectAnalyticsProvider(key).future);
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final key = (widget.project.id, _range);
@@ -42,7 +52,7 @@ class _AllChannelsOverviewState extends ConsumerState<AllChannelsOverview> {
     final attentionAccounts = accounts.where((a) => a.needsAttention).toList();
 
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(projectAnalyticsProvider(key)),
+      onRefresh: _handleRefresh,
       child: ListView(
         key: const Key('cc-all-channels-list'),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
@@ -92,72 +102,90 @@ class _AllChannelsOverviewState extends ConsumerState<AllChannelsOverview> {
           ),
           const SizedBox(height: 16),
 
-          data.when(
-            loading: () => const Padding(
+          if (!data.hasValue && data.isLoading) ...[
+            const Padding(
               padding: EdgeInsets.all(16),
               child: UniversalSkeleton(type: SkeletonType.metrics, itemCount: 6),
             ),
-            error: (e, _) => ErrorView(
-              error: e,
+          ] else if (!data.hasValue && data.hasError) ...[
+            ErrorView(
+              error: data.error!,
               compact: true,
-              onRetry: () => ref.invalidate(projectAnalyticsProvider(key)),
+              onRetry: _handleRefresh,
             ),
-            data: (j) {
-              final a = jMap(j['analytics'] ?? j['data'] ?? j);
-              final postsPublished = (a['postsPublished'] as num?)?.toInt() ?? 0;
-              final postsCreated = (a['postsCreated'] as num?)?.toInt() ?? 0;
-              final postsScheduledInRange = (a['postsScheduledInRange'] as num?)?.toInt() ?? 0;
-              final postsScheduledUpcoming = (a['postsScheduledUpcoming'] as num?)?.toInt() ?? 0;
-              final postsFailed = (a['postsFailed'] as num?)?.toInt() ?? 0;
-              final postsAwaitingApproval = (a['postsAwaitingApproval'] as num?)?.toInt() ?? 0;
+          ] else ...[
+            Builder(
+              builder: (context) {
+                final j = data.valueOrNull ?? const {};
+                final a = jMap(j['analytics'] ?? j['data'] ?? j);
+                final postsPublished = (a['postsPublished'] as num?)?.toInt() ?? 0;
+                final postsCreated = (a['postsCreated'] as num?)?.toInt() ?? 0;
+                final postsScheduledInRange = (a['postsScheduledInRange'] as num?)?.toInt() ?? 0;
+                final postsScheduledUpcoming = (a['postsScheduledUpcoming'] as num?)?.toInt() ?? 0;
+                final postsFailed = (a['postsFailed'] as num?)?.toInt() ?? 0;
+                final postsAwaitingApproval = (a['postsAwaitingApproval'] as num?)?.toInt() ?? 0;
 
-              // AI Engagement & Automation stats
-              final engagementActiveRules = (a['engagementActiveRules'] as num?)?.toInt() ?? 0;
-              final engagementInteractionsInRange = (a['engagementInteractionsInRange'] as num?)?.toInt() ?? 0;
+                // AI Engagement & Automation stats
+                final engagementActiveRules = (a['engagementActiveRules'] as num?)?.toInt() ?? 0;
+                final engagementInteractionsInRange = (a['engagementInteractionsInRange'] as num?)?.toInt() ?? 0;
 
-              // Approval stats
-              final sessionsSent = (a['reviewSessionsSent'] as num?)?.toInt() ?? 0;
-              final sessionsApproved = (a['reviewSessionsApproved'] as num?)?.toInt() ?? 0;
-              final sessionsPending = (a['reviewSessionsPending'] as num?)?.toInt() ?? 0;
-              final sessionsRevisions = (a['reviewSessionsRevisionsRequested'] as num?)?.toInt() ?? 0;
-              final avgHours = (a['approvalTurnaroundHoursAvg'] as num?)?.toDouble();
-              final medianHours = (a['approvalTurnaroundHoursMedian'] as num?)?.toDouble();
+                // Approval stats
+                final sessionsSent = (a['reviewSessionsSent'] as num?)?.toInt() ?? 0;
+                final sessionsApproved = (a['reviewSessionsApproved'] as num?)?.toInt() ?? 0;
+                final sessionsPending = (a['reviewSessionsPending'] as num?)?.toInt() ?? 0;
+                final sessionsRevisions = (a['reviewSessionsRevisionsRequested'] as num?)?.toInt() ?? 0;
+                final avgHours = (a['approvalTurnaroundHoursAvg'] as num?)?.toDouble();
+                final medianHours = (a['approvalTurnaroundHoursMedian'] as num?)?.toDouble();
 
-              // Inbox / Leads
-              final conversations = (a['inboxConversations'] as num?)?.toInt() ?? 0;
-              final unread = (a['inboxUnread'] as num?)?.toInt() ?? 0;
-              final convertedLeads = (a['inboxConvertedToLeads'] as num?)?.toInt() ?? 0;
+                // Inbox / Leads
+                final conversations = (a['inboxConversations'] as num?)?.toInt() ?? 0;
+                final unread = (a['inboxUnread'] as num?)?.toInt() ?? 0;
+                final convertedLeads = (a['inboxConvertedToLeads'] as num?)?.toInt() ?? 0;
 
-              // Platform distribution
-              final platforms = <SocialPlatform, int>{};
-              for (final p in SocialPlatform.values) {
-                final count = (a['published_${p.id}'] as num?)?.toInt() ?? 0;
-                if (count > 0) platforms[p] = count;
-              }
+                // Milestones & Viral Recognition
+                final milestones = (a['milestones'] as List?) ?? const [];
+                final topPostViews = (a['topPostViews'] as num?)?.toInt() ?? 0;
+                final topPostTitle = (a['topPostTitle'] as String?) ?? '';
 
-              // Monthly script quotas (Target standard: 30 scripts/posts per month)
-              const monthlyTarget = 30;
-              final scriptsDone = postsCreated;
-              final scriptsLeft = max(0, monthlyTarget - scriptsDone);
-              final progress = (scriptsDone / monthlyTarget).clamp(0.0, 1.0);
+                // Platform distribution
+                final platforms = <SocialPlatform, int>{};
+                for (final p in SocialPlatform.values) {
+                  final count = (a['published_${p.id}'] as num?)?.toInt() ?? 0;
+                  if (count > 0) platforms[p] = count;
+                }
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ── SECTION 1: Monthly Capacity & Scripts Quota Strip ───
-                  _buildMonthlyCapacityCard(
-                    scriptsDone: scriptsDone,
-                    scriptsLeft: scriptsLeft,
-                    target: monthlyTarget,
-                    progress: progress,
-                    scheduledUpcoming: postsScheduledUpcoming,
-                    publishedTotal: postsPublished,
-                  ),
-                  const SizedBox(height: 12),
+                // Monthly script quotas (Target standard: 30 scripts/posts per month)
+                const monthlyTarget = 30;
+                final scriptsDone = postsCreated;
+                final scriptsLeft = max(0, monthlyTarget - scriptsDone);
+                final progress = (scriptsDone / monthlyTarget).clamp(0.0, 1.0);
 
-                  // ── SECTION 2: Quick Operations Bar ─────────────────────
-                  _buildQuickOperationsBar(context),
-                  const SizedBox(height: 16),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ── SECTION 0: Creator Milestone & Algorithmic Momentum ──
+                    _buildCreatorMilestoneCard(
+                      context,
+                      milestones: milestones,
+                      topPostViews: topPostViews,
+                      topPostTitle: topPostTitle,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ── SECTION 1: Monthly Capacity & Scripts Quota Strip ───
+                    _buildMonthlyCapacityCard(
+                      scriptsDone: scriptsDone,
+                      scriptsLeft: scriptsLeft,
+                      target: monthlyTarget,
+                      progress: progress,
+                      scheduledUpcoming: postsScheduledUpcoming,
+                      publishedTotal: postsPublished,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ── SECTION 2: Quick Operations Bar ─────────────────────
+                    _buildQuickOperationsBar(context),
+                    const SizedBox(height: 16),
 
                   // ── Spotlight: Pending Approvals Warning ────────────────
                   if (postsAwaitingApproval > 0) ...[
@@ -298,7 +326,8 @@ class _AllChannelsOverviewState extends ConsumerState<AllChannelsOverview> {
               );
             },
           ),
-          const SizedBox(height: 16),
+        ],
+        const SizedBox(height: 16),
 
           // ── SECTION 8: All-Time Project Summary ─────────────────
           SectionHeader('All-Time Project Summary'),
@@ -862,6 +891,208 @@ class _AllChannelsOverviewState extends ConsumerState<AllChannelsOverview> {
               overflow: TextOverflow.ellipsis,
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCreatorMilestoneCard(
+    BuildContext context, {
+    required List milestones,
+    required int topPostViews,
+    required String topPostTitle,
+  }) {
+    // If a post has crossed a milestone, celebrate it!
+    final hasAchievedMilestone = milestones.isNotEmpty || topPostViews >= 10000;
+    final latestMilestone = milestones.isNotEmpty ? (milestones.first as Map) : null;
+    final milestoneLabel = latestMilestone != null
+        ? (latestMilestone['label'] as String? ?? '10K Views Club')
+        : (topPostViews >= 100000
+            ? '100K Views Supernova'
+            : (topPostViews >= 50000
+                ? '50K Views Viral Wave'
+                : (topPostViews >= 20000
+                    ? '20K Views Milestone'
+                    : '10K Views Milestone')));
+
+    // Next milestone goal calculation
+    final nextTarget = topPostViews >= 100000
+        ? 250000
+        : (topPostViews >= 50000
+            ? 100000
+            : (topPostViews >= 20000
+                ? 50000
+                : (topPostViews >= 10000
+                    ? 20000
+                    : 10000)));
+
+    final targetProgress = (topPostViews / nextTarget).clamp(0.0, 1.0);
+    final targetPercent = (targetProgress * 100).toInt();
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: hasAchievedMilestone
+              ? [
+                  const Color(0xFFE5A93C).withValues(alpha: 0.18),
+                  AppTheme.accent.withValues(alpha: 0.08),
+                  AppTheme.surface,
+                ]
+              : [
+                  AppTheme.surfaceElevated,
+                  AppTheme.surface,
+                ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasAchievedMilestone
+              ? const Color(0xFFE5A93C).withValues(alpha: 0.4)
+              : AppTheme.border,
+          width: hasAchievedMilestone ? 1.5 : 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: hasAchievedMilestone
+                      ? const Color(0xFFE5A93C).withValues(alpha: 0.2)
+                      : AppTheme.accent.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  hasAchievedMilestone ? Icons.workspace_premium_rounded : Icons.trending_up_rounded,
+                  color: hasAchievedMilestone ? const Color(0xFFE5A93C) : AppTheme.accent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          hasAchievedMilestone ? '🎉 $milestoneLabel!' : '🚀 Creator Viral Goal',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: hasAchievedMilestone ? const Color(0xFFE5A93C) : AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.success.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            hasAchievedMilestone ? 'RISING' : 'TRACKING',
+                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.success),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      topPostTitle.isNotEmpty
+                          ? 'Asset: "$topPostTitle"'
+                          : 'Next Milestone: ${nextTarget >= 1000 ? '${nextTarget ~/ 1000}K' : nextTarget} Views Target',
+                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              if (topPostViews > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceElevated,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${topPostViews >= 1000 ? '${(topPostViews / 1000).toStringAsFixed(1)}K' : topPostViews} views',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Progress to next milestone
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Next Milestone: ${nextTarget >= 1000 ? '${nextTarget ~/ 1000}K' : nextTarget} Views',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                '$targetPercent%',
+                style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: targetProgress,
+              minHeight: 6,
+              backgroundColor: AppTheme.border,
+              color: hasAchievedMilestone ? const Color(0xFFE5A93C) : AppTheme.accent,
+            ),
+          ),
+          const SizedBox(height: 10),
+          // AI Algorithmic Momentum Coaching
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppTheme.surface.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.border.withValues(alpha: 0.6)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    hasAchievedMilestone
+                        ? 'Algorithm Surge: Your content is testing positively with non-followers. Pin your highest-voted comment & launch a follow-up story today to capture viral profile visits!'
+                        : 'Growth Tip: Posts that maintain >40% average watch time in the first 3 seconds are 3.2x more likely to cross 10K views. Polish your hooks in Studio.',
+                    style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.35),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              FilledButton.tonalIcon(
+                onPressed: () => context.push('/studio'),
+                icon: const Icon(Icons.movie_creation_outlined, size: 14),
+                label: const Text('Create Follow-Up in Studio', style: TextStyle(fontSize: 11)),
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

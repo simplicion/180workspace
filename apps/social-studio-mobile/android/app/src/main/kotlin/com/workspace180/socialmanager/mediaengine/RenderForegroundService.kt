@@ -60,6 +60,72 @@ class RenderForegroundService : Service() {
             instance?.refresh()
         }
 
+        private const val COMPLETION_CHANNEL_ID = "media_render_complete"
+        private const val NOTIFICATION_ID_COMPLETE = 0x180F
+
+        /** Notifies the creator that a video finished exporting. */
+        fun notifySuccess(context: Context, outputPath: String) {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (Build.VERSION.SDK_INT >= 26) {
+                if (nm.getNotificationChannel(COMPLETION_CHANNEL_ID) == null) {
+                    nm.createNotificationChannel(
+                        NotificationChannel(COMPLETION_CHANNEL_ID, "Video export completions", NotificationManager.IMPORTANCE_HIGH).apply {
+                            description = "Notifications when video rendering finishes"
+                            enableVibration(true)
+                            setShowBadge(true)
+                        }
+                    )
+                }
+            }
+            val builder = if (Build.VERSION.SDK_INT >= 26) {
+                Notification.Builder(context, COMPLETION_CHANNEL_ID)
+            } else {
+                @Suppress("DEPRECATION")
+                Notification.Builder(context)
+            }
+            builder
+                .setSmallIcon(R.drawable.ic_stat_render)
+                .setContentTitle("🎬 Video export complete!")
+                .setContentText("Your video is ready to view, share, or publish.")
+                .setAutoCancel(true)
+                .setOnlyAlertOnce(false)
+            context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { launch ->
+                builder.setContentIntent(PendingIntent.getActivity(context, 1, launch, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+            }
+            nm.notify(NOTIFICATION_ID_COMPLETE, builder.build())
+        }
+
+        /** Notifies the creator that a video export encountered an error. */
+        fun notifyFailure(context: Context, reason: String) {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (Build.VERSION.SDK_INT >= 26) {
+                if (nm.getNotificationChannel(COMPLETION_CHANNEL_ID) == null) {
+                    nm.createNotificationChannel(
+                        NotificationChannel(COMPLETION_CHANNEL_ID, "Video export completions", NotificationManager.IMPORTANCE_HIGH).apply {
+                            description = "Notifications when video rendering finishes"
+                            enableVibration(true)
+                            setShowBadge(true)
+                        }
+                    )
+                }
+            }
+            val builder = if (Build.VERSION.SDK_INT >= 26) {
+                Notification.Builder(context, COMPLETION_CHANNEL_ID)
+            } else {
+                @Suppress("DEPRECATION")
+                Notification.Builder(context)
+            }
+            builder
+                .setSmallIcon(R.drawable.ic_stat_render)
+                .setContentTitle("⚠️ Video export failed")
+                .setContentText(reason.take(120))
+                .setAutoCancel(true)
+            context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { launch ->
+                builder.setContentIntent(PendingIntent.getActivity(context, 2, launch, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+            }
+            nm.notify(NOTIFICATION_ID_COMPLETE, builder.build())
+        }
+
         /** Stops the service once no render is running. */
         fun stop() {
             wanted = false
@@ -137,11 +203,15 @@ class RenderForegroundService : Service() {
         val p = progress
         val percent = p?.let { (it * 100).roundToInt().coerceIn(0, 100) }
         shownPercent = percent ?: -1
-        val title = if (activeJobs > 1) "Exporting $activeJobs videos" else "Exporting video"
+        val title = if (activeJobs > 1) {
+            "Exporting $activeJobs videos" + (percent?.let { " ($it%)" } ?: "")
+        } else {
+            if (percent != null) "Exporting video ($percent%)" else "Exporting video"
+        }
         builder
             .setSmallIcon(R.drawable.ic_stat_render)
             .setContentTitle(title)
-            .setContentText(if (percent == null) "Preparing…" else "$percent%")
+            .setContentText(if (percent == null) "Preparing on-device render…" else "Processing in background… Safe to switch apps.")
             .setProgress(100, percent ?: 0, percent == null)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

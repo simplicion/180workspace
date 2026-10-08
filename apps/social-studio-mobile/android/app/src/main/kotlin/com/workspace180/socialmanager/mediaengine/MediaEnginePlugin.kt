@@ -81,7 +81,16 @@ class MediaEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventC
             if (state == "completed" || state == "failed" || state == "cancelled") {
                 jobs.remove(jobId)
                 jobProgress.remove(jobId)
-                if (jobs.isEmpty()) RenderForegroundService.stop()
+                if (jobs.isEmpty()) {
+                    if (state == "completed") {
+                        val path = event["outputPath"] as? String ?: ""
+                        RenderForegroundService.notifySuccess(context, path)
+                    } else if (state == "failed") {
+                        val err = event["message"] as? String ?: "Video export failed"
+                        RenderForegroundService.notifyFailure(context, err)
+                    }
+                    RenderForegroundService.stop()
+                }
             } else if (jobs.containsKey(jobId)) {
                 jobProgress[jobId] = (event["progress"] as Double?) ?: 0.0
                 val overall = jobs.keys.sumOf { jobProgress[it] ?: 0.0 } / jobs.size

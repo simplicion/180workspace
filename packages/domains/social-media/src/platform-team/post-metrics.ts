@@ -124,6 +124,93 @@ const asObj = (v: unknown): Record<string, any> => (v && typeof v === 'object' &
 const accountPlatforms = (platform: string): string[] => (normalizePlatform(platform) === 'x' ? ['twitter', 'x'] : [platform]);
 const isRealExternalId = (id: unknown) => typeof id === 'string' && !!id && !/^(sim_|container:|fbvideo:|pending)/i.test(id);
 
+export interface MilestoneAchieved {
+    id: string;
+    type: 'views' | 'likes';
+    threshold: number;
+    label: string;
+    achievedAt: string;
+}
+
+export const VIEW_MILESTONES = [
+    { id: 'views_1m', threshold: 1_000_000, label: '1 Million Views' },
+    { id: 'views_500k', threshold: 500_000, label: '500K Views' },
+    { id: 'views_100k', threshold: 100_000, label: '100K Views' },
+    { id: 'views_50k', threshold: 50_000, label: '50K Views' },
+    { id: 'views_20k', threshold: 20_000, label: '20K Views' },
+    { id: 'views_10k', threshold: 10_000, label: '10K Views' },
+    { id: 'views_5k', threshold: 5_000, label: '5K Views' },
+    { id: 'views_1k', threshold: 1_000, label: '1K Views' },
+];
+
+export const LIKE_MILESTONES = [
+    { id: 'likes_10k', threshold: 10_000, label: '10K Likes' },
+    { id: 'likes_5k', threshold: 5_000, label: '5K Likes' },
+    { id: 'likes_1k', threshold: 1_000, label: '1K Likes' },
+    { id: 'likes_500', threshold: 500, label: '500 Likes' },
+];
+
+export async function checkAndRecordMilestones(params: {
+    post: any;
+    variant: any;
+    metrics: PostMetrics;
+    companyId: string;
+    db: any;
+    now: Date;
+}): Promise<MilestoneAchieved[]> {
+    const { post, variant, metrics, companyId, db, now } = params;
+    const meta = asObj(variant.platformMeta);
+    const existing = new Set<string>((meta.milestones || []).map((m: any) => m.id));
+    const newMilestones: MilestoneAchieved[] = [];
+
+    const views = metrics.views ?? 0;
+    for (const m of VIEW_MILESTONES) {
+        if (views >= m.threshold && !existing.has(m.id)) {
+            newMilestones.push({ id: m.id, type: 'views', threshold: m.threshold, label: m.label, achievedAt: now.toISOString() });
+            existing.add(m.id);
+        }
+    }
+
+    const likes = metrics.likes ?? 0;
+    for (const m of LIKE_MILESTONES) {
+        if (likes >= m.threshold && !existing.has(m.id)) {
+            newMilestones.push({ id: m.id, type: 'likes', threshold: m.threshold, label: m.label, achievedAt: now.toISOString() });
+            existing.add(m.id);
+        }
+    }
+
+    if (newMilestones.length === 0) return [];
+
+    const updatedMilestones = [...(meta.milestones || []), ...newMilestones];
+    await db.socialPostVariant.updateMany({
+        where: { id: variant.id, postId: post.id },
+        data: { platformMeta: { ...meta, metrics, milestones: updatedMilestones } },
+    });
+
+    if (db.notification?.create && (post.createdById || post.userId)) {
+        const recipientId = post.createdById || post.userId;
+        for (const m of newMilestones) {
+            const platformName = String(variant.platform).toUpperCase();
+            const postTitle = post.title || post.content?.slice(0, 40) || 'Your video';
+            const advice = m.threshold >= 10_000
+                ? 'Your content is surging in the algorithm! Pin your top comments, reply to active viewers, and post a follow-up reel today to capture this viral wave.'
+                : 'Great momentum! Keep interacting with viewers to boost retention and reach the next milestone.';
+
+            await db.notification.create({
+                data: {
+                    userId: recipientId,
+                    type: 'social_post_milestone',
+                    title: `🚀 Milestone Hit: ${m.label} on ${platformName}!`,
+                    message: `"${postTitle}" just crossed ${m.label}. ${advice}`,
+                    link: post.projectId ? `/social-projects/${post.projectId}?post=${post.id}` : `/social-projects`,
+                },
+            }).catch((e: any) => console.warn('[post-metrics] milestone notification failed:', e?.message));
+        }
+    }
+
+    return newMilestones;
+}
+
 export interface RefreshOutcome {
     checked: number;
     updated: number;
@@ -152,7 +239,7 @@ export async function refreshProjectPostMetrics(
         orderBy: { publishedAt: 'desc' },
         take: Math.min(params.maxPosts ?? 60, 200),
         select: {
-            id: true, socialAccountId: true,
+            id: true, socialAccountId: true, createdById: true, title: true, content: true, projectId: true,
             variants: { select: { id: true, platform: true, externalId: true, publishStatus: true, platformMeta: true, socialAccountId: true } },
         },
     });
@@ -183,6 +270,7 @@ export async function refreshProjectPostMetrics(
                 if (token instanceof Error) throw token;
                 const metrics = await fetchPostMetrics({ platform: v.platform, externalId: v.externalId, token, account, now }, deps.fetchJson);
                 await db.socialPostVariant.updateMany({ where: { id: v.id, postId: post.id }, data: { platformMeta: { ...meta, metrics } } });
+                await checkAndRecordMilestones({ post, variant: v, metrics, companyId, db, now });
                 outcome.updated += 1;
             } catch (err: any) {
                 outcome.failed.push({ postId: post.id, platform: v.platform, reason: String(err?.message || err).slice(0, 240) });

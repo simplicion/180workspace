@@ -200,12 +200,27 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
                 'Rendering happens on this phone. You can switch apps; progress shows in your notifications.',
                 style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
               ),
-              TextButton(
-                onPressed: () async {
-                  await c.cancelExport();
-                  if (context.mounted) Navigator.pop(context);
-                },
-                child: Text('Cancel export'),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      showInfo(context, 'Export running in background. Progress is shown in your status bar notifications.');
+                    },
+                    icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+                    label: const Text('Run in background'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () async {
+                      await c.cancelExport();
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                    child: const Text('Cancel'),
+                  ),
+                ],
               ),
             ] else ...[
               if (_player?.value.isInitialized ?? false)

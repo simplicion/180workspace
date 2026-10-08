@@ -60,6 +60,18 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
   int _polls = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final active = ref.read(activeAutopilotJobProvider(widget.project.id));
+      if (active != null && active.isNotEmpty && _jobId == null) {
+        _follow(active);
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
     _name.dispose();
@@ -172,6 +184,7 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
       text.split(RegExp(r'[\n,]')).map((g) => g.trim()).where((g) => g.isNotEmpty).take(5).toList();
 
   void _follow(String jobId) {
+    ref.read(activeAutopilotJobProvider(widget.project.id).notifier).setActiveJob(jobId);
     setState(() {
       _jobId = jobId;
       _job = null;
@@ -192,12 +205,16 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
         _pollError = null;
       });
       if (job.isDone) {
+        ref.read(activeAutopilotJobProvider(widget.project.id).notifier).clearActiveJob();
         ref.invalidate(calendarsProvider);
         showInfo(context, 'Calendar ready: ${job.totalPieces ?? 0} pieces');
         context.pushReplacement('/planner/${job.calendarId}');
         return;
       }
-      if (job.isFailed) return;
+      if (job.isFailed) {
+        ref.read(activeAutopilotJobProvider(widget.project.id).notifier).clearActiveJob();
+        return;
+      }
     } catch (e) {
       if (!mounted) return;
       // Network blips while following a job are not fatal: show the error and keep trying.
@@ -557,12 +574,21 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
               ),
               SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () => setState(() => _jobId = null),
+                onPressed: () {
+                  ref.read(activeAutopilotJobProvider(widget.project.id).notifier).clearActiveJob();
+                  setState(() => _jobId = null);
+                },
                 icon: Icon(Icons.refresh_rounded),
                 label: Text('Try again'),
               ),
               SizedBox(height: 8),
-              TextButton(onPressed: widget.onUseClassic, child: Text('Use the classic generator')),
+              TextButton(
+                onPressed: () {
+                  ref.read(activeAutopilotJobProvider(widget.project.id).notifier).clearActiveJob();
+                  widget.onUseClassic();
+                },
+                child: Text('Use the classic generator'),
+              ),
             ],
           ),
         ),
@@ -647,7 +673,24 @@ class _AutopilotGeneratorState extends ConsumerState<AutopilotGenerator> {
           ErrorView(error: _pollError!, compact: true, onRetry: _poll),
         ],
         SizedBox(height: 16),
-        TextButton(onPressed: () => context.go('/planner'), child: Text('Back to Planner')),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: () {
+                context.go('/planner');
+                showInfo(context, 'Calendar generation is running in the background. Check your Planner for progress.');
+              },
+              icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+              label: const Text('Run in background'),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () => context.go('/planner'),
+              child: const Text('Back to Planner'),
+            ),
+          ],
+        ),
       ]),
     );
   }

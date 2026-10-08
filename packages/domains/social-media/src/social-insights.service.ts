@@ -86,7 +86,12 @@ export async function getProjectAnalytics(params: { projectId: string; companyId
         db.socialPost.count({ where: { ...scope, status: { in: ['in_review', 'pending_review'] } } }),
         db.socialPost.findMany({
             where: { ...scope, status: 'published', publishedAt: { gte: since, lte: now } },
-            select: { socialAccount: { select: { platform: true } }, variants: { select: { platform: true } } },
+            select: {
+                id: true,
+                title: true,
+                socialAccount: { select: { platform: true } },
+                variants: { select: { id: true, platform: true, externalId: true, platformMeta: true } },
+            },
         }),
         db.clientReviewSession.findMany({
             where: { ...scope, createdAt: { gte: since, lte: now } },
@@ -99,7 +104,7 @@ export async function getProjectAnalytics(params: { projectId: string; companyId
         db.socialInteractionLog?.count ? db.socialInteractionLog.count({ where: { companyId, createdAt: { gte: since, lte: now } } }).catch(() => 0) : Promise.resolve(0),
     ]);
 
-    const analytics: Record<string, number | string> = {
+    const analytics: Record<string, any> = {
         range,
         rangeDays: days,
         postsCreated,
@@ -142,6 +147,34 @@ export async function getProjectAnalytics(params: { projectId: string; companyId
     analytics.inboxConversations = inboxConversations;
     analytics.inboxUnread = inboxUnread;
     analytics.inboxConvertedToLeads = inboxConvertedToLeads;
+
+    // Creator milestones and viral reach tracking
+    const milestones: any[] = [];
+    let topPostViews = 0;
+    let topPostTitle = '';
+    for (const row of publishedRows) {
+        for (const v of (row.variants as any[]) || []) {
+            const meta = v.platformMeta && typeof v.platformMeta === 'object' ? v.platformMeta : {};
+            const mList = Array.isArray(meta.milestones) ? meta.milestones : [];
+            const metrics = meta.metrics && typeof meta.metrics === 'object' ? meta.metrics : {};
+            const views = Number(metrics.views) || 0;
+            if (views > topPostViews) {
+                topPostViews = views;
+                topPostTitle = row.title || 'Published Video';
+            }
+            for (const m of mList) {
+                milestones.push({
+                    postId: row.id,
+                    postTitle: row.title || 'Published Video',
+                    platform: v.platform,
+                    ...m,
+                });
+            }
+        }
+    }
+    analytics.milestones = milestones;
+    analytics.topPostViews = topPostViews;
+    analytics.topPostTitle = topPostTitle;
 
     return analytics;
 }

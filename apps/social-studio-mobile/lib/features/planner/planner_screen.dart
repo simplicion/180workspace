@@ -26,6 +26,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
   Widget build(BuildContext context) {
     final calendars = ref.watch(calendarsProvider);
     final projectId = ref.watch(activeProjectProvider).valueOrNull?.id;
+    final activeJobId = projectId != null ? ref.watch(activeAutopilotJobProvider(projectId)) : null;
+
     return Scaffold(
       appBar: workspaceAppBar(context, ref),
       floatingActionButton: FloatingActionButton.extended(
@@ -35,6 +37,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         label: Text('Generate calendar'),
       ),
       body: Column(children: [
+        if (projectId != null && activeJobId != null)
+          _ActiveAutopilotBanner(projectId: projectId, jobId: activeJobId),
         SizedBox(
           height: 52,
           child: ListView(scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
@@ -145,6 +149,77 @@ class _CalendarCard extends StatelessWidget {
             ),
           ]),
         ]),
+      ),
+    );
+  }
+}
+
+class _ActiveAutopilotBanner extends ConsumerWidget {
+  const _ActiveAutopilotBanner({required this.projectId, required this.jobId});
+  final String projectId;
+  final String jobId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(activeAutopilotJobStatusProvider((projectId: projectId, jobId: jobId)));
+    final job = statusAsync.valueOrNull;
+
+    final progress = job?.progress ?? 0;
+    final stageLabel = job?.stageLabel ?? 'Writing calendar in background…';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accent),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Autonomous Swarm Active ($progress%)',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.accent),
+                ),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                ),
+                onPressed: () => context.push('/planner/new'),
+                child: const Text('View Live'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            stageLabel,
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress > 0 ? progress / 100 : null,
+              minHeight: 4,
+              backgroundColor: AppTheme.accent.withValues(alpha: 0.15),
+              color: AppTheme.accent,
+            ),
+          ),
+        ],
       ),
     );
   }
