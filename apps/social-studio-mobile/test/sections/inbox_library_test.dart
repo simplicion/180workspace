@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:social_studio_mobile/core/widgets/universal_skeleton.dart';
+import 'package:social_studio_mobile/data/models/vault_item.dart';
 import 'package:social_studio_mobile/features/inbox/conversation_screen.dart';
+import 'package:social_studio_mobile/features/library/vault_provider.dart';
 import 'package:social_studio_mobile/features/workspace/project_workspace_screen.dart';
 
 import '../support/app_harness.dart';
@@ -86,30 +88,55 @@ void main() {
   });
 
   group('Library Vault', () {
-    appTest('vault lists seeded folders and categorized notes', (tester) async {
+    appTest('vault is clean and empty when no items or folders are created', (tester) async {
       await pumpApp(tester, seededBackend(), location: '/library');
-      expect(find.text('Viral Reels & Shorts'), findsOneWidget);
-      expect(find.text('High-Converting Hooks'), findsOneWidget);
-      expect(find.text('3-Sec Curiosity Pattern Interrupt'), findsOneWidget);
-      expect(find.text('HOOK'), findsOneWidget);
+      expect(find.text('Vault is empty'), findsOneWidget);
+      expect(find.text('Viral Reels & Shorts'), findsNothing);
+      expect(find.text('High-Converting Hooks'), findsNothing);
+      expect(find.text('B-Roll & Product Takes'), findsNothing);
+      expect(find.text('3-Sec Curiosity Pattern Interrupt'), findsNothing);
+      expect(find.text('Add to Vault'), findsWidgets);
     });
 
     appTest('tapping a folder navigates inside it with breadcrumb', (tester) async {
-      await pumpApp(tester, seededBackend(), location: '/library');
-      await tester.tap(find.text('Viral Reels & Shorts'));
+      final h = await pumpApp(tester, seededBackend(), location: '/library');
+      final folder = await h.container.read(vaultFoldersProvider.notifier).createFolder(name: 'Reels Collection');
+      await h.container.read(vaultItemsProvider.notifier).addItem(
+            folderId: folder.id,
+            name: 'Product Teaser Script',
+            type: VaultItemType.note,
+            noteCategory: VaultNoteCategory.script,
+            noteContent: 'HOOK: High converting teaser',
+          );
+      await settle(tester);
+      expect(find.text('Reels Collection'), findsOneWidget);
+      await tester.tap(find.text('Reels Collection'));
       await settle(tester);
       expect(find.text('Vault Root'), findsOneWidget);
-      expect(find.text('High-Converting Product Teaser Script'), findsOneWidget);
+      expect(find.text('Product Teaser Script'), findsOneWidget);
     });
 
     appTest('filtering by notes shows only notes', (tester) async {
-      await pumpApp(tester, seededBackend(), location: '/library');
-      await tester.tap(find.text('Notes & Hooks'), warnIfMissed: false);
+      final h = await pumpApp(tester, seededBackend(), location: '/library');
+      await h.container.read(vaultItemsProvider.notifier).addItem(
+            name: 'Curiosity Pattern Interrupt',
+            type: VaultItemType.note,
+            noteCategory: VaultNoteCategory.hook,
+            noteContent: 'Stop scrolling...',
+          );
+      await h.container.read(vaultItemsProvider.notifier).addItem(
+            name: 'B-Roll Clip 1',
+            type: VaultItemType.video,
+          );
       await settle(tester);
-      expect(find.text('3-Sec Curiosity Pattern Interrupt'), findsOneWidget);
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      expect(find.text('Curiosity Pattern Interrupt'), findsOneWidget);
+      expect(find.text('B-Roll Clip 1'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Notes & Hooks'));
+      await tester.tap(find.text('Notes & Hooks'));
       await settle(tester);
-      expect(find.text('High-Converting Product Teaser Script'), findsOneWidget);
+      expect(find.text('Curiosity Pattern Interrupt'), findsOneWidget);
+      expect(find.text('B-Roll Clip 1'), findsNothing);
     });
 
     appTest('copying a note copies its content', (tester) async {
@@ -120,11 +147,18 @@ void main() {
         }
         return null;
       });
-      await pumpApp(tester, seededBackend(), location: '/library');
+      final h = await pumpApp(tester, seededBackend(), location: '/library');
+      await h.container.read(vaultItemsProvider.notifier).addItem(
+            name: 'Viral Hook Note',
+            type: VaultItemType.note,
+            noteCategory: VaultNoteCategory.hook,
+            noteContent: 'High converting copy hook',
+          );
+      await settle(tester);
       expect(find.byTooltip('Copy Note Content'), findsWidgets);
       await tester.tap(find.byTooltip('Copy Note Content').first, warnIfMissed: false);
       await settle(tester);
-      expect(copiedText, isNotEmpty);
+      expect(copiedText, 'High converting copy hook');
     });
   });
 }

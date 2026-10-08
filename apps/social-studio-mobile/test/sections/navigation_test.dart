@@ -104,4 +104,55 @@ void main() {
     expect(find.textContaining('Unknown section'), findsOneWidget);
   });
 
+  appTest('bottom navigation displays dynamic unread notification badge on Inbox icon', (tester) async {
+    final b = seededBackend();
+    b.json('GET', '$sm/projects/:id/dashboard', {
+      'success': true,
+      'dashboard': {
+        'metrics': {
+          'postsScheduledThisWeek': 2,
+          'postsAwaitingApproval': 3,
+          'editingTasksInProgress': 0,
+          'postsPublishedThisMonth': 4,
+          'overdueTasks': 0,
+          'publishingFailures': 0,
+          'unreadInboxCount': 26,
+        },
+        'attentionItems': [
+          {
+            'id': 'unread-convs',
+            'type': 'unread_inbox',
+            'title': '26 Unread Social Inquiries',
+            'description': 'Comments or messages awaiting community team response.',
+            'priority': 'medium',
+            'actionLink': '/social-projects/p1?tab=inbox'
+          }
+        ],
+        'upcomingContent': [],
+      },
+    });
+
+    await pumpApp(tester, b);
+    expect(find.byType(StudioDashboardScreen), findsOneWidget);
+
+    // Verify '26' badge on Inbox destination in bottom navigation bar
+    final navBar = find.byType(NavigationBar);
+    final inboxBadge = find.descendant(of: navBar, matching: find.text('26'));
+    expect(inboxBadge, findsOneWidget);
+
+    // Verify '3' badge on Planner destination for pending approvals
+    final plannerBadge = find.descendant(of: navBar, matching: find.text('3'));
+    expect(plannerBadge, findsOneWidget);
+
+    // Tapping the Inbox destination with badge navigates to Inbox
+    b.json('GET', '$sm/inbox/conversations', {'success': true, 'conversations': []});
+    await tester.tap(find.descendant(of: navBar, matching: find.text('Inbox')));
+    await settle(tester);
+    expect(find.byType(InboxScreen), findsOneWidget);
+
+    // In InboxScreen, filter chip also highlights the unread count '26'
+    await tester.drag(find.byType(ListView).first, const Offset(-100, 0));
+    await settle(tester);
+    expect(find.text('Unread (26)'), findsOneWidget);
+  });
 }

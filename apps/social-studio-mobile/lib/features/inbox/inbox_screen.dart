@@ -68,11 +68,42 @@ class _ConversationListState extends ConsumerState<ConversationList> {
   bool _unread = false;
   String _search = '';
   final _searchCtl = TextEditingController();
+  bool _syncing = false;
 
   @override
   void dispose() {
     _searchCtl.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSync({bool includeSample = false}) async {
+    if (_syncing) return;
+    setState(() => _syncing = true);
+    final f = InboxFilter(projectId: widget.projectId, platform: _platform?.id, unreadOnly: _unread, search: _search);
+    try {
+      final res = await ref.read(socialApiProvider).syncInbox(
+            projectId: widget.projectId,
+            platform: _platform?.id,
+            includeSample: includeSample,
+          );
+      ref.invalidate(conversationsProvider(f));
+      if (widget.projectId != null) {
+        ref.invalidate(projectDashboardProvider(widget.projectId!));
+      }
+      if (mounted) {
+        if (res.synced > 0) {
+          showSuccess(context, 'Synced ${res.synced} message${res.synced == 1 ? '' : 's'} from connected accounts');
+        } else {
+          showInfo(context, 'Inbox is up to date');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        showError(context, e);
+      }
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
   }
 
   void _openAiReplyAllModal(BuildContext context, InboxFilter f) {
@@ -84,7 +115,12 @@ class _ConversationListState extends ConsumerState<ConversationList> {
       builder: (_) => _AiReplyAllModal(
         projectId: widget.projectId,
         platform: _platform?.id,
-        onSuccess: () => ref.invalidate(conversationsProvider(f)),
+        onSuccess: () {
+          ref.invalidate(conversationsProvider(f));
+          if (widget.projectId != null) {
+            ref.invalidate(projectDashboardProvider(widget.projectId!));
+          }
+        },
       ),
     );
   }
@@ -93,6 +129,7 @@ class _ConversationListState extends ConsumerState<ConversationList> {
   Widget build(BuildContext context) {
     final f = InboxFilter(projectId: widget.projectId, platform: _platform?.id, unreadOnly: _unread, search: _search);
     final list = ref.watch(conversationsProvider(f));
+    final unreadCount = ref.watch(unreadInboxCountProvider);
     return Column(children: [
       Padding(
         padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -108,13 +145,26 @@ class _ConversationListState extends ConsumerState<ConversationList> {
         height: 52,
         child: ListView(scrollDirection: Axis.horizontal, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
           ActionChip(
+            avatar: _syncing
+                ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accent))
+                : Icon(Icons.sync_rounded, size: 16, color: AppTheme.accent),
+            label: Text(_syncing ? 'Syncing...' : 'Sync inbox'),
+            tooltip: 'Pull recent DMs and comments from connected accounts',
+            onPressed: _syncing ? null : () => _handleSync(),
+          ),
+          SizedBox(width: 8),
+          ActionChip(
             avatar: Icon(Icons.smart_toy_outlined, size: 16, color: AppTheme.accent),
             label: Text('AI auto-reply'),
             tooltip: 'AI auto-reply settings',
             onPressed: () => showAiInboxSettings(context, projectId: widget.projectId),
           ),
           SizedBox(width: 8),
-          FilterChip(label: Text('Unread'), selected: _unread, onSelected: (v) => setState(() => _unread = v)),
+          FilterChip(
+            label: Text(unreadCount > 0 ? 'Unread ($unreadCount)' : 'Unread'),
+            selected: _unread,
+            onSelected: (v) => setState(() => _unread = v),
+          ),
           SizedBox(width: 8),
           ChoiceChip(label: Text('All channels'), selected: _platform == null, onSelected: (_) => setState(() => _platform = null)),
           for (final p in SocialPlatform.connectable)
@@ -152,9 +202,32 @@ class _ConversationListState extends ConsumerState<ConversationList> {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('AI Reply All',
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 2,
+                      children: [
+                        const Text(
+                          'AI Reply All',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        if (unreadCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppTheme.error.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppTheme.error.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              '$unreadCount awaiting',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.error),
+                            ),
+                          ),
+                      ],
+                    ),
                     Text(
                       'Reply to open messages in your brand voice',
                       maxLines: 1,
@@ -193,7 +266,10 @@ class _ConversationListState extends ConsumerState<ConversationList> {
             onAction: widget.projectId == null ? null : () => context.push('/projects/${widget.projectId}/accounts'),
           ),
           builder: (items) => RefreshIndicator(
-            onRefresh: () async => ref.invalidate(conversationsProvider(f)),
+            onRefresh: () async {
+              await _handleSync();
+              ref.invalidate(conversationsProvider(f));
+            },
             child: ListView.separated(
               padding: EdgeInsets.fromLTRB(8, 0, 8, 96),
               itemCount: items.length,

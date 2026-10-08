@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../projects/project_provider.dart';
 
 /// Bottom navigation: Home (active project), Planner (AI calendars), Inbox, Library, Studio.
 class AppShell extends ConsumerWidget {
@@ -19,6 +20,32 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final unreadInbox = ref.watch(unreadInboxCountProvider);
+    final pendingApprovals = ref.watch(pendingApprovalsCountProvider);
+
+    int getBadgeCount(String label) {
+      if (label == 'Inbox') return unreadInbox;
+      if (label == 'Planner') return pendingApprovals;
+      return 0;
+    }
+
+    Color getBadgeColor(String label) {
+      if (label == 'Inbox') return AppTheme.error;
+      if (label == 'Planner') return AppTheme.warning;
+      return AppTheme.primary;
+    }
+
+    Widget buildNavIcon(IconData icon, Color color, int count, Color badgeColor) {
+      final baseIcon = Icon(icon, color: color);
+      if (count <= 0) return baseIcon;
+      return Badge.count(
+        count: count,
+        backgroundColor: badgeColor,
+        textColor: Colors.white,
+        child: baseIcon,
+      );
+    }
+
     return Scaffold(
       body: shell,
       bottomNavigationBar: Container(
@@ -34,8 +61,18 @@ class AppShell extends ConsumerWidget {
           destinations: [
             for (final (icon, label) in _destinations)
               NavigationDestination(
-                icon: Icon(icon, color: AppTheme.textSecondary),
-                selectedIcon: Icon(icon, color: AppTheme.primary),
+                icon: buildNavIcon(
+                  icon,
+                  AppTheme.textSecondary,
+                  getBadgeCount(label),
+                  getBadgeColor(label),
+                ),
+                selectedIcon: buildNavIcon(
+                  icon,
+                  AppTheme.primary,
+                  getBadgeCount(label),
+                  getBadgeColor(label),
+                ),
                 label: label,
               ),
           ],

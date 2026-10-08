@@ -65,11 +65,12 @@ export class SocialBillingService {
         const activeSub = await prisma.subscription.findFirst({
             where: {
                 companyId: targetCompanyId,
-                status: 'active',
+                status: { in: ['active', 'ACTIVE'] },
             },
             include: { plan: true },
             orderBy: { createdAt: 'desc' }
         });
+
 
         let hasActiveSubscription = false;
         let hasActivePass = false;

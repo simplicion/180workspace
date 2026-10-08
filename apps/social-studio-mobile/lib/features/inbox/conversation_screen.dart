@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/universal_skeleton.dart';
 import '../../data/models/inbox.dart';
+import '../projects/project_provider.dart';
 import 'inbox_screen.dart';
 
 /// One conversation: thread, reply box, brand-voice AI suggestions, convert to lead.
@@ -51,6 +52,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       });
       ref.invalidate(conversationProvider(widget.conversationId));
       ref.invalidate(conversationsProvider);
+      final pId = ref.read(activeProjectIdProvider);
+      if (pId != null) {
+        ref.invalidate(projectDashboardProvider(pId));
+      }
     }
   }
 

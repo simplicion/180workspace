@@ -700,6 +700,31 @@ class SocialApi {
   Future<Json> convertToLead(String conversationId) =>
       _api.post('$base/inbox/conversations/$conversationId/convert-to-lead');
 
+  Future<({int synced, int accountsChecked, List<String> notes})> syncInbox({
+    String? projectId,
+    String? platform,
+    bool includeSample = false,
+  }) async {
+    final r = await _api.post('$base/inbox/sync', body: compact({
+      'projectId': projectId,
+      'platform': platform,
+      if (includeSample) 'includeSample': true,
+    }));
+    return (
+      synced: jInt(r['synced']) ?? 0,
+      accountsChecked: jInt(r['accountsChecked']) ?? 0,
+      notes: (r['notes'] is List) ? (r['notes'] as List).map((e) => e.toString()).toList() : <String>[],
+    );
+  }
+
+  Future<Json> seedTestConversation({String? projectId, String? socialAccountId}) async {
+    final r = await _api.post('$base/inbox/test-conversation', body: compact({
+      'projectId': projectId,
+      'socialAccountId': socialAccountId,
+    }));
+    return jMap(r);
+  }
+
   // ── AI Reply All & Autonomous Agent ──────────────────────────────────────────
 
   Future<List<BatchAiReplySuggestion>> getAiReplyAllSuggestions({

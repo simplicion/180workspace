@@ -531,18 +531,19 @@ class LibraryScreen extends ConsumerWidget {
             ],
 
             // ── Items Section ──
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                child: SectionHeader(
-                  activeFolderId != null ? 'Folder Files & Notes' : 'Files, Media & Notes',
-                  trailing: Text(
-                    '${items.length} item${items.length > 1 ? 's' : ''}',
-                    style: Theme.of(context).textTheme.labelSmall,
+            if (items.isNotEmpty || folders.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                  child: SectionHeader(
+                    activeFolderId != null ? 'Folder Files & Notes' : 'Files, Media & Notes',
+                    trailing: Text(
+                      '${items.length} item${items.length > 1 ? 's' : ''}',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
                   ),
                 ),
               ),
-            ),
 
             if (items.isEmpty && folders.isEmpty)
               SliverFillRemaining(

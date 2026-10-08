@@ -25,19 +25,18 @@ class ProjectSection {
 
   static const all = [
     ProjectSection('content', 'Content', Icons.view_list_rounded),
-    ProjectSection('publishing', 'Publishing', Icons.send_rounded),
     ProjectSection('engagement', 'Engagement', Icons.bolt_rounded),
     ProjectSection('analytics', 'Analytics', Icons.insights_rounded),
-    ProjectSection('brand', 'Identity', Icons.badge_rounded),
-    ProjectSection('accounts', 'Channels', Icons.hub_rounded),
     ProjectSection('evergreen', 'Evergreen queue', Icons.autorenew_rounded),
   ];
 
   static ProjectSection? byTab(String tab) =>
       all.where((s) => s.tab == tab).firstOrNull ??
       switch (tab) {
-        'calendar' => const ProjectSection('calendar', 'Calendar', Icons.calendar_month_rounded),
+        'publishing' => const ProjectSection('publishing', 'Publishing', Icons.send_rounded),
         'brand' => const ProjectSection('brand', 'Identity', Icons.badge_rounded),
+        'accounts' => const ProjectSection('accounts', 'Channels', Icons.hub_rounded),
+        'calendar' => const ProjectSection('calendar', 'Calendar', Icons.calendar_month_rounded),
         'settings' => const ProjectSection('settings', 'Project settings', Icons.tune_rounded),
         'inbox' => const ProjectSection('inbox', 'Inbox', Icons.forum_rounded),
         _ => null,
@@ -46,14 +45,36 @@ class ProjectSection {
 
 /// Standard workspace app bar: project switcher, sync badge, account profile & channels sheet.
 PreferredSizeWidget workspaceAppBar(BuildContext context, WidgetRef ref, {List<Widget> actions = const []}) {
+  final pendingApprovals = ref.watch(pendingApprovalsCountProvider);
   return AppBar(
     titleSpacing: 16,
     title: ProjectSwitcher(),
     actions: [
       ...actions,
       IconButton(
+        icon: pendingApprovals > 0
+            ? Badge.count(
+                count: pendingApprovals,
+                backgroundColor: AppTheme.warning,
+                textColor: Colors.white,
+                child: Icon(Icons.send_rounded, color: AppTheme.accent),
+              )
+            : Icon(Icons.send_rounded, color: AppTheme.accent),
+        tooltip: pendingApprovals > 0 ? 'Publishing ($pendingApprovals pending)' : 'Publishing',
+        visualDensity: VisualDensity.compact,
+        onPressed: () {
+          final p = ref.read(activeProjectProvider).valueOrNull;
+          if (p != null) {
+            context.push('/projects/${p.id}/publishing');
+          } else {
+            context.push('/planner');
+          }
+        },
+      ),
+      IconButton(
         icon: Icon(Icons.auto_awesome_rounded, color: AppTheme.accent),
         tooltip: '180 Manager AI',
+        visualDensity: VisualDensity.compact,
         onPressed: () {
           final p = ref.read(activeProjectProvider).valueOrNull;
           show180ManagerCopilot(context, projectId: p?.id);
@@ -62,15 +83,17 @@ PreferredSizeWidget workspaceAppBar(BuildContext context, WidgetRef ref, {List<W
       IconButton(
         icon: Icon(Icons.radar_rounded, color: AppTheme.accent),
         tooltip: 'Command Center',
+        visualDensity: VisualDensity.compact,
         onPressed: () => context.push('/command-center'),
       ),
       SyncIndicator(),
       IconButton(
         icon: Icon(Icons.account_circle_rounded, color: AppTheme.textSecondary),
         tooltip: 'Profile & Accounts',
+        visualDensity: VisualDensity.compact,
         onPressed: () => showProfileAndAccountsSheet(context, ref),
       ),
-      SizedBox(width: 4),
+      const SizedBox(width: 4),
     ],
   );
 }
@@ -373,7 +396,18 @@ void showProfileAndAccountsSheet(BuildContext context, WidgetRef ref) {
                   Divider(color: AppTheme.border, height: 1),
                   const SizedBox(height: 10),
 
-                  // The 4 Core Navigation Options
+                  // Core Navigation Options
+                  _ProfileSheetTile(
+                    icon: Icons.forum_rounded,
+                    iconColor: AppTheme.primary,
+                    title: 'Social Inbox',
+                    subtitle: 'Direct messages & comments for ${project?.name ?? 'connected accounts'}',
+                    badgeCount: sheetRef.watch(unreadInboxCountProvider),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/inbox');
+                    },
+                  ),
                   _ProfileSheetTile(
                     icon: Icons.radar_rounded,
                     iconColor: AppTheme.accent,
@@ -384,6 +418,28 @@ void showProfileAndAccountsSheet(BuildContext context, WidgetRef ref) {
                       context.push('/command-center');
                     },
                   ),
+                  if (project != null) ...[
+                    _ProfileSheetTile(
+                      icon: Icons.hub_rounded,
+                      iconColor: AppTheme.primary,
+                      title: 'Channels',
+                      subtitle: 'Connected social platforms & accounts for ${project.name}',
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        context.push('/projects/${project.id}/accounts');
+                      },
+                    ),
+                    _ProfileSheetTile(
+                      icon: Icons.badge_rounded,
+                      iconColor: AppTheme.accentBlue,
+                      title: 'Identity',
+                      subtitle: 'Brand voice, tone & identity guidelines for ${project.name}',
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        context.push('/projects/${project.id}/brand');
+                      },
+                    ),
+                  ],
                   _ProfileSheetTile(
                     icon: Icons.folder_special_rounded,
                     iconColor: AppTheme.accentBlue,
@@ -450,6 +506,7 @@ class _ProfileSheetTile extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.titleColor,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
@@ -458,6 +515,7 @@ class _ProfileSheetTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
   final Color? titleColor;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -465,15 +523,30 @@ class _ProfileSheetTile extends StatelessWidget {
       color: Colors.transparent,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        leading: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
+        leading: badgeCount > 0
+            ? Badge.count(
+                count: badgeCount,
+                backgroundColor: AppTheme.error,
+                textColor: Colors.white,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
+              )
+            : Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
         title: Text(
           title,
           style: TextStyle(
@@ -486,7 +559,25 @@ class _ProfileSheetTile extends StatelessWidget {
           subtitle,
           style: TextStyle(fontSize: 11.5, color: AppTheme.textSecondary),
         ),
-        trailing: Icon(Icons.chevron_right_rounded, size: 20, color: AppTheme.textMuted),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (badgeCount > 0)
+              Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.error,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badgeCount > 99 ? '99+' : '$badgeCount',
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+            Icon(Icons.chevron_right_rounded, size: 20, color: AppTheme.textMuted),
+          ],
+        ),
         onTap: onTap,
       ),
     );
@@ -550,26 +641,31 @@ class _Overview extends ConsumerWidget {
           _Header(project: project),
           SectionHeader('Workspace'),
           GridView.count(
-            crossAxisCount: 3,
+            crossAxisCount: 4,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.1,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 0.88,
             children: [
               for (final s in ProjectSection.all)
                 SectionCard(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                   onTap: () => context.push('/projects/${project.id}/${s.tab}'),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(s.icon, color: AppTheme.primary),
-                    const SizedBox(height: 6),
-                    Text(s.label,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(s.icon, color: AppTheme.primary, size: 20),
+                      const SizedBox(height: 6),
+                      Text(
+                        s.label,
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1.15)),
-                  ]),
+                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, height: 1.15),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),

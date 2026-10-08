@@ -89,6 +89,8 @@ void main() {
     final h = await pumpApp(tester, b);
     await tester.tap(find.byIcon(Icons.account_circle_rounded));
     await settle(tester);
+    await tester.drag(find.byType(SingleChildScrollView).last, const Offset(0, -200));
+    await settle(tester);
     await tester.tap(find.text('Sign out').last);
     await settle(tester);
     await tester.tap(find.widgetWithText(TextButton, 'Sign out'));

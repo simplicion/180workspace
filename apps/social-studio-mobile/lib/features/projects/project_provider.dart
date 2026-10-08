@@ -103,3 +103,27 @@ extension WidgetRefInvalidate on WidgetRef {
     invalidate(allProjectsProvider);
   }
 }
+
+/// Reactive unread social inbox inquiries count for the active project.
+final unreadInboxCountProvider = Provider<int>((ref) {
+  final project = ref.watch(activeProjectProvider).valueOrNull;
+  if (project == null) return 0;
+  final dashboard = ref.watch(projectDashboardProvider(project.id)).valueOrNull;
+  return dashboard?.metric('unreadInboxCount') ?? 0;
+});
+
+/// Reactive pending review & approvals count for the active project.
+final pendingApprovalsCountProvider = Provider<int>((ref) {
+  final project = ref.watch(activeProjectProvider).valueOrNull;
+  if (project == null) return 0;
+  final dashboard = ref.watch(projectDashboardProvider(project.id)).valueOrNull;
+  return dashboard?.metric('postsAwaitingApproval') ?? 0;
+});
+
+/// Total number of high/medium attention items requiring action for the active project.
+final actionRequiredCountProvider = Provider<int>((ref) {
+  final project = ref.watch(activeProjectProvider).valueOrNull;
+  if (project == null) return 0;
+  final dashboard = ref.watch(projectDashboardProvider(project.id)).valueOrNull;
+  return dashboard?.attentionItems.length ?? 0;
+});

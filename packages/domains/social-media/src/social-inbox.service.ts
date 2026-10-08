@@ -16,15 +16,29 @@ export interface IngestMessageDTO {
 }
 
 export class SocialInboxService {
-    static async listConversations(filters?: { projectId?: string; platform?: string; isRead?: boolean; search?: string }) {
-        const companyId = requestContext.getStore()?.companyId as string;
+    static async listConversations(filters?: { companyId?: string; projectId?: string; platform?: string; isRead?: boolean; search?: string }) {
+        const companyId = filters?.companyId || (requestContext.getStore()?.companyId as string);
         if (!companyId) throw new Error('Company context required');
 
         const db = getDb();
         const whereClause: any = { companyId };
-        if (filters?.projectId) whereClause.projectId = filters.projectId;
+        if (filters?.projectId) {
+            whereClause.OR = [{ projectId: filters.projectId }, { projectId: null }];
+        }
         if (filters?.platform) whereClause.platform = filters.platform;
         if (filters?.isRead !== undefined) whereClause.isRead = filters.isRead;
+        if (filters?.search && filters.search.trim()) {
+            const query = filters.search.trim();
+            whereClause.AND = [
+                {
+                    OR: [
+                        { participantName: { contains: query, mode: 'insensitive' } },
+                        { participantHandle: { contains: query, mode: 'insensitive' } },
+                        { lastMessageSnippet: { contains: query, mode: 'insensitive' } },
+                    ],
+                },
+            ];
+        }
 
         const conversations = await db.socialConversation.findMany({
             where: whereClause,
@@ -224,8 +238,9 @@ Return ONLY JSON: [{"tone": "short tone label", "text": "reply"}]`;
      * Active sync of conversations from connected platform accounts (Instagram Graph API, etc.)
      * Pulls recent DMs and media comments, ingesting them as SocialConversation and SocialMessage records.
      */
-    static async syncConversations(params: { companyId: string; projectId?: string; platform?: string }) {
-        const { companyId, projectId, platform } = params;
+    static async syncConversations(params: { companyId: string; projectId?: string; platform?: string; includeSample?: boolean }) {
+
+        const { companyId, projectId, platform, includeSample } = params;
         if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
 
         const db = getDb();
@@ -234,7 +249,9 @@ Return ONLY JSON: [{"tone": "short tone label", "text": "reply"}]`;
         const { providerFetch, readBody } = require('./publishing/http');
 
         const where: any = { companyId, isActive: true };
-        if (projectId) where.projectId = projectId;
+        if (projectId) {
+            where.OR = [{ projectId }, { projectId: null }];
+        }
         if (platform) where.platform = platform;
 
         const accounts = await db.socialAccount.findMany({ where });
@@ -244,6 +261,8 @@ Return ONLY JSON: [{"tone": "short tone label", "text": "reply"}]`;
         for (const acc of accounts) {
             const plat = String(acc.platform).toLowerCase();
             if (plat !== 'instagram') continue;
+
+            const targetProjectId = acc.projectId || projectId || undefined;
 
             let token: string;
             try {
@@ -256,10 +275,10 @@ Return ONLY JSON: [{"tone": "short tone label", "text": "reply"}]`;
             const igUserId = acc.platformAccountId;
             if (!igUserId) continue;
 
-            // 1. Fetch Instagram Direct Conversations
+            // 1. Fetch Instagram Direct Conversations & Message Thread History
             try {
                 const convUrl = metaGraphUrl(
-                    `${encodeURIComponent(igUserId)}/conversations?platform=instagram&fields=id,updated_time,participants,messages{id,created_time,from,message,to}&limit=15`,
+                    `${encodeURIComponent(igUserId)}/conversations?platform=instagram&fields=id,updated_time,participants,messages{id,created_time,from,message,to}&limit=20`,
                     token,
                     'instagram'
                 );
@@ -279,20 +298,77 @@ Return ONLY JSON: [{"tone": "short tone label", "text": "reply"}]`;
 
                         const msgs = Array.isArray(thread.messages?.data) ? thread.messages.data : [];
                         const latest = msgs[0];
-                        const text = latest?.message || '[Direct Message]';
+                        const snippet = latest?.message || (latest?.from?.id === igUserId ? '[Sent attachment]' : '[Direct Message]');
+                        const lastTime = thread.updated_time ? new Date(thread.updated_time) : (latest?.created_time ? new Date(latest.created_time) : new Date());
 
-                        await SocialInboxService.ingestMessage({
-                            companyId,
-                            projectId: acc.projectId || undefined,
-                            socialAccountId: acc.id,
-                            platform: 'instagram',
-                            platformThreadId: threadId,
-                            participantName,
-                            participantHandle,
-                            messageContent: text,
-                            platformMessageId: latest?.id ? String(latest.id) : undefined,
+                        const conversation = await db.socialConversation.upsert({
+                            where: {
+                                companyId_platform_platformThreadId: {
+                                    companyId,
+                                    platform: 'instagram',
+                                    platformThreadId: threadId,
+                                },
+                            },
+                            update: {
+                                lastMessageSnippet: snippet.substring(0, 120),
+                                lastMessageAt: lastTime,
+                                ...(participantName ? { participantName } : {}),
+                                ...(participantHandle ? { participantHandle } : {}),
+                                ...(targetProjectId ? { projectId: targetProjectId } : {}),
+                            },
+                            create: {
+                                companyId,
+                                projectId: targetProjectId ?? null,
+                                socialAccountId: acc.id,
+                                platform: 'instagram',
+                                platformThreadId: threadId,
+                                participantName: participantName || participantHandle || 'Participant',
+                                participantHandle: participantHandle || 'anonymous',
+                                lastMessageSnippet: snippet.substring(0, 120),
+                                lastMessageAt: lastTime,
+                                isRead: false,
+                            },
                         });
+
+                        // Ingest messages chronologically in batch
+                        const chronological = [...msgs].reverse();
+                        const pmids = chronological.map((m: any) => String(m.id || '')).filter(Boolean);
+                        let existingSet = new Set<string>();
+                        if (pmids.length > 0) {
+                            const existing = await db.socialMessage.findMany({
+                                where: { conversationId: conversation.id, platformMessageId: { in: pmids } },
+                                select: { platformMessageId: true },
+                            });
+                            existingSet = new Set(existing.map((e: any) => e.platformMessageId).filter(Boolean) as string[]);
+                        }
+
+                        const newMessages = [];
+                        for (const m of chronological) {
+                            const pmid = String(m.id || '');
+                            if (!pmid || existingSet.has(pmid)) continue;
+
+                            const isFromMe = String(m.from?.id) === igUserId;
+                            const senderType = isFromMe ? 'agent' : 'participant';
+                            const content = m.message || (isFromMe ? '[Sent attachment]' : '[Received message]');
+                            const createdAt = m.created_time ? new Date(m.created_time) : new Date();
+
+                            newMessages.push({
+                                conversationId: conversation.id,
+                                senderType,
+                                content,
+                                platformMessageId: pmid,
+                                createdAt,
+                            });
+                        }
+
+                        if (newMessages.length > 0) {
+                            await db.socialMessage.createMany({
+                                data: newMessages,
+                                skipDuplicates: true,
+                            });
+                        }
                         syncedCount++;
+
                     }
                 } else if (body?.error) {
                     notes.push(`Instagram DMs: ${body.error.message || 'error'}`);
@@ -324,17 +400,44 @@ Return ONLY JSON: [{"tone": "short tone label", "text": "reply"}]`;
                             const fromHandle = c.from?.username || c.username || 'anonymous';
                             const text = c.text || '';
                             if (!text) continue;
+                            const commentTime = c.timestamp ? new Date(c.timestamp) : new Date();
 
-                            await SocialInboxService.ingestMessage({
-                                companyId,
-                                projectId: acc.projectId || undefined,
-                                socialAccountId: acc.id,
-                                platform: 'instagram',
-                                platformThreadId: `comment:${cid}`,
-                                participantName: fromUser,
-                                participantHandle: fromHandle,
-                                messageContent: text,
-                                platformMessageId: cid,
+                            const conv = await db.socialConversation.upsert({
+                                where: {
+                                    companyId_platform_platformThreadId: {
+                                        companyId,
+                                        platform: 'instagram',
+                                        platformThreadId: `comment:${cid}`,
+                                    },
+                                },
+                                update: {
+                                    lastMessageSnippet: text.substring(0, 120),
+                                    lastMessageAt: commentTime,
+                                    ...(targetProjectId ? { projectId: targetProjectId } : {}),
+                                },
+                                create: {
+                                    companyId,
+                                    projectId: targetProjectId ?? null,
+                                    socialAccountId: acc.id,
+                                    platform: 'instagram',
+                                    platformThreadId: `comment:${cid}`,
+                                    participantName: fromUser,
+                                    participantHandle: fromHandle,
+                                    lastMessageSnippet: text.substring(0, 120),
+                                    lastMessageAt: commentTime,
+                                    isRead: false,
+                                },
+                            });
+
+                            await db.socialMessage.createMany({
+                                data: [{
+                                    conversationId: conv.id,
+                                    senderType: 'participant',
+                                    content: text,
+                                    platformMessageId: cid,
+                                    createdAt: commentTime,
+                                }],
+                                skipDuplicates: true,
                             });
                             syncedCount++;
                         }
@@ -342,10 +445,17 @@ Return ONLY JSON: [{"tone": "short tone label", "text": "reply"}]`;
                 } else if (body?.error) {
                     notes.push(`Instagram Comments: ${body.error.message || 'error'}`);
                 }
+
             } catch (err: any) {
                 console.warn('[SocialInboxSync] Media comments fetch failed:', err?.message);
                 notes.push(`Instagram comments sync: ${err?.message}`);
             }
+        }
+
+        if (syncedCount === 0 && includeSample && accounts.length > 0) {
+            await SocialInboxService.seedTestConversation(companyId, projectId, accounts[0].id);
+            syncedCount++;
+            notes.push('Sample conversation seeded for verification.');
         }
 
         return {
@@ -358,20 +468,25 @@ Return ONLY JSON: [{"tone": "short tone label", "text": "reply"}]`;
     /**
      * Seeds a realistic incoming test conversation for local verification.
      */
-    static async seedTestConversation(companyId: string, projectId: string | null, socialAccountId?: string) {
+    static async seedTestConversation(companyId: string, projectId?: string | null, socialAccountId?: string) {
         const db = getDb();
         const account = socialAccountId
             ? await db.socialAccount.findFirst({ where: { id: socialAccountId, companyId } })
-            : await db.socialAccount.findFirst({ where: { companyId, platform: 'instagram', isActive: true } });
+            : await db.socialAccount.findFirst({ where: { companyId, platform: 'instagram', isActive: true } })
+              || await db.socialAccount.findFirst({ where: { companyId, isActive: true } });
 
-        const sid = account?.id || null;
-        const pid = projectId || account?.projectId || null;
+        if (!account) {
+            throw new SocialDomainError('ACCOUNT_NOT_FOUND', 404, 'No active social account found to connect test conversation to.');
+        }
+
+        const sid = account.id;
+        const pid = projectId || account.projectId || undefined;
 
         return SocialInboxService.ingestMessage({
             companyId,
-            projectId: pid || undefined,
-            socialAccountId: sid || 'demo-ig',
-            platform: 'instagram',
+            projectId: pid,
+            socialAccountId: sid,
+            platform: (account.platform as any) || 'instagram',
             platformThreadId: `test_${Date.now()}`,
             participantName: 'Alex Rivera',
             participantHandle: 'alex.rivera.brand',

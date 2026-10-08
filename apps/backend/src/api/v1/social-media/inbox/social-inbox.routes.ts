@@ -16,8 +16,10 @@ function getCompanyId(req: Request): string {
 // List conversations
 router.get('/conversations', async (req: Request, res: Response) => {
     try {
+        const companyId = getCompanyId(req);
         const { projectId, platform, isRead, search } = req.query;
         const conversations = await SocialInboxService.listConversations({
+            companyId,
             projectId: projectId as string,
             platform: platform as string,
             isRead: isRead !== undefined ? isRead === 'true' : undefined,
@@ -175,6 +177,45 @@ router.put('/ai-settings/bulk', async (req: Request, res: Response) => {
 router.put('/ai-settings/accounts/:id', async (req: Request, res: Response) => {
     try {
         res.json({ success: true, account: await AiInboxService.setAccountMode(getCompanyId(req), String(req.params.id), req.body || {}) });
+    } catch (error: any) {
+        sendRouteError(res, error, 'inbox');
+    }
+});
+
+/**
+ * POST /api/v1/social-media/inbox/sync
+ * Actively pulls DMs and comments from connected platforms (Meta Graph API)
+ */
+router.post('/sync', async (req: Request, res: Response) => {
+    try {
+        const companyId = getCompanyId(req);
+        const { projectId, platform, includeSample } = req.body || {};
+        const result = await SocialInboxService.syncConversations({
+            companyId,
+            projectId: projectId ? String(projectId) : undefined,
+            platform: platform ? String(platform) : undefined,
+            includeSample: Boolean(includeSample),
+        });
+        res.json({ success: true, ...result });
+    } catch (error: any) {
+        sendRouteError(res, error, 'inbox');
+    }
+});
+
+/**
+ * POST /api/v1/social-media/inbox/test-conversation
+ * Seeds a test inbound conversation for verifying inbox UI locally
+ */
+router.post('/test-conversation', async (req: Request, res: Response) => {
+    try {
+        const companyId = getCompanyId(req);
+        const { projectId, socialAccountId } = req.body || {};
+        const result = await SocialInboxService.seedTestConversation(
+            companyId,
+            projectId ? String(projectId) : undefined,
+            socialAccountId ? String(socialAccountId) : undefined
+        );
+        res.json({ success: true, ...result });
     } catch (error: any) {
         sendRouteError(res, error, 'inbox');
     }
