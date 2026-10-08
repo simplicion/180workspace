@@ -53,7 +53,11 @@ export async function likeComment(platform: string, account: ActionAccount, comm
 export async function replyToComment(platform: string, account: ActionAccount, commentId: string, text: string, token: string, mediaId?: string): Promise<void> {
     switch (canonicalEngagementPlatform(platform)) {
         case 'instagram':
-            await InstagramPublisher.replyToComment(commentId, text, token);
+            if (commentId) {
+                await InstagramPublisher.replyToComment(commentId, text, token);
+            } else if (mediaId) {
+                await InstagramPublisher.commentOnMedia(mediaId, text, token);
+            }
             return;
         case 'facebook':
             await post('facebook', graph(`${commentId}/comments`), token, { message: text }, 'Facebook reply to comment');
@@ -108,11 +112,16 @@ export async function sendDirectMessage(platform: string, account: ActionAccount
     }
 }
 
-/** Comment threads in the inbox are stored as `comment:<commentId>`; everything else is a DM thread keyed by user id. */
+/** Comment threads in the inbox are stored as `comment:<commentId>`; tagged posts as `tag:<mediaId>`; everything else is a DM thread keyed by user id. */
 export const COMMENT_THREAD_PREFIX = 'comment:';
+export const TAG_THREAD_PREFIX = 'tag:';
 export const commentThreadId = (commentId: string) => `${COMMENT_THREAD_PREFIX}${commentId}`;
-export function parseThread(platformThreadId: string): { kind: 'comment'; commentId: string } | { kind: 'dm'; recipientId: string } {
-    return platformThreadId.startsWith(COMMENT_THREAD_PREFIX)
-        ? { kind: 'comment', commentId: platformThreadId.slice(COMMENT_THREAD_PREFIX.length) }
-        : { kind: 'dm', recipientId: platformThreadId };
+export function parseThread(platformThreadId: string): { kind: 'comment'; commentId: string; mediaId?: string } | { kind: 'dm'; recipientId: string } {
+    if (platformThreadId.startsWith(COMMENT_THREAD_PREFIX)) {
+        return { kind: 'comment', commentId: platformThreadId.slice(COMMENT_THREAD_PREFIX.length) };
+    }
+    if (platformThreadId.startsWith(TAG_THREAD_PREFIX)) {
+        return { kind: 'comment', commentId: '', mediaId: platformThreadId.slice(TAG_THREAD_PREFIX.length) };
+    }
+    return { kind: 'dm', recipientId: platformThreadId };
 }

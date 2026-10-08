@@ -245,6 +245,12 @@ export class InstagramPublisher implements PlatformPublisher {
         return graphPost('instagram', `${commentId}/replies`, token, { message }, 'Instagram reply to comment');
     }
 
+    /** Comments publicly on an Instagram media (post / tagged media) */
+    static async commentOnMedia(mediaId: string, message: string, token: string): Promise<{ id: string }> {
+        requireToken(token, "instagram");
+        return graphPost('instagram', `${mediaId}/comments`, token, { message }, 'Instagram comment on media');
+    }
+
     /** Likes an Instagram comment */
     static async likeComment(commentId: string, token: string): Promise<{ success: boolean }> {
         requireToken(token, "instagram");

@@ -370,7 +370,15 @@ export class MetaWebhooksService {
                         timestamp: toMs(val.created_time) ?? toMs(entry.time),
                     };
                     const rule = await EngagementMatcher.findMatchingRule(event).catch(() => null);
-                    if (rule) await EngagementDispatcher.executeEngagement(rule, event).catch((err: any) => console.error('[MetaWebhook] rule failed:', err?.message));
+                    if (rule) {
+                        await EngagementDispatcher.executeEngagement(rule, event).catch((err: any) => console.error('[MetaWebhook] rule failed:', err?.message));
+                    } else {
+                        const conv = (ingest as any)?.conversation;
+                        if (conv && !conv.isHumanTakeover) {
+                            const r = await AiEngagementAgent.handleIncomingDm(conv.id, commentText, account.companyId).catch((err: any) => ({ error: err?.message } as any));
+                            if (r?.error) console.warn(`[MetaWebhook] AI agent did not reply to comment (${r.errorCode || 'error'}): ${r.error}`);
+                        }
+                    }
                 }
             }
         }

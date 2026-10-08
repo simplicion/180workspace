@@ -33,7 +33,7 @@ export async function sendToConversation(companyId: string, conversationId: stri
     const decision = await EngagementRateLimiter.take(account.id, 1, nowMs);
     if (!decision.allowed) return { status: 'rate_limited', retryAfterMs: decision.retryAfterMs };
 
-    if (thread.kind === 'comment') await replyToComment(conversation.platform, account, thread.commentId, body, token);
+    if (thread.kind === 'comment') await replyToComment(conversation.platform, account, thread.commentId, body, token, thread.mediaId);
     else await sendDirectMessage(conversation.platform, account, thread.recipientId, body, token);
 
     const message = await db.socialMessage.create({ data: { conversationId, senderType, content: body } });

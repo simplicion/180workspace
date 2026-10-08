@@ -6,7 +6,7 @@ import { getDb } from '../publishing/http';
 import { SocialDomainError, notFound, requireCompanyId } from '../tenant-scope';
 import { AI_INBOX_MODES, AiInboxMode } from './ai-engagement-agent';
 
-export const AI_INBOX_PLATFORMS = ['instagram', 'facebook'] as const;
+export const AI_INBOX_PLATFORMS = ['instagram', 'facebook', 'linkedin', 'threads', 'youtube', 'x'] as const;
 
 const SETTINGS_SELECT = {
     id: true,
@@ -54,7 +54,7 @@ export class AiInboxService {
         const account = await db.socialAccount.findFirst({ where: { id: String(accountId), companyId, isActive: true }, select: { id: true, platform: true } });
         if (!account) throw notFound('Social account');
         if (mode !== 'off' && !(AI_INBOX_PLATFORMS as readonly string[]).includes(String(account.platform).toLowerCase())) {
-            throw new SocialDomainError('AI_INBOX_UNSUPPORTED', 422, `Direct messages from ${account.platform} do not reach 180 Workspace, so the AI inbox cannot answer them.`);
+            throw new SocialDomainError('AI_INBOX_UNSUPPORTED', 422, `Interactions from ${account.platform} do not reach 180 Workspace, so the AI inbox cannot answer them.`);
         }
         await db.socialAccount.updateMany({
             where: { id: account.id, companyId },
@@ -63,13 +63,13 @@ export class AiInboxService {
         return db.socialAccount.findFirst({ where: { id: account.id, companyId }, select: SETTINGS_SELECT });
     }
 
-    /** One switch for many accounts, e.g. "AI replies on all my Instagram accounts". Unsupported platforms are skipped. */
+    /** One switch for many accounts, e.g. "AI replies on all my accounts". Unsupported platforms are skipped. */
     static async setModeBulk(companyId: string, input: { mode: unknown; platform?: unknown; projectId?: unknown }) {
         requireCompanyId(companyId);
         const mode = parseMode(input?.mode);
         const platform = input?.platform == null ? null : String(input.platform).toLowerCase();
-        if (platform && !(AI_INBOX_PLATFORMS as readonly string[]).includes(platform)) {
-            throw new SocialDomainError('AI_INBOX_UNSUPPORTED', 422, `The AI inbox supports ${AI_INBOX_PLATFORMS.join(' and ')}.`);
+        if (platform && !(AI_INBOX_PLATFORMS as readonly string[]).includes(platform as any)) {
+            throw new SocialDomainError('AI_INBOX_UNSUPPORTED', 422, `The AI inbox supports ${AI_INBOX_PLATFORMS.join(', ')}.`);
         }
         const projectId = input?.projectId == null ? null : String(input.projectId);
         const db = getDb() as any;

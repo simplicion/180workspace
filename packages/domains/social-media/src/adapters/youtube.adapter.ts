@@ -255,11 +255,27 @@ export class YouTubeAdapter {
             return [{ id: 'yt_comm_mock', snippet: { topLevelComment: { snippet: { textDisplay: 'Mock comment' } } } }];
         }
         requireToken(accessToken, "youtube");
-        const res = await providerFetch('youtube', `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${encodeURIComponent(videoId)}&maxResults=${maxResults}`, {
+        const res = await providerFetch('youtube', `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet,replies&videoId=${encodeURIComponent(videoId)}&maxResults=${maxResults}`, {
             headers: { Authorization: `Bearer ${accessToken}` },
         });
         const data = await expectOk('youtube', res, 'YouTube comment fetch');
         return data.items || [];
+    }
+
+    static async fetchChannelVideos(channelId: string, accessToken: string, maxResults = 15): Promise<any[]> {
+        requireToken(accessToken, 'youtube');
+        if (isSandboxToken(accessToken)) {
+            return [{ id: { videoId: 'mock_vid_1' }, snippet: { title: 'Mock Video' } }];
+        }
+        try {
+            const res = await providerFetch('youtube', `https://www.googleapis.com/youtube/v3/search?part=id,snippet&channelId=${encodeURIComponent(channelId)}&order=date&type=video&maxResults=${maxResults}`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            const data = await expectOk('youtube', res, 'YouTube search channel videos');
+            return data.items || [];
+        } catch {
+            return [];
+        }
     }
 
     static async getAnalytics(channelId: string, startDate: string, endDate: string, accessToken: string): Promise<any> {

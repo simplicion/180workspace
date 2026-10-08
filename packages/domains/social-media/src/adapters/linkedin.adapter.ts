@@ -292,6 +292,24 @@ export class LinkedInAdapter {
         return data.elements || [];
     }
 
+    static async fetchPosts(authorUrn: string, accessToken: string, limit = 15): Promise<any[]> {
+        requireToken(accessToken, 'linkedin');
+        if (isSandboxToken(accessToken)) {
+            return [{ id: 'urn:li:share:sim1', urn: 'urn:li:share:sim1', commentary: 'Welcome to our brand update' }];
+        }
+        try {
+            const author = authorUrn.startsWith('urn:li:') ? authorUrn : `urn:li:organization:${authorUrn}`;
+            const res = await providerFetch('linkedin', `${REST}/posts?author=${encodeURIComponent(author)}&count=${limit}`, {
+                headers: headers(accessToken),
+            });
+            if (res.status === 404) return [];
+            const data = await expectOk('linkedin', res, 'LinkedIn fetch posts');
+            return data.elements || [];
+        } catch {
+            return [];
+        }
+    }
+
     static async getAnalytics(accountUrn: string, accessToken: string): Promise<any> {
         requireToken(accessToken, 'linkedin');
         if (isSandboxToken(accessToken)) {

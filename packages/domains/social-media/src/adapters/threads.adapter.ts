@@ -228,5 +228,25 @@ export class ThreadsAdapter {
 
         return { replyId: pub.id || container.id };
     }
+
+    static async fetchThreads(userId: string, accessToken: string, limit = 20): Promise<any[]> {
+        requireToken(accessToken, "threads");
+        try {
+            const res = await threadsGet(`${userId}/threads?fields=id,text,timestamp,permalink&limit=${limit}`, accessToken, 'fetch Threads');
+            return Array.isArray(res?.data) ? res.data : [];
+        } catch {
+            return [];
+        }
+    }
+
+    static async fetchReplies(threadId: string, accessToken: string, limit = 30): Promise<any[]> {
+        requireToken(accessToken, "threads");
+        try {
+            const res = await threadsGet(`${threadId}/replies?fields=id,text,timestamp,username&limit=${limit}`, accessToken, 'fetch Threads replies');
+            return Array.isArray(res?.data) ? res.data : [];
+        } catch {
+            return [];
+        }
+    }
 }
 
