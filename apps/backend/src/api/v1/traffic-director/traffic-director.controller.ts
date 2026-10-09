@@ -700,12 +700,32 @@ export class TrafficDirectorController {
     }
   }
 
+  static async confirmBillingSession(req: Request, res: Response) {
+    try {
+      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const { sessionId } = req.body || {};
+      if (!companyId) {
+        return res.status(400).json({ success: false, error: 'Company context required' });
+      }
+      if (!sessionId) {
+        return res.status(400).json({ success: false, error: 'sessionId is required' });
+      }
+
+      const result = await TrafficDirectorBillingService.confirmSessionPayment(companyId, sessionId);
+      return res.json(result);
+    } catch (error: any) {
+      console.error('[TrafficDirectorController.confirmBillingSession]', error);
+      return res.status(400).json({ success: false, error: error.message || 'Failed to confirm billing session' });
+    }
+  }
+
   static async handleBillingWebhook(req: Request, res: Response) {
     try {
       const payload = req.body;
       const signature = (req.headers['x-180-signature'] as string) || '';
+      const timestamp = (req.headers['x-180-timestamp'] as string) || '';
       const rawBody = (req as any).rawBody || JSON.stringify(payload);
-      const result = await TrafficDirectorBillingService.handleWebhookEvent(payload, signature, rawBody);
+      const result = await TrafficDirectorBillingService.handleWebhookEvent(payload, signature, rawBody, undefined, timestamp);
       return res.json({ success: true, result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.handleBillingWebhook]', error);

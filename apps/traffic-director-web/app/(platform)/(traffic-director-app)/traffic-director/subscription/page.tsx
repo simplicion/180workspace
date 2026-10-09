@@ -143,13 +143,21 @@ export default function SubscriptionPage() {
         sessionId,
         amount,
         currency,
-        title: `180 Traffic Director ${tier} Plan`,
-        onSuccess: (paymentResult) => {
-          toast.success('Subscription authorized successfully via 180 Pay!');
-          // Refresh status
-          setTimeout(() => {
-            fetchBillingStatus();
-          }, 1200);
+        onSuccess: async (paymentResult: any) => {
+          const confirmToast = toast.loading('Activating subscription with Traffic Director...');
+          try {
+            const sid = paymentResult?.sessionId || sessionId;
+            await api.post('/api/v1/traffic-director/billing/confirm-session', {
+              sessionId: sid,
+            });
+            toast.dismiss(confirmToast);
+            toast.success(`Subscription activated! Welcome to ${tier === 'PRO' ? 'Pro Armor' : tier === 'ENTERPRISE' ? 'Enterprise Sovereign' : 'Starter Edge'}!`);
+          } catch (confirmErr: any) {
+            console.warn('[Subscription] Session confirmation fallback:', confirmErr);
+            toast.dismiss(confirmToast);
+            toast.success('Payment captured! Refreshing your status...');
+          }
+          await fetchBillingStatus();
         },
         onError: (err) => {
           toast.error(err.message || 'Payment cancelled or failed');

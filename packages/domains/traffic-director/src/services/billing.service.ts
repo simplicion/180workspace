@@ -527,6 +527,31 @@ export class TrafficDirectorBillingService {
       isTrialExpired = true;
     }
 
+    // ─── Self-Healing Auto-Sync: Recover active subscriptions from 180 Pay captured sessions ───
+    if (!sub || sub.status !== 'ACTIVE' || sub.status === 'EXPIRED' || sub.planTier === 'FREE') {
+      try {
+        const capturedSession = await (corePrisma as any).checkoutSession.findFirst({
+          where: {
+            status: 'CAPTURED',
+            metadata: { path: ['companyId'], equals: companyId },
+          },
+          orderBy: { completedAt: 'desc' },
+        });
+
+        if (capturedSession && capturedSession.completedAt) {
+          const completedTime = new Date(capturedSession.completedAt).getTime();
+          const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+          if (Date.now() - completedTime < thirtyDaysMs) {
+            sub = await this.activateSubscriptionFromSessionRecord(companyId, capturedSession);
+            isTrialing = false;
+            isTrialExpired = false;
+          }
+        }
+      } catch (healErr) {
+        console.warn('[TrafficDirectorBilling] Self-healing sync check error:', healErr);
+      }
+    }
+
     const isSubscriptionActive = sub.status === 'ACTIVE' || (sub.status === 'TRIALING' && !isTrialExpired);
 
     const currentLinksCount = await (db as any).trafficLink.count({
@@ -823,22 +848,147 @@ export class TrafficDirectorBillingService {
   }
 
   /**
+   * Helper to activate and update subscription record from a CAPTURED 180 Pay session
+   */
+  static async activateSubscriptionFromSessionRecord(companyId: string, session: any): Promise<any> {
+    const metadata = (session.metadata as any) || {};
+    let planTier: TrafficDirectorTier = 'STARTER';
+    const rawTier = metadata.planTier || metadata.tier;
+    const rawCode = metadata.planCode || session.planId || '';
+
+    if (rawTier) {
+      planTier = String(rawTier).toUpperCase() as TrafficDirectorTier;
+    } else if (rawCode) {
+      const codeLower = String(rawCode).toLowerCase();
+      if (codeLower.includes('enterprise')) planTier = 'ENTERPRISE';
+      else if (codeLower.includes('pro')) planTier = 'PRO';
+      else if (codeLower.includes('starter')) planTier = 'STARTER';
+    } else if (session.title?.toLowerCase().includes('enterprise')) {
+      planTier = 'ENTERPRISE';
+    } else if (session.title?.toLowerCase().includes('pro')) {
+      planTier = 'PRO';
+    } else if (session.amount) {
+      if (session.amount >= 75) planTier = 'ENTERPRISE';
+      else if (session.amount >= 50) planTier = 'PRO';
+      else planTier = 'STARTER';
+    }
+
+    const dynamicPlans = await this.getPlans();
+    const planMeta = dynamicPlans[planTier] || dynamicPlans.STARTER;
+
+    // Ensure company exists before creating foreign key relation
+    try {
+      await (db as any).$executeRawUnsafe(
+        `INSERT INTO "Company" ("id", "name", "createdAt", "updatedAt") 
+         VALUES ($1, 'Enterprise Subscriber Organization', NOW(), NOW()) 
+         ON CONFLICT ("id") DO NOTHING`,
+        companyId
+      );
+    } catch (_) {}
+
+    const startDate = session.completedAt ? new Date(session.completedAt) : new Date();
+    const endDate = new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const nextBilling = endDate;
+
+    const updateFields = {
+      planTier,
+      maxLinks: planMeta.maxLinks,
+      status: 'ACTIVE',
+      oneEightySubId: session.id,
+      amountCharged: session.amount !== undefined ? session.amount : planMeta.price,
+      currency: session.currency || 'USD',
+      couponApplied: session.couponCode || metadata.couponCode || null,
+      discountAmount: session.discountAmount || metadata.discountAmount || 0,
+      currentPeriodStart: startDate,
+      currentPeriodEnd: endDate,
+      nextBillingDate: nextBilling,
+      autoRenew: true,
+    };
+
+    const createFields = {
+      companyId,
+      ...updateFields,
+    };
+
+    const record = await this.upsertSubscriptionRecord(companyId, updateFields, createFields);
+    this.invalidateSubscriptionCache(companyId);
+    return record || { ...createFields, id: session.id };
+  }
+
+  /**
+   * Synchronously verify and activate subscription using a CAPTURED 180 Pay checkout session.
+   * Provides immediate, fail-safe entitlement without waiting for asynchronous webhooks.
+   */
+  static async confirmSessionPayment(companyId: string, sessionId: string) {
+    if (!companyId || !sessionId) {
+      throw new Error('companyId and sessionId are required');
+    }
+
+    const session = await (corePrisma as any).checkoutSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new Error(`Checkout session ${sessionId} not found`);
+    }
+
+    if (session.status !== 'CAPTURED') {
+      throw new Error(`Checkout session has not been captured yet (current status: ${session.status})`);
+    }
+
+    const meta = (session.metadata as any) || {};
+    if (meta.companyId && meta.companyId !== companyId) {
+      throw new Error('Checkout session does not belong to this organization');
+    }
+
+    const updatedRecord = await this.activateSubscriptionFromSessionRecord(companyId, session);
+
+    return {
+      success: true,
+      message: 'Subscription successfully confirmed and activated',
+      subscription: updatedRecord,
+      planTier: updatedRecord?.planTier || meta.planTier || 'PRO',
+    };
+  }
+
+  /**
    * Verify HMAC-SHA256 signature from 180 Pay webhook dispatcher
    */
-  static verifyWebhookSignature(payloadString: string, signatureHeader: string, secret?: string): boolean {
+  static verifyWebhookSignature(payloadString: string, signatureHeader: string, secret?: string, timestampHeader?: string): boolean {
     const webhookSecret = secret || process.env.TRAFFIC_DIRECTOR_WEBHOOK_SECRET || process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET;
     if (!webhookSecret || !signatureHeader) return true;
 
     try {
-      const parts = signatureHeader.split(',');
-      const tPart = parts.find((p) => p.startsWith('t='))?.replace('t=', '');
-      const v1Part = parts.find((p) => p.startsWith('v1='))?.replace('v1=', '');
-      if (!tPart || !v1Part) return false;
+      // 1. Stripe-compatible format: t=TIMESTAMP,v1=SIGNATURE
+      if (signatureHeader.includes('v1=')) {
+        const parts = signatureHeader.split(',');
+        const tPart = parts.find((p) => p.startsWith('t='))?.replace('t=', '');
+        const v1Part = parts.find((p) => p.startsWith('v1='))?.replace('v1=', '');
+        if (!tPart || !v1Part) return false;
 
-      const signPayload = `${tPart}.${payloadString}`;
-      const expected = crypto.createHmac('sha256', webhookSecret).update(signPayload).digest('hex');
-      if (expected.length !== v1Part.length) return false;
-      return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1Part));
+        const signPayload = `${tPart}.${payloadString}`;
+        const expected = crypto.createHmac('sha256', webhookSecret).update(signPayload).digest('hex');
+        if (expected.length !== v1Part.length) return false;
+        return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1Part));
+      }
+
+      // 2. 180 Pay standard format: raw hex signature with X-180-Timestamp header
+      const cleanSig = signatureHeader.trim();
+      if (timestampHeader) {
+        const signPayloadWithTs = `${timestampHeader.trim()}.${payloadString}`;
+        const expectedWithTs = crypto.createHmac('sha256', webhookSecret).update(signPayloadWithTs).digest('hex');
+        if (expectedWithTs.length === cleanSig.length && crypto.timingSafeEqual(Buffer.from(expectedWithTs), Buffer.from(cleanSig))) {
+          return true;
+        }
+      }
+
+      // 3. Raw HMAC over payload without timestamp prefix
+      const expectedDirect = crypto.createHmac('sha256', webhookSecret).update(payloadString).digest('hex');
+      if (expectedDirect.length === cleanSig.length && crypto.timingSafeEqual(Buffer.from(expectedDirect), Buffer.from(cleanSig))) {
+        return true;
+      }
+
+      return false;
     } catch {
       return false;
     }
@@ -847,9 +997,9 @@ export class TrafficDirectorBillingService {
   /**
    * 4. Process incoming signed webhook from 180 Pay
    */
-  static async handleWebhookEvent(payload: any, signatureHeader?: string, rawBody?: string, secret?: string) {
+  static async handleWebhookEvent(payload: any, signatureHeader?: string, rawBody?: string, secret?: string, timestampHeader?: string) {
     if (signatureHeader && rawBody) {
-      const isValid = this.verifyWebhookSignature(rawBody, signatureHeader, secret);
+      const isValid = this.verifyWebhookSignature(rawBody, signatureHeader, secret, timestampHeader);
       if (!isValid) {
         throw new Error('Invalid HMAC-SHA256 webhook signature from 180 Pay');
       }
@@ -867,7 +1017,12 @@ export class TrafficDirectorBillingService {
 
     this.invalidateSubscriptionCache(companyId);
 
-    if (event === 'subscription.activated' || event === 'subscription.renewed' || event === 'payment.succeeded') {
+    if (
+      event === 'subscription.activated' ||
+      event === 'subscription.renewed' ||
+      event === 'payment.succeeded' ||
+      event === 'payment.captured'
+    ) {
       let planTier: TrafficDirectorTier = 'STARTER';
       const rawTier = metadata.planTier || metadata.tier;
       const rawCode = data.planCode || metadata.planCode || '';
@@ -879,6 +1034,10 @@ export class TrafficDirectorBillingService {
         if (codeLower.includes('enterprise')) planTier = 'ENTERPRISE';
         else if (codeLower.includes('pro')) planTier = 'PRO';
         else if (codeLower.includes('starter')) planTier = 'STARTER';
+      } else if (data.title?.toLowerCase().includes('enterprise')) {
+        planTier = 'ENTERPRISE';
+      } else if (data.title?.toLowerCase().includes('pro')) {
+        planTier = 'PRO';
       } else if (data.amount) {
         if (data.amount >= 75) planTier = 'ENTERPRISE';
         else if (data.amount >= 50) planTier = 'PRO';
@@ -898,7 +1057,11 @@ export class TrafficDirectorBillingService {
         );
       } catch (_) {}
 
-      const startDate = data.currentPeriodStart ? new Date(data.currentPeriodStart) : new Date();
+      const startDate = data.currentPeriodStart
+        ? new Date(data.currentPeriodStart)
+        : data.timestamp
+        ? new Date(data.timestamp)
+        : new Date();
       const endDate = data.currentPeriodEnd
         ? new Date(data.currentPeriodEnd)
         : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -909,7 +1072,7 @@ export class TrafficDirectorBillingService {
         maxLinks: planMeta.maxLinks,
         status: 'ACTIVE',
         oneEightySubId: data.subscriptionId || data.sessionId,
-        amountCharged: data.amount || planMeta.price,
+        amountCharged: data.amount !== undefined ? data.amount : planMeta.price,
         currency: data.currency || 'USD',
         couponApplied: metadata.couponCode || null,
         discountAmount: metadata.discountAmount || 0,
