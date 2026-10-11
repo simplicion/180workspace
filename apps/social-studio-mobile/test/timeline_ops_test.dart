@@ -541,14 +541,25 @@ void main() {
       expect(TimelineOps.captionStyle('CYBER_NEON')['glow'], isTrue);
       expect(TimelineOps.captionStyle('CLEAN').containsKey('glow'), isFalse);
       expect(TimelineOps.captionStyle('MRBEAST_HYPE', highlightColor: '#22D3EE')['highlightColor'], '#22D3EE');
+
+      // Test newly added ONE_WORD_PUNCH and GOLDEN_LUXURY
+      final punch = TimelineOps.captionStyle('ONE_WORD_PUNCH');
+      expect((punch['fontFamily'], punch['fontSizePx'], punch['uppercase']), ('Montserrat', 60, true));
+      final luxe = TimelineOps.captionStyle('GOLDEN_LUXURY');
+      expect((luxe['fontFamily'], luxe['fontSizePx']), ('Playfair Display', 46));
+
+      // Test fontSizePx override
+      final customSize = TimelineOps.captionStyle('HORMOZI_BOUNCE', fontSizePx: 84);
+      expect(customSize['fontSizePx'], 84);
     });
 
     test('apply to all: styleCaptions restyles speech captions only and survives JSON', () {
-      var ir = TimelineOps.autoCaptions(base(), words);
+      var ir = TimelineOps.autoCaptions(base(), words, fontSizePx: 70);
+      expect(ir.captions.first.style['fontSizePx'], 70);
       ir = TimelineOps.addText(ir, 'Title', startMs: 0, durationMs: 1000);
-      ir = TimelineOps.styleCaptions(ir, 'ALI_ABDAAL_CLEAN');
+      ir = TimelineOps.styleCaptions(ir, 'ALI_ABDAAL_CLEAN', fontSizePx: 56);
       final back = MobileEditIr.fromJson(ir.toJson());
-      expect(back.captions.where((c) => c.kind == 'caption').every((c) => c.style['fontFamily'] == 'Poppins'), isTrue);
+      expect(back.captions.where((c) => c.kind == 'caption').every((c) => c.style['fontFamily'] == 'Poppins' && c.style['fontSizePx'] == 56), isTrue);
       expect(back.captions.firstWhere((c) => c.kind == 'text').style['fontFamily'], isNot('Poppins'));
     });
   });

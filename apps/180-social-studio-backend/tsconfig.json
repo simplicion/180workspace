@@ -1,0 +1,25 @@
+{
+  "extends": "../../packages/typescript-config/base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "paths": {
+      "@workspace/db": ["../../packages/db/src/index.ts"],
+      "@workspace/db/*": ["../../packages/db/src/*"],
+      "@workspace/social-media": ["../../packages/domains/social-media/src/index.ts"],
+      "@workspace/social-media/*": ["../../packages/domains/social-media/src/*"],
+      "@workspace/video-engine-runtime": ["../../packages/video-engine-runtime/src/index.ts"],
+      "@workspace/video-engine-runtime/*": ["../../packages/video-engine-runtime/src/*"],
+      "@workspace/video-contracts": ["../../packages/video-contracts/src/index.ts"],
+      "@workspace/video-contracts/*": ["../../packages/video-contracts/src/*"],
+      "@workspace/ai": ["../../packages/domains/ai/src/index.ts"],
+      "@workspace/ai/*": ["../../packages/domains/ai/src/*"]
+    }
+  },
+  "include": ["src/**/*"]
+}

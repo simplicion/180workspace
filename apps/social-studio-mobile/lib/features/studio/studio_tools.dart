@@ -1496,6 +1496,54 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
   /// Null keeps the preset's own highlight colour.
   String? color;
   double y = 0.72;
+  double? _fontSizePx;
+  bool _autoGenerating = false;
+
+  Future<void> _autoGenerate() async {
+    final c = widget.c;
+    setState(() => _autoGenerating = true);
+    try {
+      if (c.transcriptState != TranscriptState.ready) {
+        if (c.transcriptState != TranscriptState.running) {
+          await c.transcribe();
+        } else {
+          while (c.transcriptState == TranscriptState.running && mounted) {
+            await Future.delayed(const Duration(milliseconds: 200));
+          }
+        }
+      }
+      if (!mounted) return;
+      if (c.transcriptState == TranscriptState.ready && c.words.isNotEmpty) {
+        _close(context);
+        final keywords = _keywords;
+        final chosenPreset = preset;
+        final chosenWords = words;
+        final chosenColor = color;
+        final chosenY = y;
+        final chosenFontSize = _fontSizePx;
+        widget.onEdit((ir) {
+          final out = TimelineOps.autoCaptions(
+            ir,
+            c.words,
+            preset: chosenPreset,
+            wordsPerCaption: chosenWords,
+            highlightColor: chosenColor,
+            positionY: chosenY,
+            fontSizePx: chosenFontSize,
+          );
+          return keywords ? TimelineOps.enhanceCaptions(out) : out;
+        }, done: '✨ Auto-generated viral captions added!');
+      } else if (c.transcriptState == TranscriptState.failed) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Transcription failed: ${errorText(c.transcriptError ?? '')}')),
+          );
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _autoGenerating = false);
+    }
+  }
 
   /// Convert captions: target language, script, and the request state.
   String? _convertTo;
@@ -1633,6 +1681,51 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
               : running
                   ? 'Waiting for the transcript…'
                   : 'Captions need a transcript. ${errorText(c.transcriptError ?? '')}'),
+      if (!has) ...[
+        Container(
+          margin: EdgeInsets.only(bottom: 12),
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppTheme.primary.withValues(alpha: 0.18), Colors.purpleAccent.withValues(alpha: 0.12)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.35)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(children: [
+                Icon(Icons.auto_awesome, color: AppTheme.primary, size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '1-Tap Auto Viral Captions',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+              ]),
+              SizedBox(height: 6),
+              Text(
+                'Automatically transcribes speech, syncs word timings, and applies trending viral motion and keyword highlights.',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
+              SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: _autoGenerating ? null : _autoGenerate,
+                icon: _autoGenerating
+                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Icon(Icons.bolt_rounded),
+                label: Text(_autoGenerating
+                    ? (running ? 'Transcribing & syncing…' : 'Generating viral captions…')
+                    : '✨ Auto-Generate Captions Now'),
+              ),
+            ],
+          ),
+        ),
+      ],
       Row(children: [
         Expanded(child: Text('Spoken language')),
         DropdownButton<String>(
@@ -1686,6 +1779,44 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
             ),
         ]),
       ),
+      SizedBox(height: 8),
+      Text('Caption font size', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+      SizedBox(height: 4),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          ChoiceChip(
+            label: Text('Preset default'),
+            selected: _fontSizePx == null,
+            onSelected: (_) => setState(() => _fontSizePx = null),
+          ),
+          SizedBox(width: 6),
+          ChoiceChip(
+            label: Text('Compact (42px)'),
+            selected: _fontSizePx == 42.0,
+            onSelected: (_) => setState(() => _fontSizePx = 42.0),
+          ),
+          SizedBox(width: 6),
+          ChoiceChip(
+            label: Text('Standard (56px)'),
+            selected: _fontSizePx == 56.0,
+            onSelected: (_) => setState(() => _fontSizePx = 56.0),
+          ),
+          SizedBox(width: 6),
+          ChoiceChip(
+            label: Text('Bold (70px)'),
+            selected: _fontSizePx == 70.0,
+            onSelected: (_) => setState(() => _fontSizePx = 70.0),
+          ),
+          SizedBox(width: 6),
+          ChoiceChip(
+            label: Text('Massive Viral (88px)'),
+            selected: _fontSizePx == 88.0,
+            onSelected: (_) => setState(() => _fontSizePx = 88.0),
+          ),
+        ]),
+      ),
+      SizedBox(height: 6),
       Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
         Text('Auto'),
         FilterChip(label: Text('Highlight key words'), selected: _keywords, onSelected: (v) => setState(() => _keywords = v)),
@@ -1702,7 +1833,7 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
         FilledButton.icon(
           onPressed: () {
             _close(context);
-            widget.onEdit((ir) => TimelineOps.styleCaptions(ir, preset, highlightColor: color, positionY: y),
+            widget.onEdit((ir) => TimelineOps.styleCaptions(ir, preset, highlightColor: color, positionY: y, fontSizePx: _fontSizePx),
                 done: 'Caption style applied to all captions');
           },
           icon: Icon(Icons.format_paint_rounded),
@@ -1726,7 +1857,15 @@ class _CaptionsSheetState extends State<_CaptionsSheet> {
                   _close(context);
                   final keywords = _keywords;
                   widget.onEdit((ir) {
-                    final out = TimelineOps.autoCaptions(ir, c.words, preset: preset, wordsPerCaption: words, highlightColor: color, positionY: y);
+                    final out = TimelineOps.autoCaptions(
+                      ir,
+                      c.words,
+                      preset: preset,
+                      wordsPerCaption: words,
+                      highlightColor: color,
+                      positionY: y,
+                      fontSizePx: _fontSizePx,
+                    );
                     return keywords ? TimelineOps.enhanceCaptions(out) : out;
                   }, done: 'Captions added');
                 },

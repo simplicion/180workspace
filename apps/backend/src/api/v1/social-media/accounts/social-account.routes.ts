@@ -128,6 +128,17 @@ router.delete('/:id', async (req: Request, res: Response) => {
     }
 });
 
+// Set an account as the primary/default for its platform
+router.post('/:id/set-default', async (req: Request, res: Response) => {
+    try {
+        const companyId = (req as any).user?.companyId;
+        const result = await SocialAccountService.setDefaultAccount(String(req.params.id), companyId);
+        res.json({ success: true, account: result });
+    } catch (error: any) {
+        sendError(res, error);
+    }
+});
+
 // LinkedIn diagnostic report (Safe for admins: zero secret leakage)
 router.get('/linkedin/diagnose', async (req: Request, res: Response) => {
     try {

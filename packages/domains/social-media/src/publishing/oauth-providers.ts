@@ -14,6 +14,7 @@ export interface TokenSet {
     refreshExpiresAt?: Date | null;
     scopes: string[];
     tokenType?: string | null;
+    userId?: string | null;
 }
 
 export interface CandidateAccount {
@@ -186,6 +187,7 @@ const instagramProvider: OAuthProvider = {
                 expiresAt: expiresIn(long?.expires_in || short?.expires_in || 3600),
                 scopes,
                 tokenType: 'bearer',
+                userId: short?.user_id ? String(short.user_id) : undefined,
             };
         }
 
@@ -198,18 +200,36 @@ const instagramProvider: OAuthProvider = {
     },
     async discoverAccounts(tokens) {
         if (isInstagramBusinessLogin()) {
-            const res = await providerFetch('instagram', `https://graph.instagram.com/v21.0/me?fields=${encodeURIComponent('user_id,username,name,profile_picture_url')}`, {
+            // Instagram API with Instagram Login endpoint (graph.instagram.com/me)
+            // Supported profile fields: id, username, name, profile_picture_url
+            const fields = 'id,username,name,profile_picture_url';
+            let res = await providerFetch('instagram', `https://graph.instagram.com/me?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(tokens.accessToken)}`, {
                 headers: { Authorization: `Bearer ${tokens.accessToken}` },
             });
             let b = await readBody(res);
-            if (!res.ok || !b?.user_id) {
-                // Fallback to basic me fields if v21.0 extended fields restricted
-                const fbRes = await providerFetch('instagram', `https://graph.instagram.com/me?fields=${encodeURIComponent('id,username,account_type')}`, {
+
+            // Also check versioned endpoint if unversioned didn't return an id or user_id
+            if (!res.ok || (!b?.id && !b?.user_id)) {
+                const vRes = await providerFetch('instagram', `https://graph.instagram.com/${META_GRAPH_VERSION()}/me?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(tokens.accessToken)}`, {
                     headers: { Authorization: `Bearer ${tokens.accessToken}` },
                 });
-                b = await oauthJson('instagram', fbRes, 'Instagram Business profile');
+                const vBody = await readBody(vRes);
+                if (vRes.ok && (vBody?.id || vBody?.user_id)) {
+                    b = vBody;
+                    res = vRes;
+                }
             }
-            const igId = String(b.user_id || b.id);
+
+            if (!res.ok || (!b?.id && !b?.user_id && !tokens.userId)) {
+                const rawMsg = providerMessage(b, `HTTP ${res.status}`);
+                let msg = `Instagram Business profile: ${rawMsg}`;
+                if (rawMsg.includes('Unsupported request') || rawMsg.includes('method type: get')) {
+                    msg = `Instagram connection failed: Ensure your Instagram account is switched to a Professional (Creator or Business) account in the Instagram app, and that your Meta app has the "instagram_business_basic" permission configured.`;
+                }
+                throw new PublishError('OAUTH_PROVIDER_ERROR', msg, { platform: 'instagram' });
+            }
+
+            const igId = String(b.id || b.user_id || tokens.userId);
             return [{
                 candidateId: `ig:${igId}`,
                 platform: 'instagram',
@@ -491,15 +511,28 @@ const threadsProvider: OAuthProvider = {
             body: form({ client_id: clientId, client_secret: clientSecret, grant_type: 'authorization_code', redirect_uri: redirectUri, code }),
         }), 'Threads token exchange');
 
-        const longLived = await oauthJson('threads', await providerFetch('threads', `https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=${encodeURIComponent(clientSecret)}&access_token=${encodeURIComponent(b.access_token)}`, {
-            method: 'GET',
-        }), 'Threads long-lived token exchange');
+        let longLived: any = null;
+        try {
+            longLived = await oauthJson('threads', await providerFetch('threads', `https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=${encodeURIComponent(clientSecret)}&access_token=${encodeURIComponent(b.access_token)}`, {
+                method: 'GET',
+            }), 'Threads long-lived token exchange');
+        } catch (err: any) {
+            console.warn('[social-publishing] Threads long-lived token exchange warning (using short-lived token):', err?.message || err);
+            const raw = String(err?.message || '');
+            if (raw.includes('threads_basic') || raw.includes('Threads testers')) {
+                throw new PublishError(
+                    'OAUTH_PROVIDER_ERROR',
+                    'Threads connection failed: This Meta app requires "threads_basic". In Development mode, your Threads username must be added under "Threads Testers" in Meta Developer Dashboard (Roles > Threads Testers) and accepted in your Threads app settings (Settings > Account > Website permissions > Invites).',
+                    { platform: 'threads' }
+                );
+            }
+        }
 
-        const token = longLived.access_token || b.access_token;
+        const token = longLived?.access_token || b.access_token;
         return {
             accessToken: token,
             refreshToken: token,
-            expiresAt: expiresIn(longLived.expires_in || b.expires_in || 60 * 86400),
+            expiresAt: expiresIn(longLived?.expires_in || b.expires_in || 60 * 86400),
             tokenType: 'bearer',
             scopes: splitScopes(b.scope).length ? splitScopes(b.scope) : scopes,
         };
@@ -509,7 +542,14 @@ const threadsProvider: OAuthProvider = {
             headers: { Authorization: `Bearer ${tokens.accessToken}` },
         });
         const b = await readBody(res);
-        if (!res.ok) throw new PublishError('OAUTH_PROVIDER_ERROR', `Threads profile: ${providerMessage(b, `HTTP ${res.status}`)}`, { platform: 'threads' });
+        if (!res.ok) {
+            const rawMsg = providerMessage(b, `HTTP ${res.status}`);
+            let msg = `Threads profile: ${rawMsg}`;
+            if (rawMsg.includes('threads_basic') || rawMsg.includes('Threads testers')) {
+                msg = 'Threads connection failed: Your Threads account must be added to "Threads Testers" in the Meta App Dashboard and accepted under Threads Settings > Account > Website permissions > Invites (or submit app for App Review).';
+            }
+            throw new PublishError('OAUTH_PROVIDER_ERROR', msg, { platform: 'threads' });
+        }
         return [{
             candidateId: `user:${b.id}`,
             platform: 'threads',

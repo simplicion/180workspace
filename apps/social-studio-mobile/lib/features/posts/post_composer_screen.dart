@@ -11,6 +11,7 @@ import '../../core/widgets/common.dart';
 import '../../data/models/engagement_rule.dart';
 import '../../data/models/platform.dart';
 import '../../data/models/project.dart';
+import '../../data/models/social_account.dart';
 import '../../data/models/social_post.dart';
 import '../projects/project_provider.dart';
 import 'platform_post_preview.dart';
@@ -147,6 +148,11 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
   late final Map<SocialPlatform, TextEditingController> _variantTitle = {
     for (final v in _p?.variants ?? const <PostVariant>[])
       if (v.platformMeta['title'] != null) v.platform: TextEditingController(text: v.platformMeta['title'].toString()),
+  };
+
+  late final Map<SocialPlatform, String?> _selectedAccount = {
+    for (final v in _p?.variants ?? const <PostVariant>[])
+      if (v.socialAccountId != null) v.platform: v.socialAccountId,
   };
 
   late final List<String> _mediaUrls = [...?_p?.mediaUrls, ...jStrList(widget.prefill['mediaUrls'])];
@@ -466,6 +472,13 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
       _copiedTitle[platform] = titleCtrl.text;
     }
 
+    final availableAccounts = (widget.project?.socialAccounts ?? [])
+        .where((a) => a.platform == platform && a.isActive)
+        .toList();
+    final currentAccId = _selectedAccount[platform] ??
+        availableAccounts.where((a) => a.isDefault).firstOrNull?.id ??
+        availableAccounts.firstOrNull?.id;
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -482,6 +495,11 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
         selectedFormat: _effectiveFormatFor(platform),
         detectedMediaType: _detectedMediaType,
         mediaCount: _mediaUrls.length,
+        availableAccounts: availableAccounts,
+        selectedAccountId: currentAccId,
+        onAccountChanged: (newAccountId) {
+          setState(() => _selectedAccount[platform] = newAccountId);
+        },
         onFormatChanged: (newFormat) {
           setState(() => _platformFormat[platform] = newFormat);
         },
@@ -493,6 +511,7 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
           setState(() {
             _platforms.remove(platform);
             _platformFormat.remove(platform);
+            _selectedAccount.remove(platform);
           });
           Navigator.pop(ctx);
         },
@@ -581,6 +600,7 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
             // '' = use the main caption (also when the platform copy was never edited).
             customContent: _ownText(_variantText[p], _copiedCaption[p], _content.text.trim()) ?? '',
             firstComment: metadata['firstComment'] as String?,
+            socialAccountId: _selectedAccount[p],
             platformMeta: p == SocialPlatform.youtube
                     ? compact({
                         'title': _ownText(_variantTitle[p], _copiedTitle[p], _title.text.trim()) != null
@@ -919,7 +939,9 @@ class _ComposerFormState extends ConsumerState<_ComposerForm> {
                       _ChannelTile(
                         platform: p,
                         isSelected: _platforms.contains(p),
-                        account: accounts.where((a) => a.platform == p).firstOrNull,
+                        account: accounts.where((a) => a.id == _selectedAccount[p]).firstOrNull ??
+                            accounts.where((a) => a.platform == p && a.isDefault).firstOrNull ??
+                            accounts.where((a) => a.platform == p).firstOrNull,
                         hasCustomOverride: _ownText(_variantText[p], _copiedCaption[p], _content.text.trim()) != null ||
                             _ownText(_variantTitle[p], _copiedTitle[p], _title.text.trim()) != null,
                         formatLabel: _platforms.contains(p) ? _formatDisplayName(p, _effectiveFormatFor(p)) : null,
@@ -1265,7 +1287,9 @@ class _ChannelTile extends StatelessWidget {
         children: [
           Flexible(
             child: Text(
-              formatLabel != null ? '${platform.label} • $formatLabel' : platform.label,
+              formatLabel != null
+                  ? '${platform.label} • $formatLabel${isSelected && account?.username != null ? ' (@${account.username})' : ''}'
+                  : (isSelected && account?.username != null ? '${platform.label} (@${account.username})' : platform.label),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1560,6 +1584,9 @@ class _PlatformCustomizationSheet extends StatefulWidget {
     required this.onFormatChanged,
     required this.onSaved,
     required this.onRemoved,
+    this.availableAccounts = const [],
+    this.selectedAccountId,
+    this.onAccountChanged,
   });
 
   final SocialPlatform platform;
@@ -1573,6 +1600,9 @@ class _PlatformCustomizationSheet extends StatefulWidget {
   final ValueChanged<String> onFormatChanged;
   final VoidCallback onSaved;
   final VoidCallback onRemoved;
+  final List<SocialAccount> availableAccounts;
+  final String? selectedAccountId;
+  final ValueChanged<String?>? onAccountChanged;
 
   @override
   State<_PlatformCustomizationSheet> createState() => _PlatformCustomizationSheetState();
@@ -1580,6 +1610,7 @@ class _PlatformCustomizationSheet extends StatefulWidget {
 
 class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet> {
   late String _currentFormat = widget.selectedFormat;
+  late String? _currentAccountId = widget.selectedAccountId;
   bool _hasManuallyChangedFormat = false;
 
   @override
@@ -1680,6 +1711,95 @@ class _PlatformCustomizationSheetState extends State<_PlatformCustomizationSheet
               ],
             ),
             const SizedBox(height: 14),
+
+            // Destination Account Selector
+            if (widget.availableAccounts.length > 1 || _currentAccountId != null) ...[
+              Row(
+                children: [
+                  const Text('Destination Account', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  if (widget.availableAccounts.length > 1) ...[
+                    const SizedBox(width: 6),
+                    Text('(${widget.availableAccounts.length} connected)', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.borderSubtle),
+                ),
+                child: Column(
+                  children: [
+                    for (final acc in widget.availableAccounts) ...[
+                      Builder(
+                        builder: (context) {
+                          final effectiveId = _currentAccountId ??
+                              (widget.availableAccounts.where((a) => a.isDefault).firstOrNull?.id ??
+                                  widget.availableAccounts.first.id);
+                          final isSelected = effectiveId == acc.id;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () {
+                              setState(() => _currentAccountId = acc.id);
+                              widget.onAccountChanged?.call(acc.id);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: platform.color.withValues(alpha: 0.2),
+                                    foregroundImage: acc.profileImageUrl != null ? NetworkImage(acc.profileImageUrl!) : null,
+                                    child: Text(
+                                      acc.accountName.isNotEmpty ? acc.accountName[0].toUpperCase() : '?',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                acc.accountName,
+                                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            if (acc.isDefault) ...[
+                                              const SizedBox(width: 6),
+                                              StatusChip(label: 'DEFAULT', color: AppTheme.primary),
+                                            ],
+                                          ],
+                                        ),
+                                        if (acc.username != null)
+                                          Text('@${acc.username}', style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                                    size: 18,
+                                    color: isSelected ? platform.color : AppTheme.textMuted,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
 
             // Publishing Format Selector (if platform has multiple format options)
             if (formatOptions.isNotEmpty) ...[

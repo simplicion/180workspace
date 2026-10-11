@@ -1079,6 +1079,7 @@ class TimelineOps {
     String? highlightColor,
     double positionY = 0.72,
     double positionX = 0.5,
+    double? fontSizePx,
   }) {
     final base = <String, dynamic>{
       'preset': preset,
@@ -1120,7 +1121,11 @@ class TimelineOps {
       },
       _ => {...base, 'preset': 'CLEAN', 'fontWeight': 600, 'strokeWidthPx': 4},
     };
-    return {...style, 'highlightColor': ?highlightColor};
+    return {
+      ...style,
+      'highlightColor': ?highlightColor,
+      'fontSizePx': ?fontSizePx,
+    };
   }
 
   /// Creator templates: same ids and values as `CAPTION_TEMPLATES` in
@@ -1233,6 +1238,25 @@ class TimelineOps {
         'background': {'color': '#111827E6', 'paddingPx': 10, 'radiusPx': 22},
       },
     ),
+    'ONE_WORD_PUNCH': (
+      name: '1-Word Punch',
+      subtitle: 'Big viral punch word',
+      style: {
+        'animation': 'word_pop', 'fontFamily': 'Montserrat', 'fontWeight': 900, 'fontSizePx': 60,
+        'textColor': '#FFFFFF', 'highlightColor': '#F59E0B', 'strokeWidthPx': 5, 'strokeColor': '#000000',
+        'shadow': true, 'uppercase': true,
+      },
+    ),
+    'GOLDEN_LUXURY': (
+      name: 'Golden Luxury',
+      subtitle: 'Champagne gold high-end',
+      style: {
+        'animation': 'karaoke', 'fontFamily': 'Playfair Display', 'fontWeight': 700, 'fontSizePx': 46,
+        'textColor': '#FFFBEB', 'highlightColor': '#F59E0B', 'strokeWidthPx': 2, 'strokeColor': '#78350F',
+        'shadow': true,
+        'background': {'color': '#1C1917E6', 'paddingPx': 8, 'radiusPx': 12},
+      },
+    ),
   };
 
   /// Every caption preset offered in the Captions sheet: the 4 classic ones, then the viral ones.
@@ -1324,6 +1348,7 @@ class TimelineOps {
     int wordsPerCaption = 3,
     String? highlightColor,
     double positionY = 0.72,
+    double? fontSizePx,
   }) {
     if (words.isEmpty) {
       throw MediaEngineException(
@@ -1332,7 +1357,7 @@ class TimelineOps {
       );
     }
     final style = _fontFitted(
-      captionStyle(preset, highlightColor: highlightColor, positionY: positionY),
+      captionStyle(preset, highlightColor: highlightColor, positionY: positionY, fontSizePx: fontSizePx),
       words.map((w) => w.text).join(' '),
     );
     // The spoken word grows a little in word_pop styles (same 1.15 as the AI Director's captions).
@@ -1414,9 +1439,10 @@ class TimelineOps {
     String preset, {
     String? highlightColor,
     double? positionY,
+    double? fontSizePx,
   }) {
     final style = _fontFitted(
-      captionStyle(preset, highlightColor: highlightColor, positionY: positionY ?? 0.72),
+      captionStyle(preset, highlightColor: highlightColor, positionY: positionY ?? 0.72, fontSizePx: fontSizePx),
       [for (final c in ir.captions) if (c.kind == 'caption') c.text].join(' '),
     );
     return _copy(

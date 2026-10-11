@@ -446,6 +446,8 @@ class EditIrRenderer(
         if (fx.any { it.type == "shake" || it.type == "zoom_pulse" }) compositionFx.add(EffectsTransformation(fx))
         if (fx.any { it.type == "flash" || it.type == "fade_black" || it.type == "black_white" }) compositionFx.add(EffectsColor(fx))
         if (fx.any { it.type == "vignette" }) compositionFx.add(OverlayEffect(listOf(VignetteOverlay(fx))))
+        val imageLayers = ir.overlays.filter { it.isLayer && it.isImage }
+        if (imageLayers.isNotEmpty()) compositionFx.add(OverlayEffect(listOf(ImageLayersOverlay(imageLayers, media.overlayPaths))))
         if (ir.captions.isNotEmpty()) compositionFx.add(OverlayEffect(listOf(CaptionOverlay(ir.captions, ::typefaceFor))))
         watermarkOverlay()?.let { compositionFx.add(OverlayEffect(listOf(it))) }
         // Export resolution: the finished frame (captions, logo and all) is scaled last, so the layout never changes.
@@ -529,7 +531,9 @@ class EditIrRenderer(
     private fun layerTracks(): List<List<IrOverlay>> {
         val tracks = mutableListOf<MutableList<IrOverlay>>()
         // Crossfades sit below every user layer (packed first, so they end up on the lowest tracks).
-        for (ov in crossfades.keys + ir.overlays.filter { it.isLayer }) {
+        // Image layers (stickers, emoji, photos) are rendered directly in compositionFx via ImageLayersOverlay,
+        // so layerTracks only needs to process video layers and crossfades.
+        for (ov in crossfades.keys + ir.overlays.filter { it.isLayer && !it.isImage }) {
             if (min(ov.timelineEndMs, ir.durationMs) - ov.timelineStartMs < 1) continue
             val t = tracks.firstOrNull { tr -> tr.none { it.timelineStartMs < ov.timelineEndMs && ov.timelineStartMs < it.timelineEndMs } }
             if (t != null) t.add(ov) else tracks.add(mutableListOf(ov))
@@ -585,11 +589,11 @@ class EditIrRenderer(
         b.build()
     }
 
-    /** 2x2 fully transparent PNG, written once per render. */
+    /** Transparent PNG matching canvas size, written once per render. */
     private val clearPng: File by lazy {
-        File(context.cacheDir, "clear_2x2.png").also { f ->
+        File(context.cacheDir, "clear_${ir.canvas.width}x${ir.canvas.height}.png").also { f ->
             if (!f.isFile) {
-                val bmp = android.graphics.Bitmap.createBitmap(2, 2, android.graphics.Bitmap.Config.ARGB_8888)
+                val bmp = android.graphics.Bitmap.createBitmap(ir.canvas.width.coerceAtLeast(2), ir.canvas.height.coerceAtLeast(2), android.graphics.Bitmap.Config.ARGB_8888)
                 java.io.FileOutputStream(f).use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
                 bmp.recycle()
             }

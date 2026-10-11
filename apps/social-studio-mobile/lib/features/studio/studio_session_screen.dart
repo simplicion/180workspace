@@ -1405,7 +1405,7 @@ class _DraggableCaptionState extends State<_DraggableCaption> {
                     color: Colors.black.withValues(alpha: 0.2),
                   )
                 : null,
-            child: _withMotion(constraints, _CaptionPreview(caption: widget.caption, t: widget.t)),
+            child: _withMotion(constraints, _CaptionPreview(caption: widget.caption, t: widget.t, previewWidth: constraints.maxWidth)),
           ),
         ),
       );
@@ -1479,13 +1479,15 @@ class _CroppedVideo extends StatelessWidget {
 }
 
 class _CaptionPreview extends StatelessWidget {
-  const _CaptionPreview({required this.caption, required this.t});
+  const _CaptionPreview({required this.caption, required this.t, this.previewWidth = 360.0});
   final EditIrCaption caption;
   final int t;
+  final double previewWidth;
 
   @override
   Widget build(BuildContext context) {
     final st = caption.style;
+    final scale = (previewWidth > 0 ? previewWidth / 360.0 : 1.0).clamp(0.5, 3.0);
 
     Color col2(Object? v, Color d) {
       if (v is! String) return d;
@@ -1514,7 +1516,8 @@ class _CaptionPreview extends StatelessWidget {
       renderedText = textStr.substring(0, (textStr.length * reveal).ceil().clamp(0, textStr.length));
     }
 
-    final baseSize = (st['fontSizePx'] as num?)?.toDouble() ?? (caption.kind == 'text' ? 24 : 18);
+    final rawSize = (st['fontSizePx'] as num?)?.toDouble() ?? (caption.kind == 'text' ? 24 : 18);
+    final baseSize = rawSize * scale;
     // word_pop: only the word being spoken grows (by its `scale`, eased over 120 ms), exactly like the export.
     double popOf(EditIrWord w) {
       if (anim != 'word_pop' || t < w.startMs || t >= w.endMs) return 1;
@@ -1556,8 +1559,8 @@ class _CaptionPreview extends StatelessWidget {
           ];
 
     Widget textWidget = Container(
-      padding: bg == null ? null : EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: bg == null ? null : BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+      padding: bg == null ? null : EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 4 * scale),
+      decoration: bg == null ? null : BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8 * scale)),
       child: Text.rich(
         TextSpan(children: spans),
         textAlign: TextAlign.center,
@@ -1566,10 +1569,10 @@ class _CaptionPreview extends StatelessWidget {
           color: text,
           fontSize: baseSize,
           shadows: [
-            if (st['glow'] == true) Shadow(blurRadius: 16, color: hi),
+            if (st['glow'] == true) Shadow(blurRadius: 16 * scale, color: hi),
             if (st['shadow'] == true || (st['strokeWidthPx'] as num? ?? 0) > 0) ...[
-              Shadow(blurRadius: 4, color: Colors.black),
-              Shadow(blurRadius: 1, color: Colors.black),
+              Shadow(blurRadius: 4 * scale, color: Colors.black),
+              Shadow(blurRadius: 1 * scale, color: Colors.black),
             ],
           ],
         ),

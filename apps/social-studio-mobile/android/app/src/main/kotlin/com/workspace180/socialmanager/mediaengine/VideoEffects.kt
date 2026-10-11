@@ -1,5 +1,7 @@
 package com.workspace180.socialmanager.mediaengine
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
@@ -11,6 +13,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.CanvasOverlay
 import androidx.media3.effect.MatrixTransformation
 import androidx.media3.effect.RgbMatrix
+import java.io.File
 import kotlin.math.max
 import kotlin.math.min
 
@@ -141,8 +144,89 @@ class TransitionMotion(private val spans: List<TransitionSpan>) : MatrixTransfor
 }
 
 /**
+ * Renders visual image layers and stickers (PiP photos, stickers, emojis, badges, overlays)
+ * directly onto the Canvas using hardware-accelerated CanvasOverlay.
+ * Guarantees 1:1 WYSIWYG parity with the Flutter preview, eliminating Media3 sequence desync or texture drops.
+ */
+@UnstableApi
+class ImageLayersOverlay(
+    private val overlays: List<IrOverlay>,
+    private val overlayPaths: Map<String, String>,
+) : CanvasOverlay(/* useInputFrameSize= */ true) {
+
+    private val bitmaps = mutableMapOf<String, Bitmap>()
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val dst = RectF()
+
+    override fun onDraw(canvas: Canvas, presentationTimeUs: Long) {
+        val tMs = presentationTimeUs / 1000.0
+        val w = canvas.width.toFloat()
+        val h = canvas.height.toFloat()
+        if (w <= 0f || h <= 0f) return
+
+        for (ov in overlays) {
+            if (tMs < ov.timelineStartMs || tMs >= ov.timelineEndMs) continue
+            val layer = ov.layer ?: continue
+            val path = overlayPaths[ov.id] ?: continue
+            val bmp = getBitmap(ov.id, path) ?: continue
+            if (bmp.isRecycled) continue
+
+            val pose = LayerMotion.at(layer, tMs - ov.timelineStartMs, ov.opacity)
+            if (pose.opacity <= 0.005) continue
+
+            val aspect = bmp.width.toDouble() / bmp.height.coerceAtLeast(1)
+            val (baseW, baseH) = LayerMotion.baseSize(canvas.width, canvas.height, aspect)
+            val drawW = (baseW * pose.scale).toFloat()
+            val drawH = (baseH * pose.scale).toFloat()
+            val cx = (pose.x * w).toFloat()
+            val cy = (pose.y * h).toFloat()
+
+            canvas.save()
+            canvas.translate(cx, cy)
+            if (pose.rotation != 0.0) {
+                canvas.rotate(pose.rotation.toFloat())
+            }
+
+            // Apply mask if specified (circle or rounded corners)
+            if (ov.mask != null) {
+                val shortSide = minOf(drawW, drawH)
+                val clipPath = android.graphics.Path()
+                val halfW = drawW / 2f
+                val halfH = drawH / 2f
+                val rect = RectF(-halfW, -halfH, halfW, halfH)
+                if (ov.mask.shape == "circle") {
+                    clipPath.addCircle(0f, 0f, shortSide / 2f, android.graphics.Path.Direction.CW)
+                } else {
+                    val r = (ov.mask.radius * shortSide).toFloat()
+                    clipPath.addRoundRect(rect, r, r, android.graphics.Path.Direction.CW)
+                }
+                canvas.clipPath(clipPath)
+            }
+
+            paint.alpha = (pose.opacity.coerceIn(0.0, 1.0) * 255).toInt()
+            dst.set(-drawW / 2f, -drawH / 2f, drawW / 2f, drawH / 2f)
+            canvas.drawBitmap(bmp, null, dst, paint)
+            canvas.restore()
+        }
+    }
+
+    private fun getBitmap(id: String, path: String): Bitmap? {
+        bitmaps[id]?.let { if (!it.isRecycled) return it }
+        val file = File(path)
+        if (!file.isFile) return null
+        return try {
+            val bmp = BitmapFactory.decodeFile(file.absolutePath)
+            if (bmp != null) bitmaps[id] = bmp
+            bmp
+        } catch (_: Throwable) {
+            null
+        }
+    }
+}
+
+/**
  * Renders captions and titles (contract §3.4) with per-word timing: word_pop, karaoke, word_box, word_reveal, none.
- * Drawn with a Canvas at the output frame size, so fontSizePx is in canvas pixels.
+ * Scaled relative to the reference design width (360dp) to guarantee 1:1 WYSIWYG parity with the Flutter preview.
  */
 @UnstableApi
 class CaptionOverlay(
@@ -174,10 +258,14 @@ class CaptionOverlay(
         val st = cap.style
         val w = canvas.width.toFloat()
         val h = canvas.height.toFloat()
+        // 1:1 WYSIWYG scale: Flutter preview renders in dp on a ~360dp viewport.
+        // Scaling by (w / 360f) ensures captions appear in the exact same proportion in the export as in the editor.
+        val scaleFactor = (w / 360f).coerceAtLeast(1f)
         val motion = TextMotion.at(st.enter, st.exit, st.loop, cap.startMs, cap.endMs, t)
         if (motion.opacity <= 0.0) return
         val tf = typefaceFor(st.fontFamily, st.fontWeight)
-        val size = st.fontSizePx.toFloat()
+        val size = (st.fontSizePx * scaleFactor).toFloat()
+        val strokeWidth = (st.strokeWidthPx * scaleFactor).toFloat()
         for (p in listOf(fill, stroke)) {
             p.typeface = tf
             p.textSize = size
@@ -204,8 +292,8 @@ class CaptionOverlay(
             val pop = if (st.animation == "word_pop") it.scale.coerceAtLeast(1.0).toFloat() else 1f
             Token(it, text, width, width * pop)
         }
-        // The outline is drawn centred on the glyph edge, so it eats strokeWidthPx into the gap on each side.
-        val space = fill.measureText(" ") + 2f * st.strokeWidthPx.toFloat()
+        // The outline is drawn centred on the glyph edge, so it eats strokeWidth into the gap on each side.
+        val space = fill.measureText(" ") + 2f * strokeWidth
         val maxWidth = (st.maxWidthFraction * w).toFloat()
 
         // Greedy word wrap.
@@ -244,17 +332,17 @@ class CaptionOverlay(
         st.background?.let { b ->
             bg.color = b.color
             bg.alpha = Color.alpha(b.color) * alpha / 255
-            val pad = b.paddingPx.toFloat()
-            val r = b.radiusPx.toFloat()
+            val pad = (b.paddingPx * scaleFactor).toFloat()
+            val r = (b.radiusPx * scaleFactor).toFloat()
             canvas.drawRoundRect(RectF(cx - blockW / 2 - pad, top - pad, cx + blockW / 2 + pad, top + blockH + pad), r, r, bg)
         }
 
-        stroke.strokeWidth = (st.strokeWidthPx * 2).toFloat() // stroke is centred on the glyph edge
+        stroke.strokeWidth = strokeWidth * 2f // stroke is centred on the glyph edge
         stroke.color = st.strokeColor
         stroke.alpha = Color.alpha(st.strokeColor) * alpha / 255
         when {
             st.glow -> fill.setShadowLayer(size * 0.25f, 0f, 0f, st.highlightColor)
-            st.shadow -> fill.setShadowLayer(6f, 0f, 4f, 0xA0000000.toInt())
+            st.shadow -> fill.setShadowLayer(6f * scaleFactor, 0f, 4f * scaleFactor, 0xA0000000.toInt())
             else -> fill.clearShadowLayer()
         }
 

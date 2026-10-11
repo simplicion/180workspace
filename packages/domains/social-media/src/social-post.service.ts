@@ -117,7 +117,7 @@ export class SocialPostService {
         const post = await (prisma as any).socialPost.findUnique({
             where: { id },
             include: {
-                variants: true,
+                variants: { include: { socialAccount: { select: SAFE_ACCOUNT_SELECT } } },
                 reviewComments: { orderBy: { createdAt: 'asc' } },
                 project: true,
                 client: true,
@@ -153,7 +153,7 @@ export class SocialPostService {
             take: filters?.limit || 50,
             skip: filters?.offset || 0,
             include: {
-                variants: true,
+                variants: { include: { socialAccount: { select: SAFE_ACCOUNT_SELECT } } },
                 project: { select: { id: true, name: true } },
                 client: { select: { id: true, name: true } },
                 socialAccount: { select: { id: true, platform: true, accountName: true, username: true } },
@@ -255,6 +255,38 @@ export class SocialPostService {
         const keep = new Set(incoming.map((v) => key(v.platform)));
         const removable = existing.filter((v) => !keep.has(key(v.platform)) && editable(v)).map((v) => v.id);
         if (removable.length) await db.socialPostVariant.deleteMany({ where: { id: { in: removable }, postId } });
+    }
+
+    /**
+     * Assign a social account to a specific variant of a post.
+     */
+    static async assignVariantAccount(postId: string, variantIdOrPlatform: string, socialAccountId: string | null, companyId?: string) {
+        const cId = requireCompanyId(companyId || (requestContext.getStore()?.companyId as string));
+        const db = getDb();
+        const post = await db.socialPost.findFirst({ where: { id: postId, companyId: cId } });
+        if (!post) throw notFound('Post');
+        if (socialAccountId) {
+            const acc = await db.socialAccount.findFirst({ where: { id: socialAccountId, companyId: cId } });
+            if (!acc) throw notFound('Social account');
+        }
+        const variant = await db.socialPostVariant.findFirst({
+            where: {
+                postId,
+                OR: [
+                    { id: variantIdOrPlatform },
+                    { platform: variantIdOrPlatform.toLowerCase() },
+                ],
+            },
+        });
+        if (!variant) throw notFound('Variant');
+        await db.socialPostVariant.update({
+            where: { id: variant.id },
+            data: { socialAccountId: socialAccountId || null },
+        });
+        return db.socialPostVariant.findUnique({
+            where: { id: variant.id },
+            include: { socialAccount: { select: SAFE_ACCOUNT_SELECT } },
+        });
     }
 
     /**
@@ -726,4 +758,6 @@ export class SocialPostService {
         };
     }
 }
+
+
 

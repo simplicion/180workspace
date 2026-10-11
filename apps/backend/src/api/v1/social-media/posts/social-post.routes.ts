@@ -85,6 +85,23 @@ router.get('/:id/validate-publish', async (req: Request, res: Response) => {
     }
 });
 
+// Assign a social account to a specific variant
+router.patch('/:id/variants/:variantId/account', async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const { socialAccountId } = req.body || {};
+        const variant = await SocialPostService.assignVariantAccount(
+            String(req.params.id),
+            String(req.params.variantId),
+            socialAccountId ? String(socialAccountId) : null,
+            user?.companyId
+        );
+        res.json({ success: true, variant });
+    } catch (error: any) {
+        sendRouteError(res, error, 'posts.variant.account');
+    }
+});
+
 // Sync video rendered from 180 Media Studio (web or native desktop)
 router.post('/sync-studio-render', async (req: Request, res: Response) => {
     try {

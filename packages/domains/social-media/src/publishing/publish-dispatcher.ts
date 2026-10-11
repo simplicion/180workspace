@@ -342,7 +342,17 @@ export class PublishDispatcher {
         });
         if (candidates.length === 1) return candidates[0];
         if (!candidates.length) throw new PublishError('ACCOUNT_NOT_CONNECTED', `No ${platform} account is connected${post.projectId ? ' to this project' : ''}.`, { platform });
-        throw new PublishError('ACCOUNT_NOT_CONNECTED', `Several ${platform} accounts are connected; choose one for this post.`, { platform });
+        
+        // Smart fallback: If one account is set as default or primary, use it automatically
+        const primary = candidates.find((c: any) => c.isDefault || c.isPrimary || asObj(c.metadata).isDefault || asObj(c.metadata).isPrimary);
+        if (primary) return primary;
+
+        const candidateNames = candidates.map((c: any) => c.accountName || c.username || c.id).join(', ');
+        throw new PublishError(
+            'ACCOUNT_NOT_CONNECTED',
+            `Several ${platform} accounts are connected; choose one for this post.`,
+            { platform, details: { candidates: candidates.map((c: any) => ({ id: c.id, accountName: c.accountName, username: c.username, profileImageUrl: c.profileImageUrl })) } }
+        );
     }
 
     private static async publishVariant(post: any, variant: any, opts: DispatchOptions) {

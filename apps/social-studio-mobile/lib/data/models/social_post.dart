@@ -58,6 +58,10 @@ class PostVariant {
     this.errorMessage,
     this.platformMeta = const {},
     this.externalId,
+    this.socialAccountId,
+    this.accountName,
+    this.username,
+    this.profileImageUrl,
   });
 
   final String? id;
@@ -69,6 +73,10 @@ class PostVariant {
   final String? errorMessage;
   final Json platformMeta;
   final String? externalId;
+  final String? socialAccountId;
+  final String? accountName;
+  final String? username;
+  final String? profileImageUrl;
 
   /// Produced by the server's sandbox (SIMULATE_SOCIAL_PUBLISHING, never in production): nothing reached the
   /// platform and [publishedUrl] is a placeholder. The UI must label it and must not offer "View live post".
@@ -77,23 +85,71 @@ class PostVariant {
   /// A published / processing variant can carry a non-fatal note (e.g. first comment failed); it is not an error.
   bool get isFailed => status == 'failed';
 
-  factory PostVariant.fromJson(Json j) => PostVariant(
-        id: jStr(j['id']),
-        platform: SocialPlatform.parse(j['platform']),
-        customContent: jStr(j['customContent']),
-        firstComment: jStr(j['firstComment']),
-        status: jStr(j['publishStatus']) ?? jStr(j['status']),
-        publishedUrl: jStr(j['externalUrl']) ?? jStr(j['publishedUrl']),
-        errorMessage: jStr(j['lastError']) ?? jStr(j['errorMessage']),
-        platformMeta: jMap(j['platformMeta']),
-        externalId: jStr(j['externalId']),
+  PostVariant copyWith({
+    String? id,
+    SocialPlatform? platform,
+    String? customContent,
+    String? firstComment,
+    String? status,
+    String? publishedUrl,
+    String? errorMessage,
+    Json? platformMeta,
+    String? externalId,
+    String? socialAccountId,
+    String? accountName,
+    String? username,
+    String? profileImageUrl,
+  }) =>
+      PostVariant(
+        id: id ?? this.id,
+        platform: platform ?? this.platform,
+        customContent: customContent ?? this.customContent,
+        firstComment: firstComment ?? this.firstComment,
+        status: status ?? this.status,
+        publishedUrl: publishedUrl ?? this.publishedUrl,
+        errorMessage: errorMessage ?? this.errorMessage,
+        platformMeta: platformMeta ?? this.platformMeta,
+        externalId: externalId ?? this.externalId,
+        socialAccountId: socialAccountId ?? this.socialAccountId,
+        accountName: accountName ?? this.accountName,
+        username: username ?? this.username,
+        profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       );
+
+  factory PostVariant.fromJson(Json j) {
+    final account = jMapOrNull(j['socialAccount']);
+    return PostVariant(
+      id: jStr(j['id']),
+      platform: SocialPlatform.parse(j['platform']),
+      customContent: jStr(j['customContent']),
+      firstComment: jStr(j['firstComment']),
+      status: jStr(j['publishStatus']) ?? jStr(j['status']),
+      publishedUrl: jStr(j['externalUrl']) ?? jStr(j['publishedUrl']),
+      errorMessage: jStr(j['lastError']) ?? jStr(j['errorMessage']),
+      platformMeta: jMap(j['platformMeta']),
+      externalId: jStr(j['externalId']),
+      socialAccountId: jStr(j['socialAccountId']) ?? jStr(jMap(j['platformMeta'])['socialAccountId']),
+      accountName: account != null ? (jStr(account['accountName']) ?? jStr(account['username'])) : null,
+      username: account != null ? jStr(account['username']) : null,
+      profileImageUrl: account != null ? jStr(account['profileImageUrl']) : null,
+    );
+  }
 
   Json toCreateJson() => compact({
         'platform': platform.id,
         'customContent': customContent ?? '',
         'firstComment': firstComment,
         'platformMeta': platformMeta.isNotEmpty ? platformMeta : null,
+        'socialAccountId': socialAccountId,
+      });
+
+  Json toUpdateJson() => compact({
+        if (id != null) 'id': id,
+        'platform': platform.id,
+        'customContent': customContent ?? '',
+        'firstComment': firstComment,
+        'platformMeta': platformMeta.isNotEmpty ? platformMeta : null,
+        'socialAccountId': socialAccountId,
       });
 }
 

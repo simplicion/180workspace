@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/util/poll_backoff.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/platform.dart';
+import '../../data/models/social_account.dart';
 import '../../data/models/social_post.dart';
 import '../../data/models/user_assisted_publish_package.dart';
 import '../projects/project_provider.dart';
@@ -215,6 +216,150 @@ class _PostBodyState extends ConsumerState<_PostBody> {
     _refresh();
   }
 
+  Future<bool> _pickAccountForPlatform(SocialPlatform platform) async {
+    final api = ref.read(socialApiProvider);
+    List<SocialAccount> accounts = [];
+    try {
+      accounts = await api.listAccounts(projectId: p.projectId);
+      accounts = accounts.where((a) => a.platform == platform && a.isActive).toList();
+    } catch (e) {
+      if (mounted) showError(context, 'Could not fetch accounts: $e');
+      return false;
+    }
+
+    if (!mounted) return false;
+
+    if (accounts.isEmpty) {
+      final connect = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppTheme.surfaceElevated,
+          title: Text('No ${platform.label} Account Connected'),
+          content: Text(
+            'No active ${platform.label} account is connected to this project. Would you like to connect one in Workspace Settings?',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Go to Accounts'),
+            ),
+          ],
+        ),
+      );
+      if (connect == true && mounted && p.projectId != null) {
+        context.push('/projects/${p.projectId}/accounts');
+      }
+      return false;
+    }
+
+    final variant = p.variants.where((v) => v.platform == platform).firstOrNull;
+    final currentAccountId = variant?.socialAccountId;
+
+    final selected = await showModalBottomSheet<SocialAccount>(
+      context: context,
+      backgroundColor: AppTheme.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: platform.color.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(platform.icon, color: platform.color, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Choose ${platform.label} Account', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text('Multiple accounts connected; select destination', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: accounts.length,
+                  separatorBuilder: (c, i) => const SizedBox(height: 8),
+                  itemBuilder: (_, idx) {
+                    final acc = accounts[idx];
+                    final isCurrent = acc.id == currentAccountId;
+                    return ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(color: isCurrent ? platform.color : Colors.white12),
+                      ),
+                      tileColor: isCurrent ? platform.color.withValues(alpha: 0.1) : AppTheme.surface,
+                      leading: CircleAvatar(
+                        backgroundColor: platform.color.withValues(alpha: 0.2),
+                        foregroundImage: acc.profileImageUrl != null ? NetworkImage(acc.profileImageUrl!) : null,
+                        child: Text(acc.accountName.isNotEmpty ? acc.accountName[0].toUpperCase() : '?'),
+                      ),
+                      title: Row(
+                        children: [
+                          Flexible(child: Text(acc.accountName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), overflow: TextOverflow.ellipsis)),
+                          if (acc.isDefault) ...[
+                            const SizedBox(width: 6),
+                            StatusChip(label: 'DEFAULT', color: AppTheme.primary),
+                          ],
+                        ],
+                      ),
+                      subtitle: acc.username != null ? Text('@${acc.username}', style: const TextStyle(fontSize: 12)) : null,
+                      trailing: isCurrent ? Icon(Icons.check_circle_rounded, color: platform.color) : const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+                      onTap: () => Navigator.pop(ctx, acc),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (selected == null || !mounted) return false;
+
+    setState(() => _busy = 'assign');
+    try {
+      await api.assignVariantAccount(p.id, platform.id, selected.id);
+      _refresh();
+      if (mounted) {
+        showInfo(context, '${selected.accountName} assigned for ${platform.label}', color: AppTheme.success);
+      }
+      return true;
+    } catch (e) {
+      if (mounted) showError(context, 'Failed to assign account: $e');
+      return false;
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
   Future<void> _publish() => _run('publish', () async {
         final api = ref.read(socialApiProvider);
         final assistedPlatforms = p.platforms.where((pl) => pl.isUserAssisted).toList();
@@ -264,6 +409,73 @@ class _PostBodyState extends ConsumerState<_PostBody> {
         final readiness = await api.validatePublish(p.id);
         if (!mounted) return;
         if (!readiness.isReady) {
+          // Check if failure is due to multiple accounts needing a selection
+          final multiAccountIssues = readiness.issues.where((i) =>
+              i.toLowerCase().contains('several') && i.toLowerCase().contains('accounts are connected')).toList();
+
+          if (multiAccountIssues.isNotEmpty) {
+            final platformsNeedingSelection = p.platforms.where((pl) =>
+                multiAccountIssues.any((issue) =>
+                    issue.toLowerCase().contains(pl.id.toLowerCase()) ||
+                    issue.toLowerCase().contains(pl.label.toLowerCase()))).toList();
+
+            if (platformsNeedingSelection.isNotEmpty) {
+              if (platformsNeedingSelection.length == 1) {
+                // Single platform needs choice: directly open account picker
+                final chosen = await _pickAccountForPlatform(platformsNeedingSelection.first);
+                if (chosen && mounted) {
+                  final proceed = await confirm(
+                    context,
+                    title: 'Account Selected',
+                    message: 'Account assigned successfully. Would you like to proceed with publishing now?',
+                    action: 'Publish Now',
+                  );
+                  if (proceed && mounted) {
+                    _publish();
+                  }
+                }
+                return;
+              } else {
+                // Multiple platforms need choice: show smart actionable dialog
+                await showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: AppTheme.surfaceElevated,
+                    title: const Text('Account Selection Required'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Multiple accounts are connected for these platforms. Please choose which account to use:'),
+                        const SizedBox(height: 12),
+                        for (final pl in platformsNeedingSelection)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: pl.color.withValues(alpha: 0.15),
+                                foregroundColor: pl.color,
+                              ),
+                              icon: Icon(pl.icon, size: 18),
+                              label: Text('Select ${pl.label} Account'),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _pickAccountForPlatform(pl);
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                    ],
+                  ),
+                );
+                return;
+              }
+            }
+          }
+
           await showDialog<void>(
             context: context,
             builder: (ctx) => AlertDialog(
@@ -565,6 +777,59 @@ class _PostBodyState extends ConsumerState<_PostBody> {
                   ],
                   if (v.status != null) StatusChip(label: v.status!, color: v.status == 'failed' ? AppTheme.error : AppTheme.textSecondary),
                 ]),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: InkWell(
+                    onTap: busy ? null : () => _pickAccountForPlatform(v.platform),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: (v.accountName != null || v.username != null)
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : AppTheme.warning.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: (v.accountName != null || v.username != null)
+                              ? Colors.white12
+                              : AppTheme.warning.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (v.profileImageUrl != null)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: CircleAvatar(
+                                radius: 8,
+                                backgroundImage: NetworkImage(v.profileImageUrl!),
+                              ),
+                            )
+                          else
+                            Icon(
+                              (v.accountName != null || v.username != null)
+                                  ? Icons.account_circle_rounded
+                                  : Icons.swap_horiz_rounded,
+                              size: 15,
+                              color: (v.accountName != null || v.username != null) ? v.platform.color : AppTheme.warning,
+                            ),
+                          const SizedBox(width: 6),
+                          Text(
+                            v.accountName ?? (v.username != null ? '@${v.username}' : 'Choose account (multiple connected)'),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: (v.accountName != null || v.username != null) ? Colors.white : AppTheme.warning,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(Icons.unfold_more_rounded, size: 14, color: AppTheme.textSecondary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 if (v.customContent?.isNotEmpty ?? false) Padding(padding: EdgeInsets.only(top: 6), child: Text(v.customContent!)),
                 if (v.isSimulated)
                   Padding(

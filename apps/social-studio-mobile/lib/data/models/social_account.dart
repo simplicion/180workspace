@@ -19,6 +19,7 @@ class SocialAccount {
     this.capabilities = const [],
     this.tokenHealth,
     this.isSimulated = false,
+    this.metadata = const {},
   });
 
   /// A sandbox account created by the server's SIMULATE_SOCIAL_PUBLISHING mode (dev only): posts to it are never
@@ -37,9 +38,12 @@ class SocialAccount {
   final bool reauthRequired;
   final DateTime? tokenExpiresAt;
   final List<String> capabilities;
+  final Json metadata;
 
   /// Server-computed: ok | expiring_soon | expired | reauth_required (null on older servers).
   final String? tokenHealth;
+
+  bool get isDefault => jBool(metadata['isDefault']) || jBool(metadata['isPrimary']);
 
   bool get tokenExpired => tokenHealth == 'expired' || (tokenExpiresAt != null && tokenExpiresAt!.isBefore(DateTime.now()));
 
@@ -52,6 +56,7 @@ class SocialAccount {
   factory SocialAccount.fromJson(Json j) {
     final project = jMapOrNull(j['project']);
     final client = jMapOrNull(j['client']);
+    final meta = jMap(j['metadata']);
     return SocialAccount(
       id: jStrOr(j['id'], ''),
       platform: SocialPlatform.parse(j['platform']),
@@ -66,7 +71,8 @@ class SocialAccount {
       tokenExpiresAt: jDate(j['tokenExpiresAt']),
       capabilities: jStrList(j['capabilities']),
       tokenHealth: jStr(j['tokenHealth']),
-      isSimulated: jBool(jMap(j['metadata'])['simulated']),
+      isSimulated: jBool(meta['simulated']),
+      metadata: meta,
     );
   }
 }

@@ -201,4 +201,40 @@ export class SocialAccountService {
         }
         return paused;
     }
+
+    /**
+     * Designates a connected account as the primary/default account for its platform in the workspace/project.
+     */
+    static async setDefaultAccount(id: string, companyId: string) {
+        if (!companyId) throw new SocialDomainError('UNAUTHENTICATED', 401, 'Company context required');
+        const db = getDb();
+        const account = await db.socialAccount.findFirst({ where: { id, companyId } });
+        if (!account) throw notFound('Social account');
+
+        // Unset default from sibling accounts of the same platform
+        const siblings = await db.socialAccount.findMany({
+            where: {
+                companyId,
+                platform: account.platform,
+                id: { not: id },
+                ...(account.projectId ? { projectId: account.projectId } : {}),
+            },
+        });
+        for (const sib of siblings) {
+            const meta = (sib.metadata && typeof sib.metadata === 'object' ? sib.metadata : {}) as Record<string, any>;
+            if (meta.isDefault || meta.isPrimary) {
+                await db.socialAccount.update({
+                    where: { id: sib.id },
+                    data: { metadata: { ...meta, isDefault: false, isPrimary: false } },
+                });
+            }
+        }
+
+        const currentMeta = (account.metadata && typeof account.metadata === 'object' ? account.metadata : {}) as Record<string, any>;
+        const updated = await db.socialAccount.update({
+            where: { id },
+            data: { metadata: { ...currentMeta, isDefault: true, isPrimary: true } },
+        });
+        return toPublicAccount({ ...updated, hasCredential: true });
+    }
 }

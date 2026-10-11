@@ -220,6 +220,8 @@ class SocialApi {
 
   Future<void> disconnectAccount(String id) => _api.delete('$base/accounts/$id');
 
+  Future<void> setDefaultAccount(String id) => _api.post('$base/accounts/$id/set-default');
+
   // ── AI content calendars ──────────────────────────────────────────────────
 
   Future<List<ContentCalendar>> listCalendars({int limit = 50, int offset = 0, String? projectId}) async {
@@ -452,6 +454,9 @@ class SocialApi {
 
   Future<MutationOutcome> updatePost(String id, Json body) =>
       _mutate('PUT', '$base/posts/$id', body: body, label: 'Update post');
+
+  Future<void> assignVariantAccount(String postId, String variantIdOrPlatform, String? socialAccountId) =>
+      _api.patch('$base/posts/$postId/variants/$variantIdOrPlatform/account', body: {'socialAccountId': socialAccountId});
 
   Future<MultipartFile> _makeMultipartFile(
     String path, {
