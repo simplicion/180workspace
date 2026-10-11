@@ -71,27 +71,6 @@ developers: {
     port: 3006,
     color: '\x1b[38;5;197m', // Crimson / Rose
   },
-  social: {
-    name: '180 Social Studio (Flutter Mobile)',
-    filter: 'social-studio-mobile',
-    cmd: 'flutter',
-    args: [
-      'run',
-      '-d',
-      'web-server',
-      '--web-port',
-      '3007',
-      '--web-hostname',
-      '0.0.0.0',
-      '--dart-define=API_BASE_URL=http://localhost:4002',
-      '--dart-define=IDENTITY_SERVER_URL=http://localhost:4003',
-      '--dart-define=IDENTITY_AUTH_URL=http://localhost:3009',
-      '--dart-define=WEB_APP_URL=http://localhost:3002',
-    ],
-    cwd: path.join(rootDir, 'apps', 'social-studio-mobile'),
-    port: 3007,
-    color: '\x1b[96m', // Bright Cyan
-  },
 };
 
 const ALIASES = {
@@ -114,11 +93,6 @@ const ALIASES = {
   'traffic-director': 'trafficdirector',
   traffic: 'trafficdirector',
   td: 'trafficdirector',
-  'social-studio': 'social',
-  'social-studio-mobile': 'social',
-  flutter: 'social',
-  mobile: 'social',
-  studio: 'social',
 };
 
 const rawArg = (process.argv[2] || '').trim().toLowerCase();
@@ -137,9 +111,8 @@ function printBanner() {
     console.log(`  ${app.color}${key.padEnd(16)}${RESET} : ${app.name}${portStr}`);
   }
   console.log('\nUsage commands:');
-  console.log('  pnpm dev                 (Spins up ALL workspace platform apps + Flutter)');
+  console.log('  pnpm dev                 (Spins up ALL workspace platform apps)');
   console.log('  pnpm dev:traffic         (Runs 180 Traffic Director on :3006)');
-  console.log('  pnpm dev:flutter         (Runs 180 Social Studio Flutter on :3007)');
   console.log('  pnpm dev:backend         (Runs Main Backend on :4002)');
   console.log('  pnpm dev:frontend        (Runs Web Platform on :3002)');
   console.log('  pnpm dev:admin           (Runs Admin Portal on :3003)');
@@ -181,9 +154,7 @@ function runAllApps(includeMobile = true) {
   console.log('  [traffic-director-web]  -> http://localhost:3006 (Traffic Director)');
   console.log('  [worker]                -> Background Jobs Node');
   console.log('  [apps-docs]             -> http://localhost:3005 (Documentation Portal)');
-  if (includeMobile) {
-    console.log('  [social-studio-mobile]  -> http://localhost:3007 (180 Social Studio Flutter Mobile)');
-  }
+  console.log('  [180 Social Studio]     -> Dedicated Project (C:/Users/saavi/Desktop/180 social studio)');
   console.log('\nPress Ctrl+C to terminate all servers.\n');
 
   const runningChildren = [];
@@ -210,20 +181,6 @@ function runAllApps(includeMobile = true) {
     shell: true,
   });
   runningChildren.push(turboChild);
-
-  // 2. Launch Flutter mobile in parallel if enabled
-  if (includeMobile) {
-    const flutterChild = spawn(APPS.social.cmd, APPS.social.args, {
-      cwd: APPS.social.cwd || path.join(rootDir, 'apps', 'social-studio-mobile'),
-      stdio: 'inherit',
-      shell: true,
-    });
-    runningChildren.push(flutterChild);
-
-    flutterChild.on('error', (err) => {
-      console.warn('Flutter launch note:', err.message);
-    });
-  }
 
   const cleanup = () => {
     for (const child of runningChildren) {

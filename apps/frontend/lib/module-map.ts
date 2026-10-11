@@ -68,11 +68,6 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/help-support': { appId: 'system', moduleId: 'help-support' },
   '/settings/wallet': { appId: 'system', moduleId: 'wallet' },
   
-  // Social Media Management
-  '/social-projects': { appId: 'social-media', moduleId: 'social-projects' },
-  '/content-calendar': { appId: 'social-media', moduleId: 'content-calendar' },
-  '/social-media-assets': { appId: 'social-media', moduleId: 'social-media-assets' },
-  '/inbox': { appId: 'social-media', moduleId: 'social-inbox' },
 
   // Traffic Director (Smart Routing & Conditional Delivery)
   '/traffic-director': { appId: 'traffic-director', moduleId: 'overview' },
@@ -91,9 +86,6 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/voiceforce/calls': { appId: 'voiceforce', moduleId: 'calls' },
   '/voiceforce/templates': { appId: 'voiceforce', moduleId: 'templates' },
 
-  // 180 Media Studio (Autonomous Video Production Engine & NLE)
-  '/media-editor': { appId: 'media-editor', moduleId: 'dashboard' },
-  '/video-studio': { appId: 'media-editor', moduleId: 'dashboard' },
 };
 
 export interface ModuleConfig {

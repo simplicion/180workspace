@@ -30,10 +30,9 @@ describe('module table invariants', () => {
     expect(OFFLINE_MODULES.filter((m) => m.tier === 'full').map((m) => m.id).sort()).toEqual(['crm-and-sales', 'projects-and-tasks']);
   });
 
-  it('sensitive and real-time modules are online-only; video editing is desktop-only', () => {
+  it('sensitive and real-time modules are online-only', () => {
     const tier = (id: string) => OFFLINE_MODULES.find((m) => m.id === id)?.tier;
-    for (const id of ['finance', 'insights', 'settings', 'communications', 'voiceforce', 'ai', 'social-inbox', 'service-desk']) expect(tier(id)).toBe('online-only');
-    expect(tier('media-editor')).toBe('desktop');
+    for (const id of ['finance', 'insights', 'settings', 'communications', 'voiceforce', 'ai', 'service-desk']) expect(tier(id)).toBe('online-only');
   });
 
   it('labels every tier for the UI', () => {
@@ -55,8 +54,6 @@ describe('moduleForRoute', () => {
     ['/meeting/room1', 'communications'],
     ['/voiceforce/agents', 'voiceforce'],
     ['/ai', 'ai'],
-    ['/media-editor', 'media-editor'],
-    ['/video-studio', 'media-editor'],
     ['/dashboard', 'dashboard'],
     ['/', 'dashboard'],
     ['/tasks/', 'projects-and-tasks'],

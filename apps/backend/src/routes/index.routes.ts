@@ -34,7 +34,6 @@ const trafficDirectorModule = require('../api/v1/traffic-director/index');
 const trafficDirectorRoutes = trafficDirectorModule.protectedRoutes?.default || trafficDirectorModule.protectedRoutes || trafficDirectorModule.default;
 const trafficDirectorPublicRoutes = trafficDirectorModule.publicRoutes?.default || trafficDirectorModule.publicRoutes || require('../api/v1/traffic-director/public-routing.routes').default || require('../api/v1/traffic-director/public-routing.routes');
 const { publicContractRoutes } = require('../api/v1/crm-and-sales/index');
-const socialMediaRoutes = require('../api/v1/social-media/index').default;
 const releaseNotesRoutes = require('../api/v1/communications/index').default;
 
 // Initialize CRM listeners
@@ -84,12 +83,6 @@ router.use((req: any, res: any, next: any) => {
 
     if (rewrites[path]) {
         req.url = req.url.replace(path, rewrites[path]);
-    } else if (path.startsWith('/content-calendar/') || path === '/content-calendar') {
-        req.url = req.url.replace('/content-calendar', '/v1/social-media/content-calendar');
-    } else if (path.startsWith('/saved-banks/') || path === '/saved-banks') {
-        req.url = req.url.replace('/saved-banks', '/v1/social-media/saved-banks');
-    } else if (path.startsWith('/social-media/') || path === '/social-media') {
-        req.url = req.url.replace('/social-media', '/v1/social-media');
     } else if (path.startsWith('/calendar/')) {
         req.url = req.url.replace('/calendar', '/v1/workspace-tools/calendar');
     } else if (path.startsWith('/files/')) {
@@ -166,8 +159,6 @@ router.use((req: any, res: any, next: any) => {
         req.url = req.url.replace('/roles-access', '/v1/settings/roles');
     } else if (path.startsWith('/salary/') || path === '/salary') {
         req.url = req.url.replace('/salary', '/v1/finance/salary');
-    } else if (path.startsWith('/social-media/') || path === '/social-media') {
-        req.url = req.url.replace('/social-media', '/v1/social-media');
     } else if (path.startsWith('/transactions/') || path === '/transactions') {
         req.url = req.url.replace('/transactions', '/v1/finance/transactions');
     } else if (path.startsWith('/vendors/') || path === '/vendors') {
@@ -261,36 +252,9 @@ router.post('/v1/traffic-director/verify-tag', (req: any, res: any, next: any) =
 });
 
 
-// Public social-account OAuth callback (provider redirects the browser here; trust comes from the signed one-time state)
-router.use('/v1/social-media/accounts/oauth', require('../api/v1/social-media/accounts/social-account.routes').oauthCallbackRouter);
-
-// Public Meta Webhooks & Callbacks (Challenge handshake, event receiver, deauthorization, data deletion)
-router.use('/v1/social-media/webhooks/meta', require('../api/v1/social-media/webhooks/meta-webhook.routes').metaWebhookRouter);
-
-// Public 180 Pay Webhook Receiver for Traffic Director Subscriptions
-router.post('/v1/traffic-director/billing/webhook', require('../api/v1/traffic-director/traffic-director.controller').TrafficDirectorController.handleBillingWebhook);
-
-// Public 180 Pay Webhook Receiver for 180 Social Studio Creator Subscriptions & Daily Passes
-router.post('/v1/social-media/billing/webhook', require('../api/v1/social-media/billing/social-billing.routes').socialBillingWebhookHandler);
-router.post('/social-media/billing/webhook', require('../api/v1/social-media/billing/social-billing.routes').socialBillingWebhookHandler);
-
-// Public 180 Pay Webhook Receivers for Platform Billing & Wallet Subscriptions
-router.post('/v1/platform-billing/webhooks/180-pay', require('../api/v1/platform-billing/billing.controller').BillingController.handle180PayWebhook);
-router.post('/v1/platform-billing/webhook', require('../api/v1/platform-billing/billing.controller').BillingController.handle180PayWebhook);
-router.post('/webhooks/180-pay', require('../api/v1/platform-billing/billing.controller').BillingController.handle180PayWebhook);
-router.post('/v1/wallet/webhooks/180-pay', require('../api/v1/wallet/wallet.controller').WalletController.handle180PayWebhook);
-
-// Protected Social Studio billing endpoints (accessible to creators without moduleGuard)
-router.use('/v1/social-media/billing', protect, require('../api/v1/social-media/billing/social-billing.routes').default);
-router.use('/social-media/billing', protect, require('../api/v1/social-media/billing/social-billing.routes').default);
-
 router.use('/v1/communications', protect, communicationsRoutes);
 router.use('/v1/advertising', protect, moduleGuard('advertising'), advertisingRoutes);
 router.use('/v1/traffic-director', protect, trafficDirectorRoutes);
-router.use('/v1/social-media', protect, moduleGuard('social-media'), socialMediaRoutes);
-router.use('/social-media', protect, moduleGuard('social-media'), socialMediaRoutes);
-router.use('/content-calendar', protect, moduleGuard('social-media'), require('../api/v1/social-media/content-calendar/content-calendar.routes').default);
-router.use('/saved-banks', protect, moduleGuard('social-media'), require('../api/v1/social-media/saved-banks/saved-banks.routes').default);
 router.use('/v1/insights', protect, moduleGuard('insights'), insightsRoutes);
 router.use('/v1/platform-billing', protect, platformBillingRoutes);
 router.use('/v1/ai', require('../api/v1/ai').default);
@@ -382,17 +346,12 @@ router.use('/v1/voiceforce', voiceforceRoutes);
 router.use('/wallet', walletRoutes);
 router.use('/v1/wallet', walletRoutes);
 
-// ─── 180 Media Studio (Autonomous Video Production Engine & NLE) ─────────────
-const mediaEditorRoutes = require('../api/v1/media-editor/media-editor.routes').default;
-
 // Public Native Installer Downloads
 router.get([
   '/download/:platform',
   '/v1/download/:platform',
   '/workspace/download/:platform',
   '/v1/workspace/download/:platform',
-  '/media-editor/download/:platform',
-  '/v1/media-editor/download/:platform',
 ], (req: any, res: any) => {
   const platform = String(req.params.platform || "").toLowerCase();
   // platform -> [download file name, env var holding the published release URL]
@@ -475,8 +434,5 @@ router.use('/mobile/devices', protect, desktopRoutes);
 router.use('/v1/mobile/devices', protect, desktopRoutes);
 router.use('/desktop', protect, desktopRoutes);
 router.use('/v1/desktop', protect, desktopRoutes);
-
-router.use('/media-editor', protect, moduleGuard('media-editor'), mediaEditorRoutes);
-router.use('/v1/media-editor', protect, moduleGuard('media-editor'), mediaEditorRoutes);
 
 export default router;

@@ -31,198 +31,6 @@ importers:
         specifier: ^4.129.0
         version: 4.129.0
 
-  apps/180-core-backend:
-    dependencies:
-      '@workspace/db-180core':
-        specifier: workspace:*
-        version: link:../../packages/db-180core
-      '@workspace/identity-provider':
-        specifier: workspace:*
-        version: link:../../packages/domains/identity-provider
-      '@workspace/integrations':
-        specifier: workspace:*
-        version: link:../../packages/domains/integrations
-      '@workspace/payment-provider':
-        specifier: workspace:*
-        version: link:../../packages/domains/payment-provider
-      axios:
-        specifier: ^1.7.9
-        version: 1.19.0
-      bcryptjs:
-        specifier: ^2.4.3
-        version: 2.4.3
-      compression:
-        specifier: ^1.7.5
-        version: 1.8.1
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.6
-      cross-env:
-        specifier: ^7.0.3
-        version: 7.0.3
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.6.1
-      express:
-        specifier: ^4.21.2
-        version: 4.22.2
-      express-rate-limit:
-        specifier: ^7.5.0
-        version: 7.5.1(express@4.22.2)
-      helmet:
-        specifier: ^8.0.0
-        version: 8.3.0
-      jsonwebtoken:
-        specifier: ^9.0.2
-        version: 9.0.3
-      morgan:
-        specifier: ^1.10.0
-        version: 1.11.0
-      multer:
-        specifier: ^1.4.5-lts.1
-        version: 1.4.5-lts.2
-    devDependencies:
-      '@types/bcryptjs':
-        specifier: ^2.4.6
-        version: 2.4.6
-      '@types/compression':
-        specifier: ^1.7.5
-        version: 1.8.1
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.19
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.25
-      '@types/jsonwebtoken':
-        specifier: ^9.0.8
-        version: 9.0.10
-      '@types/morgan':
-        specifier: ^1.9.9
-        version: 1.9.10
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.4
-      nodemon:
-        specifier: ^3.1.9
-        version: 3.1.14
-      tsx:
-        specifier: ^4.19.2
-        version: 4.23.12
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  apps/180-profile-frontend:
-    dependencies:
-      '@workspace/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      country-state-city:
-        specifier: ^3.2.1
-        version: 3.2.1
-      lucide-react:
-        specifier: ^0.447.0
-        version: 0.447.0(react@19.2.8)
-      next:
-        specifier: 15.5.20
-        version: 15.5.20(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      qrcode:
-        specifier: ^1.5.4
-        version: 1.5.4
-      react:
-        specifier: ^19.2.4
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.4
-        version: 19.2.8(react@19.2.8)
-      react-hot-toast:
-        specifier: ^2.4.1
-        version: 2.6.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      tailwind-merge:
-        specifier: ^2.3.0
-        version: 2.6.1
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.4
-      '@types/qrcode':
-        specifier: ^1.5.5
-        version: 1.5.6
-      '@types/react':
-        specifier: ^19.2.14
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.2.5(@types/react@19.2.18)
-      autoprefixer:
-        specifier: ^10.4.19
-        version: 10.5.4(postcss@8.5.26)
-      postcss:
-        specifier: ^8.4.38
-        version: 8.5.26
-      tailwindcss:
-        specifier: ^3.4.0
-        version: 3.4.19(tsx@4.23.12)(yaml@2.9.0)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  apps/180developers-frontend:
-    dependencies:
-      '@workspace/identity-sdk':
-        specifier: workspace:*
-        version: link:../../packages/identity-sdk
-      '@workspace/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      lucide-react:
-        specifier: ^0.447.0
-        version: 0.447.0(react@19.2.8)
-      next:
-        specifier: 15.5.20
-        version: 15.5.20(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      react:
-        specifier: ^19.2.4
-        version: 19.2.8
-      react-dom:
-        specifier: ^19.2.4
-        version: 19.2.8(react@19.2.8)
-      react-hot-toast:
-        specifier: ^2.4.1
-        version: 2.6.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      tailwind-merge:
-        specifier: ^2.3.0
-        version: 2.6.1
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.4
-      '@types/react':
-        specifier: ^19.2.14
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.2.5(@types/react@19.2.18)
-      autoprefixer:
-        specifier: ^10.4.19
-        version: 10.5.4(postcss@8.5.26)
-      postcss:
-        specifier: ^8.4.38
-        version: 8.5.26
-      tailwindcss:
-        specifier: ^3.4.0
-        version: 3.4.19(tsx@4.23.12)(yaml@2.9.0)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
   apps/admin-web:
     dependencies:
       '@dnd-kit/core':
@@ -457,18 +265,9 @@ importers:
       '@workspace/settings':
         specifier: workspace:*
         version: link:../../packages/domains/settings
-      '@workspace/social-media':
-        specifier: workspace:*
-        version: link:../../packages/domains/social-media
       '@workspace/traffic-director':
         specifier: workspace:*
         version: link:../../packages/domains/traffic-director
-      '@workspace/video-contracts':
-        specifier: workspace:*
-        version: link:../../packages/video-contracts
-      '@workspace/video-engine-runtime':
-        specifier: workspace:*
-        version: link:../../packages/video-engine-runtime
       '@workspace/voiceforce':
         specifier: workspace:*
         version: link:../../packages/domains/voiceforce
@@ -768,9 +567,6 @@ importers:
       '@workspace/ui':
         specifier: workspace:^
         version: link:../../packages/ui
-      '@workspace/video-contracts':
-        specifier: workspace:^
-        version: link:../../packages/video-contracts
       axios:
         specifier: ^1.7.9
         version: 1.19.0
@@ -1017,8 +813,6 @@ importers:
         specifier: ^1.5.5
         version: 1.5.6
 
-  apps/social-studio-mobile: {}
-
   apps/traffic-director-web:
     dependencies:
       '@workspace/identity-sdk':
@@ -1215,9 +1009,6 @@ importers:
       '@workspace/rag':
         specifier: workspace:*
         version: link:../rag
-      '@workspace/video-contracts':
-        specifier: workspace:*
-        version: link:../../video-contracts
       axios:
         specifier: ^1.19.0
         version: 1.19.0
@@ -1634,34 +1425,6 @@ importers:
         specifier: workspace:*
         version: link:../../typescript-config
 
-  packages/domains/social-media:
-    dependencies:
-      '@napi-rs/canvas':
-        specifier: ^0.1.80
-        version: 0.1.80
-      '@workspace/ai':
-        specifier: workspace:*
-        version: link:../ai
-      '@workspace/db':
-        specifier: workspace:*
-        version: link:../../db
-      '@workspace/workspace-tools':
-        specifier: workspace:*
-        version: link:../workspace-tools
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.43
-      '@workspace/typescript-config':
-        specifier: workspace:*
-        version: link:../../typescript-config
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.3
-
   packages/domains/traffic-director:
     dependencies:
       '@prisma/client':
@@ -1865,6 +1628,18 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/sdk:
+    dependencies:
+      '@workspace/identity-sdk':
+        specifier: workspace:*
+        version: link:../identity-sdk
+      react:
+        specifier: '>=18.0.0'
+        version: 19.2.8
+      react-dom:
+        specifier: '>=18.0.0'
+        version: 19.2.8(react@19.2.8)
+
   packages/typescript-config: {}
 
   packages/ui:
@@ -1899,53 +1674,6 @@ importers:
       tailwind-merge:
         specifier: ^2.3.0
         version: 2.6.1
-
-  packages/video-contracts:
-    dependencies:
-      zod:
-        specifier: ^3.22.4
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.43
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.3
-
-  packages/video-engine-runtime:
-    dependencies:
-      '@ffmpeg-installer/ffmpeg':
-        specifier: ^1.1.0
-        version: 1.1.0
-      '@ffprobe-installer/ffprobe':
-        specifier: ^2.1.2
-        version: 2.1.2
-      '@workspace/video-contracts':
-        specifier: workspace:*
-        version: link:../video-contracts
-      commander:
-        specifier: ^12.0.0
-        version: 12.1.0
-      fluent-ffmpeg:
-        specifier: ^2.1.3
-        version: 2.1.3
-      zod:
-        specifier: ^3.22.4
-        version: 3.25.76
-    devDependencies:
-      '@types/fluent-ffmpeg':
-        specifier: ^2.1.27
-        version: 2.1.28
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.43
-      tsx:
-        specifier: ^4.7.0
-        version: 4.23.12
-      typescript:
-        specifier: ^5.0.0
-        version: 5.9.3
 
 packages:
 
@@ -7486,9 +7214,6 @@ packages:
   '@types/caseless@0.12.5':
     resolution: {integrity: sha512-hWtVTC2q7hc7xZ/RLbxapMvDMgUnDvKvMOpKal4DrMyfGBUfB1oKaZlIRr6mJL+If3bAP6sV/QneGzF6tJjZDg==}
 
-  '@types/compression@1.8.1':
-    resolution: {integrity: sha512-kCFuWS0ebDbmxs0AXYn6e2r2nrGAb5KwQhknjSPSPgJcGd8+HVSILlUyFhGqML2gk39HcG7D1ydW9/qpYkN00Q==}
-
   '@types/connect-history-api-fallback@1.5.4':
     resolution: {integrity: sha512-n6Cr2xS1h4uAulPRdlw6Jl6s1oG8KrVilPN2yUITEs+K48EzMJJ3W1xy8K5eWuFvjp3R74AOIGSmp2UfBJ8HFw==}
 
@@ -7633,9 +7358,6 @@ packages:
 
   '@types/minimatch@3.0.5':
     resolution: {integrity: sha512-Klz949h02Gz2uZCMGwDUSDS1YBlTdDDgbWHi+81l29tQALUtvz4rAYi5uoVhE5Lagoq6DeqAUlbrHvW/mXDgdQ==}
-
-  '@types/morgan@1.9.10':
-    resolution: {integrity: sha512-sS4A1zheMvsADRVfT0lYbJ4S9lmsey8Zo2F7cnbYjWHP67Q0AwMYuuzLlkIM2N8gAbb9cubhIVFwcIN2XyYCkA==}
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
@@ -9113,10 +8835,6 @@ packages:
 
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
-
-  concat-stream@1.6.2:
-    resolution: {integrity: sha512-27HBghJxjiZtIk3Ycvn/4kbJk/1uZuJFfuPEns6LaEvpvG1f0hTea8lilrouyo9mVc2GWdcEZ8OLoGmSADlrCw==}
-    engines: {'0': node >= 0.8}
 
   concat-stream@2.0.0:
     resolution: {integrity: sha512-MWufYdFw53ccGjCA+Ol7XJYpAlW6/prSMzuPOTRnJGcGzuhLn4Scrz7qf6o8bROZ514ltazcIFJZevcfbo0x7A==}
@@ -12536,10 +12254,6 @@ packages:
     resolution: {integrity: sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==}
     engines: {node: '>= 18'}
 
-  mkdirp@0.5.6:
-    resolution: {integrity: sha512-FP+p8RB8OWpF3YZBCrP5gtADmtXApB5AMLn+vdyA+PyxCjrCs00mjyUozssO33cwDeT3wNGdLxJ5M//YqtHAJw==}
-    hasBin: true
-
   mkdirp@1.0.4:
     resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
     engines: {node: '>=10'}
@@ -12583,11 +12297,6 @@ packages:
 
   msgpackr@2.0.5:
     resolution: {integrity: sha512-cef05H/dSYpLpqp3sj/qyZh5vhUYCalnaLO7j1yOmpsR0y/XwLVtK7r5gn+U/F7CTEfMowcGhlUQJDLcLf7jcA==}
-
-  multer@1.4.5-lts.2:
-    resolution: {integrity: sha512-VzGiVigcG9zUAoCNU+xShztrlr1auZOlurXynNvO9GiWD1/mTBbUljOKY+qMeazBqXgRnjzeEgJI/wyjJUHg9A==}
-    engines: {node: '>= 6.0.0'}
-    deprecated: Multer 1.x is impacted by a number of vulnerabilities, which have been patched in 2.x. You should upgrade to the latest 2.x version.
 
   multer@2.2.0:
     resolution: {integrity: sha512-6rdyFg2kLrMh9Jee7/BMPuV9lEAd7lLW2YUpF9/YxR7njyoUwwQ0ZPh3TaIY50Sw6vlyD2HW3wGOkTS4P79xrQ==}
@@ -16262,10 +15971,6 @@ packages:
   xmlhttprequest-ssl@2.1.2:
     resolution: {integrity: sha512-TEU+nJVUUnA4CYJFLvK5X9AOeH4KvDvhIfm0vV1GaQRtchnG0hgK5p8hw/xjv8cunWYCsiPCSDzObPyhEwq3KQ==}
     engines: {node: '>=0.4.0'}
-
-  xtend@4.0.2:
-    resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
-    engines: {node: '>=0.4'}
 
   xxhash-wasm@1.1.0:
     resolution: {integrity: sha512-147y/6YNh+tlp6nd/2pWq38i9h6mz/EuQ6njIrmW8D1BS5nCqs0P6DG+m6zTGnNz5I+uhZ0SHxBs9BsPrwcKDA==}
@@ -23363,11 +23068,6 @@ snapshots:
   '@types/caseless@0.12.5':
     optional: true
 
-  '@types/compression@1.8.1':
-    dependencies:
-      '@types/express': 5.0.6
-      '@types/node': 26.3.0
-
   '@types/connect-history-api-fallback@1.5.4':
     dependencies:
       '@types/express-serve-static-core': 5.1.3
@@ -23532,10 +23232,6 @@ snapshots:
   '@types/mime@1.3.5': {}
 
   '@types/minimatch@3.0.5': {}
-
-  '@types/morgan@1.9.10':
-    dependencies:
-      '@types/node': 26.3.0
 
   '@types/ms@2.1.0': {}
 
@@ -25149,13 +24845,6 @@ snapshots:
       - supports-color
 
   concat-map@0.0.1: {}
-
-  concat-stream@1.6.2:
-    dependencies:
-      buffer-from: 1.1.2
-      inherits: 2.0.4
-      readable-stream: 2.3.8
-      typedarray: 0.0.6
 
   concat-stream@2.0.0:
     dependencies:
@@ -29714,10 +29403,6 @@ snapshots:
     dependencies:
       minipass: 7.1.3
 
-  mkdirp@0.5.6:
-    dependencies:
-      minimist: 1.2.8
-
   mkdirp@1.0.4: {}
 
   mnemonist@0.38.3:
@@ -29767,16 +29452,6 @@ snapshots:
   msgpackr@2.0.5:
     optionalDependencies:
       msgpackr-extract: 3.0.4
-
-  multer@1.4.5-lts.2:
-    dependencies:
-      append-field: 1.0.0
-      busboy: 1.6.0
-      concat-stream: 1.6.2
-      mkdirp: 0.5.6
-      object-assign: 4.1.1
-      type-is: 1.6.18
-      xtend: 4.0.2
 
   multer@2.2.0:
     dependencies:
@@ -34216,8 +33891,6 @@ snapshots:
   xmlchars@2.2.0: {}
 
   xmlhttprequest-ssl@2.1.2: {}
-
-  xtend@4.0.2: {}
 
   xxhash-wasm@1.1.0: {}
 

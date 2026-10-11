@@ -92,20 +92,8 @@ export function installSocialPushHooks(deps?: HookDeps): boolean {
   let d: HookDeps;
   if (deps) d = deps;
   else {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const social = require('@workspace/social-media');
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { prisma } = require('@workspace/db');
-      d = {
-        dispatcher: social.PublishDispatcher,
-        postService: social.SocialPostService,
-        loadProject: (projectId, companyId) => prisma.project.findFirst({ where: { id: projectId, companyId }, select: { ownerId: true } }),
-      };
-    } catch (err: any) {
-      console.warn('[Push] social hooks not installed:', err?.message || err);
-      return false;
-    }
+    // 180 Social Studio has been decoupled to its dedicated workspace
+    return false;
   }
   const notify = d.notify || notifyUserSafe;
   const claimOnce = d.claimOnce || claimOnceDefault;

@@ -241,9 +241,9 @@ export default function TrafficDirectorLandingPage() {
             <Link href="/" className="flex items-center space-x-3 group">
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 shadow-sm group-hover:shadow-md transition-all">
                 <img 
-                  src={isDark ? "/white-icon.svg" : "/black-icon.svg"} 
-                  alt="180workspace" 
-                  className="w-5 h-5 object-contain" 
+                  src="/traffic-director-icon.svg" 
+                  alt="180 Traffic Director" 
+                  className="w-6 h-6 object-contain" 
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -682,9 +682,9 @@ export default function TrafficDirectorLandingPage() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center space-x-3">
             <img 
-              src={isDark ? "/white-icon.svg" : "/black-icon.svg"} 
-              alt="180workspace" 
-              className="w-5 h-5 object-contain" 
+              src="/traffic-director-icon.svg" 
+              alt="180 Traffic Director" 
+              className="w-6 h-6 object-contain" 
             />
             <span className="text-sm font-bold text-slate-900 dark:text-white">
               180 Traffic Director EDGE

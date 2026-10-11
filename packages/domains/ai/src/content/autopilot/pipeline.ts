@@ -14,7 +14,7 @@ import { enforceBrandRules, runCriticAgent } from './critic';
 import { PLATFORM_RULES } from './platform-rules';
 import { hookScriptProblems, normaliseCopy, normaliseHookScript, normaliseStrategy } from './normalizers';
 import { describePlan, planCadence, planMismatches } from './cadence';
-import { UNTRUSTED_DATA_POLICY, fenceUntrusted } from '@workspace/video-contracts';
+import { UNTRUSTED_DATA_POLICY, fenceUntrusted } from '../../agent-runs/untrusted';
 import {
     CopyBatchSchema, HOOK_TYPES, HookScriptBatchSchema, HookScriptItem, HookType, Strategy, StrategySchema, StrategySlot,
     AutopilotPlatform, PSYCHOLOGICAL_JOBS, DESIGN_SYSTEMS, PsychologicalJob, DesignSystem,

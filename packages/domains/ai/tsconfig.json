@@ -10,11 +10,7 @@
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "declaration": true,
-    "baseUrl": ".",
-    "paths": {
-      "@workspace/video-contracts": ["../../video-contracts/dist/index.d.ts"]
-    }
+    "declaration": true
   },
   "include": [
     "src/**/*"

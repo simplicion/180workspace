@@ -80,16 +80,6 @@ export const OFFLINE_MODULES: OfflineModule[] = [
     note: 'Settings include billing, integrations and security, so they need a connection.',
   },
   {
-    id: 'social-media', label: 'Social Media', routes: ['/content-calendar', '/social-projects', '/social-media-assets'], tier: 'read',
-    readApi: ['/api/social-media/projects', '/api/social-media/posts', '/api/content-calendar'],
-    note: 'Browse projects and the content calendar; publishing needs a connection.',
-  },
-  {
-    id: 'social-inbox', label: 'Social Inbox', routes: ['/inbox'], tier: 'online-only',
-    readApi: [],
-    note: 'Messages are live conversations and are not stored on this device.',
-  },
-  {
     id: 'advertising', label: 'Advertising, Forms & Company Hub', routes: ['/advertising', '/forms', '/company'], tier: 'read',
     readApi: ['/api/websites', '/api/forms', '/api/company-config', '/api/company'],
     note: 'Browse your sites, forms, and company hub; publishing needs a connection.',
@@ -118,11 +108,6 @@ export const OFFLINE_MODULES: OfflineModule[] = [
     id: 'documents', label: 'Documents & Files', routes: ['/documents', '/document-editor', '/document-viewer', '/assets', '/calendar'], tier: 'read',
     readApi: ['/api/workspace-tools/documents', '/api/assets', '/api/files', '/api/calendar'],
     note: 'Open documents and files you have viewed before; editing needs a connection.',
-  },
-  {
-    id: 'media-editor', label: 'Video Editing', routes: ['/media-editor', '/video-studio'], tier: 'desktop',
-    readApi: [],
-    note: 'Video editing runs in the desktop app, including with no internet connection.',
   },
 ];
 

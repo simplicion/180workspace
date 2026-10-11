@@ -162,11 +162,11 @@ export function TrafficDirectorSidebar({
               onClick={onMobileClose}
               className="flex items-center gap-2.5 p-1 rounded-xl group transition-all min-h-[44px] min-w-0"
             >
-              <div className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/10 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <div className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/10 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform overflow-hidden">
                 <img
-                  src="/black-icon.svg"
+                  src="/traffic-director-icon.svg"
                   alt="180 Traffic Director"
-                  className="w-5 h-5 object-contain dark:invert"
+                  className="w-6 h-6 object-contain"
                 />
               </div>
               <div className="min-w-0 flex flex-col">
@@ -199,13 +199,13 @@ export function TrafficDirectorSidebar({
           <Link
             href="/traffic-director"
             onClick={onMobileClose}
-            className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/10 flex items-center justify-center mx-auto hover:scale-105 transition-all shadow-xs"
+            className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/10 flex items-center justify-center mx-auto hover:scale-105 transition-all shadow-xs overflow-hidden"
             title="180 Traffic Director"
           >
             <img
-              src="/black-icon.svg"
+              src="/traffic-director-icon.svg"
               alt="180 Traffic Director"
-              className="w-5 h-5 object-contain dark:invert"
+              className="w-7 h-7 object-contain"
             />
           </Link>
         )}

@@ -174,7 +174,7 @@ export default function PreFlightTestBenchPage() {
           suggestedActions={[
             { label: 'Voice Agents', href: '/voiceforce/agents', icon: Bot, description: 'Configure AI agent system prompts, persona traits, and guardrails offline.' },
             { label: 'Call Campaigns', href: '/voiceforce/campaigns', icon: PhoneCall, description: 'Prepare outbound call campaigns and lead lists locally.' },
-            { label: 'Media Studio', href: '/media-editor', icon: Film, description: 'Work on video and audio assets with local hardware acceleration.' }
+            { label: 'Platform Analytics', href: '/analytics', icon: Activity, description: 'Inspect agent calling performance and historical conversion stats.' }
           ]}
         />
       </div>

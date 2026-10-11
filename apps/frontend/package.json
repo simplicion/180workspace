@@ -55,7 +55,6 @@
         "@workspace/db": "workspace:^",
         "@workspace/identity-sdk": "workspace:*",
         "@workspace/ui": "workspace:^",
-        "@workspace/video-contracts": "workspace:^",
         "axios": "^1.7.9",
         "canvas-confetti": "^1.9.4",
         "class-variance-authority": "^0.7.1",

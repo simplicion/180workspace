@@ -384,10 +384,11 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 return { ...item, items: filteredItems };
             } else {
                 // Handle single items (Dashboard, CEO Insights)
-                if (item.appId && isAppDisabledByAdmin(item.appId)) return null;
-                if (userRoles.some(r => item.roles?.includes(r as string))) {
-                    if (item.appId && company?.enabledApps && Array.isArray(company.enabledApps) && company.enabledApps.length > 0) {
-                        const isAppEnabled = company.enabledApps.includes(item.appId);
+                const singleItem = item as any;
+                if (singleItem.appId && isAppDisabledByAdmin(singleItem.appId)) return null;
+                if (userRoles.some(r => singleItem.roles?.includes(r as string))) {
+                    if (singleItem.appId && company?.enabledApps && Array.isArray(company.enabledApps) && company.enabledApps.length > 0) {
+                        const isAppEnabled = company.enabledApps.includes(singleItem.appId);
                         if (!isAppEnabled) return null;
                     }
                     return item;
@@ -687,9 +688,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         }
         if (pathname.startsWith('/traffic-director')) return 'traffic-director';
         if (pathname.startsWith('/voiceforce')) return 'voiceforce';
-        if (pathname.startsWith('/media-editor') || pathname.startsWith('/video-studio')) return 'media-editor';
         if (pathname.startsWith('/advertising')) return 'advertising';
-        if (pathname.startsWith('/social-projects') || pathname.startsWith('/content-calendar') || pathname.startsWith('/social-media-assets') || pathname.startsWith('/inbox')) return 'social-media';
         return null;
     }, [pathname]);
 

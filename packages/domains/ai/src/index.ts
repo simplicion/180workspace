@@ -13,11 +13,6 @@ export * from './kernel/platform-ai-vault.service';
 // Agent run event log (AgentStarted … AgentFailed) for every agent
 export * from './agent-runs';
 
-// Real (ffmpeg/STT-backed) Media Analysis for the Video AI Director
-export * from './media/media-analysis.service';
-export * from './media/transcriber';
-export * from './media/local-speech-transcriber';
-
 // Memory & Real-Time Context Aggregator (Redis-Backed Mem0 + Vector Memory)
 export * from './memory/mem0-memory.service';
 export * from './memory/context-aggregator.service';

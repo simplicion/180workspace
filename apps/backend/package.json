@@ -9,9 +9,7 @@
     "build": "echo 'Backend ready for production tsx runtime'",
     "seed": "node src/utils/seed.js",
     "migrate": "node src/utils/migrate-from-sqlite.js",
-    "test": "jest",
-    "social:scheduler": "tsx scripts/social-publish-scheduler.ts",
-    "social:migrate-tokens": "tsx scripts/social-publish-scheduler.ts --migrate-tokens"
+    "test": "jest"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
@@ -45,10 +43,7 @@
     "@workspace/public": "workspace:*",
     "@workspace/rag": "workspace:*",
     "@workspace/settings": "workspace:*",
-    "@workspace/social-media": "workspace:*",
     "@workspace/traffic-director": "workspace:*",
-    "@workspace/video-contracts": "workspace:*",
-    "@workspace/video-engine-runtime": "workspace:*",
     "@workspace/voiceforce": "workspace:*",
     "@workspace/wallet": "workspace:*",
     "@workspace/workspace-tools": "workspace:*",

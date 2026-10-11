@@ -1,0 +1,231 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <!-- Hat Crown Linear Gradient -->
+    <linearGradient id="td-crown-grad" x1="310" y1="210" x2="770" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#000000" />
+      <stop offset="38%" stop-color="#020816" />
+      <stop offset="62%" stop-color="#012474" />
+      <stop offset="82%" stop-color="#014BE8" />
+      <stop offset="96%" stop-color="#0066FF" />
+      <stop offset="100%" stop-color="#1A77FF" />
+    </linearGradient>
+
+    <!-- Hat Crown Crease & Pinch Shadow -->
+    <radialGradient id="td-crease-shadow" cx="445" cy="85" r="165" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.95" />
+      <stop offset="55%" stop-color="#000000" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Crown Top Edge Rim Luminous Highlight -->
+    <linearGradient id="td-crown-rim-highlight" x1="560" y1="90" x2="750" y2="70" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#014BE8" stop-opacity="0.2" />
+      <stop offset="70%" stop-color="#388CFF" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#6BB0FF" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Hat Brim Sweeping Blue Gradient -->
+    <linearGradient id="td-brim-grad" x1="170" y1="245" x2="964" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#000410" />
+      <stop offset="22%" stop-color="#000D2B" />
+      <stop offset="48%" stop-color="#0035B2" />
+      <stop offset="72%" stop-color="#005FFB" />
+      <stop offset="92%" stop-color="#007CFE" />
+      <stop offset="100%" stop-color="#1487FF" />
+    </linearGradient>
+
+    <!-- Hat Brim Underside Shadow -->
+    <linearGradient id="td-brim-underside" x1="170" y1="245" x2="880" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#000000" />
+      <stop offset="50%" stop-color="#020614" />
+      <stop offset="90%" stop-color="#010A20" />
+      <stop offset="100%" stop-color="#000000" />
+    </linearGradient>
+
+    <!-- Arrow / Pointer Gradient -->
+    <linearGradient id="td-arrow-grad" x1="513" y1="446" x2="513" y2="556" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2882FF" />
+      <stop offset="40%" stop-color="#0060FD" />
+      <stop offset="100%" stop-color="#0043CD" />
+    </linearGradient>
+
+    <!-- Inner Face Soft Drop Shadow under Hat Brim -->
+    <linearGradient id="td-face-shadow" x1="512" y1="320" x2="512" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.25" />
+      <stop offset="35%" stop-color="#000000" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Ribbon Crisp Gradient -->
+    <linearGradient id="td-ribbon-grad" x1="300" y1="200" x2="820" y2="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#DDE1EA" />
+      <stop offset="6%" stop-color="#FFFFFF" />
+      <stop offset="88%" stop-color="#FFFFFF" />
+      <stop offset="96%" stop-color="#EFF2F8" />
+      <stop offset="100%" stop-color="#D4DAE6" />
+    </linearGradient>
+
+    <!-- Ribbon Drop Shadow onto Brim -->
+    <linearGradient id="td-ribbon-shadow" x1="500" y1="230" x2="500" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Subtle Obsidian Outer Border for Dark Contexts -->
+    <linearGradient id="td-outer-stroke" x1="512" y1="187" x2="512" y2="957" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.18" />
+    </linearGradient>
+  </defs>
+
+  <!-- 1. BASE CIRCULAR EMBLEM -->
+  <!-- Outer Ring (Black Circle with micro-contrast rim) -->
+  <circle cx="512" cy="572" r="385" fill="#000000" stroke="url(#td-outer-stroke)" stroke-width="2" />
+
+  <!-- Inner Opaque White Face Mask (Cheeks / Lobes) -->
+  <path d="M512 559
+           C509 572 494 624 472 675
+           C448 725 410 770 377 770
+           C320 770 253 710 253 600
+           C253 470 350 330 512 330
+           C674 330 773 470 773 600
+           C773 710 706 770 647 770
+           C614 770 576 725 552 675
+           C530 624 515 572 512 559 Z"
+        fill="#FFFFFF" />
+
+  <!-- Inner Face Soft Drop Shadow under Hat Brim -->
+  <path d="M253 600
+           C253 470 350 330 512 330
+           C674 330 773 470 773 600
+           C773 500 670 375 512 375
+           C350 375 253 500 253 600 Z"
+        fill="url(#td-face-shadow)" />
+
+  <!-- Central Black Spine Rising between the Cheeks -->
+  <path d="M512 559
+           C514 568 522 610 534 650
+           C548 695 576 735 605 765
+           C580 772 540 775 512 775
+           C484 775 444 772 419 765
+           C448 735 476 695 490 650
+           C502 610 510 568 512 559 Z"
+        fill="#000000" />
+
+  <!-- 2. CENTRAL BLUE ARROW / POINTER -->
+  <path d="M513 451
+           C516 451 526 462 536 476
+           C548 493 564 522 564 538
+           C564 547 558 554 548 554
+           C539 554 532 548 526 542
+           C521 537 517 534 513 534
+           C509 534 505 537 500 542
+           C494 548 487 554 478 554
+           C468 554 462 547 462 538
+           C462 522 478 493 490 476
+           C500 462 510 451 513 451 Z"
+        fill="url(#td-arrow-grad)" />
+
+  <!-- Arrow Top Highlight Reflex -->
+  <path d="M513 453
+           C515 453 521 462 527 473
+           C523 470 518 468 513 468
+           C508 468 503 470 499 473
+           C505 462 511 453 513 453 Z"
+        fill="#72AFFF"
+        opacity="0.9" />
+
+  <!-- 3. FEDORA HAT -->
+
+  <!-- A. Brim Deep Shadow Underside (resting across circle top) -->
+  <path d="M170 245
+           C174 256 188 274 212 292
+           C245 316 295 334 365 334
+           C450 334 540 312 650 326
+           C755 338 855 375 940 388
+           C964 381 965 375 963 370
+           C930 350 880 328 820 314
+           C740 296 640 278 535 268
+           C430 258 325 248 245 244
+           C195 242 175 243 170 245 Z"
+        fill="url(#td-brim-underside)" />
+
+  <!-- B. Brim Sweeping Blue Upper Blade -->
+  <path d="M170 245
+           C184 240 215 230 255 224
+           C305 216 350 206 430 214
+           C530 224 640 252 740 272
+           C812 286 892 334 964 379
+           C956 388 932 395 892 395
+           C832 395 772 388 712 382
+           C650 375 580 358 520 344
+           C460 330 400 310 340 295
+           C270 278 210 268 170 245 Z"
+        fill="url(#td-brim-grad)" />
+
+  <!-- C. Hat Crown Body -->
+  <path d="M305 212
+           C315 195 335 160 355 132
+           C375 105 395 85 415 70
+           C435 56 455 55 475 57
+           C495 59 525 72 555 84
+           C585 91 615 88 645 80
+           C675 72 705 70 725 77
+           C745 85 765 115 780 155
+           C795 190 805 220 810 235
+           C750 248 680 252 610 244
+           C540 236 470 220 400 212
+           C360 208 325 209 305 212 Z"
+        fill="url(#td-crown-grad)" />
+
+  <!-- Crown Crease & Pinch Shadow Indentation -->
+  <path d="M410 70
+           C435 56 455 55 475 57
+           C495 59 520 70 540 80
+           C500 95 460 110 430 135
+           C410 120 405 95 410 70 Z"
+        fill="url(#td-crease-shadow)" />
+
+  <!-- Crown Top Ridge Luminous Highlight -->
+  <path d="M570 88
+           C610 88 645 80 675 72
+           C705 70 725 77 740 82"
+        stroke="url(#td-crown-rim-highlight)"
+        stroke-width="3"
+        stroke-linecap="round"
+        fill="none" />
+
+  <!-- D. Hat Band / Ribbon (Pure Crisp White Band) -->
+  <path d="M302 214
+           C340 208 410 214 490 224
+           C570 234 660 254 740 268
+           C775 274 800 280 812 284
+           C810 298 800 312 785 320
+           C745 316 680 302 610 288
+           C540 274 460 254 390 240
+           C340 230 305 224 290 224
+           C292 219 297 216 302 214 Z"
+        fill="url(#td-ribbon-grad)" />
+
+  <!-- Ribbon Top Contour Fine Edge Line -->
+  <path d="M302 214
+           C340 208 410 214 490 224
+           C570 234 660 254 740 268
+           C775 274 800 280 812 284"
+        stroke="#111624"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        fill="none" />
+
+  <!-- Ribbon Bottom Fold Drop Shadow onto Brim -->
+  <path d="M290 224
+           C340 230 390 240 460 254
+           C540 274 610 288 680 302
+           C745 316 785 320 810 298
+           C812 308 805 322 785 328
+           C745 324 675 308 605 294
+           C535 280 455 260 385 246
+           C335 236 300 230 288 228
+           C288 226 289 225 290 224 Z"
+        fill="url(#td-ribbon-shadow)" />
+</svg>

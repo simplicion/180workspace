@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const nextConfig = {
-    transpilePackages: ['@workspace/ui', '@workspace/common', '@workspace/video-contracts'],
+    transpilePackages: ['@workspace/ui', '@workspace/common'],
     serverExternalPackages: ['@prisma/client', 'bcryptjs', '@workspace/db'],
     output: process.env.BUILD_STANDALONE === "true" ? "standalone" : undefined,
     outputFileTracingRoot: path.join(__dirname, '../../'),
@@ -17,11 +17,6 @@ const nextConfig = {
     },
 
     webpack: (config, { webpack, isServer }) => {
-        config.resolve.alias = {
-            ...config.resolve.alias,
-            '@workspace/video-contracts': path.resolve(__dirname, '../../packages/video-contracts/src/index.ts'),
-        };
-
         if (!isServer) {
             config.resolve.fallback = {
                 ...config.resolve.fallback,
@@ -58,31 +53,6 @@ const nextConfig = {
     },
     async redirects() {
         return [
-            {
-                source: '/media-editor/assets',
-                destination: '/media-editor',
-                permanent: false,
-            },
-            {
-                source: '/content-calendar/:path*',
-                destination: '/social-projects',
-                permanent: false,
-            },
-            {
-                source: '/social-media-assets/:path*',
-                destination: '/social-projects',
-                permanent: false,
-            },
-            {
-                source: '/inbox',
-                destination: '/social-projects',
-                permanent: false,
-            },
-            {
-                source: '/social-projects/new',
-                destination: '/social-projects',
-                permanent: false,
-            },
             {
                 source: '/settings/email',
                 destination: '/emails?tab=settings',

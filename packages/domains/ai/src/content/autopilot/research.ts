@@ -7,7 +7,7 @@
 import { AutopilotLLM, UsageMeter } from './llm';
 import { runJsonAgent } from './json-agent';
 import { ResearchDigest, ResearchDigestSchema } from './schemas';
-import { UNTRUSTED_DATA_POLICY, fenceUntrusted, sanitizeInlineUntrusted } from '@workspace/video-contracts';
+import { UNTRUSTED_DATA_POLICY, fenceUntrusted, sanitizeInlineUntrusted } from '../../agent-runs/untrusted';
 
 export interface WebSearchResult {
     title: string;

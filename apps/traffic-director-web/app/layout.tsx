@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: '180 Traffic Director | Sovereign Edge Traffic Engine',
   description:
     'Enterprise-grade edge traffic routing, dynamic landing pages, safe-page reverse proxying, and hardware bot shielding for performance advertisers.',
+  icons: {
+    icon: '/traffic-director-icon.svg',
+    shortcut: '/traffic-director-icon.svg',
+    apple: '/traffic-director-icon.svg',
+  },
 };
 
 export default function RootLayout({
