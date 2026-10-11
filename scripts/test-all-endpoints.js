@@ -5,6 +5,7 @@ function test(url, method = 'GET', data = null, headers = {}) {
     const parsed = new URL(url);
     const req = https.request(parsed, {
       method,
+      timeout: 8000,
       headers: { ...headers, ...(data ? { 'Content-Type': 'application/json' } : {}) }
     }, (res) => {
       let body = '';
@@ -18,6 +19,7 @@ function test(url, method = 'GET', data = null, headers = {}) {
         });
       });
     });
+    req.on('timeout', () => { req.destroy(new Error('Request timed out')); });
     req.on('error', (err) => resolve({ url, status: 'ERROR', error: err.message, ok: false }));
     if (data) req.write(JSON.stringify(data));
     req.end();
