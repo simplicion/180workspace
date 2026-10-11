@@ -198,7 +198,6 @@ export class AuthController {
                         process.env.IDENTITY_SERVER_URL,
                         process.env.CORE_BACKEND_URL,
                         'https://services.180workspace.com',
-                        'http://core-backend:4003',
                         'http://localhost:4003'
                     ].filter(Boolean) as string[];
 
@@ -491,7 +490,7 @@ export class AuthController {
             const identityServerUrl =
                 process.env.CORE_BACKEND_INTERNAL_URL ||
                 (process.env.NODE_ENV === 'production' && (!process.env.IDENTITY_SERVER_URL || process.env.IDENTITY_SERVER_URL.includes('localhost'))
-                    ? 'http://core-backend:4003'
+                    ? 'https://services.180workspace.com'
                     : (process.env.IDENTITY_SERVER_URL || process.env.CORE_BACKEND_URL || 'http://localhost:4003'));
             const clientId =
                 process.env.ONE_EIGHTY_CLIENT_ID ||

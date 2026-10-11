@@ -3,13 +3,14 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const INSTANCE_ID = 'i-0faa8af91b9af8366';
+const INSTANCE_ID = 'i-040592f78ef3ea179';
 const REGION = 'us-east-1';
 const PROFILE = 'simplicion';
 
 async function check() {
   const commands = [
-    'ps aux | grep -E "docker|node|turbo|pnpm" | head -n 10',
+    'cd /home/ubuntu/app && git status && git log -1 --oneline',
+    'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"',
     'free -h'
   ];
 

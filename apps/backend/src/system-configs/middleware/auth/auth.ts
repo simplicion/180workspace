@@ -83,7 +83,6 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                             process.env.IDENTITY_SERVER_URL,
                             process.env.CORE_BACKEND_URL,
                             'https://services.180workspace.com',
-                            'http://core-backend:4003',
                             'http://localhost:4003'
                         ].filter(Boolean) as string[];
 
@@ -388,7 +387,7 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                             const coreBackendUrl =
                                 process.env.CORE_BACKEND_INTERNAL_URL ||
                                 process.env.CORE_BACKEND_URL ||
-                                (process.env.NODE_ENV === 'production' ? 'http://core-backend:4003' : 'http://localhost:4003');
+                                (process.env.NODE_ENV === 'production' ? 'https://services.180workspace.com' : 'http://localhost:4003');
                             const coreRes = await fetch(`${coreBackendUrl}/api/oauth/userinfo`, {
                                 headers: { Authorization: `Bearer ${token}` }
                             });
