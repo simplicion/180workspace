@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { spawn, execSync } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 
 const rootDir = path.resolve(__dirname, '..');
@@ -15,7 +15,7 @@ const APPS = {
     port: 4002,
     color: '\x1b[36m', // Cyan
   },
-frontend: {
+  frontend: {
     name: '180 Workspace Platform (Web)',
     filter: 'frontend',
     cmd: 'pnpm',
@@ -32,10 +32,10 @@ frontend: {
     color: '\x1b[35m', // Magenta
   },
   marketing: {
-    name: 'Marketing & Landing Web',
-    filter: 'apps-marketing-web',
+    name: '180 Marketing Web (Dedicated: 180 public sites)',
+    redirect: 'C:/Users/saavi/Desktop/180 Project/180 public sites',
     cmd: 'pnpm',
-    args: ['--filter', 'apps-marketing-web', 'dev'],
+    args: ['--dir', 'C:/Users/saavi/Desktop/180 Project/180 public sites', 'dev:marketing'],
     port: 3004,
     color: '\x1b[33m', // Yellow
   },
@@ -48,10 +48,10 @@ frontend: {
     color: '\x1b[32m', // Green
   },
   docs: {
-    name: 'Documentation Portal',
-    filter: 'apps-docs',
+    name: '180 Documentation Portal (Dedicated: 180 public sites)',
+    redirect: 'C:/Users/saavi/Desktop/180 Project/180 public sites',
     cmd: 'pnpm',
-    args: ['--filter', 'apps-docs', 'dev'],
+    args: ['--dir', 'C:/Users/saavi/Desktop/180 Project/180 public sites', 'dev:docs'],
     port: 3005,
     color: '\x1b[90m', // Gray
   },
@@ -98,8 +98,9 @@ function printBanner() {
   console.log('  pnpm dev:backend         (Runs Main Backend on :4002)');
   console.log('  pnpm dev:frontend        (Runs Web Platform on :3002)');
   console.log('  pnpm dev:admin           (Runs Admin Portal on :3003)');
-  console.log('  pnpm dev:marketing       (Runs Marketing on :3004)');
-  console.log('  pnpm dev:all             (Runs all web, backend & mobile apps)');
+  console.log('  pnpm dev:marketing       (Delegates to 180 public sites on :3004)');
+  console.log('  pnpm dev:docs            (Delegates to 180 public sites on :3005)');
+  console.log('  pnpm dev:all             (Runs all web & backend apps)');
   console.log(BOLD + '============================================================\n' + RESET);
 }
 
@@ -116,7 +117,7 @@ function runSingleApp(key) {
   }
 
   const child = spawn(app.cmd, app.args, {
-    cwd: app.cwd || rootDir,
+    cwd: rootDir,
     stdio: 'inherit',
     shell: true,
   });
@@ -126,22 +127,20 @@ function runSingleApp(key) {
   });
 }
 
-function runAllApps(includeMobile = true) {
+function runAllApps() {
   console.log(BOLD + 'Starting ALL workspace platform apps in parallel...' + RESET);
   console.log('  [180 Core Services]      -> External 180 Core (:4004 / services.180core.cloud)');
   console.log('  [backend]               -> http://localhost:4002 (Main Backend API)');
   console.log('  [frontend]              -> http://localhost:3002 (180 Workspace Web Platform)');
   console.log('  [admin-web]             -> http://localhost:3003 (Platform Admin Portal)');
-  console.log('  [apps-marketing-web]    -> http://localhost:3004 (Marketing & Landing Web)');
   console.log('  [traffic-director-web]  -> http://localhost:3006 (Traffic Director)');
   console.log('  [worker]                -> Background Jobs Node');
-  console.log('  [apps-docs]             -> http://localhost:3005 (Documentation Portal)');
+  console.log('  [180 Public Sites]      -> Dedicated Project (C:/Users/saavi/Desktop/180 Project/180 public sites)');
   console.log('  [180 Social Studio]     -> Dedicated Project (C:/Users/saavi/Desktop/180 social studio)');
   console.log('\nPress Ctrl+C to terminate all servers.\n');
 
   const runningChildren = [];
 
-  // 1. Launch Turborepo for all Web, Backend & Worker services
   const turboArgs = [
     'exec',
     'turbo',
@@ -152,9 +151,7 @@ function runAllApps(includeMobile = true) {
     '--filter=frontend',
     '--filter=traffic-director-web',
     '--filter=admin-web',
-    '--filter=apps-marketing-web',
     '--filter=worker',
-    '--filter=apps-docs',
   ];
 
   const turboChild = spawn('pnpm', turboArgs, {
@@ -181,7 +178,6 @@ function runAllApps(includeMobile = true) {
   });
 }
 
-// ─── Main Dispatch ──────────────────────────────────────────────────────────
 if (requestedApp === 'help' || requestedApp === '--help' || requestedApp === '-h') {
   printBanner();
   process.exit(0);
@@ -189,10 +185,7 @@ if (requestedApp === 'help' || requestedApp === '--help' || requestedApp === '-h
 
 if (!requestedApp || requestedApp === '' || requestedApp === 'all' || requestedApp === 'full') {
   printBanner();
-  runAllApps(true);
-} else if (requestedApp === 'web:only') {
-  printBanner();
-  runAllApps(false);
+  runAllApps();
 } else if (APPS[requestedApp]) {
   runSingleApp(requestedApp);
 } else {
