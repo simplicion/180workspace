@@ -272,8 +272,8 @@ app.use('/v1', (req, res, next) => {
     apiRoutes(req, res, next);
 });
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
-app.get('/', (req, res) => {
+// ─── Root & Health ────────────────────────────────────────────────────────────
+app.get(['/', '/health'], (req, res) => {
     res.json({
         status: 'ok',
         message: '🚀 Platform API is running',
@@ -315,14 +315,6 @@ async function bootstrap() {
         console.log('[Bootstrap] Connecting to database & initializing services...');
         prisma.$connect().then(async () => {
             console.log('[Bootstrap] Database connected.');
-            try {
-                const { RsaKeysService, seedFirstPartyOAuthApps } = require('@workspace/identity-provider');
-                await RsaKeysService.ensureKeys();
-                await seedFirstPartyOAuthApps();
-                console.log('[Bootstrap] 180 Identity RSA keys and first-party apps verified (including developer-portal).');
-            } catch (idErr) {
-                console.warn('[Bootstrap] 180 Identity initialization notice:', idErr.message);
-            }
         }).catch(err => {
             console.error('[Bootstrap] Database connect error:', err.message);
         });

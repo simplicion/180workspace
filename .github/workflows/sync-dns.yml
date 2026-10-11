@@ -141,40 +141,6 @@ jobs:
                   console.log(`✓ Added traffic-director.180workspace.com to 180workspace-traffic:`, addDomainRes);
                 } catch (e) {
                   console.log(`Notice for traffic-director.180workspace.com domain: ${e.message}`);
-                }
-
-                // Add profile.180workspace.com to 180workspace-profile
-                console.log('==> Ensuring profile.180workspace.com is bound to 180workspace-profile Pages project...');
-                try {
-                  const addProfileRes = await cfRequest(`/accounts/${actualAccountId}/pages/projects/180workspace-profile/domains`, 'POST', {
-                    name: 'profile.180workspace.com'
-                  });
-                  console.log(`✓ Added profile.180workspace.com to 180workspace-profile:`, addProfileRes);
-                } catch (e) {
-                  console.log(`Notice for profile.180workspace.com domain: ${e.message}`);
-                }
-
-                // Add pay.180workspace.com to 180workspace-profile
-                console.log('==> Ensuring pay.180workspace.com is bound to 180workspace-profile Pages project...');
-                try {
-                  const addPayRes = await cfRequest(`/accounts/${actualAccountId}/pages/projects/180workspace-profile/domains`, 'POST', {
-                    name: 'pay.180workspace.com'
-                  });
-                  console.log(`✓ Added pay.180workspace.com to 180workspace-profile:`, addPayRes);
-                } catch (e) {
-                  console.log(`Notice for pay.180workspace.com domain: ${e.message}`);
-                }
-
-                // Add auth.180workspace.com to 180workspace-profile
-                console.log('==> Ensuring auth.180workspace.com is bound to 180workspace-profile Pages project...');
-                try {
-                  const addAuthRes = await cfRequest(`/accounts/${actualAccountId}/pages/projects/180workspace-profile/domains`, 'POST', {
-                    name: 'auth.180workspace.com'
-                  });
-                  console.log(`✓ Added auth.180workspace.com to 180workspace-profile:`, addAuthRes);
-                } catch (e) {
-                  console.log(`Notice for auth.180workspace.com domain: ${e.message}`);
-                }
               } catch (e) {
                 console.error(`Error querying Pages projects: ${e.message}`);
               }
@@ -227,10 +193,6 @@ jobs:
             const pagesBindings = [
               { name: 'traffic-director.180workspace.com', target: '180workspace-traffic.pages.dev' },
               { name: 'traffic.180workspace.com', target: '180workspace-traffic.pages.dev' },
-              { name: 'profile.180workspace.com', target: '180workspace-profile.pages.dev' },
-              { name: 'pay.180workspace.com', target: '180workspace-profile.pages.dev' },
-              { name: 'auth.180workspace.com', target: '180workspace-profile.pages.dev' },
-              { name: 'developers.180workspace.com', target: '180workspace-developer.pages.dev' },
               { name: 'docs.180workspace.com', target: '180workspace-docs.pages.dev' },
               { name: '180workspace.com', target: '180workspace-marketing.pages.dev' },
               { name: 'www.180workspace.com', target: '180workspace-marketing.pages.dev' }
@@ -271,8 +233,6 @@ jobs:
             // 7. EC2 Services targets to update
             const ec2Subdomains = [
               'api.180workspace.com',
-              'services.180workspace.com',
-              'api.auth.180workspace.com',
               'app.180workspace.com',
               'admin.180workspace.com',
               'livekit.180workspace.com',

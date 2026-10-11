@@ -264,15 +264,13 @@ jobs:
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          CORE_DATABASE_URL: ${{ secrets.CORE_DATABASE_URL }}
-          DEVELOPERS_DATABASE_URL: ${{ secrets.DEVELOPERS_DATABASE_URL }}
           DESKTOP_DEVICE_JWT_SECRET: ${{ secrets.DESKTOP_DEVICE_JWT_SECRET }}
           CARTESIA_API_KEY: ${{ secrets.CARTESIA_API_KEY }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,DATABASE_URL,NEXTAUTH_SECRET,CORE_DATABASE_URL,DEVELOPERS_DATABASE_URL,DESKTOP_DEVICE_JWT_SECRET,CARTESIA_API_KEY
+          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,DATABASE_URL,NEXTAUTH_SECRET,DESKTOP_DEVICE_JWT_SECRET,CARTESIA_API_KEY
           command_timeout: 30m
           script: |
             set -e
@@ -327,41 +325,8 @@ jobs:
               else
                 echo "!! WARNING: NEXTAUTH_SECRET is not defined in PRODUCTION_ENV_FILE or repository secrets. NextAuth (Google) sign-in will be unavailable."
               fi
-            fi
 
-            # 4c. CORE_DATABASE_URL & DEVELOPERS_DATABASE_URL — Dedicated isolated database for 180 Core
-            if [ -n "$CORE_DATABASE_URL" ]; then
-              sed -i '/^CORE_DATABASE_URL=/d' .env
-              printf '\nCORE_DATABASE_URL="%s"\n' "$CORE_DATABASE_URL" >> .env
-              echo "==> CORE_DATABASE_URL configured from repository secret."
-            elif ! grep -q '^CORE_DATABASE_URL=.\+' .env; then
-              DB_BASE=$(grep '^DATABASE_URL=' .env | head -n1 | cut -d= -f2- | tr -d '"' | tr -d "'")
-              if [ -n "$DB_BASE" ]; then
-                if echo "$DB_BASE" | grep -q 'schema='; then
-                  CORE_DB=$(echo "$DB_BASE" | sed 's/schema=[^&]*/schema=180core/')
-                elif echo "$DB_BASE" | grep -q '\?'; then
-                  CORE_DB="${DB_BASE}&schema=180core"
-                else
-                  CORE_DB="${DB_BASE}?schema=180core"
-                fi
-                printf '\nCORE_DATABASE_URL="%s"\n' "$CORE_DB" >> .env
-                echo "==> CORE_DATABASE_URL derived from DATABASE_URL with schema isolation."
-              fi
-            fi
-
-            if [ -n "$DEVELOPERS_DATABASE_URL" ]; then
-              sed -i '/^DEVELOPERS_DATABASE_URL=/d' .env
-              printf '\nDEVELOPERS_DATABASE_URL="%s"\n' "$DEVELOPERS_DATABASE_URL" >> .env
-              echo "==> DEVELOPERS_DATABASE_URL configured from repository secret."
-            elif ! grep -q '^DEVELOPERS_DATABASE_URL=.\+' .env; then
-              CORE_URL=$(grep '^CORE_DATABASE_URL=' .env | head -n1 | cut -d= -f2- | tr -d '"' | tr -d "'")
-              if [ -n "$CORE_URL" ]; then
-                printf '\nDEVELOPERS_DATABASE_URL="%s"\n' "$CORE_URL" >> .env
-                echo "==> DEVELOPERS_DATABASE_URL mirrored from CORE_DATABASE_URL."
-              fi
-            fi
-
-            # 4d. Desktop Device Registration Secret & Cartesia STT
+            # 4c. Desktop Device Registration Secret & Cartesia STT
             if ! grep -q '^DESKTOP_DEVICE_JWT_SECRET=.\+' .env; then
               if [ -n "$DESKTOP_DEVICE_JWT_SECRET" ]; then
                 printf '\nDESKTOP_DEVICE_JWT_SECRET="%s"\n' "$DESKTOP_DEVICE_JWT_SECRET" >> .env
@@ -396,10 +361,9 @@ jobs:
             docker compose pull
             docker compose -f docker-compose.livekit.yml pull || true
 
-            # 8b. Apply pending Prisma migrations for both core DB and 180core DB
-            echo "==> Applying database migrations (packages/db & packages/db-180core)..."
+            # 8b. Apply pending Prisma migrations for platform DB
+            echo "==> Applying database migrations (packages/db)..."
             docker compose run --rm --no-deps -T -w /app backend sh -c "npx prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss"
-            docker compose run --rm --no-deps -T -w /app backend sh -c "(npx prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || true)"
 
             # 9. Stop host-level services / processes binding to port 80 or 443
             sudo systemctl stop nginx apache2 2>/dev/null || true
@@ -492,27 +456,9 @@ jobs:
             // 1. Synchronize Cloudflare Pages Custom Domains & CNAMEs
             const pagesProjects = [
               { project: '180workspace-docs', domain: 'docs.180workspace.com' },
-              { project: '180workspace-profile', domain: 'profile.180workspace.com' },
-              { project: '180workspace-profile', domain: 'pay.180workspace.com' },
-              { project: '180workspace-profile', domain: 'auth.180workspace.com' },
-              { project: '180workspace-developer', domain: 'developers.180workspace.com' },
               { project: '180workspace-traffic', domain: 'traffic.180workspace.com' },
               { project: '180workspace-traffic', domain: 'traffic-director.180workspace.com' }
             ];
-
-            // Disable legacy auth.180workspace.com redirect page rules if active
-            try {
-              const pageRules = await cfRequest(`/zones/${zoneId}/pagerules`);
-              for (const rule of pageRules || []) {
-                const isAuthRedirect = rule.targets?.some(t => t.constraint?.value?.includes('auth.180workspace.com'));
-                if (isAuthRedirect && rule.status === 'active') {
-                  console.log(`==> Disabling legacy auth.180workspace.com redirect rule (${rule.id})...`);
-                  await cfRequest(`/zones/${zoneId}/pagerules/${rule.id}`, 'PATCH', { status: 'disabled' });
-                }
-              }
-            } catch (e) {
-              console.log(`Page rules note: ${e.message}`);
-            }
 
             if (accountId) {
               for (const p of pagesProjects) {
@@ -558,10 +504,8 @@ jobs:
             // 2. Synchronize EC2 Host A-Records
             const subdomainsToUpdate = [
               'api.180workspace.com',
-              'services.180workspace.com',
               'app.180workspace.com',
               'admin.180workspace.com',
-              '180identity.180workspace.com',
               'livekit.180workspace.com',
               'cname.180workspace.com',
               '*.180workspace.com'

@@ -1,7 +1,15 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import { prisma as db } from '@workspace/db';
-import { developersPrisma as corePrisma } from '@workspace/db-180core';
+
+function getCorePrisma(): any {
+  try {
+    const core = require('@workspace/db-180core');
+    return core.developersPrisma || core.corePrisma || null;
+  } catch {
+    return null;
+  }
+}
 
 export type TrafficDirectorTier = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE';
 
@@ -163,13 +171,14 @@ export class TrafficDirectorBillingService {
       const projectAppId = process.env.TRAFFIC_DIRECTOR_PROJECT_ID || '7697a348-7550-4229-9595-08ba67aa9755';
 
       // 1. Fetch live subscription plans registered under this project in 180 Pay
-      const dbPlans = await (corePrisma as any).subscriptionPlan.findMany({
+      const corePrisma = getCorePrisma();
+      const dbPlans = corePrisma?.subscriptionPlan ? await (corePrisma as any).subscriptionPlan.findMany({
         where: {
           appId: { in: [projectAppId, clientId] },
           isActive: true,
         },
         orderBy: { amount: 'asc' },
-      });
+      }) : null;
 
       if (dbPlans && dbPlans.length > 0) {
         const resolved: Record<TrafficDirectorTier, PlanDefinition> = { ...DEFAULT_TRAFFIC_DIRECTOR_PLANS };
@@ -530,13 +539,14 @@ export class TrafficDirectorBillingService {
     // ─── Self-Healing Auto-Sync: Recover active subscriptions from 180 Pay captured sessions ───
     if (!sub || sub.status !== 'ACTIVE' || sub.status === 'EXPIRED' || sub.planTier === 'FREE') {
       try {
-        const capturedSession = await (corePrisma as any).checkoutSession.findFirst({
+        const corePrisma = getCorePrisma();
+        const capturedSession = corePrisma?.checkoutSession ? await (corePrisma as any).checkoutSession.findFirst({
           where: {
             status: 'CAPTURED',
             metadata: { path: ['companyId'], equals: companyId },
           },
           orderBy: { completedAt: 'desc' },
-        });
+        }) : null;
 
         if (capturedSession && capturedSession.completedAt) {
           const completedTime = new Date(capturedSession.completedAt).getTime();
@@ -652,23 +662,35 @@ export class TrafficDirectorBillingService {
       '180_client_b26aee801c22cb3295f041ff2a3597db',
     ].filter(Boolean) as string[];
 
-    // Fetch matching coupon from 180 Core database
-    let coupon = await (corePrisma as any).coupon.findFirst({
-      where: {
-        appId: { in: candidateAppIds },
-        code: { equals: code, mode: 'insensitive' },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (!coupon) {
+    // Fetch matching coupon from 180 Core database if connected or via remote API
+    const corePrisma = getCorePrisma();
+    let coupon: any = null;
+    if (corePrisma?.coupon) {
       coupon = await (corePrisma as any).coupon.findFirst({
         where: {
+          appId: { in: candidateAppIds },
           code: { equals: code, mode: 'insensitive' },
-          isActive: true,
         },
         orderBy: { createdAt: 'desc' },
       });
+
+      if (!coupon) {
+        coupon = await (corePrisma as any).coupon.findFirst({
+          where: {
+            code: { equals: code, mode: 'insensitive' },
+            isActive: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+    } else {
+      try {
+        const coreUrl = this.get180PayBaseUrl();
+        const res = await axios.post(`${coreUrl}/api/v1/coupons/validate`, { code }, { timeout: 5000 });
+        if (res.data?.coupon) {
+          coupon = res.data.coupon;
+        }
+      } catch (_) {}
     }
 
     if (!coupon || !coupon.isActive) {
@@ -924,9 +946,19 @@ export class TrafficDirectorBillingService {
       throw new Error('companyId and sessionId are required');
     }
 
-    const session = await (corePrisma as any).checkoutSession.findUnique({
-      where: { id: sessionId },
-    });
+    const corePrisma = getCorePrisma();
+    let session: any = null;
+    if (corePrisma?.checkoutSession) {
+      session = await (corePrisma as any).checkoutSession.findUnique({
+        where: { id: sessionId },
+      });
+    } else {
+      try {
+        const coreUrl = this.get180PayBaseUrl();
+        const res = await axios.get(`${coreUrl}/api/v1/checkout/sessions/${sessionId}`, { timeout: 5000 });
+        session = res.data?.session || res.data;
+      } catch (_) {}
+    }
 
     if (!session) {
       throw new Error(`Checkout session ${sessionId} not found`);

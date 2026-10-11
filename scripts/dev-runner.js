@@ -23,14 +23,6 @@ frontend: {
     port: 3002,
     color: '\x1b[34m', // Blue
   },
-developers: {
-    name: '180 Developer Platform',
-    filter: '180developers-frontend',
-    cmd: 'pnpm',
-    args: ['--filter', '180developers-frontend', 'dev'],
-    port: 3008,
-    color: '\x1b[38;5;208m', // Orange
-  },
   admin: {
     name: 'Platform Admin Portal',
     filter: 'admin-web',
@@ -76,20 +68,10 @@ developers: {
 const ALIASES = {
   api: 'backend',
   server: 'backend',
-  core: 'core-backend',
-  '180-core-backend': 'core-backend',
-  services: 'core-backend',
   web: 'frontend',
   app: 'frontend',
-  '180-profile': 'profile',
-  '180-profile-frontend': 'profile',
-  auth: 'profile',
-  pay: 'profile',
   'admin-web': 'admin',
   'marketing-web': 'marketing',
-  'developer-portal': 'developers',
-  developer: 'developers',
-  devs: 'developers',
   'traffic-director': 'trafficdirector',
   traffic: 'trafficdirector',
   td: 'trafficdirector',

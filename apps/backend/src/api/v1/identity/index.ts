@@ -14,7 +14,6 @@ router.use('/profile', profileRoutes);
 router.use('/preferences', preferenceRoutes);
 router.use('/setup', setupRoutes);
 router.use('/oauth', oauthRoutes);
-router.use('/developer', oauthRoutes);
 
 export default router;
 
