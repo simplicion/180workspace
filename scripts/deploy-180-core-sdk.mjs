@@ -14,10 +14,6 @@ if (!fs.existsSync(srcJs) || !fs.existsSync(srcMinJs)) {
 const targetDirs = [
   path.join(rootDir, 'apps', 'frontend', 'public', 'sdk'),
   path.join(rootDir, 'apps', 'frontend', 'public', 'sdk', 'v1'),
-  path.join(rootDir, 'apps', '180developers-frontend', 'public', 'sdk'),
-  path.join(rootDir, 'apps', '180developers-frontend', 'public', 'sdk', 'v1'),
-  path.join(rootDir, 'apps', '180-profile-frontend', 'public', 'sdk'),
-  path.join(rootDir, 'apps', '180-profile-frontend', 'public', 'sdk', 'v1'),
 ];
 
 console.log('================================================================');

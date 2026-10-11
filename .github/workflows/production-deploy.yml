@@ -78,97 +78,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy apps/marketing-web/dist --project-name=180workspace-marketing --branch=main --commit-dirty=true
 
-  deploy-profile-cloudflare:
-    name: Deploy 180 Profile Frontend (profile, auth, pay) to Cloudflare Pages
-    runs-on: ubuntu-latest
-    needs: [deploy-core-sdk-cdn]
-    continue-on-error: true
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Sync 180 Core SDK to Public CDN Assets
-        run: pnpm run build:sdk
-
-      - name: Build 180 Profile Frontend
-        env:
-          NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID || '188560578303-2bih1dg5qhbq5uao9q451r6db3986e6f.apps.googleusercontent.com' }}
-          NEXT_EXPORT: 'true'
-        run: pnpm turbo run build --filter=180-profile-frontend...
-
-      - name: Ensure Cloudflare Pages Project Exists
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm exec wrangler pages project create 180workspace-profile --production-branch=main || true
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/180-profile-frontend
-          command: pages deploy out --project-name=180workspace-profile --branch=main --commit-dirty=true
-
-  deploy-developer-cloudflare:
-    name: Deploy 180 Developer Portal to Cloudflare Pages
-    runs-on: ubuntu-latest
-    needs: [deploy-core-sdk-cdn]
-    continue-on-error: true
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Sync 180 Core SDK to Public CDN Assets
-        run: pnpm run build:sdk
-
-      - name: Build 180 Developer Portal
-        env:
-          NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
-          NEXT_EXPORT: 'true'
-        run: pnpm turbo run build --filter=180developers-frontend...
-
-      - name: Ensure Cloudflare Pages Project Exists
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm exec wrangler pages project create 180workspace-developer --production-branch=main || true
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/180developers-frontend/out --project-name=180workspace-developer --branch=main --commit-dirty=true
+  # (Note: 180 Profile and Developer Portal are deployed via dedicated 180 Core CI/CD pipeline)
 
   deploy-traffic-director-cloudflare:
     name: Deploy 180 Traffic Director to Cloudflare Pages
@@ -265,9 +175,6 @@ jobs:
           - name: backend
             file: ./Dockerfile
             suffix: ""
-          - name: core-backend
-            file: ./apps/180-core-backend/Dockerfile
-            suffix: "-core-backend"
           - name: frontend
             file: ./apps/frontend/Dockerfile
             suffix: "-frontend"
@@ -356,26 +263,16 @@ jobs:
           REPO_LOWER: ${{ steps.repo-name.outputs.REPO_LOWER }}
           PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-          META_WEBHOOK_VERIFY_TOKEN: ${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}
-          LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
-          LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
-          SOCIAL_TOKEN_ENCRYPTION_KEY: ${{ secrets.SOCIAL_TOKEN_ENCRYPTION_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CORE_DATABASE_URL: ${{ secrets.CORE_DATABASE_URL }}
           DEVELOPERS_DATABASE_URL: ${{ secrets.DEVELOPERS_DATABASE_URL }}
           DESKTOP_DEVICE_JWT_SECRET: ${{ secrets.DESKTOP_DEVICE_JWT_SECRET }}
           CARTESIA_API_KEY: ${{ secrets.CARTESIA_API_KEY }}
-          META_APP_ID: ${{ secrets.META_APP_ID }}
-          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
-          INSTAGRAM_APP_ID: ${{ secrets.INSTAGRAM_APP_ID }}
-          INSTAGRAM_APP_SECRET: ${{ secrets.INSTAGRAM_APP_SECRET }}
-          THREADS_APP_ID: ${{ secrets.THREADS_APP_ID }}
-          THREADS_APP_SECRET: ${{ secrets.THREADS_APP_SECRET }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,DATABASE_URL,NEXTAUTH_SECRET,META_WEBHOOK_VERIFY_TOKEN,LINKEDIN_CLIENT_ID,LINKEDIN_CLIENT_SECRET,SOCIAL_TOKEN_ENCRYPTION_KEY,CORE_DATABASE_URL,DEVELOPERS_DATABASE_URL,DESKTOP_DEVICE_JWT_SECRET,CARTESIA_API_KEY,META_APP_ID,META_APP_SECRET,INSTAGRAM_APP_ID,INSTAGRAM_APP_SECRET,THREADS_APP_ID,THREADS_APP_SECRET
+          envs: GITHUB_TOKEN,REPO_LOWER,PRODUCTION_ENV_FILE,DATABASE_URL,NEXTAUTH_SECRET,CORE_DATABASE_URL,DEVELOPERS_DATABASE_URL,DESKTOP_DEVICE_JWT_SECRET,CARTESIA_API_KEY
           command_timeout: 30m
           script: |
             set -e
@@ -432,39 +329,7 @@ jobs:
               fi
             fi
 
-            # 4c. META_WEBHOOK_VERIFY_TOKEN — injected from dedicated repository secret if not already
-            #     present in PRODUCTION_ENV_FILE. Same pattern as NEXTAUTH_SECRET above.
-            if ! grep -q '^META_WEBHOOK_VERIFY_TOKEN=.\+' .env; then
-              if [ -n "$META_WEBHOOK_VERIFY_TOKEN" ]; then
-                printf '\nMETA_WEBHOOK_VERIFY_TOKEN=%s\n' "$META_WEBHOOK_VERIFY_TOKEN" >> .env
-                echo "==> META_WEBHOOK_VERIFY_TOKEN injected from repository secret."
-              else
-                echo "!! WARNING: META_WEBHOOK_VERIFY_TOKEN is not defined in PRODUCTION_ENV_FILE or repository secrets. Meta webhook verification will fail."
-              fi
-            fi
-
-            # 4d. LinkedIn Credentials & Provider Mode fallback
-            if ! grep -q '^LINKEDIN_CLIENT_ID=.\+' .env; then
-              if [ -n "$LINKEDIN_CLIENT_ID" ]; then
-                printf '\nLINKEDIN_CLIENT_ID=%s\n' "$LINKEDIN_CLIENT_ID" >> .env
-                echo "==> LINKEDIN_CLIENT_ID injected from repository secret."
-              fi
-            fi
-            if ! grep -q '^LINKEDIN_CLIENT_SECRET=.\+' .env; then
-              if [ -n "$LINKEDIN_CLIENT_SECRET" ]; then
-                printf '\nLINKEDIN_CLIENT_SECRET=%s\n' "$LINKEDIN_CLIENT_SECRET" >> .env
-                echo "==> LINKEDIN_CLIENT_SECRET injected from repository secret."
-              fi
-            fi
-            if ! grep -q '^LINKEDIN_PROVIDER_MODE=.\+' .env; then
-              printf '\nLINKEDIN_PROVIDER_MODE=live\n' >> .env
-              echo "==> LINKEDIN_PROVIDER_MODE defaulted to live."
-            fi
-            if ! grep -q '^LINKEDIN_API_VERSION=.\+' .env; then
-              printf '\nLINKEDIN_API_VERSION=202507\n' >> .env
-            fi
-
-            # 4e. CORE_DATABASE_URL & DEVELOPERS_DATABASE_URL — Dedicated isolated database for 180 Core
+            # 4c. CORE_DATABASE_URL & DEVELOPERS_DATABASE_URL — Dedicated isolated database for 180 Core
             if [ -n "$CORE_DATABASE_URL" ]; then
               sed -i '/^CORE_DATABASE_URL=/d' .env
               printf '\nCORE_DATABASE_URL="%s"\n' "$CORE_DATABASE_URL" >> .env
@@ -496,15 +361,7 @@ jobs:
               fi
             fi
 
-            # 4f. SOCIAL_TOKEN_ENCRYPTION_KEY — AES-256-GCM Token Vault
-            if ! grep -q '^SOCIAL_TOKEN_ENCRYPTION_KEY=.\+' .env; then
-              if [ -n "$SOCIAL_TOKEN_ENCRYPTION_KEY" ]; then
-                printf '\nSOCIAL_TOKEN_ENCRYPTION_KEY="%s"\n' "$SOCIAL_TOKEN_ENCRYPTION_KEY" >> .env
-                echo "==> SOCIAL_TOKEN_ENCRYPTION_KEY injected from repository secret."
-              fi
-            fi
-
-            # 4g. Desktop Device Registration Secret & Cartesia STT
+            # 4d. Desktop Device Registration Secret & Cartesia STT
             if ! grep -q '^DESKTOP_DEVICE_JWT_SECRET=.\+' .env; then
               if [ -n "$DESKTOP_DEVICE_JWT_SECRET" ]; then
                 printf '\nDESKTOP_DEVICE_JWT_SECRET="%s"\n' "$DESKTOP_DEVICE_JWT_SECRET" >> .env
@@ -516,41 +373,6 @@ jobs:
                 printf '\nCARTESIA_API_KEY="%s"\n' "$CARTESIA_API_KEY" >> .env
                 echo "==> CARTESIA_API_KEY injected from repository secret."
               fi
-            fi
-
-            # 4h. Social Channel Publishing Credentials
-            if ! grep -q '^META_APP_ID=.\+' .env; then
-              if [ -n "$META_APP_ID" ]; then
-                printf '\nMETA_APP_ID="%s"\n' "$META_APP_ID" >> .env
-              fi
-              if [ -n "$META_APP_SECRET" ]; then
-                printf 'META_APP_SECRET="%s"\n' "$META_APP_SECRET" >> .env
-                echo "==> Meta Platform credentials injected from repository secrets."
-              fi
-            fi
-            if ! grep -q '^INSTAGRAM_APP_ID=.\+' .env; then
-              if [ -n "$INSTAGRAM_APP_ID" ]; then
-                printf '\nINSTAGRAM_APP_ID="%s"\n' "$INSTAGRAM_APP_ID" >> .env
-              fi
-              if [ -n "$INSTAGRAM_APP_SECRET" ]; then
-                printf 'INSTAGRAM_APP_SECRET="%s"\n' "$INSTAGRAM_APP_SECRET" >> .env
-                echo "==> Instagram credentials injected from repository secrets."
-              fi
-            fi
-            if ! grep -q '^THREADS_APP_ID=.\+' .env; then
-              if [ -n "$THREADS_APP_ID" ]; then
-                printf '\nTHREADS_APP_ID="%s"\n' "$THREADS_APP_ID" >> .env
-              fi
-              if [ -n "$THREADS_APP_SECRET" ]; then
-                printf 'THREADS_APP_SECRET="%s"\n' "$THREADS_APP_SECRET" >> .env
-                echo "==> Threads credentials injected from repository secrets."
-              fi
-            fi
-            if ! grep -q '^SOCIAL_OAUTH_CALLBACK_BASE_URL=.\+' .env; then
-              printf '\nSOCIAL_OAUTH_CALLBACK_BASE_URL="https://api.180workspace.com"\n' >> .env
-            fi
-            if ! grep -q '^SOCIAL_MEDIA_PUBLIC_BASE_URL=.\+' .env; then
-              printf '\nSOCIAL_MEDIA_PUBLIC_BASE_URL="https://api.180workspace.com"\n' >> .env
             fi
 
             # 5. Synchronize codebase configuration (nginx.conf, docker-compose.yml)
@@ -577,7 +399,7 @@ jobs:
             # 8b. Apply pending Prisma migrations for both core DB and 180core DB
             echo "==> Applying database migrations (packages/db & packages/db-180core)..."
             docker compose run --rm --no-deps -T -w /app backend sh -c "npx prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss"
-            docker compose run --rm --no-deps -T -w /app core-backend sh -c "(npx prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || true)"
+            docker compose run --rm --no-deps -T -w /app backend sh -c "(npx prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || ./node_modules/.bin/prisma db push --schema packages/db-180core/prisma/schema.prisma --accept-data-loss || true)"
 
             # 9. Stop host-level services / processes binding to port 80 or 443
             sudo systemctl stop nginx apache2 2>/dev/null || true
