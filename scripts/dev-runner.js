@@ -15,15 +15,7 @@ const APPS = {
     port: 4002,
     color: '\x1b[36m', // Cyan
   },
-  'core-backend': {
-    name: '180 Core Backend (Identity, Wallet, Checkout & Payouts)',
-    filter: '180-core-backend',
-    cmd: 'pnpm',
-    args: ['--filter', '180-core-backend', 'dev'],
-    port: 4003,
-    color: '\x1b[38;5;141m', // Purple
-  },
-  frontend: {
+frontend: {
     name: '180 Workspace Platform (Web)',
     filter: 'frontend',
     cmd: 'pnpm',
@@ -31,15 +23,7 @@ const APPS = {
     port: 3002,
     color: '\x1b[34m', // Blue
   },
-  profile: {
-    name: '180 Profile Frontend (Universal Identity, Wallet & Popups)',
-    filter: '180-profile-frontend',
-    cmd: 'pnpm',
-    args: ['--filter', '180-profile-frontend', 'dev'],
-    port: 3009,
-    color: '\x1b[38;5;213m', // Pink / Magenta
-  },
-  developers: {
+developers: {
     name: '180 Developer Platform',
     filter: '180developers-frontend',
     cmd: 'pnpm',
@@ -154,9 +138,6 @@ function printBanner() {
   }
   console.log('\nUsage commands:');
   console.log('  pnpm dev                 (Spins up ALL workspace platform apps + Flutter)');
-  console.log('  pnpm dev:core-backend    (Runs 180 Core Backend on :4003)');
-  console.log('  pnpm dev:profile         (Runs 180 Profile Frontend on :3009)');
-  console.log('  pnpm dev:developers      (Runs 180 Developer Portal on :3008)');
   console.log('  pnpm dev:traffic         (Runs 180 Traffic Director on :3006)');
   console.log('  pnpm dev:flutter         (Runs 180 Social Studio Flutter on :3007)');
   console.log('  pnpm dev:backend         (Runs Main Backend on :4002)');
@@ -192,9 +173,7 @@ function runSingleApp(key) {
 
 function runAllApps(includeMobile = true) {
   console.log(BOLD + 'Starting ALL workspace platform apps in parallel...' + RESET);
-  console.log('  [180-core-backend]      -> http://localhost:4003 (Identity, Wallet, 180 Pay & Payouts)');
-  console.log('  [180-profile-frontend]  -> http://localhost:3009 (Universal Profile, Wallet & Popups)');
-  console.log('  [180developers-frontend]-> http://localhost:3008 (180 Developer Portal)');
+  console.log('  [180 Core Services]      -> External 180 Core (:4004 / services.180core.cloud)');
   console.log('  [backend]               -> http://localhost:4002 (Main Backend API)');
   console.log('  [frontend]              -> http://localhost:3002 (180 Workspace Web Platform)');
   console.log('  [admin-web]             -> http://localhost:3003 (Platform Admin Portal)');
@@ -216,9 +195,6 @@ function runAllApps(includeMobile = true) {
     'run',
     'dev',
     '--concurrency=30',
-    '--filter=180-core-backend',
-    '--filter=180-profile-frontend',
-    '--filter=180developers-frontend',
     '--filter=backend',
     '--filter=frontend',
     '--filter=traffic-director-web',
