@@ -79,18 +79,8 @@ const nextConfig = {
                 permanent: false,
             },
             {
-                source: '/voiceforce',
-                destination: process.env.NEXT_PUBLIC_VOICEFORCE_URL || 'http://localhost:3007/voiceforce',
-                permanent: false,
-            },
-            {
-                source: '/voiceforce/:path*',
-                destination: `${process.env.NEXT_PUBLIC_VOICEFORCE_URL || 'http://localhost:3007'}/voiceforce/:path*`,
-                permanent: false,
-            },
-            {
                 source: '/settings/wallet',
-                destination: `${process.env.NEXT_PUBLIC_VOICEFORCE_URL || 'http://localhost:3007'}/voiceforce/wallet`,
+                destination: '/wallet',
                 permanent: false,
             },
         ];

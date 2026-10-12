@@ -26,7 +26,6 @@ import {
     MessageSquare,
     FolderOpen,
     Share2,
-    PhoneCall,
     Film,
     Construction,
     RotateCcw
@@ -60,7 +59,6 @@ const APP_METADATA: Record<string, { label: string; category: string; icon: any;
     communications:       { label: 'Communications',           category: 'Communication', icon: MessageSquare, color: 'text-cyan-500 bg-cyan-50 dark:bg-cyan-950/50 border-cyan-200 dark:border-cyan-800' },
     'workspace-tools':    { label: 'Workspace Tools',          category: 'Productivity',  icon: FolderOpen,    color: 'text-violet-500 bg-violet-50 dark:bg-violet-950/50 border-violet-200 dark:border-violet-800' },
     'social-media':       { label: 'Social Media Management',  category: 'Marketing',     icon: Share2,        color: 'text-teal-500 bg-teal-50 dark:bg-teal-950/50 border-teal-200 dark:border-teal-800' },
-    voiceforce:           { label: '180 Voiceforce',           category: 'Operations',    icon: PhoneCall,     color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/50 border-purple-200 dark:border-purple-800' },
     'media-editor':       { label: '180 Media Studio',         category: 'Productivity',  icon: Film,          color: 'text-violet-500 bg-violet-50 dark:bg-violet-950/50 border-violet-200 dark:border-violet-800' },
 };
 

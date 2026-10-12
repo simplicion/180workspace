@@ -79,7 +79,7 @@ export class BillingController {
             const isPaidPlan = isPaidPlanFor(plan, currentSubscription);
             const effectiveEnabledApps = effectiveEnabledAppsFor(rawEnabledApps, isPaidPlan, plan, currentSubscription);
 
-            const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder', 'voiceforce'];
+            const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder'];
             const activeAppsCount = effectiveEnabledApps.filter((app: string) => app !== 'system' && app !== 'settings' && validAppIds.includes(app)).length;
 
             const storageUsedBytes = storageAgg._sum.fileSize || 0;

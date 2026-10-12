@@ -32,7 +32,7 @@ describe('module table invariants', () => {
 
   it('sensitive and real-time modules are online-only', () => {
     const tier = (id: string) => OFFLINE_MODULES.find((m) => m.id === id)?.tier;
-    for (const id of ['finance', 'insights', 'settings', 'communications', 'voiceforce', 'ai', 'service-desk']) expect(tier(id)).toBe('online-only');
+    for (const id of ['finance', 'insights', 'settings', 'communications', 'ai', 'service-desk']) expect(tier(id)).toBe('online-only');
   });
 
   it('labels every tier for the UI', () => {
@@ -52,7 +52,6 @@ describe('moduleForRoute', () => {
     ['/wallet', 'finance'],
     ['/settings/platform-billing', 'settings'],
     ['/meeting/room1', 'communications'],
-    ['/voiceforce/agents', 'voiceforce'],
     ['/ai', 'ai'],
     ['/dashboard', 'dashboard'],
     ['/', 'dashboard'],

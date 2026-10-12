@@ -9,7 +9,7 @@ import {
     FileSignature, Bot, Lightbulb, UserSquare, ClipboardList, 
     Palmtree, Wallet, Banknote, Package, PlusCircle, ChevronLeft, 
     Menu, Mail, FolderOpen, Video, Database, Megaphone, Search, 
-    Bookmark, PhoneCall, Smartphone, PhoneForwarded, 
+    Bookmark, Smartphone, 
     Brain 
 } from 'lucide-react';
 

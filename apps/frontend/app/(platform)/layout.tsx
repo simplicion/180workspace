@@ -336,7 +336,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     // Check against the plan's max apps
                     const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 50);
                     const companyEnabledApps = company?.enabledApps || [];
-                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder', 'voiceforce'];
+                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder'];
                     
                     // Filter out system, settings, and default apps to get only custom installed apps
                     const customApps = companyEnabledApps.filter((a: string) => 
@@ -364,7 +364,6 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     // Only check module enablement if this group belongs to a configurable app
                     if (item.appId && isAppEnabled && subItem.id && company?.enabledModules) {
                         const isModOn = (item.appId === 'ai') ||
-                            (item.appId === 'voiceforce') ||
                             (subItem.id === 'orbit-copilot') ||
                             (subItem.id === 'agent-requests') ||
                             (subItem.id === 'company-hub') ||
@@ -693,7 +692,6 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             }
         }
         if (pathname.startsWith('/traffic-director')) return 'traffic-director';
-        if (pathname.startsWith('/voiceforce')) return 'voiceforce';
         if (pathname.startsWith('/advertising')) return 'advertising';
         return null;
     }, [pathname]);

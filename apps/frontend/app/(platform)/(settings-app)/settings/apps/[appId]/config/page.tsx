@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ArrowLeft, LayoutGrid, Settings, Info, CheckCircle2, 
-    XCircle, Sparkles, Key, Globe, Database, ExternalLink, PhoneCall
+    XCircle, Sparkles, Key, Globe, Database, ExternalLink
 } from 'lucide-react';
 import { useSettings } from '@/lib/settings-context';
 import { APPS_CONFIG } from '@/lib/module-map';
@@ -57,10 +57,6 @@ const APP_DETAILS: Record<string, { overview: string; useCases: string[] }> = {
     'workspace-tools': {
         overview: 'Workspace Tools powers everyday operational productivity — shared team calendars, company documents, IT asset management, Form Builder, Company Hub, and the Orbit AI Copilot.',
         useCases: ['Schedule and coordinate company-wide events on a unified calendar', 'Create interactive intake forms, surveys, and lead capture endpoints with Form Builder', 'Manage company branding, public profile, and custom domains with Company Hub', 'Create, store, and collaborate on company documents', 'Track internal IT and digital assets with credential management', 'Chat with Orbit AI Copilot across your workspace data']
-    },
-    voiceforce: {
-        overview: '180 Voiceforce deploys autonomous AI voice agents for high-throughput inbound and outbound telephone calls, appointment scheduling, and order confirmation.',
-        useCases: ['Autonomous customer service and lead qualification calls', 'Automate booking and appointment confirmations over the phone', 'Manage virtual phone numbers, SIP trunks, and call forwarding', 'Launch outbound automated calling campaigns']
     },
     jobhunter: {
         overview: 'Job Hunter AI automates your job search with AI-powered matching, application tracking, and candidate profile management.',
@@ -210,18 +206,6 @@ export default function AppConfigPage() {
 
                 {/* Actions: Launch Console & Install/Uninstall */}
                 <div className="flex items-center gap-3">
-                    {appId === 'voiceforce' && isAppEnabled && (
-                        <a
-                            href={process.env.NEXT_PUBLIC_VOICEFORCE_URL || 'http://localhost:3007/voiceforce'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-5 py-2.5 rounded-xl text-sm font-bold bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200 transition-all flex items-center gap-2 shadow-xs cursor-pointer"
-                        >
-                            <PhoneCall className="w-4 h-4 text-cyan-600" />
-                            <span>Launch Voiceforce Console</span>
-                            <ExternalLink className="w-3.5 h-3.5 text-cyan-500" />
-                        </a>
-                    )}
                     {appId === 'traffic-director' && isAppEnabled && (
                         <a
                             href={process.env.NEXT_PUBLIC_TRAFFIC_DIRECTOR_URL || 'http://localhost:3006/traffic-director'}

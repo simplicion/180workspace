@@ -167,7 +167,6 @@ export class CompanyConfigService {
                     'finance',
                     'advertising',
                     'website-builder',
-                    'voiceforce',
                     'settings'
                 ];
                 const disallowedApps = apps.filter(a => !MOMENTUM_ALLOWED_APPS.includes(a));

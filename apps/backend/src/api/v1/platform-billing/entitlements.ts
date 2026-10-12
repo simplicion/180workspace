@@ -5,7 +5,7 @@ import { prisma } from '@workspace/db';
 export const ALL_PLATFORM_APPS = [
     'system', 'settings',
     'projects', 'communications', 'workspace-tools',
-    'crm', 'hr', 'finance', 'advertising', 'website-builder', 'voiceforce'
+    'crm', 'hr', 'finance', 'advertising', 'website-builder'
 ];
 
 export function isPaidPlanFor(plan: any, currentSubscription: any): boolean {
@@ -68,8 +68,8 @@ export function getMaxStorageBytesForPlan(plan?: any, subscription?: any): numbe
 export function effectiveEnabledAppsFor(rawEnabledApps: string[], isPaidPlan: boolean, plan?: any, subscription?: any): string[] {
     const systemApps = ['system', 'settings'];
     const defaultApps = ['projects', 'communications', 'workspace-tools'];
-    const momentumApps = [...defaultApps, 'crm', 'finance', 'website-builder', 'voiceforce'];
-    const allApps = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder', 'voiceforce'];
+    const momentumApps = [...defaultApps, 'crm', 'finance', 'website-builder'];
+    const allApps = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder'];
 
     const isTrial = subscription?.status?.toLowerCase() === 'trial';
     const planName = (plan?.planName || '').toLowerCase();

@@ -338,12 +338,6 @@ router.use('/support/tickets', protect, supportRoutes);
 router.use('/support', protect, supportRoutes);
 router.use('/v1/support', protect, supportRoutes);
 
-// ─── 180 Voiceforce (AI Voice Calling Engine) ──────────────────────────────
-const voiceforceRouter = express.Router();
-voiceforceRouter.use((req: any, res: any) => res.json({ status: 'ok', service: 'voiceforce-external' }));
-router.use('/voiceforce', voiceforceRouter);
-router.use('/v1/voiceforce', voiceforceRouter);
-
 // ─── 180 Dedicated Prepaid Wallet Engine ──────────────────────────────────
 router.use('/wallet', walletRoutes);
 router.use('/v1/wallet', walletRoutes);

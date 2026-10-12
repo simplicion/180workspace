@@ -47,38 +47,9 @@ jobs:
   # ====================================================
   # Phase 1: Deploy Frontends to Cloudflare Pages
   # ====================================================
-  deploy-marketing-cloudflare:
-    name: Deploy Marketing Site to Cloudflare Pages
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Build Marketing Site
-        run: pnpm turbo run build --filter=apps-marketing-web...
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/marketing-web/dist --project-name=180workspace-marketing --branch=main --commit-dirty=true
-
+  # (Note: 180 Marketing Site and Documentation are deployed via dedicated 180 Public Sites CI/CD pipeline)
   # (Note: 180 Profile and Developer Portal are deployed via dedicated 180 Core CI/CD pipeline)
+  # (Note: 180 Voiceforce is deployed via dedicated Voice Force CI/CD pipeline)
 
   deploy-traffic-director-cloudflare:
     name: Deploy 180 Traffic Director to Cloudflare Pages
@@ -120,86 +91,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy apps/traffic-director-web/out --project-name=180workspace-traffic --branch=main --commit-dirty=true
-
-  deploy-voiceforce-cloudflare:
-    name: Deploy 180 Voiceforce (voiceforce.180workspace.com) to Cloudflare Pages
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Build Voiceforce
-        env:
-          NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
-          NEXT_PUBLIC_API_URL: https://services.180workspace.com
-          NEXT_EXPORT: 'true'
-        run: pnpm turbo run build --filter=voice-force-web...
-
-      - name: Ensure Cloudflare Pages Project Exists
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm exec wrangler pages project create 180workspace-voiceforce --production-branch=main || true
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/voice-force-web/out --project-name=180workspace-voiceforce --branch=main --commit-dirty=true
-
-
-  deploy-docs-cloudflare:
-    name: Deploy 180 Documentation (docs.180workspace.com) to Cloudflare Pages
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Build 180 Documentation Site
-        run: pnpm turbo run build --filter=apps-docs...
-
-      - name: Ensure Cloudflare Pages Project Exists
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm exec wrangler pages project create 180workspace-docs --production-branch=main || true
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/docs/build --project-name=180workspace-docs --branch=main --commit-dirty=true
 
   # ====================================================
   # Phase 2: Build & Push Docker Images (GHCR)

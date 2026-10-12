@@ -95,14 +95,6 @@ export const PLATFORM_APP_FLAGS: PlatformAppFlagDefinition[] = [
         isEnabled: true
     },
     {
-        name: 'app_voiceforce',
-        appId: 'voiceforce',
-        label: '180 Voiceforce',
-        description: 'Autonomous AI voice employees for customer calling, appointments, and order confirmation.',
-        category: 'Operations',
-        isEnabled: true
-    },
-    {
         name: 'app_media_editor',
         appId: 'media-editor',
         label: '180 Media Studio',

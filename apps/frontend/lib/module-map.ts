@@ -77,14 +77,6 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   '/traffic-director/analytics': { appId: 'traffic-director', moduleId: 'analytics' },
   '/traffic-director/threats': { appId: 'traffic-director', moduleId: 'threats' },
 
-  // 180 Voiceforce (Autonomous AI Voice Calling Engine)
-  '/voiceforce': { appId: 'voiceforce', moduleId: 'dashboard' },
-  '/voiceforce/agents': { appId: 'voiceforce', moduleId: 'agents' },
-  '/voiceforce/numbers': { appId: 'voiceforce', moduleId: 'numbers' },
-  '/voiceforce/forwarding': { appId: 'voiceforce', moduleId: 'forwarding' },
-  '/voiceforce/campaigns': { appId: 'voiceforce', moduleId: 'campaigns' },
-  '/voiceforce/calls': { appId: 'voiceforce', moduleId: 'calls' },
-  '/voiceforce/templates': { appId: 'voiceforce', moduleId: 'templates' },
 
 };
 
@@ -107,7 +99,7 @@ export interface AppConfig {
 
 import { 
     LayoutGrid, Smartphone, Globe, ShieldCheck, Database, CreditCard, Bell,
-    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, FolderOpen, LifeBuoy, PhoneCall
+    TrendingUp, FolderKanban, Users, MessageSquare, Landmark, Package, BarChart3, FilePlus2, Megaphone, Search, Plug2, FolderOpen, LifeBuoy
 } from 'lucide-react';
 
 export const APPS_CONFIG: AppConfig[] = [
@@ -220,25 +212,11 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'forms', name: 'Form Builder' },
             { id: 'company-hub', name: 'Company Hub' },
         ]
-    },
-    {
-        id: 'voiceforce',
-        name: '180 Voiceforce',
-        icon: PhoneCall,
-        tag: 'Operations',
-        description: 'Autonomous AI voice employees for customer calling, appointments, and order confirmation.',
-        modules: [
-            { id: 'dashboard', name: 'Voiceforce Dashboard' },
-            { id: 'agents', name: 'AI Voice Agents' },
-            { id: 'numbers', name: 'Phone Numbers & DIDs' },
-            { id: 'forwarding', name: 'Call Forwarding & Queues' },
-            { id: 'campaigns', name: 'Call Campaigns' }
-        ]
     }
 ];
 
 export const STARTER_SET = {
-    apps: ['crm', 'projects', 'hr', 'finance', 'communications', 'workspace-tools', 'advertising', 'voiceforce'],
+    apps: ['crm', 'projects', 'hr', 'finance', 'communications', 'workspace-tools', 'advertising'],
     modules: [
         'sales', 'leads', 'pipeline', 'accounts', 'contacts', 'clients',
         'projects', 'tasks', 'work-logs',
@@ -247,8 +225,7 @@ export const STARTER_SET = {
         'analytics', 'reports', 'website-analytics',
         'chat', 'meeting', 'emails', 
         'calendar', 'documents', 'assets', 'ai-assistant',
-        'ad-websites', 'forms', 'company-hub',
-        'dashboard', 'agents'
+        'ad-websites', 'forms', 'company-hub'
     ]
 };
 
@@ -270,5 +247,4 @@ export const ALL_APPS = [
     { id: 'communications', name: 'Communications', description: 'Active, real-time internal and external communication.', icon: MessageSquare },
     { id: 'workspace-tools', name: 'Workspace Tools', description: 'Passive knowledge, resource management, and utilities.', icon: FolderOpen },
     { id: 'advertising', name: 'Website Builder', description: 'Visual website editor, responsive landing pages, and web publishing.', icon: Globe },
-    { id: 'voiceforce', name: '180 Voiceforce', description: 'Autonomous AI voice employees for outbound and inbound calling.', icon: PhoneCall },
 ];

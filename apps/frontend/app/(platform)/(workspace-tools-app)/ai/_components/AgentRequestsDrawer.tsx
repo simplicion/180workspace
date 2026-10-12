@@ -212,7 +212,7 @@ export function AgentRequestsDrawer({ isOpen, onClose, onRequestCountChange }: A
                   </span>
                 </div>
                 <p className="text-xs text-slate-300">
-                  Meeting bookings & delegation tickets from Voiceforce AI Voice Employees
+                  Meeting bookings & delegation tickets from AI Voice Agents & Telephony
                 </p>
               </div>
             </div>
@@ -314,16 +314,18 @@ export function AgentRequestsDrawer({ isOpen, onClose, onRequestCountChange }: A
                 <div className="space-y-1">
                   <p className="font-semibold text-slate-700 text-sm">No Agent Requests Found</p>
                   <p className="text-xs text-slate-400 max-w-sm">
-                    When callers ask your Voiceforce Voice Agents to book meetings or consultations, tickets and appointments appear here in real time.
+                    When callers ask your AI Voice Agents to book meetings or consultations, tickets and appointments appear here in real time.
                   </p>
                 </div>
-                <Link
-                  href="/voiceforce"
-                  className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100"
+                <a
+                  href={process.env.NEXT_PUBLIC_VOICEFORCE_URL || 'https://voiceforce.vanityworkspace.com'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 cursor-pointer"
                 >
-                  <span>Go to Voiceforce Telephony</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                  <span>Open Voice Force Console</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
               </div>
             ) : (
               requests.map((req) => {
@@ -572,7 +574,7 @@ export function AgentRequestsDrawer({ isOpen, onClose, onRequestCountChange }: A
           <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 shrink-0">
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              Connected to 180 Calendar & Voiceforce
+              Connected to 180 Calendar
             </span>
             <Link
               href="/calendar"

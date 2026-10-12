@@ -54,10 +54,8 @@ async function bootstrap() {
     if (notifW) activeWorkers.push(notifW);
     if (autoW) activeWorkers.push(autoW);
     if (aiW) activeWorkers.push(aiW);
-    const voiceforceW = setupVoiceforceWorker();
-    if (voiceforceW) activeWorkers.push(voiceforceW);
 
-    console.log(`âœ… ${activeWorkers.length} Queue Workers initialized.`);
+    console.log(`✅ ${activeWorkers.length} Queue Workers initialized.`);
 
     // 2. Initialize Schedulers / Crons
     console.log('â ³ Starting Crons...');

@@ -8,7 +8,7 @@ import {
     LayoutDashboard, Building2, Users, CreditCard, Tag, Receipt, Wallet,
     Settings, FileText, Megaphone, LifeBuoy, Database, Bug,
     LogOut, Bell, Shield, ChevronRight, Rocket, Globe, ToggleRight, Sparkles, Menu, X, ArrowLeft,
-    CheckCircle2, Activity, ExternalLink, Newspaper, PhoneCall
+    CheckCircle2, Activity, ExternalLink, Newspaper
 } from 'lucide-react';
 import { SuperAdminProvider, useSuperAdmin } from '../../lib/superadmin-context';
 import { useSettings } from '../../lib/settings-context';
@@ -59,7 +59,6 @@ const NAV_SECTIONS: NavSection[] = [
         title: 'Infrastructure & Ops',
         items: [
             { href: '/superadmin/ai', label: 'Platform AI Vault', icon: Sparkles, badge: 'Vault' },
-            { href: '/superadmin/voiceforce', label: '180 Voiceforce SFU', icon: PhoneCall, badge: 'Live' },
             { href: '/superadmin/logs', label: 'Audit Logs', icon: FileText },
             { href: '/superadmin/settings', label: 'Platform Settings', icon: Settings },
         ]

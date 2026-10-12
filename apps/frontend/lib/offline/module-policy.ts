@@ -100,11 +100,6 @@ export const OFFLINE_MODULES: OfflineModule[] = [
     note: 'Real-time communication needs a live connection.',
   },
   {
-    id: 'voiceforce', label: 'Voiceforce', routes: ['/voiceforce'], tier: 'online-only',
-    readApi: [],
-    note: 'Calling needs a live connection.',
-  },
-  {
     id: 'ai', label: 'AI Assistant', routes: ['/ai'], tier: 'online-only',
     readApi: [],
     note: 'The AI assistant runs in the cloud.',
@@ -125,7 +120,7 @@ const NEVER_CACHE: RegExp[] = [
   /\/(integrations|superadmin)(\/|$)/i,
   /\/(platform-billing|billing|invoices|expenses|bills|vendors)(\/|$)/i,
   /\/analytics\/financial(\/|$)/i,
-  /\/(inbox|chat|messages|voiceforce|meeting)(\/|$)/i,
+  /\/(inbox|chat|messages|meeting)(\/|$)/i,
   /\/social-media\/accounts(\/|$)/i,
 ];
 

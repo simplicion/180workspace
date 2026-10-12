@@ -780,7 +780,7 @@ export default function AIAssistantPage() {
                         <button
                             onClick={() => setIsAgentDrawerOpen(true)}
                             className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/70 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 font-semibold text-xs shadow-2xs transition-all cursor-pointer"
-                            title="Internal Agent Requests from Voiceforce"
+                            title="Internal Agent Requests"
                         >
                             <Bot className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                             <span>Agent Requests</span>
@@ -1115,7 +1115,7 @@ export default function AIAssistantPage() {
                 </div>
             </div>
 
-            {/* Internal Voiceforce Agent Requests Slide-Over Drawer */}
+            {/* Internal Agent Requests Slide-Over Drawer */}
             <AgentRequestsDrawer 
                 isOpen={isAgentDrawerOpen} 
                 onClose={() => setIsAgentDrawerOpen(false)} 

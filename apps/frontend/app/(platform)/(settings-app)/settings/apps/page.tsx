@@ -31,7 +31,6 @@ const APP_COLORS: Record<string, { bg: string; text: string; light: string; tagB
     insights:          { bg: 'bg-rose-600',    text: 'text-rose-600',    light: 'bg-rose-50',    tagBg: 'bg-rose-50',    tagText: 'text-rose-700' },
     'workspace-tools': { bg: 'bg-violet-600',  text: 'text-violet-600',  light: 'bg-violet-50',  tagBg: 'bg-violet-50',  tagText: 'text-violet-700' },
     communications:    { bg: 'bg-cyan-600',    text: 'text-cyan-600',    light: 'bg-cyan-50',    tagBg: 'bg-cyan-50',    tagText: 'text-cyan-700' },
-    voiceforce:        { bg: 'bg-purple-600',  text: 'text-purple-600',  light: 'bg-purple-50',  tagBg: 'bg-purple-50',  tagText: 'text-purple-700' },
 };
 
 // ─── Filter Tab Definitions ───
@@ -236,7 +235,7 @@ export default function AppsManagementPage() {
                                 <div>
                                     <h4 className="text-xs font-bold text-indigo-950 dark:text-indigo-200">Free Starter Workspace</h4>
                                     <p className="text-[11px] text-indigo-900/80 dark:text-indigo-300/80 font-medium mt-0.5">
-                                        Default apps (Projects, Communications, Workspace Tools) are included in your workspace. Upgrade to Momentum ($17) or Limitless ($20) to turn on CRM, Finance, Website Builder, Voice Force, HR & Advertising.
+                                        Default apps (Projects, Communications, Workspace Tools) are included in your workspace. Upgrade to Momentum ($17) or Limitless ($20) to turn on CRM, Finance, Website Builder, HR & Advertising.
                                     </p>
                                 </div>
                             </div>

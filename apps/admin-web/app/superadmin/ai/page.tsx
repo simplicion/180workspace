@@ -71,7 +71,7 @@ const PROVIDER_INFO: Record<string, {
         models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768']
     },
     cartesia: {
-        description: 'Ultra-realistic neural voice synthesis and low-latency speech-to-text powering Voiceforce.',
+        description: 'Ultra-realistic neural voice synthesis and low-latency speech-to-text powering neural audio.',
         keyFormat: 'sk_car_...',
         docsUrl: 'https://play.cartesia.ai/keys',
         color: 'sky',

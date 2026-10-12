@@ -39,8 +39,7 @@ const ALL_PLATFORM_APPS = [
     'hr',
     'finance',
     'advertising',
-    'website-builder',
-    'voiceforce'
+    'website-builder'
 ];
 
 let cachedSubscriptionData: any = null;

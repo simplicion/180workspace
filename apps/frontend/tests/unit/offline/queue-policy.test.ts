@@ -81,7 +81,7 @@ describe('read cache allowlist', () => {
     expect(isCacheableGet('/api/users')).toBe(true);
     expect(isCacheableGet(`/api/users/${ID}`)).toBe(false);
     // sensitive areas are never written to the device, even under a cacheable prefix
-    for (const p of ['/api/salary', '/api/salary/preview', '/api/wallet/transactions', '/api/invoices', `/api/clients/${ID}/invoices`, '/api/workspace-tools/vaults', '/api/integrations/google', '/api/finance/dashboard-stats', '/api/analytics/financial', '/api/social-media/inbox', '/api/social-media/accounts', '/api/platform-billing/plans', '/api/chat', '/api/voiceforce/agents']) {
+    for (const p of ['/api/salary', '/api/salary/preview', '/api/wallet/transactions', '/api/invoices', `/api/clients/${ID}/invoices`, '/api/workspace-tools/vaults', '/api/integrations/google', '/api/finance/dashboard-stats', '/api/analytics/financial', '/api/social-media/inbox', '/api/social-media/accounts', '/api/platform-billing/plans', '/api/chat']) {
       expect(isCacheableGet(p)).toBe(false);
     }
   });

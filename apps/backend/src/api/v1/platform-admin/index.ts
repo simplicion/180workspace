@@ -36,7 +36,5 @@ router.use('/blogs', blogRoutes);
 router.use('/logs', logRoutes);
 router.use('/tickets', ticketRoutes);
 router.use('/ai', aiRoutes);
-router.get('/voiceforce', (req, res) => res.json({ status: 'ok', activeCalls: 0, service: 'voiceforce-external' }));
-router.post('/voiceforce/killswitch', (req, res) => res.json({ status: 'ok', killed: true }));
 
 export default router;
