@@ -384,12 +384,14 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 if (filteredItems.length === 0) return null;
                 return { ...item, items: filteredItems };
             } else {
-                // Handle single items (Dashboard, CEO Insights)
+                // Handle single items (180 View, Website Builder, etc.)
                 const singleItem = item as any;
                 if (singleItem.appId && isAppDisabledByAdmin(singleItem.appId)) return null;
                 if (userRoles.some(r => singleItem.roles?.includes(r as string))) {
                     if (singleItem.appId && company?.enabledApps && Array.isArray(company.enabledApps) && company.enabledApps.length > 0) {
-                        const isAppEnabled = company.enabledApps.includes(singleItem.appId);
+                        const isAdvertisingAlias = singleItem.appId === 'advertising' || singleItem.appId === 'website-builder' || singleItem.appId === 'ad-websites';
+                        const isAppEnabled = company.enabledApps.includes(singleItem.appId) ||
+                            (isAdvertisingAlias && (company.enabledApps.includes('advertising') || company.enabledApps.includes('website-builder') || company.enabledApps.includes('ad-websites')));
                         if (!isAppEnabled) return null;
                     }
                     return item;

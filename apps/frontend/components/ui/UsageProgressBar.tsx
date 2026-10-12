@@ -16,11 +16,11 @@ export function UsageProgressBar({ label, current, max, formattedCurrent, format
   const percentage = max > 0 ? Math.min(100, Math.max(0, (current / max) * 100)) : 0;
   
   // Choose color based on usage
-  let colorClass = 'bg-primary';
+  let colorClass = 'bg-indigo-600 dark:bg-indigo-500';
   if (percentage >= 90) {
-    colorClass = 'bg-destructive';
+    colorClass = 'bg-rose-600 dark:bg-rose-500';
   } else if (percentage >= 75) {
-    colorClass = 'bg-yellow-500'; // Make sure to use a valid tailwind class
+    colorClass = 'bg-amber-500 dark:bg-amber-400';
   }
 
   const displayCurrent = formattedCurrent !== undefined ? formattedCurrent : current;
@@ -28,13 +28,17 @@ export function UsageProgressBar({ label, current, max, formattedCurrent, format
 
   return (
     <div className={cn("w-full space-y-2", className)}>
-      <div className="flex justify-between text-sm font-medium">
-        <span>{label}</span>
-        <span className="text-muted-foreground">
+      <div className="flex justify-between items-center text-xs sm:text-sm font-medium">
+        <span className="text-gray-900 dark:text-zinc-200 font-medium">{label}</span>
+        <span className="text-gray-500 dark:text-zinc-400 font-mono text-xs font-semibold">
           {displayCurrent} / {displayMax} {unit}
         </span>
       </div>
-      <Progress value={percentage} indicatorClassName={colorClass} className="h-2" />
+      <Progress 
+        value={percentage} 
+        indicatorClassName={colorClass} 
+        className="h-2 bg-gray-100 dark:bg-zinc-800/90 rounded-full overflow-hidden border border-gray-200/50 dark:border-zinc-800" 
+      />
     </div>
   );
 }

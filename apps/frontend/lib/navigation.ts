@@ -65,27 +65,11 @@ export const navigation = [
     },
 
     {
-        group: 'Website Builder',
+        name: 'Website Builder',
         appId: 'advertising',
+        href: '/advertising',
         icon: Globe,
-        roles: ['admin'],
-        items: [
-            { id: 'ad-websites', name: 'Ad Websites', href: '/advertising', icon: Globe, roles: ['admin'] },
-        ]
-    },
-
-    {
-        group: '180 Voiceforce',
-        appId: 'voiceforce',
-        icon: PhoneCall,
-        roles: ['admin', 'employee'],
-        items: [
-            { id: 'dashboard', name: 'Voiceforce Radar', href: '/voiceforce', exact: true, icon: PhoneCall, roles: ['admin', 'employee'] },
-            { id: 'agents', name: 'AI Voice Employees', href: '/voiceforce/agents', icon: Bot, roles: ['admin', 'employee'] },
-            { id: 'numbers', name: 'Phone Numbers & DIDs', href: '/voiceforce/numbers', icon: Smartphone, roles: ['admin', 'employee'] },
-            { id: 'forwarding', name: 'Call Forwarding & Queues', href: '/voiceforce/forwarding', icon: PhoneForwarded, roles: ['admin', 'employee'] },
-            { id: 'campaigns', name: 'Call Campaigns', href: '/voiceforce/campaigns', icon: Megaphone, roles: ['admin', 'employee'] },
-        ]
+        roles: ['admin']
     },
 
     {
@@ -138,7 +122,6 @@ export const navigation = [
         items: [
             { id: 'apps', name: 'Apps', href: '/settings/apps', icon: LayoutGrid, roles: ['admin'] },
             { id: 'platform-billing', name: 'Platform Billing', href: '/settings/platform-billing', icon: CreditCard, roles: ['admin'] },
-            { id: 'wallet', name: 'Prepaid Wallet', href: '/settings/wallet', icon: Wallet, roles: ['admin'] },
             { id: 'help-support', name: 'Help & Support', href: '/help-support', icon: LifeBuoy, roles: ['admin', 'employee', 'client'] },
         ]
     }

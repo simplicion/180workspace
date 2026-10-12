@@ -139,30 +139,30 @@ function SuccessContent() {
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                        className="relative px-8 py-5 bg-white rounded-3xl shadow-2xl shadow-emerald-500/10 flex items-center justify-center border border-emerald-100/50 z-10"
+                        className="relative px-8 py-5 bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl shadow-emerald-500/10 flex items-center justify-center border border-emerald-100/50 dark:border-emerald-900/40 z-10"
                     >
-                        <img src="/black text logo.svg" alt="180workspace Logo" className="h-10 object-contain relative z-10" />
+                        <img src="/black text logo.svg" alt="180workspace Logo" className="h-10 object-contain relative z-10 dark:invert" />
                     </motion.div>
                 </motion.div>
 
                 {/* Headers */}
                 <motion.div variants={itemVariants} className="w-full">
-                    <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tight">
+                    <h1 className="text-4xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
                         Payment Successful!
                     </h1>
-                    <p className="text-sm text-slate-500 mb-2 font-medium">
-                        Your <strong className="text-slate-800">{plan?.planName || 'Subscription'}</strong> is now active.
+                    <p className="text-sm text-slate-500 dark:text-zinc-400 mb-2 font-medium">
+                        Your <strong className="text-slate-800 dark:text-zinc-200">{plan?.planName || 'Subscription'}</strong> is now active.
                     </p>
                     
                     {displayPrice > 0 && (
-                        <p className="text-sm font-semibold text-emerald-600 mb-6 bg-emerald-50 inline-block px-3 py-1 rounded-full border border-emerald-100">
+                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-6 bg-emerald-50 dark:bg-emerald-950/40 inline-block px-3 py-1 rounded-full border border-emerald-100 dark:border-emerald-900/40">
                             Next monthly charge: {currencySymbol}{displayPrice.toLocaleString('en-IN')}/month
                         </p>
                     )}
 
-                    {/* Max 10 word motivation line */}
-                    <div className="mb-8 mt-2 bg-gradient-to-r from-slate-100/80 via-white to-slate-100/80 p-3 rounded-2xl border border-slate-200/60 inline-block shadow-sm">
-                        <p className="font-black text-slate-800 text-lg tracking-wide uppercase bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-indigo-900">
+                    {/* Motivation line */}
+                    <div className="mb-8 mt-2 bg-gradient-to-r from-slate-100/80 via-white to-slate-100/80 dark:from-zinc-900 dark:via-zinc-850 dark:to-zinc-900 p-3 rounded-2xl border border-slate-200/60 dark:border-zinc-800 inline-block shadow-sm">
+                        <p className="font-black text-slate-800 dark:text-zinc-100 text-lg tracking-wide uppercase bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-indigo-900 dark:from-white dark:to-indigo-300">
                             YOUR WORKSPACE IS NOW READY TO SCALE UNSTOPPABLY!
                         </p>
                     </div>
@@ -170,25 +170,25 @@ function SuccessContent() {
 
                 {/* Subscription Details (Grid) */}
                 <motion.div variants={itemVariants} className="w-full grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-white/90 backdrop-blur-md border border-slate-200/70 rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform">
-                        <div className="text-slate-400 mb-2 group-hover:text-indigo-500 transition-colors"><Sparkles className="w-5 h-5" /></div>
-                        <p className="text-2xl font-black text-slate-900">{formatLimit(plan?.maxUsers)}</p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Team Users</p>
+                    <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/70 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform">
+                        <div className="text-slate-400 dark:text-zinc-500 mb-2 group-hover:text-indigo-500 transition-colors"><Sparkles className="w-5 h-5" /></div>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white">{formatLimit(plan?.maxUsers)}</p>
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mt-1">Team Users</p>
                     </div>
-                    <div className="bg-white/90 backdrop-blur-md border border-slate-200/70 rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform">
-                        <div className="text-slate-400 mb-2 group-hover:text-emerald-500 transition-colors"><LayoutDashboard className="w-5 h-5" /></div>
-                        <p className="text-2xl font-black text-slate-900">{formatLimit(plan?.maxApps)}</p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Active Apps</p>
+                    <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/70 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform">
+                        <div className="text-slate-400 dark:text-zinc-500 mb-2 group-hover:text-emerald-500 transition-colors"><LayoutDashboard className="w-5 h-5" /></div>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white">{formatLimit(plan?.maxApps)}</p>
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mt-1">Active Apps</p>
                     </div>
-                    <div className="bg-white/90 backdrop-blur-md border border-slate-200/70 rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform">
-                        <div className="text-slate-400 mb-2 group-hover:text-amber-500 transition-colors"><CreditCard className="w-5 h-5" /></div>
-                        <p className="text-2xl font-black text-slate-900">{formatStorage(plan?.maxStorageBytes)}</p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Cloud Storage</p>
+                    <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/70 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform">
+                        <div className="text-slate-400 dark:text-zinc-500 mb-2 group-hover:text-amber-500 transition-colors"><CreditCard className="w-5 h-5" /></div>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white">{formatStorage(plan?.maxStorageBytes)}</p>
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mt-1">Cloud Storage</p>
                     </div>
-                    <div className="bg-white/90 backdrop-blur-md border border-slate-200/70 rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform">
-                        <div className="text-slate-400 mb-2 group-hover:text-blue-500 transition-colors"><Sparkles className="w-5 h-5" /></div>
-                        <p className="text-2xl font-black text-slate-900">{formatLimit(plan?.maxWebsites)}</p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Websites</p>
+                    <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200/70 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform">
+                        <div className="text-slate-400 dark:text-zinc-500 mb-2 group-hover:text-blue-500 transition-colors"><Sparkles className="w-5 h-5" /></div>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white">{formatLimit(plan?.maxWebsites)}</p>
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mt-1">Websites</p>
                     </div>
                 </motion.div>
 
@@ -196,12 +196,12 @@ function SuccessContent() {
                 {(hasAI || hasEmail) && (
                     <motion.div variants={itemVariants} className="w-full flex justify-center gap-4 mb-8">
                         {hasAI && (
-                            <div className="flex items-center gap-2 bg-indigo-50/80 border border-indigo-100 px-4 py-2 rounded-full text-indigo-700 text-sm font-semibold">
+                            <div className="flex items-center gap-2 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 px-4 py-2 rounded-full text-indigo-700 dark:text-indigo-300 text-sm font-semibold">
                                 <PartyPopper className="w-4 h-4" /> AI Assistant Included
                             </div>
                         )}
                         {hasEmail && (
-                            <div className="flex items-center gap-2 bg-emerald-50/80 border border-emerald-100 px-4 py-2 rounded-full text-emerald-700 text-sm font-semibold">
+                            <div className="flex items-center gap-2 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 px-4 py-2 rounded-full text-emerald-700 dark:text-emerald-300 text-sm font-semibold">
                                 <CheckCircle2 className="w-4 h-4" /> Custom SMTP Configured
                             </div>
                         )}
@@ -212,14 +212,14 @@ function SuccessContent() {
                 <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto">
                     <Link
                         href='/'
-                        className="w-full px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 group hover:shadow-lg active:scale-[0.98]"
+                        className="w-full px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 group hover:shadow-lg active:scale-[0.98]"
                     >
                         <LayoutDashboard className="w-4 h-4 group-hover:rotate-12 transition-transform" />
                         Go to Dashboard
                     </Link>
                     <Link
                         href='/settings/platform-billing'
-                        className="w-full px-6 py-3.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-all flex items-center justify-center gap-2 group hover:shadow-md active:scale-[0.98]"
+                        className="w-full px-6 py-3.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-bold rounded-xl transition-all flex items-center justify-center gap-2 group hover:shadow-md active:scale-[0.98]"
                     >
                         Billing Details
                         <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

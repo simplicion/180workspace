@@ -130,7 +130,7 @@ export class FeatureFlagService {
             const existingMap = new Map(existingFlags.map(f => [f.name, f]));
 
             for (const appDef of PLATFORM_APP_FLAGS) {
-                const existing = existingMap.get(appDef.name);
+                const existing = existingMap.get(appDef.name) as any;
                 if (!existing) {
                     await FeatureFlagRepository.create({
                         name: appDef.name,
@@ -145,11 +145,12 @@ export class FeatureFlagService {
                 } else {
                     // Refresh label and description if changed
                     const existingRules = (existing.rules as any) || {};
-                    if (existingRules.label !== appDef.label || existing.description !== appDef.description) {
+                    if (existingRules.label !== appDef.label || existing.description !== appDef.description || existingRules.appId !== appDef.appId) {
                         await FeatureFlagRepository.update(existing.id, {
                             description: appDef.description,
                             rules: {
                                 ...existingRules,
+                                appId: appDef.appId,
                                 label: appDef.label,
                                 category: appDef.category
                             }

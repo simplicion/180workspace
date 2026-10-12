@@ -163,9 +163,102 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
     };
   }, [appId, initialPlans, getApiUrl, customAccent]);
 
-  const activePlans: PricingPlan[] = (initialPlans && initialPlans.length > 0) ? initialPlans : fetchedPlans;
-  const displayTitle = title || fetchedTitle || 'Plans & Pricing';
-  const displaySubtitle = subtitle || fetchedSubtitle;
+  // Dark mode detection for 'auto' theme
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark') || 
+        window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const checkDark = () => {
+      setIsDarkMode(
+        document.documentElement.classList.contains('dark') || 
+        window.matchMedia('(prefers-color-scheme: dark)').matches
+      );
+    };
+    checkDark();
+    const observer = new MutationObserver(checkDark);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.addEventListener('change', checkDark);
+    return () => {
+      observer.disconnect();
+      mediaQuery.removeEventListener('change', checkDark);
+    };
+  }, []);
+
+  const DEFAULT_FALLBACK_PLANS: PricingPlan[] = [
+    {
+      id: 'kickstart',
+      planCode: '180-kickstart',
+      name: '180 Kickstart',
+      description: 'Essential platform toolkit for lean founders & small teams.',
+      monthlyAmount: 10,
+      yearlyAmount: 96,
+      currency: 'USD',
+      features: [
+        'Access to 5 Core Apps',
+        'Up to 2 Team Members',
+        '1 Custom Domain Website',
+        '1GB High-Speed Cloud Storage',
+        'Standard Platform Support'
+      ],
+      trialDays: 0,
+      buttonText: 'Get Started'
+    },
+    {
+      id: 'momentum',
+      planCode: '180-momentum',
+      name: '180 Momentum',
+      description: 'High-growth platform suite with AI and multi-app orchestration.',
+      monthlyAmount: 17,
+      yearlyAmount: 163,
+      currency: 'USD',
+      isPopular: true,
+      badgeText: 'Most Popular',
+      features: [
+        'Access to 7 Advanced Apps',
+        'Up to 5 Team Members',
+        'Up to 5 Websites & Landing Pages',
+        '10GB High-Speed Cloud Storage',
+        'Priority 24/7 Platform Support',
+        'AI Assistant & Copilot Access',
+        'Custom Email SMTP'
+      ],
+      trialDays: 14,
+      buttonText: 'Start 14-Day Free Trial'
+    },
+    {
+      id: 'limitless',
+      planCode: '180-limitless',
+      name: '180 Limitless',
+      description: 'Full unmetered enterprise sovereignty across the entire 180 ecosystem.',
+      monthlyAmount: 20,
+      yearlyAmount: 192,
+      currency: 'USD',
+      features: [
+        'Unlimited Access to All Apps',
+        'Up to 20 Team Members',
+        'Unlimited Websites & Custom Domains',
+        '20GB High-Speed Cloud Storage',
+        'Dedicated Team & VIP Support',
+        'Full AI Assistant & Agent Access',
+        'White-label & Custom Integrations'
+      ],
+      trialDays: 14,
+      buttonText: 'Upgrade to Limitless'
+    }
+  ];
+
+  const activePlans: PricingPlan[] = (initialPlans && initialPlans.length > 0)
+    ? initialPlans
+    : (fetchedPlans.length > 0 ? fetchedPlans : DEFAULT_FALLBACK_PLANS);
+  const displayTitle = title || fetchedTitle || '180workspace Subscription Plans';
+  const displaySubtitle = subtitle || fetchedSubtitle || 'Powered by 180 Pay. Choose the sovereign tier tailored for your growth.';
 
   // Use base amount of popular plan for geo-pricing detection
   const baseReferenceAmount = activePlans.find((p) => p.isPopular)?.monthlyAmount || activePlans[0]?.monthlyAmount || 17;
@@ -175,11 +268,29 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
   });
 
   const getThemeStyles = () => {
+    const isDark = theme === 'dark' || theme === 'obsidian' || (theme === 'auto' && isDarkMode);
+
+    if (isDark) {
+      return {
+        bg: 'transparent',
+        cardBg: '#121214',
+        cardBorder: '#27272a',
+        cardActiveBorder: accentColor,
+        text: '#fafafa',
+        mutedText: '#a1a1aa',
+        toggleBg: '#18181b',
+        ctaBg: accentColor,
+        ctaText: '#ffffff',
+        badgeBg: accentColor,
+        badgeText: '#ffffff',
+      };
+    }
+
     switch (theme) {
       case 'light':
         return {
           bg: '#ffffff',
-          cardBg: '#fafafa',
+          cardBg: '#ffffff',
           cardBorder: '#e4e4e7',
           cardActiveBorder: accentColor,
           text: '#09090b',
@@ -193,27 +304,12 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
       case 'glass':
         return {
           bg: 'transparent',
-          cardBg: 'rgba(24, 24, 27, 0.65)',
-          cardBorder: 'rgba(255, 255, 255, 0.1)',
+          cardBg: isDark ? 'rgba(24, 24, 27, 0.65)' : 'rgba(255, 255, 255, 0.75)',
+          cardBorder: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
           cardActiveBorder: accentColor,
-          text: '#f8fafc',
-          mutedText: '#94a3b8',
-          toggleBg: 'rgba(255, 255, 255, 0.08)',
-          ctaBg: accentColor,
-          ctaText: '#ffffff',
-          badgeBg: accentColor,
-          badgeText: '#ffffff',
-        };
-      case 'dark':
-      case 'obsidian':
-        return {
-          bg: '#09090b',
-          cardBg: '#121214',
-          cardBorder: '#27272a',
-          cardActiveBorder: accentColor,
-          text: '#fafafa',
-          mutedText: '#a1a1aa',
-          toggleBg: '#18181b',
+          text: isDark ? '#f8fafc' : '#09090b',
+          mutedText: isDark ? '#94a3b8' : '#64748b',
+          toggleBg: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
           ctaBg: accentColor,
           ctaText: '#ffffff',
           badgeBg: accentColor,
@@ -223,12 +319,12 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
       default:
         return {
           bg: 'transparent',
-          cardBg: 'var(--pricing-card-bg, #ffffff)',
-          cardBorder: 'var(--pricing-card-border, #e4e4e7)',
+          cardBg: isDark ? '#121214' : '#ffffff',
+          cardBorder: isDark ? '#27272a' : '#e4e4e7',
           cardActiveBorder: accentColor,
-          text: 'inherit',
-          mutedText: '#71717a',
-          toggleBg: 'rgba(150, 150, 150, 0.12)',
+          text: isDark ? '#fafafa' : '#09090b',
+          mutedText: isDark ? '#a1a1aa' : '#71717a',
+          toggleBg: isDark ? '#18181b' : 'rgba(150, 150, 150, 0.12)',
           ctaBg: accentColor,
           ctaText: '#ffffff',
           badgeBg: accentColor,

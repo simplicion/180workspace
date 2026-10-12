@@ -121,6 +121,49 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy apps/traffic-director-web/out --project-name=180workspace-traffic --branch=main --commit-dirty=true
 
+  deploy-voiceforce-cloudflare:
+    name: Deploy 180 Voiceforce (voiceforce.180workspace.com) to Cloudflare Pages
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build Voiceforce
+        env:
+          NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
+          NEXT_PUBLIC_API_URL: https://services.180workspace.com
+          NEXT_EXPORT: 'true'
+        run: pnpm turbo run build --filter=voice-force-web...
+
+      - name: Ensure Cloudflare Pages Project Exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler pages project create 180workspace-voiceforce --production-branch=main || true
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/voice-force-web/out --project-name=180workspace-voiceforce --branch=main --commit-dirty=true
+
+
   deploy-docs-cloudflare:
     name: Deploy 180 Documentation (docs.180workspace.com) to Cloudflare Pages
     runs-on: ubuntu-latest
@@ -457,7 +500,9 @@ jobs:
             const pagesProjects = [
               { project: '180workspace-docs', domain: 'docs.180workspace.com' },
               { project: '180workspace-traffic', domain: 'traffic.180workspace.com' },
-              { project: '180workspace-traffic', domain: 'traffic-director.180workspace.com' }
+              { project: '180workspace-traffic', domain: 'traffic-director.180workspace.com' },
+              { project: '180workspace-voiceforce', domain: 'voiceforce.180workspace.com' },
+              { project: '180workspace-voiceforce', domain: 'voice-force.180workspace.com' }
             ];
 
             if (accountId) {

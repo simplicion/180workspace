@@ -19,7 +19,7 @@ import {
     X,
     Globe,
     GitFork,
-    Megaphone,
+    TrendingUp,
     LayoutGrid,
     Smartphone,
     Landmark,
@@ -47,11 +47,13 @@ interface FeatureFlag {
 }
 
 const APP_METADATA: Record<string, { label: string; category: string; icon: any; color: string }> = {
-    crm:                  { label: 'CRM & Sales',              category: 'Business',      icon: Globe,         color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800' },
+    crm:                  { label: 'CRM & Sales',              category: 'Business',      icon: TrendingUp,    color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800' },
     'traffic-director':   { label: 'Traffic Director',         category: 'Marketing',     icon: GitFork,       color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800' },
     advertising:          { label: 'Website Builder',          category: 'Marketing',     icon: Globe,         color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/50 border-pink-200 dark:border-pink-800' },
     'website-builder':    { label: 'Website Builder',          category: 'Marketing',     icon: Globe,         color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/50 border-pink-200 dark:border-pink-800' },
     'ad-websites':        { label: 'Website Builder',          category: 'Marketing',     icon: Globe,         color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/50 border-pink-200 dark:border-pink-800' },
+    app_advertising:      { label: 'Website Builder',          category: 'Marketing',     icon: Globe,         color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/50 border-pink-200 dark:border-pink-800' },
+    app_website_builder:  { label: 'Website Builder',          category: 'Marketing',     icon: Globe,         color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/50 border-pink-200 dark:border-pink-800' },
     projects:             { label: 'Projects & Tasks',         category: 'Productivity',  icon: LayoutGrid,    color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800' },
     hr:                   { label: 'Human Resources',          category: 'HR',            icon: Smartphone,    color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800' },
     finance:              { label: 'Finance & Analytics',      category: 'Business',      icon: Landmark,      color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800' },
@@ -63,8 +65,27 @@ const APP_METADATA: Record<string, { label: string; category: string; icon: any;
 };
 
 function getAppInfo(flagName: string, rules?: any) {
-    const rawAppId = rules?.appId || flagName.replace(/^app_/, '').replace(/_/g, '-');
-    const meta = APP_METADATA[rawAppId] || {
+    const rawAppId = (rules?.appId || flagName.replace(/^app_/, '').replace(/_/g, '-')).toLowerCase().trim();
+
+    // Explicit Website Builder alias mapping (guarantees Website Builder title and Globe icon)
+    if (
+        rawAppId === 'advertising' ||
+        rawAppId === 'website-builder' ||
+        rawAppId === 'ad-websites' ||
+        flagName === 'app_advertising' ||
+        flagName === 'app_website_builder' ||
+        flagName === 'app_ad_websites'
+    ) {
+        return {
+            appId: 'advertising',
+            label: 'Website Builder',
+            category: 'Marketing',
+            icon: Globe,
+            color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/50 border-pink-200 dark:border-pink-800'
+        };
+    }
+
+    const meta = APP_METADATA[rawAppId] || APP_METADATA[flagName] || {
         label: rules?.label || flagName.replace(/^app_/, '').replace(/_/g, ' ').toUpperCase(),
         category: rules?.category || 'Platform App',
         icon: Zap,
@@ -435,7 +456,10 @@ export default function FeatureFlagsPage() {
                                         </td>
                                         <td>
                                             <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md font-medium leading-relaxed">
-                                                {flag.description || <span className="text-slate-400 italic">No description provided</span>}
+                                                {(info.appId === 'advertising' || flag.name === 'app_advertising' || flag.name === 'app_website_builder')
+                                                    ? (flag.description || 'Visual website editor, responsive landing page builder, and custom web publishing')
+                                                    : (flag.description || <span className="text-slate-400 italic">No description provided</span>)
+                                                }
                                             </p>
                                         </td>
                                         <td>

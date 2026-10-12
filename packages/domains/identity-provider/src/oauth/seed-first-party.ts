@@ -284,6 +284,88 @@ export const FIRST_PARTY_APPS = [
         logoUrl: '/icon.svg'
     },
     {
+        clientId: '180-voiceforce',
+        name: '180 Voiceforce',
+        description: 'Autonomous AI Voice Employees, Call Operations & Telephony Platform',
+        redirectUris: [
+            'http://localhost:3000/callback',
+            'http://localhost:3007/callback',
+            'http://localhost:3007/oauth/callback',
+            'http://localhost:3002/callback',
+            'https://voiceforce.180workspace.com/callback',
+            'https://voiceforce.180workspace.com/oauth/callback',
+            'https://voice-force.180workspace.com/callback',
+            'https://voice-force.180workspace.com/oauth/callback',
+            'https://voice.180workspace.com/callback',
+            'https://*.180workspace.com/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3000',
+            'http://localhost:3007',
+            'http://127.0.0.1:3007',
+            'http://localhost:3002',
+            'https://voiceforce.180workspace.com',
+            'https://voice-force.180workspace.com',
+            'https://voice.180workspace.com',
+            'https://*.180workspace.com'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email',
+            'pay:checkout'
+        ],
+        isVerified: true,
+        isActive: true,
+        enablePay: true,
+        authDesktopDefault: 'popup',
+        authMobileDefault: 'bottom_sheet',
+        payDesktopDefault: 'bottom_sheet',
+        payMobileDefault: 'bottom_sheet',
+        logoUrl: '/voiceforce-icon.svg'
+    },
+    {
+        clientId: '180_client_voiceforce_9a4f81c7e2b1093d58e391a2',
+        name: '180 Voiceforce Web Client',
+        description: 'First-party standalone web client for 180 Voiceforce',
+        redirectUris: [
+            'http://localhost:3000/callback',
+            'http://localhost:3007/callback',
+            'http://localhost:3007/oauth/callback',
+            'http://localhost:3002/callback',
+            'https://voiceforce.180workspace.com/callback',
+            'https://voiceforce.180workspace.com/oauth/callback',
+            'https://voice-force.180workspace.com/callback',
+            'https://voice-force.180workspace.com/oauth/callback',
+            'https://voice.180workspace.com/callback',
+            'https://*.180workspace.com/callback'
+        ],
+        allowedOrigins: [
+            'http://localhost:3000',
+            'http://localhost:3007',
+            'http://127.0.0.1:3007',
+            'http://localhost:3002',
+            'https://voiceforce.180workspace.com',
+            'https://voice-force.180workspace.com',
+            'https://voice.180workspace.com',
+            'https://*.180workspace.com'
+        ],
+        allowedScopes: [
+            'openid',
+            'identity:read',
+            'identity:email',
+            'pay:checkout'
+        ],
+        isVerified: true,
+        isActive: true,
+        enablePay: true,
+        authDesktopDefault: 'popup',
+        authMobileDefault: 'bottom_sheet',
+        payDesktopDefault: 'bottom_sheet',
+        payMobileDefault: 'bottom_sheet',
+        logoUrl: '/voiceforce-icon.svg'
+    },
+    {
         clientId: '180-developers-portal',
         name: '180 Developers Console',
         description: 'Developer Console & API Management for 180 Workspace Ecosystem',

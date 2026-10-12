@@ -63,6 +63,14 @@ const APPS = {
     port: 3006,
     color: '\x1b[38;5;197m', // Crimson / Rose
   },
+  voiceforce: {
+    name: '180 Voiceforce (Web)',
+    filter: 'voice-force-web',
+    cmd: 'pnpm',
+    args: ['--filter', 'voice-force-web', 'dev'],
+    port: 3007,
+    color: '\x1b[38;5;51m', // Cyan
+  },
 };
 
 const ALIASES = {
@@ -75,6 +83,9 @@ const ALIASES = {
   'traffic-director': 'trafficdirector',
   traffic: 'trafficdirector',
   td: 'trafficdirector',
+  'voice-force': 'voiceforce',
+  voice: 'voiceforce',
+  vf: 'voiceforce',
 };
 
 const rawArg = (process.argv[2] || '').trim().toLowerCase();
@@ -94,6 +105,7 @@ function printBanner() {
   }
   console.log('\nUsage commands:');
   console.log('  pnpm dev                 (Spins up ALL workspace platform apps)');
+  console.log('  pnpm dev:voice           (Runs 180 Voiceforce on :3007)');
   console.log('  pnpm dev:traffic         (Runs 180 Traffic Director on :3006)');
   console.log('  pnpm dev:backend         (Runs Main Backend on :4002)');
   console.log('  pnpm dev:frontend        (Runs Web Platform on :3002)');

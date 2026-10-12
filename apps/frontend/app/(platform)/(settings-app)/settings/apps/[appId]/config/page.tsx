@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ArrowLeft, LayoutGrid, Settings, Info, CheckCircle2, 
-    XCircle, Sparkles, Key, Globe, Database
+    XCircle, Sparkles, Key, Globe, Database, ExternalLink, PhoneCall
 } from 'lucide-react';
 import { useSettings } from '@/lib/settings-context';
 import { APPS_CONFIG } from '@/lib/module-map';
@@ -208,31 +208,58 @@ export default function AppConfigPage() {
                     </div>
                 </div>
 
-                {/* Install / Uninstall Button */}
-                <button
-                    onClick={handleToggleApp}
-                    disabled={isInstalling}
-                    className={clsx(
-                        "px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2",
-                        isInstalling && "opacity-70 cursor-wait",
-                        isAppEnabled
-                            ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                            : "bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700"
+                {/* Actions: Launch Console & Install/Uninstall */}
+                <div className="flex items-center gap-3">
+                    {appId === 'voiceforce' && isAppEnabled && (
+                        <a
+                            href={process.env.NEXT_PUBLIC_VOICEFORCE_URL || 'http://localhost:3007/voiceforce'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-5 py-2.5 rounded-xl text-sm font-bold bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200 transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+                        >
+                            <PhoneCall className="w-4 h-4 text-cyan-600" />
+                            <span>Launch Voiceforce Console</span>
+                            <ExternalLink className="w-3.5 h-3.5 text-cyan-500" />
+                        </a>
                     )}
-                >
-                    {isInstalling ? (
-                        <>
-                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-                                <Settings className="w-4 h-4" />
-                            </motion.div>
-                            {isAppEnabled ? 'Uninstalling...' : 'Installing...'}
-                        </>
-                    ) : isAppEnabled ? (
-                        'Uninstall App'
-                    ) : (
-                        'Install App'
+                    {appId === 'traffic-director' && isAppEnabled && (
+                        <a
+                            href={process.env.NEXT_PUBLIC_TRAFFIC_DIRECTOR_URL || 'http://localhost:3006/traffic-director'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+                        >
+                            <span>Launch Traffic Director</span>
+                            <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                        </a>
                     )}
-                </button>
+
+                    {/* Install / Uninstall Button */}
+                    <button
+                        onClick={handleToggleApp}
+                        disabled={isInstalling}
+                        className={clsx(
+                            "px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2",
+                            isInstalling && "opacity-70 cursor-wait",
+                            isAppEnabled
+                                ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                                : "bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700"
+                        )}
+                    >
+                        {isInstalling ? (
+                            <>
+                                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+                                    <Settings className="w-4 h-4" />
+                                </motion.div>
+                                {isAppEnabled ? 'Uninstalling...' : 'Installing...'}
+                            </>
+                        ) : isAppEnabled ? (
+                            'Uninstall App'
+                        ) : (
+                            'Install App'
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* Tabs */}

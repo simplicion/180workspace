@@ -1,0 +1,7 @@
+# Cloudflare Pages SPA Rewrites for Voiceforce dynamic routes
+/voiceforce/agents/*/train.txt    /voiceforce/agents/default/train.txt   200
+/voiceforce/agents/*/train        /voiceforce/agents/default/train       200
+/voiceforce/agents/*.txt          /voiceforce/agents/default.txt         200
+/voiceforce/agents/*              /voiceforce/agents/default             200
+/voiceforce/calls/*.txt           /voiceforce/calls/default.txt          200
+/voiceforce/calls/*               /voiceforce/calls/default              200

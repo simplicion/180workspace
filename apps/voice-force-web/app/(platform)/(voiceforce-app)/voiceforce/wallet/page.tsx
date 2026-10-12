@@ -36,7 +36,7 @@ import { LogoLoader, PlatformModal, AILogoIcon } from '@workspace/ui';
 import { use180Pay } from '@workspace/identity-sdk';
 import clsx from 'clsx';
 
-export default function DedicatedWalletSettingsPage() {
+export default function VoiceforceDedicatedWalletPage() {
   const { user, company } = useAuth();
   const { launch180Pay, isOpeningPay } = use180Pay();
   const [wallet, setWallet] = useState<any>(null);

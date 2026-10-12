@@ -46,13 +46,11 @@ export const navigation = [
         ]
     },
     {
-        group: 'Website Builder',
-        appId: 'web_builder',
+        name: 'Website Builder',
+        appId: 'advertising',
+        href: '/dashboard/advertising',
         icon: Globe,
-        roles: ['admin', 'manager', 'sales'],
-        items: [
-            { id: 'ad-websites', name: 'Ad Websites', href: '/dashboard/advertising', icon: Globe, roles: ['admin', 'manager', 'sales'] },
-        ]
+        roles: ['admin', 'manager', 'sales']
     },
 
     {
