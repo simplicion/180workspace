@@ -21,7 +21,7 @@ export default function VoiceforceLandingPage() {
   const [activeScenario, setActiveScenario] = useState<'inbound' | 'outbound' | 'appointment'>('inbound');
 
   const handleLogin = () => {
-    const clientId = process.env.NEXT_PUBLIC_180_CLIENT_ID || '';
+    const clientId = process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_70d751541f05347fe803ec8e128f5e83';
     launch180Identity({
       clientId,
       redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : undefined,

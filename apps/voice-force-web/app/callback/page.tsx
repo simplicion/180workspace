@@ -44,12 +44,12 @@ export default function CallbackPage() {
         const apiBase = isLocal ? 'http://localhost:4002' : 'https://api.180workspace.com';
         const redirectUri = window.location.origin + '/callback';
 
-        const clientId = process.env.NEXT_PUBLIC_180_CLIENT_ID;
-        const clientSecret = process.env.NEXT_PUBLIC_180_CLIENT_SECRET;
+        const clientId = process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_70d751541f05347fe803ec8e128f5e83';
+        const clientSecret = process.env.NEXT_PUBLIC_180_CLIENT_SECRET || '180_secret_a58c34e77528dc342871ecc66c41e9f06522223896b851a4338eee40e2bc2276';
 
         const tokenPayload: Record<string, string> = {
           grant_type: 'authorization_code',
-          client_id: clientId || '',
+          client_id: clientId,
           code,
           redirect_uri: redirectUri,
         };
