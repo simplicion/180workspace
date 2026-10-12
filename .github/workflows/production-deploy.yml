@@ -258,6 +258,7 @@ jobs:
               else
                 echo "!! WARNING: NEXTAUTH_SECRET is not defined in PRODUCTION_ENV_FILE or repository secrets. NextAuth (Google) sign-in will be unavailable."
               fi
+            fi
 
             # 4c. Desktop Device Registration Secret & Cartesia STT
             if ! grep -q '^DESKTOP_DEVICE_JWT_SECRET=.\+' .env; then
