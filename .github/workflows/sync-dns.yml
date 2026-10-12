@@ -142,19 +142,6 @@ jobs:
                 } catch (e) {
                   console.log(`Notice for traffic-director.180workspace.com domain: ${e.message}`);
                 }
-
-                // Add voiceforce.180workspace.com and voice-force.180workspace.com to 180workspace-voiceforce
-                console.log('\n==> Ensuring voiceforce.180workspace.com is bound to 180workspace-voiceforce Pages project...');
-                for (const vfDomain of ['voiceforce.180workspace.com', 'voice-force.180workspace.com']) {
-                  try {
-                    const addDomainRes = await cfRequest(`/accounts/${actualAccountId}/pages/projects/180workspace-voiceforce/domains`, 'POST', {
-                      name: vfDomain
-                    });
-                    console.log(`✓ Added ${vfDomain} to 180workspace-voiceforce:`, addDomainRes);
-                  } catch (e) {
-                    console.log(`Notice for ${vfDomain} domain: ${e.message}`);
-                  }
-                }
               } catch (e) {
                 console.error(`Error querying Pages projects: ${e.message}`);
               }
@@ -205,8 +192,6 @@ jobs:
 
             // 6. Ensure CNAMEs for Pages frontends
             const pagesBindings = [
-              { name: 'voiceforce.180workspace.com', target: '180workspace-voiceforce.pages.dev' },
-              { name: 'voice-force.180workspace.com', target: '180workspace-voiceforce.pages.dev' },
               { name: 'traffic-director.180workspace.com', target: '180workspace-traffic.pages.dev' },
               { name: 'traffic.180workspace.com', target: '180workspace-traffic.pages.dev' },
               { name: 'docs.180workspace.com', target: '180workspace-docs.pages.dev' },

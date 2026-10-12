@@ -49,7 +49,6 @@ jobs:
   # ====================================================
   # (Note: 180 Marketing Site and Documentation are deployed via dedicated 180 Public Sites CI/CD pipeline)
   # (Note: 180 Profile and Developer Portal are deployed via dedicated 180 Core CI/CD pipeline)
-  # (Note: 180 Voiceforce is deployed via dedicated Voice Force CI/CD pipeline)
 
   deploy-traffic-director-cloudflare:
     name: Deploy 180 Traffic Director to Cloudflare Pages
@@ -391,9 +390,7 @@ jobs:
             const pagesProjects = [
               { project: '180workspace-docs', domain: 'docs.180workspace.com' },
               { project: '180workspace-traffic', domain: 'traffic.180workspace.com' },
-              { project: '180workspace-traffic', domain: 'traffic-director.180workspace.com' },
-              { project: '180workspace-voiceforce', domain: 'voiceforce.180workspace.com' },
-              { project: '180workspace-voiceforce', domain: 'voice-force.180workspace.com' }
+              { project: '180workspace-traffic', domain: 'traffic-director.180workspace.com' }
             ];
 
             if (accountId) {
