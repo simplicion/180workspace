@@ -46,9 +46,9 @@ export const navigation = [
         ]
     },
     {
-        group: 'Advertising',
-        appId: 'advertising',
-        icon: Megaphone,
+        group: 'Website Builder',
+        appId: 'web_builder',
+        icon: Globe,
         roles: ['admin', 'manager', 'sales'],
         items: [
             { id: 'ad-websites', name: 'Ad Websites', href: '/dashboard/advertising', icon: Globe, roles: ['admin', 'manager', 'sales'] },

@@ -151,36 +151,30 @@ export function generateReferenceCode(domainPrefix: 'AUTH' | 'PAY' | 'CORE' = 'C
 
 const getAuthServerUrl = (customUrl?: string, envMode?: EnvironmentMode): string => {
   if (customUrl) return customUrl;
-  const mode = resolveEnvironmentMode(envMode);
-  if (mode === 'development') {
-    if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_AUTH_DEV_URL) {
-      return process.env.NEXT_PUBLIC_180_AUTH_DEV_URL;
-    }
-    if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_AUTH_URL && (process.env.NEXT_PUBLIC_180_AUTH_URL.includes('localhost') || process.env.NEXT_PUBLIC_180_AUTH_URL.includes('127.0.0.1'))) {
-      return process.env.NEXT_PUBLIC_180_AUTH_URL;
-    }
-    return 'http://localhost:3009';
+  if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_AUTH_DEV_URL) {
+    return process.env.NEXT_PUBLIC_180_AUTH_DEV_URL;
   }
   if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_AUTH_URL) {
     return process.env.NEXT_PUBLIC_180_AUTH_URL;
+  }
+  const mode = resolveEnvironmentMode(envMode);
+  if (mode === 'development') {
+    return 'https://profile.180workspace.com';
   }
   return 'https://profile.180workspace.com';
 };
 
 const getPayServerUrl = (customUrl?: string, envMode?: EnvironmentMode): string => {
   if (customUrl) return customUrl;
-  const mode = resolveEnvironmentMode(envMode);
-  if (mode === 'development') {
-    if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_PAY_DEV_URL) {
-      return process.env.NEXT_PUBLIC_180_PAY_DEV_URL;
-    }
-    if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_PAY_URL && (process.env.NEXT_PUBLIC_180_PAY_URL.includes('localhost') || process.env.NEXT_PUBLIC_180_PAY_URL.includes('127.0.0.1'))) {
-      return process.env.NEXT_PUBLIC_180_PAY_URL;
-    }
-    return 'http://localhost:3009';
+  if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_PAY_DEV_URL) {
+    return process.env.NEXT_PUBLIC_180_PAY_DEV_URL;
   }
   if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_180_PAY_URL) {
     return process.env.NEXT_PUBLIC_180_PAY_URL;
+  }
+  const mode = resolveEnvironmentMode(envMode);
+  if (mode === 'development') {
+    return 'https://pay.180workspace.com';
   }
   return 'https://pay.180workspace.com';
 };

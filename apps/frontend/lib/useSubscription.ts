@@ -39,6 +39,7 @@ const ALL_PLATFORM_APPS = [
     'hr',
     'finance',
     'advertising',
+    'website-builder',
     'voiceforce'
 ];
 
@@ -132,6 +133,9 @@ export function useSubscription(): SubscriptionStatus {
         if (isAppDisabledByAdmin && isAppDisabledByAdmin(appId)) return false;
         if (isPaidPlan) return true;
         const normalized = appId.toLowerCase().trim();
+        if (normalized === 'website-builder' || normalized === 'advertising' || normalized === 'ad-websites') {
+            return effectiveEnabledApps.some((a: string) => ['advertising', 'website-builder', 'ad-websites'].includes(a.toLowerCase().trim()));
+        }
         return effectiveEnabledApps.some((a: string) => a.toLowerCase().trim() === normalized);
     }, [isPaidPlan, effectiveEnabledApps, isAppDisabledByAdmin]);
 

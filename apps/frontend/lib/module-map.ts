@@ -14,10 +14,10 @@ export const MODULE_MAP: Record<string, ModuleInfo> = {
   // CRM & Sales
   '/sales': { appId: 'crm', moduleId: 'sales' },
   '/leads': { appId: 'crm', moduleId: 'leads' },
-  // Advertising
+  // Website Builder (Ad Websites)
   '/advertising': { appId: 'advertising', moduleId: 'ad-websites' },
-  '/forms': { appId: 'advertising', moduleId: 'forms' },
-  '/company': { appId: 'advertising', moduleId: 'company-hub' },
+  '/forms': { appId: 'workspace-tools', moduleId: 'forms' },
+  '/company': { appId: 'workspace-tools', moduleId: 'company-hub' },
   '/pipeline': { appId: 'crm', moduleId: 'pipeline' },
   '/accounts': { appId: 'crm', moduleId: 'accounts' },
   '/contacts': { appId: 'crm', moduleId: 'contacts' },
@@ -134,16 +134,14 @@ export const APPS_CONFIG: AppConfig[] = [
     },
     {
         id: 'advertising',
-        name: 'Advertising',
-        icon: Megaphone,
+        name: 'Website Builder',
+        icon: Globe,
         tag: 'Marketing',
-        description: 'Dynamic landing pages, forms, and company hub branding',
+        description: 'Visual website editor, responsive landing page builder, and custom web publishing',
         modules: [
             { id: 'ad-websites', name: 'Ad Websites' },
             { id: 'pixels', name: 'Pixel Tracking' },
             { id: 'campaigns', name: 'Campaign Stats' },
-            { id: 'forms', name: 'Form Builder' },
-            { id: 'company-hub', name: 'Company Hub' },
         ]
     },
     { 
@@ -218,7 +216,9 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'calendar', name: 'Shared Calendar' },
             { id: 'documents', name: '180 Documents' },
             { id: 'assets', name: 'IT Assets' },
-            { id: 'ai-assistant', name: 'AI Assistant' }
+            { id: 'ai-assistant', name: 'AI Assistant' },
+            { id: 'forms', name: 'Form Builder' },
+            { id: 'company-hub', name: 'Company Hub' },
         ]
     },
     {
@@ -269,6 +269,6 @@ export const ALL_APPS = [
     { id: 'finance', name: 'Finance & Analytics', description: 'Financial ledgers, invoices, bills, expenses, and platform analytics.', icon: Landmark },
     { id: 'communications', name: 'Communications', description: 'Active, real-time internal and external communication.', icon: MessageSquare },
     { id: 'workspace-tools', name: 'Workspace Tools', description: 'Passive knowledge, resource management, and utilities.', icon: FolderOpen },
-    { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
+    { id: 'advertising', name: 'Website Builder', description: 'Visual website editor, responsive landing pages, and web publishing.', icon: Globe },
     { id: 'voiceforce', name: '180 Voiceforce', description: 'Autonomous AI voice employees for outbound and inbound calling.', icon: PhoneCall },
 ];

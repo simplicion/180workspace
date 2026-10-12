@@ -68,8 +68,8 @@
   }
 
   var activeEnv = resolveEnvironmentMode();
-  var DEFAULT_AUTH_SERVER = activeEnv === 'production' ? 'https://profile.180workspace.com' : 'http://localhost:3009';
-  var DEFAULT_PAY_SERVER = activeEnv === 'production' ? 'https://pay.180workspace.com' : 'http://localhost:3009';
+  var DEFAULT_AUTH_SERVER = (typeof process !== 'undefined' && process.env && (process.env.NEXT_PUBLIC_180_AUTH_DEV_URL || process.env.NEXT_PUBLIC_180_AUTH_URL)) || 'https://profile.180workspace.com';
+  var DEFAULT_PAY_SERVER = (typeof process !== 'undefined' && process.env && (process.env.NEXT_PUBLIC_180_PAY_DEV_URL || process.env.NEXT_PUBLIC_180_PAY_URL)) || 'https://pay.180workspace.com';
   var DEFAULT_API_SERVER = activeEnv === 'production' ? 'https://api.180workspace.com' : 'http://localhost:4002';
 
   // ─── INTELLIGENT DEVICE & VIEWPORT DETECTOR ───────────────────────────────
@@ -446,8 +446,7 @@
     signIn: async function (options) {
       options = options || {};
       var clientId = options.clientId || '180-core-client';
-      var env = resolveEnvironmentMode(options.environment);
-      var authServer = options.authServerUrl || (env === 'production' ? 'https://profile.180workspace.com' : DEFAULT_AUTH_SERVER);
+      var authServer = options.authServerUrl || DEFAULT_AUTH_SERVER;
       var redirectUri = options.redirectUri || (isBrowser ? window.location.origin + '/oauth/callback' : '');
       var scope = options.scope || 'openid identity:read identity:email';
       var state = options.state || generateRandomString(16);

@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, X, Send, Maximize2, RotateCcw, User, ArrowUp } from 'lucide-react';
 import clsx from 'clsx';
 import api from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { AILogo } from '@workspace/ui';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useAuth } from '@/lib/auth-context';
@@ -18,6 +18,8 @@ const STARTER_PROMPTS = [
 
 export function AICopilotFloatingWidget() {
     const { user, company } = useAuth();
+    const pathname = usePathname();
+    const isChatRoute = pathname?.startsWith('/chat');
     const userPhoto = (user as any)?.photoUrl || (user as any)?.avatar || (user as any)?.profilePicture || (user as any)?.image || (company as any)?.companyLogo || (company as any)?.logoUrl;
     const userName = user?.name || ((user as any)?.firstName ? `${(user as any).firstName} ${(user as any).lastName || ''}`.trim() : '') || user?.email?.split('@')[0] || 'You';
     const userInitial = userName?.[0]?.toUpperCase() || 'U';
@@ -102,7 +104,7 @@ export function AICopilotFloatingWidget() {
         <>
             {/* Floating Launcher Button */}
             {!isOpen && (
-                <div className="fixed bottom-20 right-6 z-40">
+                <div className={clsx("fixed right-6 z-40 transition-all duration-300", isChatRoute ? "bottom-28" : "bottom-20")}>
                     <button
                         onClick={() => setIsOpen(true)}
                         className="w-11 h-11 rounded-full p-0 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group relative shadow-xl shadow-indigo-500/25"

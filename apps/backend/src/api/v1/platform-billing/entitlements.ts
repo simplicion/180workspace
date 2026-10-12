@@ -5,7 +5,7 @@ import { prisma } from '@workspace/db';
 export const ALL_PLATFORM_APPS = [
     'system', 'settings',
     'projects', 'communications', 'workspace-tools',
-    'crm', 'hr', 'finance', 'advertising', 'voiceforce'
+    'crm', 'hr', 'finance', 'advertising', 'website-builder', 'voiceforce'
 ];
 
 export function isPaidPlanFor(plan: any, currentSubscription: any): boolean {
@@ -17,7 +17,7 @@ export function isPaidPlanFor(plan: any, currentSubscription: any): boolean {
 }
 
 export function effectiveEnabledAppsFor(rawEnabledApps: string[], isPaidPlan: boolean, plan?: any): string[] {
-    const validPlatformApps = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'voiceforce'];
+    const validPlatformApps = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder', 'voiceforce'];
     const systemApps = ['system', 'settings'];
 
     // If on unlimited plan (Limitless or maxApps >= 999 or -1), unlock all 8 platform apps
@@ -46,7 +46,16 @@ export function effectiveEnabledAppsFor(rawEnabledApps: string[], isPaidPlan: bo
 function isDisabledByAdmin(appId: string, disabledApps: string[], flags: Record<string, boolean>): boolean {
     const clean = appId.toLowerCase().trim();
     const snake = clean.replace(/-/g, '_');
-    return disabledApps.includes(clean) || disabledApps.includes(snake) || flags[`app_${snake}`] === false || flags[clean] === false;
+    if (disabledApps.includes(clean) || disabledApps.includes(snake) || flags[`app_${snake}`] === false || flags[clean] === false) {
+        return true;
+    }
+    if (clean === 'advertising' || clean === 'website-builder' || clean === 'ad-websites') {
+        if (disabledApps.includes('advertising') || disabledApps.includes('website-builder') || disabledApps.includes('ad-websites')) return true;
+        if (flags['app_advertising'] === false || flags['advertising'] === false) return true;
+        if (flags['app_website_builder'] === false || flags['website-builder'] === false) return true;
+        if (flags['app_ad_websites'] === false || flags['ad-websites'] === false) return true;
+    }
+    return false;
 }
 
 /**

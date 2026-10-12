@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "180workspace",
   "version": "1.0.0",
   "private": true,
@@ -10,14 +10,14 @@
     "dev:all": "node scripts/dev-runner.js all",
     "dev:full": "node scripts/dev-runner.js full",
     "dev:backend": "pnpm --filter backend dev",
-    "dev:core-backend": "echo '180 Core Backend is now running in dedicated project: C:/Users/saavi/Desktop/180 core'",
-    "dev:profile": "echo '180 Profile Frontend is now running in dedicated project: C:/Users/saavi/Desktop/180 core'",
+    "dev:core-backend": "echo '180 Core Backend is now running in dedicated project: C:/Users/saavi/Desktop/180 Project/180 core'",
+    "dev:profile": "echo '180 Profile Frontend is now running in dedicated project: C:/Users/saavi/Desktop/180 Project/180 core'",
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:admin": "pnpm --filter admin-web dev",
     "dev:marketing": "echo '180 Marketing Web is now running in dedicated project: C:/Users/saavi/Desktop/180 Project/180 public sites'",
     "dev:worker": "pnpm --filter worker dev",
     "dev:docs": "echo '180 Docs Portal is now running in dedicated project: C:/Users/saavi/Desktop/180 Project/180 public sites'",
-    "dev:developers": "echo '180 Developer Portal is now running in dedicated project: C:/Users/saavi/Desktop/180 core'",
+    "dev:developers": "echo '180 Developer Portal is now running in dedicated project: C:/Users/saavi/Desktop/180 Project/180 core'",
     "dev:traffic": "pnpm --filter traffic-director-web dev",
     "dev:social": "echo '180 Social Studio is now running in dedicated project: C:/Users/saavi/Desktop/180 social studio'",
     "dev:flutter": "echo '180 Social Studio Mobile is now running in dedicated project: C:/Users/saavi/Desktop/180 social studio'",

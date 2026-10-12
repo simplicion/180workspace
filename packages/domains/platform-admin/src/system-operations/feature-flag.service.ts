@@ -41,8 +41,8 @@ export const PLATFORM_APP_FLAGS: PlatformAppFlagDefinition[] = [
     {
         name: 'app_advertising',
         appId: 'advertising',
-        label: 'Advertising',
-        description: 'Dynamic landing pages and tracking configurations',
+        label: 'Website Builder',
+        description: 'Visual website editor, responsive landing page builder, and custom web publishing',
         category: 'Marketing',
         isEnabled: true
     },
@@ -127,10 +127,11 @@ export class FeatureFlagService {
 
             // Ensure all 11 platform apps exist
             const existingFlags = await FeatureFlagRepository.list();
-            const existingNames = new Set(existingFlags.map(f => f.name));
+            const existingMap = new Map(existingFlags.map(f => [f.name, f]));
 
             for (const appDef of PLATFORM_APP_FLAGS) {
-                if (!existingNames.has(appDef.name)) {
+                const existing = existingMap.get(appDef.name);
+                if (!existing) {
                     await FeatureFlagRepository.create({
                         name: appDef.name,
                         description: appDef.description,
@@ -141,6 +142,19 @@ export class FeatureFlagService {
                             category: appDef.category
                         }
                     });
+                } else {
+                    // Refresh label and description if changed
+                    const existingRules = (existing.rules as any) || {};
+                    if (existingRules.label !== appDef.label || existing.description !== appDef.description) {
+                        await FeatureFlagRepository.update(existing.id, {
+                            description: appDef.description,
+                            rules: {
+                                ...existingRules,
+                                label: appDef.label,
+                                category: appDef.category
+                            }
+                        });
+                    }
                 }
             }
         } catch (err) {
@@ -169,10 +183,28 @@ export class FeatureFlagService {
             flagMap[appId] = flag.isEnabled;
             flagMap[`app_${appId.replace(/-/g, '_')}`] = flag.isEnabled;
 
+            // Website Builder aliases (advertising <-> website-builder <-> ad-websites)
+            if (appId === 'advertising' || appId === 'website-builder' || appId === 'ad-websites') {
+                flagMap['advertising'] = flag.isEnabled;
+                flagMap['app_advertising'] = flag.isEnabled;
+                flagMap['website-builder'] = flag.isEnabled;
+                flagMap['app_website_builder'] = flag.isEnabled;
+                flagMap['ad-websites'] = flag.isEnabled;
+                flagMap['app_ad_websites'] = flag.isEnabled;
+            }
+
             if (!flag.isEnabled) {
                 if (!disabledApps.includes(appId)) disabledApps.push(appId);
+                if (appId === 'advertising') {
+                    if (!disabledApps.includes('website-builder')) disabledApps.push('website-builder');
+                    if (!disabledApps.includes('ad-websites')) disabledApps.push('ad-websites');
+                }
             } else {
                 if (!enabledApps.includes(appId)) enabledApps.push(appId);
+                if (appId === 'advertising') {
+                    if (!enabledApps.includes('website-builder')) enabledApps.push('website-builder');
+                    if (!enabledApps.includes('ad-websites')) enabledApps.push('ad-websites');
+                }
             }
         }
 

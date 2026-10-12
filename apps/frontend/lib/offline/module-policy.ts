@@ -80,9 +80,14 @@ export const OFFLINE_MODULES: OfflineModule[] = [
     note: 'Settings include billing, integrations and security, so they need a connection.',
   },
   {
-    id: 'advertising', label: 'Advertising, Forms & Company Hub', routes: ['/advertising', '/forms', '/company'], tier: 'read',
-    readApi: ['/api/websites', '/api/forms', '/api/company-config', '/api/company'],
-    note: 'Browse your sites, forms, and company hub; publishing needs a connection.',
+    id: 'advertising', label: 'Website Builder', routes: ['/advertising'], tier: 'read',
+    readApi: ['/api/websites'],
+    note: 'Browse your websites; publishing needs a connection.',
+  },
+  {
+    id: 'forms', label: 'Form Builder', routes: ['/forms'], tier: 'read',
+    readApi: ['/api/forms'],
+    note: 'Browse your forms; publishing needs a connection.',
   },
   {
     id: 'traffic-director', label: 'Traffic Director', routes: ['/traffic-director'], tier: 'read',

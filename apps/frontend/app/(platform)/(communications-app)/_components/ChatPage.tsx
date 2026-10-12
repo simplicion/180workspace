@@ -7,9 +7,9 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
 import { getSocket } from '@/lib/socket';
-import { MessageSquare, Send, Search, Users, Plus, CheckCheck, X, Hash, Settings, UserPlus, Trash2, Reply, Pin, MoreVertical, AtSign, Smile, Bell, BellOff, Shield, ChevronDown, LogOut, Menu, Video, Phone, Rocket, BarChart2, Target, Lightbulb, Flame, Zap, Star, Megaphone, Wrench, PartyPopper, ChevronLeft } from 'lucide-react';
+import { MessageSquare, Send, Search, Users, Plus, CheckCheck, X, Hash, Settings, UserPlus, Trash2, Reply, Pin, MoreVertical, AtSign, Smile, Bell, BellOff, Shield, ChevronDown, LogOut, Menu, Video, Phone, Rocket, BarChart2, Target, Lightbulb, Flame, Zap, Star, Megaphone, Wrench, PartyPopper, ChevronLeft, ArrowRight, Copy, Check, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
-import { format, isToday, isYesterday } from 'date-fns';
+import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { useSettings } from '@/lib/settings-context';
 import toast from 'react-hot-toast';
 
@@ -78,6 +78,36 @@ function formatTime(dateStr: string) {
     if (isToday(d)) return format(d, 'HH:mm');
     if (isYesterday(d)) return 'Yesterday';
     return format(d, 'MMM d');
+}
+
+const INPUT_QUICK_EMOJIS = ['👍', '❤️', '🔥', '🎉', '😊', '🚀', '✅', '👏', '✨', '💡', '😂', '👀'];
+
+function formatDateDivider(dateStr: string) {
+    const d = new Date(dateStr);
+    if (isToday(d)) return 'Today';
+    if (isYesterday(d)) return 'Yesterday';
+    return format(d, 'MMMM d, yyyy');
+}
+
+function parseMeetingMessage(content: string) {
+    if (!content) return null;
+    const match = content.match(/Started a meeting:\s*\[([^\]]+)\]\(([^\)]+)\)/i) ||
+                  content.match(/\[Join Meeting\]\(([^\)]+)\)/i);
+    if (match) {
+        const label = match[1] || 'Join Meeting';
+        const rawUrl = match[2] || match[1];
+        const roomMatch = rawUrl.match(/meeting\/([a-zA-Z0-9_-]+)/);
+        const roomId = roomMatch ? roomMatch[1] : null;
+        const internalPath = roomId ? `/meeting/${roomId}` : rawUrl;
+        return {
+            isMeeting: true,
+            label,
+            url: rawUrl,
+            roomId,
+            internalPath
+        };
+    }
+    return null;
 }
 
 const GROUP_ICONS = [
@@ -453,6 +483,8 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
     const [replyTo, setReplyTo] = useState<Message | null>(null);
     const [emojiPicker, setEmojiPicker] = useState<string | null>(null); // messageId
     const [hoveredMsg, setHoveredMsg] = useState<string | null>(null);
+    const [showInputEmoji, setShowInputEmoji] = useState(false);
+    const [copiedMeetingId, setCopiedMeetingId] = useState<string | null>(null);
     const [mentionQuery, setMentionQuery] = useState('');
     const [showMentions, setShowMentions] = useState(false);
     const [clientChatAllowed, setClientChatAllowed] = useState(true);
@@ -749,13 +781,13 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
     const startAdHocMeeting = () => {
         if (!activeChat) return;
         const roomId = `v-${(company?._id || company?.id)}-meeting-${Date.now()}`;
-        // In a real app, you might want to send a system message to the chat
+        const meetingPath = `/meeting/${roomId}`;
         socket?.emit('chat:message', {
             chatId: activeChat._id,
-            content: `Started a meeting: [Join Meeting](${window.location.origin}/dashboard/meeting/${roomId})`,
-            isSystem: true
+            content: `Started a meeting: [Join Meeting](${window.location.origin}${meetingPath})`,
+            isSystem: false
         });
-        router.push(`/meeting/${roomId}`);
+        router.push(meetingPath);
     };
 
     const mentionSuggestions = allUsers.filter(u =>
@@ -770,83 +802,161 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
 
     // Render a single message
     function renderMessage(msg: Message) {
-        const isMine = msg.senderId.id === (user?._id || user?.id);
+        const isMine = (msg.senderId?.id || msg.senderId?._id) === (user?._id || user?.id);
         const isDeleted = !!msg.deletedAt;
         const reactions = msg.reactions || {};
+        const meetingData = parseMeetingMessage(msg.content);
+
         if (msg.isSystem) {
             return (
-                <div key={msg._id} className="flex justify-center">
-                    <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">{msg.content}</span>
+                <div key={msg._id} className="flex justify-center my-2">
+                    <div className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-zinc-300 bg-gray-100/90 dark:bg-zinc-800/90 px-3.5 py-1.5 rounded-full border border-gray-200/80 dark:border-zinc-700/70 shadow-2xs">
+                        <Sparkles className="w-3 h-3 text-indigo-500 shrink-0" />
+                        <span className="font-medium">{msg.content}</span>
+                    </div>
                 </div>
             );
         }
+
         return (
             <div key={msg._id}
-                className={clsx('flex gap-2 group', isMine && 'flex-row-reverse')}
+                className={clsx('flex gap-2.5 group items-end', isMine ? 'flex-row-reverse' : 'flex-row')}
                 onMouseEnter={() => setHoveredMsg(msg._id)}
                 onMouseLeave={() => { setHoveredMsg(null); setEmojiPicker(null); }}
             >
                 {!isMine && <Avatar user={msg.senderId} size="sm" />}
-                <div className={clsx('max-w-[65%] flex flex-col gap-0.5', isMine && 'items-end')}>
-                    {!isMine && <p className="text-xs text-gray-400 font-medium px-1">{msg.senderId.name}</p>}
+                <div className={clsx('max-w-[80%] sm:max-w-[70%] flex flex-col gap-0.5', isMine && 'items-end')}>
+                    {!isMine && <p className="text-xs text-gray-500 dark:text-zinc-400 font-semibold px-1">{msg.senderId?.name || 'User'}</p>}
 
                     {/* Reply preview */}
                     {msg.replyTo && (
-                        <div className="text-xs bg-gray-100 dark:bg-zinc-800 border-l-2 border-indigo-400 px-2 py-1 rounded mb-0.5 max-w-full truncate text-gray-500 dark:text-zinc-400">
-                            <span className="font-semibold text-indigo-500 dark:text-indigo-400">{msg.replyTo.senderId.name}</span>: {msg.replyTo.content}
+                        <div className="text-xs bg-gray-100/90 dark:bg-zinc-850 border-l-2 border-indigo-500 px-2.5 py-1.5 rounded-md mb-0.5 max-w-full truncate text-gray-600 dark:text-zinc-400 shadow-2xs">
+                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">{msg.replyTo.senderId?.name}</span>: {msg.replyTo.content}
                         </div>
                     )}
 
-                    <div className={clsx(
-                        'px-3.5 py-2.5 rounded-2xl text-[14.5px] leading-relaxed break-words shadow-sm border',
-                        isMine
-                            ? 'bg-indigo-600 text-white rounded-tr-none border-indigo-700'
-                            : 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 rounded-tl-none border-gray-100 dark:border-zinc-800',
-                        isDeleted && 'opacity-60 italic'
-                    )}>
-                        {/* Highlight @mentions and links */}
-                        {isDeleted ? '🚫 This message was deleted' : renderMessageContent(msg.content, msg.mentions || [])}
-                    </div>
+                    {/* Meeting Card or Standard Bubble */}
+                    {meetingData ? (
+                        <div className={clsx(
+                            "relative overflow-hidden rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md",
+                            isMine
+                                ? "bg-gradient-to-br from-indigo-950 via-zinc-900 to-indigo-900 text-white border-indigo-500/40 shadow-indigo-500/10 rounded-tr-xs"
+                                : "bg-gradient-to-br from-white via-indigo-50/50 to-slate-50 dark:from-zinc-900 dark:via-zinc-900/90 dark:to-zinc-950 text-gray-900 dark:text-zinc-100 border-indigo-200 dark:border-indigo-800/60 shadow-indigo-500/5 rounded-tl-xs",
+                            "p-4 w-full sm:w-[330px] my-1"
+                        )}>
+                            <div className="absolute -top-10 -right-10 w-28 h-28 bg-indigo-500/15 rounded-full blur-xl pointer-events-none" />
+
+                            <div className="flex items-center justify-between gap-2 mb-3 relative z-10">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/30 shrink-0">
+                                        <Video className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h4 className={clsx("text-sm font-bold tracking-tight", isMine ? "text-white" : "text-gray-900 dark:text-zinc-100")}>
+                                            Team Video Call
+                                        </h4>
+                                        <p className={clsx("text-[11px] font-medium", isMine ? "text-indigo-200" : "text-gray-500 dark:text-zinc-400")}>
+                                            180 Live Conference
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                                    <span>Live Now</span>
+                                </div>
+                            </div>
+
+                            <p className={clsx("text-xs mb-3.5 relative z-10 leading-relaxed font-normal", isMine ? "text-indigo-100/90" : "text-gray-600 dark:text-zinc-300")}>
+                                {isMine ? 'You started a video conference.' : `${msg.senderId?.name || 'A team member'} started a live video meeting.`}
+                            </p>
+
+                            <div className="flex items-center gap-2 relative z-10">
+                                <button
+                                    onClick={() => router.push(meetingData.internalPath)}
+                                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-xs shadow-md shadow-indigo-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.98] group"
+                                >
+                                    <Video className="w-4 h-4 transition-transform group-hover:scale-110" />
+                                    <span>Join Meeting</span>
+                                    <ArrowRight className="w-3.5 h-3.5 transition-hover group-hover:translate-x-0.5 ml-auto" />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const fullUrl = meetingData.url.startsWith('http') ? meetingData.url : `${window.location.origin}${meetingData.internalPath}`;
+                                        navigator.clipboard.writeText(fullUrl);
+                                        setCopiedMeetingId(msg._id);
+                                        toast.success('Meeting link copied!');
+                                        setTimeout(() => setCopiedMeetingId(null), 2000);
+                                    }}
+                                    className={clsx(
+                                        "p-2.5 rounded-xl border transition-all flex items-center justify-center shrink-0 active:scale-95",
+                                        isMine
+                                            ? "bg-white/10 hover:bg-white/20 border-white/15 text-white"
+                                            : "bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-300"
+                                    )}
+                                    title="Copy Meeting Link"
+                                    aria-label="Copy Meeting Link"
+                                >
+                                    {copiedMeetingId === msg._id ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={clsx(
+                            'px-4 py-2.5 rounded-2xl text-[14.5px] leading-relaxed break-words shadow-2xs border transition-all',
+                            isMine
+                                ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-tr-xs border-indigo-500/30'
+                                : 'bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 rounded-tl-xs border-gray-200/90 dark:border-zinc-800',
+                            isDeleted && 'opacity-60 italic'
+                        )}>
+                            {isDeleted ? '🚫 This message was deleted' : renderMessageContent(msg.content, msg.mentions || [])}
+                        </div>
+                    )}
 
                     {/* Reactions */}
                     {Object.keys(reactions).length > 0 && (
-                        <div className="flex flex-wrap gap-1 px-1">
+                        <div className="flex flex-wrap gap-1 px-1 mt-0.5">
                             {Object.entries(reactions).map(([emoji, uids]) => (
                                 <button key={emoji} onClick={() => react(msg._id, emoji)}
-                                    className={clsx('flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full border transition-all',
-                                        (uids as string[]).includes((user?._id || user?.id) || '') ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-300 hover:border-gray-300 dark:hover:border-zinc-700')}>
-                                    {emoji} <span>{(uids as string[]).length}</span>
+                                    className={clsx('flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-all',
+                                        (uids as string[]).includes((user?._id || user?.id) || '') ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold shadow-2xs' : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-300 hover:border-gray-300 dark:hover:border-zinc-700')}>
+                                    {emoji} <span className="text-[11px]">{(uids as string[]).length}</span>
                                 </button>
                             ))}
                         </div>
                     )}
 
                     <div className={clsx('flex items-center gap-1 px-1 mt-0.5', isMine && 'flex-row-reverse')}>
-                        <span className={clsx("text-[10px]", isMine ? "text-gray-400" : "text-gray-400")}>{formatTime(msg.createdAt)}</span>
-                        {isMine && <CheckCheck className={clsx('w-3.5 h-3.5', msg.readBy.length > 1 ? 'text-indigo-500' : 'text-gray-300')} />}
+                        <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">{formatTime(msg.createdAt)}</span>
+                        {isMine && <CheckCheck className={clsx('w-3.5 h-3.5', msg.readBy.length > 1 ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-300 dark:text-zinc-600')} />}
                     </div>
                 </div>
 
                 {/* Message actions */}
                 {hoveredMsg === msg._id && !isDeleted && (
-                    <div className={clsx('flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-center', isMine ? 'mr-1' : 'ml-1')}>
-                        <button onClick={() => setReplyTo(msg)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300" title="Reply">
+                    <div className={clsx('flex items-center gap-0.5 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-gray-200/80 dark:border-zinc-800 shadow-sm rounded-xl p-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-center mb-4', isMine ? 'mr-1' : 'ml-1')}>
+                        <button onClick={() => setReplyTo(msg)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="Reply">
                             <Reply className="w-3.5 h-3.5" />
                         </button>
+                        <button onClick={() => {
+                            navigator.clipboard.writeText(msg.content);
+                            toast.success('Message copied!');
+                        }} className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="Copy Text">
+                            <Copy className="w-3.5 h-3.5" />
+                        </button>
                         <div className="relative">
-                            <button onClick={() => setEmojiPicker(emojiPicker === msg._id ? null : msg._id)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300" title="React">
+                            <button onClick={() => setEmojiPicker(emojiPicker === msg._id ? null : msg._id)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors" title="React">
                                 <Smile className="w-3.5 h-3.5" />
                             </button>
                             {emojiPicker === msg._id && (
-                                <div className={clsx('absolute bottom-full mb-1 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 shadow-lg rounded-xl p-2 flex gap-1 z-10', isMine ? 'right-0' : 'left-0')}>
+                                <div className={clsx('absolute bottom-full mb-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-xl rounded-xl p-2 flex gap-1 z-30 animate-in fade-in zoom-in-95', isMine ? 'right-0' : 'left-0')}>
                                     {EMOJI_LIST.map(e => (
-                                        <button key={e} onClick={() => react(msg._id, e)} className="text-lg hover:scale-125 transition-transform">{e}</button>
+                                        <button key={e} onClick={() => react(msg._id, e)} className="text-lg hover:scale-125 transition-transform p-0.5">{e}</button>
                                     ))}
                                 </div>
                             )}
                         </div>
                         {(isMine || isAdmin) && (
-                            <button onClick={() => deleteMsg(msg._id)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-500" title="Delete">
+                            <button onClick={() => deleteMsg(msg._id)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg text-gray-400 hover:text-red-500 transition-colors" title="Delete">
                                 <Trash2 className="w-3.5 h-3.5" />
                             </button>
                         )}
@@ -875,7 +985,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
     }
 
     return (
-        <div className={clsx("flex overflow-hidden bg-[#f0f2f5] dark:bg-zinc-950 w-full relative", mobileLayout ? "h-full" : "h-full md:h-[calc(100vh-7rem)] md:rounded-2xl md:border md:border-gray-100 dark:md:border-zinc-800/80 md:shadow-sm")}>
+        <div className={clsx("flex overflow-hidden bg-slate-50/70 dark:bg-zinc-950 w-full relative", mobileLayout ? "h-full" : "h-full md:h-[calc(100vh-7rem)] md:rounded-2xl md:border md:border-gray-200/90 dark:md:border-zinc-800/90 md:shadow-lg md:shadow-gray-200/40 dark:md:shadow-none")}>
             {/* ── Sidebar ─────────────────────────────────────────────────────── */}
             <div className={clsx(
                 "border-r border-gray-200 dark:border-zinc-800 flex flex-col flex-shrink-0 transition-all duration-300 bg-white dark:bg-zinc-950",
@@ -961,7 +1071,7 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
             {activeChat ? (
                 <div className={clsx("flex-1 flex-col min-w-0 bg-white dark:bg-zinc-950", mobileLayout ? "flex absolute inset-0 z-50 h-full" : (activeChat ? "flex" : "hidden md:flex"))}>
                     {/* Chat header */}
-                    <div className="px-5 py-3 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3 bg-white dark:bg-zinc-950">
+                    <div className="px-5 py-3 border-b border-gray-200/80 dark:border-zinc-800/80 flex items-center gap-3 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md shadow-2xs">
                         <button onClick={() => setActiveChat(null)} className={clsx("p-2 -ml-3 mr-1 text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-xl transition-colors", !mobileLayout && "md:hidden")}>
                             <ChevronLeft className="w-5 h-5" />
                         </button>
@@ -972,14 +1082,14 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                             )}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 dark:text-zinc-100 text-sm">{getChatName(activeChat)}</p>
+                            <p className="font-bold text-gray-900 dark:text-zinc-100 text-sm tracking-tight">{getChatName(activeChat)}</p>
                             <div className="text-xs text-gray-400 dark:text-zinc-400">
                                 {!activeChat.isGroup && (isOtherOnline(activeChat) ? <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Online</span> : 'Offline')}
-                                {activeChat.isGroup && <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {activeChat.members.length} members</span>}
-                                {typingUsers.length > 0 && <span className="text-indigo-500 ml-2 animate-pulse">typing...</span>}
+                                {activeChat.isGroup && <span className="flex items-center gap-1.5 font-medium"><Users className="w-3.5 h-3.5 text-gray-400" /> {activeChat.members.length} members</span>}
+                                {typingUsers.length > 0 && <span className="text-indigo-500 ml-2 animate-pulse font-medium">typing...</span>}
                             </div>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                             {!activeChat.isGroup && (
                                 <>
                                     <button onClick={() => initiateCall('audio')} className="p-2 rounded-xl text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors" title="Audio Call" aria-label="Audio Call">
@@ -990,11 +1100,12 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                                     </button>
                                 </>
                             )}
-                            <button onClick={startAdHocMeeting} className="p-2 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors" title="Start Meeting" aria-label="Start Meeting">
-                                <Plus className="w-4 h-4" />
+                            <button onClick={startAdHocMeeting} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 text-xs font-semibold border border-indigo-200/60 dark:border-indigo-800/60 transition-all shadow-2xs active:scale-95" title="Start Instant Team Meeting" aria-label="Start Meeting">
+                                <Video className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Start Meeting</span>
                             </button>
                             {activeChat.isGroup && (
-                                <button onClick={() => setShowGroupInfo(p => !p)} className={clsx('p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors', showGroupInfo && 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400')} aria-label="Toggle group info">
+                                <button onClick={() => setShowGroupInfo(p => !p)} className={clsx('p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors', showGroupInfo && 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400')} aria-label="Toggle group info" title="Group Info">
                                     <Users className="w-4 h-4" />
                                 </button>
                             )}
@@ -1003,20 +1114,35 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
 
                     <div className="flex flex-1 min-h-0">
                         {/* Messages */}
-                        <div className="flex-1 flex flex-col min-w-0 relative">
-                            {/* Theme styling background layer */}
-                            <div className="absolute inset-0 z-0 bg-zinc-50/80 dark:bg-black/60 pointer-events-none" />
-                            <div className="flex-1 overflow-y-auto p-5 space-y-4 relative z-10">
+                        <div className="flex-1 flex flex-col min-w-0 relative bg-slate-50/40 dark:bg-zinc-950">
+                            <div className="flex-1 overflow-y-auto p-5 space-y-3.5 relative z-10">
                                 {loadingMessages ? (
                                     <div className="flex items-center justify-center py-10"><LogoLoader className="w-6 h-6 animate-spin text-indigo-500" /></div>
                                 ) : (
-                                    messages.map(msg => renderMessage(msg))
+                                    messages.map((msg, index) => {
+                                        const prevMsg = index > 0 ? messages[index - 1] : null;
+                                        const isNewDay = !prevMsg || !isSameDay(new Date(msg.createdAt), new Date(prevMsg.createdAt));
+                                        return (
+                                            <div key={msg._id || `msg-${index}`} className="space-y-3.5">
+                                                {isNewDay && (
+                                                    <div className="flex items-center justify-center my-4">
+                                                        <div className="h-px bg-gray-200/80 dark:bg-zinc-800 flex-1 max-w-[120px]" />
+                                                        <span className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 bg-gray-100/90 dark:bg-zinc-850 px-3.5 py-1 rounded-full mx-3 border border-gray-200/70 dark:border-zinc-800 shadow-2xs">
+                                                            {formatDateDivider(msg.createdAt)}
+                                                        </span>
+                                                        <div className="h-px bg-gray-200/80 dark:bg-zinc-800 flex-1 max-w-[120px]" />
+                                                    </div>
+                                                )}
+                                                {renderMessage(msg)}
+                                            </div>
+                                        );
+                                    })
                                 )}
                                 {typingUsers.length > 0 && (
                                     <div className="flex gap-2 items-center">
-                                        <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 shadow-sm rounded-2xl px-4 py-2.5">
-                                            <div className="flex gap-1">
-                                                {[0, 1, 2].map(i => <span key={i} className="w-1.5 h-1.5 bg-gray-400 dark:bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.9s' }} />)}
+                                        <div className="bg-white dark:bg-zinc-900 border border-gray-200/80 dark:border-zinc-800 shadow-2xs rounded-2xl px-4 py-2.5">
+                                            <div className="flex gap-1 items-center">
+                                                {[0, 1, 2].map(i => <span key={i} className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.9s' }} />)}
                                             </div>
                                         </div>
                                     </div>
@@ -1025,52 +1151,105 @@ function ChatPageContent({ platform, mobileLayout }: { platform: any, mobileLayo
                             </div>
 
                             {/* Input area */}
-                            <div className="border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+                            <div className="border-t border-gray-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 relative">
+                                {/* Emoji popover */}
+                                {showInputEmoji && (
+                                    <div className="absolute bottom-full left-4 mb-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-2.5 shadow-xl z-30 flex flex-wrap gap-1.5 max-w-[280px] animate-in fade-in slide-in-from-bottom-2">
+                                        {INPUT_QUICK_EMOJIS.map(e => (
+                                            <button
+                                                key={e}
+                                                type="button"
+                                                onClick={() => {
+                                                    setText(t => t + e);
+                                                    inputRef.current?.focus();
+                                                    handleTyping(text + e);
+                                                }}
+                                                className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center justify-center text-lg hover:scale-125 transition-transform"
+                                            >
+                                                {e}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
                                 {/* Reply bar */}
                                 {replyTo && (
-                                    <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-950/50 border-b border-indigo-100 dark:border-indigo-900/50">
-                                        <Reply className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50/80 dark:bg-indigo-950/50 border-b border-indigo-100 dark:border-indigo-900/50">
+                                        <Reply className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{replyTo.senderId.name}</p>
-                                            <p className="text-xs text-gray-500 dark:text-zinc-400 truncate">{replyTo.content}</p>
-                                            <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">This room is for general discussions across {platform?.platformName || 'the system'}.</p>
+                                            <p className="text-xs text-gray-600 dark:text-zinc-400 truncate">{replyTo.content}</p>
                                         </div>
-                                        <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-white dark:hover:bg-zinc-800 rounded text-gray-400 dark:text-zinc-500" aria-label="Cancel reply"><X className="w-3 h-3" /></button>
+                                        <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-white dark:hover:bg-zinc-800 rounded-lg text-gray-400 dark:text-zinc-500 transition-colors" aria-label="Cancel reply"><X className="w-3.5 h-3.5" /></button>
                                     </div>
                                 )}
 
                                 {/* @mention suggestions */}
                                 {showMentions && mentionSuggestions.length > 0 && (
-                                    <div className="mx-4 mb-0 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-lg bg-white dark:bg-zinc-900 overflow-hidden">
+                                    <div className="mx-4 mb-1 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl bg-white dark:bg-zinc-900 overflow-hidden">
                                         {mentionSuggestions.slice(0, 5).map(u => (
-                                            <button key={((u._id || u.id) as string)} onClick={() => insertMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 dark:hover:bg-zinc-800 text-left text-sm">
+                                            <button key={((u._id || u.id) as string)} onClick={() => insertMention(u)} className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-indigo-50 dark:hover:bg-zinc-800 text-left text-sm transition-colors">
                                                 <Avatar user={u} size="sm" />
-                                                <span className="font-medium text-gray-800 dark:text-zinc-200">{u.name}</span>
+                                                <span className="font-semibold text-gray-800 dark:text-zinc-200">{u.name}</span>
                                                 <RoleBadge role={u.role || 'user'} />
                                             </button>
                                         ))}
                                     </div>
                                 )}
 
-                                <form onSubmit={sendMessage} className="p-3 bg-white dark:bg-zinc-950 border-t border-gray-100 dark:border-zinc-800">
-                                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-zinc-900 p-1 rounded-full border border-gray-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-900 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 dark:focus-within:ring-indigo-950/50 transition-all shadow-sm">
-                                        <button type="button" onClick={() => { setText(t => t + '@'); inputRef.current?.focus(); handleTyping(text + '@'); }} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Mention someone" aria-label="Mention someone">
+                                <form onSubmit={sendMessage} className="p-3 bg-white dark:bg-zinc-950 pr-16 md:pr-4">
+                                    <div className="flex items-center gap-1.5 bg-gray-50/90 dark:bg-zinc-900/90 p-1.5 rounded-2xl border border-gray-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-900 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-2xs">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowInputEmoji(p => !p)}
+                                            className={clsx(
+                                                "w-9 h-9 flex items-center justify-center rounded-xl transition-colors shrink-0",
+                                                showInputEmoji ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400" : "text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-200/60 dark:hover:bg-zinc-800"
+                                            )}
+                                            title="Insert Emoji"
+                                            aria-label="Insert Emoji"
+                                        >
+                                            <Smile className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setText(t => t + '@'); inputRef.current?.focus(); handleTyping(text + '@'); }}
+                                            className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-200/60 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                                            title="Mention someone (@)"
+                                            aria-label="Mention someone"
+                                        >
                                             <AtSign className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={startAdHocMeeting}
+                                            className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-200/60 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                                            title="Start Instant Video Meeting"
+                                            aria-label="Start Instant Video Meeting"
+                                        >
+                                            <Video className="w-4 h-4" />
                                         </button>
                                         <input
                                             id="messageInput"
                                             ref={inputRef}
                                             value={text}
                                             onChange={handleTyping}
-                                            placeholder="Type a message..."
+                                            placeholder="Type a message... (Press Enter to send)"
                                             aria-label="Message content"
-                                            className="flex-1 bg-transparent text-[15px] py-2 px-1 outline-none text-gray-800 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500"
+                                            className="flex-1 bg-transparent text-[14.5px] py-1.5 px-2 outline-none text-gray-800 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500"
                                             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(e as any)}
                                         />
-                                        <button type="submit" disabled={!text.trim()} aria-label="Send message" className={clsx(
-                                            "w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200",
-                                            text.trim() ? "bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 active:scale-95" : "bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-600"
-                                        )}>
+                                        <button
+                                            type="submit"
+                                            disabled={!text.trim()}
+                                            aria-label="Send message"
+                                            className={clsx(
+                                                "w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 shrink-0",
+                                                text.trim()
+                                                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25 hover:from-indigo-500 hover:to-violet-500 active:scale-95"
+                                                    : "bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-600 cursor-not-allowed"
+                                            )}
+                                        >
                                             <Send className={clsx("w-4 h-4", text.trim() && "ml-0.5")} />
                                         </button>
                                     </div>

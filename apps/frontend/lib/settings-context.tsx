@@ -164,6 +164,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         if (disabledApps.includes(snakeId)) return true;
         if (featureFlags[`app_${snakeId}`] === false) return true;
         if (featureFlags[cleanId] === false) return true;
+
+        // Website Builder aliases
+        if (cleanId === 'advertising' || cleanId === 'website-builder' || cleanId === 'ad-websites') {
+            if (disabledApps.includes('advertising') || disabledApps.includes('website-builder') || disabledApps.includes('ad-websites')) return true;
+            if (featureFlags['app_advertising'] === false || featureFlags['advertising'] === false) return true;
+            if (featureFlags['app_website_builder'] === false || featureFlags['website-builder'] === false) return true;
+            if (featureFlags['app_ad_websites'] === false || featureFlags['ad-websites'] === false) return true;
+        }
+
         return false;
     }, [disabledApps, featureFlags]);
 

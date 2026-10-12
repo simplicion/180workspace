@@ -336,7 +336,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     // Check against the plan's max apps
                     const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 50);
                     const companyEnabledApps = company?.enabledApps || [];
-                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'voiceforce'];
+                    const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder', 'voiceforce'];
                     
                     // Filter out system, settings, and default apps to get only custom installed apps
                     const customApps = companyEnabledApps.filter((a: string) => 
@@ -368,6 +368,7 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                             (subItem.id === 'orbit-copilot') ||
                             (subItem.id === 'agent-requests') ||
                             (subItem.id === 'company-hub') ||
+                            (subItem.id === 'forms') ||
                             (subItem.id === 'bills-and-expenses' && (company.enabledModules.includes('expenses') || company.enabledModules.includes('bills-and-expenses'))) ||
                             (subItem.id === 'expenses' && (company.enabledModules.includes('bills-and-expenses') || company.enabledModules.includes('expenses'))) ||
                             (subItem.id === 'finance-overview' && (company.enabledModules.includes('finance') || company.enabledModules.includes('finance-overview'))) ||

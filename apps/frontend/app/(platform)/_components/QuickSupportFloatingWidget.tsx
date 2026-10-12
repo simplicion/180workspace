@@ -6,11 +6,13 @@ import { QuickSupportDrawer, QuickSupportSubmissionData } from '@workspace/ui';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
 import { usePathname } from 'next/navigation';
+import clsx from 'clsx';
 
 export function QuickSupportFloatingWidget() {
     const [isOpen, setIsOpen] = useState(false);
     const { user, company } = useAuth();
     const pathname = usePathname();
+    const isChatRoute = pathname?.startsWith('/chat');
 
     const handleSubmit = async (data: QuickSupportSubmissionData) => {
         try {
@@ -37,7 +39,7 @@ export function QuickSupportFloatingWidget() {
         <>
             {/* Launcher button (Fixed on bottom right, directly below AI Copilot) */}
             {!isOpen && (
-                <div className="fixed bottom-6 right-6 z-40">
+                <div className={clsx("fixed right-6 z-40 transition-all duration-300", isChatRoute ? "bottom-14" : "bottom-6")}>
                     <button
                         onClick={() => setIsOpen(true)}
                         className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-600 to-rose-600 hover:from-indigo-500 hover:to-rose-500 text-white shadow-xl shadow-indigo-500/25 flex items-center justify-center transition-all hover:scale-110 active:scale-95 group border border-white/20"

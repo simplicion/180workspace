@@ -1,6 +1,6 @@
 "use client";
 
-import { LogoLoader } from "@workspace/ui";
+import { LogoLoader, FeatureLock } from "@workspace/ui";
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Globe, Search, Filter, Settings } from 'lucide-react';
 import Link from 'next/link';
@@ -8,8 +8,12 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import WebsiteCard from "@/app/(platform)/(advertising-app)/_components/WebsiteCard";
 import CreateWebsiteModal from "@/app/(platform)/(advertising-app)/_components/CreateWebsiteModal";
+import { useSubscription } from '@/lib/useSubscription';
 
 export default function AdvertisingPage() {
+    const { hasApp, loading: subLoading } = useSubscription();
+    const isAppEnabled = hasApp('advertising') || hasApp('website-builder');
+
     const [websites, setWebsites] = useState<any[]>([]);
     const [companyData, setCompanyData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -17,8 +21,10 @@ export default function AdvertisingPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     useEffect(() => {
-        fetchWebsites();
-    }, []);
+        if (isAppEnabled) {
+            fetchWebsites();
+        }
+    }, [isAppEnabled]);
 
     // Fast In-Memory SWR Cache for 0ms Instant Navigation (Slack/Notion Gold Standard)
     const swrCacheRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
@@ -52,6 +58,18 @@ export default function AdvertisingPage() {
         }
     };
 
+    if (!subLoading && !isAppEnabled) {
+        return (
+            <div className="p-6">
+                <FeatureLock 
+                    requiredApp="Website Builder" 
+                    title="Website Builder Locked"
+                    description="The Website Builder app must be enabled on your workspace plan to create and manage custom marketing websites."
+                />
+            </div>
+        );
+    }
+
     const filteredWebsites = websites.filter(w => 
         w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         w.slug.toLowerCase().includes(searchQuery.toLowerCase())
@@ -70,10 +88,10 @@ export default function AdvertisingPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        Ad Websites 
+                        Website Builder
                         <span className="text-sm font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">{websites.length}</span>
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1">Manage your marketing landing pages and track performance.</p>
+                    <p className="text-sm text-gray-500 mt-1">Manage your marketing websites, landing pages, and track conversions.</p>
                 </div>
                 <div className="flex items-center gap-3">
 

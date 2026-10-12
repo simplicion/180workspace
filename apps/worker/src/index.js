@@ -27,15 +27,6 @@ try {
     console.warn('[Worker] SubscriptionCron not found or failed to load:', e.message);
 }
 
-// Media Queue / Reel Worker
-// Note: reelWorker might need minor path updates, but we'll import it if needed.
-let setupReelWorker;
-try {
-    // If reel worker exports a setup function
-    setupReelWorker = require('./workers/reelWorker');
-} catch (e) {
-    console.warn('[Worker] ReelWorker not found or failed to load:', e.message);
-}
 
 
 console.log('====================================');
@@ -65,20 +56,13 @@ async function bootstrap() {
     const notifW = setupNotificationWorker();
     const autoW = setupAutomationWorker();
     const aiW = setupAIWorker();
-    const fileW = setupFileWorker();
     
     if (emailW) activeWorkers.push(emailW);
     if (notifW) activeWorkers.push(notifW);
     if (autoW) activeWorkers.push(autoW);
     if (aiW) activeWorkers.push(aiW);
-    if (fileW) activeWorkers.push(fileW);
     const voiceforceW = setupVoiceforceWorker();
     if (voiceforceW) activeWorkers.push(voiceforceW);
-
-    if (typeof setupReelWorker === 'function') {
-        const reelW = setupReelWorker();
-        if (reelW) activeWorkers.push(reelW);
-    }
 
     console.log(`âœ… ${activeWorkers.length} Queue Workers initialized.`);
 

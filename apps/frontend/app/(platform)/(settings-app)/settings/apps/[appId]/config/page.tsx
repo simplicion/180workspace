@@ -47,16 +47,16 @@ const APP_DETAILS: Record<string, { overview: string; useCases: string[] }> = {
         useCases: ['Real-time internal chat between team members', 'Schedule and host video meetings in-browser', 'Store and collaborate on company documents', 'Use the AI Assistant for contextual Q&A across data']
     },
     advertising: {
-        overview: 'Advertising lets you create dynamic landing pages, track ad performance with pixel integrations, and monitor campaign statistics — all from within the 180workspace.',
-        useCases: ['Build and publish landing pages for ad campaigns', 'Configure Facebook, Google, and custom pixel tracking', 'Monitor campaign performance and conversion rates']
+        overview: 'Website Builder enables you to create responsive marketing websites and landing pages, configure custom tracking, and publish high-converting web experiences.',
+        useCases: ['Build responsive marketing websites and landing pages with visual drag-and-drop editor', 'Deploy and host dynamic landing pages on custom domains', 'Configure custom pixel and ad tracking scripts']
     },
     communications: {
         overview: 'Communications unites real-time internal and external communication tools — internal chat, browser video meetings, and email integration directly in your workflow.',
         useCases: ['Direct message and team channel communications', 'Conduct secure video conferences with clients and team members', 'Sync and send emails with CRM and project context']
     },
     'workspace-tools': {
-        overview: 'Workspace Tools powers everyday operational productivity — shared team calendars, company documents, IT asset management, and the Orbit AI Copilot.',
-        useCases: ['Schedule and coordinate company-wide events on a unified calendar', 'Create, store, and collaborate on company documents', 'Track internal IT and digital assets with credential management', 'Chat with Orbit AI Copilot across your workspace data']
+        overview: 'Workspace Tools powers everyday operational productivity — shared team calendars, company documents, IT asset management, Form Builder, Company Hub, and the Orbit AI Copilot.',
+        useCases: ['Schedule and coordinate company-wide events on a unified calendar', 'Create interactive intake forms, surveys, and lead capture endpoints with Form Builder', 'Manage company branding, public profile, and custom domains with Company Hub', 'Create, store, and collaborate on company documents', 'Track internal IT and digital assets with credential management', 'Chat with Orbit AI Copilot across your workspace data']
     },
     voiceforce: {
         overview: '180 Voiceforce deploys autonomous AI voice agents for high-throughput inbound and outbound telephone calls, appointment scheduling, and order confirmation.',

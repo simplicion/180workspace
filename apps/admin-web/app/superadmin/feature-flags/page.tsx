@@ -49,7 +49,9 @@ interface FeatureFlag {
 const APP_METADATA: Record<string, { label: string; category: string; icon: any; color: string }> = {
     crm:                  { label: 'CRM & Sales',              category: 'Business',      icon: Globe,         color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800' },
     'traffic-director':   { label: 'Traffic Director',         category: 'Marketing',     icon: GitFork,       color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800' },
-    advertising:          { label: 'Advertising',              category: 'Marketing',     icon: Megaphone,     color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/50 border-pink-200 dark:border-pink-800' },
+    advertising:          { label: 'Website Builder',          category: 'Marketing',     icon: Globe,         color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/50 border-pink-200 dark:border-pink-800' },
+    'website-builder':    { label: 'Website Builder',          category: 'Marketing',     icon: Globe,         color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/50 border-pink-200 dark:border-pink-800' },
+    'ad-websites':        { label: 'Website Builder',          category: 'Marketing',     icon: Globe,         color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/50 border-pink-200 dark:border-pink-800' },
     projects:             { label: 'Projects & Tasks',         category: 'Productivity',  icon: LayoutGrid,    color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800' },
     hr:                   { label: 'Human Resources',          category: 'HR',            icon: Smartphone,    color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800' },
     finance:              { label: 'Finance & Analytics',      category: 'Business',      icon: Landmark,      color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800' },

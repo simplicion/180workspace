@@ -111,7 +111,7 @@ export async function middleware(req: NextRequest) {
     `media.${rootDomain}`
   ].filter(Boolean);
 
-  const isLocalhostBase = /^localhost(:\d+)?$/.test(hostname) || /^127\.0\.0\.1(:\d+)?$/.test(hostname);
+  const isLocalhostBase = /^localhost(:\d+)?$/.test(hostname) || /^127\.0\.0\.1(:\d+)?$/.test(hostname) || /^\[?::1\]?(:\d+)?$/.test(hostname);
   const isCustomDomain = !mainDomains.includes(hostname) && !isLocalhostBase;
 
   if (isCustomDomain) {
@@ -156,7 +156,7 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.includes('180social') || (pathname.startsWith('/oauth/') && pathname.includes('social'))) {
-    const isDev = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+    const isDev = hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.includes('::1');
     const targetBase = isDev ? 'http://localhost:3007' : 'https://social.180workspace.com';
     return NextResponse.redirect(`${targetBase}/#/oauth-callback${url.search}`);
   }

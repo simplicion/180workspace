@@ -44,6 +44,8 @@ export const navigation = [
             { id: 'documents', name: '180 Documents', href: '/documents', icon: FileText, roles: ['admin', 'employee'] },
             { id: 'document-editor', name: 'Document Editor', href: '/document-editor', icon: FileText, roles: ['admin', 'employee'] },
             { id: 'assets', name: 'Assets & Creds', href: '/assets', icon: Star, roles: ['admin', 'employee'] },
+            { id: 'forms', name: 'Form Builder', href: '/forms', icon: FileText, roles: ['admin', 'employee'] },
+            { id: 'company-hub', name: 'Company Hub', href: '/company', icon: Building2, roles: ['admin'] },
         ]
     },
 
@@ -63,14 +65,12 @@ export const navigation = [
     },
 
     {
-        group: 'Advertising',
+        group: 'Website Builder',
         appId: 'advertising',
-        icon: Megaphone,
+        icon: Globe,
         roles: ['admin'],
         items: [
             { id: 'ad-websites', name: 'Ad Websites', href: '/advertising', icon: Globe, roles: ['admin'] },
-            { id: 'forms', name: 'Form Builder', href: '/forms', icon: FileText, roles: ['admin'] },
-            { id: 'company-hub', name: 'Company Hub', href: '/company', icon: Building2, roles: ['admin'] },
         ]
     },
 

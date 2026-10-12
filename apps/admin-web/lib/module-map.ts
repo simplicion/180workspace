@@ -99,9 +99,9 @@ export const APPS_CONFIG: AppConfig[] = [
     },
     {
         id: 'advertising',
-        name: 'Advertising',
-        icon: Megaphone,
-        description: 'Dynamic landing pages and tracking configurations',
+        name: 'Website Builder',
+        icon: Globe,
+        description: 'Visual website editor, responsive landing page builder, and custom web publishing',
         modules: [
             { id: 'ad-websites', name: 'Ad Websites' },
             { id: 'pixels', name: 'Pixel Tracking' },
@@ -207,6 +207,6 @@ export const ALL_APPS = [
     { id: 'assets', name: 'Assets', description: 'Track company assets.', icon: Package },
     { id: 'collaboration', name: 'Collaboration', description: 'Real-time chat and team communication.', icon: MessageSquare },
     { id: 'documents', name: 'Documents', description: 'Cloud storage and document management.', icon: FilePlus2 },
-    { id: 'advertising', name: 'Advertising', description: 'Dynamic landing pages and ad tracking.', icon: Megaphone },
+    { id: 'advertising', name: 'Website Builder', description: 'Dynamic website builder, landing pages, and marketing deployments.', icon: Globe },
 ];
 
