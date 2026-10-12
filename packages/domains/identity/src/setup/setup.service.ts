@@ -56,6 +56,10 @@ export class SetupService {
         // Fallback to USD only if absolutely necessary
         const finalCurrency = currency || 'USD';
 
+        const trialStartDate = new Date();
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialStartDate.getDate() + 15);
+
         // Create the company
         const newCompany = await prisma.company.create({
             data: {
@@ -65,9 +69,9 @@ export class SetupService {
                 adminPasswordHash,
                 databaseConfigured: true,
                 isOnboardingComplete: false,
-                subscriptionStatus: 'active',
-                trialStartDate: null,
-                trialEndDate: null,
+                subscriptionStatus: 'trial',
+                trialStartDate,
+                trialEndDate,
                 slug,
                 logoUrl,
                 country: country ? country.toUpperCase() : undefined,
@@ -76,6 +80,32 @@ export class SetupService {
                 accountStatus: 'active'
             }
         });
+
+        const limitlessPlan = await prisma.plan.findFirst({
+            where: {
+                OR: [
+                    { providerPlanId: '180-limitless' },
+                    { planName: { contains: 'Limitless', mode: 'insensitive' } }
+                ]
+            }
+        });
+
+        if (limitlessPlan) {
+            await prisma.subscription.create({
+                data: {
+                    companyId: newCompany.id,
+                    planId: limitlessPlan.id,
+                    status: 'trial',
+                    provider: 'none',
+                    trialStartDate,
+                    trialEndDate,
+                    subscriptionStartDate: trialStartDate,
+                    subscriptionEndDate: trialEndDate,
+                    mandateStatus: 'bypassed',
+                    amount: limitlessPlan.price
+                }
+            }).catch(e => console.warn('Failed to seed trial subscription in setup:', e.message));
+        }
 
         // Register the slug in DomainRegistry if it exists
         if (slug) {

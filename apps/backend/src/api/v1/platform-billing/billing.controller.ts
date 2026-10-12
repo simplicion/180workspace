@@ -2,7 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { BillingService } from '@workspace/platform-billing';
 import { prisma } from '@workspace/db';
 import * as crypto from 'crypto';
-import { effectiveEnabledAppsFor, isPaidPlanFor } from './entitlements';
+import { 
+    effectiveEnabledAppsFor, 
+    isPaidPlanFor, 
+    getMaxUsersForPlan, 
+    getMaxProjectsForPlan, 
+    getMaxStorageBytesForPlan 
+} from './entitlements';
 
 let cachedRates: any = null;
 let lastRatesFetchTime = 0;
@@ -48,13 +54,14 @@ export class BillingController {
             const companyId = (req as any).company?.id || (req as any).user?.companyId;
             if (!companyId) return res.status(400).json({ error: 'Company ID required' });
 
-            const [company, currentSubscription, companyConfig, teamMembersCount, activeWebsitesCount, storageAgg] = await Promise.all([
+            const [company, currentSubscription, companyConfig, teamMembersCount, activeWebsitesCount, storageAgg, activeProjectsCount] = await Promise.all([
                 prisma.company.findUnique({ where: { id: companyId } }),
                 BillingService.getActiveSubscription(companyId),
                 prisma.companyConfig.findUnique({ where: { companyId } }),
                 prisma.user.count({ where: { companyId, deletedAt: null } }),
                 prisma.website.count({ where: { companyId } }),
-                prisma.document.aggregate({ where: { companyId }, _sum: { fileSize: true } })
+                prisma.document.aggregate({ where: { companyId }, _sum: { fileSize: true } }),
+                prisma.project.count({ where: { companyId, deletedAt: null, projectType: { not: 'social_media' } } })
             ]);
 
             let plan = currentSubscription?.planId 
@@ -70,17 +77,24 @@ export class BillingController {
             const rawEnabledModules = Array.isArray(companyMetadata.enabledModules) ? companyMetadata.enabledModules : [];
 
             const isPaidPlan = isPaidPlanFor(plan, currentSubscription);
-            const effectiveEnabledApps = effectiveEnabledAppsFor(rawEnabledApps, isPaidPlan, plan);
+            const effectiveEnabledApps = effectiveEnabledAppsFor(rawEnabledApps, isPaidPlan, plan, currentSubscription);
 
-            const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'voiceforce'];
+            const validAppIds = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder', 'voiceforce'];
             const activeAppsCount = effectiveEnabledApps.filter((app: string) => app !== 'system' && app !== 'settings' && validAppIds.includes(app)).length;
 
             const storageUsedBytes = storageAgg._sum.fileSize || 0;
             
+            const maxUsers = getMaxUsersForPlan(plan, currentSubscription);
+            const maxProjects = getMaxProjectsForPlan(plan, currentSubscription);
+            const maxStorageBytes = getMaxStorageBytesForPlan(plan, currentSubscription);
+
             const safeCompanyConfig = {
                 ...(companyConfig ? companyConfig : {}),
                 companyId,
                 storageUsedBytes,
+                maxStorageBytes,
+                maxUsers,
+                maxProjects,
                 enabledApps: effectiveEnabledApps,
                 enabledModules: rawEnabledModules
             };
@@ -95,7 +109,6 @@ export class BillingController {
                     currentStatus = 'expired';
                 }
             } else if (company?.subscriptionStatus === 'active') {
-                // Default active tier (e.g. Kickstarter) without an explicit record
                 if (!currentSubscription) {
                     isExpired = false;
                     currentStatus = 'active';
@@ -128,6 +141,11 @@ export class BillingController {
                 enabledModules: rawEnabledModules,
                 isPaidPlan,
                 teamMembersCount,
+                maxUsers,
+                activeProjectsCount,
+                maxProjects,
+                storageUsedBytes,
+                maxStorageBytes,
                 activeAppsCount,
                 activeWebsitesCount,
                 isExpired,
@@ -185,7 +203,15 @@ export class BillingController {
 
             if (!planId) return res.status(400).json({ error: 'Plan ID required' });
 
-            const targetPlan = await prisma.plan.findUnique({ where: { id: planId } });
+            const targetPlan = await prisma.plan.findFirst({
+                where: {
+                    OR: [
+                        { id: planId },
+                        { providerPlanId: planId },
+                        { planName: { contains: planId.replace('180-', ''), mode: 'insensitive' } }
+                    ]
+                }
+            });
             if (!targetPlan) return res.status(404).json({ error: 'Plan not found' });
 
             const company = await prisma.company.findUnique({ where: { id: companyId } });
@@ -361,7 +387,15 @@ export class BillingController {
 
             let targetPlan = null;
             if (planId) {
-                targetPlan = await prisma.plan.findUnique({ where: { id: planId } });
+                targetPlan = await prisma.plan.findFirst({
+                    where: {
+                        OR: [
+                            { id: planId },
+                            { providerPlanId: planId },
+                            { planName: { contains: planId.replace('180-', ''), mode: 'insensitive' } }
+                        ]
+                    }
+                });
             }
 
             const { rate } = await BillingController.getCurrencyInfo(req);
@@ -393,7 +427,15 @@ export class BillingController {
 
             const providerSubId = transactionId || sessionId || razorpay_subscription_id || razorpay_payment_id;
 
-            const targetPlan = await prisma.plan.findUnique({ where: { id: planId } });
+            const targetPlan = await prisma.plan.findFirst({
+                where: {
+                    OR: [
+                        { id: planId },
+                        { providerPlanId: planId },
+                        { planName: { contains: planId.replace('180-', ''), mode: 'insensitive' } }
+                    ]
+                }
+            });
             if (!targetPlan) return res.status(404).json({ error: 'Plan not found' });
 
             // Wrap verification handling in a transaction to prevent race conditions & duplicate coupon usage
@@ -557,7 +599,15 @@ export class BillingController {
                 console.log(`[180 Pay] Captured payment ₹${amount} for ${customer?.email || 'Customer'} (Txn: ${transactionId || orderId})`);
 
                 if (companyId && planId) {
-                    const targetPlan = await prisma.plan.findUnique({ where: { id: planId } });
+                    const targetPlan = await prisma.plan.findFirst({
+                        where: {
+                            OR: [
+                                { id: planId },
+                                { providerPlanId: planId },
+                                { planName: { contains: planId.replace('180-', ''), mode: 'insensitive' } }
+                            ]
+                        }
+                    });
                     if (targetPlan) {
                         await prisma.$transaction(async (tx) => {
                             const subId = transactionId || orderId || sessionId;

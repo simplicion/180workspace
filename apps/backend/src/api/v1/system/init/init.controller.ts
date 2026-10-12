@@ -167,6 +167,19 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                     ];
                     METADATA_SECRET_FIELDS.forEach(field => delete safeCompanyMetadata[field]);
 
+                    const DEFAULT_CORE_APPS = ['system', 'settings', 'projects', 'workspace-tools', 'communications'];
+                    const DEFAULT_CORE_MODULES = [
+                        'projects', 'tasks', 'calendar', 'documents', 'document-editor',
+                        'assets', 'forms', 'company-hub', 'orbit-copilot',
+                        'chat', 'meeting', 'emails', 'work-logs', 'activity'
+                    ];
+
+                    const rawApps = Array.isArray(safeCompanyMetadata.enabledApps) ? safeCompanyMetadata.enabledApps : [];
+                    const rawModules = Array.isArray(safeCompanyMetadata.enabledModules) ? safeCompanyMetadata.enabledModules : [];
+
+                    const mergedEnabledApps = Array.from(new Set([...rawApps, ...DEFAULT_CORE_APPS]));
+                    const mergedEnabledModules = Array.from(new Set([...rawModules, ...DEFAULT_CORE_MODULES]));
+
                     return {
                         id: companyRec.id,
                         companyId: companyRec.id,
@@ -176,8 +189,8 @@ export const getInit = async (req: Request | any, res: Response, next: NextFunct
                         country: companyRec.country || 'US',
                         currency: companyRec.currency || 'USD',
                         currencySymbol: getCurrencySymbol(companyRec.currency || 'USD'),
-                        enabledApps: safeCompanyMetadata.enabledApps || [],
-                        enabledModules: safeCompanyMetadata.enabledModules || [],
+                        enabledApps: mergedEnabledApps,
+                        enabledModules: mergedEnabledModules,
                         ...safeCompanyMetadata
                     };
                 } catch (e) {

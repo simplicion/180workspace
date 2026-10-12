@@ -6,8 +6,11 @@ const REQUIRED_MODULES = ['work-logs', 'projects', 'tasks'];
 const REQUIRED_APPS = ['tools', 'projects', 'crm', 'hr', 'finance'];
 
 export class CompanyConfigService {
-    static async getCompanyConfig() {
-        const companyId = requestContext.getStore()?.companyId as string;
+    static async getCompanyConfig(targetCompanyId?: string) {
+        const companyId = targetCompanyId || (requestContext.getStore()?.companyId as string);
+        if (!companyId) {
+            throw new Error('Company ID is required');
+        }
         const company = await prisma.company.findUnique({
             where: { id: companyId }
         });
@@ -26,28 +29,38 @@ export class CompanyConfigService {
         const safeCompany: any = { ...company };
         delete safeCompany.adminPasswordHash;
         
+        const DEFAULT_CORE_APPS = ['system', 'settings', 'projects', 'workspace-tools', 'communications'];
+        const existingApps = Array.isArray(metadata.enabledApps) ? metadata.enabledApps : [];
+        const mergedApps = Array.from(new Set([...existingApps, ...DEFAULT_CORE_APPS]));
+
+        const DEFAULT_CORE_MODULES = [
+            'projects', 'tasks', 'calendar', 'documents', 'document-editor',
+            'assets', 'forms', 'company-hub', 'orbit-copilot',
+            'chat', 'meeting', 'emails', 'work-logs', 'activity'
+        ];
+        const existingModules = Array.isArray(metadata.enabledModules) ? metadata.enabledModules : [];
+        const mergedModules = Array.from(new Set([...existingModules, ...DEFAULT_CORE_MODULES]));
+
         const config: any = {
             ...safeCompany,
             companyId: company.id,
             companyName: company.name,
             companyEmail: company.adminEmail,
             companyLogo: company.logoUrl,
-            enabledApps: metadata.enabledApps || [],
-            enabledModules: metadata.enabledModules || [],
+            enabledApps: mergedApps,
+            enabledModules: mergedModules,
             ...metadata
         };
 
-        // Ensure 'system' is always enabled
-        if (!config.enabledApps.includes('system')) {
-            config.enabledApps.push('system');
-            
+        // Ensure default core apps and modules are always persisted in metadata
+        if (mergedApps.length !== existingApps.length || mergedModules.length !== existingModules.length) {
             await prisma.company.update({
                 where: { id: companyId },
                 data: {
                     metadata: {
                         ...metadata,
-                        enabledApps: config.enabledApps,
-                        enabledModules: config.enabledModules
+                        enabledApps: mergedApps,
+                        enabledModules: mergedModules
                     }
                 }
             });
@@ -56,8 +69,11 @@ export class CompanyConfigService {
         return config;
     }
 
-    static async updateCompanyConfig(updateData: any) {
-        const companyId = requestContext.getStore()?.companyId as string;
+    static async updateCompanyConfig(updateData: any, targetCompanyId?: string) {
+        const companyId = targetCompanyId || (requestContext.getStore()?.companyId as string);
+        if (!companyId) {
+            throw new Error('Company ID is required');
+        }
         const company = await prisma.company.findUnique({
             where: { id: companyId }
         });
@@ -109,16 +125,58 @@ export class CompanyConfigService {
         return { config, updatedCompany };
     }
 
-    static async updateEnabledApps(apps: string[]) {
-        const companyId = requestContext.getStore()?.companyId as string;
+    static async updateEnabledApps(apps: string[], targetCompanyId?: string) {
+        const companyId = targetCompanyId || (requestContext.getStore()?.companyId as string);
+        if (!companyId) {
+            throw new Error('Company ID is required');
+        }
         if (!Array.isArray(apps)) {
             throw new Error('Apps must be an array');
         }
 
-        const subService = new SubscriptionService();
-        const limits = await subService.getSubscriptionLimits(companyId);
-        if (limits && limits.maxApps !== -1 && apps.length > limits.maxApps) {
-            throw new Error(`Your current plan limits you to a maximum of ${limits.maxApps} apps. Please upgrade your plan to activate more apps.`);
+        // Core platform apps that are always active by default and cannot be removed
+        const DEFAULT_CORE_APPS = ['system', 'projects', 'workspace-tools', 'communications'];
+
+        const currentSubscription = await prisma.subscription.findFirst({
+            where: { companyId },
+            orderBy: { createdAt: 'desc' },
+            include: { plan: true }
+        });
+        const isTrial = currentSubscription?.status?.toLowerCase() === 'trial';
+        const planPrice = Number(currentSubscription?.plan?.price ?? 0);
+        const planName = (currentSubscription?.plan?.planName || '').toLowerCase();
+        const isPaid = isTrial || (String(currentSubscription?.status).toUpperCase() === 'ACTIVE' && planPrice > 0);
+
+        let finalApps: string[] = [];
+
+        if (!isPaid) {
+            // Free plan: Only default apps are permitted. No other apps could be accessed.
+            const attemptedPremiumApps = apps.filter(a => !DEFAULT_CORE_APPS.includes(a) && a !== 'settings');
+            if (attemptedPremiumApps.length > 0) {
+                throw new Error('Your workspace is on the 180 Free Starter plan, which only includes default apps (Projects, Workspace Tools, Communications). Upgrade to 180 Momentum or Limitless to enable additional apps.');
+            }
+            finalApps = [...DEFAULT_CORE_APPS];
+        } else {
+            // Paid Plan or 15-day Free Trial:
+            const isMomentum = planName.includes('momentum') || planPrice === 17;
+            if (isMomentum) {
+                // Momentum allows up to 8 apps (Projects, Workspace Tools, Communications, CRM, Finance, Web Builder, Voice Force, plus system)
+                const MOMENTUM_ALLOWED_APPS = [
+                    ...DEFAULT_CORE_APPS,
+                    'crm',
+                    'finance',
+                    'advertising',
+                    'website-builder',
+                    'voiceforce',
+                    'settings'
+                ];
+                const disallowedApps = apps.filter(a => !MOMENTUM_ALLOWED_APPS.includes(a));
+                if (disallowedApps.length > 0) {
+                    throw new Error(`The app "${disallowedApps.join(', ')}" requires the 180 Limitless plan ($20/mo). Please upgrade to activate all platform apps.`);
+                }
+            }
+            // Always ensure default apps remain enabled
+            finalApps = Array.from(new Set([...apps, ...DEFAULT_CORE_APPS]));
         }
 
         const company = await prisma.company.findUnique({
@@ -142,7 +200,7 @@ export class CompanyConfigService {
             data: {
                 metadata: {
                     ...metadata,
-                    enabledApps: apps
+                    enabledApps: finalApps
                 }
             }
         });
@@ -153,15 +211,18 @@ export class CompanyConfigService {
             companyName: updatedCompany.name,
             companyEmail: updatedCompany.adminEmail,
             companyLogo: updatedCompany.logoUrl,
-            enabledApps: (updatedCompany.metadata as any)?.enabledApps || [],
+            enabledApps: (updatedCompany.metadata as any)?.enabledApps || finalApps,
             enabledModules: (updatedCompany.metadata as any)?.enabledModules || []
         };
 
         return { config, updatedCompany };
     }
 
-    static async updateEnabledModules(modules: string[]) {
-        const companyId = requestContext.getStore()?.companyId as string;
+    static async updateEnabledModules(modules: string[], targetCompanyId?: string) {
+        const companyId = targetCompanyId || (requestContext.getStore()?.companyId as string);
+        if (!companyId) {
+            throw new Error('Company ID is required');
+        }
         if (!Array.isArray(modules)) {
             throw new Error('Modules must be an array');
         }
@@ -182,12 +243,16 @@ export class CompanyConfigService {
             try { metadata = JSON.parse(metadata); } catch(e) { metadata = {}; }
         }
 
+        // Always keep core modules active
+        const DEFAULT_CORE_MODULES = ['projects', 'tasks', 'calendar', 'documents', 'chat', 'meeting', 'emails', 'work-logs'];
+        const finalModules = Array.from(new Set([...modules, ...DEFAULT_CORE_MODULES]));
+
         const updatedCompany = await prisma.company.update({
             where: { id: companyId },
             data: {
                 metadata: {
                     ...metadata,
-                    enabledModules: modules
+                    enabledModules: finalModules
                 }
             }
         });
@@ -199,7 +264,7 @@ export class CompanyConfigService {
             companyEmail: updatedCompany.adminEmail,
             companyLogo: updatedCompany.logoUrl,
             enabledApps: (updatedCompany.metadata as any)?.enabledApps || [],
-            enabledModules: (updatedCompany.metadata as any)?.enabledModules || []
+            enabledModules: (updatedCompany.metadata as any)?.enabledModules || finalModules
         };
 
         return { config, updatedCompany };

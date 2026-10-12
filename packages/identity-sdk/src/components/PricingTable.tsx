@@ -167,7 +167,7 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return document.documentElement.classList.contains('dark') || 
-        window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.getAttribute('data-theme') === 'dark';
     }
     return false;
   });
@@ -177,88 +177,67 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
     const checkDark = () => {
       setIsDarkMode(
         document.documentElement.classList.contains('dark') || 
-        window.matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.getAttribute('data-theme') === 'dark'
       );
     };
     checkDark();
     const observer = new MutationObserver(checkDark);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    mediaQuery.addEventListener('change', checkDark);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
     return () => {
       observer.disconnect();
-      mediaQuery.removeEventListener('change', checkDark);
     };
   }, []);
 
   const DEFAULT_FALLBACK_PLANS: PricingPlan[] = [
     {
-      id: 'kickstart',
-      planCode: '180-kickstart',
-      name: '180 Kickstart',
-      description: 'Essential platform toolkit for lean founders & small teams.',
-      monthlyAmount: 10,
-      yearlyAmount: 96,
-      currency: 'USD',
-      features: [
-        'Access to 5 Core Apps',
-        'Up to 2 Team Members',
-        '1 Custom Domain Website',
-        '1GB High-Speed Cloud Storage',
-        'Standard Platform Support'
-      ],
-      trialDays: 0,
-      buttonText: 'Get Started'
-    },
-    {
       id: 'momentum',
       planCode: '180-momentum',
       name: '180 Momentum',
-      description: 'High-growth platform suite with AI and multi-app orchestration.',
+      description: 'High-growth platform suite with AI copilot, unified CRM, and multi-app orchestration.',
       monthlyAmount: 17,
       yearlyAmount: 163,
       currency: 'USD',
       isPopular: true,
       badgeText: 'Most Popular',
       features: [
-        'Access to 7 Advanced Apps',
-        'Up to 5 Team Members',
-        'Up to 5 Websites & Landing Pages',
-        '10GB High-Speed Cloud Storage',
+        'Access to 8 Applications (Projects, CRM, Finance, Website Builder, Voice Force, etc.)',
+        'Up to 5 Team Members Included',
+        'Up to 5 Active Projects',
+        '1 GB High-Speed Cloud Storage',
         'Priority 24/7 Platform Support',
-        'AI Assistant & Copilot Access',
-        'Custom Email SMTP'
+        'Orbit AI Copilot Access',
+        'Custom Email SMTP Integration'
       ],
-      trialDays: 14,
-      buttonText: 'Start 14-Day Free Trial'
+      trialDays: 15,
+      buttonText: 'Start 15-Day Free Trial'
     },
     {
       id: 'limitless',
       planCode: '180-limitless',
       name: '180 Limitless',
-      description: 'Full unmetered enterprise sovereignty across the entire 180 ecosystem.',
+      description: 'Full unmetered enterprise sovereignty across the entire platform ecosystem.',
       monthlyAmount: 20,
       yearlyAmount: 192,
       currency: 'USD',
       features: [
-        'Unlimited Access to All Apps',
-        'Up to 20 Team Members',
-        'Unlimited Websites & Custom Domains',
-        '20GB High-Speed Cloud Storage',
-        'Dedicated Team & VIP Support',
-        'Full AI Assistant & Agent Access',
-        'White-label & Custom Integrations'
+        'Unlimited Access to All Platform Applications (including HR, Advertising & Traffic Director)',
+        'Up to 20 Team Members Included',
+        'Up to 20 Active Projects',
+        '5 GB High-Speed Cloud Storage',
+        'Sub-5ms Traffic Director & Bot Shield',
+        'Dedicated Team & Priority Support',
+        'Full AI Assistant & Agent Access'
       ],
-      trialDays: 14,
-      buttonText: 'Upgrade to Limitless'
+      trialDays: 15,
+      buttonText: 'Start 15-Day Free Trial'
     }
   ];
 
   const activePlans: PricingPlan[] = (initialPlans && initialPlans.length > 0)
     ? initialPlans
     : (fetchedPlans.length > 0 ? fetchedPlans : DEFAULT_FALLBACK_PLANS);
-  const displayTitle = title || fetchedTitle || '180workspace Subscription Plans';
-  const displaySubtitle = subtitle || fetchedSubtitle || 'Powered by 180 Pay. Choose the sovereign tier tailored for your growth.';
+  const displayTitle = title || fetchedTitle || '';
+  const displaySubtitle = subtitle || fetchedSubtitle || '';
 
   // Use base amount of popular plan for geo-pricing detection
   const baseReferenceAmount = activePlans.find((p) => p.isPopular)?.monthlyAmount || activePlans[0]?.monthlyAmount || 17;
@@ -272,62 +251,58 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
 
     if (isDark) {
       return {
+        isDark: true,
         bg: 'transparent',
         cardBg: '#121214',
         cardBorder: '#27272a',
-        cardActiveBorder: accentColor,
-        text: '#fafafa',
-        mutedText: '#a1a1aa',
-        toggleBg: '#18181b',
-        ctaBg: accentColor,
+        cardActiveBorder: accentColor || '#6366f1',
+        text: '#f8fafc',
+        mutedText: '#94a3b8',
+        toggleBg: '#1e1e24',
+        toggleActiveBg: '#27272a',
+        toggleActiveText: '#ffffff',
+        ctaBg: accentColor || '#6366f1',
         ctaText: '#ffffff',
-        badgeBg: accentColor,
+        badgeBg: accentColor || '#6366f1',
         badgeText: '#ffffff',
       };
     }
 
     switch (theme) {
       case 'light':
+      case 'auto':
+      default:
         return {
-          bg: '#ffffff',
+          isDark: false,
+          bg: 'transparent',
           cardBg: '#ffffff',
-          cardBorder: '#e4e4e7',
-          cardActiveBorder: accentColor,
-          text: '#09090b',
-          mutedText: '#71717a',
-          toggleBg: '#f4f4f5',
-          ctaBg: accentColor,
+          cardBorder: '#e2e8f0',
+          cardActiveBorder: accentColor || '#6366f1',
+          text: '#0f172a',
+          mutedText: '#64748b',
+          toggleBg: '#f1f5f9',
+          toggleActiveBg: '#ffffff',
+          toggleActiveText: '#0f172a',
+          ctaBg: accentColor || '#4f46e5',
           ctaText: '#ffffff',
-          badgeBg: accentColor,
+          badgeBg: accentColor || '#4f46e5',
           badgeText: '#ffffff',
         };
       case 'glass':
         return {
+          isDark,
           bg: 'transparent',
-          cardBg: isDark ? 'rgba(24, 24, 27, 0.65)' : 'rgba(255, 255, 255, 0.75)',
+          cardBg: isDark ? 'rgba(24, 24, 27, 0.65)' : 'rgba(255, 255, 255, 0.85)',
           cardBorder: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-          cardActiveBorder: accentColor,
-          text: isDark ? '#f8fafc' : '#09090b',
+          cardActiveBorder: accentColor || '#6366f1',
+          text: isDark ? '#f8fafc' : '#0f172a',
           mutedText: isDark ? '#94a3b8' : '#64748b',
           toggleBg: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
-          ctaBg: accentColor,
+          toggleActiveBg: isDark ? '#27272a' : '#ffffff',
+          toggleActiveText: isDark ? '#ffffff' : '#0f172a',
+          ctaBg: accentColor || '#4f46e5',
           ctaText: '#ffffff',
-          badgeBg: accentColor,
-          badgeText: '#ffffff',
-        };
-      case 'auto':
-      default:
-        return {
-          bg: 'transparent',
-          cardBg: isDark ? '#121214' : '#ffffff',
-          cardBorder: isDark ? '#27272a' : '#e4e4e7',
-          cardActiveBorder: accentColor,
-          text: isDark ? '#fafafa' : '#09090b',
-          mutedText: isDark ? '#a1a1aa' : '#71717a',
-          toggleBg: isDark ? '#18181b' : 'rgba(150, 150, 150, 0.12)',
-          ctaBg: accentColor,
-          ctaText: '#ffffff',
-          badgeBg: accentColor,
+          badgeBg: accentColor || '#4f46e5',
           badgeText: '#ffffff',
         };
     }
@@ -406,21 +381,25 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
     <section
       className={`one-eighty-pricing-table ${className}`}
       style={{
-        padding: '32px 16px',
+        padding: '16px 8px 32px 8px',
         color: s.text,
         fontFamily: 'inherit',
       }}
     >
-      <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-        {displayTitle && (
-          <h2 style={{ fontSize: '28px', fontWeight: 800, margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
-            {displayTitle}
-          </h2>
-        )}
-        {displaySubtitle && (
-          <p style={{ fontSize: '15px', color: s.mutedText, margin: 0, maxWidth: '640px', marginLeft: 'auto', marginRight: 'auto' }}>
-            {displaySubtitle}
-          </p>
+      <div style={{ textAlign: 'center', marginBottom: (displayTitle || displaySubtitle) ? '32px' : '28px' }}>
+        {(displayTitle || displaySubtitle) && (
+          <div style={{ marginBottom: '20px' }}>
+            {displayTitle && (
+              <h2 style={{ fontSize: '28px', fontWeight: 800, margin: '0 0 8px 0', letterSpacing: '-0.02em', color: s.text }}>
+                {displayTitle}
+              </h2>
+            )}
+            {displaySubtitle && (
+              <p style={{ fontSize: '15px', color: s.mutedText, margin: 0, maxWidth: '640px', marginLeft: 'auto', marginRight: 'auto' }}>
+                {displaySubtitle}
+              </p>
+            )}
+          </div>
         )}
 
         {hasDiscount && geoData?.banner && (
@@ -429,7 +408,7 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              marginTop: '16px',
+              marginBottom: '16px',
               padding: '6px 14px',
               borderRadius: '9999px',
               background: 'rgba(16, 185, 129, 0.12)',
@@ -444,29 +423,31 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
         )}
 
         {/* Interval Switcher */}
-        <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               padding: '4px',
               background: s.toggleBg,
-              borderRadius: '12px',
+              borderRadius: '14px',
               border: `1px solid ${s.cardBorder}`,
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
             }}
           >
             <button
               type="button"
               onClick={() => setInterval('monthly')}
               style={{
-                padding: '8px 18px',
-                borderRadius: '9px',
+                padding: '8px 20px',
+                borderRadius: '10px',
                 fontSize: '13px',
-                fontWeight: 600,
+                fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                background: interval === 'monthly' ? s.ctaBg : 'transparent',
-                color: interval === 'monthly' ? s.ctaText : s.mutedText,
+                background: interval === 'monthly' ? s.toggleActiveBg : 'transparent',
+                color: interval === 'monthly' ? s.toggleActiveText : s.mutedText,
+                boxShadow: interval === 'monthly' ? '0 1px 4px rgba(0, 0, 0, 0.08)' : 'none',
                 transition: 'all 0.15s ease',
               }}
             >
@@ -476,28 +457,29 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
               type="button"
               onClick={() => setInterval('yearly')}
               style={{
-                padding: '8px 18px',
-                borderRadius: '9px',
+                padding: '8px 20px',
+                borderRadius: '10px',
                 fontSize: '13px',
-                fontWeight: 600,
+                fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                background: interval === 'yearly' ? s.ctaBg : 'transparent',
-                color: interval === 'yearly' ? s.ctaText : s.mutedText,
+                background: interval === 'yearly' ? s.toggleActiveBg : 'transparent',
+                color: interval === 'yearly' ? s.toggleActiveText : s.mutedText,
+                boxShadow: interval === 'yearly' ? '0 1px 4px rgba(0, 0, 0, 0.08)' : 'none',
                 transition: 'all 0.15s ease',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
               }}
             >
               <span>Annual billing</span>
               <span
                 style={{
                   fontSize: '11px',
-                  fontWeight: 700,
-                  color: '#10b981',
+                  fontWeight: 800,
+                  color: '#059669',
                   background: 'rgba(16, 185, 129, 0.15)',
-                  padding: '2px 7px',
+                  padding: '2px 8px',
                   borderRadius: '9999px',
                 }}
               >
@@ -534,11 +516,11 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
                 position: 'relative',
                 background: s.cardBg,
                 borderRadius: '24px',
-                padding: '32px 28px',
+                padding: '36px 30px 30px 30px',
                 border: `1.5px solid ${isCurrentActive || plan.isPopular ? s.cardActiveBorder : s.cardBorder}`,
                 boxShadow: plan.isPopular
-                  ? '0 20px 40px -15px rgba(99, 102, 241, 0.2)'
-                  : '0 4px 20px rgba(0, 0, 0, 0.04)',
+                  ? (s.isDark ? '0 20px 40px -15px rgba(99, 102, 241, 0.3)' : '0 20px 40px -15px rgba(99, 102, 241, 0.15)')
+                  : (s.isDark ? '0 4px 20px rgba(0, 0, 0, 0.4)' : '0 4px 20px rgba(0, 0, 0, 0.04)'),
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -552,15 +534,17 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
                     top: '-13px',
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    background: plan.isPopular ? s.badgeBg : 'rgba(100, 116, 139, 0.9)',
+                    background: plan.isPopular 
+                      ? 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)' 
+                      : 'linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)',
                     color: '#ffffff',
                     fontSize: '11px',
                     fontWeight: 800,
                     textTransform: 'uppercase',
-                    padding: '4px 14px',
+                    padding: '5px 16px',
                     borderRadius: '9999px',
                     letterSpacing: '0.06em',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
                     whiteSpace: 'nowrap',
                   }}
                 >
@@ -570,7 +554,7 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
 
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <h3 style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+                  <h3 style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', color: s.text }}>
                     {plan.name}
                   </h3>
                   {isCurrentActive && (
@@ -605,10 +589,10 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
                 )}
 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '20px 0 24px 0' }}>
-                  <span style={{ fontSize: '42px', fontWeight: 900, fontFamily: 'monospace', letterSpacing: '-0.03em' }}>
+                  <span style={{ fontSize: '44px', fontWeight: 900, fontFamily: 'inherit', letterSpacing: '-0.03em', color: s.text }}>
                     {pricing.currencySymbol}{pricing.amount}
                   </span>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: s.mutedText, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: s.mutedText, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     / mo
                   </span>
                   {pricing.originalPrice && (
@@ -637,9 +621,9 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
                       fontSize: '11px',
                       fontWeight: 800,
                       textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
+                      letterSpacing: '0.06em',
                       color: s.mutedText,
-                      marginBottom: '14px',
+                      marginBottom: '16px',
                     }}
                   >
                     What's included:
@@ -651,7 +635,7 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
                       margin: 0,
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '12px',
+                      gap: '13px',
                     }}
                   >
                     {plan.features.map((feat, idx) => {
@@ -663,24 +647,39 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
                           style={{
                             display: 'flex',
                             alignItems: 'flex-start',
-                            gap: '10px',
+                            gap: '11px',
                             fontSize: '13px',
-                            lineHeight: '1.4',
-                            opacity: included ? 1 : 0.5,
+                            lineHeight: '1.45',
+                            color: s.text,
+                            opacity: included ? 1 : 0.45,
                           }}
                         >
-                          <span
+                          <div
                             style={{
+                              width: '18px',
+                              height: '18px',
+                              borderRadius: '50%',
+                              backgroundColor: included ? 'rgba(16, 185, 129, 0.12)' : 'rgba(148, 163, 184, 0.15)',
                               color: included ? '#10b981' : '#94a3b8',
-                              fontWeight: 800,
-                              fontSize: '14px',
-                              lineHeight: '1',
-                              marginTop: '2px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              marginTop: '1px',
                             }}
                           >
-                            {included ? '✓' : '×'}
-                          </span>
-                          <span>{text}</span>
+                            {included ? (
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            ) : (
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            )}
+                          </div>
+                          <span style={{ fontWeight: 500 }}>{text}</span>
                         </li>
                       );
                     })}
@@ -696,21 +695,25 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
                   style={{
                     width: '100%',
                     padding: '14px 20px',
-                    borderRadius: '14px',
+                    borderRadius: '16px',
                     fontSize: '14px',
                     fontWeight: 700,
                     border: 'none',
                     cursor: isCurrentActive ? 'default' : 'pointer',
-                    background: isCurrentActive ? s.toggleBg : s.ctaBg,
+                    background: isCurrentActive 
+                      ? s.toggleBg 
+                      : (plan.isPopular 
+                          ? 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)' 
+                          : 'linear-gradient(135deg, #4338ca 0%, #4f46e5 100%)'),
                     color: isCurrentActive ? s.mutedText : s.ctaText,
                     transition: 'all 0.18s ease',
-                    boxShadow: isCurrentActive ? 'none' : '0 4px 14px rgba(99, 102, 241, 0.25)',
+                    boxShadow: isCurrentActive ? 'none' : '0 4px 14px rgba(79, 70, 229, 0.25)',
                     opacity: isCurrentActive ? 0.7 : 1,
                   }}
                   onMouseOver={(e) => {
                     if (!isCurrentActive) {
                       (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-                      (e.currentTarget as HTMLElement).style.opacity = '0.95';
+                      (e.currentTarget as HTMLElement).style.opacity = '0.96';
                     }
                   }}
                   onMouseOut={(e) => {
@@ -729,7 +732,8 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
                     textAlign: 'center',
                     fontSize: '11px',
                     color: s.mutedText,
-                    marginTop: '8px',
+                    marginTop: '10px',
+                    marginBottom: '4px',
                     fontWeight: 500,
                   }}
                 >

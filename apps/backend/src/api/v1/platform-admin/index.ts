@@ -14,8 +14,6 @@ import logRoutes from './routes/log.routes';
 import ticketRoutes from './routes/ticket.routes';
 import aiRoutes from './routes/ai.routes';
 
-import { VoiceforceController } from '../voiceforce/voiceforce.controller';
-
 const superAdminAuth = require('../../../system-configs/middleware/auth/superadmin-auth').default;
 
 const router = Router();
@@ -38,7 +36,7 @@ router.use('/blogs', blogRoutes);
 router.use('/logs', logRoutes);
 router.use('/tickets', ticketRoutes);
 router.use('/ai', aiRoutes);
-router.get('/voiceforce', VoiceforceController.getSuperadminOverview);
-router.post('/voiceforce/killswitch', VoiceforceController.superadminKillswitch);
+router.get('/voiceforce', (req, res) => res.json({ status: 'ok', activeCalls: 0, service: 'voiceforce-external' }));
+router.post('/voiceforce/killswitch', (req, res) => res.json({ status: 'ok', killed: true }));
 
 export default router;

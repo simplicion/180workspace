@@ -27,6 +27,8 @@ import { PlatformModal } from '@workspace/ui';
 
 interface UpcomingTasksAndGoalsProps {
     isLocked?: boolean;
+    hasProjects?: boolean;
+    hasHR?: boolean;
 }
 
 interface CalendarEvent {
@@ -120,7 +122,7 @@ const PAPER_COLORS: Record<string, { bg: string; border: string; tape: string; t
     }
 };
 
-export default function UpcomingTasksAndGoals({ isLocked }: UpcomingTasksAndGoalsProps) {
+export default function UpcomingTasksAndGoals({ isLocked, hasProjects = true, hasHR = true }: UpcomingTasksAndGoalsProps) {
     const [tasks, setTasks] = useState<TaskItem[]>([]);
     const [goals, setGoals] = useState<Goal[]>([]);
     const [stickyNotes, setStickyNotes] = useState<StickyNoteItem[]>([]);
@@ -149,36 +151,43 @@ export default function UpcomingTasksAndGoals({ isLocked }: UpcomingTasksAndGoal
     const [goalColor, setGoalColor] = useState('#6366f1');
 
     const fetchData = async () => {
-        if (isLocked) return;
+        if (isLocked) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
-            const [tasksRes, goalsRes, notesRes, calRes] = await Promise.allSettled([
-                api.get('/api/tasks?limit=30'),
-                api.get('/api/goals?limit=50'),
-                api.get('/api/sticky-notes'),
-                api.get('/api/calendar')
-            ]);
+            const promises: Promise<any>[] = [
+                hasProjects ? api.get('/api/tasks?limit=30').catch(() => ({ data: { tasks: [] } })) : Promise.resolve({ data: { tasks: [] } }),
+                hasHR ? api.get('/api/goals?limit=50').catch(() => ({ data: { goals: [] } })) : Promise.resolve({ data: { goals: [] } }),
+                hasHR ? api.get('/api/sticky-notes').catch(() => ({ data: { notes: [] } })) : Promise.resolve({ data: { notes: [] } }),
+                api.get('/api/calendar').catch(() => ({ data: { events: [] } }))
+            ];
 
-            if (tasksRes.status === 'fulfilled' && tasksRes.value.data) {
-                const rawTasks = tasksRes.value.data.tasks || [];
+            const [tasksRes, goalsRes, notesRes, calRes] = await Promise.all(promises);
+
+            if (tasksRes?.data) {
+                const rawTasks = tasksRes.data.tasks || [];
                 const pending = rawTasks.filter((t: any) => t.status !== 'done' && t.status !== 'completed');
                 setTasks(pending.length > 0 ? pending : rawTasks.slice(0, 10));
             }
 
-            if (goalsRes.status === 'fulfilled' && goalsRes.value.data) {
-                setGoals(goalsRes.value.data.goals || []);
+            if (goalsRes?.data) {
+                setGoals(goalsRes.data.goals || []);
             }
 
-            if (notesRes.status === 'fulfilled' && notesRes.value.data) {
-                setStickyNotes(notesRes.value.data.notes || []);
+            if (notesRes?.data) {
+                setStickyNotes(notesRes.data.notes || []);
             }
 
-            if (calRes.status === 'fulfilled' && calRes.value.data) {
-                const rawCal: CalendarEvent[] = calRes.value.data.events || [];
+            if (calRes?.data) {
+                const rawCal: CalendarEvent[] = calRes.data.events || [];
                 setMeetings(rawCal.filter((e: any) => e.type === 'meeting' || e.meetingLink || e.platform || e.roomId));
             }
-        } catch (err) {
-            console.error('Error fetching tasks & goals:', err);
+        } catch (err: any) {
+            if (err?.response?.status !== 403) {
+                console.error('Error fetching tasks & goals:', err);
+            }
         } finally {
             setLoading(false);
         }
@@ -186,7 +195,7 @@ export default function UpcomingTasksAndGoals({ isLocked }: UpcomingTasksAndGoal
 
     useEffect(() => {
         fetchData();
-    }, [isLocked]);
+    }, [isLocked, hasProjects, hasHR]);
 
     // Open modal with specific active type
     const openCreateModal = (type: 'sticky_note' | 'goal') => {
@@ -234,8 +243,10 @@ export default function UpcomingTasksAndGoals({ isLocked }: UpcomingTasksAndGoal
                 setGoalProgress(0);
             }
             setIsModalOpen(false);
-        } catch (err) {
-            console.error('Failed to create:', err);
+        } catch (err: any) {
+            if (err?.response?.status !== 403) {
+                console.error('Failed to create:', err);
+            }
         } finally {
             setSubmitting(false);
         }
@@ -247,8 +258,10 @@ export default function UpcomingTasksAndGoals({ isLocked }: UpcomingTasksAndGoal
         try {
             setStickyNotes(prev => prev.filter(n => n.id !== id));
             await api.delete(`/api/sticky-notes/${id}`);
-        } catch (err) {
-            console.error('Failed to delete note:', err);
+        } catch (err: any) {
+            if (err?.response?.status !== 403) {
+                console.error('Failed to delete note:', err);
+            }
             fetchData();
         }
     };
@@ -259,8 +272,10 @@ export default function UpcomingTasksAndGoals({ isLocked }: UpcomingTasksAndGoal
         try {
             setGoals(prev => prev.filter(g => g.id !== id));
             await api.delete(`/api/goals/${id}`);
-        } catch (err) {
-            console.error('Failed to delete goal:', err);
+        } catch (err: any) {
+            if (err?.response?.status !== 403) {
+                console.error('Failed to delete goal:', err);
+            }
             fetchData();
         }
     };
@@ -273,8 +288,10 @@ export default function UpcomingTasksAndGoals({ isLocked }: UpcomingTasksAndGoal
         try {
             setGoals(prev => prev.map(g => g.id === goal.id ? { ...g, progress: newProgress, status: newStatus } : g));
             await api.patch(`/api/goals/${goal.id}`, { progress: newProgress, status: newStatus });
-        } catch (err) {
-            console.error('Failed to update goal progress:', err);
+        } catch (err: any) {
+            if (err?.response?.status !== 403) {
+                console.error('Failed to update goal progress:', err);
+            }
         }
     };
 

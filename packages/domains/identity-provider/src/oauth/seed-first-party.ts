@@ -725,43 +725,26 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                         });
                     }
 
+                    await (prisma as any).subscriptionPlan.updateMany({
+                        where: { appId: targetApp.id, planCode: '180-kickstart' },
+                        data: { isActive: false }
+                    });
+
                     const DEFAULT_WORKSPACE_PLANS = [
-                        {
-                            planCode: '180-kickstart',
-                            name: '180 Kickstart',
-                            description: 'Essential workspace foundations with unified Work Graph data isolation for solopreneurs and early ventures.',
-                            amount: 10.0,
-                            currency: 'USD',
-                            interval: 'MONTHLY',
-                            trialDays: 0,
-                            metadata: {
-                                features: [
-                                    { text: 'Access to 5 Core Applications', included: true },
-                                    { text: 'Up to 2 Team Members', included: true },
-                                    { text: '1 Active Website / Custom CNAME', included: true },
-                                    { text: '1 GB Cloud Storage', included: true },
-                                    { text: 'Standard Community & Ticket Support', included: true },
-                                    { text: 'Unified Work Graph Data Isolation', included: true }
-                                ],
-                                isPopular: false,
-                                badgeText: 'Essential',
-                                yearlyAmount: 96
-                            }
-                        },
                         {
                             planCode: '180-momentum',
                             name: '180 Momentum',
-                            description: 'Expanded application capacity, AI copilot intelligence, and custom SMTP email routing for scaling businesses.',
+                            description: 'Expanded application capacity, AI copilot intelligence, and custom workflows for growing businesses.',
                             amount: 17.0,
                             currency: 'USD',
                             interval: 'MONTHLY',
-                            trialDays: 14,
+                            trialDays: 15,
                             metadata: {
                                 features: [
-                                    { text: 'Access to 7 Applications', included: true },
+                                    { text: 'Access to 8 Applications (Projects, CRM, Finance, Web Builder, Voice Force, etc.)', included: true },
                                     { text: 'Up to 5 Team Members', included: true },
-                                    { text: 'Up to 5 Active Websites', included: true },
-                                    { text: '10 GB Cloud Storage', included: true },
+                                    { text: 'Up to 5 Active Projects', included: true },
+                                    { text: '1 GB Cloud Storage', included: true },
                                     { text: 'Orbit AI Copilot Access', included: true },
                                     { text: 'Custom Email SMTP Integration', included: true },
                                     { text: 'Priority Email & Ticket Support', included: true },
@@ -775,17 +758,17 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                         {
                             planCode: '180-limitless',
                             name: '180 Limitless',
-                            description: 'Complete unrestricted access to all 15+ applications, 20 team seats, and sub-5ms edge traffic routing.',
+                            description: 'Complete unrestricted access to all platform applications, 20 team seats, 20 projects, and sub-5ms edge traffic routing.',
                             amount: 20.0,
                             currency: 'USD',
                             interval: 'MONTHLY',
-                            trialDays: 14,
+                            trialDays: 15,
                             metadata: {
                                 features: [
-                                    { text: 'Unlimited Access to All 15+ Applications', included: true },
+                                    { text: 'Unlimited Access to All Platform Applications (including HR, Advertising & Traffic Director)', included: true },
                                     { text: 'Up to 20 Team Members Included', included: true },
-                                    { text: 'Unlimited Websites & Automated SSL', included: true },
-                                    { text: '20 GB High-Speed Cloud Storage', included: true },
+                                    { text: 'Up to 20 Active Projects', included: true },
+                                    { text: '5 GB High-Speed Cloud Storage', included: true },
                                     { text: 'Sub-5ms Traffic Director & Bot Shield', included: true },
                                     { text: 'Dedicated Team & Priority Support', included: true },
                                     { text: 'Orbit AI Copilot Full Capabilities', included: true },
@@ -793,7 +776,7 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                                     { text: 'Enterprise Multi-Tenant Security & RBAC', included: true }
                                 ],
                                 isPopular: false,
-                                badgeText: 'Scale & Enterprise',
+                                badgeText: 'Complete Suite',
                                 yearlyAmount: 192
                             }
                         }

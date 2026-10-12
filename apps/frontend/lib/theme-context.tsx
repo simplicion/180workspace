@@ -46,6 +46,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Initial mount: Read from localStorage or system
     useEffect(() => {
         try {
+            // For public form routes (/f/), default to white/light mode unless explicitly set for form
+            if (typeof window !== 'undefined' && window.location.pathname.startsWith('/f/')) {
+                const formSaved = localStorage.getItem('180_form_theme');
+                const resolved: ResolvedTheme = formSaved === 'dark' ? 'dark' : 'light';
+                setThemeState(resolved);
+                setResolvedTheme(resolved);
+                applyThemeToDOM(resolved);
+                setMounted(true);
+                return;
+            }
+
             const saved = (localStorage.getItem(STORAGE_KEY) as Theme) || (reduxTheme as Theme) || 'light';
             const validTheme: Theme = saved === 'dark' || saved === 'light' || saved === 'system' ? saved : 'light';
             const resolved: ResolvedTheme = validTheme === 'system' ? getSystemTheme() : validTheme;
@@ -69,7 +80,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         applyThemeToDOM(resolved);
         
         try {
-            localStorage.setItem(STORAGE_KEY, newTheme);
+            if (typeof window !== 'undefined' && window.location.pathname.startsWith('/f/')) {
+                localStorage.setItem('180_form_theme', resolved);
+            } else {
+                localStorage.setItem(STORAGE_KEY, newTheme);
+            }
         } catch (e) {}
 
         dispatch(setReduxTheme(resolved));

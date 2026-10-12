@@ -133,8 +133,8 @@ export default function moduleGuard(appId?: string, moduleId?: string) {
 
 
             // GATE 5: App-level access check
-            // Core workspace apps ('tools', 'system', 'projects', 'traffic-director', 'media-editor', 'social-media') are essential platform suites and must never be blocked.
-            const CORE_ALWAYS_ENABLED_APPS = new Set(['tools', 'system', 'productivity-tools-app', 'productivity', 'traffic-director', 'traffic-director-app', 'marketing', 'advertising', 'media-editor', 'social-media', 'social-studio', 'workspace-tools']);
+            // Core workspace apps ('tools', 'system', 'projects', 'communications', 'traffic-director', 'media-editor', 'social-media') are essential platform suites and must never be blocked.
+            const CORE_ALWAYS_ENABLED_APPS = new Set(['tools', 'system', 'projects', 'communications', 'productivity-tools-app', 'productivity', 'traffic-director', 'traffic-director-app', 'marketing', 'advertising', 'media-editor', 'social-media', 'social-studio', 'workspace-tools']);
 
             if (appId && !CORE_ALWAYS_ENABLED_APPS.has(appId)) {
                 const userEnabledApps = Array.isArray(config.enabledApps) ? config.enabledApps : [];

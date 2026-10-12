@@ -2,17 +2,21 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, Zap, Shield, ArrowRight, Package, Clock, History, AlertCircle, Database, Users, CheckCircle2 } from 'lucide-react';
+import { 
+    CreditCard, Zap, Shield, ArrowRight, Package, Clock, History, 
+    AlertCircle, Database, Users, CheckCircle2, FolderGit2, Lock, Sparkles, Check
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { LogoLoader, ConfirmModal } from "@workspace/ui";
 import { OneEightyPricingTable, PricingPlan } from '@workspace/identity-sdk';
 import { UsageProgressBar } from '@/components/ui/UsageProgressBar';
+import { useTheme } from '@/lib/theme-context';
 import toast from 'react-hot-toast';
-import { APPS_CONFIG } from '@/lib/module-map';
 
 export default function PlatformBillingPage() {
     const router = useRouter();
+    const { resolvedTheme } = useTheme();
     const [loading, setLoading] = useState(true);
     const [billingInfo, setBillingInfo] = useState<any>(null);
     const [plans, setPlans] = useState<any[]>([]);
@@ -58,7 +62,7 @@ export default function PlatformBillingPage() {
         try {
             setCancelling(true);
             await api.post('/api/v1/platform-billing/plan/cancel');
-            toast.success('Subscription cancelled successfully');
+            toast.success('Subscription cancelled successfully. Reverted to Free Starter tier.');
             setIsCancelModalOpen(false);
             window.location.reload();
         } catch (err: any) {
@@ -70,144 +74,142 @@ export default function PlatformBillingPage() {
 
     const { currentSubscription, status } = billingInfo || {};
 
+    const isTrial = billingInfo?.isTrialing || currentSubscription?.status?.toLowerCase() === 'trial';
+    const trialDaysLeft = billingInfo?.daysLeft || 0;
+
     // Baseline or effective plan resolution
     const effectivePlan = currentSubscription?.plan || 
         billingInfo?.plan || 
-        plans.find((p: any) => p.price === 0 || p.planName?.toLowerCase().includes('kickstart')) || 
-        plans[0] || 
+        plans.find((p: any) => p.price === 0) || 
         null;
 
-    const isTrial = currentSubscription?.plan?.planName === 'Free Trial' || billingInfo?.isTrialing;
-    const trialDaysLeft = billingInfo?.daysLeft || 0;
+    const isMomentum = effectivePlan?.planName?.toLowerCase().includes('momentum');
+    const isLimitless = isTrial || effectivePlan?.planName?.toLowerCase().includes('limitless');
+
+    const displayPlanName = isTrial 
+        ? '180 Limitless'
+        : (currentSubscription?.plan?.planName || effectivePlan?.planName || '180 Free Starter');
 
     const formatBytes = (bytes: number) => {
-        if (!bytes || bytes <= 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        if (!bytes || bytes <= 0) return '0 MB';
+        const mb = bytes / (1024 * 1024);
+        if (mb >= 1024) {
+            return (mb / 1024).toFixed(1) + ' GB';
+        }
+        return Math.round(mb) + ' MB';
     };
 
-    // Limits & quotas calculations with robust defaults
-    const maxStorage = currentSubscription?.plan?.maxStorageBytes ?? effectivePlan?.maxStorageBytes ?? (1 * 1024 * 1024 * 1024);
-    const totalStorage = maxStorage;
-    const storageUsed = billingInfo?.companyConfig?.storageUsedBytes || 0;
-
-    const maxUsers = currentSubscription?.plan?.maxUsers ?? effectivePlan?.maxUsers ?? 2;
-    const totalMaxUsers = maxUsers;
+    // Limits & quotas strictly aligned with tier rules:
+    // Team Members: Free = 1, Momentum = 5, Limitless = 20
+    const totalMaxUsers = billingInfo?.maxUsers ?? (isLimitless ? 20 : (isMomentum ? 5 : 1));
     const teamMembersCount = billingInfo?.teamMembersCount || 1;
 
-    const maxApps = currentSubscription?.plan?.maxApps ?? effectivePlan?.maxApps ?? 5;
-    const appsCount = billingInfo?.activeAppsCount || 3;
+    // Projects: Free = 2, Momentum = 5, Limitless = 20
+    const totalMaxProjects = billingInfo?.maxProjects ?? (isLimitless ? 20 : (isMomentum ? 5 : 2));
+    const activeProjectsCount = billingInfo?.activeProjectsCount || 0;
 
-    const maxWebsites = currentSubscription?.plan?.maxWebsites ?? effectivePlan?.maxWebsites ?? 1;
-    const websitesCount = billingInfo?.activeWebsitesCount || 0;
+    // Cloud Storage: Free = 512 MB, Momentum = 1 GB, Limitless = 5 GB
+    const totalStorage = billingInfo?.maxStorageBytes ?? (isLimitless ? 5 * 1024 * 1024 * 1024 : (isMomentum ? 1024 * 1024 * 1024 : 512 * 1024 * 1024));
+    const storageUsed = billingInfo?.storageUsedBytes || billingInfo?.companyConfig?.storageUsedBytes || 0;
 
-    const formatLimit = (limit?: number) => {
-        if (limit === undefined || limit === null) return undefined;
-        return limit < 0 || limit >= 999 ? 'Unlimited' : limit.toString();
-    };
-
-    const planPrice = currentSubscription?.plan?.price ?? effectivePlan?.price ?? 0;
+    const planPrice = isTrial ? 0 : (currentSubscription?.plan?.price ?? effectivePlan?.price ?? 0);
     const planCurrency = currencyInfo.code || currentSubscription?.plan?.currency || effectivePlan?.currency || 'USD';
     const formattedPrice = planPrice > 0 
-        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: planCurrency, maximumFractionDigits: 2 }).format(planPrice) 
-        : 'Free Tier';
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: planCurrency, maximumFractionDigits: 0 }).format(planPrice) 
+        : (isTrial ? '15-Day Free Trial' : 'Free Starter');
 
-    const displayPlanName = currentSubscription?.plan?.planName || effectivePlan?.planName || '180 Kickstart';
-
-    // Map plans to PricingPlan interface to provide OneEightyPricingTable direct data
+    // Filter plans to exclusively present the 2 active paid plans ($17 Momentum & $20 Limitless)
     const pricingTablePlans: PricingPlan[] = useMemo(() => {
-        const rawList = plans && plans.length > 0 ? plans : [
-            {
-                id: 'kickstart',
-                planCode: '180-kickstart',
-                planName: '180 Kickstart',
-                price: 10,
-                currency: currencyInfo.code || 'USD',
-                features: [
-                    'Access to 5 Apps',
-                    'Up to 2 Team Members',
-                    '1 Custom Domain Website',
-                    '1GB High-Speed Cloud Storage',
-                    'Standard Platform Support'
-                ],
-                trialDays: 0
-            },
+        const filtered = plans
+            .filter((p: any) => {
+                const name = (p.planName || '').toLowerCase();
+                const code = (p.planCode || '').toLowerCase();
+                const price = Number(p.price || 0);
+                return name.includes('momentum') || name.includes('limitless') ||
+                       code.includes('momentum') || code.includes('limitless') ||
+                       price === 17 || price === 20;
+            })
+            .sort((a: any, b: any) => Number(a.price || 0) - Number(b.price || 0));
+
+        const rawList = filtered.length > 0 ? filtered : [
             {
                 id: 'momentum',
                 planCode: '180-momentum',
                 planName: '180 Momentum',
                 price: 17,
+                yearlyPrice: 163,
                 currency: currencyInfo.code || 'USD',
                 features: [
-                    'Access to 7 Apps',
-                    'Up to 5 Team Members',
-                    'Up to 5 Websites',
-                    '10GB High-Speed Cloud Storage',
-                    'Priority 24/7 Support',
-                    'AI Assistant Copilot',
-                    'Custom Email SMTP'
+                    'Access to 8 Applications (Projects, CRM, Finance, Website Builder, Voice Force, etc.)',
+                    'Up to 5 Team Members Included',
+                    'Up to 5 Active Projects',
+                    '1 GB High-Speed Cloud Storage',
+                    'Orbit AI Copilot Access',
+                    'Custom Email SMTP Integration',
+                    'Priority Email & Ticket Support',
+                    '15-Day Free Trial Included'
                 ],
-                trialDays: 14
+                trialDays: 15
             },
             {
                 id: 'limitless',
                 planCode: '180-limitless',
                 planName: '180 Limitless',
                 price: 20,
+                yearlyPrice: 192,
                 currency: currencyInfo.code || 'USD',
                 features: [
-                    'Unlimited Access to All Apps',
-                    'Up to 20 Team Members',
-                    'Unlimited Websites',
-                    '20GB High-Speed Cloud Storage',
-                    'Dedicated Team Support',
+                    'Unlimited Access to All Platform Applications (including HR, Advertising & Traffic Director)',
+                    'Up to 20 Team Members Included',
+                    'Up to 20 Active Projects',
+                    '5 GB High-Speed Cloud Storage',
+                    'Sub-5ms Traffic Director & Bot Shield',
+                    'Dedicated Team & Priority Support',
                     'Full AI Assistant & Agent Access',
-                    'Custom White-labeling'
+                    '15-Day Free Trial Included'
                 ],
-                trialDays: 14
+                trialDays: 15
             }
         ];
 
         return rawList.map((p: any) => {
-            const isMomentum = p.planName?.toLowerCase().includes('momentum') || p.price === 17;
-            const isKickstart = p.planName?.toLowerCase().includes('kickstart') || p.price === 10;
-            const isLimitless = p.planName?.toLowerCase().includes('limitless') || p.price === 20;
+            const isMom = p.planName?.toLowerCase().includes('momentum') || p.price === 17;
+            const isLim = p.planName?.toLowerCase().includes('limitless') || p.price === 20;
 
-            let description = p.description;
-            if (!description) {
-                if (isKickstart) description = 'Essential platform toolkit for lean founders & small teams.';
-                else if (isMomentum) description = 'High-growth platform suite with AI and multi-app orchestration.';
-                else if (isLimitless) description = 'Full unmetered enterprise sovereignty across the entire 180 ecosystem.';
-                else description = 'Tailored workspace tier for high-velocity teams.';
-            }
+            const description = isMom
+                ? 'High-growth platform suite with AI copilot, unified CRM, and multi-app orchestration.'
+                : 'Full unrestricted sovereignty across all platform apps with 20 seats & edge speed.';
 
-            const isCurrent = (currentSubscription?.planId && currentSubscription.planId === p.id) ||
-                (currentSubscription?.plan?.planName && currentSubscription.plan.planName.toLowerCase() === p.planName?.toLowerCase());
+            const isCurrent = !isTrial && (
+                (currentSubscription?.planId && currentSubscription.planId === p.id) ||
+                (currentSubscription?.plan?.planName && currentSubscription.plan.planName.toLowerCase() === p.planName?.toLowerCase())
+            );
 
             return {
                 id: p.id,
-                planCode: p.planCode || p.planName?.toLowerCase().replace(/\s+/g, '-'),
+                planCode: p.planCode || (isMom ? '180-momentum' : '180-limitless'),
                 name: p.planName,
                 description,
-                monthlyAmount: Number(p.price || 0),
-                yearlyAmount: p.yearlyPrice ? Number(p.yearlyPrice) : Math.round(Number(p.price || 0) * 12 * 0.8),
+                monthlyAmount: Number(p.price || (isMom ? 17 : 20)),
+                yearlyAmount: p.yearlyPrice ? Number(p.yearlyPrice) : (isMom ? 163 : 192),
                 currency: p.currency || currencyInfo.code || 'USD',
-                isPopular: isMomentum,
-                badgeText: isMomentum ? 'Most Popular' : (isLimitless ? 'Enterprise Choice' : undefined),
+                isPopular: isMom,
+                badgeText: isMom ? 'Most Popular' : 'Complete Suite',
+                badgeColor: isMom ? 'indigo' : 'violet',
                 features: Array.isArray(p.features) && p.features.length > 0 ? p.features : [
-                    `Up to ${p.maxUsers || 2} Team Members`,
-                    `${p.maxApps ? (p.maxApps >= 999 ? 'Unlimited' : p.maxApps) : 'Core'} Apps Included`,
-                    `${p.maxWebsites ? (p.maxWebsites < 0 ? 'Unlimited' : p.maxWebsites) : 1} Website(s)`,
-                    'High-Speed Cloud Storage',
-                    'Full Platform Sovereignty'
+                    `Up to ${isMom ? 5 : 20} Team Members`,
+                    `Up to ${isMom ? 5 : 20} Active Projects`,
+                    `${isMom ? '1 GB' : '5 GB'} Cloud Storage`,
+                    `${isMom ? '8 Applications' : 'All Platform Applications'}`,
+                    '15-Day Free Trial Included'
                 ],
-                trialDays: p.trialDays ?? (isMomentum ? 14 : 0),
-                buttonText: isCurrent ? 'Current Active Plan' : (p.trialDays && p.trialDays > 0 ? `Start ${p.trialDays}-Day Free Trial` : 'Get Started')
+                trialDays: 15,
+                buttonText: isCurrent 
+                    ? 'Current Active Plan' 
+                    : (isTrial && isLim ? 'Current Trial Tier' : 'Start 15-Day Free Trial')
             };
         });
-    }, [plans, currencyInfo.code, currentSubscription]);
+    }, [plans, currencyInfo.code, currentSubscription, isTrial]);
 
     if (loading) {
         return (
@@ -223,10 +225,10 @@ export default function PlatformBillingPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-                        Platform Billing & Quotas
+                        Platform Billing & Resource Quotas
                     </h1>
                     <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
-                        Manage your workspace subscription tiers, resource limits, and sovereign payments.
+                        Sovereign subscription management with exact quota isolation and card-free 15-day trial.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -248,72 +250,87 @@ export default function PlatformBillingPage() {
                     <div>
                         <div className="flex items-center justify-between gap-4 mb-6">
                             <div className="flex items-center gap-4">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 shadow-sm">
                                     <Zap className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Workspace Plan</h3>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Workspace Tier</h3>
                                     <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium">{displayPlanName}</p>
                                 </div>
                             </div>
                             <span className="text-xs font-semibold px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50">
-                                {planPrice > 0 ? `${formattedPrice}/mo` : 'Free Tier'}
+                                {planPrice > 0 ? `${formattedPrice}/mo` : (isTrial ? '15-Day Trial' : 'Free Tier')}
                             </span>
                         </div>
 
+                        {/* Trial Banner */}
                         {isTrial && (
-                            <div className="mb-6 rounded-2xl border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/80 dark:bg-amber-950/30 p-4">
+                            <div className="mb-6 rounded-2xl border border-amber-200/80 dark:border-amber-900/60 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 p-4">
                                 <div className="flex items-start gap-3">
-                                    <AlertCircle className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                                    <Sparkles className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
                                     <div>
-                                        <h4 className="font-semibold text-amber-900 dark:text-amber-300 text-sm">Trial Ends in {Math.max(0, trialDaysLeft)} Days</h4>
-                                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400/90">
-                                            Upgrade now to ensure uninterrupted access to your team workspace tools and apps.
+                                        <h4 className="font-semibold text-amber-900 dark:text-amber-300 text-sm">
+                                            15-Day Free Trial Active ({Math.max(0, trialDaysLeft)} Days Left)
+                                        </h4>
+                                        <p className="mt-1 text-xs text-amber-800/90 dark:text-amber-400/90 leading-relaxed">
+                                            Your team has unmetered access to the complete 180 Limitless suite (20 members, 20 projects, 5GB storage, and all platform apps).
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        <div className="space-y-5 mt-2">
-                            <div>
-                                <UsageProgressBar 
-                                    label="Storage Usage"
-                                    current={storageUsed}
-                                    max={totalStorage}
-                                    formattedCurrent={formatBytes(storageUsed)}
-                                    formattedMax={totalStorage < 0 ? 'Unlimited' : formatBytes(totalStorage)}
-                                />
+                        {/* Free Tier Info Banner */}
+                        {!isTrial && planPrice === 0 && (
+                            <div className="mb-6 rounded-2xl border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/30 p-4">
+                                <div className="flex items-start gap-3">
+                                    <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                                    <div>
+                                        <h4 className="font-semibold text-blue-900 dark:text-blue-300 text-sm">
+                                            Free Starter Workspace
+                                        </h4>
+                                        <p className="mt-1 text-xs text-blue-800/90 dark:text-blue-400/90 leading-relaxed">
+                                            Only default platform apps (Projects, Communications, Workspace Tools) are active. Upgrade to Momentum ($17) or Limitless ($20) to unlock CRM, Finance, Website Builder, Voice Force, HR & Advertising.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
+                        )}
+
+                        {/* Live Quota Usage Progress Bars */}
+                        <div className="space-y-5 mt-2">
                             <div>
                                 <UsageProgressBar 
                                     label="Team Members"
                                     current={teamMembersCount}
                                     max={totalMaxUsers}
-                                    formattedMax={formatLimit(totalMaxUsers)}
+                                    formattedCurrent={`${teamMembersCount}`}
+                                    formattedMax={`${totalMaxUsers} seat${totalMaxUsers > 1 ? 's' : ''}`}
                                 />
                             </div>
                             <div>
                                 <UsageProgressBar 
-                                    label="Apps Count"
-                                    current={appsCount}
-                                    max={maxApps}
-                                    formattedMax={formatLimit(maxApps) === 'Unlimited' ? APPS_CONFIG.length.toString() : formatLimit(maxApps)}
+                                    label="Active Projects"
+                                    current={activeProjectsCount}
+                                    max={totalMaxProjects}
+                                    formattedCurrent={`${activeProjectsCount}`}
+                                    formattedMax={`${totalMaxProjects} project${totalMaxProjects > 1 ? 's' : ''}`}
                                 />
                             </div>
                             <div>
                                 <UsageProgressBar 
-                                    label="Websites Count"
-                                    current={websitesCount}
-                                    max={maxWebsites}
-                                    formattedMax={formatLimit(maxWebsites)}
+                                    label="Cloud Storage"
+                                    current={storageUsed}
+                                    max={totalStorage}
+                                    formattedCurrent={formatBytes(storageUsed)}
+                                    formattedMax={formatBytes(totalStorage)}
                                 />
                             </div>
                         </div>
                     </div>
                 </motion.div>
 
-                {/* Subscription Lifecycle Status Card */}
+                {/* Subscription Lifecycle Status & Apps Card */}
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -323,17 +340,19 @@ export default function PlatformBillingPage() {
                     <div>
                         <div className="flex items-center justify-between gap-4 mb-6">
                             <div className="flex items-center gap-4">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 shadow-sm">
                                     <Clock className="h-6 w-6" />
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Subscription Status</h3>
-                                    <p className="text-sm text-gray-500 dark:text-zinc-400 capitalize">{status || 'Active'}</p>
+                                    <p className="text-sm text-gray-500 dark:text-zinc-400 capitalize">
+                                        {isTrial ? '15-Day Free Trial' : (status || (planPrice === 0 ? 'Free Starter' : 'Active'))}
+                                    </p>
                                 </div>
                             </div>
                             <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/50">
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                {status === 'expired' ? 'Expired' : 'Active'}
+                                {status === 'expired' ? 'Expired' : (isTrial ? 'Trialing' : 'Active')}
                             </span>
                         </div>
                         
@@ -343,30 +362,29 @@ export default function PlatformBillingPage() {
                                     <CreditCard className="w-4 h-4 text-gray-400 dark:text-zinc-500" /> Billing Cycle
                                 </span>
                                 <span className="font-semibold text-gray-900 dark:text-zinc-100">
-                                    {currentSubscription?.billingCycle || 'Monthly'}
-                                    {planPrice > 0 && ` / ${formattedPrice}`}
+                                    {planPrice > 0 ? `Monthly / ${formattedPrice}` : (isTrial ? '15-Day Free Trial' : 'Free Forever')}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center border-b border-gray-100 dark:border-zinc-800/80 pb-3.5">
                                 <span className="text-gray-500 dark:text-zinc-400 flex items-center gap-2">
-                                    <History className="w-4 h-4 text-gray-400 dark:text-zinc-500" /> Started
+                                    <History className="w-4 h-4 text-gray-400 dark:text-zinc-500" /> Account Created
                                 </span>
                                 <span className="font-semibold text-gray-900 dark:text-zinc-100">
-                                    {currentSubscription?.startDate ? (
-                                        new Date(currentSubscription.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-                                    ) : currentSubscription?.createdAt ? (
+                                    {currentSubscription?.createdAt ? (
                                         new Date(currentSubscription.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
                                     ) : (
-                                        'Lifetime / Continuous'
+                                        'Active Workspace'
                                     )}
                                 </span>
                             </div>
-                            <div className="flex justify-between items-center pt-1 pb-1">
+                            <div className="flex justify-between items-center border-b border-gray-100 dark:border-zinc-800/80 pb-3.5">
                                 <span className="text-gray-500 dark:text-zinc-400 flex items-center gap-2">
                                     <Clock className="w-4 h-4 text-gray-400 dark:text-zinc-500" /> Expiry / Renewal
                                 </span>
                                 <span className="font-semibold text-gray-900 dark:text-zinc-100">
-                                    {currentSubscription?.subscriptionEndDate ? (
+                                    {isTrial ? (
+                                        `${Math.max(0, trialDaysLeft)} days remaining`
+                                    ) : currentSubscription?.subscriptionEndDate ? (
                                         new Date(currentSubscription.subscriptionEndDate).toLocaleDateString(undefined, {
                                             year: 'numeric',
                                             month: 'short',
@@ -375,14 +393,53 @@ export default function PlatformBillingPage() {
                                     ) : planPrice > 0 ? (
                                         'Active (Auto-Renewing)'
                                     ) : (
-                                        'Continuous / Lifetime'
+                                        'No Expiration (Free Starter)'
                                     )}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Entitlement App Badges */}
+                        <div className="mt-5 pt-4 border-t border-gray-100 dark:border-zinc-800/80">
+                            <p className="text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-2.5">
+                                Application Access Tier
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/40">
+                                    <Check className="w-3 h-3" /> Projects
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/40">
+                                    <Check className="w-3 h-3" /> Communications
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/40">
+                                    <Check className="w-3 h-3" /> Workspace Tools
+                                </span>
+                                <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md ${
+                                    isMomentum || isLimitless
+                                        ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40'
+                                        : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500'
+                                }`}>
+                                    {isMomentum || isLimitless ? <Check className="w-3 h-3" /> : <Lock className="w-3 h-3" />} CRM & Finance
+                                </span>
+                                <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md ${
+                                    isMomentum || isLimitless
+                                        ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40'
+                                        : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500'
+                                }`}>
+                                    {isMomentum || isLimitless ? <Check className="w-3 h-3" /> : <Lock className="w-3 h-3" />} Web Builder & Voice Force
+                                </span>
+                                <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md ${
+                                    isLimitless
+                                        ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/50 dark:border-purple-800/40'
+                                        : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500'
+                                }`}>
+                                    {isLimitless ? <Check className="w-3 h-3" /> : <Lock className="w-3 h-3" />} HR, Ads & Traffic Director
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    {currentSubscription?.plan?.price > 0 && (
+                    {currentSubscription?.plan?.price > 0 && !isTrial && (
                         <div className="pt-6 mt-4 border-t border-gray-100 dark:border-zinc-800/80">
                             <button
                                 type="button"
@@ -396,8 +453,20 @@ export default function PlatformBillingPage() {
                 </motion.div>
             </div>
 
-            {/* 180 Pay Subscription Plans Engine */}
+            {/* 180 Pay Sovereign Pricing Table Section (2 Active Plans) */}
             <div className="mt-10 rounded-3xl border border-gray-200/80 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-2xl p-6 sm:p-10 shadow-sm dark:shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
+                <div className="text-center max-w-2xl mx-auto mb-8">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/50">
+                        15-Day Free Trial on All Plans
+                    </span>
+                    <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mt-3">
+                        Choose Your Workspace Tier
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-zinc-400 mt-2">
+                        Transparent pricing designed for modern teams. No per-seat hidden fees or long-term lock-in.
+                    </p>
+                </div>
+
                 <OneEightyPricingTable
                     appId="8bc81b3e-8510-4144-8c47-c43fe46d71a3"
                     plans={pricingTablePlans}
@@ -408,9 +477,9 @@ export default function PlatformBillingPage() {
                             ? 'http://localhost:4003'
                             : 'https://services.180workspace.com')
                     }
-                    title="180workspace Subscription Plans"
-                    subtitle="Powered by 180 Pay. Choose the sovereign tier tailored for your growth."
-                    theme="auto"
+                    title=""
+                    subtitle=""
+                    theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
                     accentColor="#6366f1"
                     currentPlanId={currentSubscription?.planId || effectivePlan?.id}
                     activePlanCode={displayPlanName}
@@ -420,9 +489,10 @@ export default function PlatformBillingPage() {
                                  (plan.planCode && p.planName?.toLowerCase().includes(plan.planCode.replace('180-', '')))
                         );
                         const planId = targetPlan?.id || plan.id || plan.planCode;
-                        const isCurrentActive =
+                        const isCurrentActive = !isTrial && (
                             (currentSubscription?.planId && currentSubscription.planId === planId) ||
-                            (currentSubscription?.plan?.planName?.toLowerCase() === plan.name?.toLowerCase());
+                            (currentSubscription?.plan?.planName?.toLowerCase() === plan.name?.toLowerCase())
+                        );
 
                         if (isCurrentActive) {
                             if (currentSubscription?.plan?.price > 0) {
@@ -439,7 +509,7 @@ export default function PlatformBillingPage() {
             <ConfirmModal 
                 isOpen={isCancelModalOpen}
                 title="Cancel Subscription?"
-                message="Are you sure you want to cancel your subscription?&#10;&#10;• Your previous payments will not be refunded.&#10;• Your auto-pay will be automatically disabled.&#10;• You will lose access to premium apps and revert to the free Kickstart plan."
+                message="Are you sure you want to cancel your subscription?&#10;&#10;• Your auto-pay will be automatically disabled.&#10;• You will revert to the 180 Free Starter tier.&#10;• Access to premium apps (CRM, Finance, Web Builder, etc.) will be locked."
                 confirmText="Cancel Subscription"
                 cancelText="Keep Subscription"
                 variant="danger"

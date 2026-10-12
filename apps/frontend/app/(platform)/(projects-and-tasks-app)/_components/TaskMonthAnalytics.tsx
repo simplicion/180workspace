@@ -20,11 +20,12 @@ import api from '@/lib/api';
 interface TaskMonthAnalyticsProps {
     onDateRangeSelect?: (startDate: string, endDate: string, label: string) => void;
     currentFilterDateRange?: string;
+    isLocked?: boolean;
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDateRange }: TaskMonthAnalyticsProps) {
+export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDateRange, isLocked }: TaskMonthAnalyticsProps) {
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'dayOfWeek'>('daily');
     const [monthTasks, setMonthTasks] = useState<any[]>([]);
@@ -33,6 +34,11 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
 
     // Fetch all tasks for the selected month
     useEffect(() => {
+        if (isLocked) {
+            setLoading(false);
+            return;
+        }
+
         let isMounted = true;
         setLoading(true);
 
@@ -52,14 +58,16 @@ export default function TaskMonthAnalytics({ onDateRangeSelect, currentFilterDat
             }
         })
         .catch(err => {
-            console.error('[TaskMonthAnalytics] Failed to fetch month tasks:', err);
+            if (err?.response?.status !== 403) {
+                console.error('[TaskMonthAnalytics] Failed to fetch month tasks:', err);
+            }
         })
         .finally(() => {
             if (isMounted) setLoading(false);
         });
 
         return () => { isMounted = false; };
-    }, [currentMonth]);
+    }, [currentMonth, isLocked]);
 
     const handlePrevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
     const handleNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));

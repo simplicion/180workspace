@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Skeleton, FeatureLock } from "@workspace/ui";
 import { useSettings } from '@/lib/settings-context';
+import { useSubscription } from '@/lib/useSubscription';
 import Link from 'next/link';
 import EmployeeDashboard from '@/app/(platform)/(dashboard)/_components/EmployeeDashboard';
 import RecentProjects from '@/app/(platform)/(dashboard)/_components/RecentProjects';
@@ -79,16 +80,13 @@ function getFormattedDate(): string {
 export default function DashboardPage({ isMobileView }: { isMobileView?: boolean }) {
     const { user, company } = useAuth();
     const { settings, company: companyConfig } = useSettings();
+    const { hasApp } = useSubscription();
     const [error, setError] = useState('');
 
-    const enabledApps = Array.isArray(companyConfig?.enabledApps) ? companyConfig.enabledApps : [];
-    
-    // Core apps 'tools' and 'system' are always accessible in the backend. 
-    // Here we check specifically for optional apps that might be disabled.
-    const hasHR = enabledApps.includes('hr');
-    const hasFinance = enabledApps.includes('finance');
-    const hasCRM = enabledApps.includes('crm');
-    const hasProjects = enabledApps.includes('projects');
+    const hasHR = hasApp('hr');
+    const hasFinance = hasApp('finance');
+    const hasCRM = hasApp('crm');
+    const hasProjects = hasApp('projects');
 
     const userRoles = Array.isArray(user?.roles) ? [...user.roles] : [user?.role];
     const normalizedRoles = userRoles.map(r => (r || '').toLowerCase());
@@ -179,7 +177,7 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
                         <OperationsOverview stats={stats} getStatValue={getStatValue} getSubText={getSubText} isLocked={true} />
                     </FeatureLock>
                 )}
-                <UpcomingTasksAndGoals />
+                <UpcomingTasksAndGoals hasProjects={hasProjects} hasHR={hasHR} />
             </div>
 
             {/* 3. Sales Pipeline (Lead Volume, Daily Trajectory & Stage Intelligence) */}
@@ -230,7 +228,7 @@ export default function DashboardPage({ isMobileView }: { isMobileView?: boolean
             ) : (
                 <FeatureLock title="Task Analytics Locked" description="Install the Projects app to unlock task activity and month progress analytics." className="min-h-[300px]">
                     <div className="opacity-50 pointer-events-none">
-                        <TaskMonthAnalytics />
+                        <TaskMonthAnalytics isLocked={true} />
                     </div>
                 </FeatureLock>
             )}

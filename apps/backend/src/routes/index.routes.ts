@@ -44,7 +44,7 @@ const platformBillingRoutes = require('../api/v1/platform-billing/index').defaul
 // Health is now in system
 const insightsRoutes = require('../api/v1/insights/index').default;
 const publicRoutes = require('../api/v1/public/public.routes').default;
-const voiceforceRoutes = require('../api/v1/voiceforce/index').default;
+
 const walletRoutes = require('../api/v1/wallet/index').default;
 // ─── Legacy Route Proxy ────────────────────────────────────────────────────
 // Maps old frontend API calls (e.g. /api/dashboard) to the new v1 structure
@@ -339,8 +339,10 @@ router.use('/support', protect, supportRoutes);
 router.use('/v1/support', protect, supportRoutes);
 
 // ─── 180 Voiceforce (AI Voice Calling Engine) ──────────────────────────────
-router.use('/voiceforce', voiceforceRoutes);
-router.use('/v1/voiceforce', voiceforceRoutes);
+const voiceforceRouter = express.Router();
+voiceforceRouter.use((req: any, res: any) => res.json({ status: 'ok', service: 'voiceforce-external' }));
+router.use('/voiceforce', voiceforceRouter);
+router.use('/v1/voiceforce', voiceforceRouter);
 
 // ─── 180 Dedicated Prepaid Wallet Engine ──────────────────────────────────
 router.use('/wallet', walletRoutes);

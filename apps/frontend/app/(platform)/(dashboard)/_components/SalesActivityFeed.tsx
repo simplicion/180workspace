@@ -59,10 +59,11 @@ const SalesActivityFeed: React.FC<{ isLocked?: boolean }> = ({ isLocked: isLocke
             const response = await api.get('/api/v1/crm-and-sales/sales/activity');
             setActivities(response.data || []);
         } catch (error: any) {
-            if (error.response?.status === 403) {
+            if (error?.response?.status === 403) {
                 setIsLocked(true);
+            } else {
+                console.error('Failed to fetch sales activity:', error);
             }
-            console.error('Failed to fetch sales activity:', error);
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);

@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useRef, use } from 'react';
 import axios from 'axios';
-import { CheckCircle2, AlertCircle, Upload, Star, Calendar, Hash, FileText, ArrowRight, ChevronLeft, ChevronRight, Sparkles, Mail, Check } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Upload, Star, Calendar, Hash, FileText, ArrowRight, ChevronLeft, ChevronRight, Sparkles, Mail, Check, Sun, Moon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CustomSelect from '@/components/ui/CustomSelect';
 import CountryPhoneInput from '@/components/ui/CountryPhoneInput';
 import { LogoLoader } from "@workspace/ui";
 import clsx from 'clsx';
+import { useTheme } from '@/lib/theme-context';
 
 export default function PublicFormPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -28,6 +29,10 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submissionError, setSubmissionError] = useState<string>('');
 
+  // Public form theme: Connected to ThemeProvider which defaults to white (light) mode for /f/ routes
+  const { resolvedTheme, toggleTheme } = useTheme();
+  const theme = resolvedTheme;
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   // ─── Bulletproof iframe auto-resize engine ───────────────────────────────
@@ -36,10 +41,40 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
   const lastSentHeight = useRef(0);
   const resizeDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ─── Universal API Resolution ───────────────────────────────────────────
+  const getApiBaseUrl = (): string => {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (envUrl && envUrl !== 'undefined' && envUrl !== 'null' && envUrl.trim() !== '') {
+      return envUrl.replace(/\/$/, '');
+    }
+    if (typeof window !== 'undefined') {
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:4002';
+      }
+      if (window.location.hostname.endsWith('180workspace.com')) {
+        return 'https://api.180workspace.com';
+      }
+      return '';
+    }
+    return '';
+  };
+
   useEffect(() => {
     const fetchForm = async () => {
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/public/forms/${slug}`);
+        const apiBase = getApiBaseUrl();
+        const primaryUrl = apiBase ? `${apiBase}/api/public/forms/${slug}` : `/api/public/forms/${slug}`;
+        
+        let response;
+        try {
+          response = await axios.get(primaryUrl);
+        } catch (firstErr: any) {
+          if (apiBase && (firstErr?.code === 'ERR_NETWORK' || firstErr?.response?.status === 404)) {
+            response = await axios.get(`/api/public/forms/${slug}`);
+          } else {
+            throw firstErr;
+          }
+        }
         setForm(response.data.data.form);
       } catch (err: any) {
         setError(err.response?.data?.error || 'Form not found or is currently inactive.');
@@ -321,10 +356,25 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
     try {
       const processedData = { ...formData };
       
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/public/forms/${slug}/submit`, {
-        values: processedData,
-        referrer: typeof document !== 'undefined' ? document.referrer : ''
-      });
+      const apiBase = getApiBaseUrl();
+      const primaryUrl = apiBase ? `${apiBase}/api/public/forms/${slug}/submit` : `/api/public/forms/${slug}/submit`;
+      
+      let response;
+      try {
+        response = await axios.post(primaryUrl, {
+          values: processedData,
+          referrer: typeof document !== 'undefined' ? document.referrer : ''
+        });
+      } catch (firstErr: any) {
+        if (apiBase && (firstErr?.code === 'ERR_NETWORK' || firstErr?.response?.status === 404)) {
+          response = await axios.post(`/api/public/forms/${slug}/submit`, {
+            values: processedData,
+            referrer: typeof document !== 'undefined' ? document.referrer : ''
+          });
+        } else {
+          throw firstErr;
+        }
+      }
 
       const resData = response.data.data;
       
@@ -432,9 +482,36 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
     }
   };
 
+  const isEmbed = typeof window !== 'undefined' && window.location.search.includes('embed=true');
+
+  const ThemeToggle = (
+    <div className={clsx("transition-all", isEmbed ? "absolute top-3 right-3 z-30" : "fixed top-4 right-4 z-50")}>
+      <button
+        type="button"
+        onClick={toggleTheme}
+        title={theme === 'dark' ? "Switch to white / light mode" : "Switch to dark mode"}
+        aria-label={theme === 'dark' ? "Switch to white / light mode" : "Switch to dark mode"}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border border-zinc-200/90 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 shadow-md hover:shadow-lg transition-all hover:scale-105 active:scale-95 text-xs font-semibold select-none cursor-pointer"
+      >
+        {theme === 'dark' ? (
+          <>
+            <Sun className="w-3.5 h-3.5 text-amber-400" />
+            <span>Light</span>
+          </>
+        ) : (
+          <>
+            <Moon className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Dark</span>
+          </>
+        )}
+      </button>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[350px] bg-transparent">
+        {ThemeToggle}
         <LogoLoader size={36} className="w-9 h-9 text-indigo-600 animate-spin" />
       </div>
     );
@@ -442,7 +519,8 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
 
   if (error || !form) {
     return (
-      <div className="min-h-[350px] flex items-center justify-center p-4 bg-transparent">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-50 dark:bg-zinc-950">
+        {ThemeToggle}
         <div className="w-full max-w-md backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 p-8 rounded-2xl shadow-xl text-center">
           <div className="inline-flex bg-red-100 dark:bg-red-950/50 text-red-600 p-3 rounded-full mb-4">
             <AlertCircle className="w-6 h-6" />
@@ -453,8 +531,6 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
       </div>
     );
   }
-
-  const isEmbed = typeof window !== 'undefined' && window.location.search.includes('embed=true');
   const primaryButtonColor = settings.buttonColor || form.company?.primaryColor || '#4f46e5';
   const primaryTextColor = settings.buttonTextColor || '#ffffff';
   const submitText = settings.submitButtonText || 'Submit Form';
@@ -489,6 +565,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
         style={backgroundStyle}
       >
         {settings.customCss && <style dangerouslySetInnerHTML={{ __html: settings.customCss }} />}
+        {ThemeToggle}
         <div className="w-full min-h-screen sm:min-h-0 sm:max-w-lg backdrop-blur-md bg-white sm:bg-white/90 dark:bg-zinc-900/90 border-0 sm:border border-emerald-500/30 p-6 sm:p-10 rounded-none sm:rounded-2xl shadow-none sm:shadow-2xl text-center flex flex-col justify-center items-center animate-in fade-in zoom-in-95 duration-300">
           <div className="h-16 w-16 bg-emerald-100 dark:bg-emerald-950/60 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/20 shrink-0">
             <CheckCircle2 className="h-9 w-9 text-emerald-600 dark:text-emerald-400" />
@@ -527,6 +604,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ slug: str
       style={backgroundStyle}
     >
       {settings.customCss && <style dangerouslySetInnerHTML={{ __html: settings.customCss }} />}
+      {ThemeToggle}
       
       <div 
         className={clsx(

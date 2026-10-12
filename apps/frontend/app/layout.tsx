@@ -138,6 +138,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                         __html: `
                             (function() {
                                 try {
+                                    if (window.location.pathname.startsWith('/f/')) {
+                                        var formTheme = localStorage.getItem('180_form_theme');
+                                        if (formTheme === 'dark') {
+                                            document.documentElement.classList.add('dark');
+                                            document.documentElement.style.colorScheme = 'dark';
+                                        } else {
+                                            document.documentElement.classList.remove('dark');
+                                            document.documentElement.style.colorScheme = 'light';
+                                        }
+                                        return;
+                                    }
                                     var stored = localStorage.getItem('180_theme');
                                     var isDark = stored === 'dark' || (stored === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
                                     if (isDark) {

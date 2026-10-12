@@ -41,7 +41,6 @@
     "@workspace/rag": "workspace:*",
     "@workspace/settings": "workspace:*",
     "@workspace/traffic-director": "workspace:*",
-    "@workspace/voiceforce": "workspace:*",
     "@workspace/wallet": "workspace:*",
     "@workspace/workspace-tools": "workspace:*",
     "axios": "^1.13.6",

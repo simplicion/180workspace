@@ -24,7 +24,7 @@ export class BillingService {
         return settings;
     }
 
-    // â”€â”€â”€ Get Default / Free Plan
+    // ─── Get Default / Free Plan
     static async getOrCreateDefaultPlan(settings: any) {
         let plan = await prisma.plan.findFirst({
             where: { isActive: true, price: 0 },
@@ -39,27 +39,37 @@ export class BillingService {
         if (!plan) {
             plan = await prisma.plan.create({
                 data: {
-                    planName: 'Free Trial',
+                    planName: '180 Free Starter',
+                    providerPlanId: '180-free-starter',
                     price: 0,
-                    currency: 'INR',
+                    currency: 'USD',
                     billingCycle: 'monthly',
-                    maxUsers: settings.maxFreeUsers || 10,
-                    features: ['Core Platform features', 'Project Management', 'HR Module', 'Attendance'],
+                    maxUsers: 1,
+                    maxWebsites: 0,
+                    maxApps: 5,
+                    maxStorageBytes: 512 * 1024 * 1024,
+                    features: [
+                        'Access to Default Apps (Projects, Tools, Communications)',
+                        '1 Team Member Seat',
+                        'Up to 2 Active Projects',
+                        '512 MB Cloud Storage',
+                        'Unified Work Graph Isolation'
+                    ],
                     isActive: true,
-                    trialDays: settings.trialDays || 14
+                    trialDays: 0
                 }
             });
         }
         return plan;
     }
 
-    // â”€â”€â”€ Create Initial Trial Subscription (automatic start)
+    // ─── Create Initial Trial Subscription (automatic start)
     static async createTrialSubscription(companyId: string, userId: string) {
         const settings = await this.getPlatformSettingsInstance();
         const plan = await this.getOrCreateDefaultPlan(settings);
         
         const isForeverFree = plan.price === 0;
-        const trialDays = isForeverFree ? 0 : ((plan.trialDays > 0) ? plan.trialDays : (settings.trialDays || 14));
+        const trialDays = isForeverFree ? 0 : ((plan.trialDays > 0) ? plan.trialDays : (settings.trialDays || 15));
 
         const now = new Date();
         let trialEndDate = null;
@@ -616,21 +626,91 @@ export class BillingService {
         return { daysLeft: 0, isExpired: true, isWarning: false, isTrialing: false, status };
     }
 
-    // ——— Enforce User Limit
+    // ——— Enforce User Limit (Free: 1, Momentum: 5, Limitless: 20)
     static async enforceUserLimit(companyId: string) {
         const sub = await this.getActiveSubscription(companyId);
-        if (!sub || !sub.plan) return { allowed: true, current: 0, max: Infinity };
+        let maxUsers = 1; // Default Free plan
+        const plan = sub?.plan;
+        const isTrial = sub?.status?.toLowerCase() === 'trial';
 
-        let maxUsers = sub.plan.maxUsers;
-        if (!maxUsers || maxUsers <= 0) return { allowed: true, current: 0, max: Infinity };
-
+        if (isTrial) {
+            maxUsers = 20; // 15-day trial gets full Limitless quota
+        } else if (plan) {
+            const planName = (plan.planName || '').toLowerCase();
+            const providerPlanId = (plan.providerPlanId || '').toLowerCase();
+            if (planName.includes('limitless') || providerPlanId.includes('limitless') || Number(plan.price) >= 20) {
+                maxUsers = 20;
+            } else if (planName.includes('momentum') || providerPlanId.includes('momentum') || Number(plan.price) >= 17) {
+                maxUsers = 5;
+            } else if (plan.maxUsers && plan.maxUsers > 0) {
+                maxUsers = plan.maxUsers;
+            }
+        }
 
         const current = await prisma.user.count({
             where: { companyId, isActive: true, deletedAt: null }
         });
         const allowed = current < maxUsers;
 
-        return { allowed, current, max: maxUsers, plan: sub.plan.planName };
+        return { allowed, current, max: maxUsers, plan: sub?.plan?.planName || '180 Free Starter' };
+    }
+
+    // ——— Enforce Project Limit (Free: 2, Momentum: 5, Limitless: 20)
+    static async enforceProjectLimit(companyId: string) {
+        const sub = await this.getActiveSubscription(companyId);
+        let maxProjects = 2; // Default Free plan
+        const plan = sub?.plan;
+        const isTrial = sub?.status?.toLowerCase() === 'trial';
+
+        if (isTrial) {
+            maxProjects = 20; // 15-day trial gets full Limitless quota
+        } else if (plan) {
+            const planName = (plan.planName || '').toLowerCase();
+            const providerPlanId = (plan.providerPlanId || '').toLowerCase();
+            if (planName.includes('limitless') || providerPlanId.includes('limitless') || Number(plan.price) >= 20) {
+                maxProjects = 20;
+            } else if (planName.includes('momentum') || providerPlanId.includes('momentum') || Number(plan.price) >= 17) {
+                maxProjects = 5;
+            }
+        }
+
+        const current = await prisma.project.count({
+            where: { companyId, deletedAt: null, projectType: { not: 'social_media' } }
+        });
+        const allowed = current < maxProjects;
+
+        return { allowed, current, max: maxProjects, plan: sub?.plan?.planName || '180 Free Starter' };
+    }
+
+    // ——— Enforce Storage Limit (Free: 512MB, Momentum: 1GB, Limitless: 5GB)
+    static async enforceStorageLimit(companyId: string, additionalBytes: number = 0) {
+        const sub = await this.getActiveSubscription(companyId);
+        let maxStorageBytes = 512 * 1024 * 1024; // Free: 512 MB
+        const plan = sub?.plan;
+        const isTrial = sub?.status?.toLowerCase() === 'trial';
+
+        if (isTrial) {
+            maxStorageBytes = 5 * 1024 * 1024 * 1024; // 5 GB
+        } else if (plan) {
+            const planName = (plan.planName || '').toLowerCase();
+            const providerPlanId = (plan.providerPlanId || '').toLowerCase();
+            if (planName.includes('limitless') || providerPlanId.includes('limitless') || Number(plan.price) >= 20) {
+                maxStorageBytes = 5 * 1024 * 1024 * 1024; // 5 GB
+            } else if (planName.includes('momentum') || providerPlanId.includes('momentum') || Number(plan.price) >= 17) {
+                maxStorageBytes = 1 * 1024 * 1024 * 1024; // 1 GB
+            } else if (plan.maxStorageBytes) {
+                maxStorageBytes = plan.maxStorageBytes;
+            }
+        }
+
+        const storageAgg = await prisma.document.aggregate({
+            where: { companyId },
+            _sum: { fileSize: true }
+        });
+        const currentBytes = storageAgg._sum.fileSize || 0;
+        const allowed = (currentBytes + additionalBytes) <= maxStorageBytes;
+
+        return { allowed, currentBytes, maxStorageBytes, plan: sub?.plan?.planName || '180 Free Starter' };
     }
 
     // ——— Enforce Website Limit

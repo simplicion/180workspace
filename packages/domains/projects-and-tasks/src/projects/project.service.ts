@@ -94,6 +94,39 @@ export class ProjectService {
 
     static async createProject({ data, user }: { data: any, user: UserContext }) {
         if (!data.name) throw new Error('Project name is required');
+
+        if (user.companyId) {
+            const sub = await prisma.subscription.findFirst({
+                where: { companyId: user.companyId, status: { in: ['trial', 'active', 'ACTIVE'] } },
+                include: { plan: true },
+                orderBy: { createdAt: 'desc' }
+            });
+
+            let maxProjects = 2; // Free plan limit: 2 projects
+            const isTrial = sub?.status?.toLowerCase() === 'trial';
+            const plan = sub?.plan;
+
+            if (isTrial) {
+                maxProjects = 20; // 15-day trial gets full 20 projects
+            } else if (plan) {
+                const planName = (plan.planName || '').toLowerCase();
+                const providerPlanId = (plan.providerPlanId || '').toLowerCase();
+                if (planName.includes('limitless') || providerPlanId.includes('limitless') || Number(plan.price) >= 20) {
+                    maxProjects = 20; // Limitless: 20 projects
+                } else if (planName.includes('momentum') || providerPlanId.includes('momentum') || Number(plan.price) >= 17) {
+                    maxProjects = 5; // Momentum: 5 projects
+                }
+            }
+
+            const currentProjects = await prisma.project.count({
+                where: { companyId: user.companyId, deletedAt: null, projectType: { not: 'social_media' } }
+            });
+
+            if (currentProjects >= maxProjects) {
+                throw new Error(`Project quota exceeded (${currentProjects}/${maxProjects} projects created on ${plan?.planName || '180 Free Starter'}). Please upgrade your plan to create more projects.`);
+            }
+        }
+
         const project = await prisma.project.create({
             data: {
                 ...data,

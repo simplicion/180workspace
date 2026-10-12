@@ -98,7 +98,13 @@ function CheckoutContent() {
                 }
 
                 const { data } = await api.get('/api/v1/platform-billing/plans');
-                const selected = data.plans.find((p: any) => p.id === planId);
+                const selected = data.plans.find((p: any) => 
+                    p.id === planId || 
+                    p.providerPlanId === planId || 
+                    p.planCode === planId || 
+                    p.planName?.toLowerCase() === planId?.toLowerCase() ||
+                    p.planName?.toLowerCase().includes((planId || '').toLowerCase().replace('180-', ''))
+                );
                 if (!selected) {
                     toast.error('Invalid plan selected');
                     router.push('/settings/platform-billing');

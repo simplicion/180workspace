@@ -330,8 +330,8 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 const hasActivePlan = !isExpired && status !== 'expired' && status !== 'cancelled' && status !== 'No Active Plan';
                 
                 let isAppEnabled = false;
-                if (!item.appId) {
-                    isAppEnabled = true; // Settings, Dashboard, etc.
+                if (!item.appId || isDefaultApp) {
+                    isAppEnabled = true; // Settings, Dashboard, and Default Apps (Projects, Communications, Workspace Tools) are ALWAYS active
                 } else if (hasActivePlan) {
                     // Check against the plan's max apps
                     const maxApps = plan?.maxApps === -1 ? 999 : (plan?.maxApps || 50);
@@ -344,15 +344,10 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     );
                     const allowedSubset = customApps.slice(0, maxApps);
                     
-                    // Default apps are always available and don't count towards the limit
-                    if (isDefaultApp) {
-                        isAppEnabled = companyEnabledApps.includes(item.appId);
-                    } else {
-                        isAppEnabled = allowedSubset.includes(item.appId);
-                    }
+                    isAppEnabled = allowedSubset.includes(item.appId);
                 } else {
-                    // No active plan: only allow default apps if they are in enabledApps
-                    isAppEnabled = isDefaultApp && (company?.enabledApps || []).includes(item.appId);
+                    // No active plan: only default apps are allowed
+                    isAppEnabled = false;
                 }
 
                 // 2. Filter individual modules within the group
@@ -360,6 +355,11 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                     const hasGranularAccess = subItem.id && user?.permissions?.includes(subItem.id);
                     const roleMatch = userRoles.some(r => subItem.roles?.includes(r as string)) || hasGranularAccess;
                     if (!roleMatch) return false;
+
+                    // Core modules of default apps (Projects, Communications, Workspace Tools) are always available
+                    if (isDefaultApp) {
+                        return true;
+                    }
 
                     // Only check module enablement if this group belongs to a configurable app
                     if (item.appId && isAppEnabled && subItem.id && company?.enabledModules) {
@@ -387,8 +387,11 @@ function Sidebar({ isCollapsed, setIsCollapsed, isHovered, setIsHovered }: Sideb
                 // Handle single items (180 View, Website Builder, etc.)
                 const singleItem = item as any;
                 if (singleItem.appId && isAppDisabledByAdmin(singleItem.appId)) return null;
+                const defaultApps = ['projects', 'communications', 'workspace-tools'];
+                const isSingleDefault = singleItem.appId ? defaultApps.includes(singleItem.appId) : false;
                 if (userRoles.some(r => singleItem.roles?.includes(r as string))) {
-                    if (singleItem.appId && company?.enabledApps && Array.isArray(company.enabledApps) && company.enabledApps.length > 0) {
+                    if (!singleItem.appId || isSingleDefault) return item;
+                    if (company?.enabledApps && Array.isArray(company.enabledApps) && company.enabledApps.length > 0) {
                         const isAdvertisingAlias = singleItem.appId === 'advertising' || singleItem.appId === 'website-builder' || singleItem.appId === 'ad-websites';
                         const isAppEnabled = company.enabledApps.includes(singleItem.appId) ||
                             (isAdvertisingAlias && (company.enabledApps.includes('advertising') || company.enabledApps.includes('website-builder') || company.enabledApps.includes('ad-websites')));

@@ -9,38 +9,91 @@ export const ALL_PLATFORM_APPS = [
 ];
 
 export function isPaidPlanFor(plan: any, currentSubscription: any): boolean {
+    const isTrialActive = currentSubscription?.status?.toLowerCase() === 'trial' && 
+        (!currentSubscription.trialEndDate || new Date() <= new Date(currentSubscription.trialEndDate));
+    
+    const isSubscriptionActive = currentSubscription && 
+        ['active', 'trial'].includes(currentSubscription.status?.toLowerCase());
+
     return Boolean(
+        isTrialActive ||
+        (isSubscriptionActive && plan && Number(plan.price) > 0) ||
         (plan && Number(plan.price) > 0) ||
-        (currentSubscription && currentSubscription.status?.toUpperCase() === 'ACTIVE' && plan && Number(plan.price) > 0) ||
         (plan && (plan.planName?.toLowerCase().includes('limitless') || plan.planName?.toLowerCase().includes('momentum')))
     );
 }
 
-export function effectiveEnabledAppsFor(rawEnabledApps: string[], isPaidPlan: boolean, plan?: any): string[] {
-    const validPlatformApps = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder', 'voiceforce'];
-    const systemApps = ['system', 'settings'];
+export function getMaxUsersForPlan(plan?: any, subscription?: any): number {
+    const isTrial = subscription?.status?.toLowerCase() === 'trial';
+    const planName = (plan?.planName || '').toLowerCase();
+    const providerPlanId = (plan?.providerPlanId || '').toLowerCase();
 
-    // If on unlimited plan (Limitless or maxApps >= 999 or -1), unlock all 8 platform apps
-    const isUnlimited = plan && (plan.maxApps === -1 || plan.maxApps >= 999 || plan.planName?.toLowerCase().includes('limitless'));
-    if (isPaidPlan && isUnlimited) {
-        return Array.from(new Set([...systemApps, ...validPlatformApps]));
+    if (isTrial || planName.includes('limitless') || providerPlanId.includes('limitless') || (plan && Number(plan.price) >= 20)) {
+        return 20;
+    }
+    if (planName.includes('momentum') || providerPlanId.includes('momentum') || (plan && Number(plan.price) >= 17)) {
+        return 5;
+    }
+    return plan?.maxUsers && plan.maxUsers > 0 ? plan.maxUsers : 1;
+}
+
+export function getMaxProjectsForPlan(plan?: any, subscription?: any): number {
+    const isTrial = subscription?.status?.toLowerCase() === 'trial';
+    const planName = (plan?.planName || '').toLowerCase();
+    const providerPlanId = (plan?.providerPlanId || '').toLowerCase();
+
+    if (isTrial || planName.includes('limitless') || providerPlanId.includes('limitless') || (plan && Number(plan.price) >= 20)) {
+        return 20;
+    }
+    if (planName.includes('momentum') || providerPlanId.includes('momentum') || (plan && Number(plan.price) >= 17)) {
+        return 5;
+    }
+    return 2;
+}
+
+export function getMaxStorageBytesForPlan(plan?: any, subscription?: any): number {
+    const isTrial = subscription?.status?.toLowerCase() === 'trial';
+    const planName = (plan?.planName || '').toLowerCase();
+    const providerPlanId = (plan?.providerPlanId || '').toLowerCase();
+
+    if (isTrial || planName.includes('limitless') || providerPlanId.includes('limitless') || (plan && Number(plan.price) >= 20)) {
+        return 5 * 1024 * 1024 * 1024; // 5 GB
+    }
+    if (planName.includes('momentum') || providerPlanId.includes('momentum') || (plan && Number(plan.price) >= 17)) {
+        return 1 * 1024 * 1024 * 1024; // 1 GB
+    }
+    return plan?.maxStorageBytes || (512 * 1024 * 1024); // 512 MB Free
+}
+
+export function effectiveEnabledAppsFor(rawEnabledApps: string[], isPaidPlan: boolean, plan?: any, subscription?: any): string[] {
+    const systemApps = ['system', 'settings'];
+    const defaultApps = ['projects', 'communications', 'workspace-tools'];
+    const momentumApps = [...defaultApps, 'crm', 'finance', 'website-builder', 'voiceforce'];
+    const allApps = ['projects', 'communications', 'workspace-tools', 'crm', 'hr', 'finance', 'advertising', 'website-builder', 'voiceforce'];
+
+    const isTrial = subscription?.status?.toLowerCase() === 'trial';
+    const planName = (plan?.planName || '').toLowerCase();
+    const providerPlanId = (plan?.providerPlanId || '').toLowerCase();
+    const isLimitless = isTrial || planName.includes('limitless') || providerPlanId.includes('limitless') || (plan && Number(plan.price) >= 20);
+    const isMomentum = planName.includes('momentum') || providerPlanId.includes('momentum') || (plan && Number(plan.price) >= 17);
+
+    // If on Free plan or not paid, strictly only default apps (projects, communications, workspace-tools) are accessible
+    if (!isPaidPlan && !isTrial) {
+        return Array.from(new Set([...systemApps, ...defaultApps]));
     }
 
-    // Default core apps always available in 180workspace
-    const defaultApps = ['projects', 'communications', 'workspace-tools'];
-    
-    // Sanitize rawEnabledApps to only valid platform apps + system apps
-    const sanitizedRaw = (rawEnabledApps || []).filter(a => validPlatformApps.includes(a) || systemApps.includes(a));
-    const merged = Array.from(new Set([...systemApps, ...defaultApps, ...sanitizedRaw]));
+    // Limitless or Trial: Full access to all platform apps
+    if (isLimitless) {
+        return Array.from(new Set([...systemApps, ...allApps]));
+    }
 
-    // Determine plan maxApps limit (e.g. Kickstart: 5, Momentum: 7)
-    const maxApps = plan?.maxApps && plan.maxApps !== -1 && plan.maxApps < 999 ? plan.maxApps : validPlatformApps.length;
-    
-    // Separate system and non-system apps to ensure system apps don't consume seat quotas
-    const nonSystem = merged.filter(a => !systemApps.includes(a));
-    const capped = nonSystem.slice(0, maxApps);
+    // Momentum: 8 apps (core + CRM, Finance, Website Builder, Voice Force)
+    if (isMomentum) {
+        return Array.from(new Set([...systemApps, ...momentumApps]));
+    }
 
-    return Array.from(new Set([...systemApps, ...capped]));
+    // Fallback: Default apps
+    return Array.from(new Set([...systemApps, ...defaultApps]));
 }
 
 function isDisabledByAdmin(appId: string, disabledApps: string[], flags: Record<string, boolean>): boolean {
@@ -78,7 +131,11 @@ export async function computeEntitlements(companyId: string) {
     const enabledModules: string[] = Array.isArray(meta.enabledModules) ? meta.enabledModules : [];
 
     const isPaidPlan = isPaidPlanFor(plan, currentSubscription);
-    const enabledApps = effectiveEnabledAppsFor(rawEnabledApps, isPaidPlan, plan);
+    const enabledApps = effectiveEnabledAppsFor(rawEnabledApps, isPaidPlan, plan, currentSubscription);
+
+    const maxUsers = getMaxUsersForPlan(plan, currentSubscription);
+    const maxProjects = getMaxProjectsForPlan(plan, currentSubscription);
+    const maxStorageBytes = getMaxStorageBytesForPlan(plan, currentSubscription);
 
     // Superadmin kill-switch (same source as the web's settings-context). Not tenant data: platform-wide flags.
     const { FeatureFlagService } = require('@workspace/platform-admin');
@@ -93,6 +150,9 @@ export async function computeEntitlements(companyId: string) {
         isPaidPlan,
         enabledApps,
         enabledModules,
+        maxUsers,
+        maxProjects,
+        maxStorageBytes,
         disabledByAdmin: disabledApps,
         /** What the client should actually show: enabled for this company AND not killed by the platform admin. */
         availableApps: enabledApps.filter((a) => !isDisabledByAdmin(a, disabledApps, flags)),

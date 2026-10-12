@@ -336,17 +336,7 @@ async function bootstrap() {
             AIJobsService.init(); // Proactive AI Alerts
             AICronService.initCronJobs(); // AI Background Processes
 
-            // Initialize Voiceforce BullMQ Outbound & Post-Call Worker
-            try {
-                const { setupVoiceforceWorker } = require('@workspace/voiceforce');
-                const { redis } = require('./src/system-configs/config/redis');
-                const vfWorker = setupVoiceforceWorker(redis);
-                if (vfWorker) {
-                    console.log('✅ Voiceforce BullMQ worker active on voiceforce-queue');
-                }
-            } catch (vfErr) {
-                console.warn('⚠️ [Bootstrap] Voiceforce worker failed to start:', vfErr.message);
-            }
+            // Voiceforce BullMQ worker is now running in dedicated Voice Force backend (port 4005)
         }
     } catch (err) {
         console.error('❌ Bootstrap failed:', err);

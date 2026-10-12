@@ -88,30 +88,51 @@ export class SubscriptionService {
       where: { companyId }
     });
 
-    if (!subscription || !subscription.plan || !companyConfig) {
-      // Dynamic fallback to the starter/free plan
-      const freePlan = await prisma.plan.findFirst({ where: { price: 0 }});
-      if (freePlan && companyConfig) {
-        return {
-          planName: freePlan.planName,
-          maxUsers: freePlan.maxUsers,
-          maxApps: freePlan.maxApps,
-          maxStorageBytes: freePlan.maxStorageBytes,
-          storageUsedBytes: companyConfig.storageUsedBytes || 0,
-          status: 'active',
-          trialEndDate: null
-        };
-      }
-      return null;
+    const isTrial = subscription?.status?.toLowerCase() === 'trial';
+    const plan = subscription?.plan;
+    const planName = (plan?.planName || '').toLowerCase();
+    const providerPlanId = (plan?.providerPlanId || '').toLowerCase();
+
+    let maxUsers = 1;
+    let maxProjects = 2;
+    let maxStorageBytes = 512 * 1024 * 1024; // 512 MB Free
+    let maxApps = 5;
+
+    if (isTrial || planName.includes('limitless') || providerPlanId.includes('limitless') || (plan && Number(plan.price) >= 20)) {
+      maxUsers = 20;
+      maxProjects = 20;
+      maxStorageBytes = 5 * 1024 * 1024 * 1024; // 5 GB
+      maxApps = 999;
+    } else if (planName.includes('momentum') || providerPlanId.includes('momentum') || (plan && Number(plan.price) >= 17)) {
+      maxUsers = 5;
+      maxProjects = 5;
+      maxStorageBytes = 1 * 1024 * 1024 * 1024; // 1 GB
+      maxApps = 8;
+    } else if (plan) {
+      if (plan.maxUsers && plan.maxUsers > 0) maxUsers = plan.maxUsers;
+      if (plan.maxStorageBytes) maxStorageBytes = plan.maxStorageBytes;
+      if (plan.maxApps) maxApps = plan.maxApps;
     }
 
-    const plan = subscription.plan;
-    const maxStorageBytes = plan.maxStorageBytes;
-    const maxApps = plan.maxApps;
+    if (!subscription || !subscription.plan || !companyConfig) {
+      // Dynamic fallback to the starter/free plan
+      const freePlan = await prisma.plan.findFirst({ where: { price: 0 } });
+      return {
+        planName: freePlan?.planName || '180 Free Starter',
+        maxUsers: 1,
+        maxProjects: 2,
+        maxApps: 5,
+        maxStorageBytes: 512 * 1024 * 1024,
+        storageUsedBytes: companyConfig?.storageUsedBytes || 0,
+        status: 'active',
+        trialEndDate: null
+      };
+    }
 
     return {
       planName: plan.planName,
-      maxUsers: plan.maxUsers,
+      maxUsers,
+      maxProjects,
       maxApps,
       maxStorageBytes,
       storageUsedBytes: companyConfig.storageUsedBytes || 0,

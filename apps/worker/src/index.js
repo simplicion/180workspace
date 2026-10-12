@@ -9,14 +9,7 @@ const setupEmailWorker = require('./workers/emailWorker');
 const setupNotificationWorker = require('./workers/notificationWorker');
 const setupAutomationWorker = require('./workers/automationWorker');
 const setupAIWorker = require('./workers/aiWorker');
-let setupVoiceforceWorker;
-try {
-    setupVoiceforceWorker = require('@workspace/voiceforce').setupVoiceforceWorker || require('./workers/voiceforceWorker');
-} catch (e) {
-    try {
-        setupVoiceforceWorker = require('./workers/voiceforceWorker');
-    } catch { }
-}
+// Voiceforce worker is now active in dedicated Voice Force backend (port 4005)
 
 // Crons
 // Note: subscriptionCron might need minor path updates if it required local files, but it runs on init.

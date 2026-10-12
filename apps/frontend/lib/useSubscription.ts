@@ -115,10 +115,13 @@ export function useSubscription(): SubscriptionStatus {
         ? data.enabledApps
         : (Array.isArray(data?.companyConfig?.enabledApps) ? data.companyConfig.enabledApps : []);
 
-    // If on a paid plan, unlock all platform apps unconditionally
+const DEFAULT_CORE_APPS = ['system', 'settings', 'projects', 'communications', 'workspace-tools'];
+
+    // If on a paid plan, unlock all platform apps unconditionally.
+    // In free plan, always guarantee core default apps are active.
     const effectiveEnabledApps: string[] = isPaidPlan
         ? Array.from(new Set([...rawEnabledApps, ...ALL_PLATFORM_APPS]))
-        : rawEnabledApps;
+        : Array.from(new Set([...rawEnabledApps, ...DEFAULT_CORE_APPS]));
 
     const enrichedCompanyConfig = {
         ...(data?.companyConfig || {}),
@@ -131,8 +134,10 @@ export function useSubscription(): SubscriptionStatus {
         if (!appId) return true;
         // Superadmin feature flag killswitch overrides everything
         if (isAppDisabledByAdmin && isAppDisabledByAdmin(appId)) return false;
-        if (isPaidPlan) return true;
         const normalized = appId.toLowerCase().trim();
+        // Core default apps are permanently active across all plans
+        if (DEFAULT_CORE_APPS.includes(normalized)) return true;
+        if (isPaidPlan) return true;
         if (normalized === 'website-builder' || normalized === 'advertising' || normalized === 'ad-websites') {
             return effectiveEnabledApps.some((a: string) => ['advertising', 'website-builder', 'ad-websites'].includes(a.toLowerCase().trim()));
         }

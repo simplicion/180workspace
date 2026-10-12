@@ -43,6 +43,10 @@ export class AuthService {
             throw AppError.conflict('User already exists');
         }
 
+        const trialStartDate = new Date();
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialStartDate.getDate() + 15);
+
         const company = await globalPrisma.company.create({
             data: {
                 name: companyName,
@@ -50,11 +54,37 @@ export class AuthService {
                 databaseConfigured: true, 
                 isOnboardingComplete: false,
                 logoUrl: logoBase64 || null,
-                subscriptionStatus: 'active',
-                trialStartDate: null,
-                trialEndDate: null,
+                subscriptionStatus: 'trial',
+                trialStartDate,
+                trialEndDate,
             },
         });
+
+        const limitlessPlan = await globalPrisma.plan.findFirst({
+            where: {
+                OR: [
+                    { providerPlanId: '180-limitless' },
+                    { planName: { contains: 'Limitless', mode: 'insensitive' } }
+                ]
+            }
+        });
+
+        if (limitlessPlan) {
+            await globalPrisma.subscription.create({
+                data: {
+                    companyId: company.id,
+                    planId: limitlessPlan.id,
+                    status: 'trial',
+                    provider: 'none',
+                    trialStartDate,
+                    trialEndDate,
+                    subscriptionStartDate: trialStartDate,
+                    subscriptionEndDate: trialEndDate,
+                    mandateStatus: 'bypassed',
+                    amount: limitlessPlan.price
+                }
+            }).catch(e => console.warn('Failed to seed trial subscription:', e.message));
+        }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
