@@ -197,9 +197,9 @@ export class AuthController {
                         process.env.CORE_BACKEND_INTERNAL_URL,
                         process.env.IDENTITY_SERVER_URL,
                         process.env.CORE_BACKEND_URL,
-                        'https://services.180workspace.com',
-                        'http://localhost:4003'
                     ].filter(Boolean) as string[];
+
+                    const clientId = process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '';
 
                     for (const coreUrl of candidateCoreUrls) {
                         try {
@@ -210,7 +210,7 @@ export class AuthController {
                                 body: JSON.stringify({
                                     grant_type: 'refresh_token',
                                     refresh_token: presented,
-                                    client_id: '180_client_266753c1171df1e2c4a391483fd2e02e'
+                                    client_id: clientId
                                 })
                             });
                             if (coreRes.ok) {
@@ -489,16 +489,16 @@ export class AuthController {
 
             const identityServerUrl =
                 process.env.CORE_BACKEND_INTERNAL_URL ||
-                (process.env.NODE_ENV === 'production' && (!process.env.IDENTITY_SERVER_URL || process.env.IDENTITY_SERVER_URL.includes('localhost'))
-                    ? 'https://services.180workspace.com'
-                    : (process.env.IDENTITY_SERVER_URL || process.env.CORE_BACKEND_URL || 'http://localhost:4003'));
+                process.env.IDENTITY_SERVER_URL ||
+                process.env.CORE_BACKEND_URL ||
+                '';
             const clientId =
                 process.env.ONE_EIGHTY_CLIENT_ID ||
                 process.env.NEXT_PUBLIC_180_CLIENT_ID ||
-                '180_client_70d751541f05347fe803ec8e128f5e83';
+                '';
             const clientSecret =
                 process.env.ONE_EIGHTY_CLIENT_SECRET ||
-                '180_secret_workspace_core_dev_key';
+                '';
 
             if (!identityServerUrl || !clientId || !clientSecret) {
                 console.error('[180 Identity Callback Error]: Missing ONE_EIGHTY_CLIENT_ID, ONE_EIGHTY_CLIENT_SECRET, or IDENTITY_SERVER_URL in environment');

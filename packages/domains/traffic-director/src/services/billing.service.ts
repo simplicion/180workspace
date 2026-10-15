@@ -168,7 +168,7 @@ export class TrafficDirectorBillingService {
 
     try {
       const { clientId } = this.getClientCredentials();
-      const projectAppId = process.env.TRAFFIC_DIRECTOR_PROJECT_ID || '7697a348-7550-4229-9595-08ba67aa9755';
+      const projectAppId = process.env.TRAFFIC_DIRECTOR_PROJECT_ID || clientId;
 
       // 1. Fetch live subscription plans registered under this project in 180 Pay
       const corePrisma = getCorePrisma();
@@ -270,18 +270,13 @@ export class TrafficDirectorBillingService {
     if (process.env.CORE_BACKEND_URL) {
       return process.env.CORE_BACKEND_URL;
     }
-    if (process.env.IDENTITY_SERVER_URL && !process.env.IDENTITY_SERVER_URL.includes('localhost')) {
-      return process.env.IDENTITY_SERVER_URL;
-    }
-    return 'https://services.180workspace.com';
+    return process.env.IDENTITY_SERVER_URL || '';
   }
 
   private static getClientCredentials(): { clientId: string; clientSecret: string } {
     return {
-      clientId: process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '180_client_b26aee801c22cb3295f041ff2a3597db',
-      clientSecret:
-        process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET ||
-        '180_secret_655c7f44063bb7cf145b316e9cbab460765e8a5af090369ab2f37e34a2c16a11',
+      clientId: process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '',
+      clientSecret: process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || '',
     };
   }
 
@@ -654,12 +649,8 @@ export class TrafficDirectorBillingService {
 
     // Find candidate apps for Traffic Director
     const candidateAppIds = [
-      '7697a348-7550-4229-9595-08ba67aa9755',
-      'f037c87a-a294-443f-b15e-6e40c0df6391',
       process.env.TRAFFIC_DIRECTOR_PROJECT_ID,
       process.env.TRAFFIC_DIRECTOR_CLIENT_ID,
-      '180-traffic-director',
-      '180_client_b26aee801c22cb3295f041ff2a3597db',
     ].filter(Boolean) as string[];
 
     // Fetch matching coupon from 180 Core database if connected or via remote API
@@ -809,9 +800,9 @@ export class TrafficDirectorBillingService {
 
     const candidateUrls = Array.from(new Set([
       payBaseUrl,
-      'https://services.180workspace.com',
-      'http://localhost:4003',
-      'http://127.0.0.1:4003',
+      process.env.CORE_BACKEND_INTERNAL_URL,
+      process.env.CORE_BACKEND_URL,
+      process.env.IDENTITY_SERVER_URL,
     ])).filter(Boolean) as string[];
 
     let sessionResponse: any = null;

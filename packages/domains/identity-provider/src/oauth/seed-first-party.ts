@@ -1,5 +1,6 @@
 'use strict';
 
+import crypto from 'crypto';
 import { developersPrisma as prisma } from '@workspace/db-180core';
 import { hashSecret } from './oauth.service';
 
@@ -289,8 +290,8 @@ export const FIRST_PARTY_APPS = [
         authMobileDefault: 'bottom_sheet',
         payDesktopDefault: 'bottom_sheet',
         payMobileDefault: 'bottom_sheet',
-        webhookUrl: process.env.TRAFFIC_DIRECTOR_WEBHOOK_URL || 'http://localhost:4002/api/v1/traffic-director/billing/webhook',
-        webhookSecret: process.env.TRAFFIC_DIRECTOR_WEBHOOK_SECRET || '180_webhook_traffic_director_prod_sec_991823',
+        webhookUrl: process.env.TRAFFIC_DIRECTOR_WEBHOOK_URL || '',
+        webhookSecret: process.env.TRAFFIC_DIRECTOR_WEBHOOK_SECRET || '',
         logoUrl: '/icon.svg'
     },
     {
@@ -561,12 +562,13 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
 
             const knownSecret =
                 app.clientId === '180_client_70d751541f05347fe803ec8e128f5e83'
-                    ? (process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_a58c34e77528dc342871ecc66c41e9f06522223896b851a4338eee40e2bc2276')
+                    ? (process.env.ONE_EIGHTY_CLIENT_SECRET || '')
                     : app.clientId === '180-traffic-director'
-                        ? (process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || '180_secret_traffic_director_prod_key_771829')
+                        ? (process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || '')
                         : app.clientId === '180_client_5cc136397553836e34eb37ce22d13a53'
-                            ? (process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_workspace_core_prod_key_5cc136')
-                            : `180_secret_${app.clientId}`;
+                            ? (process.env.ONE_EIGHTY_CLIENT_SECRET || '')
+                            : (process.env[`CLIENT_SECRET_${app.clientId.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`] || '');
+            const effectiveSecret = knownSecret || crypto.randomBytes(32).toString('hex');
 
             if (!existing) {
                 await prisma.oAuthApp.create({
@@ -574,8 +576,8 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
                         name: app.name,
                         description: app.description,
                         clientId: app.clientId,
-                        clientSecretHash: hashSecret(knownSecret),
-                        clientSecretHint: knownSecret.slice(-4),
+                        clientSecretHash: hashSecret(effectiveSecret),
+                        clientSecretHint: effectiveSecret.slice(-4),
                         redirectUris: app.redirectUris,
                         allowedOrigins: app.allowedOrigins,
                         allowedScopes: app.allowedScopes,
@@ -883,12 +885,14 @@ export async function seedFirstPartyOAuthApps(): Promise<void> {
 export function isFirstPartyApp(clientIdOrId: string | undefined | null): boolean {
     if (!clientIdOrId) return false;
     const clean = String(clientIdOrId).trim().toLowerCase();
+    const envClientId = (process.env.ONE_EIGHTY_CLIENT_ID || '').trim().toLowerCase();
+    const envPubClientId = (process.env.NEXT_PUBLIC_180_CLIENT_ID || '').trim().toLowerCase();
     if (
         clean === '180-core' ||
         clean === '180-workspace-platform' ||
         clean === '180workspace' ||
-        clean === '180_client_70d751541f05347fe803ec8e128f5e83' ||
-        clean === '180_client_266753c1171df1e2c4a391483fd2e02e'
+        (envClientId && clean === envClientId) ||
+        (envPubClientId && clean === envPubClientId)
     ) {
         return true;
     }

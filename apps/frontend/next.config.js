@@ -48,6 +48,8 @@ const nextConfig = {
             { protocol: 'https', hostname: 'api.dicebear.com' },
             { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
             { protocol: 'https', hostname: 'images.unsplash.com' },
+            { protocol: 'https', hostname: 'pub-aea1cef4fdee45bb865779983163a264.r2.dev' },
+            { protocol: 'https', hostname: '**.r2.dev' },
             { protocol: 'https', hostname: 'pub-fe44d8a6e623474c9fa7a81b855fb631.r2.dev' },
         ],
     },

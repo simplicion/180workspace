@@ -92,10 +92,10 @@ export function CompanyHeaderEditModal({ company, isOpen, onClose, onSave }: Com
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             
             {/* Modal */}
-            <div className="relative bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl shadow-xl flex flex-col animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-8 sm:zoom-in-95 duration-200">
-                <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900">Edit Company Profile</h2>
-                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+            <div className="relative bg-white dark:bg-zinc-900 w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl shadow-xl flex flex-col border border-transparent dark:border-zinc-800 animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-8 sm:zoom-in-95 duration-200">
+                <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100 dark:border-zinc-800">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">Edit Company Profile</h2>
+                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
                         <X className="h-5 w-5" />
                     </button>
                 </div>
@@ -104,67 +104,67 @@ export function CompanyHeaderEditModal({ company, isOpen, onClose, onSave }: Com
                     <form id="header-edit-form" onSubmit={handleSubmit} className="space-y-6">
                         {/* Images Section */}
                         <div className="space-y-4">
-                            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Images</h3>
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-zinc-100 uppercase tracking-wider">Images</h3>
                             
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Banner Image URL (16:9)</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Banner Image URL (16:9)</label>
                                 <div className="flex space-x-2">
-                                    <input type="text" name="bannerUrl" value={formData.bannerUrl} onChange={handleChange} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="https://..." />
-                                    <label className={`flex flex-col items-center justify-center px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors ${uploadingField === 'bannerUrl' ? 'opacity-70 pointer-events-none' : ''}`}>
-                                        {uploadingField === 'bannerUrl' ? <LogoLoader className="h-4 w-4 animate-spin text-gray-600" /> : <Upload className="h-4 w-4 text-gray-600" />}
+                                    <input type="text" name="bannerUrl" value={formData.bannerUrl} onChange={handleChange} className="flex-1 px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-zinc-500" placeholder="https://..." />
+                                    <label className={`flex flex-col items-center justify-center px-4 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors ${uploadingField === 'bannerUrl' ? 'opacity-70 pointer-events-none' : ''}`}>
+                                        {uploadingField === 'bannerUrl' ? <LogoLoader className="h-4 w-4 animate-spin text-gray-600 dark:text-zinc-400" /> : <Upload className="h-4 w-4 text-gray-600 dark:text-zinc-400" />}
                                         <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'bannerUrl')} disabled={!!uploadingField} />
                                     </label>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL (Square)</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Logo URL (Square)</label>
                                 <div className="flex space-x-2">
-                                    <input type="text" name="logoUrl" value={formData.logoUrl} onChange={handleChange} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="https://..." />
-                                    <label className={`flex flex-col items-center justify-center px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors ${uploadingField === 'logoUrl' ? 'opacity-70 pointer-events-none' : ''}`}>
-                                        {uploadingField === 'logoUrl' ? <LogoLoader className="h-4 w-4 animate-spin text-gray-600" /> : <Upload className="h-4 w-4 text-gray-600" />}
+                                    <input type="text" name="logoUrl" value={formData.logoUrl} onChange={handleChange} className="flex-1 px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-zinc-500" placeholder="https://..." />
+                                    <label className={`flex flex-col items-center justify-center px-4 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors ${uploadingField === 'logoUrl' ? 'opacity-70 pointer-events-none' : ''}`}>
+                                        {uploadingField === 'logoUrl' ? <LogoLoader className="h-4 w-4 animate-spin text-gray-600 dark:text-zinc-400" /> : <Upload className="h-4 w-4 text-gray-600 dark:text-zinc-400" />}
                                         <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'logoUrl')} disabled={!!uploadingField} />
                                     </label>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">Logo will be automatically adapted to a circle in the profile view.</p>
+                                <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">Logo will be automatically adapted to a circle in the profile view.</p>
                             </div>
                         </div>
 
                         {/* Basic Info */}
-                        <div className="space-y-4 pt-4 border-t border-gray-100">
-                            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Basic Info</h3>
+                        <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-zinc-800">
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-zinc-100 uppercase tracking-wider">Basic Info</h3>
                             
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                                <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" required />
+                                <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Company Name</label>
+                                <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-zinc-500" required />
                             </div>
                             
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">One Line Description / Title</label>
-                                <input type="text" name="oneLineDescription" value={formData.oneLineDescription} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+                                <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">One Line Description / Title</label>
+                                <input type="text" name="oneLineDescription" value={formData.oneLineDescription} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Location (Headquarters)</label>
-                                    <input type="text" name="headquarters" value={formData.headquarters} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Location (Headquarters)</label>
+                                    <input type="text" name="headquarters" value={formData.headquarters} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Domain / Website</label>
-                                    <input type="text" name="website" value={formData.website} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Domain / Website</label>
+                                    <input type="text" name="website" value={formData.website} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Founded Date</label>
-                                <input type="date" name="foundedDate" value={formData.foundedDate} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
+                                <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Founded Date</label>
+                                <input type="date" name="foundedDate" value={formData.foundedDate} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" />
                             </div>
                         </div>
                     </form>
                 </div>
 
-                <div className="p-4 sm:p-6 border-t border-gray-100 flex items-center justify-end space-x-3 bg-gray-50 rounded-b-2xl">
-                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="p-4 sm:p-6 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-end space-x-3 bg-gray-50 dark:bg-zinc-900/80 rounded-b-2xl">
+                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
                         Cancel
                     </button>
                     <button type="submit" form="header-edit-form" disabled={isLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70 disabled:cursor-not-allowed">

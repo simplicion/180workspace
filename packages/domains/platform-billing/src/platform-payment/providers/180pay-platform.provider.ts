@@ -10,11 +10,11 @@ export class OneEightyPayPlatformProvider implements PlatformPaymentProviderInte
 
     constructor(credentials: any = {}) {
         const isProd = process.env.NODE_ENV === 'production';
-        this.clientId = credentials.clientId || process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_70d751541f05347fe803ec8e128f5e83';
-        this.clientSecret = credentials.clientSecret || process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_a58c34e77528dc342871ecc66c41e9f06522223896b851a4338eee40e2bc2276';
-        this.webhookSecret = credentials.webhookSecret || process.env.ONE_EIGHTY_WEBHOOK_SECRET || 'whsec_03cfffd0fcf90f5b91c9ea7933127b134468a61c9aca49ea';
-        this.apiUrl = credentials.apiUrl || process.env.ONE_EIGHTY_API_URL || (isProd ? 'https://services.180workspace.com' : 'http://localhost:4003');
-        this.payUrl = credentials.payUrl || process.env.NEXT_PUBLIC_180_PAY_URL || (isProd ? 'https://pay.180workspace.com' : 'http://localhost:3009');
+        this.clientId = credentials.clientId || process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '';
+        this.clientSecret = credentials.clientSecret || process.env.ONE_EIGHTY_CLIENT_SECRET || '';
+        this.webhookSecret = credentials.webhookSecret || process.env.ONE_EIGHTY_WEBHOOK_SECRET || '';
+        this.apiUrl = credentials.apiUrl || process.env.ONE_EIGHTY_API_URL || '';
+        this.payUrl = credentials.payUrl || process.env.NEXT_PUBLIC_180_PAY_URL || '';
     }
 
     async createCheckoutSession(params: {

@@ -8,7 +8,7 @@ import {
     generateRandomToken,
     hashSecret,
     DeveloperController
-} from '@workspace/identity';
+} from '@workspace/identity-provider';
 
 async function runPhase4DeveloperPortalSuite() {
     console.log('\n================================================================');

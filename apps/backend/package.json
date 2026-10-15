@@ -25,7 +25,6 @@
     "@workspace/company": "workspace:*",
     "@workspace/crm-and-sales": "workspace:*",
     "@workspace/db": "workspace:*",
-    "@workspace/engine": "workspace:*",
     "@workspace/finance": "workspace:*",
     "@workspace/hr-management": "workspace:*",
     "@workspace/identity": "workspace:*",

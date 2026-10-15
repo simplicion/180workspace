@@ -472,10 +472,8 @@ export default function PlatformBillingPage() {
                     plans={pricingTablePlans}
                     apiBase={
                         process.env.NEXT_PUBLIC_CORE_BACKEND_URL ||
-                        (typeof window !== 'undefined' &&
-                        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                            ? 'http://localhost:4003'
-                            : 'https://services.180workspace.com')
+                        process.env.NEXT_PUBLIC_API_URL ||
+                        ''
                     }
                     title=""
                     subtitle=""

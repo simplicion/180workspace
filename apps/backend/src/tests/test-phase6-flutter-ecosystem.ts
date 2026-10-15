@@ -5,7 +5,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { FIRST_PARTY_APPS } from '@workspace/identity';
+import { FIRST_PARTY_APPS } from '@workspace/identity-provider';
 
 let passed = 0;
 let failed = 0;

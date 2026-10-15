@@ -184,23 +184,23 @@ export function UploadMediaModal({ isOpen, onClose, companyId, onMediaUploaded }
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 border border-transparent dark:border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
+                <div className="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-900 sticky top-0 z-10">
                     <div>
-                        <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
-                            <ImageIcon className="w-5 h-5 mr-2 text-blue-600" />
+                        <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-zinc-100 flex items-center">
+                            <ImageIcon className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                             Upload Media Photos
                         </h3>
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
                             Upload up to {MAX_FILES} photos (Max 5MB each). Supported: PNG, JPG, JPEG, WEBP.
                         </p>
                     </div>
                     <button 
                         onClick={onClose} 
                         disabled={isUploading}
-                        className="text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -209,7 +209,7 @@ export function UploadMediaModal({ isOpen, onClose, companyId, onMediaUploaded }
                 {/* Content */}
                 <div className="p-6 overflow-y-auto space-y-6 flex-1">
                     {generalError && (
-                        <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm rounded-xl flex items-start space-x-2">
+                        <div className="p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs sm:text-sm rounded-xl flex items-start space-x-2">
                             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
                             <span>{generalError}</span>
                         </div>
@@ -224,8 +224,8 @@ export function UploadMediaModal({ isOpen, onClose, companyId, onMediaUploaded }
                             onClick={() => fileInputRef.current?.click()}
                             className={`flex flex-col items-center justify-center p-6 sm:p-8 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
                                 isDragging 
-                                    ? 'border-blue-500 bg-blue-50/60 scale-[1.01]' 
-                                    : 'border-gray-300 bg-gray-50/60 hover:bg-gray-100/80 hover:border-gray-400'
+                                    ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/40 scale-[1.01]' 
+                                    : 'border-gray-300 dark:border-zinc-700 bg-gray-50/60 dark:bg-zinc-800/40 hover:bg-gray-100/80 dark:hover:bg-zinc-800/70 hover:border-gray-400 dark:hover:border-zinc-600'
                             }`}
                         >
                             <input 
@@ -237,13 +237,13 @@ export function UploadMediaModal({ isOpen, onClose, companyId, onMediaUploaded }
                                 onChange={(e) => handleFilesSelected(e.target.files)} 
                                 disabled={isUploading} 
                             />
-                            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-950/60 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm mb-3 group-hover:scale-110 transition-transform">
                                 <Upload className="w-6 h-6" />
                             </div>
-                            <p className="text-sm font-semibold text-gray-800 text-center">
+                            <p className="text-sm font-semibold text-gray-800 dark:text-zinc-200 text-center">
                                 Click to browse or drag & drop multiple photos
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
                                 {queuedFiles.length > 0 
                                     ? `${queuedFiles.length} of ${MAX_FILES} selected. You can add ${MAX_FILES - queuedFiles.length} more.` 
                                     : `Select up to ${MAX_FILES} images simultaneously (max 5MB each)`}
@@ -255,8 +255,8 @@ export function UploadMediaModal({ isOpen, onClose, companyId, onMediaUploaded }
                     {queuedFiles.length > 0 && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center">
-                                    <FileImage className="w-3.5 h-3.5 mr-1.5 text-blue-500" />
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400 flex items-center">
+                                    <FileImage className="w-3.5 h-3.5 mr-1.5 text-blue-500 dark:text-blue-400" />
                                     Selected Photos ({queuedFiles.length}/{MAX_FILES})
                                 </h4>
                                 {!isUploading && (
@@ -266,7 +266,7 @@ export function UploadMediaModal({ isOpen, onClose, companyId, onMediaUploaded }
                                             queuedFiles.forEach(f => URL.revokeObjectURL(f.previewUrl));
                                             setQueuedFiles([]);
                                         }}
-                                        className="text-xs text-red-600 hover:text-red-700 font-medium"
+                                        className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 font-medium"
                                     >
                                         Clear All
                                     </button>
@@ -277,7 +277,7 @@ export function UploadMediaModal({ isOpen, onClose, companyId, onMediaUploaded }
                                 {queuedFiles.map((item) => (
                                     <div 
                                         key={item.id} 
-                                        className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 bg-gray-100 group shadow-sm"
+                                        className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 group shadow-sm"
                                     >
                                         <img 
                                             src={item.previewUrl} 
@@ -330,8 +330,8 @@ export function UploadMediaModal({ isOpen, onClose, companyId, onMediaUploaded }
                 </div>
 
                 {/* Footer Actions */}
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between sticky bottom-0">
-                    <div className="text-xs text-gray-500 font-medium">
+                <div className="px-6 py-4 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between sticky bottom-0">
+                    <div className="text-xs text-gray-500 dark:text-zinc-400 font-medium">
                         {isUploading ? overallProgress : `${queuedFiles.length} photo${queuedFiles.length === 1 ? '' : 's'} ready`}
                     </div>
 
@@ -340,7 +340,7 @@ export function UploadMediaModal({ isOpen, onClose, companyId, onMediaUploaded }
                             type="button"
                             onClick={onClose}
                             disabled={isUploading}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
                         >
                             Cancel
                         </button>

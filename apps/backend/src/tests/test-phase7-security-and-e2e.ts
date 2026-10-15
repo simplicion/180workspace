@@ -13,7 +13,7 @@ import {
   generateRandomToken,
   hashSecret,
   ISSUER,
-} from '@workspace/identity';
+} from '@workspace/identity-provider';
 import fs from 'fs';
 import path from 'path';
 

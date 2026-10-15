@@ -818,7 +818,7 @@ export class OAuthController {
                 // Check if token is platform JWT
                 if (!user) {
                     try {
-                        const JWT_SECRET = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '180-identity-jwt-secret-key-prod-super-secure';
+                        const JWT_SECRET = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '';
                         const decoded: any = jwt.verify(token, JWT_SECRET);
                         const targetUserId = decoded.id || decoded.sub || decoded.userId;
                         if (targetUserId) {

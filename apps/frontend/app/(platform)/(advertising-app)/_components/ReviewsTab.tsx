@@ -115,41 +115,41 @@ export function ReviewsTab({ company }: TabProps) {
             />
 
             {/* Header & Rating Breakdown Banner */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="bg-white dark:bg-zinc-900/90 rounded-2xl border border-gray-100 dark:border-zinc-800/80 p-6 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100 flex items-center">
                         Employee & Client Reviews
                     </h2>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
                         Verified ratings and community feedback for {company?.name || 'this company'}.
                     </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
                     {/* Verified Rating Pill */}
-                    <div className="flex items-center bg-emerald-50/90 border border-emerald-200 px-3.5 py-2 rounded-xl shadow-2xs">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 mr-2" />
+                    <div className="flex items-center bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-3.5 py-2 rounded-xl shadow-2xs">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mr-2" />
                         <div>
-                            <div className="flex items-center text-xs text-emerald-800 font-semibold">
-                                <Star className="h-3.5 w-3.5 text-emerald-600 fill-emerald-600 mr-1" />
-                                <span className="text-sm font-bold text-emerald-900">{stats.verifiedRating || stats.totalRating || '5.0'}</span>
-                                <span className="text-[10px] text-emerald-700 ml-1">/ 5.0</span>
+                            <div className="flex items-center text-xs text-emerald-800 dark:text-emerald-300 font-semibold">
+                                <Star className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 fill-emerald-600 dark:fill-emerald-400 mr-1" />
+                                <span className="text-sm font-bold text-emerald-900 dark:text-emerald-200">{stats.verifiedRating || stats.totalRating || '5.0'}</span>
+                                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 ml-1">/ 5.0</span>
                             </div>
-                            <span className="text-[10px] text-emerald-700 font-medium block">
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium block">
                                 {stats.verifiedCount} Verified {stats.verifiedCount === 1 ? 'Review' : 'Reviews'}
                             </span>
                         </div>
                     </div>
 
                     {/* Total Rating Pill */}
-                    <div className="flex items-center bg-amber-50/80 border border-amber-200 px-3.5 py-2 rounded-xl shadow-2xs">
+                    <div className="flex items-center bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-3.5 py-2 rounded-xl shadow-2xs">
                         <Star className="h-4 w-4 text-amber-500 fill-amber-500 mr-2" />
                         <div>
-                            <div className="flex items-center text-xs text-amber-800 font-semibold">
-                                <span className="text-sm font-bold text-amber-900">{stats.totalRating || '5.0'}</span>
-                                <span className="text-[10px] text-amber-700 ml-1">/ 5.0</span>
+                            <div className="flex items-center text-xs text-amber-800 dark:text-amber-300 font-semibold">
+                                <span className="text-sm font-bold text-amber-900 dark:text-amber-200">{stats.totalRating || '5.0'}</span>
+                                <span className="text-[10px] text-amber-700 dark:text-amber-400 ml-1">/ 5.0</span>
                             </div>
-                            <span className="text-[10px] text-amber-700 font-medium block">
+                            <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium block">
                                 {stats.totalCount} Total {stats.totalCount === 1 ? 'Review' : 'Reviews'}
                             </span>
                         </div>
@@ -157,7 +157,7 @@ export function ReviewsTab({ company }: TabProps) {
 
                     {/* Add Review Action */}
                     {isCompanyMember ? (
-                        <div className="px-3.5 py-2 bg-gray-100 border border-gray-200 rounded-xl text-xs text-gray-500 font-medium flex items-center" title="Company members cannot review their own company">
+                        <div className="px-3.5 py-2 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs text-gray-500 dark:text-zinc-400 font-medium flex items-center" title="Company members cannot review their own company">
                             <ShieldAlert className="w-4 h-4 mr-1.5 text-gray-400" />
                             Internal Member
                         </div>
@@ -175,14 +175,14 @@ export function ReviewsTab({ company }: TabProps) {
 
             {/* Filter Tabs */}
             {allFormattedReviews.length > 0 && (
-                <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 pb-3">
                     <div className="flex items-center space-x-2">
                         <button
                             onClick={() => setActiveFilter('all')}
                             className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                                 activeFilter === 'all'
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                    ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60'
+                                    : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
                             }`}
                         >
                             All Reviews ({stats.totalCount})
@@ -191,27 +191,27 @@ export function ReviewsTab({ company }: TabProps) {
                             onClick={() => setActiveFilter('verified')}
                             className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                                 activeFilter === 'verified'
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
+                                    : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
                             }`}
                         >
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             Verified Only ({stats.verifiedCount})
                         </button>
                         <button
                             onClick={() => setActiveFilter('unverified')}
                             className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                                 activeFilter === 'unverified'
-                                    ? 'bg-gray-200 text-gray-800'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                    ? 'bg-gray-200 dark:bg-zinc-700 text-gray-800 dark:text-zinc-100'
+                                    : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
                             }`}
                         >
-                            <User className="w-3.5 h-3.5 text-gray-500" />
+                            <User className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-400" />
                             Guest / Unverified ({stats.unverifiedCount})
                         </button>
                     </div>
 
-                    <div className="text-xs text-gray-500 hidden sm:block">
+                    <div className="text-xs text-gray-500 dark:text-zinc-400 hidden sm:block">
                         Showing {filteredReviews.length} of {stats.totalCount}
                     </div>
                 </div>
@@ -222,10 +222,10 @@ export function ReviewsTab({ company }: TabProps) {
                 {filteredReviews.map((review: any) => (
                     <div 
                         key={review.id} 
-                        className={`bg-white rounded-2xl p-6 shadow-xs flex flex-col h-full border transition-all ${
+                        className={`rounded-2xl p-6 shadow-xs flex flex-col h-full border transition-all ${
                             review.isVerified 
-                                ? 'border-emerald-200/80 bg-gradient-to-b from-emerald-50/20 to-white' 
-                                : 'border-gray-200'
+                                ? 'border-emerald-200/80 dark:border-emerald-800/60 bg-gradient-to-b from-emerald-50/20 dark:from-emerald-950/20 to-white dark:to-zinc-900' 
+                                : 'border-gray-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/90'
                         }`}
                     >
                         {/* Top: Stars + Verification Badge + Date */}
@@ -235,38 +235,38 @@ export function ReviewsTab({ company }: TabProps) {
                                     {[...Array(5)].map((_, i) => (
                                         <Star 
                                             key={i} 
-                                            className={`h-4 w-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} 
+                                            className={`h-4 w-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200 dark:text-zinc-700'}`} 
                                         />
                                     ))}
                                 </div>
-                                <span className="text-xs font-bold text-gray-700">{review.rating}.0</span>
+                                <span className="text-xs font-bold text-gray-700 dark:text-zinc-300">{review.rating}.0</span>
                             </div>
 
                             <div className="flex items-center space-x-2">
                                 {review.isVerified ? (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                                         Verified
                                     </span>
                                 ) : (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                                        <User className="w-3 h-3 text-gray-400" />
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700">
+                                        <User className="w-3 h-3 text-gray-400 dark:text-zinc-500" />
                                         Non-verified
                                     </span>
                                 )}
-                                <span className="text-[11px] text-gray-400">{review.date}</span>
+                                <span className="text-[11px] text-gray-400 dark:text-zinc-500">{review.date}</span>
                             </div>
                         </div>
                         
                         {/* Review Title & Content */}
-                        <h3 className="text-base font-bold text-gray-900 mb-2">{review.title}</h3>
-                        <p className="text-gray-600 text-sm leading-relaxed mb-6 flex-grow whitespace-pre-wrap">
+                        <h3 className="text-base font-bold text-gray-900 dark:text-zinc-100 mb-2">{review.title}</h3>
+                        <p className="text-gray-600 dark:text-zinc-300 text-sm leading-relaxed mb-6 flex-grow whitespace-pre-wrap">
                             &quot;{review.content}&quot;
                         </p>
                         
                         {/* Author Info */}
                         <div 
-                            className={`border-t border-gray-100 pt-4 flex items-center ${
+                            className={`border-t border-gray-100 dark:border-zinc-800/80 pt-4 flex items-center ${
                                 review.authorId ? 'cursor-pointer hover:opacity-85 transition-opacity' : ''
                             }`}
                             onClick={() => {
@@ -279,39 +279,39 @@ export function ReviewsTab({ company }: TabProps) {
                                 <img 
                                     src={review.photoUrl} 
                                     alt={review.author} 
-                                    className="h-9 w-9 rounded-full object-cover mr-3 border border-gray-200"
+                                    className="h-9 w-9 rounded-full object-cover mr-3 border border-gray-200 dark:border-zinc-700"
                                 />
                             ) : (
                                 <div className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs mr-3 ${
                                     review.isVerified 
-                                        ? 'bg-emerald-100 text-emerald-800' 
-                                        : 'bg-gray-100 text-gray-700'
+                                        ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200' 
+                                        : 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300'
                                 }`}>
                                     {review.author?.charAt(0)?.toUpperCase() || 'G'}
                                 </div>
                             )}
                             <div>
-                                <div className="font-bold text-gray-900 text-xs sm:text-sm flex items-center">
+                                <div className="font-bold text-gray-900 dark:text-zinc-100 text-xs sm:text-sm flex items-center">
                                     {review.author}
                                     {review.isVerified && (
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 ml-1.5" />
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-1.5" />
                                     )}
                                 </div>
-                                <div className="text-[11px] text-gray-500">{review.role}</div>
+                                <div className="text-[11px] text-gray-500 dark:text-zinc-400">{review.role}</div>
                             </div>
                         </div>
                     </div>
                 ))}
                 
                 {filteredReviews.length === 0 && (
-                    <div className="col-span-full py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                        <MessageSquare className="w-10 h-10 text-gray-400 mx-auto mb-2.5" />
-                        <h3 className="text-base font-semibold text-gray-800 mb-1">
+                    <div className="col-span-full py-12 text-center bg-gray-50 dark:bg-zinc-800/30 rounded-2xl border border-dashed border-gray-200 dark:border-zinc-700/60">
+                        <MessageSquare className="w-10 h-10 text-gray-400 dark:text-zinc-500 mx-auto mb-2.5" />
+                        <h3 className="text-base font-semibold text-gray-800 dark:text-zinc-100 mb-1">
                             {activeFilter === 'all' 
                                 ? 'No reviews yet' 
                                 : `No ${activeFilter} reviews found`}
                         </h3>
-                        <p className="text-gray-500 text-xs max-w-sm mx-auto mb-4">
+                        <p className="text-gray-500 dark:text-zinc-400 text-xs max-w-sm mx-auto mb-4">
                             {activeFilter === 'all'
                                 ? 'Be the first to share your experience with this company.'
                                 : 'Try switching the filter tab above to view other reviews.'}
@@ -319,7 +319,7 @@ export function ReviewsTab({ company }: TabProps) {
                         {!isCompanyMember && activeFilter === 'all' && (
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
-                                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors shadow-2xs"
+                                className="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 rounded-xl text-xs font-semibold hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors shadow-2xs"
                             >
                                 Write First Review
                             </button>

@@ -331,25 +331,55 @@ export default function UnifiedProfilePage() {
                     <div className="card overflow-hidden">
                         {/* Cover & Profile Pic */}
                         <div className="h-28 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 relative">
+                            {canEdit && (
+                                <div className="absolute top-3 right-3 z-10">
+                                    <button
+                                        onClick={() => setShowEdit(true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white rounded-xl text-xs font-semibold border border-white/20 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                                        title="Edit Profile Details"
+                                    >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                        <span>Edit Profile</span>
+                                    </button>
+                                </div>
+                            )}
                             <div className="absolute -bottom-12 left-6">
-                                <div className="w-24 h-24 rounded-2xl overflow-hidden bg-white border-4 border-white shadow-md flex items-center justify-center relative z-10">
+                                <div className="w-24 h-24 rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 border-4 border-white dark:border-zinc-900 shadow-xl flex items-center justify-center relative z-10 group/avatar">
                                     {(profileUser.photoUrl || (profileUser.role === 'admin' || (profileUser.permissions && profileUser.permissions.includes('can_manage_team')) ? (company?.companyLogo || company?.logoUrl) : null)) ? (
                                         <img src={profileUser.photoUrl || company?.companyLogo || company?.logoUrl} alt={profileUser.name} className="w-full h-full object-cover" />
                                     ) : (
-                                        <span className="text-3xl font-bold text-indigo-600">
+                                        <span className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
                                             {profileUser.name?.[0]?.toUpperCase()}
                                         </span>
+                                    )}
+
+                                    {canEdit && (
+                                        <label 
+                                            className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white text-[10px] font-bold z-20 backdrop-blur-xs"
+                                            title="Change Profile Photo"
+                                        >
+                                            <Pencil className="w-4 h-4 mb-0.5" />
+                                            <span>{photoUploading ? 'Uploading...' : 'Change'}</span>
+                                            <input
+                                                type="file"
+                                                ref={photoInputRef}
+                                                onChange={handlePhotoFileChange}
+                                                accept="image/*"
+                                                disabled={photoUploading}
+                                                className="hidden"
+                                            />
+                                        </label>
                                     )}
                                 </div>
                             </div>
                         </div>
 
                         {/* Name & Title */}
-                        <div className="px-6 pt-16 pb-6 border-b border-gray-100">
+                        <div className="px-6 pt-16 pb-6 border-b border-gray-100 dark:border-zinc-800/80">
                             <div className="flex justify-between items-start mb-2">
                                 <div>
-                                    <h3 className="text-xl font-bold text-gray-900">{profileUser.name}</h3>
-                                    <p className="text-sm text-gray-500 font-medium mt-1">
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-zinc-100">{profileUser.name}</h3>
+                                    <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium mt-1">
                                         {profileUser.role === 'client'
                                             ? (profileUser.category || 'Client') + ' • ' + (profileUser.industry || profileUser.company || 'General')
                                             : (profileUser.position || 'Member') + ' • ' + (profileUser.department || 'General')
@@ -359,17 +389,17 @@ export default function UnifiedProfilePage() {
                                 <div className="flex flex-col items-end gap-2">
                                     <span className={clsx(
                                         "px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border",
-                                        profileUser.status === 'active' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : 
-                                        profileUser.status === 'inactive' ? "bg-gray-50 text-gray-600 border-gray-200" : 
-                                        "bg-amber-50 text-amber-600 border-amber-100"
+                                        profileUser.status === 'active' ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50" : 
+                                        profileUser.status === 'inactive' ? "bg-gray-50 text-gray-600 border-gray-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700" : 
+                                        "bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/50"
                                     )}>
                                         {profileUser.status || 'Active'}
                                     </span>
                                     <span className={clsx(
                                         "px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border",
-                                        profileUser.role === 'admin' || (profileUser.permissions && profileUser.permissions.includes('can_manage_team')) ? "bg-red-50 text-red-600 border-red-100" :
-                                            profileUser.role === 'client' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                                                "bg-indigo-50 text-indigo-600 border-indigo-100"
+                                        profileUser.role === 'admin' || (profileUser.permissions && profileUser.permissions.includes('can_manage_team')) ? "bg-red-50 text-red-600 border-red-100 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/50" :
+                                            profileUser.role === 'client' ? "bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/50" :
+                                                "bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800/50"
                                     )}>
                                         {profileUser.role}
                                     </span>
@@ -379,41 +409,41 @@ export default function UnifiedProfilePage() {
 
                         {/* Details */}
                         <div className="p-6 space-y-4">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-4">
                                 {profileUser.role === 'client' ? 'Client & Company Details' : 'Personal & Work Details'}
                             </h4>
 
                             {profileUser.role !== 'client' && (
                                 <div className="flex items-center gap-3 group">
-                                    <div className="p-2 bg-slate-50 text-slate-600 rounded-lg group-hover:scale-110 transition-transform">
+                                    <div className="p-2 bg-slate-50 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-400 rounded-lg group-hover:scale-110 transition-transform">
                                         <Hash className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Employee ID</p>
-                                        <p className="text-sm font-medium text-gray-700">{profileUser.employeeId || 'N/A'}</p>
+                                        <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 font-bold">Employee ID</p>
+                                        <p className="text-sm font-medium text-gray-700 dark:text-zinc-200">{profileUser.employeeId || 'N/A'}</p>
                                     </div>
                                 </div>
                             )}
 
                             {profileUser.role !== 'client' && (
                                 <div className="flex items-center gap-3 group">
-                                    <div className="p-2 bg-cyan-50 text-cyan-600 rounded-lg group-hover:scale-110 transition-transform">
+                                    <div className="p-2 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 rounded-lg group-hover:scale-110 transition-transform">
                                         <Calendar className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Leave Balance</p>
-                                        <p className="text-sm font-medium text-gray-700">{profileUser.leaveBalance || 20} Days</p>
+                                        <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 font-bold">Leave Balance</p>
+                                        <p className="text-sm font-medium text-gray-700 dark:text-zinc-200">{profileUser.leaveBalance || 20} Days</p>
                                     </div>
                                 </div>
                             )}
 
                             <div className="flex items-center gap-3 group">
-                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg group-hover:scale-110 transition-transform">
+                                <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg group-hover:scale-110 transition-transform">
                                     <Calendar className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Joining Date</p>
-                                    <p className="text-sm font-medium text-gray-700">
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 font-bold">Joining Date</p>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-zinc-200">
                                         {profileUser.joiningDate || profileUser.createdAt 
                                             ? format(new Date(profileUser.joiningDate || profileUser.createdAt), 'dd MMM yyyy') 
                                             : 'N/A'}
@@ -422,64 +452,64 @@ export default function UnifiedProfilePage() {
                             </div>
 
                             <div className="flex items-center gap-3 group">
-                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:scale-110 transition-transform">
+                                <div className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg group-hover:scale-110 transition-transform">
                                     <Mail className="w-4 h-4" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Email Address</p>
-                                    <p className="text-sm font-medium text-gray-700 truncate">{profileUser.email}</p>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 font-bold">Email Address</p>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-zinc-200 truncate" title={profileUser.email}>{profileUser.email}</p>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-3 group">
-                                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg group-hover:scale-110 transition-transform">
+                                <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-lg group-hover:scale-110 transition-transform">
                                     <Phone className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Phone Number</p>
-                                    <p className="text-sm font-medium text-gray-700">{profileUser.phone || 'Not provided'}</p>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 font-bold">Phone Number</p>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-zinc-200">{profileUser.phone || 'Not provided'}</p>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-3 group">
-                                <div className="p-2 bg-rose-50 text-rose-600 rounded-lg group-hover:scale-110 transition-transform">
+                                <div className="p-2 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-lg group-hover:scale-110 transition-transform">
                                     <Heart className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Emergency Contact</p>
-                                    <p className="text-sm font-medium text-gray-700">{profileUser.emergencyContact || 'Not provided'}</p>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 font-bold">Emergency Contact</p>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-zinc-200">{profileUser.emergencyContact || 'Not provided'}</p>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-3 group">
-                                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg group-hover:scale-110 transition-transform">
+                                <div className="p-2 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-lg group-hover:scale-110 transition-transform">
                                     <MapPin className="w-4 h-4" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">{profileUser.role === 'client' ? 'Billing Address' : 'Home Address'}</p>
-                                    <p className="text-sm font-medium text-gray-700 leading-relaxed truncate">{profileUser.role === 'client' ? (profileUser.billingAddress || profileUser.address || 'No address saved') : (profileUser.address || 'No address saved')}</p>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 font-bold">{profileUser.role === 'client' ? 'Billing Address' : 'Home Address'}</p>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-zinc-200 leading-relaxed truncate">{profileUser.role === 'client' ? (profileUser.billingAddress || profileUser.address || 'No address saved') : (profileUser.address || 'No address saved')}</p>
                                 </div>
                             </div>
 
                             {profileUser.role === 'client' && (
                                 <>
                                     <div className="flex items-center gap-3 group">
-                                        <div className="p-2 bg-purple-50 text-purple-600 rounded-lg group-hover:scale-110 transition-transform">
+                                        <div className="p-2 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 rounded-lg group-hover:scale-110 transition-transform">
                                             <Building2 className="w-4 h-4" />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Company</p>
-                                            <p className="text-sm font-medium text-gray-700 leading-relaxed">{profileUser.company || 'Not provided'}</p>
+                                            <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 font-bold">Company</p>
+                                            <p className="text-sm font-medium text-gray-700 dark:text-zinc-200 leading-relaxed">{profileUser.company || 'Not provided'}</p>
                                         </div>
                                     </div>
                                     {profileUser.taxId && (
                                         <div className="flex items-center gap-3 group">
-                                            <div className="p-2 bg-slate-50 text-slate-600 rounded-lg group-hover:scale-110 transition-transform">
+                                            <div className="p-2 bg-slate-50 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-400 rounded-lg group-hover:scale-110 transition-transform">
                                                 <FileText className="w-4 h-4" />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Tax ID / VAT No.</p>
-                                                <p className="text-sm font-medium text-gray-700 leading-relaxed">{profileUser.taxId}</p>
+                                                <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-zinc-500 font-bold">Tax ID / VAT No.</p>
+                                                <p className="text-sm font-medium text-gray-700 dark:text-zinc-200 leading-relaxed">{profileUser.taxId}</p>
                                             </div>
                                         </div>
                                     )}
@@ -493,7 +523,7 @@ export default function UnifiedProfilePage() {
                 {/* Right Column: Tabs & Dynamic Content */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Navigation Tabs */}
-                    <div className="flex p-1 bg-gray-50/50 border border-gray-200 rounded-2xl shadow-sm overflow-x-auto no-scrollbar scroll-smooth">
+                    <div className="flex p-1 bg-gray-50/50 dark:bg-zinc-900/80 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-x-auto no-scrollbar scroll-smooth">
                         {tabs.map((tab) => {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.id;
@@ -502,13 +532,13 @@ export default function UnifiedProfilePage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={clsx(
-                                        "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap min-w-fit",
+                                        "flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap min-w-fit shrink-0",
                                         isActive
-                                            ? "bg-white text-indigo-600 shadow-sm border border-gray-100"
-                                            : "text-gray-500 hover:text-indigo-600 hover:bg-white/50"
+                                            ? "bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-gray-100 dark:border-zinc-700/80"
+                                            : "text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-zinc-100 hover:bg-white/50 dark:hover:bg-zinc-800/50"
                                     )}
                                 >
-                                    <Icon className={clsx("w-4 h-4", isActive ? "text-indigo-600" : "text-gray-400")} />
+                                    <Icon className={clsx("w-4 h-4", isActive ? "text-indigo-600 dark:text-indigo-400" : "text-gray-400 dark:text-zinc-500")} />
                                     {tab.label}
                                 </button>
                             );
@@ -520,7 +550,7 @@ export default function UnifiedProfilePage() {
                         {activeTab === 'overview' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4">
                                 <div className="card p-6">
-                                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <h3 className="font-bold text-gray-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
                                         <Clock className="w-4 h-4 text-indigo-500" />
                                         {profileUser.role === 'client' ? 'Recent Projects' : 'Recent Activity'}
                                     </h3>
@@ -528,83 +558,86 @@ export default function UnifiedProfilePage() {
                                         {profileUser.role === 'client' ? (
                                             projects.slice(0, 3).map((project: any) => (
                                                 <div key={project.id} className="flex gap-3">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5" />
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
                                                     <div>
-                                                        <p className="text-sm font-bold text-gray-700">{project.name}</p>
-                                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Status: {project.status}</p>
+                                                        <p className="text-sm font-bold text-gray-700 dark:text-zinc-200">{project.name}</p>
+                                                        <p className="text-[10px] text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Status: {project.status}</p>
                                                     </div>
                                                 </div>
                                             ))
                                         ) : (
                                             tasks.slice(0, 3).map((task: any) => (
                                                 <div key={task.id} className="flex gap-3">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5" />
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
                                                     <div>
-                                                        <p className="text-sm font-medium text-gray-700">{task.title}</p>
-                                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">{format(new Date(task.updatedAt), 'MMM dd, HH:mm')}</p>
+                                                        <p className="text-sm font-medium text-gray-700 dark:text-zinc-200">{task.title}</p>
+                                                        <p className="text-[10px] text-gray-400 dark:text-zinc-500 uppercase tracking-wider">{format(new Date(task.updatedAt), 'MMM dd, HH:mm')}</p>
                                                     </div>
                                                 </div>
                                             ))
                                         )}
                                         {(profileUser.role === 'client' ? projects.length : tasks.length) === 0 && (
-                                            <p className="text-sm text-gray-400 text-center py-4 italic">No recent activity</p>
+                                            <div className="flex flex-col items-center justify-center py-10 text-center">
+                                                <Clock className="w-8 h-8 text-gray-300 dark:text-zinc-700 mb-2" />
+                                                <p className="text-sm text-gray-400 dark:text-zinc-500 italic">No recent activity</p>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
                                 <div className="card p-6">
-                                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <h3 className="font-bold text-gray-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
                                         <Star className="w-4 h-4 text-rose-500" />
                                         Key Metrics
                                     </h3>
                                     <div className="grid grid-cols-2 gap-4">
                                         {profileUser.role === 'client' ? (
                                             <>
-                                                <div className="p-4 bg-indigo-50 rounded-2xl">
-                                                    <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Total Projects</p>
-                                                    <p className="text-xl font-black text-indigo-600">{projects.length}</p>
+                                                <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-100/60 dark:border-indigo-900/40">
+                                                    <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">Total Projects</p>
+                                                    <p className="text-xl font-black text-indigo-600 dark:text-indigo-400">{projects.length}</p>
                                                 </div>
-                                                <div className="p-4 bg-emerald-50 rounded-2xl">
-                                                    <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Active</p>
-                                                    <p className="text-xl font-black text-emerald-600">
+                                                <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100/60 dark:border-emerald-900/40">
+                                                    <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">Active</p>
+                                                    <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">
                                                         {projects.filter(p => !['completed', 'on_hold', 'cancelled'].includes(p.status)).length}
                                                     </p>
                                                 </div>
-                                                <div className="col-span-2 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                                                <div className="col-span-2 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-100 dark:border-amber-900/40">
                                                     <div className="flex justify-between items-end mb-2">
                                                         <div>
-                                                            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Business Relationship</p>
-                                                            <p className="text-sm font-black text-amber-900">Premium Partner</p>
+                                                            <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Business Relationship</p>
+                                                            <p className="text-sm font-black text-amber-900 dark:text-amber-200">Premium Partner</p>
                                                         </div>
                                                         <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
                                                     </div>
-                                                    <div className="w-full h-1.5 bg-white rounded-full overflow-hidden">
+                                                    <div className="w-full h-1.5 bg-white dark:bg-zinc-800 rounded-full overflow-hidden">
                                                         <div className="h-full bg-amber-400" style={{ width: '85%' } as React.CSSProperties} />
                                                     </div>
                                                 </div>
                                             </>
                                         ) : (
                                             <>
-                                                <div className="p-4 bg-indigo-50 rounded-2xl">
-                                                    <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Comp Tasks</p>
-                                                    <p className="text-xl font-black text-indigo-600">
+                                                <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-100/60 dark:border-indigo-900/40">
+                                                    <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">Comp Tasks</p>
+                                                    <p className="text-xl font-black text-indigo-600 dark:text-indigo-400">
                                                         {tasks.filter(t => t.status === 'completed').length}
                                                     </p>
                                                 </div>
-                                                <div className="p-4 bg-emerald-50 rounded-2xl">
-                                                    <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Attend Rate</p>
-                                                    <p className="text-xl font-black text-emerald-600">
+                                                <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100/60 dark:border-emerald-900/40">
+                                                    <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">Attend Rate</p>
+                                                    <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">
                                                         {attendance?.summary?.attendancePercentage || '0'}%
                                                     </p>
                                                 </div>
                                                 {(() => {
                                                     const score = profileUser.performanceScore ?? 100;
                                                     const TIERS = [
-                                                        { min: 0, max: 100, tag: 'Rookie', emoji: '🌱', color: '#94A3B8', bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
-                                                        { min: 100, max: 200, tag: 'Consistent Contributor', emoji: '🔥', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-                                                        { min: 200, max: 300, tag: 'Rising Star', emoji: '⭐', color: '#06B6D4', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
-                                                        { min: 300, max: 400, tag: 'High Achiever', emoji: '🚀', color: '#F97316', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-                                                        { min: 400, max: 500, tag: 'Elite Performer', emoji: '💎', color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
-                                                        { min: 500, max: 500, tag: 'Legendary Executor', emoji: '🏆', color: '#FFD700', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-300' },
+                                                        { min: 0, max: 100, tag: 'Rookie', emoji: '🌱', color: '#94A3B8', bg: 'bg-slate-50 dark:bg-slate-900/40', text: 'text-slate-600 dark:text-slate-300', border: 'border-slate-200 dark:border-slate-800' },
+                                                        { min: 100, max: 200, tag: 'Consistent Contributor', emoji: '🔥', color: '#10B981', bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-200 dark:border-emerald-800/60' },
+                                                        { min: 200, max: 300, tag: 'Rising Star', emoji: '⭐', color: '#06B6D4', bg: 'bg-cyan-50 dark:bg-cyan-950/30', text: 'text-cyan-700 dark:text-cyan-300', border: 'border-cyan-200 dark:border-cyan-800/60' },
+                                                        { min: 300, max: 400, tag: 'High Achiever', emoji: '🚀', color: '#F97316', bg: 'bg-orange-50 dark:bg-orange-950/30', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-800/60' },
+                                                        { min: 400, max: 500, tag: 'Elite Performer', emoji: '💎', color: '#8B5CF6', bg: 'bg-violet-50 dark:bg-violet-950/30', text: 'text-violet-700 dark:text-violet-300', border: 'border-violet-200 dark:border-violet-800/60' },
+                                                        { min: 500, max: 500, tag: 'Legendary Executor', emoji: '🏆', color: '#FFD700', bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-300 dark:border-amber-800/60' },
                                                     ];
                                                     const tier = score >= 500 ? TIERS[5] : TIERS.find(t => score >= t.min && score < t.max) || TIERS[0];
                                                     const nextTier = TIERS.find(t => t.min > (tier?.min || 0));
@@ -617,7 +650,7 @@ export default function UnifiedProfilePage() {
                                                             <div className="flex items-center gap-4">
                                                                 <div className="relative w-16 h-16 flex-shrink-0">
                                                                     <svg className="w-16 h-16 -rotate-90" viewBox="0 0 72 72">
-                                                                        <circle cx="36" cy="36" r="28" stroke="#e2e8f0" strokeWidth="6" fill="none" />
+                                                                        <circle cx="36" cy="36" r="28" className="stroke-slate-200 dark:stroke-zinc-800" strokeWidth="6" fill="none" />
                                                                         <circle cx="36" cy="36" r="28" stroke={tier.color} strokeWidth="6" fill="none" strokeLinecap="round"
                                                                             strokeDasharray="175.93"
                                                                             strokeDashoffset={175.93 - (175.93 * progressInTier) / 100}
@@ -632,20 +665,20 @@ export default function UnifiedProfilePage() {
                                                                     <p className={`font-black text-sm leading-tight ${tier.text}`}>{tier.tag}</p>
                                                                     <div className="flex items-center gap-1.5 mt-1.5">
                                                                         <p className={`text-lg font-black ${tier.text}`}>{score}</p>
-                                                                        <p className="text-xs text-gray-400 font-medium">/ 500 pts</p>
+                                                                        <p className="text-xs text-gray-400 dark:text-zinc-500 font-medium">/ 500 pts</p>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                             {nextTier && (
                                                                 <div className="mt-3 space-y-1">
-                                                                    <div className="flex justify-between text-[10px] font-semibold text-gray-400">
+                                                                    <div className="flex justify-between text-[10px] font-semibold text-gray-400 dark:text-zinc-500">
                                                                         <span>Progress to {nextTier.emoji} {nextTier.tag}</span>
                                                                         <span>{progressInTier}%</span>
                                                                     </div>
-                                                                    <div className="w-full h-1.5 bg-white/70 rounded-full overflow-hidden">
+                                                                    <div className="w-full h-1.5 bg-gray-200/70 dark:bg-zinc-800 rounded-full overflow-hidden">
                                                                         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progressInTier}%`, backgroundColor: tier.color } as React.CSSProperties} />
                                                                     </div>
-                                                                    <p className="text-[10px] text-gray-400">{nextTier.min - score} pts needed</p>
+                                                                    <p className="text-[10px] text-gray-400 dark:text-zinc-500">{nextTier.min - score} pts needed</p>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -659,7 +692,7 @@ export default function UnifiedProfilePage() {
                                 {profileUser.role === 'client' && (
                                     <div className="card p-6 md:col-span-2">
                                         <div className="flex items-center justify-between mb-4">
-                                            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                                            <h3 className="font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
                                                 <MessageSquare className="w-4 h-4 text-indigo-500" />
                                                 Client Administrative Notes
                                             </h3>
@@ -670,9 +703,9 @@ export default function UnifiedProfilePage() {
                                             onChange={(e) => setNotes(e.target.value)}
                                             onBlur={handleSaveNotes}
                                             placeholder="Add private notes about this client (only visible to admins)..."
-                                            className="w-full h-32 p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all resize-none"
+                                            className="w-full h-32 p-4 bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl text-sm text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-800 transition-all resize-none placeholder-gray-400 dark:placeholder-zinc-500"
                                         />
-                                        <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
+                                        <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-2 flex items-center gap-1">
                                             <AlertCircle className="w-3 h-3" />
                                             Notes are automatically saved when you click outside the box.
                                         </p>
@@ -683,28 +716,28 @@ export default function UnifiedProfilePage() {
 
                         {activeTab === 'tasks' && (
                             <div className="card overflow-hidden animate-in fade-in slide-in-from-bottom-4">
-                                <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                                    <h3 className="font-bold text-gray-900">Task List</h3>
+                                <div className="p-6 border-b border-gray-100 dark:border-zinc-800/80 flex items-center justify-between">
+                                    <h3 className="font-bold text-gray-900 dark:text-zinc-100">Task List</h3>
                                     <span className="badge badge-indigo">{tasks.length} Total</span>
                                 </div>
-                                <div className="divide-y divide-gray-50">
+                                <div className="divide-y divide-gray-50 dark:divide-zinc-800/50">
                                     {tasks.map((task: any) => (
-                                        <div key={task.id} className="p-6 flex items-center justify-between hover:bg-gray-50/50 transition-colors group">
+                                        <div key={task.id} className="p-6 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition-colors group">
                                             <div className="flex items-center gap-4">
                                                 <div className={clsx(
                                                     "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
-                                                    task.status === 'completed' || task.status === 'done' ? "bg-emerald-100 text-emerald-600" : 
-                                                    task.status === 'in_progress' ? "bg-blue-100 text-blue-600" :
-                                                    "bg-amber-100 text-amber-600"
+                                                    task.status === 'completed' || task.status === 'done' ? "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400" : 
+                                                    task.status === 'in_progress' ? "bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400" :
+                                                    "bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400"
                                                 )}>
                                                     {task.status === 'completed' || task.status === 'done' ? <CheckCircle2 className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
                                                 </div>
                                                 <div>
-                                                    <h4 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{task.title}</h4>
+                                                    <h4 className="text-sm font-bold text-gray-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{task.title}</h4>
                                                     <div className="flex items-center gap-3 mt-1">
-                                                        <p className="text-xs text-gray-500 line-clamp-1">{task.description}</p>
+                                                        <p className="text-xs text-gray-500 dark:text-zinc-400 line-clamp-1">{task.description}</p>
                                                         {task.dueDate && (
-                                                            <span className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
+                                                             <span className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-zinc-500 font-medium">
                                                                 <Calendar className="w-3 h-3" />
                                                                 {format(new Date(task.dueDate), 'MMM dd')}
                                                             </span>
@@ -715,9 +748,9 @@ export default function UnifiedProfilePage() {
                                             <div className="text-right">
                                                 <span className={clsx(
                                                     "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider",
-                                                    task.status === 'completed' || task.status === 'done' ? "bg-emerald-50 text-emerald-600" :
-                                                    task.status === 'in_progress' ? "bg-blue-50 text-blue-600" :
-                                                    "bg-amber-50 text-amber-600"
+                                                    task.status === 'completed' || task.status === 'done' ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400" :
+                                                    task.status === 'in_progress' ? "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400" :
+                                                    "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400"
                                                 )}>
                                                     {task.status.replace(/_/g, ' ')}
                                                 </span>
@@ -726,8 +759,8 @@ export default function UnifiedProfilePage() {
                                     ))}
                                     {tasks.length === 0 && (
                                         <div className="p-12 text-center">
-                                            <CheckSquare className="w-12 h-12 text-gray-100 mx-auto mb-3" />
-                                            <p className="text-gray-400">No tasks assigned</p>
+                                            <CheckSquare className="w-12 h-12 text-gray-200 dark:text-zinc-800 mx-auto mb-3" />
+                                            <p className="text-gray-400 dark:text-zinc-500">No tasks assigned</p>
                                         </div>
                                     )}
                                 </div>
@@ -744,40 +777,40 @@ export default function UnifiedProfilePage() {
                                             className="card p-6 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group"
                                         >
                                             <div className="flex justify-between items-start mb-4">
-                                                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                                <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white dark:group-hover:bg-indigo-600 dark:group-hover:text-white transition-colors">
                                                     <FolderKanban className="w-6 h-6" />
                                                 </div>
                                                 <span className={clsx(
                                                     "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                                                    project.status === 'completed' ? "bg-emerald-100 text-emerald-700" :
-                                                    project.status === 'in_progress' ? "bg-blue-100 text-blue-700" :
-                                                    "bg-amber-100 text-amber-700"
+                                                    project.status === 'completed' ? "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400" :
+                                                    project.status === 'in_progress' ? "bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400" :
+                                                    "bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400"
                                                 )}>
                                                     {project.status.replace('_', ' ')}
                                                 </span>
                                             </div>
-                                            <h3 className="text-lg font-bold text-gray-900 mb-1">{project.name}</h3>
-                                            <p className="text-sm text-gray-500 line-clamp-2 mb-4">{project.description || 'No description provided'}</p>
+                                            <h3 className="text-lg font-bold text-gray-900 dark:text-zinc-100 mb-1">{project.name}</h3>
+                                            <p className="text-sm text-gray-500 dark:text-zinc-400 line-clamp-2 mb-4">{project.description || 'No description provided'}</p>
 
                                             <div className="space-y-3">
                                                 <div className="flex justify-between text-xs font-bold">
-                                                    <span className="text-gray-400 uppercase tracking-widest">Progress</span>
-                                                    <span className="text-indigo-600">{project.progress || 0}%</span>
+                                                    <span className="text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Progress</span>
+                                                    <span className="text-indigo-600 dark:text-indigo-400">{project.progress || 0}%</span>
                                                 </div>
-                                                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div className="w-full h-2 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                                                     <div
                                                         className="h-full bg-indigo-600 rounded-full transition-all duration-1000"
                                                         style={{ width: `${project.progress || 0}%` } as React.CSSProperties}
                                                     />
                                                 </div>
                                                 <div className="flex items-center justify-between pt-2">
-                                                    <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                    <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest">
                                                         <Calendar className="w-3 h-3" />
                                                         {project.deadline ? format(new Date(project.deadline), 'MMM dd, yyyy') : 'No deadline'}
                                                     </div>
                                                     <div className="flex -space-x-2">
                                                         {project.members?.slice(0, 3).map((member: any, i: number) => (
-                                                            <div key={i} className="w-7 h-7 rounded-full border-2 border-white bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 uppercase">
+                                                            <div key={i} className="w-7 h-7 rounded-full border-2 border-white dark:border-zinc-800 bg-indigo-100 dark:bg-indigo-950/50 flex items-center justify-center text-[10px] font-bold text-indigo-600 dark:text-indigo-300 uppercase">
                                                                 {member.name?.[0] || 'U'}
                                                             </div>
                                                         ))}
@@ -787,10 +820,10 @@ export default function UnifiedProfilePage() {
                                         </div>
                                     ))}
                                     {projects.length === 0 && (
-                                        <div className="col-span-full py-20 text-center card bg-gray-50/50 border-dashed border-2 border-gray-200">
-                                            <FolderKanban className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                                            <h3 className="text-xl font-bold text-gray-900">No Projects Found</h3>
-                                            <p className="text-gray-500 mt-2">This client is not associated with any projects yet.</p>
+                                        <div className="col-span-full py-20 text-center card bg-gray-50/50 dark:bg-zinc-900/40 border-dashed border-2 border-gray-200 dark:border-zinc-800">
+                                            <FolderKanban className="w-16 h-16 text-gray-200 dark:text-zinc-800 mx-auto mb-4" />
+                                            <h3 className="text-xl font-bold text-gray-900 dark:text-zinc-100">No Projects Found</h3>
+                                            <p className="text-gray-500 dark:text-zinc-400 mt-2">This client is not associated with any projects yet.</p>
                                         </div>
                                     )}
                                 </div>
@@ -800,86 +833,86 @@ export default function UnifiedProfilePage() {
                         {activeTab === 'attendance' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <div className="card p-3 bg-emerald-50 border-emerald-100">
+                                    <div className="card p-3 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/40">
                                         <div className="flex items-center gap-2 mb-1.5">
-                                            <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-md">
+                                            <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-md">
                                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                             </div>
-                                            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Attendance Rate</span>
+                                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Attendance Rate</span>
                                         </div>
-                                        <p className="text-xl font-black text-emerald-900">{attendance?.summary?.attendancePercentage || 0}%</p>
-                                        <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-wide mt-0.5">Based on records</p>
+                                        <p className="text-xl font-black text-emerald-900 dark:text-emerald-200">{attendance?.summary?.attendancePercentage || 0}%</p>
+                                        <p className="text-[9px] text-emerald-500 dark:text-emerald-400/80 font-bold uppercase tracking-wide mt-0.5">Based on records</p>
                                     </div>
-                                    <div className="card p-3 bg-indigo-50 border-indigo-100">
+                                    <div className="card p-3 bg-indigo-50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/40">
                                         <div className="flex items-center gap-2 mb-1.5">
-                                            <div className="p-1.5 bg-indigo-100 text-indigo-600 rounded-md">
+                                            <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-md">
                                                 <Clock className="w-3.5 h-3.5" />
                                             </div>
-                                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Total Records</span>
+                                            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total Records</span>
                                         </div>
-                                        <p className="text-xl font-black text-indigo-900">{attendance?.records?.length || 0}</p>
-                                        <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-wide mt-0.5">Total entries found</p>
+                                        <p className="text-xl font-black text-indigo-900 dark:text-indigo-200">{attendance?.records?.length || 0}</p>
+                                        <p className="text-[9px] text-indigo-500 dark:text-indigo-400/80 font-bold uppercase tracking-wide mt-0.5">Total entries found</p>
                                     </div>
-                                    <div className="card p-3 bg-amber-50 border-amber-100">
+                                    <div className="card p-3 bg-amber-50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/40">
                                         <div className="flex items-center gap-2 mb-1.5">
-                                            <div className="p-1.5 bg-amber-100 text-amber-600 rounded-md">
+                                            <div className="p-1.5 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-md">
                                                 <AlertCircle className="w-3.5 h-3.5" />
                                             </div>
-                                            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Leaves Taken</span>
+                                            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Leaves Taken</span>
                                         </div>
-                                        <p className="text-xl font-black text-amber-900">{attendance?.records?.filter((r: any) => r.status === 'leave').length || 0}</p>
-                                        <p className="text-[9px] text-amber-500 font-bold uppercase tracking-wide mt-0.5">Approved leaves</p>
+                                        <p className="text-xl font-black text-amber-900 dark:text-amber-200">{attendance?.records?.filter((r: any) => r.status === 'leave').length || 0}</p>
+                                        <p className="text-[9px] text-amber-500 dark:text-amber-400/80 font-bold uppercase tracking-wide mt-0.5">Approved leaves</p>
                                     </div>
-                                    <div className="card p-3 bg-blue-50 border-blue-100">
+                                    <div className="card p-3 bg-blue-50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/40">
                                         <div className="flex items-center gap-2 mb-1.5">
-                                            <div className="p-1.5 bg-blue-100 text-blue-600 rounded-md">
+                                            <div className="p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-md">
                                                 <Calendar className="w-3.5 h-3.5" />
                                             </div>
-                                            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Leave Bal</span>
+                                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Leave Bal</span>
                                         </div>
-                                        <p className="text-xl font-black text-blue-900">{profileUser?.leaveBalance || 20}</p>
-                                        <p className="text-[9px] text-blue-500 font-bold uppercase tracking-wide mt-0.5">Days remaining</p>
+                                        <p className="text-xl font-black text-blue-900 dark:text-blue-200">{profileUser?.leaveBalance || 20}</p>
+                                        <p className="text-[9px] text-blue-500 dark:text-blue-400/80 font-bold uppercase tracking-wide mt-0.5">Days remaining</p>
                                     </div>
                                 </div>
                                 <div className="card overflow-hidden">
-                                    <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                                        <h3 className="font-bold text-gray-900">Attendance Log</h3>
+                                    <div className="p-6 border-b border-gray-100 dark:border-zinc-800/80 flex items-center justify-between">
+                                        <h3 className="font-bold text-gray-900 dark:text-zinc-100">Attendance Log</h3>
                                         <div className="flex gap-2">
-                                            <span className="badge bg-emerald-100 text-emerald-700">Present: {attendance?.records?.filter((r: any) => r.status === 'present').length || 0}</span>
-                                            <span className="badge bg-rose-100 text-rose-700">Absent: {attendance?.records?.filter((r: any) => r.status === 'absent').length || 0}</span>
+                                            <span className="badge bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400">Present: {attendance?.records?.filter((r: any) => r.status === 'present').length || 0}</span>
+                                            <span className="badge bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400">Absent: {attendance?.records?.filter((r: any) => r.status === 'absent').length || 0}</span>
                                         </div>
                                     </div>
-                                    <div className="divide-y divide-gray-50 overflow-x-auto">
+                                    <div className="divide-y divide-gray-100 dark:divide-zinc-800/60 overflow-x-auto">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
-                                                <tr className="bg-gray-50/50">
-                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date</th>
-                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">In/Out</th>
-                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Work Hrs</th>
-                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Shift</th>
+                                                <tr className="bg-gray-50/50 dark:bg-zinc-800/40">
+                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-wider">Date</th>
+                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-wider">In/Out</th>
+                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-wider">Work Hrs</th>
+                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-wider">Status</th>
+                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-wider">Shift</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-50">
+                                            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60">
                                                 {attendance?.records?.map((record: any) => (
-                                                    <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
+                                                    <tr key={record.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                                                         <td className="px-6 py-4">
-                                                            <p className="text-sm font-bold text-gray-900">{format(new Date(record.date), 'MMM dd, yyyy')}</p>
+                                                            <p className="text-sm font-bold text-gray-900 dark:text-zinc-100">{format(new Date(record.date), 'MMM dd, yyyy')}</p>
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <div className="flex flex-col">
-                                                                <span className="text-xs font-bold text-emerald-600">In: {record.checkIn || '--:--'}</span>
-                                                                <span className="text-xs font-bold text-rose-600">Out: {record.checkOut || '--:--'}</span>
+                                                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">In: {record.checkIn || '--:--'}</span>
+                                                                <span className="text-xs font-bold text-rose-600 dark:text-rose-400">Out: {record.checkOut || '--:--'}</span>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <span className="text-sm font-bold text-gray-700">{record.workHours || '0'} hrs</span>
+                                                            <span className="text-sm font-bold text-gray-700 dark:text-zinc-300">{record.workHours || '0'} hrs</span>
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <span className={clsx(
                                                                 "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider",
-                                                                record.status === 'present' ? "bg-emerald-100 text-emerald-700" : 
-                                                                record.status === 'absent' ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"
+                                                                record.status === 'present' ? "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400" : 
+                                                                record.status === 'absent' ? "bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400" : "bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400"
                                                             )}>
                                                                 {record.status}
                                                             </span>
@@ -887,11 +920,11 @@ export default function UnifiedProfilePage() {
                                                         <td className="px-6 py-4">
                                                             <span className={clsx(
                                                                 "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider",
-                                                                record.shiftStatus === 'on_time' ? "bg-emerald-100 text-emerald-700" : 
-                                                                record.shiftStatus === 'late' ? "bg-rose-100 text-rose-700" : 
-                                                                record.shiftStatus === 'before_start' ? "bg-blue-100 text-blue-700" : 
-                                                                record.shiftStatus === 'early_exit' ? "bg-amber-100 text-amber-700" : 
-                                                                "bg-gray-100 text-gray-700"
+                                                                record.shiftStatus === 'on_time' ? "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400" : 
+                                                                record.shiftStatus === 'late' ? "bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400" : 
+                                                                record.shiftStatus === 'before_start' ? "bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400" : 
+                                                                record.shiftStatus === 'early_exit' ? "bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400" : 
+                                                                "bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300"
                                                             )}>
                                                                 {(record.shiftStatus || 'N/A').replace('_', ' ')}
                                                             </span>
@@ -900,7 +933,7 @@ export default function UnifiedProfilePage() {
                                                 ))}
                                                 {(!attendance?.records || attendance.records.length === 0) && (
                                                     <tr>
-                                                        <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-400 italic">
+                                                        <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-400 dark:text-zinc-500 italic">
                                                             No attendance records found.
                                                         </td>
                                                     </tr>
@@ -916,88 +949,88 @@ export default function UnifiedProfilePage() {
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                                 {/* Task & Performance Stats */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <div className="card p-3 bg-indigo-50/50 border-indigo-100">
+                                    <div className="card p-3 bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/40">
                                         <div className="flex items-center gap-2 mb-1.5">
-                                            <div className="p-1.5 bg-indigo-100 text-indigo-600 rounded-md">
+                                            <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-md">
                                                 <CheckSquare className="w-3.5 h-3.5" />
                                             </div>
-                                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Total Tasks</span>
+                                            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total Tasks</span>
                                         </div>
-                                        <p className="text-xl font-black text-indigo-900">{stats?.taskStats?.total || 0}</p>
-                                        <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-wide mt-0.5">All time assigned</p>
+                                        <p className="text-xl font-black text-indigo-900 dark:text-indigo-200">{stats?.taskStats?.total || 0}</p>
+                                        <p className="text-[9px] text-indigo-500 dark:text-indigo-400/80 font-bold uppercase tracking-wide mt-0.5">All time assigned</p>
                                     </div>
-                                    <div className="card p-3 bg-emerald-50/50 border-emerald-100">
+                                    <div className="card p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/40">
                                         <div className="flex items-center gap-2 mb-1.5">
-                                            <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-md">
+                                            <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-md">
                                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                             </div>
-                                            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">On-Time Master</span>
+                                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">On-Time Master</span>
                                         </div>
-                                        <p className="text-xl font-black text-emerald-900">{stats?.taskStats?.completedOnTime || 0}</p>
-                                        <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-wide mt-0.5">Completed before deadline</p>
+                                        <p className="text-xl font-black text-emerald-900 dark:text-emerald-200">{stats?.taskStats?.completedOnTime || 0}</p>
+                                        <p className="text-[9px] text-emerald-500 dark:text-emerald-400/80 font-bold uppercase tracking-wide mt-0.5">Completed before deadline</p>
                                     </div>
-                                    <div className="card p-3 bg-rose-50/50 border-rose-100">
+                                    <div className="card p-3 bg-rose-50/50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40">
                                         <div className="flex items-center gap-2 mb-1.5">
-                                            <div className="p-1.5 bg-rose-100 text-rose-600 rounded-md">
+                                            <div className="p-1.5 bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 rounded-md">
                                                 <XCircle className="w-3.5 h-3.5" />
                                             </div>
-                                            <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Missed Deadlines</span>
+                                            <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Missed Deadlines</span>
                                         </div>
-                                        <p className="text-xl font-black text-rose-900">{stats?.taskStats?.completedLate || (stats?.taskStats?.overdue || 0)}</p>
-                                        <p className="text-[9px] text-rose-500 font-bold uppercase tracking-wide mt-0.5">Late or currently overdue</p>
+                                        <p className="text-xl font-black text-rose-900 dark:text-rose-200">{stats?.taskStats?.completedLate || (stats?.taskStats?.overdue || 0)}</p>
+                                        <p className="text-[9px] text-rose-500 dark:text-rose-400/80 font-bold uppercase tracking-wide mt-0.5">Late or currently overdue</p>
                                     </div>
                                 </div>
 
                                 {/* Project Involvement */}
                                 <div className="card overflow-hidden">
-                                    <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                                        <h3 className="font-bold text-gray-900">Project Involvement</h3>
+                                    <div className="p-6 border-b border-gray-100 dark:border-zinc-800/80 flex items-center justify-between">
+                                        <h3 className="font-bold text-gray-900 dark:text-zinc-100">Project Involvement</h3>
                                         <span className="badge badge-indigo">{stats?.projects?.length || 0} Projects</span>
                                     </div>
-                                    <div className="divide-y divide-gray-50 overflow-x-auto">
+                                    <div className="divide-y divide-gray-100 dark:divide-zinc-800/60 overflow-x-auto">
                                         <table className="w-full text-left border-collapse">
                                             <thead>
-                                                <tr className="bg-gray-50/50">
-                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Project Name</th>
-                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Role</th>
-                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Progress</th>
-                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                                                <tr className="bg-gray-50/50 dark:bg-zinc-800/40">
+                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-wider">Project Name</th>
+                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-wider">Role</th>
+                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-wider">Progress</th>
+                                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-wider">Status</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-50">
+                                            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60">
                                                 {stats?.projects?.map((p: any) => (
-                                                    <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
+                                                    <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30 transition-colors group">
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center font-bold text-xs uppercase">
+                                                                <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 dark:text-indigo-400 flex items-center justify-center font-bold text-xs uppercase">
                                                                     {p.name[0]}
                                                                 </div>
                                                                 <div>
-                                                                    <p className="text-sm font-bold text-gray-900">{p.name}</p>
-                                                                    <p className="text-[10px] text-gray-400">Created {format(new Date(p.startDate), 'MMM dd, yyyy')}</p>
+                                                                    <p className="text-sm font-bold text-gray-900 dark:text-zinc-100">{p.name}</p>
+                                                                    <p className="text-[10px] text-gray-400 dark:text-zinc-500">Created {format(new Date(p.startDate), 'MMM dd, yyyy')}</p>
                                                                 </div>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <span className={clsx(
                                                                 "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border",
-                                                                p.role === 'owner' ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                                                                p.role === 'owner' ? "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/50" : "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/50"
                                                             )}>
                                                                 {p.role}
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center gap-2 max-w-[100px]">
-                                                                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                                <div className="flex-1 h-1.5 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                                                                     <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${p.progress}%` } as React.CSSProperties} />
                                                                 </div>
-                                                                <span className="text-[10px] font-bold text-gray-500">{p.progress}%</span>
+                                                                <span className="text-[10px] font-bold text-gray-500 dark:text-zinc-400">{p.progress}%</span>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <span className={clsx(
                                                                 "px-2 py-0.5 rounded-full text-[10px] font-bold capitalize",
-                                                                p.status === 'completed' ? "bg-emerald-100 text-emerald-700" : "bg-indigo-100 text-indigo-700"
+                                                                p.status === 'completed' ? "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400" : "bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400"
                                                             )}>
                                                                 {p.status?.replace('_', ' ')}
                                                             </span>
@@ -1006,7 +1039,7 @@ export default function UnifiedProfilePage() {
                                                 ))}
                                                 {(!stats?.projects || stats.projects.length === 0) && (
                                                     <tr>
-                                                        <td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-400 italic">
+                                                        <td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-400 dark:text-zinc-500 italic">
                                                             No project involvement recorded.
                                                         </td>
                                                     </tr>
@@ -1157,73 +1190,73 @@ export default function UnifiedProfilePage() {
                                 {profileUser.role === 'client' ? (
                                     <>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div className="card p-5 bg-indigo-50 border-indigo-100">
+                                            <div className="card p-5 bg-indigo-50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/40">
                                                 <div className="flex items-center gap-3 mb-2">
-                                                    <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg">
                                                         <DollarSign className="w-4 h-4" />
                                                     </div>
-                                                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Total Billed</span>
+                                                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total Billed</span>
                                                 </div>
-                                                <p className="text-3xl font-black text-indigo-900">
+                                                <p className="text-3xl font-black text-indigo-900 dark:text-indigo-200">
                                                     ₹{invoices.reduce((s, i) => s + (i.totalAmount || 0), 0).toLocaleString()}
                                                 </p>
                                             </div>
-                                            <div className="card p-5 bg-rose-50 border-rose-100">
+                                            <div className="card p-5 bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40">
                                                 <div className="flex items-center gap-3 mb-2">
-                                                    <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+                                                    <div className="p-2 bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 rounded-lg">
                                                         <Clock className="w-4 h-4" />
                                                     </div>
-                                                    <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">Outstanding</span>
+                                                    <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Outstanding</span>
                                                 </div>
-                                                <p className="text-3xl font-black text-rose-900">
+                                                <p className="text-3xl font-black text-rose-900 dark:text-rose-200">
                                                     ₹{invoices.filter(i => i.status !== 'paid').reduce((s, i) => s + (i.totalAmount || 0), 0).toLocaleString()}
                                                 </p>
                                             </div>
-                                            <div className="card p-5 bg-emerald-50 border-emerald-100">
+                                            <div className="card p-5 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/40">
                                                 <div className="flex items-center gap-3 mb-2">
-                                                    <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+                                                    <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-lg">
                                                         <CheckCircle2 className="w-4 h-4" />
                                                     </div>
-                                                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Paid Invoices</span>
+                                                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Paid Invoices</span>
                                                 </div>
-                                                <p className="text-3xl font-black text-emerald-900">
+                                                <p className="text-3xl font-black text-emerald-900 dark:text-emerald-200">
                                                     {invoices.filter(i => i.status === 'paid').length}
                                                 </p>
                                             </div>
                                         </div>
 
                                         <div className="card p-6">
-                                            <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                            <h3 className="font-bold text-gray-900 dark:text-zinc-100 mb-6 flex items-center gap-2">
                                                 <FileText className="w-4 h-4 text-indigo-500" />
                                                 Recent Invoices
                                             </h3>
                                             <div className="space-y-4">
                                                 {invoices.map((inv: any) => (
-                                                    <div key={inv.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-white hover:shadow-md transition-all border border-gray-100 group">
+                                                    <div key={inv.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-800/40 rounded-2xl hover:bg-white dark:hover:bg-zinc-800/70 hover:shadow-md transition-all border border-gray-100 dark:border-zinc-800 group">
                                                         <div className="flex items-center gap-4">
                                                             <div className={clsx(
                                                                 "w-10 h-10 rounded-xl flex items-center justify-center",
-                                                                inv.status === 'paid' ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
+                                                                inv.status === 'paid' ? "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400" : "bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400"
                                                             )}>
                                                                 <FileText className="w-5 h-5" />
                                                             </div>
                                                             <div>
-                                                                <p className="text-sm font-bold text-gray-900">{inv.invoiceNumber || 'INV-####'}</p>
-                                                                <p className="text-[10px] text-gray-400 uppercase tracking-widest">{format(new Date(inv.issueDate), 'MMM dd, yyyy')}</p>
+                                                                <p className="text-sm font-bold text-gray-900 dark:text-zinc-100">{inv.invoiceNumber || 'INV-####'}</p>
+                                                                <p className="text-[10px] text-gray-400 dark:text-zinc-500 uppercase tracking-widest">{format(new Date(inv.issueDate), 'MMM dd, yyyy')}</p>
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-6">
                                                             <div className="text-right">
-                                                                <p className="text-sm font-black text-gray-900">₹{inv.totalAmount?.toLocaleString()}</p>
+                                                                <p className="text-sm font-black text-gray-900 dark:text-zinc-100">₹{inv.totalAmount?.toLocaleString()}</p>
                                                                 <span className={clsx(
                                                                     "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
-                                                                    inv.status === 'paid' ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                                                                    inv.status === 'paid' ? "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400" : "bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400"
                                                                 )}>
                                                                     {inv.status}
                                                                 </span>
                                                             </div>
                                                             <button 
-                                                                className="p-2 hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                                                className="p-2 hover:bg-indigo-50 dark:hover:bg-zinc-700 text-gray-400 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors"
                                                                 title="Download Invoice"
                                                             >
                                                                 <Download className="w-4 h-4" />
@@ -1232,8 +1265,8 @@ export default function UnifiedProfilePage() {
                                                     </div>
                                                 ))}
                                                 {invoices.length === 0 && (
-                                                    <div className="py-12 text-center text-gray-400">
-                                                        <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                                    <div className="py-12 text-center text-gray-400 dark:text-zinc-500">
+                                                        <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-20 dark:opacity-40" />
                                                         <p className="italic">No billing history found</p>
                                                     </div>
                                                 )}
@@ -1255,22 +1288,22 @@ export default function UnifiedProfilePage() {
                                         </div>
 
                                         <div className="card p-6">
-                                            <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                            <h3 className="font-bold text-gray-900 dark:text-zinc-100 mb-6 flex items-center gap-2">
                                                 <FileText className="w-4 h-4 text-indigo-500" />
                                                 Payment History
                                             </h3>
                                             <div className="space-y-4">
                                                 {salary.slice(0, 5).map((pay: any) => (
-                                                    <div key={pay.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-white hover:shadow-md transition-all border border-gray-100">
+                                                    <div key={pay.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-800/40 rounded-2xl hover:bg-white dark:hover:bg-zinc-800/70 hover:shadow-md transition-all border border-gray-100 dark:border-zinc-800">
                                                         <div>
-                                                            <p className="text-sm font-bold text-gray-900">{pay.month} {pay.year}</p>
-                                                            <p className="text-[10px] text-gray-400 uppercase tracking-widest">{pay.status || 'Paid'}</p>
+                                                            <p className="text-sm font-bold text-gray-900 dark:text-zinc-100">{pay.month} {pay.year}</p>
+                                                            <p className="text-[10px] text-gray-400 dark:text-zinc-500 uppercase tracking-widest">{pay.status || 'Paid'}</p>
                                                         </div>
-                                                        <p className="text-lg font-black text-emerald-600">₹{pay.amount?.toLocaleString()}</p>
+                                                        <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">₹{pay.amount?.toLocaleString()}</p>
                                                     </div>
                                                 ))}
                                                 {salary.length === 0 && (
-                                                    <p className="text-sm text-gray-400 text-center py-4 italic">No payment records found</p>
+                                                    <p className="text-sm text-gray-400 dark:text-zinc-500 text-center py-4 italic">No payment records found</p>
                                                 )}
                                             </div>
                                         </div>
@@ -1289,20 +1322,20 @@ export default function UnifiedProfilePage() {
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {documents.map((doc: any) => (
-                                        <div key={doc.id} className="card p-4 hover:shadow-lg transition-all border border-gray-100 group flex items-start gap-4">
-                                            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                        <div key={doc.id} className="card p-4 hover:shadow-lg transition-all border border-gray-100 dark:border-zinc-800 group flex items-start gap-4">
+                                            <div className="p-3 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-all">
                                                 <FileText className="w-6 h-6" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-bold text-gray-900 truncate">{doc.name}</h4>
+                                                <h4 className="text-sm font-bold text-gray-900 dark:text-zinc-100 truncate">{doc.name}</h4>
                                                 <div className="flex items-center gap-3 mt-1">
-                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{doc.type || 'Document'}</span>
-                                                    <span className="w-1 h-1 rounded-full bg-gray-300" />
-                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{format(new Date(doc.createdAt), 'MMM dd, yyyy')}</span>
+                                                    <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{doc.type || 'Document'}</span>
+                                                    <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
+                                                    <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{format(new Date(doc.createdAt), 'MMM dd, yyyy')}</span>
                                                 </div>
                                             </div>
                                             <button 
-                                                className="p-2 hover:bg-gray-50 text-gray-400 hover:text-indigo-600 rounded-xl transition-colors"
+                                                className="p-2 hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-400 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-colors"
                                                 title="Download Document"
                                                 aria-label="Download Document"
                                             >
@@ -1311,10 +1344,10 @@ export default function UnifiedProfilePage() {
                                         </div>
                                     ))}
                                     {documents.length === 0 && (
-                                        <div className="col-span-full py-20 text-center card bg-gray-50/50 border-dashed border-2 border-gray-200">
-                                            <FileText className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                                            <h3 className="text-xl font-bold text-gray-900">No Documents Found</h3>
-                                            <p className="text-gray-500 mt-2">There are no shared documents for this client yet.</p>
+                                        <div className="col-span-full py-20 text-center card bg-gray-50/50 dark:bg-zinc-900/40 border-dashed border-2 border-gray-200 dark:border-zinc-800">
+                                            <FileText className="w-16 h-16 text-gray-200 dark:text-zinc-800 mx-auto mb-4" />
+                                            <h3 className="text-xl font-bold text-gray-900 dark:text-zinc-100">No Documents Found</h3>
+                                            <p className="text-gray-500 dark:text-zinc-400 mt-2">There are no shared documents for this client yet.</p>
                                         </div>
                                     )}
                                 </div>
@@ -1324,54 +1357,54 @@ export default function UnifiedProfilePage() {
                         {activeTab === 'settings' && (isOwnProfile || isAdmin) && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                                 <div className="card p-8">
-                                    <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-100">
-                                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                                    <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-100 dark:border-zinc-800/80">
+                                        <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl">
                                             <Lock className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-black text-gray-900">Security Settings</h3>
-                                            <p className="text-sm text-gray-500">Manage your account password and security preferences</p>
+                                            <h3 className="text-lg font-black text-gray-900 dark:text-zinc-100">Security Settings</h3>
+                                            <p className="text-sm text-gray-500 dark:text-zinc-400">Manage your account password and security preferences</p>
                                         </div>
                                     </div>
 
                                     <form onSubmit={handlePasswordChange} className="max-w-md space-y-6">
                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Current Password</label>
+                                            <label className="text-xs font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wider">Current Password</label>
                                             <div className="relative">
-                                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500" />
                                                 <input
                                                     type="password"
                                                     value={passwordData.currentPassword}
                                                     onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 transition-all"
+                                                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/80 rounded-2xl text-sm font-medium text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-400 transition-all"
                                                     placeholder="********"
                                                 />
                                             </div>
                                         </div>
 
                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">New Password</label>
+                                            <label className="text-xs font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wider">New Password</label>
                                             <div className="relative">
-                                                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500" />
                                                 <input
                                                     type="password"
                                                     value={passwordData.newPassword}
                                                     onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 transition-all"
+                                                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/80 rounded-2xl text-sm font-medium text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-400 transition-all"
                                                     placeholder="Minimum 6 characters"
                                                 />
                                             </div>
                                         </div>
 
                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Confirm New Password</label>
+                                            <label className="text-xs font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wider">Confirm New Password</label>
                                             <div className="relative">
-                                                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500" />
                                                 <input
                                                     type="password"
                                                     value={passwordData.confirmPassword}
                                                     onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 transition-all"
+                                                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/80 rounded-2xl text-sm font-medium text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-400 transition-all"
                                                     placeholder="Repeat new password"
                                                 />
                                             </div>
@@ -1380,7 +1413,7 @@ export default function UnifiedProfilePage() {
                                         <button
                                             type="submit"
                                             disabled={passwordLoading}
-                                            className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all disabled:opacity-50"
+                                            className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 hover:-translate-y-0.5 transition-all disabled:opacity-50"
                                         >
                                             {passwordLoading ? <LogoLoader className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                                             {passwordLoading ? 'Updating...' : 'Update Password'}

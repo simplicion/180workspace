@@ -169,7 +169,7 @@ export const getPresignedUrl = async (req: Request, res: Response, next: NextFun
             return res.status(400).json({ error: 'Missing key or contentType' });
         }
         const url = await R2Service.getPresignedUploadUrl(key as string, contentType as string);
-        const publicUrl = `${process.env.REELS_CDN_URL || 'https://pub-fe44d8a6e623474c9fa7a81b855fb631.r2.dev'}/${key}`;
+        const publicUrl = R2Service.getR2PublicUrl(key as string);
         res.json({ url, key, publicUrl });
     } catch (err) {
         next(err);

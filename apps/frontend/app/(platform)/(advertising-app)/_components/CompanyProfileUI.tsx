@@ -252,9 +252,10 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
     ];
 
     const currentBannerUrl = company.bannerUrl || meta.bannerUrl;
+    const displayName = company.name?.trim() || currentUser?.companyName?.trim() || company.slug || 'Company';
 
     return (
-        <div className="max-w-6xl mx-auto pb-12 bg-gray-50/50 min-h-screen w-full">
+        <div className="max-w-6xl mx-auto pb-12 bg-transparent min-h-screen w-full">
             {/* Hidden File Inputs for Direct Banner & Logo Upload */}
             <input 
                 type="file" 
@@ -286,7 +287,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
 
             <div className={`space-y-8 ${isPublicView ? 'p-0' : 'p-4 md:p-8'}`}>
                 {/* Header Banner & Profile */}
-                <div className={`bg-white shadow-sm overflow-hidden relative ${isPublicView ? 'border-y border-gray-200' : 'rounded-2xl border border-gray-200'}`}>
+                <div className={`bg-white dark:bg-zinc-900/90 shadow-sm overflow-hidden relative backdrop-blur-md ${isPublicView ? 'border-y border-gray-200 dark:border-zinc-800' : 'rounded-2xl border border-gray-200 dark:border-zinc-800'}`}>
                     
                     {/* Banner Section with Direct Click to Upload & Hover Overlay */}
                     <div 
@@ -353,17 +354,17 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                             src={company.logoUrl} 
                                             alt="Logo" 
                                             onError={() => setImageError(true)} 
-                                            className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 rounded-full bg-white p-1.5 border-4 border-white shadow-lg object-contain object-center transition-transform group-hover:scale-105" 
+                                            className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 rounded-full bg-white dark:bg-zinc-900 p-1.5 border-4 border-white dark:border-zinc-900 shadow-lg object-contain object-center transition-transform group-hover:scale-105" 
                                         />
                                     ) : (
-                                        <div className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border-4 border-white flex items-center justify-center shadow-lg text-white text-3xl sm:text-4xl md:text-5xl font-extrabold transition-transform group-hover:scale-105">
-                                            {company.name ? company.name.charAt(0).toUpperCase() : 'S'}
+                                        <div className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border-4 border-white dark:border-zinc-900 flex items-center justify-center shadow-lg text-white text-3xl sm:text-4xl md:text-5xl font-extrabold transition-transform group-hover:scale-105">
+                                            {displayName.charAt(0).toUpperCase()}
                                         </div>
                                     )}
 
                                     {/* Logo Hover Overlay */}
                                     {!isPublicView && (
-                                        <div className="absolute inset-0 rounded-full bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center border-4 border-white">
+                                        <div className="absolute inset-0 rounded-full bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center border-4 border-white dark:border-zinc-900">
                                             <div className="text-white text-center p-1">
                                                 {uploadingImage === 'logo' ? (
                                                     <LogoLoader className="w-5 h-5 animate-spin mx-auto text-white" />
@@ -376,7 +377,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                     )}
 
                                     {/* Verified Badge */}
-                                    <div className="absolute bottom-1 right-1 bg-green-500 rounded-full border-2 border-white p-1 shadow-sm">
+                                    <div className="absolute bottom-1 right-1 bg-green-500 rounded-full border-2 border-white dark:border-zinc-900 p-1 shadow-sm">
                                         <CheckCircle2 className="h-3.5 w-3.5 text-white" />
                                     </div>
                                 </div>
@@ -384,12 +385,12 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
 
                             {/* Top Right Actions */}
                             <div className="flex items-center space-x-2 md:space-x-3 mt-4 self-end md:self-auto w-full md:w-auto justify-end">
-                                <div className="flex items-center text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
-                                    <Users className="h-4 w-4 mr-2 text-blue-600" />
+                                <div className="flex items-center text-sm font-medium text-gray-700 dark:text-zinc-300 bg-gray-50 dark:bg-zinc-800/80 px-3 py-1 rounded-full border border-gray-100 dark:border-zinc-700/60">
+                                    <Users className="h-4 w-4 mr-2 text-blue-600 dark:text-blue-400" />
                                     {meta.followersCount || '0'} Followers
                                 </div>
-                                <div className="hidden md:flex items-center text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
-                                    <Eye className="h-4 w-4 mr-2 text-indigo-600" />
+                                <div className="hidden md:flex items-center text-sm font-medium text-gray-700 dark:text-zinc-300 bg-gray-50 dark:bg-zinc-800/80 px-3 py-1 rounded-full border border-gray-100 dark:border-zinc-700/60">
+                                    <Eye className="h-4 w-4 mr-2 text-indigo-600 dark:text-indigo-400" />
                                     {meta.profileViews || '0'} Profile Views
                                 </div>
 
@@ -398,7 +399,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                     <button 
                                         type="button"
                                         onClick={handleViewPublicProfile}
-                                        className="flex items-center px-3 md:px-4 py-1.5 md:py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs md:text-sm font-semibold rounded-lg hover:bg-indigo-100 transition-colors shadow-sm cursor-pointer"
+                                        className="flex items-center px-3 md:px-4 py-1.5 md:py-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs md:text-sm font-semibold rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors shadow-sm cursor-pointer"
                                     >
                                         <ExternalLink className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5" /> 
                                         <span>View Public Profile</span>
@@ -408,7 +409,7 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                 {!isPublicView && (
                                     <button 
                                         onClick={() => setIsHeaderEditModalOpen(true)} 
-                                        className="flex items-center px-3 md:px-4 py-1.5 md:py-2 bg-white border border-gray-300 text-gray-700 text-xs md:text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                                        className="flex items-center px-3 md:px-4 py-1.5 md:py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 text-xs md:text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors shadow-sm"
                                     >
                                         Edit Profile
                                     </button>
@@ -420,8 +421,8 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                                         disabled={isFollowingLoading || isUnfollowingLoading || isFollowStatusLoading}
                                         className={`flex items-center px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-lg transition-colors shadow-sm ${
                                             isFollowing 
-                                                ? 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200' 
-                                                : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                                                ? 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 border border-gray-300 dark:border-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-700' 
+                                                : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/50'
                                         }`}
                                     >
                                         {(isFollowingLoading || isUnfollowingLoading) ? (
@@ -443,29 +444,29 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                         {/* Company Details */}
                         <div className="mt-4 flex flex-col md:flex-row justify-between items-start md:items-center">
                             <div>
-                                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center">
-                                    {company.name} <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-blue-500 ml-2" />
+                                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-zinc-100 flex items-center">
+                                    {displayName} <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-blue-500 dark:text-blue-400 ml-2" />
                                 </h1>
-                                <p className="text-gray-800 text-sm md:text-lg mt-1 font-medium">{company.oneLineDescription || 'No description provided'}</p>
+                                <p className="text-gray-800 dark:text-zinc-300 text-sm md:text-lg mt-1 font-medium">{company.oneLineDescription || 'No description provided'}</p>
                                 
-                                <div className="flex flex-wrap items-center gap-x-4 md:gap-x-6 gap-y-2 mt-3 text-xs md:text-sm text-gray-600">
+                                <div className="flex flex-wrap items-center gap-x-4 md:gap-x-6 gap-y-2 mt-3 text-xs md:text-sm text-gray-600 dark:text-zinc-400">
                                     <div className="flex items-center">
-                                        <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-gray-400" /> {company.headquarters || 'Not provided'}
+                                        <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-gray-400 dark:text-zinc-500" /> {company.headquarters || 'Not provided'}
                                     </div>
                                     <div className="flex items-center">
-                                        <Globe className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-gray-400" /> 
-                                        <a href={company.website || '#'} className="hover:text-blue-600 transition-colors">{company.website?.replace(/^https?:\/\//, '') || 'Not provided'}</a>
+                                        <Globe className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-gray-400 dark:text-zinc-500" /> 
+                                        <a href={company.website || '#'} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{company.website?.replace(/^https?:\/\//, '') || 'Not provided'}</a>
                                     </div>
                                     <div className="flex items-center">
-                                        <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-gray-400" /> Founded {company.foundedDate ? new Date(company.foundedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Not provided'}
+                                        <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-gray-400 dark:text-zinc-500" /> Founded {company.foundedDate ? new Date(company.foundedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Not provided'}
                                     </div>
                                     <div className="flex items-center">
-                                        <Target className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-blue-500" /> <span className="text-gray-600 font-medium mr-1">Startup Stage:</span> {company.startupStage || 'Startup'}
+                                        <Target className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-blue-500 dark:text-blue-400" /> <span className="text-gray-600 dark:text-zinc-400 font-medium mr-1">Startup Stage:</span> {company.startupStage || 'Startup'}
                                     </div>
                                     <div className="flex items-center">
-                                        <Trophy className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-yellow-500" /> <span className="text-gray-600 font-medium mr-1">180workspaceScore:</span> 
-                                        <span className="font-bold text-gray-900 mr-1.5">92/100</span>
-                                        <span className="text-[10px] md:text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full font-medium">Top 5% Companies</span>
+                                        <Trophy className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 text-yellow-500" /> <span className="text-gray-600 dark:text-zinc-400 font-medium mr-1">180workspaceScore:</span> 
+                                        <span className="font-bold text-gray-900 dark:text-zinc-100 mr-1.5">92/100</span>
+                                        <span className="text-[10px] md:text-xs bg-yellow-100 dark:bg-yellow-950/60 text-yellow-800 dark:text-yellow-300 px-1.5 py-0.5 rounded-full font-medium border border-transparent dark:border-yellow-900/50">Top 5% Companies</span>
                                     </div>
                                 </div>
                             </div>
@@ -474,12 +475,12 @@ export function CompanyProfileUI({ companyData, isLoading, isPublicView = false,
                 </div>
 
                 {/* Top Navigation */}
-                <div className={`bg-white shadow-sm flex space-x-6 overflow-x-auto scrollbar-hide px-4 md:px-8 ${isPublicView ? 'border-y border-gray-200' : 'rounded-xl border border-gray-200'}`}>
+                <div className={`bg-white dark:bg-zinc-900/90 shadow-sm flex space-x-6 overflow-x-auto scrollbar-hide px-4 md:px-8 ${isPublicView ? 'border-y border-gray-200 dark:border-zinc-800' : 'rounded-xl border border-gray-200 dark:border-zinc-800'}`}>
                     {mainTabs.map(tab => (
                         <button 
                             key={tab}
                             onClick={() => setActiveMainTab(tab)}
-                            className={`py-4 px-2 whitespace-nowrap font-medium text-sm border-b-2 transition-colors ${activeMainTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
+                            className={`py-4 px-2 whitespace-nowrap font-medium text-sm border-b-2 transition-colors ${activeMainTab === tab ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400 font-semibold' : 'border-transparent text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200'}`}
                         >
                             {tab}
                         </button>

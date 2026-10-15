@@ -54,17 +54,17 @@ export const buildR2Key = (category: R2StorageCategory | string, companyId: stri
  * Computes public CDN URL for an R2 object key
  */
 export const getR2PublicUrl = (key: string): string => {
-    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME || '180workspace';
-    const publicUrlBase = process.env.CLOUDFLARE_R2_PUBLIC_URL || process.env.REELS_CDN_URL;
-    return publicUrlBase 
-        ? `${publicUrlBase}/${key}`
-        : `https://${bucketName}.r2.dev/${key}`;
+    const publicUrlBase = process.env.CLOUDFLARE_R2_PUBLIC_URL || process.env.REELS_CDN_URL || '';
+    if (!publicUrlBase) {
+        return key.startsWith('/') ? key : `/${key}`;
+    }
+    return `${publicUrlBase.replace(/\/+$/, '')}/${key.replace(/^\/+/, '')}`;
 };
 
 export const uploadBufferToR2 = async (buffer: Buffer, key: string, mimetype: string) => {
-    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME;
+    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME || '';
     if (!bucketName) {
-        throw new Error('R2 Bucket name is not configured');
+        throw new Error('R2 Bucket name is not configured in environment variables');
     }
 
     const command = new PutObjectCommand({
@@ -85,9 +85,9 @@ export const uploadBufferToR2 = async (buffer: Buffer, key: string, mimetype: st
 };
 
 export const getPresignedUploadUrl = async (key: string, mimetype: string) => {
-    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME;
+    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME || '';
     if (!bucketName) {
-        throw new Error('R2 Bucket name is not configured');
+        throw new Error('R2 Bucket name is not configured in environment variables');
     }
 
     const command = new PutObjectCommand({
@@ -104,9 +104,9 @@ export const getPresignedUploadUrl = async (key: string, mimetype: string) => {
  * Generates a signed, time-limited download URL for confidential files (invoices, payroll, contracts)
  */
 export const getPresignedDownloadUrl = async (key: string, expiresInSeconds = 3600): Promise<string> => {
-    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME;
+    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME || '';
     if (!bucketName) {
-        throw new Error('R2 Bucket name is not configured');
+        throw new Error('R2 Bucket name is not configured in environment variables');
     }
 
     const command = new GetObjectCommand({
@@ -141,9 +141,9 @@ export const extractR2KeyFromUrl = (urlOrKey: string): string | null => {
  * Deletes a single object from Cloudflare R2 / S3.
  */
 export const deleteObjectFromR2 = async (keyOrUrl: string): Promise<boolean> => {
-    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME;
+    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME || '';
     if (!bucketName) {
-        console.warn('[R2 Storage] Bucket name not configured; skipping deleteObjectFromR2');
+        console.warn('[R2 Storage] Bucket name not configured in environment variables; skipping deleteObjectFromR2');
         return false;
     }
 
@@ -167,10 +167,10 @@ export const deleteObjectFromR2 = async (keyOrUrl: string): Promise<boolean> => 
  * Bulk deletes multiple objects from Cloudflare R2 / S3 in batches of up to 1000.
  */
 export const deleteObjectsFromR2 = async (keysOrUrls: string[]): Promise<{ deleted: number; errors: any[] }> => {
-    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME;
+    const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.R2_BUCKET_NAME || '';
     if (!bucketName) {
-        console.warn('[R2 Storage] Bucket name not configured; skipping deleteObjectsFromR2');
-        return { deleted: 0, errors: ['R2 Bucket name not configured'] };
+        console.warn('[R2 Storage] Bucket name not configured in environment variables; skipping deleteObjectsFromR2');
+        return { deleted: 0, errors: ['R2 Bucket name not configured in environment variables'] };
     }
 
     if (!Array.isArray(keysOrUrls) || keysOrUrls.length === 0) {

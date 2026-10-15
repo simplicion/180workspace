@@ -67,11 +67,11 @@ export function AddOfferingModal({ isOpen, onClose, companyId }: AddOfferingModa
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden relative max-h-[90vh] flex flex-col">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                    <h2 className="text-lg font-bold text-gray-900">Add New Offering</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 border border-transparent dark:border-zinc-800 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden relative max-h-[90vh] flex flex-col">
+                <div className="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between sticky top-0 bg-white dark:bg-zinc-900 z-10">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-zinc-100">Add New Offering</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 transition-colors">
                         <X className="h-5 w-5" />
                     </button>
                 </div>
@@ -79,8 +79,8 @@ export function AddOfferingModal({ isOpen, onClose, companyId }: AddOfferingModa
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {/* Image Upload */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Offering Image / Logo</label>
-                            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:bg-gray-50 transition-colors">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Offering Image / Logo</label>
+                            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-zinc-700 border-dashed rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors">
                                 <div className="space-y-1 text-center">
                                     {imageUrl ? (
                                         <div className="relative">
@@ -98,15 +98,15 @@ export function AddOfferingModal({ isOpen, onClose, companyId }: AddOfferingModa
                                             {isUploading ? (
                                                 <LogoLoader className="mx-auto h-12 w-12 text-gray-400 animate-spin" />
                                             ) : (
-                                                <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                                                <Upload className="mx-auto h-12 w-12 text-gray-400 dark:text-zinc-500" />
                                             )}
-                                            <div className="flex text-sm text-gray-600 justify-center">
-                                                <label htmlFor="offering-image-upload" className="relative cursor-pointer rounded-md bg-white font-medium text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 hover:text-blue-500">
+                                            <div className="flex text-sm text-gray-600 dark:text-zinc-400 justify-center">
+                                                <label htmlFor="offering-image-upload" className="relative cursor-pointer rounded-md bg-white dark:bg-transparent font-medium text-blue-600 dark:text-blue-400 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 hover:text-blue-500">
                                                     <span>Upload a file</span>
                                                     <input id="offering-image-upload" name="offering-image-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageUpload} disabled={isUploading} />
                                                 </label>
                                             </div>
-                                            <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+                                            <p className="text-xs text-gray-500 dark:text-zinc-400">PNG, JPG, GIF up to 5MB</p>
                                         </>
                                     )}
                                 </div>
@@ -114,55 +114,55 @@ export function AddOfferingModal({ isOpen, onClose, companyId }: AddOfferingModa
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Offering Title</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Offering Title</label>
                             <input 
                                 type="text" 
                                 required
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all" 
+                                className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all" 
                                 placeholder="e.g. Custom Software Development" 
                             />
                         </div>
                         
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Short Description (Max 2 lines)</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Short Description (Max 2 lines)</label>
                             <textarea 
                                 required
                                 rows={2} 
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 maxLength={150}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all resize-none" 
-                                placeholder="Brief overview of the offering..."
+                                className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all resize-none" 
+                                placeholder="Brief overview of the offering..." 
                             />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Highlighted Text (Price or Detail)</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Highlighted Text (Price or Detail)</label>
                             <input 
                                 type="text" 
                                 value={startingPrice}
                                 onChange={(e) => setStartingPrice(e.target.value)}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all" 
+                                className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all" 
                                 placeholder="e.g. Starting at $99/hr or Free Trial Available" 
                             />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Link</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Link</label>
                             <input 
                                 type="url" 
                                 value={link}
                                 onChange={(e) => setLink(e.target.value)}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all" 
+                                className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all" 
                                 placeholder="https://example.com/offering" 
                             />
                         </div>
 
                         <div className="mb-8">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Detailed Description (Optional)</label>
-                            <div className="h-40 mb-12">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Detailed Description (Optional)</label>
+                            <div className="h-40 mb-12 bg-white dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700 overflow-hidden text-gray-900 dark:text-zinc-100">
                                 <ReactQuill 
                                     theme="snow"
                                     value={detailedDescription}
@@ -172,11 +172,11 @@ export function AddOfferingModal({ isOpen, onClose, companyId }: AddOfferingModa
                             </div>
                         </div>
 
-                        <div className="pt-4 border-t border-gray-100 flex justify-end gap-3 mt-4">
+                        <div className="pt-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end gap-3 mt-4">
                             <button 
                                 type="button" 
                                 onClick={onClose} 
-                                className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                className="px-5 py-2.5 text-sm font-semibold text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
                             >
                                 Cancel
                             </button>

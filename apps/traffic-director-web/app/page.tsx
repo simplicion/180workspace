@@ -19,7 +19,7 @@ export default function TrafficDirectorLandingPage() {
 
   const handleLogin = () => {
     launch180Identity({
-      clientId: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_b26aee801c22cb3295f041ff2a3597db',
+      clientId: process.env.NEXT_PUBLIC_180_CLIENT_ID || process.env.NEXT_PUBLIC_CLIENT_ID || '',
       redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : undefined,
       onSuccess: (res: any) => {
         const token = res?.authToken || res?.accessToken || res?.token;

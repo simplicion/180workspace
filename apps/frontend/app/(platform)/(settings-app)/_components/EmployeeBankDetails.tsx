@@ -59,17 +59,17 @@ export default function EmployeeBankDetails({ profileUser, currentUser, onUpdate
     };
 
     return (
-        <div className="card p-6 mt-6 border border-gray-100">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
-                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+        <div className="card p-6 mt-6 border border-gray-100 dark:border-zinc-800/80">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800/80 pb-4 mb-6">
+                <h3 className="font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-indigo-500" />
                     Bank Details & Payout Config
                 </h3>
                 <div className={clsx(
                     "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5",
-                    verificationStatus === 'verified' ? "bg-emerald-100 text-emerald-700" :
-                        verificationStatus === 'failed' ? "bg-red-100 text-red-700" :
-                            "bg-amber-100 text-amber-700"
+                    verificationStatus === 'verified' ? "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300" :
+                        verificationStatus === 'failed' ? "bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300" :
+                            "bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
                 )}>
                     {verificationStatus === 'verified' && <CheckCircle2 className="w-3.5 h-3.5" />}
                     {verificationStatus === 'failed' && <AlertCircle className="w-3.5 h-3.5" />}
@@ -109,7 +109,7 @@ export default function EmployeeBankDetails({ profileUser, currentUser, onUpdate
                         className="input"
                         placeholder={profileUser.bankDetails?.accountNumber ? '••••••••••••' : 'Enter Account Number'}
                     />
-                    <p className="text-[10px] text-gray-400 mt-1">Stored securely using military-grade encryption.</p>
+                    <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">Stored securely using military-grade encryption.</p>
                 </div>
                 <div>
                     <label className="label">IFSC Code / Routing Number</label>
@@ -134,13 +134,13 @@ export default function EmployeeBankDetails({ profileUser, currentUser, onUpdate
             </div>
 
             {canEdit && (
-                <div className="mt-6 pt-6 border-t border-gray-100 flex items-center justify-between">
+                <div className="mt-6 pt-6 border-t border-gray-100 dark:border-zinc-800/80 flex items-center justify-between">
                     <button
                         onClick={verifyBankAccount}
                         disabled={verifying || verificationStatus === 'verified' || !profileUser.bankDetails?.accountNumber}
-                        className="btn items-center gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 font-semibold"
+                        className="btn-secondary items-center gap-2 disabled:opacity-50 font-semibold"
                     >
-                        {verifying ? <LogoLoader className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-emerald-600" />}
+                        {verifying ? <LogoLoader className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
                         {verifying ? 'Verifying via Penny Drop...' : 'Verify Bank Account'}
                     </button>
 

@@ -9,7 +9,7 @@ import { UsernameService } from '../user/username.service';
 import { LocationService } from '../user/location.service';
 
 function getJwtSecret(): string {
-    return process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '180-identity-jwt-secret-key-prod-super-secure';
+    return process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '';
 }
 
 const JWT_SECRET = getJwtSecret();

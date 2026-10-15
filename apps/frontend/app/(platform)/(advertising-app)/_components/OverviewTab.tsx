@@ -77,22 +77,22 @@ export function OverviewTab({ company, isPublicView, onProfileUpdate }: Overview
             {/* Main Content Area */}
             <div className="w-full">
                 {/* About Section */}
-                <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="bg-white dark:bg-zinc-900/90 p-8 rounded-2xl border border-gray-100 dark:border-zinc-800/80 shadow-sm backdrop-blur-sm">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-bold text-gray-900">About {company.name || 'Company'}</h2>
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-zinc-100">About {company.name || 'Company'}</h2>
                         {!isPublicView && (
-                            <button onClick={() => setIsOverviewEditModalOpen(true)} className="text-sm text-blue-600 hover:text-blue-800 font-medium px-3 py-1 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                            <button onClick={() => setIsOverviewEditModalOpen(true)} className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium px-3 py-1 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors border border-transparent dark:border-blue-900/50">
                                 Edit Overview
                             </button>
                         )}
                     </div>
-                    <p className="text-gray-600 leading-relaxed mb-6 text-sm whitespace-pre-wrap">
+                    <p className="text-gray-600 dark:text-zinc-300 leading-relaxed mb-6 text-sm whitespace-pre-wrap">
                         {company.aboutUs || 'No description provided.'}
                     </p>
                     
                     <div className="flex flex-wrap gap-2 mb-8">
                         {company.tagline && company.tagline.split(',').map((tag: string) => (
-                            <span key={tag} className="px-3 py-1 bg-gray-50 text-gray-600 text-xs font-medium rounded-md border border-gray-200">
+                            <span key={tag} className="px-3 py-1 bg-gray-50 dark:bg-zinc-800/80 text-gray-600 dark:text-zinc-300 text-xs font-medium rounded-md border border-gray-200 dark:border-zinc-700/60">
                                 {tag.trim()}
                             </span>
                         ))}
@@ -100,104 +100,104 @@ export function OverviewTab({ company, isPublicView, onProfileUpdate }: Overview
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-6 gap-x-8">
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Globe className="h-3.5 w-3.5 mr-2" /> Country
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.country || 'Not provided'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm">{company.country || 'Not provided'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <MapPin className="h-3.5 w-3.5 mr-2" /> Headquarters
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.headquarters || 'Not provided'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm">{company.headquarters || 'Not provided'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <FileText className="h-3.5 w-3.5 mr-2" /> Legal Name
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.name || 'Not provided'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm">{company.name || 'Not provided'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Map className="h-3.5 w-3.5 mr-2" /> Other Offices
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.otherOffices || 'Not provided'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm">{company.otherOffices || 'Not provided'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Calendar className="h-3.5 w-3.5 mr-2" /> Founded
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.foundedDate ? new Date(company.foundedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not provided'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm">{company.foundedDate ? new Date(company.foundedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not provided'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Target className="h-3.5 w-3.5 mr-2" /> Specialties
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm leading-snug">{company.tagline || company.industry || 'Not provided'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm leading-snug">{company.tagline || company.industry || 'Not provided'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Globe className="h-3.5 w-3.5 mr-2" /> Website
                             </div>
-                            <a href={company.website || '#'} target="_blank" rel="noreferrer" className="text-blue-600 font-medium pl-5 text-sm hover:underline">{company.website || 'Not provided'}</a>
+                            <a href={company.website || '#'} target="_blank" rel="noreferrer" className="text-blue-600 dark:text-blue-400 font-medium pl-5 text-sm hover:underline">{company.website || 'Not provided'}</a>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Mail className="h-3.5 w-3.5 mr-2" /> Email
                             </div>
-                            <a href={`mailto:${company.adminEmail}`} className="text-blue-600 font-medium pl-5 text-sm hover:underline">{company.adminEmail || 'Not provided'}</a>
+                            <a href={`mailto:${company.adminEmail}`} className="text-blue-600 dark:text-blue-400 font-medium pl-5 text-sm hover:underline">{company.adminEmail || 'Not provided'}</a>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Briefcase className="h-3.5 w-3.5 mr-2" /> Industry
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.industry || 'Not provided'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm">{company.industry || 'Not provided'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Phone className="h-3.5 w-3.5 mr-2" /> Phone
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.adminPhone || 'Not provided'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm">{company.adminPhone || 'Not provided'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Users className="h-3.5 w-3.5 mr-2" /> Company Size
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.teamSize || company._count?.users || 'Not provided'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm">{company.teamSize || company._count?.users || 'Not provided'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <TrendingUp className="h-3.5 w-3.5 mr-2" /> Team Growth Rate
                             </div>
-                            <div className="text-green-600 font-bold pl-5 text-sm">{teamGrowthRate}</div>
+                            <div className="text-green-600 dark:text-emerald-400 font-bold pl-5 text-sm">{teamGrowthRate}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Briefcase className="h-3.5 w-3.5 mr-2" /> Products Built
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.productsBuilt || company._count?.products || '0'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm">{company.productsBuilt || company._count?.products || '0'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center text-gray-500 text-xs mb-1 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-1 font-medium">
                                 <Users className="h-3.5 w-3.5 mr-2" /> Happy Clients
                             </div>
-                            <div className="text-gray-900 font-medium pl-5 text-sm">{company.happyClients || company._count?.clients_CompanyClients || '0'}</div>
+                            <div className="text-gray-900 dark:text-zinc-200 font-medium pl-5 text-sm">{company.happyClients || company._count?.clients_CompanyClients || '0'}</div>
                         </div>
                         <div className="lg:col-span-2 xl:col-span-2">
-                            <div className="flex items-center text-gray-500 text-xs mb-2 font-medium">
+                            <div className="flex items-center text-gray-500 dark:text-zinc-400 text-xs mb-2 font-medium">
                                 <Globe className="h-3.5 w-3.5 mr-2" /> Social links
                             </div>
                             <div className="flex flex-wrap gap-2 pl-5">
-                                {socialLinks.linkedin && <a href={socialLinks.linkedin} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors border border-gray-200"><span className="font-bold text-[10px]">in</span></a>}
-                                {socialLinks.twitter && <a href={socialLinks.twitter} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-400 transition-colors border border-gray-200"><span className="font-bold text-[10px]">tw</span></a>}
-                                {socialLinks.youtube && <a href={socialLinks.youtube} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors border border-gray-200"><span className="font-bold text-[10px]">yt</span></a>}
-                                {socialLinks.instagram && <a href={socialLinks.instagram} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-pink-50 hover:text-pink-600 transition-colors border border-gray-200"><span className="font-bold text-[10px]">ig</span></a>}
-                                {socialLinks.facebook && <a href={socialLinks.facebook} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors border border-gray-200"><span className="font-bold text-[10px]">fb</span></a>}
-                                {socialLinks.tiktok && <a href={socialLinks.tiktok} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-black hover:text-white transition-colors border border-gray-200"><span className="font-bold text-[10px]">tk</span></a>}
-                                {socialLinks.pinterest && <a href={socialLinks.pinterest} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors border border-gray-200"><span className="font-bold text-[10px]">pt</span></a>}
-                                {socialLinks.github && <a href={socialLinks.github} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-colors border border-gray-200"><span className="font-bold text-[10px]">gh</span></a>}
-                                {socialLinks.discord && <a href={socialLinks.discord} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors border border-gray-200"><span className="font-bold text-[10px]">dc</span></a>}
-                                {!Object.values(socialLinks).some(Boolean) && <span className="text-gray-400 text-xs">No links added</span>}
+                                {socialLinks.linkedin && <a href={socialLinks.linkedin} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:bg-blue-50 dark:hover:bg-zinc-700 hover:text-blue-600 dark:hover:text-zinc-100 transition-colors border border-gray-200 dark:border-zinc-700"><span className="font-bold text-[10px]">in</span></a>}
+                                {socialLinks.twitter && <a href={socialLinks.twitter} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:bg-blue-50 dark:hover:bg-zinc-700 hover:text-blue-400 dark:hover:text-zinc-100 transition-colors border border-gray-200 dark:border-zinc-700"><span className="font-bold text-[10px]">tw</span></a>}
+                                {socialLinks.youtube && <a href={socialLinks.youtube} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-zinc-700 hover:text-red-600 dark:hover:text-zinc-100 transition-colors border border-gray-200 dark:border-zinc-700"><span className="font-bold text-[10px]">yt</span></a>}
+                                {socialLinks.instagram && <a href={socialLinks.instagram} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:bg-pink-50 dark:hover:bg-zinc-700 hover:text-pink-600 dark:hover:text-zinc-100 transition-colors border border-gray-200 dark:border-zinc-700"><span className="font-bold text-[10px]">ig</span></a>}
+                                {socialLinks.facebook && <a href={socialLinks.facebook} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:bg-blue-50 dark:hover:bg-zinc-700 hover:text-blue-600 dark:hover:text-zinc-100 transition-colors border border-gray-200 dark:border-zinc-700"><span className="font-bold text-[10px]">fb</span></a>}
+                                {socialLinks.tiktok && <a href={socialLinks.tiktok} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:bg-black dark:hover:bg-zinc-700 hover:text-white dark:hover:text-zinc-100 transition-colors border border-gray-200 dark:border-zinc-700"><span className="font-bold text-[10px]">tk</span></a>}
+                                {socialLinks.pinterest && <a href={socialLinks.pinterest} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-zinc-700 hover:text-red-600 dark:hover:text-zinc-100 transition-colors border border-gray-200 dark:border-zinc-700"><span className="font-bold text-[10px]">pt</span></a>}
+                                {socialLinks.github && <a href={socialLinks.github} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors border border-gray-200 dark:border-zinc-700"><span className="font-bold text-[10px]">gh</span></a>}
+                                {socialLinks.discord && <a href={socialLinks.discord} target="_blank" rel="noreferrer" className="h-7 w-7 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:bg-indigo-50 dark:hover:bg-zinc-700 hover:text-indigo-600 dark:hover:text-zinc-100 transition-colors border border-gray-200 dark:border-zinc-700"><span className="font-bold text-[10px]">dc</span></a>}
+                                {!Object.values(socialLinks).some(Boolean) && <span className="text-gray-400 dark:text-zinc-500 text-xs">No links added</span>}
                             </div>
                         </div>
                     </div>

@@ -6,7 +6,7 @@ import path from 'path';
 import {
     FIRST_PARTY_APPS,
     OAuthController
-} from '@workspace/identity';
+} from '@workspace/identity-provider';
 
 async function runPhase3WorkspaceCutoverSuite() {
     console.log('\n================================================================');

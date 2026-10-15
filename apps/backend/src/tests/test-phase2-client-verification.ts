@@ -10,7 +10,7 @@ import {
     UsernameService,
     LocationService,
     OAuthController
-} from '@workspace/identity';
+} from '@workspace/identity-provider';
 
 async function runPhase2ClientVerificationSuite() {
     console.log('\n================================================================');

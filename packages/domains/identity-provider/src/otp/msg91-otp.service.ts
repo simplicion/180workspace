@@ -74,7 +74,7 @@ export class Msg91OtpService {
     static async sendWhatsAppOtp(phone: string, customOtp?: string): Promise<{ success: boolean; message: string; devOtp?: string }> {
         const { e164, national, msg91Mobile } = this.normalizePhone(phone);
         const authKey = process.env.MSG91_AUTH_KEY;
-        const integratedNumber = process.env.MSG91_WHATSAPP_INTEGRATED_NUMBER || '919381420546';
+        const integratedNumber = process.env.MSG91_WHATSAPP_INTEGRATED_NUMBER || '';
         const templateName = process.env.MSG91_WHATSAPP_TEMPLATE_NAME || 'welcome';
         const languageCode = process.env.MSG91_WHATSAPP_LANG || 'en';
         const fallbackTemplateId = process.env.MSG91_OTP_TEMPLATE_ID;

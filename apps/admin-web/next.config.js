@@ -38,6 +38,8 @@ const nextConfig = {
             { protocol: 'https', hostname: 'res.cloudinary.com' },
             { protocol: 'https', hostname: 'api.dicebear.com' },
             { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+            { protocol: 'https', hostname: 'pub-aea1cef4fdee45bb865779983163a264.r2.dev' },
+            { protocol: 'https', hostname: '**.r2.dev' },
         ],
     },
     async headers() {

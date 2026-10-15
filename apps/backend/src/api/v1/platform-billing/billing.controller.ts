@@ -317,12 +317,12 @@ export class BillingController {
                     couponCode: couponCode || null,
                     userId: (req as any).user?.id,
                 },
-                clientId: process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_70d751541f05347fe803ec8e128f5e83',
-                clientSecret: process.env.ONE_EIGHTY_CLIENT_SECRET || '180_secret_a58c34e77528dc342871ecc66c41e9f06522223896b851a4338eee40e2bc2276',
+                clientId: process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '',
+                clientSecret: process.env.ONE_EIGHTY_CLIENT_SECRET || '',
             };
 
-            const apiUrl = process.env.ONE_EIGHTY_API_URL || 'https://services.180workspace.com';
-            const payUrl = process.env.NEXT_PUBLIC_180_PAY_URL || 'https://pay.180workspace.com';
+            const apiUrl = process.env.ONE_EIGHTY_API_URL || '';
+            const payUrl = process.env.NEXT_PUBLIC_180_PAY_URL || '';
 
             const queryParams = new URLSearchParams({
                 amount: String(finalPrice),
@@ -549,7 +549,7 @@ export class BillingController {
         try {
             const signature = (req.headers['x-180-signature'] || req.headers['x-signature']) as string;
             const timestamp = req.headers['x-180-timestamp'] as string;
-            const webhookSecret = process.env.ONE_EIGHTY_WEBHOOK_SECRET || 'whsec_workspace_core_dev_key';
+            const webhookSecret = process.env.ONE_EIGHTY_WEBHOOK_SECRET || '';
 
             // 1. Prevent Replay Attacks: Enforce 5-minute (300s) maximum drift
             const currentTime = Math.floor(Date.now() / 1000);

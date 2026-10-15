@@ -49,13 +49,13 @@ export function AboutEditModal({ company, isOpen, onClose, onSave }: AboutEditMo
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white sticky top-0 z-10">
-                    <h2 className="text-xl font-bold text-gray-900">Edit About Info</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 dark:bg-black/70 backdrop-blur-sm">
+            <div className="bg-white dark:bg-zinc-900 border border-transparent dark:border-zinc-800 rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-10">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">Edit About Info</h2>
                     <button 
                         onClick={onClose}
-                        className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500"
+                        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-500 dark:text-zinc-400"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -66,8 +66,8 @@ export function AboutEditModal({ company, isOpen, onClose, onSave }: AboutEditMo
                         {/* Mission */}
                         <div>
                             <div className="flex justify-between mb-1">
-                                <label className="block text-sm font-semibold text-gray-700">Mission</label>
-                                <span className="text-xs text-gray-500">{formData.mission.length} / 500</span>
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-zinc-300">Mission</label>
+                                <span className="text-xs text-gray-500 dark:text-zinc-400">{formData.mission.length} / 500</span>
                             </div>
                             <textarea
                                 name="mission"
@@ -75,7 +75,7 @@ export function AboutEditModal({ company, isOpen, onClose, onSave }: AboutEditMo
                                 onChange={handleChange}
                                 maxLength={500}
                                 rows={3}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none text-gray-900"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none"
                                 placeholder="Enter company mission..."
                             />
                         </div>
@@ -83,8 +83,8 @@ export function AboutEditModal({ company, isOpen, onClose, onSave }: AboutEditMo
                         {/* Vision */}
                         <div>
                             <div className="flex justify-between mb-1">
-                                <label className="block text-sm font-semibold text-gray-700">Vision</label>
-                                <span className="text-xs text-gray-500">{formData.vision.length} / 500</span>
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-zinc-300">Vision</label>
+                                <span className="text-xs text-gray-500 dark:text-zinc-400">{formData.vision.length} / 500</span>
                             </div>
                             <textarea
                                 name="vision"
@@ -92,15 +92,15 @@ export function AboutEditModal({ company, isOpen, onClose, onSave }: AboutEditMo
                                 onChange={handleChange}
                                 maxLength={500}
                                 rows={3}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none text-gray-900"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none"
                                 placeholder="Enter company vision..."
                             />
                         </div>
 
                         {/* Story */}
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Story</label>
-                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden text-gray-900">
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-1">Story</label>
+                            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 overflow-hidden text-gray-900 dark:text-zinc-100">
                                 {/* @ts-ignore */}
                                 <ReactQuill 
                                     theme="snow"
@@ -114,11 +114,11 @@ export function AboutEditModal({ company, isOpen, onClose, onSave }: AboutEditMo
                     </form>
                 </div>
 
-                <div className="p-6 border-t border-gray-100 bg-gray-50 sticky bottom-0 flex justify-end gap-3 z-10">
+                <div className="p-6 border-t border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 sticky bottom-0 flex justify-end gap-3 z-10">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-6 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+                        className="px-6 py-2.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 font-medium hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
                         disabled={isLoading}
                     >
                         Cancel

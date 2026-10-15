@@ -182,7 +182,7 @@ export class WalletGatewayService {
     const amountPaise = Math.round(finalPayableAmount * 100);
 
     if (oneEightyClientId || oneEightySecret) {
-      const apiUrl = process.env.ONE_EIGHTY_API_URL || 'https://services.180workspace.com';
+      const apiUrl = process.env.ONE_EIGHTY_API_URL || process.env.CORE_BACKEND_URL || '';
       let sessionId = `sess_180pay_${crypto.randomUUID().replace(/-/g, '')}`;
 
       try {

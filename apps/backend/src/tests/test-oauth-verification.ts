@@ -16,7 +16,7 @@ import {
     LocationService,
     Msg91OtpService,
     OAuthController
-} from '@workspace/identity';
+} from '@workspace/identity-provider';
 
 async function runOAuthVerificationSuite() {
     console.log('\n================================================================');

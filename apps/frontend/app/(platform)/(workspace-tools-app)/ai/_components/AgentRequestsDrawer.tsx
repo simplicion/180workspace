@@ -318,7 +318,7 @@ export function AgentRequestsDrawer({ isOpen, onClose, onRequestCountChange }: A
                   </p>
                 </div>
                 <a
-                  href={process.env.NEXT_PUBLIC_VOICEFORCE_URL || 'https://voiceforce.vanityworkspace.com'}
+                  href={process.env.NEXT_PUBLIC_VOICEFORCE_URL || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 cursor-pointer"

@@ -41,12 +41,12 @@ export default function CallbackPage() {
         const isLocal =
           window.location.hostname === 'localhost' ||
           window.location.hostname === '127.0.0.1';
-        const apiBase = isLocal ? 'http://localhost:4002' : 'https://api.180workspace.com';
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_IDENTITY_SERVER_URL || '';
         const redirectUri = window.location.origin + '/callback';
 
         const tokenPayload = {
           grant_type: 'authorization_code',
-          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_b26aee801c22cb3295f041ff2a3597db',
+          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || process.env.NEXT_PUBLIC_CLIENT_ID || '',
           code,
           redirect_uri: redirectUri,
         };

@@ -293,12 +293,12 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                 {(() => {
                     const score = performanceScore ?? 100;
                     const TIERS = [
-                        { min: 0, max: 100, tag: 'Rookie', emoji: '🌱', color: '#94A3B8', bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
-                        { min: 100, max: 200, tag: 'Consistent Contributor', emoji: '🔥', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-                        { min: 200, max: 300, tag: 'Rising Star', emoji: '⭐', color: '#06B6D4', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
-                        { min: 300, max: 400, tag: 'High Achiever', emoji: '🚀', color: '#F97316', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-                        { min: 400, max: 500, tag: 'Elite Performer', emoji: '💎', color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
-                        { min: 500, max: 500, tag: 'Legendary Executor', emoji: '🏆', color: '#FFD700', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+                        { min: 0, max: 100, tag: 'Rookie', emoji: '🌱', color: '#94A3B8', bg: 'bg-slate-50 dark:bg-slate-900/40', text: 'text-slate-600 dark:text-slate-300', border: 'border-slate-200 dark:border-slate-800' },
+                        { min: 100, max: 200, tag: 'Consistent Contributor', emoji: '🔥', color: '#10B981', bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-200 dark:border-emerald-800/60' },
+                        { min: 200, max: 300, tag: 'Rising Star', emoji: '⭐', color: '#06B6D4', bg: 'bg-cyan-50 dark:bg-cyan-950/30', text: 'text-cyan-700 dark:text-cyan-300', border: 'border-cyan-200 dark:border-cyan-800/60' },
+                        { min: 300, max: 400, tag: 'High Achiever', emoji: '🚀', color: '#F97316', bg: 'bg-orange-50 dark:bg-orange-950/30', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-800/60' },
+                        { min: 400, max: 500, tag: 'Elite Performer', emoji: '💎', color: '#8B5CF6', bg: 'bg-violet-50 dark:bg-violet-950/30', text: 'text-violet-700 dark:text-violet-300', border: 'border-violet-200 dark:border-violet-800/60' },
+                        { min: 500, max: 500, tag: 'Legendary Executor', emoji: '🏆', color: '#FFD700', bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-300 dark:border-amber-800/60' },
                     ];
                     const tier = score >= 500 ? TIERS[5] : TIERS.find(t => score >= t.min && score < t.max) || TIERS[0];
                     const nextTier = TIERS.find(t => t.min > (tier?.min || 0));
@@ -312,37 +312,37 @@ export default function EmployeeDashboard({ userName, isMobileView }: { userName
                                         <span>{tier.emoji}</span>
                                         {tier.tag}
                                     </h3>
-                                    <p className="text-[10px] text-gray-500 mt-1 font-semibold uppercase">+1 pt per on-time task</p>
+                                    <p className="text-[10px] text-gray-500 dark:text-zinc-400 mt-1 font-semibold uppercase">+1 pt per on-time task</p>
                                 </div>
                                 <div className="text-right">
                                     <div className="flex items-center gap-1.5 mt-1 justify-end">
                                         <span className={`text-2xl font-black ${tier.text}`}>{score}</span>
-                                        <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">/ 500</span>
+                                        <span className="text-xs text-gray-400 dark:text-zinc-500 font-semibold uppercase tracking-wider">/ 500</span>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-6 mt-6 mb-2">
                                 <div className="text-sm">
-                                    <span className="text-gray-500 font-medium">Yesterday: </span>
+                                    <span className="text-gray-500 dark:text-zinc-400 font-medium">Yesterday: </span>
                                     <span className={`font-bold ${tier.text}`}>+5 pts</span>
                                 </div>
                                 <div className="text-sm">
-                                    <span className="text-gray-500 font-medium">Today: </span>
+                                    <span className="text-gray-500 dark:text-zinc-400 font-medium">Today: </span>
                                     <span className={`font-bold ${tier.text}`}>+2 pts</span>
                                 </div>
                             </div>
                             
                             {nextTier && (
-                                <div className="mt-4 pt-4 border-t border-gray-200/60 space-y-2">
-                                    <div className="flex justify-between text-[10px] font-semibold text-gray-500">
+                                <div className="mt-4 pt-4 border-t border-gray-200/60 dark:border-zinc-800 space-y-2">
+                                    <div className="flex justify-between text-[10px] font-semibold text-gray-500 dark:text-zinc-400">
                                         <span>Next: {nextTier.emoji} {nextTier.tag}</span>
                                         <span>{progressInTier}%</span>
                                     </div>
-                                    <div className="w-full h-2 bg-white/80 rounded-full overflow-hidden">
+                                    <div className="w-full h-2 bg-gray-200/60 dark:bg-zinc-800 rounded-full overflow-hidden">
                                         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progressInTier}%`, backgroundColor: tier.color }} />
                                     </div>
-                                    <p className="text-[10px] text-gray-500 text-right">{nextTier.min - score} pts to next level</p>
+                                    <p className="text-[10px] text-gray-500 dark:text-zinc-400 text-right">{nextTier.min - score} pts to next level</p>
                                 </div>
                             )}
                         </div>

@@ -42,20 +42,18 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                 let isFirstPartyAppFn: any = null;
                 try {
                     isFirstPartyAppFn = require('@workspace/identity-provider').isFirstPartyApp;
-                } catch (_) {
-                    try {
-                        isFirstPartyAppFn = require('@workspace/identity').isFirstPartyApp;
-                    } catch (_) {}
-                }
+                } catch (_) {}
                 const checkIsFirstParty = (clientId: string | undefined | null) => {
                     if (!clientId) return false;
                     const clean = String(clientId).trim().toLowerCase();
+                    const envClientId = (process.env.ONE_EIGHTY_CLIENT_ID || '').trim().toLowerCase();
+                    const envPubClientId = (process.env.NEXT_PUBLIC_180_CLIENT_ID || '').trim().toLowerCase();
                     if (
                         clean === '180-core' ||
                         clean === '180-workspace-platform' ||
                         clean === '180workspace' ||
-                        clean === '180_client_70d751541f05347fe803ec8e128f5e83' ||
-                        clean === '180_client_266753c1171df1e2c4a391483fd2e02e'
+                        (envClientId && clean === envClientId) ||
+                        (envPubClientId && clean === envPubClientId)
                     ) {
                         return true;
                     }
@@ -82,8 +80,6 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                             process.env.CORE_BACKEND_INTERNAL_URL,
                             process.env.IDENTITY_SERVER_URL,
                             process.env.CORE_BACKEND_URL,
-                            'https://services.180workspace.com',
-                            'http://localhost:4003'
                         ].filter(Boolean) as string[];
 
                         for (const coreUrl of candidateCoreUrls) {
@@ -96,9 +92,10 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                                     const coreData: any = await coreRes.json();
                                     const u = coreData.user || coreData.data || coreData;
                                     if (u && (u.id || u.sub)) {
+                                        const resolvedAppId = process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID || '180-workspace-platform';
                                         dbToken = {
                                             userId: u.id || u.sub,
-                                            appId: '180_client_266753c1171df1e2c4a391483fd2e02e',
+                                            appId: resolvedAppId,
                                             scopes: ['openid', 'identity:read'],
                                             expiresAt: new Date(Date.now() + 15 * 60 * 1000),
                                             user: {
@@ -110,7 +107,7 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                                                 avatarUrl: u.avatarUrl || u.picture,
                                                 googleId: u.googleId
                                             },
-                                            app: { clientId: '180_client_266753c1171df1e2c4a391483fd2e02e' }
+                                            app: { clientId: resolvedAppId }
                                         };
                                         break;
                                     }
@@ -179,11 +176,7 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                     let verifyIdTokenFn: any = null;
                     try {
                         verifyIdTokenFn = require('@workspace/identity-provider').verifyIdToken;
-                    } catch (_) {
-                        try {
-                            verifyIdTokenFn = require('@workspace/identity').verifyIdToken;
-                        } catch (_) {}
-                    }
+                    } catch (_) {}
                     const verified = typeof verifyIdTokenFn === 'function' ? verifyIdTokenFn(token) : { valid: false };
                     if (verified.valid && verified.payload?.sub) {
                         const targetUserId = verified.payload.sub;
@@ -387,7 +380,8 @@ export async function protect(req: any, res: Response, next: NextFunction) {
                             const coreBackendUrl =
                                 process.env.CORE_BACKEND_INTERNAL_URL ||
                                 process.env.CORE_BACKEND_URL ||
-                                (process.env.NODE_ENV === 'production' ? 'https://services.180workspace.com' : 'http://localhost:4003');
+                                process.env.IDENTITY_SERVER_URL ||
+                                '';
                             const coreRes = await fetch(`${coreBackendUrl}/api/oauth/userinfo`, {
                                 headers: { Authorization: `Bearer ${token}` }
                             });
@@ -691,11 +685,7 @@ export async function optionalProtect(req: any, res: Response, next: NextFunctio
                     let verifyIdTokenFn: any = null;
                     try {
                         verifyIdTokenFn = require('@workspace/identity-provider').verifyIdToken;
-                    } catch (_) {
-                        try {
-                            verifyIdTokenFn = require('@workspace/identity').verifyIdToken;
-                        } catch (_) {}
-                    }
+                    } catch (_) {}
                     const verified = typeof verifyIdTokenFn === 'function' ? verifyIdTokenFn(token) : { valid: false };
                     if (verified.valid && verified.payload?.sub) {
                         const targetUserId = verified.payload.sub;

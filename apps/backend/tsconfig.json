@@ -28,8 +28,6 @@
       "@workspace/company/*": ["../../packages/domains/company/src/*"],
       "@workspace/crm-and-sales": ["../../packages/domains/crm-and-sales/src/index.ts"],
       "@workspace/crm-and-sales/*": ["../../packages/domains/crm-and-sales/src/*"],
-      "@workspace/engine": ["../../packages/domains/engine/src/index.ts"],
-      "@workspace/engine/*": ["../../packages/domains/engine/src/*"],
       "@workspace/finance": ["../../packages/domains/finance/src/index.ts"],
       "@workspace/finance/*": ["../../packages/domains/finance/src/*"],
       "@workspace/hr-management": ["../../packages/domains/hr-management/src/index.ts"],

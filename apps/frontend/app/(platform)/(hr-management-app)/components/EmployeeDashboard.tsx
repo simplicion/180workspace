@@ -298,12 +298,12 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                 {(() => {
                     const score = performanceScore ?? 100;
                     const TIERS = [
-                        { min: 0, max: 100, tag: 'Rookie', emoji: '🌱', color: '#94A3B8', bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
-                        { min: 100, max: 200, tag: 'Consistent Contributor', emoji: '🔥', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-                        { min: 200, max: 300, tag: 'Rising Star', emoji: '⭐', color: '#06B6D4', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
-                        { min: 300, max: 400, tag: 'High Achiever', emoji: '🚀', color: '#F97316', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-                        { min: 400, max: 500, tag: 'Elite Performer', emoji: '💎', color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
-                        { min: 500, max: 500, tag: 'Legendary Executor', emoji: '🏆', color: '#FFD700', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+                        { min: 0, max: 100, tag: 'Rookie', emoji: '🌱', color: '#94A3B8', bg: 'bg-slate-50 dark:bg-slate-900/40', text: 'text-slate-600 dark:text-slate-300', border: 'border-slate-200 dark:border-slate-800' },
+                        { min: 100, max: 200, tag: 'Consistent Contributor', emoji: '🔥', color: '#10B981', bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-200 dark:border-emerald-800/60' },
+                        { min: 200, max: 300, tag: 'Rising Star', emoji: '⭐', color: '#06B6D4', bg: 'bg-cyan-50 dark:bg-cyan-950/30', text: 'text-cyan-700 dark:text-cyan-300', border: 'border-cyan-200 dark:border-cyan-800/60' },
+                        { min: 300, max: 400, tag: 'High Achiever', emoji: '🚀', color: '#F97316', bg: 'bg-orange-50 dark:bg-orange-950/30', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-800/60' },
+                        { min: 400, max: 500, tag: 'Elite Performer', emoji: '💎', color: '#8B5CF6', bg: 'bg-violet-50 dark:bg-violet-950/30', text: 'text-violet-700 dark:text-violet-300', border: 'border-violet-200 dark:border-violet-800/60' },
+                        { min: 500, max: 500, tag: 'Legendary Executor', emoji: '🏆', color: '#FFD700', bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-300 dark:border-amber-800/60' },
                     ];
                     const tier = score >= 500 ? TIERS[5] : TIERS.find(t => score >= t.min && score < t.max) || TIERS[0];
                     const nextTier = TIERS.find(t => t.min > (tier?.min || 0));
@@ -325,11 +325,11 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                                         <Award className="w-4 h-4" />
                                         Performance & Achievement
                                     </h3>
-                                    <p className="text-xs text-gray-500 mt-0.5">Score progression</p>
+                                    <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Score progression</p>
                                 </div>
                                 <div className="text-right">
                                     <p className={`text-2xl font-black ${tier.text}`}>{score}</p>
-                                    <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">/ 500 pts</p>
+                                    <p className="text-[10px] text-gray-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">/ 500 pts</p>
                                 </div>
                             </div>
                             <ResponsiveContainer width="100%" height={120}>
@@ -340,18 +340,18 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                                             <stop offset="95%" stopColor={tier.color} stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" className="stroke-slate-100 dark:stroke-zinc-800" />
                                     <XAxis dataKey="period" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                                     <YAxis domain={[0, 500]} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                                     <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', fontSize: 12 }} formatter={(val: any) => [`${val} pts`, `Points`]} />
                                     <Area type="monotone" dataKey="Points" stroke={tier.color} strokeWidth={2.5} fill="url(#ptGrad)" dot={{ r: 3, fill: tier.color, strokeWidth: 0 }} activeDot={{ r: 5 }} />
                                 </AreaChart>
                             </ResponsiveContainer>
-                            <div className="mt-3 pt-4 border-t border-gray-200/60">
+                            <div className="mt-3 pt-4 border-t border-gray-200/60 dark:border-zinc-800">
                                 <div className="flex items-center gap-4">
                                     <div className="relative w-16 h-16 flex-shrink-0">
                                         <svg className="w-16 h-16 -rotate-90" viewBox="0 0 88 88">
-                                            <circle cx="44" cy="44" r="36" stroke="#e2e8f0" strokeWidth="7" fill="none" />
+                                            <circle cx="44" cy="44" r="36" className="stroke-slate-200 dark:stroke-zinc-800" strokeWidth="7" fill="none" />
                                             <circle cx="44" cy="44" r="36" stroke={tier.color} strokeWidth="7" fill="none" strokeLinecap="round"
                                                 strokeDasharray={circumference} strokeDashoffset={dashOffset}
                                                 className="transition-[stroke-dashoffset] duration-1000 ease-in-out" />
@@ -364,14 +364,14 @@ export default function EmployeeDashboard({ userName }: { userName?: string }) {
                                         <p className={`font-black text-sm leading-tight ${tier.text}`}>{tier.tag}</p>
                                         {nextTier && (
                                             <div className="mt-2 space-y-1">
-                                                <div className="flex justify-between text-[10px] font-semibold text-gray-500">
+                                                <div className="flex justify-between text-[10px] font-semibold text-gray-500 dark:text-zinc-400">
                                                     <span>Next: {nextTier.emoji} {nextTier.tag}</span>
                                                     <span>{progressInTier}%</span>
                                                 </div>
-                                                <div className="w-full h-1.5 bg-gray-200/50 rounded-full overflow-hidden">
+                                                <div className="w-full h-1.5 bg-gray-200/50 dark:bg-zinc-800 rounded-full overflow-hidden">
                                                     <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progressInTier}%`, backgroundColor: tier.color }} />
                                                 </div>
-                                                <p className="text-[10px] text-gray-500">{nextTier.min - score} pts to next level</p>
+                                                <p className="text-[10px] text-gray-500 dark:text-zinc-400">{nextTier.min - score} pts to next level</p>
                                             </div>
                                         )}
                                     </div>

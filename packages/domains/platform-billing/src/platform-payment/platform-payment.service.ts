@@ -13,8 +13,8 @@ export class PlatformPaymentService {
             clientId: process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID,
             clientSecret: process.env.ONE_EIGHTY_CLIENT_SECRET,
             webhookSecret: process.env.ONE_EIGHTY_WEBHOOK_SECRET,
-            apiUrl: process.env.ONE_EIGHTY_API_URL || 'https://services.180workspace.com',
-            payUrl: process.env.NEXT_PUBLIC_180_PAY_URL || 'https://pay.180workspace.com',
+            apiUrl: process.env.ONE_EIGHTY_API_URL || '',
+            payUrl: process.env.NEXT_PUBLIC_180_PAY_URL || '',
         };
 
         switch (activeProvider) {

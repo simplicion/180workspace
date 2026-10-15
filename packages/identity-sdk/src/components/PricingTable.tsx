@@ -81,17 +81,9 @@ export const OneEightyPricingTable: React.FC<PricingTableProps> = ({
         (process.env.NEXT_PUBLIC_IDENTITY_SERVER_URL as string) ||
         (process.env.NEXT_PUBLIC_180_CORE_URL as string);
       if (envCore) return envCore;
-
-      const isLocal =
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1';
-      if (isLocal) {
-        return 'http://localhost:4003';
-      }
-
-      return 'https://services.180workspace.com';
+      return '';
     }
-    return process.env.CORE_BACKEND_URL || 'http://localhost:4003';
+    return process.env.CORE_BACKEND_URL || '';
   }, [apiBase]);
 
   // Fetch configuration if plans prop is not passed directly

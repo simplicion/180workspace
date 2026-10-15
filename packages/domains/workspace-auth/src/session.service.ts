@@ -2,7 +2,7 @@
 
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || '180-workspace-platform-jwt-secret-key';
+const getJwtSecret = (): string => process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 export interface WorkspaceSessionPayload {
@@ -19,7 +19,7 @@ export class WorkspaceSessionService {
      */
     static mintSessionToken(payload: WorkspaceSessionPayload): string {
         const id = payload.id || payload.userId;
-        return jwt.sign({ ...payload, id, sub: id, userId: id }, JWT_SECRET, {
+        return jwt.sign({ ...payload, id, sub: id, userId: id }, getJwtSecret(), {
             expiresIn: JWT_EXPIRES_IN,
         } as jwt.SignOptions);
     }
@@ -29,7 +29,7 @@ export class WorkspaceSessionService {
      */
     static verifySessionToken(token: string): WorkspaceSessionPayload | null {
         try {
-            return jwt.verify(token, JWT_SECRET) as WorkspaceSessionPayload;
+            return jwt.verify(token, getJwtSecret()) as WorkspaceSessionPayload;
         } catch {
             return null;
         }

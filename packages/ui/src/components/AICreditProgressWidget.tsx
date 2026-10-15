@@ -208,19 +208,19 @@ export const AICreditProgressWidget: React.FC<AICreditProgressWidgetProps> = ({
           onClick={() => setIsDrawerOpen(true)}
           role="button"
           title={`${monthlyUsed.toLocaleString()} used of ${totalCredits.toLocaleString()} total credits (${formattedUsedPct}) • Click to open AI Platform Credits Hub`}
-          className={`inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50/90 hover:bg-gray-100/90 dark:bg-zinc-900/90 dark:hover:bg-zinc-800/90 border border-gray-200/80 dark:border-zinc-800 text-xs select-none transition-all duration-200 shadow-xs cursor-pointer ${className}`}
+          className={`inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-gray-50/90 hover:bg-gray-100/90 dark:bg-zinc-900/90 dark:hover:bg-zinc-800/90 border border-gray-200/80 dark:border-zinc-800 text-xs select-none transition-all duration-200 shadow-xs cursor-pointer ${className}`}
         >
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <AILogoIcon className="w-4 h-4 shrink-0" />
-            <span className="text-[11px] font-mono font-bold text-gray-900 dark:text-zinc-100">
+            <span className="text-[11px] font-mono font-bold text-gray-900 dark:text-zinc-100 whitespace-nowrap">
               {formattedUsedPct}
             </span>
-            <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">
-              used of total
+            <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium whitespace-nowrap hidden sm:inline">
+              used
             </span>
           </div>
 
-          <div className="w-14 bg-gray-200/80 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden border border-gray-300/40 dark:border-zinc-700/50">
+          <div className="w-12 sm:w-14 shrink-0 bg-gray-200/80 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden border border-gray-300/40 dark:border-zinc-700/50">
             <div
               className={`h-full bg-gradient-to-r ${barGradient} transition-all duration-500 rounded-full`}
               style={{ width: `${Math.min(100, Math.max(usedPct > 0 ? 5 : 0, usedPct))}%` }}
@@ -233,7 +233,7 @@ export const AICreditProgressWidget: React.FC<AICreditProgressWidgetProps> = ({
                 e.stopPropagation();
                 setIsDrawerOpen(true);
               }}
-              className="px-2 py-0.5 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-medium text-[10px] transition-all flex items-center gap-0.5 shadow-xs hover:shadow active:scale-95 cursor-pointer"
+              className="px-2 py-0.5 shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-medium text-[10px] transition-all flex items-center gap-0.5 shadow-xs hover:shadow active:scale-95 cursor-pointer whitespace-nowrap"
               title="Top up AI Platform Credits"
             >
               <Plus className="w-2.5 h-2.5" />

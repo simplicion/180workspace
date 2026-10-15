@@ -83,18 +83,18 @@ export function AddCoreValueModal({ isOpen, onClose }: AddCoreValueModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-center p-6 border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900">Add Core Value</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 border border-transparent dark:border-zinc-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-zinc-800">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">Add Core Value</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 transition-colors">
                         <X className="h-5 w-5" />
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6">
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100">
+                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm rounded-lg border border-red-100 dark:border-red-900/50">
                             {error}
                         </div>
                     )}
@@ -102,28 +102,28 @@ export function AddCoreValueModal({ isOpen, onClose }: AddCoreValueModalProps) {
                     <div className="space-y-4">
                         {/* Image Upload */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
                                 Icon / Image
                             </label>
                             
                             {!preview ? (
-                                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors group">
+                                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-zinc-700 border-dashed rounded-xl hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-zinc-800/40 transition-colors group">
                                     <div className="space-y-1 text-center">
-                                        <div className="mx-auto h-12 w-12 text-gray-400 group-hover:text-blue-500 bg-gray-50 group-hover:bg-white rounded-full flex items-center justify-center transition-colors">
+                                        <div className="mx-auto h-12 w-12 text-gray-400 group-hover:text-blue-500 bg-gray-50 dark:bg-zinc-800 group-hover:bg-white dark:group-hover:bg-zinc-700 rounded-full flex items-center justify-center transition-colors">
                                             <Upload className="h-6 w-6" />
                                         </div>
-                                        <div className="flex text-sm text-gray-600">
-                                            <label htmlFor="core-value-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none px-1">
+                                        <div className="flex text-sm text-gray-600 dark:text-zinc-400">
+                                            <label htmlFor="core-value-upload" className="relative cursor-pointer bg-white dark:bg-transparent rounded-md font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 focus-within:outline-none px-1">
                                                 <span>Upload a file</span>
                                                 <input id="core-value-upload" name="core-value-upload" type="file" className="sr-only" accept="image/*" onChange={handleFileChange} />
                                             </label>
                                             <p className="pl-1">or drag and drop</p>
                                         </div>
-                                        <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+                                        <p className="text-xs text-gray-500 dark:text-zinc-400">PNG, JPG, GIF up to 5MB</p>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="relative rounded-xl overflow-hidden border border-gray-200 h-40 group flex justify-center bg-gray-50">
+                                <div className="relative rounded-xl overflow-hidden border border-gray-200 dark:border-zinc-700 h-40 group flex justify-center bg-gray-50 dark:bg-zinc-800">
                                     <img src={preview} alt="Preview" className="h-full object-contain" />
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                         <button type="button" onClick={handleRemoveFile} className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transform scale-90 group-hover:scale-100 transition-all">
@@ -135,13 +135,13 @@ export function AddCoreValueModal({ isOpen, onClose }: AddCoreValueModalProps) {
                         </div>
 
                         <div>
-                            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                            <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Title *</label>
                             <input
                                 type="text"
                                 id="title"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 placeholder="e.g. Innovation"
                                 required
                             />
@@ -149,8 +149,8 @@ export function AddCoreValueModal({ isOpen, onClose }: AddCoreValueModalProps) {
 
                         <div>
                             <div className="flex justify-between mb-1">
-                                <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description *</label>
-                                <span className={`text-xs ${description.length > 100 ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-zinc-300">Description *</label>
+                                <span className={`text-xs ${description.length > 100 ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-zinc-400'}`}>
                                     {description.length} / 100
                                 </span>
                             </div>
@@ -160,7 +160,7 @@ export function AddCoreValueModal({ isOpen, onClose }: AddCoreValueModalProps) {
                                 onChange={(e) => setDescription(e.target.value)}
                                 rows={3}
                                 maxLength={100}
-                                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${description.length >= 100 ? 'border-amber-300' : 'border-gray-300'}`}
+                                className={`w-full px-4 py-2 bg-white dark:bg-zinc-800 border rounded-lg text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${description.length >= 100 ? 'border-amber-300 dark:border-amber-500' : 'border-gray-300 dark:border-zinc-700'}`}
                                 placeholder="Briefly describe this core value..."
                                 required
                             />
@@ -172,7 +172,7 @@ export function AddCoreValueModal({ isOpen, onClose }: AddCoreValueModalProps) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-700"
                         >
                             Cancel
                         </button>
