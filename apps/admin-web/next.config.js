@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 
 const nextConfig = {
-    transpilePackages: ['@workspace/ui'],
+    transpilePackages: ['@workspace/ui', '@workspace/identity-sdk'],
     serverExternalPackages: ['@prisma/client', 'bcryptjs', '@workspace/db'],
     output: process.env.BUILD_STANDALONE === "true" ? "standalone" : undefined,
     reactStrictMode: true,

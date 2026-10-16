@@ -160,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCompany(null);
         delete api.defaults.headers.common['Authorization'];
         disconnectSocket();
+    };
     return (
         <AuthContext.Provider value={{ user, company, token, isLoading, logout, setUser, setCompany, setToken, refreshUser: fetchMe }}>
             {children}

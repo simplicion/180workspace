@@ -23,7 +23,7 @@
       }
     ],
     "paths": {
-      "@/*": [
+      "@workspace/identity-sdk": ["../../packages/identity-sdk/src/index.tsx"], "@workspace/identity-sdk/*": ["../../packages/identity-sdk/*"], "@/*": [
         "./*"
       ]
     }

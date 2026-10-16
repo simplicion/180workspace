@@ -3,6 +3,7 @@
 import { LogoLoader } from "@workspace/ui";
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useSettings } from '../../lib/settings-context';
 import { useAuth } from '../../lib/auth-context';
@@ -15,6 +16,7 @@ function SignupForm() {
     const { setToken, setUser, setCompany } = useAuth();
     const { isOpeningIdentity } = use180Identity();
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
 
     const handleIdentitySuccess = async (res: any) => {
         setLoading(true);
