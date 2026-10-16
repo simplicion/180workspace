@@ -5,10 +5,10 @@ import { StripeCompanyProvider } from '../providers/stripe-company.provider';
 export class CompanyPaymentService {
     static getProviderAdapter(providerName: string, config: any): CompanyPaymentProviderInterface {
         switch (providerName) {
+            case '180pay':
             case 'stripe':
-                return new StripeCompanyProvider(config.stripe);
             default:
-                throw new Error(`Unsupported company payment provider: ${providerName}`);
+                return new StripeCompanyProvider(config?.stripe || config?.['180pay'] || config);
         }
     }
 
