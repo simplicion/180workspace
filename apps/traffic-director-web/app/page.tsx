@@ -19,7 +19,7 @@ export default function TrafficDirectorLandingPage() {
 
   const handleLogin = () => {
     launch180Identity({
-      clientId: process.env.NEXT_PUBLIC_180_CLIENT_ID || process.env.NEXT_PUBLIC_CLIENT_ID || '',
+      clientId: process.env.NEXT_PUBLIC_180_CLIENT_ID || process.env.NEXT_PUBLIC_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5',
       redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : undefined,
       onSuccess: (res: any) => {
         const token = res?.authToken || res?.accessToken || res?.token;
@@ -42,7 +42,17 @@ export default function TrafficDirectorLandingPage() {
 
   useEffect(() => {
     const token = getAuthToken();
-    setIsAuthenticated(Boolean(token));
+    if (token) {
+      setIsAuthenticated(true);
+      window.location.href = '/traffic-director';
+      return;
+    }
+    setIsAuthenticated(false);
+
+    // Auto-trigger login if navigated with ?login=true
+    if (typeof window !== 'undefined' && window.location.search.includes('login=true')) {
+      handleLogin();
+    }
 
     const storedTheme = localStorage.getItem('180_theme');
     const isDarkMode = storedTheme ? storedTheme === 'dark' : false;

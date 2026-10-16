@@ -46,7 +46,7 @@ export default function CallbackPage() {
 
         const tokenPayload = {
           grant_type: 'authorization_code',
-          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || process.env.NEXT_PUBLIC_CLIENT_ID || '',
+          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || process.env.NEXT_PUBLIC_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5',
           code,
           redirect_uri: redirectUri,
         };

@@ -105,6 +105,16 @@ const nextConfig = {
                 destination: '/company',
                 permanent: false,
             },
+            {
+                source: '/traffic-director',
+                destination: 'https://traffic-director.180workspace.com/traffic-director',
+                permanent: false,
+            },
+            {
+                source: '/traffic-director/:path*',
+                destination: 'https://traffic-director.180workspace.com/traffic-director/:path*',
+                permanent: false,
+            },
         ];
     },
     async rewrites() {

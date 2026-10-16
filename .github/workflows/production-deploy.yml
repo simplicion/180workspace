@@ -75,6 +75,9 @@ jobs:
 
       - name: Build Traffic Director
         env:
+          NEXT_PUBLIC_180_CLIENT_ID: 180_client_39d675390e2ddf3a518b8c436ae665f5
+          NEXT_PUBLIC_180_AUTH_URL: https://profile.180workspace.com
+          NEXT_PUBLIC_API_URL: https://api.180workspace.com
           NEXT_PUBLIC_CORE_BACKEND_URL: https://services.180workspace.com
           NEXT_EXPORT: 'true'
         run: pnpm turbo run build --filter=traffic-director-web...
