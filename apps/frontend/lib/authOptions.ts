@@ -1,7 +1,5 @@
 import { NextAuthOptions } from "next-auth"
-import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
-import EmailProvider from "next-auth/providers/email"
 
 const useSecureCookies = process.env.NODE_ENV === "production"
 const cookiePrefix = useSecureCookies ? "__Secure-" : ""
@@ -57,70 +55,6 @@ export const authOptions: NextAuthOptions = {
     newUser: '/workspace-setup'
   },
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-      allowDangerousEmailAccountLinking: true,
-    }),
-    CredentialsProvider({
-      name: 'Credentials',
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
-      },
-      async authorize(credentials, req) {
-        if (!credentials?.email || !credentials?.password) return null
-
-        try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL ||
-            process.env.NEXT_PUBLIC_BACKEND_URL ||
-            process.env.BACKEND_INTERNAL_URL ||
-            (process.env.NODE_ENV === 'production' ? 'http://backend:4000' : 'http://localhost:4002');
-
-          const res = await fetch(`${apiUrl}/api/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: credentials.email.toLowerCase(),
-              password: credentials.password
-            }),
-            cache: 'no-store'
-          });
-
-          if (!res.ok) {
-            const errorText = await res.text();
-            console.error(`[NextAuth Credentials] /api/auth/login failed: ${res.status} ${res.statusText}`, errorText);
-            return null;
-          }
-
-          const data = await res.json();
-          const backendUser = data?.user;
-          const backendCompany = data?.company || backendUser?.company;
-
-          if (!backendUser || !backendUser.id) return null;
-
-          if (backendUser.isActive) {
-            const isOnboardingComplete = backendCompany?.isOnboardingComplete === true;
-            return {
-              id: backendUser.id,
-              name: backendUser.name,
-              username: backendUser.username,
-              email: backendUser.email,
-              companyId: backendUser.companyId || backendCompany?.id || backendCompany?._id,
-              role: backendUser.role,
-              isOnboardingComplete: isOnboardingComplete,
-              isFirstLogin: !isOnboardingComplete && (backendUser.isFirstLogin === true || !backendUser.username),
-              companySlug: backendCompany?.slug,
-              companyCustomDomain: backendCompany?.customDomain,
-              platformToken: data?.token
-            } as any
-          }
-        } catch (e) {
-          console.error("Credentials auth error:", e);
-        }
-        return null;
-      }
-    }),
     CredentialsProvider({
       id: 'platform-token',
       name: 'Platform Token',

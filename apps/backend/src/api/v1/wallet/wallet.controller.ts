@@ -146,7 +146,7 @@ export class WalletController {
 
   /**
    * POST /api/v1/wallet/order
-   * Initiates Razorpay prepaid top-up order (or credits directly if 100% free coupon) cryptographically bound to authenticated companyId.
+   * Initiates 180 Pay prepaid top-up session (or credits directly if 100% free coupon) cryptographically bound to authenticated companyId.
    */
   static async createOrder(req: Request, res: Response) {
     try {
@@ -191,7 +191,7 @@ export class WalletController {
 
   /**
    * POST /api/v1/wallet/verify
-   * Cryptographically verifies Razorpay payment signature (HMAC SHA-256) and credits tenant wallet.
+   * Cryptographically verifies 180 Pay payment signature (HMAC SHA-256) and credits tenant wallet.
    */
   static async verifyPayment(req: Request, res: Response) {
     try {
@@ -257,37 +257,10 @@ export class WalletController {
   }
 
   /**
-   * POST /api/v1/wallet/webhooks/razorpay
-   * Public webhook endpoint for Razorpay asynchronous payment capture.
-   * Cryptographically verifies signature and extracts companyId from notes.
+   * POST /api/v1/wallet/webhooks/razorpay (Legacy redirect to 180 Pay)
    */
   static async handleRazorpayWebhook(req: Request, res: Response) {
-    try {
-      const signature = req.headers['x-razorpay-signature'] as string;
-      if (!signature) {
-        return res.status(400).json({ success: false, error: 'Missing x-razorpay-signature header' });
-      }
-
-      let rawBody = (req as any).rawBody;
-      if (rawBody instanceof Buffer) {
-        rawBody = rawBody.toString('utf8');
-      } else if (typeof rawBody !== 'string') {
-        rawBody = JSON.stringify(req.body);
-      }
-
-      const outcome = await WalletGatewayService.handleWebhook(rawBody, signature);
-
-      return res.json({
-        success: true,
-        ...outcome
-      });
-    } catch (err: any) {
-      console.error('[WalletController:handleRazorpayWebhook] Error:', err);
-      return res.status(400).json({
-        success: false,
-        error: err.message || 'Webhook processing failed'
-      });
-    }
+    return WalletController.handle180PayWebhook(req, res);
   }
 
   /**

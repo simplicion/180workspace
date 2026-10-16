@@ -22,5 +22,6 @@ router.get('/log/:meetingLogId', ctrl.getLog);
 router.get('/room/:roomId/details', ctrl.getRoomDetails);
 
 router.delete('/:roomId', ctrl.deleteMeeting);
+router.patch('/:roomId', ctrl.updateMeetingNotes);
 
 export default router;

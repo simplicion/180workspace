@@ -1,36 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useSettings } from '@/lib/settings-context';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { signIn, useSession } from 'next-auth/react';
-import { jwtDecode } from 'jwt-decode';
 import api from '@/lib/api';
 
-import { Rocket, Shield, Clock, Users, Bot, FolderKanban, MessageSquare, Cloud, BarChart3, ArrowLeft, Sparkles, ArrowRight } from 'lucide-react';
+import { Users, Bot, FolderKanban, MessageSquare, Cloud, BarChart3, ArrowLeft } from 'lucide-react';
 import { use180Identity, OneEightyIdentityButton } from '@workspace/identity-sdk';
 
 export default function SignupFlow() {
-    const router = useRouter();
     const { platform } = useSettings();
-    const { data: session, status, update: updateSession } = useSession();
-    const { launch180Identity, isOpeningIdentity } = use180Identity();
-
-    const [step, setStep] = useState(1);
-    
-    // State to collect through the flow
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [role, setRole] = useState('');
-    const [profile, setProfile] = useState<any>({});
-    
+    const { data: session, status } = useSession();
+    const { isOpeningIdentity } = use180Identity();
     const [loading, setLoading] = useState(false);
-    const [googleTokenId, setGoogleTokenId] = useState<string | null>(null);
 
-    // --- Resume Onboarding if already logged in ---
+    // --- Resume if already logged in ---
     useEffect(() => {
         if (status === 'authenticated' && session?.user) {
             const user: any = session.user;
@@ -42,30 +29,8 @@ export default function SignupFlow() {
                 window.location.href = '/workspace-setup';
                 return;
             }
-            if (step < 4) {
-                setEmail(user.email || '');
-                setStep(4);
-            }
         }
-    }, [status, session, step]);
-
-    // --- Step 1: Auth Choice ---
-    useEffect(() => {
-        const targetUrl = step >= 4 ? '/onboarding' : '/signup';
-        // Only push if it's not already the current state to avoid infinite loops
-        if (window.history.state?.step !== step) {
-            window.history.pushState({ step }, '', targetUrl);
-        }
-
-        const handlePopState = (event: PopStateEvent) => {
-            if (event.state && event.state.step) {
-                setStep(event.state.step);
-            }
-        };
-
-        window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, [step]);
+    }, [status, session]);
 
     const handleIdentitySuccess = async (res: any) => {
         let token = res?.token || (typeof window !== 'undefined' ? localStorage.getItem('platform_auth_token') : null);
@@ -113,7 +78,11 @@ export default function SignupFlow() {
             setLoading(true);
             try {
                 localStorage.setItem('platform_auth_token', token);
-                document.cookie = `platform_auth_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`;
+                const isProd = window.location.protocol === 'https:';
+                const is180 = window.location.hostname.endsWith('180workspace.com');
+                const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+                const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isProd ? '; Secure' : ''}${domainAttr}`;
+                document.cookie = `platform_auth_token=${token}${cookieFlags}`;
                 api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
                 const result = await signIn('platform-token', { token, redirect: false });
@@ -128,174 +97,6 @@ export default function SignupFlow() {
             } finally {
                 setLoading(false);
             }
-        }
-    };
-
-    const handleGoogleSuccess = async (credentialResponse: any) => {
-        if (!credentialResponse.credential) return;
-        setLoading(true);
-        try {
-            // Check if user already exists
-            const authRes = await api.post('/api/auth/google', { tokenId: credentialResponse.credential });
-            const { token, refreshToken } = authRes.data;
-            if (token) {
-                // User already exists, log them in
-                localStorage.setItem('platform_auth_token', token);
-                localStorage.setItem('platform_refresh_token', refreshToken);
-                document.cookie = `platform_auth_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`;
-                api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-                
-                await signIn('platform-token', { token, redirect: false });
-                toast.success('Welcome back!');
-                window.location.href = '/';
-                return;
-            }
-        } catch (err: any) {
-            // New user via Google
-            if (err?.response?.status === 404 || err?.response?.status === 401) {
-                setGoogleTokenId(credentialResponse.credential);
-                try {
-                    const decoded: any = jwtDecode(credentialResponse.credential);
-                    if (decoded.email) setEmail(decoded.email);
-                    if (decoded.name) setProfile({ ...profile, name: decoded.name });
-                    
-                    // Skip OTP, go straight to password setup (or we could skip password too, but let's just go to Role)
-                    // Wait, if they use Google, they don't need a password. 
-                    // But if we want to enforce password setup, we go to step 3. 
-                    // Let's go to step 3 for security if we want them to have a fallback password.
-                    setStep(3);
-                } catch (e) {
-                    toast.error('Failed to parse Google credential.');
-                }
-            } else {
-                toast.error(err?.response?.data?.error || 'Google Sign In failed');
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleEmailSubmit = async (submittedEmail: string) => {
-        setEmail(submittedEmail);
-        setLoading(true);
-        try {
-            const res = await api.post('/api/auth/send-otp', { email: submittedEmail });
-            const data = res.data;
-            if (data.success !== false) {
-                toast.success('OTP sent to your email!');
-                setStep(2); // Go to OTP verification
-            } else {
-                toast.error(data.message || 'Failed to send OTP');
-                if (data.code === 'USER_EXISTS') {
-                    router.push('/login');
-                }
-            }
-        } catch (err: any) {
-            const msg = err?.response?.data?.message || 'Network error';
-            toast.error(msg);
-            if (err?.response?.data?.code === 'USER_EXISTS') {
-                router.push('/login');
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // --- Step 2: OTP Verification ---
-    const handleVerifyOtp = async (otp: string) => {
-        setLoading(true);
-        try {
-            const res = await api.post('/api/auth/verify-otp', { email, otp });
-            const data = res.data;
-            if (data.success !== false) {
-                toast.success('Email verified!');
-                setStep(3); // Go to Password setup
-            } else {
-                toast.error(data.message || 'Invalid OTP');
-            }
-        } catch (err: any) {
-            toast.error(err?.response?.data?.message || 'Invalid OTP');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // --- Step 3: Password Setup ---
-    const handleSetPassword = async (newPassword: string) => {
-        setPassword(newPassword);
-        setLoading(true);
-        try {
-            // First register the tenant
-            const registerPayload = {
-                name: googleTokenId ? (profile.name || 'User') : 'User',
-                email,
-                password: newPassword,
-                companyName: 'Onboarding'
-            };
-            const registerRes = await api.post('/api/auth/register', registerPayload);
-            const data = registerRes.data;
-
-            if (data.success) {
-                let platformToken = '';
-                // Log them in so they get the JWT token
-                try {
-                    const authRes = await api.post('/api/auth/login', { email, password: newPassword });
-                    platformToken = authRes.data.token;
-                    localStorage.setItem('platform_auth_token', platformToken);
-                    document.cookie = `platform_auth_token=${platformToken}; path=/; max-age=${60 * 60 * 24 * 7}`;
-                    api.defaults.headers.common['Authorization'] = `Bearer ${platformToken}`;
-                } catch (e) {
-                    console.error("Auto login failed", e);
-                }
-
-                // Also establish NextAuth session
-                if (platformToken) {
-                    await signIn('platform-token', { token: platformToken, redirect: false });
-                } else {
-                    await signIn('credentials', { email, password: newPassword, redirect: false });
-                }
-                
-                setStep(4); // Go to Role selection
-            } else {
-                toast.error(data.message || data.error || 'Failed to set password');
-            }
-        } catch (err: any) {
-            toast.error(err?.response?.data?.message || err?.response?.data?.error || 'Registration failed');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // --- Step 4: Basic Profile (Final) ---
-    const handleProfileSubmit = async (profileData: any) => {
-        setProfile({ ...profile, ...profileData });
-        setLoading(true);
-        try {
-            const finalData = {
-                email,
-                role: 'admin', // Implicit for 180workspace
-                ...profile,
-                ...profileData,
-                interests: []
-            };
-
-            const res = await api.post('/api/auth/onboarding', finalData);
-            const data = res.data;
-
-            if (data.success) {
-                toast.success('Onboarding complete!');
-                
-                // Update session to reflect new role before redirecting
-                await updateSession({ role: 'admin', isFirstLogin: false, username: finalData.username });
-
-                window.location.href = '/workspace-setup';
-            } else {
-                toast.error(data.message || 'Failed to complete onboarding');
-            }
-        } catch (err) {
-            toast.error('Network error');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -382,16 +183,14 @@ export default function SignupFlow() {
                     </div>
                 </div>
 
-                {step === 1 && (
-                    <div className="mt-8 text-center border-t border-gray-200 pt-8 relative z-10 w-full max-w-md">
-                        <p className="text-gray-600 text-sm font-medium">
-                            Already have an account?{' '}
-                            <Link href="/login" className="text-blue-600 font-bold hover:text-blue-800 transition-colors ml-1">
-                                Sign in
-                            </Link>
-                        </p>
-                    </div>
-                )}
+                <div className="mt-8 text-center border-t border-gray-200 pt-8 relative z-10 w-full max-w-md">
+                    <p className="text-gray-600 text-sm font-medium">
+                        Already have an account?{' '}
+                        <Link href="/login" className="text-blue-600 font-bold hover:text-blue-800 transition-colors ml-1">
+                            Sign in
+                        </Link>
+                    </p>
+                </div>
             </div>
         </div>
     );

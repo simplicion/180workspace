@@ -85,6 +85,26 @@ const nextConfig = {
                 destination: '/wallet',
                 permanent: false,
             },
+            {
+                source: '/meeting/:roomId/details',
+                destination: '/meeting/:roomId',
+                permanent: false,
+            },
+            {
+                source: '/settings/apps/:appId',
+                destination: '/settings/apps/:appId/config',
+                permanent: false,
+            },
+            {
+                source: '/help-support/release-notes',
+                destination: '/help-support#release-notes',
+                permanent: false,
+            },
+            {
+                source: '/advertising/company',
+                destination: '/company',
+                permanent: false,
+            },
         ];
     },
     async rewrites() {

@@ -85,7 +85,7 @@ export const OFFLINE_MODULES: OfflineModule[] = [
     note: 'Browse your websites; publishing needs a connection.',
   },
   {
-    id: 'forms', label: 'Form Builder', routes: ['/forms'], tier: 'read',
+    id: 'forms', label: '180 Forms', routes: ['/forms'], tier: 'read',
     readApi: ['/api/forms'],
     note: 'Browse your forms; publishing needs a connection.',
   },

@@ -391,7 +391,7 @@ export default function FinancialDashboard(props?: any) {
     };
 
     const handleInitiateSalaryPayout = async (id: string) => {
-        const loadingToast = toast.loading('Initiating automated RazorpayX payout...');
+        const loadingToast = toast.loading('Initiating automated 180 Pay payout...');
         try {
             const { data } = await api.post(`/api/finance/payouts/salary/${id}`);
             toast.dismiss(loadingToast);

@@ -91,7 +91,7 @@ const MODE_CONFIG: Record<AIMode, { title: string; shortTitle: string; icon: any
         placeholder: "Describe the document to draft (e.g. Contract for 4 months of 80k INR to client)...",
         suggestions: [
             'I want to create a contract for a client',
-            'Create a tax invoice with 18% GST and Razorpay button',
+            'Create a tax invoice with 18% GST and 180 Pay checkout button',
             'Draft a 3-phase milestone payment proposal',
             'Generate a mutual non-disclosure agreement (NDA)'
         ]

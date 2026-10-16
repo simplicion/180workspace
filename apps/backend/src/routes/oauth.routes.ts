@@ -5,10 +5,8 @@ import { rateLimit } from 'express-rate-limit';
 import {
     OAuthController,
     DeveloperController,
-    Msg91OtpService,
     UsernameService,
-    LocationService,
-    IdentityAuthController
+    LocationService
 } from '@workspace/identity-provider';
 
 const router = express.Router();
@@ -107,35 +105,7 @@ router.post('/billing/dunning-cycle', protect, DeveloperController.runDunningCyc
 
 // ─── 180 Identity Helper Endpoints ───────────────────────────────────────────
 
-// 1. WhatsApp OTP Dispatch via MSG91
-router.post('/otp/send-whatsapp', async (req: any, res: any) => {
-    try {
-        const { phone } = req.body;
-        if (!phone) {
-            return res.status(400).json({ success: false, message: 'Phone number is required' });
-        }
-        const result = await Msg91OtpService.sendWhatsAppOtp(phone);
-        return res.json(result);
-    } catch (e: any) {
-        return res.status(500).json({ success: false, message: e.message });
-    }
-});
-
-// 2. WhatsApp OTP Verification via MSG91
-router.post('/otp/verify-whatsapp', async (req: any, res: any) => {
-    try {
-        const { phone, otp } = req.body;
-        if (!phone || !otp) {
-            return res.status(400).json({ success: false, message: 'Phone and OTP are required' });
-        }
-        const result = await Msg91OtpService.verifyWhatsAppOtp(phone, otp);
-        return res.json(result);
-    } catch (e: any) {
-        return res.status(500).json({ success: false, message: e.message });
-    }
-});
-
-// 3. Check Username Availability or Auto-generate
+// 1. Check Username Availability or Auto-generate
 router.get('/check-username', async (req: any, res: any) => {
     try {
         const { username, name } = req.query;
@@ -156,7 +126,7 @@ router.get('/check-username', async (req: any, res: any) => {
     }
 });
 
-// 4. Resolve Location (HTML5 Geolocation Lat/Long -> City/Country, with IP fallback)
+// 2. Resolve Location (HTML5 Geolocation Lat/Long -> City/Country, with IP fallback)
 router.post('/resolve-location', async (req: any, res: any) => {
     try {
         const { latitude, longitude, useIp } = req.body || {};
@@ -182,13 +152,6 @@ router.post('/resolve-location', async (req: any, res: any) => {
         return res.status(500).json({ success: false, message: e.message });
     }
 });
-
-// 5. Direct 180 Identity Modal Auth Routes
-router.post('/auth/login', IdentityAuthController.login);
-router.post('/auth/register', IdentityAuthController.register);
-router.post('/auth/forgot-password', IdentityAuthController.forgotPassword);
-router.post('/auth/reset-password', IdentityAuthController.resetPassword);
-router.post('/auth/google-continue', IdentityAuthController.googleContinue);
 
 export default router;
 

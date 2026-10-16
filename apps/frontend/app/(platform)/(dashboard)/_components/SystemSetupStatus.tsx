@@ -81,7 +81,7 @@ export default function SystemSetupStatus() {
                                         {unconfiguredServices.map(s => (
                                             <Link 
                                                 key={s.key} 
-                                                href={s.key === 'email' ? '/emails?tab=settings' : '/settings'} 
+                                                href={s.key === 'email' ? '/emails?tab=settings' : '/settings/apps'} 
                                                 onClick={() => setOpen(false)}
                                                 className="text-[12px] font-bold text-gray-700 dark:text-zinc-300 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 px-3 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700 transition-all text-center"
                                             >

@@ -35,8 +35,7 @@ interface AuthContextType {
     company: Company | null;
     token: string | null;
     isLoading: boolean;
-    login: (email: string, password: string, mfaToken?: string) => Promise<any>;
-    loginWithGoogle: (tokenId: string) => Promise<any>;
+    login?: (email: string, password: string, mfaToken?: string) => Promise<any>;
     logout: () => Promise<void>;
     setUser: (user: User | null) => void;
     setCompany: (company: Company | null) => void;
@@ -161,32 +160,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCompany(null);
         delete api.defaults.headers.common['Authorization'];
         disconnectSocket();
-    };
-
-    const loginWithGoogle = async (tokenId: string) => {
-        try {
-            const { data } = await api.post('/api/auth/google', { tokenId });
-            
-            localStorage.setItem('platform_auth_token', data.token);
-            localStorage.setItem('platform_refresh_token', data.refreshToken);
-            
-            const isProd = typeof window !== 'undefined' && window.location.protocol === 'https:';
-            const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict${isProd ? '; Secure' : ''}`;
-            document.cookie = `platform_auth_token=${data.token}${cookieFlags}`;
-            
-            setToken(data.token);
-            setUser(data.user);
-            setCompany(data.company);
-            api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-            return { user: data.user, company: data.company, token: data.token, refreshToken: data.refreshToken };
-        } catch (err: any) {
-            const structured: any = new Error(err?.response?.data?.error || 'Google login failed');
-            throw structured;
-        }
-    };
-
     return (
-        <AuthContext.Provider value={{ user, company, token, isLoading, login, loginWithGoogle, logout, setUser, setCompany, setToken, refreshUser: fetchMe }}>
+        <AuthContext.Provider value={{ user, company, token, isLoading, logout, setUser, setCompany, setToken, refreshUser: fetchMe }}>
             {children}
         </AuthContext.Provider>
     );

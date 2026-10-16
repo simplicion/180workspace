@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { MeetingService } from '@workspace/communications';
 import { GoogleSheetsService } from '@workspace/integrations';
+import { aiProviderService } from '@workspace/ai';
 const googleSheetsService = new GoogleSheetsService();
 
 export const createMeeting = async (req: Request, res: Response, next: NextFunction) => {
@@ -50,7 +51,7 @@ export const logLeave = async (req: Request, res: Response, next: NextFunction) 
 
 export const processTranscript = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await MeetingService.processTranscript((req as any).user, AIService, googleSheetsService, req.body);
+        const result = await MeetingService.processTranscript((req as any).user, aiProviderService, googleSheetsService, req.body);
         res.json(result);
     } catch (err: any) {
         if (err.message.includes('too short') || err.message.includes('parse AI output')) {
@@ -104,7 +105,7 @@ export const getTranscripts = async (req: Request, res: Response, next: NextFunc
 
 export const chatWithMeetingAI = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await MeetingService.chatWithMeetingAI((req as any).user, AIService, req.body);
+        const result = await MeetingService.chatWithMeetingAI((req as any).user, aiProviderService, req.body);
         res.json(result);
     } catch (err: any) {
         if (err.message.includes('not found')) {
@@ -139,4 +140,13 @@ export const deleteMeeting = async (req: Request, res: Response, next: NextFunct
     } catch (err: any) {
   next(err);
 }
+};
+
+export const updateMeetingNotes = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await MeetingService.updateMeetingNotes((req as any).user, req.params.roomId, req.body);
+        res.json(result);
+    } catch (err: any) {
+        next(err);
+    }
 };

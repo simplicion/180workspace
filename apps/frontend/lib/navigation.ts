@@ -42,9 +42,8 @@ export const navigation = [
             { id: 'orbit-copilot', name: 'Orbit AI Copilot', href: '/ai', icon: Bot, roles: ['admin', 'employee'] },
             { id: 'calendar', name: 'Calendar', href: '/calendar', icon: Calendar, roles: ['admin', 'employee'] },
             { id: 'documents', name: '180 Documents', href: '/documents', icon: FileText, roles: ['admin', 'employee'] },
-            { id: 'document-editor', name: 'Document Editor', href: '/document-editor', icon: FileText, roles: ['admin', 'employee'] },
             { id: 'assets', name: 'Assets & Creds', href: '/assets', icon: Star, roles: ['admin', 'employee'] },
-            { id: 'forms', name: 'Form Builder', href: '/forms', icon: FileText, roles: ['admin', 'employee'] },
+            { id: 'forms', name: '180 Forms', href: '/forms', icon: FileText, roles: ['admin', 'employee'] },
             { id: 'company-hub', name: 'Company Hub', href: '/company', icon: Building2, roles: ['admin'] },
         ]
     },

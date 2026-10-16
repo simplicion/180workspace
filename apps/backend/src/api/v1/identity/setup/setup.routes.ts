@@ -14,10 +14,7 @@ router.get('/status', SetupController.getSetupStatus);
 // @access  Public
 router.post('/register-company', upload.single('logo'), SetupController.registerCompany);
 
-// @route   POST /api/v1/identity/setup/register-company-google
-// @desc    Register a new company admin via Google OAuth into the System DB
-// @access  Public
-router.post('/register-company-google', upload.single('logo'), SetupController.registerCompanyGoogle);
+
 
 // @route   POST /api/v1/identity/setup/configure-company
 // @desc    Configure database credentials for a specific company token and seed it

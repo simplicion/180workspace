@@ -101,7 +101,7 @@ export default function SalaryDetailDrawer({
 
                             <div className="mt-3 pt-3 border-t border-purple-100 dark:border-gray-700/60 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                 <span>Month: <strong className="text-gray-900 dark:text-white">{salary.month || 'Current'}</strong></span>
-                                <span>Disbursement Rail: <strong className="text-purple-600 dark:text-purple-400">RazorpayX IMPS</strong></span>
+                                <span>Disbursement Rail: <strong className="text-purple-600 dark:text-purple-400">180 Pay IMPS</strong></span>
                             </div>
                         </div>
 

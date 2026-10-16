@@ -6,27 +6,18 @@ import { AuthValidation } from './auth.validation';
 
 const router = express.Router();
 
-router.get('/check-username', AuthController.checkUsername);
-router.post('/send-otp-email', validateRequest(AuthValidation.sendOtpEmail), AuthController.sendOtpEmail);
-router.post('/send-otp', validateRequest(AuthValidation.sendOtp), AuthController.sendOtp);
-router.post('/verify-otp', validateRequest(AuthValidation.verifyOtp), AuthController.verifyOtp);
-router.post('/register', validateRequest(AuthValidation.registerTenant), AuthController.registerTenant);
-router.post('/register-user', protect, validateRequest(AuthValidation.registerUser), AuthController.registerUser);
-router.post('/onboarding', protect, AuthController.onboarding);
-router.post('/login', validateRequest(AuthValidation.login), AuthController.login);
-router.post('/google', AuthController.googleLogin);
+// 180 Identity Sovereign Authentication Callback
 router.post('/180-identity/callback', AuthController.handle180IdentityCallback);
-router.post('/forgot-password', validateRequest(AuthValidation.forgotPassword), AuthController.forgotPassword);
-router.get('/check-forgot-eligibility', AuthController.checkForgotEligibility);
-router.get('/find-workspaces', AuthController.findWorkspaces);
-router.post('/logout', AuthController.logout); // no protect: a native client must be able to revoke its refresh token after the access token expired
-router.post('/refresh', AuthController.refreshToken);
-router.get('/me', protect, AuthController.getMe);
-router.put('/change-password', protect, validateRequest(AuthValidation.changePassword), AuthController.changePassword);
-router.put('/complete-workspace-setup', protect, AuthController.completeWorkspaceSetup);
 
-// MFA
-router.post('/mfa/setup', protect, AuthController.setupMFA);
-router.post('/mfa/enable', protect, AuthController.enableMFA);
+// Session, Me & Profile synchronization
+router.get('/me', protect, AuthController.getMe);
+router.post('/refresh', AuthController.refreshToken);
+router.post('/logout', AuthController.logout);
+
+// Workspace Onboarding & Setup
+router.get('/check-username', AuthController.checkUsername);
+router.post('/onboarding', protect, AuthController.onboarding);
+router.put('/complete-workspace-setup', protect, AuthController.completeWorkspaceSetup);
+router.post('/register-user', protect, validateRequest(AuthValidation.registerUser), AuthController.registerUser);
 
 export const authRoutes = router;

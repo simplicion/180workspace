@@ -44,8 +44,6 @@ interface AuthContextType {
     company: Company | null;
     token: string | null;
     isLoading: boolean;
-    login: (email: string, password: string, mfaToken?: string) => Promise<any>;
-    loginWithGoogle: (tokenId: string) => Promise<any>;
     logout: () => Promise<void>;
     setUser: (user: User | null) => void;
     setCompany: (company: Company | null) => void;
@@ -151,31 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }
 
-    const login = async (email: string, password: string, mfaToken?: string) => {
-        try {
-            const { data } = await api.post('/api/auth/login', { email, password, mfaToken });
-            if (data.mfaRequired) return { mfaRequired: true, userId: data.userId };
-
-            localStorage.setItem('platform_auth_token', data.token);
-            localStorage.setItem('platform_refresh_token', data.refreshToken);
-            setPlatformCookie(data.token);
-
-            setToken(data.token);
-            setUser(data.user);
-            setCompany(data.company);
-            api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-            return { user: data.user, company: data.company, token: data.token, refreshToken: data.refreshToken };
-        } catch (err: any) {
-            const errData = err?.response?.data || {};
-            const structured: any = new Error(errData.error || 'Login failed');
-            structured.response = err?.response;
-            structured.setupToken = errData.setupToken;
-            structured.onboardingToken = errData.onboardingToken;
-            structured.onboardingRequired = errData.onboardingRequired;
-            throw structured;
-        }
-    };
-
     const logout = async () => {
         try {
             const refreshToken = localStorage.getItem('platform_refresh_token');
@@ -242,28 +215,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             window.removeEventListener('storage', onStorage);
         };
     }, []);
-
-    const loginWithGoogle = async (tokenId: string) => {
-        try {
-            const { data } = await api.post('/api/auth/google', { tokenId });
-            
-            localStorage.setItem('platform_auth_token', data.token);
-            localStorage.setItem('platform_refresh_token', data.refreshToken);
-            setPlatformCookie(data.token);
-            
-            setToken(data.token);
-            setUser(data.user);
-            setCompany(data.company);
-            api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-            return { user: data.user, company: data.company, token: data.token, refreshToken: data.refreshToken };
-        } catch (err: any) {
-            const structured: any = new Error(err?.response?.data?.error || 'Google login failed');
-            throw structured;
-        }
-    };
-
     return (
-        <AuthContext.Provider value={{ user, company, token, isLoading, login, loginWithGoogle, logout, setUser, setCompany, setToken, refreshUser: fetchMe }}>
+        <AuthContext.Provider value={{ user, company, token, isLoading, logout, setUser, setCompany, setToken, refreshUser: fetchMe }}>
             {children}
         </AuthContext.Provider>
     );

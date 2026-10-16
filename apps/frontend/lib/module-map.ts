@@ -209,7 +209,7 @@ export const APPS_CONFIG: AppConfig[] = [
             { id: 'documents', name: '180 Documents' },
             { id: 'assets', name: 'IT Assets' },
             { id: 'ai-assistant', name: 'AI Assistant' },
-            { id: 'forms', name: 'Form Builder' },
+            { id: 'forms', name: '180 Forms' },
             { id: 'company-hub', name: 'Company Hub' },
         ]
     }

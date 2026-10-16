@@ -423,9 +423,8 @@ export class BillingController {
     static async verifyPlan(req: Request, res: Response, next: NextFunction) {
         try {
             const companyId = (req as any).company?.id || (req as any).user?.companyId;
-            const { sessionId, transactionId, planId, couponCode, razorpay_subscription_id, razorpay_payment_id } = req.body;
-
-            const providerSubId = transactionId || sessionId || razorpay_subscription_id || razorpay_payment_id;
+            const { sessionId, transactionId, planId, couponCode } = req.body;
+            const providerSubId = transactionId || sessionId;
 
             const targetPlan = await prisma.plan.findFirst({
                 where: {

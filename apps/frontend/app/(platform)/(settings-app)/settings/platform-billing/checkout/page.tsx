@@ -214,11 +214,6 @@ function CheckoutContent() {
                 return;
             }
 
-            if (order.providerName === 'stripe' && order.url) {
-                window.location.href = order.url;
-                return;
-            }
-
             // 180 Pay Sovereign 1-Click Checkout
             await OneEightyPay.checkout({
                 sessionId: order.sessionId,

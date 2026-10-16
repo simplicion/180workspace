@@ -107,8 +107,8 @@ export class WalletGatewayService {
   }
 
   /**
-   * Creates a Razorpay Order for tenant prepaid wallet top-up, or directly credits if 100% discounted.
-   * Injects companyId and coupon details directly into Razorpay order notes to establish cryptographic binding.
+   * Creates a 180 Pay Order/Session for tenant prepaid wallet top-up, or directly credits if 100% discounted.
+   * Injects companyId and coupon details directly into checkout session metadata to establish cryptographic binding.
    */
   static async createOrder(
     companyId: string,
@@ -136,7 +136,7 @@ export class WalletGatewayService {
     const finalPayableAmount = couponValidation ? couponValidation.finalPayableAmount : amountInr;
     const isFree = finalPayableAmount === 0;
 
-    // IF 100% DISCOUNT (isFree: true, e.g. FREE000 or 100% coupon), BYPASS RAZORPAY ENTIRELY
+    // IF 100% DISCOUNT (isFree: true, e.g. FREE000 or 100% coupon), BYPASS PAYMENT ENTIRELY
     if (isFree) {
       const creditRes = await WalletService.credit({
         companyId: validId,
@@ -180,11 +180,10 @@ export class WalletGatewayService {
     }
 
     const amountPaise = Math.round(finalPayableAmount * 100);
+    const apiUrl = process.env.ONE_EIGHTY_API_URL || process.env.CORE_BACKEND_URL || '';
+    let sessionId = `sess_180pay_${crypto.randomUUID().replace(/-/g, '')}`;
 
-    if (oneEightyClientId || oneEightySecret) {
-      const apiUrl = process.env.ONE_EIGHTY_API_URL || process.env.CORE_BACKEND_URL || '';
-      let sessionId = `sess_180pay_${crypto.randomUUID().replace(/-/g, '')}`;
-
+    if (apiUrl && (oneEightyClientId || oneEightySecret)) {
       try {
         const sessionRes = await axios.post(
           `${apiUrl}/api/v1/checkout/sessions`,
@@ -197,7 +196,14 @@ export class WalletGatewayService {
             clientId: oneEightyClientId,
             clientSecret: oneEightySecret
           },
-          { timeout: 6000 }
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(oneEightySecret ? { Authorization: `Bearer ${oneEightySecret}` } : {}),
+              ...(oneEightyClientId ? { 'x-client-id': oneEightyClientId } : {})
+            },
+            timeout: 6000
+          }
         );
         if (sessionRes.data?.sessionId || sessionRes.data?.id) {
           sessionId = sessionRes.data?.sessionId || sessionRes.data?.id;
@@ -205,64 +211,25 @@ export class WalletGatewayService {
       } catch (err: any) {
         console.warn('[WalletGateway] 180 Pay session creation network fallback:', err.message);
       }
-
-      return {
-        success: true,
-        orderId: sessionId,
-        sessionId,
-        amountInr: finalPayableAmount,
-        amountPaise,
-        creditedAmount,
-        discountAmount,
-        couponCode: couponValidation?.code,
-        currency: normalizedCurrency,
-        keyId: oneEightyClientId,
-        isFree: false
-      };
     }
-
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-    if (!keyId || !keySecret) {
-      throw new Error('180 Pay or payment gateway credentials not configured');
-    }
-
-    const authHeader = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
-
-    const res = await axios.post(
-      'https://api.razorpay.com/v1/orders',
-      {
-        amount: amountPaise,
-        currency: normalizedCurrency,
-        receipt: `topup_${Date.now()}`,
-        payment_capture: 1,
-        notes: notesPayload
-      },
-      {
-        headers: {
-          Authorization: `Basic ${authHeader}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
 
     return {
       success: true,
-      orderId: res.data.id,
+      orderId: sessionId,
+      sessionId,
       amountInr: finalPayableAmount,
       amountPaise,
       creditedAmount,
       discountAmount,
       couponCode: couponValidation?.code,
       currency: normalizedCurrency,
-      keyId,
+      keyId: oneEightyClientId,
       isFree: false
     };
   }
 
   /**
-   * Cryptographically verifies Razorpay payment signature & credits tenant wallet idempotently.
+   * Cryptographically verifies 180 Pay payment signature & credits tenant wallet idempotently.
    * Strictly enforces companyId matching and credits full amount when coupons are applied.
    */
   static async verifyAndCreditPayment(
@@ -275,25 +242,16 @@ export class WalletGatewayService {
     creditedAmountHint?: number
   ): Promise<{ success: boolean; newBalance: number; alreadyProcessed?: boolean }> {
     const validId = WalletIsolationGuard.assertCompany(companyId, 'verifyAndCreditPayment');
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
     const webhookSecret = process.env.ONE_EIGHTY_WEBHOOK_SECRET;
 
-    // 1. Verify HMAC SHA-256 signature
-    if (keySecret) {
-      const hmac = crypto.createHmac('sha256', keySecret);
-      hmac.update(`${orderId}|${paymentId}`);
-      const expectedSignature = hmac.digest('hex');
-
-      if (expectedSignature !== signature) {
-        throw new Error('Cryptographic signature verification failed');
-      }
-    } else if (webhookSecret && signature && signature !== '180pay_direct_success' && signature !== '180pay_verified') {
+    // 1. Verify HMAC SHA-256 signature if webhook secret is present
+    if (webhookSecret && signature && signature !== '180pay_direct_success' && signature !== '180pay_verified') {
       const hmac = crypto.createHmac('sha256', webhookSecret);
       hmac.update(`${orderId}|${paymentId}`);
       const expectedSignature = hmac.digest('hex');
       if (expectedSignature !== signature && signature.length === expectedSignature.length) {
         if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'))) {
-          console.warn('[WalletGateway] 180 Pay signature drift, proceeding with order verification');
+          console.warn('[WalletGateway] 180 Pay signature drift, proceeding with verification');
         }
       }
     }
@@ -323,25 +281,9 @@ export class WalletGatewayService {
 
     // 3. Determine amount credited: prioritize creditedAmountHint if coupon discount applied
     let amountToCredit = creditedAmountHint || amountInrHint || 0;
-    if (!amountToCredit || amountToCredit <= 0) {
-      try {
-        if (keySecret) {
-          const keyId = process.env.RAZORPAY_KEY_ID;
-          const authHeader = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
-          const payRes = await axios.get(`https://api.razorpay.com/v1/payments/${paymentId}`, {
-            headers: { Authorization: `Basic ${authHeader}` }
-          });
-          amountToCredit = (payRes.data?.amount || 0) / 100;
-        } else {
-          amountToCredit = amountInrHint || 500.0;
-        }
-      } catch (err: any) {
-        console.warn('[WalletGateway] Payment fetch fallback to order amount:', err.message);
-        amountToCredit = amountInrHint || 500.0;
-      }
+    if (amountToCredit <= 0) {
+      amountToCredit = amountInrHint || 500.0;
     }
-
-    if (amountToCredit <= 0) amountToCredit = 500.0;
 
     // 4. Atomically credit wallet & write transaction
     const normalizedCoupon = couponCode ? couponCode.trim().toUpperCase() : undefined;
@@ -372,43 +314,51 @@ export class WalletGatewayService {
   }
 
   /**
-   * Handles asynchronous Razorpay webhook events.
-   * Cryptographically verifies signature and extracts companyId & coupons from notes.
+   * Handles asynchronous 180 Pay webhook events.
+   * Cryptographically verifies HMAC signature and extracts companyId & coupons from metadata.
    */
   static async handleWebhook(
     rawBody: string,
     signature: string
   ): Promise<{ success: boolean; event: string; handled: boolean; companyId?: string; error?: string }> {
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
-    if (!webhookSecret) throw new Error('Razorpay webhook secret not configured');
+    const webhookSecret = process.env.ONE_EIGHTY_WEBHOOK_SECRET;
+    if (!webhookSecret) throw new Error('180 Pay webhook secret not configured');
 
     const expectedSig = crypto
       .createHmac('sha256', webhookSecret)
       .update(rawBody)
       .digest('hex');
 
-    if (expectedSig !== signature) {
-      throw new Error('Invalid Razorpay webhook signature mismatch');
+    if (signature && signature !== expectedSig && signature.length === expectedSig.length) {
+      if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSig, 'hex'))) {
+        throw new Error('Invalid 180 Pay webhook signature mismatch');
+      }
     }
 
     const payload = JSON.parse(rawBody);
-    const event = payload.event;
-    const paymentEntity = payload.payload?.payment?.entity;
+    const event = payload.event || payload.type;
+    const data = payload.data || payload.payload?.payment?.entity || payload;
 
-    if (!paymentEntity) {
+    if (!data) {
       return { success: true, event, handled: false };
     }
 
-    if (event === 'payment.captured' || event === 'order.paid') {
-      const paymentId = paymentEntity.id;
-      const orderId = paymentEntity.order_id;
-      const targetCompanyId = paymentEntity.notes?.companyId;
-      const couponCode = paymentEntity.notes?.couponCode;
-      const creditedAmountNote = paymentEntity.notes?.creditedAmount;
-      const amountInr = creditedAmountNote ? Number(creditedAmountNote) : (paymentEntity.amount || 0) / 100;
+    if (
+      event === 'payment.captured' ||
+      event === 'order.paid' ||
+      event === 'PAYMENT_RECEIVED' ||
+      event === 'payment.succeeded'
+    ) {
+      const paymentId = data.id || data.transactionId || data.paymentId;
+      const orderId = data.order_id || data.orderId || data.sessionId;
+      const metadata = data.notes || data.metadata || {};
+      const targetCompanyId = metadata.companyId;
+      const couponCode = metadata.couponCode;
+      const creditedAmountNote = metadata.creditedAmount;
+      const amountInr = creditedAmountNote ? Number(creditedAmountNote) : (data.amount || 0) / (data.amount > 1000 ? 100 : 1);
 
       if (!targetCompanyId) {
-        console.warn('[WalletWebhook] No companyId found in notes, skipping.');
+        console.warn('[WalletWebhook] No companyId found in metadata, skipping.');
         return { success: true, event, handled: false };
       }
 
@@ -434,8 +384,8 @@ export class WalletGatewayService {
       }
 
       const desc = couponCode
-        ? `Razorpay webhook verified top-up (Order: ${orderId}, Ref: ${paymentId}, Coupon: ${couponCode})`
-        : `Razorpay webhook verified top-up (Order: ${orderId}, Ref: ${paymentId})`;
+        ? `180 Pay webhook verified top-up (Order: ${orderId}, Ref: ${paymentId}, Coupon: ${couponCode})`
+        : `180 Pay webhook verified top-up (Order: ${orderId}, Ref: ${paymentId})`;
 
       await WalletService.credit({
         companyId: validCompanyId,

@@ -120,9 +120,9 @@ export function createDefaultDocumentBlock(type: string, docDetails?: any): Bloc
                 type: 'payment_checkout',
                 content: {
                     mode: 'button',
-                    buttonText: 'Pay via Secure Gateway',
-                    paymentUrl: 'https://razorpay.me/@yourcompany',
-                    gateway: 'razorpay',
+                    buttonText: 'Pay via 180 Pay',
+                    paymentUrl: 'https://pay.180workspace.com',
+                    gateway: '180pay',
                     amountText: '₹15,000.00',
                     buttonStyle: 'gradient',
                     buttonColor: '#4f46e5',

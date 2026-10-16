@@ -236,7 +236,7 @@ export default function PayoutBreakdownDrawer({
                                     <div className="text-xs space-y-1">
                                         <p className="font-bold text-indigo-950 dark:text-indigo-200">Automated Direct Payout Rails</p>
                                         <p className="text-indigo-700/80 dark:text-indigo-300/80">
-                                            Disbursements route through direct RazorpayX & IMPS/NEFT banking rails with real-time UTR reconciliation.
+                                            Disbursements route through direct 180 Pay & IMPS/NEFT banking rails with real-time UTR reconciliation.
                                         </p>
                                     </div>
                                 </div>

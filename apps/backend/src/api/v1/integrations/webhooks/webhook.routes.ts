@@ -32,7 +32,7 @@ function verifyWebhookSecret(req: Request, res: Response, next: NextFunction) {
 }
 
 // ─── Payment Gateway Webhooks ────────────────────────────────────────────────
-const ALLOWED_PROVIDERS = ['stripe', 'razorpay', 'paypal', 'lemonsqueezy'];
+const ALLOWED_PROVIDERS = ['180pay', 'stripe', 'razorpay', 'paypal', 'lemonsqueezy'];
 
 router.post('/:provider', (req: Request, res: Response, next: NextFunction) => {
     if (!ALLOWED_PROVIDERS.includes(req.params.provider)) {

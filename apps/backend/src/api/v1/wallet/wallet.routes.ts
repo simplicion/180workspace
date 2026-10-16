@@ -7,7 +7,6 @@ const superAdminAuth = require('../../../system-configs/middleware/auth/superadm
 const router: Router = Router();
 
 // ─── Public Webhooks (Cryptographically verified by HMAC SHA-256) ─────────────
-router.post('/webhooks/razorpay', WalletController.handleRazorpayWebhook);
 router.post('/webhooks/180-pay', WalletController.handle180PayWebhook);
 
 // ─── Superadmin Platform Observability ─────────────────────────────────────────
@@ -22,7 +21,7 @@ router.get('/transactions', protect, WalletController.getTransactions);
 router.get('/transactions/export', protect, WalletController.exportTransactions);
 router.get('/transactions/:id/receipt', protect, WalletController.getReceipt);
 
-// Gateway Integration (Razorpay Orders & Client Signatures)
+// Gateway Integration (180 Pay Sessions & Signatures)
 router.post('/coupon/validate', protect, WalletController.validateCoupon);
 router.post('/order', protect, WalletController.createOrder);
 router.post('/verify', protect, WalletController.verifyPayment);

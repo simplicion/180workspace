@@ -103,14 +103,15 @@ export const handleCompanyWebhook = async (req: Request, res: Response, next: Ne
             // 2. Parse payload based on provider
             let eventType: string, payload: any;
 
-            if (providerName === 'razorpay') {
-                eventType = req.body.event;
-                payload = req.body.payload;
+            if (providerName === '180pay' || providerName === 'razorpay') {
+                eventType = req.body.event || req.body.type;
+                payload = req.body.data || req.body.payload;
 
-                if (eventType === 'payment.captured' || eventType === 'payment.authorized' || eventType === 'payment_link.paid') {
-                    const entity = payload.payment.entity;
-                    const paymentLink = payload.payment_link?.entity;
-                    const referenceId = entity.notes?.referenceId || paymentLink?.reference_id;
+                if (eventType === 'payment.captured' || eventType === 'payment.authorized' || eventType === 'payment_link.paid' || eventType === 'PAYMENT_RECEIVED' || eventType === 'payment.succeeded') {
+                    const entity = payload?.payment?.entity || payload || {};
+                    const paymentLink = payload?.payment_link?.entity;
+                    const notes = entity.notes || entity.metadata || {};
+                    const referenceId = notes.referenceId || paymentLink?.reference_id || notes.invoiceId;
 
                     if (referenceId) {
                         const invoice = await prisma.invoice.findUnique({ where: { id: referenceId } });
@@ -121,7 +122,7 @@ export const handleCompanyWebhook = async (req: Request, res: Response, next: Ne
                                 data: {
                                     status: 'paid',
                                     paidAt: new Date(),
-                                    gatewayPaymentId: entity.id
+                                    gatewayPaymentId: entity.id || entity.transactionId
                                 }
                             });
 
@@ -130,12 +131,12 @@ export const handleCompanyWebhook = async (req: Request, res: Response, next: Ne
                                 data: {
                                     companyId: companyId,
                                     type: 'inbound',
-                                    amount: entity.amount / 100,
-                                    currency: entity.currency,
+                                    amount: entity.amount ? (entity.amount > 1000 ? entity.amount / 100 : entity.amount) : 0,
+                                    currency: entity.currency || 'INR',
                                     status: 'completed',
-                                    provider: 'razorpay',
-                                    providerTransactionId: entity.id,
-                                    providerOrderId: entity.order_id || null,
+                                    provider: '180pay',
+                                    providerTransactionId: entity.id || entity.transactionId,
+                                    providerOrderId: entity.order_id || entity.orderId || entity.sessionId || null,
                                     referenceModel: 'Invoice',
                                     referenceId: invoice.id
                                 }

@@ -76,13 +76,13 @@ export function PaymentCheckoutBlock({ block, isSelected, isPublicViewer = false
     // MODE 1: PAYMENT BUTTON / DIRECT CHECKOUT LINK
     // ─────────────────────────────────────────────────────────────────────────────
     if (mode === 'button') {
-        const gateway = content.gateway || 'razorpay';
+        const gateway = content.gateway || '180pay';
         const buttonStyle = content.buttonStyle || 'gradient';
         const alignment = content.buttonAlignment || 'center';
         const buttonColor = content.buttonColor || '#4f46e5';
-        const buttonText = content.buttonText || 'Pay via Secure Gateway';
+        const buttonText = content.buttonText || 'Pay via 180 Pay';
         const amountText = content.amountText || '';
-        const paymentUrl = content.paymentUrl || 'https://razorpay.me/@yourcompany';
+        const paymentUrl = content.paymentUrl || 'https://pay.180workspace.com';
 
         const alignClass = {
             left: 'justify-start items-start text-left',
@@ -93,16 +93,12 @@ export function PaymentCheckoutBlock({ block, isSelected, isPublicViewer = false
 
         const getGatewayBadge = () => {
             switch (gateway) {
-                case 'razorpay':
-                    return { label: 'Razorpay Verified', color: 'bg-blue-50 text-blue-700 border-blue-200' };
-                case 'stripe':
-                    return { label: 'Stripe Checkout', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
-                case 'paypal':
-                    return { label: 'PayPal Secure', color: 'bg-sky-50 text-sky-700 border-sky-200' };
+                case '180pay':
+                    return { label: '180 Pay Verified', color: 'bg-blue-50 text-blue-700 border-blue-200' };
                 case 'upi':
                     return { label: 'Instant UPI / QR', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
                 default:
-                    return { label: 'Secure Checkout', color: 'bg-purple-50 text-purple-700 border-purple-200' };
+                    return { label: '180 Pay Checkout', color: 'bg-purple-50 text-purple-700 border-purple-200' };
             }
         };
 
@@ -121,9 +117,7 @@ export function PaymentCheckoutBlock({ block, isSelected, isPublicViewer = false
                                 badge.color
                             )}
                         >
-                            <option value="razorpay">🔒 Razorpay Verified</option>
-                            <option value="stripe">💳 Stripe Checkout</option>
-                            <option value="paypal">🅿️ PayPal Secure</option>
+                            <option value="180pay">🔒 180 Pay Verified</option>
                             <option value="upi">⚡ Instant UPI / QR</option>
                             <option value="custom">🌐 Custom Gateway</option>
                         </select>
@@ -208,7 +202,7 @@ export function PaymentCheckoutBlock({ block, isSelected, isPublicViewer = false
                             type="url"
                             value={paymentUrl}
                             onChange={(e) => updateContent({ paymentUrl: e.target.value })}
-                            placeholder="https://razorpay.me/@yourcompany"
+                            placeholder="https://pay.180workspace.com/@yourcompany"
                             className="bg-transparent border-0 text-indigo-600 underline font-medium focus:outline-none w-64 text-[11px] truncate"
                         />
                     </div>

@@ -58,7 +58,7 @@ const PROMPT_SUGGESTIONS = [
   { label: 'Line Item Table with 18% Tax', prompt: 'Create an invoice line item table for software development with 18% GST' },
   { label: 'Bilateral Signatures', prompt: 'Insert dual signature slots for client and provider with date and title' },
   { label: 'Standard Terms & NDA', prompt: 'Add standard payment terms (Net 15) and mutual confidentiality clauses' },
-  { label: 'Online Payment Button', prompt: 'Add a secure Razorpay / Stripe checkout button' },
+  { label: 'Online Payment Button', prompt: 'Add a secure 180 Pay checkout button' },
   { label: 'Direct Bank Wire Details', prompt: 'Add corporate bank and wire transfer details with IFSC and account number' }
 ];
 
@@ -484,7 +484,7 @@ export function AIDocumentDrawer({
                 <div>
                   <span className="text-[10px] uppercase font-bold text-zinc-400 block">Element Capabilities</span>
                   <span className="text-zinc-600 dark:text-zinc-400 text-[11px] block mt-0.5">
-                    Pricing tables, 3-Phase Milestones, Stripe/Razorpay checkouts, Signatures, Grids, and Rich Callouts.
+                    Pricing tables, 3-Phase Milestones, 180 Pay checkouts, Signatures, Grids, and Rich Callouts.
                   </span>
                 </div>
 

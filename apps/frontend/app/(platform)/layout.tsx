@@ -1,48 +1,25 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+import { signOut } from 'next-auth/react';
 import { useSettings } from '@/lib/settings-context';
-import { ChevronDown, ChevronLeft, ChevronRight, Menu, Star, Clock, LogOut, Wrench, Bot, FileSignature, BarChart3, MessageSquare, FolderOpen, CalendarDays, Video, Sparkles, X, ArrowRight, Activity, Eye, Laptop, Share2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Menu, LogOut, X, Clock, Star, Eye, Activity } from 'lucide-react';
 import { navigation } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import PinnedItem from '@/app/(platform)/(dashboard)/_components/PinnedItem';
 import RecentItem from '@/app/(platform)/(dashboard)/_components/RecentItem';
+import GlobalSearch from '@/components/shared/GlobalSearch';
+import SystemSetupStatus from '@/app/(platform)/(dashboard)/_components/SystemSetupStatus';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useSubscription } from '@/lib/useSubscription';
 import clsx from 'clsx';
 import { LogoLoader, AICreditProgressWidget } from "@workspace/ui";
-import dynamic from 'next/dynamic';
-import { signOut } from 'next-auth/react';
-import { MeetingProvider, useMeeting } from '@/lib/meeting-context';
-import FloatingMeetingPiP from '@/components/shared/FloatingMeetingPiP';
 import { AICopilotFloatingWidget } from './(workspace-tools-app)/ai/_components/AICopilotFloatingWidget';
 import { QuickSupportFloatingWidget } from './_components/QuickSupportFloatingWidget';
 import ThemeToggle from '@/components/shared/ThemeToggle';
-
-const safeImport = (importFn: () => Promise<any>) => {
-    return importFn().catch((err) => {
-        if (err.message.includes('ChunkLoadError') || err.message.includes('Loading chunk')) {
-            if (typeof window !== 'undefined') {
-                const hasReloaded = sessionStorage.getItem('chunkLoadReloaded');
-                if (!hasReloaded) {
-                    sessionStorage.setItem('chunkLoadReloaded', 'true');
-                    window.location.reload();
-                    return new Promise(() => { }); // never resolve while reloading to avoid error flashes
-                }
-                sessionStorage.removeItem('chunkLoadReloaded');
-            }
-        }
-        throw err;
-    });
-};
-
-import GlobalSearch from '@/components/shared/GlobalSearch';
-import SystemSetupStatus from '@/app/(platform)/(dashboard)/_components/SystemSetupStatus';
-import NotificationsPanel from '@/components/shared/NotificationsPanel';
 import TrialBanner from '@/components/shared/TrialBanner';
 import SubscriptionExpiredWall from '@/components/shared/SubscriptionExpiredWall';
 import UpcomingFeatureWall from '@/components/shared/UpcomingFeatureWall';
@@ -618,7 +595,6 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isCollapsed, setIsCollapsed] = useState(true);
     const [isHovered, setIsHovered] = useState(false);
-    const { meeting } = useMeeting();
 
 
 
@@ -798,47 +774,30 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
     // Force collapse on Apps & Settings screen as requested for "only show icon" look
     const isAppsScreen = pathname === '/settings/apps';
-    const isMeetingFullscreen = meeting?.isActive && !meeting?.isMinimized;
     const effectiveIsCollapsed = isAppsScreen ? true : isCollapsed;
 
-    console.log('DashboardInner Components:', {
-        Sidebar: !!Sidebar,
-        Menu: !!Menu,
-        GlobalSearch: !!GlobalSearch,
-        SystemSetupStatus: !!SystemSetupStatus,
-        Link: !!Link,
-        Activity: !!Activity,
-        ProfileDropdown: !!ProfileDropdown,
-        TrialBanner: !!TrialBanner,
-        SubscriptionExpiredWall: !!SubscriptionExpiredWall,
-        LogoLoader: !!LogoLoader
-    });
-
     return (
-        <div className={clsx("min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-zinc-100 transition-colors duration-300", isMeetingFullscreen && "overflow-hidden")}>
+        <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-zinc-100 transition-colors duration-300">
             {/* Mobile Overlay */}
-            {!isMeetingFullscreen && !effectiveIsCollapsed && (
+            {!effectiveIsCollapsed && (
                 <div
                     className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-20 lg:hidden"
                     onClick={() => setIsCollapsed(true)}
                 />
             )}
-            {!isMeetingFullscreen && (
-                <Sidebar
-                    isCollapsed={effectiveIsCollapsed}
-                    setIsCollapsed={setIsCollapsed}
-                    isHovered={isHovered}
-                    setIsHovered={setIsHovered}
-                />
-            )}
+            <Sidebar
+                isCollapsed={effectiveIsCollapsed}
+                setIsCollapsed={setIsCollapsed}
+                isHovered={isHovered}
+                setIsHovered={setIsHovered}
+            />
             <main
                 className={clsx(
                     "flex flex-col min-h-screen transition-all duration-300 ease-in-out w-full lg:w-auto",
-                    isMeetingFullscreen ? "lg:ml-0" : (effectiveIsCollapsed ? "lg:ml-[80px]" : "lg:ml-[280px]")
+                    effectiveIsCollapsed ? "lg:ml-[80px]" : "lg:ml-[280px]"
                 )}
             >
                 {/* Top bar */}
-                {!isMeetingFullscreen && (
                 <header className="h-16 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-100 dark:border-zinc-800/80 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20 select-none transition-colors duration-300">
                     <div className="flex items-center gap-3 flex-1 lg:flex-none">
                         <button
@@ -866,22 +825,20 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                         <ProfileDropdown />
                     </div>
                 </header>
-                )}
 
-                {!isMeetingFullscreen && <TrialBanner />}
-                {!isMeetingFullscreen && showWall ? (
+                <TrialBanner />
+                {showWall ? (
                     <SubscriptionExpiredWall />
                 ) : isCurrentAppDisabled ? (
-                    <div className={clsx("flex-1 overflow-x-hidden", isMeetingFullscreen ? "p-0" : "py-4 lg:p-6")}>
+                    <div className="flex-1 overflow-x-hidden py-4 lg:p-6">
                         <UpcomingFeatureWall appId={currentAppId} />
                     </div>
                 ) : (
-                    <div className={clsx("flex-1 overflow-x-hidden", isMeetingFullscreen ? "p-0" : "py-4 lg:p-6")}>
+                    <div className="flex-1 overflow-x-hidden py-4 lg:p-6">
                         <OfflineModuleGate>{children}</OfflineModuleGate>
                     </div>
                 )}
             </main>
-            <FloatingMeetingPiP />
             <AICopilotFloatingWidget />
             <QuickSupportFloatingWidget />
         </div>
@@ -890,12 +847,12 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
-        <MeetingProvider>
+        <>
             <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><LogoLoader className="w-8 h-8 animate-spin text-indigo-600" /></div>}>
                 <DashboardInner>{children}</DashboardInner>
             </Suspense>
             <UploadQueueManager />
-        </MeetingProvider>
+        </>
     );
 }
 

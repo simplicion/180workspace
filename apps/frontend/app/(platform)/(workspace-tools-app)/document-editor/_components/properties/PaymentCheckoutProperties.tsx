@@ -149,13 +149,11 @@ export function PaymentCheckoutProperties({ block }: PaymentCheckoutPropertiesPr
                             Payment Gateway
                         </label>
                         <select
-                            value={content.gateway || 'razorpay'}
+                            value={content.gateway || '180pay'}
                             onChange={(e) => updateContent({ gateway: e.target.value })}
                             className="w-full text-xs font-medium bg-white border border-gray-200 rounded-lg p-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         >
-                            <option value="razorpay">Razorpay Payment Page / Link</option>
-                            <option value="stripe">Stripe Checkout / Payment Link</option>
-                            <option value="paypal">PayPal Payment Link</option>
+                            <option value="180pay">180 Pay Sovereign Checkout</option>
                             <option value="upi">Instant UPI / QR Code Link</option>
                             <option value="custom">Custom Web Gateway URL</option>
                         </select>
@@ -171,7 +169,7 @@ export function PaymentCheckoutProperties({ block }: PaymentCheckoutPropertiesPr
                             value={content.buttonText || ''}
                             onChange={(e) => updateContent({ buttonText: e.target.value })}
                             className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                            placeholder="e.g. Pay via Razorpay"
+                            placeholder="e.g. Pay via 180 Pay"
                         />
                     </div>
 

@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { Providers } from './providers';
-import DesktopSplitView from '@/components/shared/DesktopSplitView';
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -166,9 +165,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </head>
             <body className="font-sans antialiased hidden-scrollbar dark:bg-black dark:text-zinc-100" suppressHydrationWarning>
                 <Providers session={session}>
-                    <DesktopSplitView>
-                        {children}
-                    </DesktopSplitView>
+                    {children}
                     <Toaster
                         position="top-right"
                         toastOptions={{

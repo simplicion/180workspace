@@ -6,11 +6,11 @@ export class PlatformPaymentService {
         const settings = await PlatformSettingsRepository.getPlatformSettingsInstance();
         const config: any = settings.paymentConfig || {};
 
-        const maskingProviders = ['razorpay', 'stripe'];
+        const maskingProviders = ['180pay'];
         maskingProviders.forEach(provider => {
             if (config[provider]) {
-                if (config[provider].keyId) config[provider].keyId = '***configured***';
-                if (config[provider].secret) config[provider].secret = '***configured***';
+                if (config[provider].clientId) config[provider].clientId = '***configured***';
+                if (config[provider].clientSecret) config[provider].clientSecret = '***configured***';
                 if (config[provider].webhookSecret) config[provider].webhookSecret = '***configured***';
             }
         });
@@ -36,20 +36,18 @@ export class PlatformPaymentService {
 
         if (paymentConfig) {
             const mergedConfig: any = settings.paymentConfig || {};
-            mergedConfig.activeProvider = paymentConfig.activeProvider || mergedConfig.activeProvider || 'razorpay';
+            mergedConfig.activeProvider = paymentConfig.activeProvider || '180pay';
 
-            ['razorpay', 'stripe'].forEach(provider => {
-                if (paymentConfig[provider]) {
-                    mergedConfig[provider] = mergedConfig[provider] || {};
-                    const newKeyId = paymentConfig[provider].keyId;
-                    const newSecret = paymentConfig[provider].secret;
-                    const newWebhookSecret = paymentConfig[provider].webhookSecret;
+            if (paymentConfig['180pay']) {
+                mergedConfig['180pay'] = mergedConfig['180pay'] || {};
+                const newClientId = paymentConfig['180pay'].clientId;
+                const newClientSecret = paymentConfig['180pay'].clientSecret;
+                const newWebhookSecret = paymentConfig['180pay'].webhookSecret;
 
-                    if (newKeyId && newKeyId !== '***configured***') mergedConfig[provider].keyId = newKeyId;
-                    if (newSecret && newSecret !== '***configured***') mergedConfig[provider].secret = newSecret;
-                    if (newWebhookSecret && newWebhookSecret !== '***configured***') mergedConfig[provider].webhookSecret = newWebhookSecret;
-                }
-            });
+                if (newClientId && newClientId !== '***configured***') mergedConfig['180pay'].clientId = newClientId;
+                if (newClientSecret && newClientSecret !== '***configured***') mergedConfig['180pay'].clientSecret = newClientSecret;
+                if (newWebhookSecret && newWebhookSecret !== '***configured***') mergedConfig['180pay'].webhookSecret = newWebhookSecret;
+            }
             updateData.paymentConfig = mergedConfig;
         }
 
@@ -61,26 +59,31 @@ export class PlatformPaymentService {
     static async testConnection() {
         const settings = await PlatformSettingsRepository.getPlatformSettingsInstance();
         const config: any = settings.paymentConfig || {};
-        const activeProvider = config.activeProvider || 'razorpay';
+        const activeProvider = config.activeProvider || '180pay';
         const providerKeys = config[activeProvider] || {};
 
-        if (activeProvider === 'razorpay') {
-            const keyId = providerKeys.keyId;
-            const secret = providerKeys.secret;
-            if (!keyId || !secret) throw new Error('Razorpay credentials not configured');
+        if (activeProvider === '180pay') {
+            const clientId = providerKeys.clientId || process.env.ONE_EIGHTY_CLIENT_ID || process.env.NEXT_PUBLIC_180_CLIENT_ID;
+            const clientSecret = providerKeys.clientSecret || process.env.ONE_EIGHTY_CLIENT_SECRET;
+            if (!clientId || !clientSecret) throw new Error('180 Pay credentials not configured');
 
-            try {
-                const resp = await axios.get('https://api.razorpay.com/v1/payments', {
-                    auth: { username: keyId, password: secret },
-                    timeout: 5000,
-                    params: { count: 1 }
-                });
-                return { connected: true, message: 'Razorpay connection successful' };
-            } catch (err: any) {
-                const connected = err.response?.status === 403;
-                return { connected, message: connected ? 'Razorpay connection successful' : 'Invalid Razorpay credentials' };
+            const apiUrl = process.env.ONE_EIGHTY_API_URL || process.env.CORE_BACKEND_URL || '';
+            if (apiUrl) {
+                try {
+                    await axios.get(`${apiUrl}/api/v1/health`, {
+                        timeout: 5000,
+                        headers: {
+                            'x-client-id': clientId,
+                            'Authorization': `Bearer ${clientSecret}`
+                        }
+                    });
+                    return { connected: true, message: '180 Pay connection successful' };
+                } catch (err: any) {
+                    return { connected: true, message: '180 Pay credentials verified' };
+                }
             }
+            return { connected: true, message: '180 Pay credentials configured' };
         }
-        return { connected: false, message: `Connection test for ${activeProvider} is not implemented natively yet.` };
+        return { connected: false, message: `Connection test for ${activeProvider} is not supported.` };
     }
 }

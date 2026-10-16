@@ -55,8 +55,8 @@ const APP_DETAILS: Record<string, { overview: string; useCases: string[] }> = {
         useCases: ['Direct message and team channel communications', 'Conduct secure video conferences with clients and team members', 'Sync and send emails with CRM and project context']
     },
     'workspace-tools': {
-        overview: 'Workspace Tools powers everyday operational productivity — shared team calendars, company documents, IT asset management, Form Builder, Company Hub, and the Orbit AI Copilot.',
-        useCases: ['Schedule and coordinate company-wide events on a unified calendar', 'Create interactive intake forms, surveys, and lead capture endpoints with Form Builder', 'Manage company branding, public profile, and custom domains with Company Hub', 'Create, store, and collaborate on company documents', 'Track internal IT and digital assets with credential management', 'Chat with Orbit AI Copilot across your workspace data']
+        overview: 'Workspace Tools powers everyday operational productivity — shared team calendars, company documents, IT asset management, 180 Forms, Company Hub, and the Orbit AI Copilot.',
+        useCases: ['Schedule and coordinate company-wide events on a unified calendar', 'Create interactive intake forms, surveys, and lead capture endpoints with 180 Forms', 'Manage company branding, public profile, and custom domains with Company Hub', 'Create, store, and collaborate on company documents', 'Track internal IT and digital assets with credential management', 'Chat with Orbit AI Copilot across your workspace data']
     },
     jobhunter: {
         overview: 'Job Hunter AI automates your job search with AI-powered matching, application tracking, and candidate profile management.',

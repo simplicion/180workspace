@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { SetupService } from '@workspace/identity';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import { OAuth2Client } from 'google-auth-library';
+
 
 export class SetupController {
     static async getSetupStatus(req: Request, res: Response) {
@@ -53,60 +53,7 @@ export class SetupController {
         }
     }
 
-    static async registerCompanyGoogle(req: Request, res: Response) {
-        try {
-            const { companyName, adminName, tokenId, country, currency } = req.body;
 
-            if (!companyName || !adminName || !tokenId || !country) {
-                return res.status(400).json({ success: false, error: 'Company Name, Admin Name, Google Token, and Country are required.' });
-            }
-
-            // Verify Google token
-            const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-            let payload;
-            try {
-                const ticket = await client.verifyIdToken({
-                    idToken: tokenId,
-                    audience: process.env.GOOGLE_CLIENT_ID,
-                });
-                payload = ticket.getPayload();
-            } catch (err) {
-                return res.status(401).json({ success: false, error: 'Invalid Google token' });
-            }
-
-            if (!payload || !payload.email) {
-                return res.status(401).json({ success: false, error: 'Invalid Google token payload' });
-            }
-
-            const adminEmail = payload.email;
-
-            // Generate a random password since Google Auth is used
-            const randomPassword = crypto.randomBytes(16).toString('hex');
-            const adminPasswordHash = await bcrypt.hash(randomPassword, 12);
-
-            // Handle Optional logo upload
-            let logoUrl = null;
-            if (req.file) {
-                // Cloudinary removed. Logo upload skipped for setup, or handled by R2 if configured later.
-            }
-
-            const result = await SetupService.registerCompany({
-                companyName,
-                adminName,
-                adminEmail,
-                adminPasswordHash,
-                logoUrl,
-                country,
-                currency
-            });
-
-            res.status(201).json(result);
-
-        } catch (err) {
-            console.error('Register Company Google Error:', err);
-            res.status(500).json({ success: false, error: 'Failed to register company.' });
-        }
-    }
 
     static async configureCompany(req: Request, res: Response) {
         try {

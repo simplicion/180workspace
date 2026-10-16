@@ -2,8 +2,9 @@
 
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import api from '@/lib/api';
-import { ChevronLeft, ChevronRight, Plus, X, Calendar, Trash2, Circle, Video, MapPin, Link2, Users, Clock, Mail, RefreshCw, ExternalLink, CheckCircle, Phone, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Calendar, Trash2, Circle, Video, MapPin, Link2, Users, Clock, Mail, RefreshCw, ExternalLink, Sparkles, FileText, Phone } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth-context';
@@ -118,13 +119,22 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS, eventToEdit 
             if (isMeeting) {
                 const startTime = form.startDateTime.split('T')[1] || "10:00";
                 const endTime = form.endDateTime.split('T')[1] || "11:00";
-                const roomId = isNative ? `ims-${user?.companyId}-meeting-${Date.now()}` : '';
+                
+                const randPart = (len: number) => Array.from({ length: len }, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('');
+                const autoGoogleMeet = `https://meet.google.com/${randPart(3)}-${randPart(4)}-${randPart(3)}`;
+
+                const roomId = eventToEdit?.meeting?.roomId || eventToEdit?.roomId || `room-${user?.companyId || 'co'}-${Date.now().toString(36)}`;
+                let finalMeetingLink = meeting.meetingLink;
+                if ((meeting.platform === 'google_meet' || isNative) && !finalMeetingLink) {
+                    finalMeetingLink = autoGoogleMeet;
+                }
+
                 payload.meeting = {
                     startTime,
                     endTime,
-                    platform: meeting.platform,
-                    roomId: roomId || null,
-                    meetingLink: isNative ? `${window.location.origin}/dashboard/meeting/${roomId}` : (meeting.meetingLink || null),
+                    platform: isNative ? 'google_meet' : meeting.platform,
+                    roomId,
+                    meetingLink: finalMeetingLink || null,
                     location: meeting.location || null,
                     agenda: meeting.agenda || null,
                     attendees: meeting.attendeeIds,
@@ -261,7 +271,22 @@ function AddEventModal({ date, onClose, onSuccess, user, PLATFORMS, eventToEdit 
                                 {/* Meeting link (for online platforms) */}
                                 {needsLink && (
                                     <div>
-                                        <label className="label flex items-center gap-1"><Link2 className="w-3.5 h-3.5" /> Meeting Link</label>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="label flex items-center gap-1 mb-0"><Link2 className="w-3.5 h-3.5" /> Meeting Link</label>
+                                            {meeting.platform === 'google_meet' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const chars = 'abcdefghijklmnopqrstuvwxyz';
+                                                        const randPart = (len: number) => Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+                                                        setMeeting(m => ({ ...m, meetingLink: `https://meet.google.com/${randPart(3)}-${randPart(4)}-${randPart(3)}` }));
+                                                    }}
+                                                    className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline cursor-pointer"
+                                                >
+                                                    + Generate Google Meet
+                                                </button>
+                                            )}
+                                        </div>
                                         <div className="relative">
                                             <input
                                                 type="url"
@@ -676,12 +701,20 @@ export default function CalendarPage() {
                                                         <p className="text-xs text-gray-600 flex items-center gap-1">
                                                             <PlatformBadge platform={ev.meeting.platform} PLATFORMS={PLATFORMS} />
                                                         </p>
-                                                        {ev.meeting.meetingLink && (
-                                                            <a href={ev.meeting.meetingLink} target="_blank" rel="noopener noreferrer"
-                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg text-[11px] font-semibold transition-colors mt-1">
-                                                                <Link2 className="w-3.5 h-3.5" /> Join Meeting Link
-                                                            </a>
-                                                        )}
+                                                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                            {ev.meeting.meetingLink && (
+                                                                <a href={ev.meeting.meetingLink} target="_blank" rel="noopener noreferrer"
+                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[11px] font-semibold transition-colors">
+                                                                    <Video className="w-3.5 h-3.5" /> Join Google Meet
+                                                                </a>
+                                                            )}
+                                                            {(ev.roomId || ev.meeting.roomId) && (
+                                                                <Link href={`/meeting/${ev.roomId || ev.meeting.roomId}`}
+                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[11px] font-semibold transition-colors">
+                                                                    <FileText className="w-3.5 h-3.5" /> Meeting Hub & Notes
+                                                                </Link>
+                                                            )}
+                                                        </div>
                                                         {ev.meeting.location && (
                                                             <p className="text-xs text-gray-600 flex items-center gap-1">
                                                                 <MapPin className="w-3 h-3 text-gray-400" /> {ev.meeting.location}
