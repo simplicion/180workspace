@@ -67,8 +67,6 @@ services:
     environment:
       - PORT=4000
       - NODE_ENV=production
-      - REDIS_URL=redis://host.docker.internal:6379
-      - REDIS_INTERNAL_URL=redis://host.docker.internal:6379
     env_file:
       - .env
     networks:
@@ -85,8 +83,6 @@ services:
       - RUN_MODE=worker
       - PORT=4004
       - NODE_ENV=production
-      - REDIS_URL=redis://host.docker.internal:6379
-      - REDIS_INTERNAL_URL=redis://host.docker.internal:6379
     env_file:
       - .env
     networks:
